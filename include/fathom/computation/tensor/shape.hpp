@@ -83,7 +83,7 @@ namespace mv
 
             string output("(");
 
-            for (byte_type i; i < ndims_ - 1; ++i)
+            for (byte_type i = 0; i < ndims_ - 1; ++i)
             {
                 output += std::to_string(dims_[i]);
                 output += ", ";

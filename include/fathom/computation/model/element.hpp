@@ -1,7 +1,6 @@
 #ifndef COMPUTATION_ELEMENT_HPP_
 #define COMPUTATION_ELEMENT_HPP_
 
-#include <string>
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/logger/logger.hpp"
 #include "include/fathom/computation/logger/printable.hpp"
@@ -12,8 +11,26 @@ namespace mv
     class ComputationElement : public Printable
     {
 
+    public:
+
+        enum AttrType
+        {
+            
+            UnknownType,
+            ByteType,
+            UnsingedType,
+            IntegerType,
+            FloatType,
+            TensorType
+
+        };
+
+    private:
+
         class Attribute
         {
+
+        private:
 
             static byte_type nextTypeId();
 
@@ -48,12 +65,24 @@ namespace mv
             };
 
             allocator::owner_ptr<GenericAttributeContent> content_;
+            AttrType attrType_;
 
         public:
 
             template <class T>
-            Attribute(const T &content) : content_(allocator_.make_owner<AttributeContent<T>>(content)) {}
-            Attribute() {}
+            Attribute(AttrType attrType, const T &content) : 
+            content_(allocator_.make_owner<AttributeContent<T>>(content)),
+            attrType_(attrType)
+            {
+
+            }
+
+            Attribute() :
+            attrType_(UnknownType)
+            {
+
+            }
+
             ~Attribute() {}
 
             template <class T>
@@ -63,6 +92,11 @@ namespace mv
                 return cast_pointer<AttributeContent<T>>(content_)->getContent();
             }
 
+            AttrType getType() const
+            {
+                return attrType_;
+            }
+
         };
 
         static allocator allocator_;
@@ -70,27 +104,29 @@ namespace mv
 
     protected:
 
-        std::string name_;
-        allocator::map<std::string, Attribute> attributes_;   
+        string name_;
+        allocator::map<string, Attribute> attributes_;
 
     public:
 
-        ComputationElement(const Logger &logger, const std::string &name);
+        ComputationElement(const Logger &logger, const string &name);
         virtual ~ComputationElement() = 0;
-        const std::string &getName() const;
+        const string &getName() const;
 
         template <class T>
-        void addAttr(const std::string &name, const T &content)
+        void addAttr(const string &name, AttrType attrType, const T &content)
         {
-            logger_.log(Logger::MessageInfo, "Element '" + name_ + "' - adding attribute '" + name + "': " + toString(content));
-            attributes_[name] = content;
+            //logger_.log(Logger::MessageInfo, "Element '" + name_ + "' - adding attribute '" + name + "': " + Printable::toString(content));
+            attributes_[name] = Attribute(attrType, content);
         }
 
         template <class T>
-        const T& getAttr(const std::string &name)
+        const T& getAttr(const string &name)
         {
             return attributes_[name].getContent<T>();
         }
+
+        string toString() const;
 
     };
 

@@ -24,7 +24,7 @@ const mv::OpListIterator mv::ComputationModel::input(const Shape &shape, Tensor:
 
     input_ = ops_graph.node_insert(ComputationOp(logger_, shape, shape, dType, order, inputName));
 
-    logger_.log(Logger::MessageInfo, "Input '" + inputName + "' of size " + shape.toString() + " defined");
+    logger_.log(Logger::MessageInfo, "Defined input " + input_->toString());
 
     return input_;
 
@@ -44,7 +44,7 @@ const mv::OpListIterator mv::ComputationModel::output(OpListIterator &predecesso
     VariableTensor inputTensor(logger_, name + "_output", outputShape, outputDType, outputOrder);
     output_ = ops_graph.node_insert(predecessor, ComputationOp(logger_, outputShape, outputShape, outputDType, outputOrder, outputName), inputTensor);
 
-    logger_.log(Logger::MessageInfo, "Output '" + outputName + "' of size " + outputShape.toString() + " defined");
+    logger_.log(Logger::MessageInfo, "Defined output " + output_->toString());
 
     return output_;
 
@@ -68,14 +68,11 @@ mv::OpListIterator mv::ComputationModel::convolutional(OpListIterator &predecess
 
     OpListIterator conv = ops_graph.node_insert(predecessor, ComputationOp(logger_, inputShape, convShape, convDType, convOrder, convName), inputTensor);
 
-    conv->addAttr<ConstantModelTensor>("weigths", ConstantModelTensor(logger_, convName + "_weights", weights));
-    conv->addAttr<byte_type>("strideX", strideX);
-    conv->addAttr<byte_type>("strideY", strideY);
+    conv->addAttr("weigths", ComputationElement::TensorType, ConstantModelTensor(logger_, convName + "_weights", weights));
+    conv->addAttr("strideX", ComputationElement::ByteType, strideX);
+    conv->addAttr("strideY", ComputationElement::ByteType, strideY);
 
-    string weights_shape = weights.getShape().toString();
-
-    logger_.log(Logger::MessageInfo, "Conv layer '" + convName + "' defined: input '" + predecessor->getName() + "'; kernel " + weights_shape + 
-    "; sX " + Printable::toString(strideX)  + "; sY " +  Printable::toString(strideY)) ;
+    logger_.log(Logger::MessageInfo, "Defined " + conv->toString()) ;
 
     return conv;
 }

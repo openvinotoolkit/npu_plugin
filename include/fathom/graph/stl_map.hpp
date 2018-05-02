@@ -19,6 +19,7 @@ namespace mv
     public:
 
         using iterator = typename std::map<T_key, T_value>::iterator;
+        using const_iterator = typename std::map<T_key, T_value>::const_iterator;
         using reverse_iterator = typename std::map<T_key, T_value>::reverse_iterator;
 
         stl_map(const base_allocator &allocator) : allocator_(allocator)
@@ -33,12 +34,12 @@ namespace mv
 
         }
 
-        iterator begin() const noexcept
+        const_iterator begin() const noexcept
         {
             return stl_map_.begin();
         }
 
-        iterator end() const noexcept
+        const_iterator end() const noexcept
         {
             return stl_map_.end();
         }

@@ -1,8 +1,8 @@
 #ifndef PRINTABLE_HPP_
 #define PRINTABLE_HPP_
 
-#include "include/fathom/computation/model/types.hpp"
 #include <string>
+#include "include/fathom/computation/model/types.hpp"
 
 namespace mv
 {

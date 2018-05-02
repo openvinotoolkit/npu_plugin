@@ -17,24 +17,24 @@ void mv::Logger::logMessage(MessageType messageType, const string &content) cons
     string logMessage;
 
     if (logTime_)
-        logMessage += getTime() + " ";
+        logMessage += getTime() + "\t";
 
     switch (messageType)
     {
         case MessageError:
-            logMessage += "ERROR: ";
+            logMessage += "ERROR:\t";
             logMessage += content;
             logError(logMessage);
             break;
 
         case MessageWarning:
-            logMessage += "WARNING: ";
+            logMessage += "WARNING:\t";
             logMessage += content;
             logWarning(logMessage);
             break;
 
         default:
-            logMessage += "INFO: ";
+            logMessage += "INFO:\t";
             logMessage += content;
             logInfo(logMessage);
             break;

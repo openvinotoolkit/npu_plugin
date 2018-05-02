@@ -2,7 +2,7 @@
 
 mv::ComputationOp::ComputationOp(const Logger &logger, const Shape &inputShape, const Shape &outputShape,
 Tensor::DType dType, Tensor::Order order, const string &name) :
-ComputationElement(logger, name),
+ComputationElement(logger, "Op_" + name),
 inputShape_(inputShape),
 outputShape_(outputShape),
 dType_(dType),
@@ -33,5 +33,7 @@ mv::Tensor::Order mv::ComputationOp::getOrder() const
 
 mv::string mv::ComputationOp::toString() const
 {
-    return string();
+    auto inStr = inputShape_.toString();
+    auto outStr = outputShape_.toString();
+    return "'" + name_ + "' " + inStr + " -> " + outStr + " " + ComputationElement::toString() + " ";
 }
