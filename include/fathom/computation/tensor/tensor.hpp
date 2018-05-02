@@ -29,29 +29,13 @@ namespace mv
 
     public:
 
-        Tensor(const Shape &shape, DType dType, Order order) : 
-        shape_(shape),
-        dType_(dType),
-        order_(order)
-        {
+        Tensor(const Shape &shape, DType dType, Order order);
+        virtual ~Tensor() = 0;
+        
+        Shape getShape() const;
+        DType getDType() const;
+        Order getOrder() const;
 
-        }
-
-        Shape getShape() const
-        {
-            return shape_;
-        }
-
-        DType getDType() const
-        {
-            return dType_;
-        }
-
-        Order getOrder() const
-        {
-            return order_;
-        }
- 
     };
 
 }

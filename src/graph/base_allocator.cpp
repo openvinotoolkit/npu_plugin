@@ -9,3 +9,7 @@ void mv::base_allocator::default_alloc_fail(int err, char *msg, unsigned len)
     exit(EXIT_FAILURE);
 }
 
+mv::base_allocator::~base_allocator()
+{
+    
+}

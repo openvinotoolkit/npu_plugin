@@ -5,4 +5,4 @@ add_executable(graph_container graph_container.cpp)
 target_sources(graph_container PUBLIC ${allocator})
 
 add_executable(computation_model computation_model.cpp)
-target_sources(computation_model PUBLIC ${allocator} ${computation_model})
+target_sources(computation_model PUBLIC ${allocator} ${computation_model} ${logger} ${tensor})

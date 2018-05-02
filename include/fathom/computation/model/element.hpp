@@ -77,7 +77,6 @@ namespace mv
 
         ComputationElement(const Logger &logger, const std::string &name);
         virtual ~ComputationElement() = 0;
-
         const std::string &getName() const;
 
         template <class T>
@@ -92,7 +91,6 @@ namespace mv
         {
             return attributes_[name].getContent<T>();
         }
-
 
     };
 

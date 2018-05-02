@@ -17,6 +17,8 @@ namespace mv
     
         typedef void (*callback)(int err, char *msg, unsigned len);
         
+        virtual ~base_allocator() = 0;
+
         static callback alloc_fail_callback;
 
     };

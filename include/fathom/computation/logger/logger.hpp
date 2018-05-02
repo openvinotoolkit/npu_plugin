@@ -32,48 +32,8 @@ namespace mv
         VerboseLevel verboseLevel_;
         bool logTime_;
         
-        string getTime() const
-        {
-            struct tm *timeInfo;
-            time_t rawTime;
-            char buffer[80];
-            time(&rawTime);
-            timeInfo = localtime(&rawTime);
-            strftime(buffer, 80, "%T %D", timeInfo);
-            return string(buffer);
-        }
-
-        void logMessage(MessageType messageType, const string &content) const
-        {
-
-            string logMessage;
-
-            if (logTime_)
-                logMessage += getTime() + " ";
-
-            switch (messageType)
-            {
-                case MessageError:
-                    logMessage += "ERROR: ";
-                    logMessage += content;
-                    logError(logMessage);
-                    break;
-
-                case MessageWarning:
-                    logMessage += "WARNING: ";
-                    logMessage += content;
-                    logWarning(logMessage);
-                    break;
-
-                default:
-                    logMessage += "INFO: ";
-                    logMessage += content;
-                    logInfo(logMessage);
-                    break;
-
-            }
-
-        }
+        string getTime() const;
+        void logMessage(MessageType messageType, const string &content) const;
 
     protected:
 
@@ -83,42 +43,10 @@ namespace mv
 
     public:
 
-        Logger(VerboseLevel verboseLevel, bool logTime) : verboseLevel_(verboseLevel), logTime_(logTime)
-        {
-
-        }
-
-        void setVerboseLevel(VerboseLevel verboseLevel)
-        {
-            verboseLevel_ = verboseLevel;
-        }
-
-        void log(MessageType messageType, const string &content) const
-        {
-
-            switch (verboseLevel_)
-            {
-
-                case VerboseDebug:
-                    logMessage(messageType, content);
-                    break;
-
-                case VerboseWarning:
-                    if (messageType == MessageError || messageType == MessageWarning)
-                        logMessage(messageType, content);
-                    break;
-
-                case VerboseError:
-                    if (messageType == MessageError)
-                        logMessage(messageType, content);
-                    break;
-
-                default:
-                    break;
-
-            }
-
-        }
+        Logger(VerboseLevel verboseLevel, bool logTime);
+        virtual ~Logger() = 0;
+        void setVerboseLevel(VerboseLevel verboseLevel);
+        void log(MessageType messageType, const string &content) const;
 
     };
 

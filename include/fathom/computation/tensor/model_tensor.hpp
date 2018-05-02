@@ -14,19 +14,8 @@ namespace mv
     
     public:
 
-        ModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order) : 
-        Tensor(shape, dType, order),
-        ComputationElement(logger, name)
-        {
-
-        }
-
-        ModelTensor(const Logger &logger, const string &name, const Tensor &tensor) :
-        Tensor(tensor),
-        ComputationElement(logger, name)
-        {
-
-        }
+        ModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order);
+        virtual ~ModelTensor() = 0;
 
     };
 
