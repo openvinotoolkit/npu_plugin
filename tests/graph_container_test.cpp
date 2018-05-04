@@ -44,7 +44,7 @@ TEST (graph_container, int_int_graph_contruction) {
     EXPECT_EQ (9, utest_graph_00.node_size()) << "ERROR: wrong number of nodes" << std::endl;
     EXPECT_EQ (15, utest_graph_00.edge_size()) << "ERROR: wrong number of edges" << std::endl;
 
-    const char *gold_string = "digraph G {\n800 -> 801 [ label = \"90001\" ];\n801 -> 802 [ label = \"90102\" ];\n801 -> 806 [ label = \"90106\" ];\n807 -> 801 [ label = \"90701\" ];\n802 -> 803 [ label = \"90203\" ];\n803 -> 805 [ label = \"90305\" ];\n805 -> 804 [ label = \"90504\" ];\n805 -> 806 [ label = \"90506\" ];\n805 -> 802 [ label = \"90502\" ];\n804 -> 802 [ label = \"90402\" ];\n804 -> 803 [ label = \"90403\" ];\n804 -> 805 [ label = \"90405\" ];\n806 -> 808 [ label = \"90608\" ];\n806 -> 804 [ label = \"90604\" ];\n806 -> 807 [ label = \"90607\" ];\n}\n" ;
+    const char *gold_string = "digraph G {\n800;\n800 -> 801 [ label = \"90001\" ];\n801;\n801 -> 802 [ label = \"90102\" ];\n801 -> 806 [ label = \"90106\" ];\n807;\n807 -> 801 [ label = \"90701\" ];\n802;\n802 -> 803 [ label = \"90203\" ];\n803;\n803 -> 805 [ label = \"90305\" ];\n805;\n805 -> 804 [ label = \"90504\" ];\n805 -> 806 [ label = \"90506\" ];\n805 -> 802 [ label = \"90502\" ];\n804;\n804 -> 802 [ label = \"90402\" ];\n804 -> 803 [ label = \"90403\" ];\n804 -> 805 [ label = \"90405\" ];\n806;\n806 -> 808 [ label = \"90608\" ];\n806 -> 804 [ label = \"90604\" ];\n806 -> 807 [ label = \"90607\" ];\n808;\n}\n" ;
     testing::internal::CaptureStdout();
     mv::Visualizer gv(mv::node_content, mv::edge_content);
     gv.print_dot(utest_graph_00);
