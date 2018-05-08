@@ -7,7 +7,7 @@
 namespace mv
 {
 
-    class ConstantModelTensor : public ModelTensor
+    class ConstantModelTensor : public virtual ModelTensor
     {
 
         vector<float_type> data_;
@@ -15,18 +15,25 @@ namespace mv
     public:
 
         ConstantModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order, vector<float_type> data) : 
-        ModelTensor(logger, "CT_" + name, shape, dType, order)
+        ModelTensor(logger, "ct_" + name, shape, dType, order)
         {
             assert(data.size() == shape.totalSize() && "Mismatch between declared size of tensor and size of its initialization data");
             data_ = data;
         }
 
         ConstantModelTensor(const Logger &logger, const string &name, const ConstantTensor &tensor) :
-        ModelTensor(logger, "CT_" + name, tensor.getShape(), tensor.getDType(), tensor.getOrder()) 
+        ModelTensor(logger, "ct_" + name, tensor.getShape(), tensor.getDType(), tensor.getOrder()) 
         {
             auto data = tensor.getData();
             assert(data.size() == shape_.totalSize() && "Mismatch between declared size of tensor and size of its initialization data");
             data_ = data;
+        }
+
+        ConstantModelTensor(const ConstantModelTensor &other) :
+        ModelTensor(other),
+        data_(other.data_)
+        {
+
         }
 
         Shape getShape() const
@@ -36,7 +43,7 @@ namespace mv
 
         string toString() const
         {
-            return string("Const tensor " + name_ + " " + shape_.toString());
+            return string("const tensor " + name_ + " " + shape_.toString());
         }
 
 

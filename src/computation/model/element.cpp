@@ -35,31 +35,43 @@ mv::string mv::ComputationElement::toString() const
     for (auto it = attributes_.begin(); it != attributes_.end(); ++it)
     {
 
-        result += "\n\t";
+        result += "\n\t\t";
 
         switch (it->second.getType())
         {
             
-            case ByteType:
-                result += it->first + ": " + Printable::toString(it->second.getContent<byte_type>());
+            case AttrType::ByteType:
+                result += it->first + " (byte): " + Printable::toString(it->second.getContent<byte_type>());
                 break;
 
-            case UnsingedType:
-                result += it->first + ": " + Printable::toString(it->second.getContent<unsigned_type>());
+            case AttrType::UnsingedType:
+                result += it->first + " (unsigned): " + Printable::toString(it->second.getContent<unsigned_type>());
                 break;
 
-            case IntegerType:
-                result += it->first + ": " + Printable::toString(it->second.getContent<int_type>());
+            case AttrType::IntegerType:
+                result += it->first + " (int): " + Printable::toString(it->second.getContent<int_type>());
                 break;
 
-            case FloatType:
-                result += it->first + ": " + Printable::toString(it->second.getContent<float_type>());
+            case AttrType::FloatType:
+                result += it->first + " (float): " + Printable::toString(it->second.getContent<float_type>());
                 break;
 
-            case TensorType:
-                result += it->first + ": " + it->second.getContent<ConstantModelTensor>().toString();
+            case AttrType::TensorType:
+                result += it->first + " (const tensor): " + Printable::toString(it->second.getContent<ConstantModelTensor>());
                 break;
             
+            case AttrType::DTypeType:
+                result += it->first + " (dType): " + Printable::toString(it->second.getContent<DType>());
+                break;
+
+            case AttrType::OrderType:
+                result += it->first + " (order): " + Printable::toString(it->second.getContent<Order>());
+                break;
+
+            case AttrType::ShapeType:
+                result += it->first + " (shape): " + Printable::toString(it->second.getContent<Shape>());
+                break;
+
             default:
                 result += it->first + ": unknown type";
                 break;

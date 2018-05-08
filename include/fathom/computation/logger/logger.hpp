@@ -12,16 +12,18 @@ namespace mv
 
     public:
 
-        enum VerboseLevel
+        enum class VerboseLevel
         {
             VerboseSilent,
-            VerboseWarning,
             VerboseError,
+            VerboseWarning,
+            VerboseInfo,
             VerboseDebug
         };
 
-        enum MessageType
+        enum class MessageType
         {
+            MessageDebug,
             MessageInfo,
             MessageWarning,
             MessageError
@@ -40,6 +42,7 @@ namespace mv
         virtual void logError(const string &content) const = 0;
         virtual void logWarning(const string &content) const = 0;
         virtual void logInfo(const string &content) const = 0;
+        virtual void logDebug(const string &content) const = 0;
 
     public:
 

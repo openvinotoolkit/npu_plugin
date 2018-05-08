@@ -13,7 +13,7 @@ namespace mv
 
     public:
 
-        enum AttrType
+        enum class AttrType
         {
             
             UnknownType,
@@ -21,11 +21,14 @@ namespace mv
             UnsingedType,
             IntegerType,
             FloatType,
-            TensorType
+            TensorType,
+            DTypeType,
+            OrderType,
+            ShapeType
 
         };
 
-    private:
+    protected:
 
         class Attribute
         {
@@ -78,7 +81,7 @@ namespace mv
             }
 
             Attribute() :
-            attrType_(UnknownType)
+            attrType_(AttrType::UnknownType)
             {
 
             }
@@ -100,9 +103,8 @@ namespace mv
         };
 
         static allocator allocator_;
-        const Logger &logger_;
 
-    protected:
+        const Logger &logger_;
 
         string name_;
         allocator::map<string, Attribute> attributes_;
@@ -114,16 +116,29 @@ namespace mv
         const string &getName() const;
 
         template <class T>
-        void addAttr(const string &name, AttrType attrType, const T &content)
+        bool addAttr(const string &name, AttrType attrType, const T &content)
         {
-            //logger_.log(Logger::MessageInfo, "Element '" + name_ + "' - adding attribute '" + name + "': " + Printable::toString(content));
-            attributes_[name] = Attribute(attrType, content);
+            if (attributes_.find(name) == attributes_.end())
+            {
+                logger_.log(Logger::MessageType::MessageDebug, "Element '" + name_ + "' - adding attribute '" + name + "': " + Printable::toString(content));
+                attributes_[name] = Attribute(attrType, content);
+                return true;
+            }
+            else
+            {
+                logger_.log(Logger::MessageType::MessageError, "Element '" + name_ + "' - failed adding attribute of duplicated name '" + name + "'");
+                return false;
+            }
         }
 
         template <class T>
-        const T& getAttr(const string &name)
+        Attribute getAttr(const string &name)
         {
-            return attributes_[name].getContent<T>();
+            if (attributes_.find(name) != attributes_.end())
+                return attributes_[name];
+            else
+                return Attribute();
+
         }
 
         string toString() const;

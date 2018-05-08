@@ -44,6 +44,30 @@ namespace mv
             return toString((unsigned_type)value);
         }
 
+        static string toString(DType value)
+        {
+            switch (value)
+            {
+                case DType::Float:
+                    return "float";
+
+                default:
+                    return "unknown";
+            }
+        }
+
+        static string toString(Order value)
+        {
+            switch (value)
+            {
+                case Order::NWHC:
+                    return "NWHC";
+
+                default:
+                    return "unknown";
+            }
+        }
+
     };
 
 }

@@ -14,17 +14,21 @@ logger_(getLogger(verboseLevel, logTime))
 
 }
 
-const mv::OpListIterator mv::ComputationModel::input(const Shape &shape, Tensor::DType dType, Tensor::Order order, const string &name)
+const mv::OpListIterator mv::ComputationModel::input(const Shape &shape, DType dType, Order order, const string &name)
 {
 
     string inputName = name;
 
     if (inputName.empty())
-        inputName = "input";
+        inputName = "0";
 
-    input_ = ops_graph.node_insert(ComputationOp(logger_, shape, shape, dType, order, inputName));
+    //allocator::owner_ptr<Input> inputPtr = ;
+    //auto inputOpPtr = cast_pointer<ComputationOp>(inputPtr);
 
-    logger_.log(Logger::MessageInfo, "Defined input " + input_->toString());
+    input_ = ops_graph.node_insert(allocator_.make_owner<Input>(logger_, inputName, shape, dType, order));
+    //input_ = ops_graph.node_insert(Input(logger_, inputName, shape, dType, order));
+
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
 
     return input_;
 
@@ -36,15 +40,17 @@ const mv::OpListIterator mv::ComputationModel::output(OpListIterator &predecesso
     string outputName = name;
 
     if (outputName.empty())
-        outputName = "output";
+        outputName = "0";
 
-    auto outputShape = predecessor->getOutputShape();
-    auto outputDType = predecessor->getDType();
-    auto outputOrder = predecessor->getOrder();
-    VariableTensor inputTensor(logger_, name + "_output", outputShape, outputDType, outputOrder);
-    output_ = ops_graph.node_insert(predecessor, ComputationOp(logger_, outputShape, outputShape, outputDType, outputOrder, outputName), inputTensor);
+    //auto outputShape = predecessor->getOutputShape();
+    //auto outputDType = predecessor->getDType();
+    //auto outputOrder = predecessor->getOrder();
+    //VariableTensor inputTensor(logger_, name + "_output", outputShape, outputDType, outputOrder);
+    auto inTensor = predecessor->getOutput();
+    output_ = ops_graph.node_insert(predecessor, allocator_.make_owner<Output>(logger_, outputName, inTensor), inTensor);
+    //output_ = ops_graph.node_insert(predecessor, Output(logger_, outputName, inTensor), inTensor);
 
-    logger_.log(Logger::MessageInfo, "Defined output " + output_->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
 
     return output_;
 
@@ -56,23 +62,26 @@ mv::OpListIterator mv::ComputationModel::convolutional(OpListIterator &predecess
     string convName = name;
 
     if (convName.empty())
-        convName = "conv";
+        convName = "0";
 
     auto inputShape = predecessor->getOutputShape();
-    auto convDType = predecessor->getDType();
-    auto convOrder = predecessor->getOrder();
+    //auto convDType = predecessor->getDType();
+    //auto convOrder = predecessor->getOrder();
 
     Shape convShape(inputShape[0], inputShape[1] / strideX, inputShape[2] / strideY, weights.getShape()[2]);
 
-    VariableTensor inputTensor(logger_, name + "_input", inputShape, convDType, convOrder);
+    //VariableTensor inputTensor(logger_, name + "_input", inputShape, convDType, convOrder);
 
-    OpListIterator conv = ops_graph.node_insert(predecessor, ComputationOp(logger_, inputShape, convShape, convDType, convOrder, convName), inputTensor);
+    auto inTensor = predecessor->getOutput();
 
-    conv->addAttr("weigths", ComputationElement::TensorType, ConstantModelTensor(logger_, convName + "_weights", weights));
+    //OpListIterator conv = ops_graph.node_insert(predecessor, Conv(logger_, convName, inTensor, weights, strideX, strideY), inTensor);
+    OpListIterator conv = ops_graph.node_insert(predecessor, allocator_.make_owner<Conv>(logger_, convName, inTensor, weights, strideX, strideY), inTensor);
+
+    /*conv->addAttr("weigths", ComputationElement::TensorType, ConstantModelTensor(logger_, convName + "_weights", weights));
     conv->addAttr("strideX", ComputationElement::ByteType, strideX);
-    conv->addAttr("strideY", ComputationElement::ByteType, strideY);
+    conv->addAttr("strideY", ComputationElement::ByteType, strideY);*/
 
-    logger_.log(Logger::MessageInfo, "Defined " + conv->toString()) ;
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + conv->toString());
 
     return conv;
 }

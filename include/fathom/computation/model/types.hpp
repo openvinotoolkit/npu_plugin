@@ -37,7 +37,18 @@ namespace mv
     class VariableTensor;
     class ComputationOp;
 
-    using computation_graph = graph<ComputationOp, VariableTensor, allocator, size_type>;
+    using computation_graph = graph<allocator::owner_ptr<ComputationOp>, VariableTensor, allocator, size_type>;
+
+    enum class Order
+    {
+        NWHC
+    };
+
+    enum class DType
+    {
+        Float
+    };
+
 
 
 }

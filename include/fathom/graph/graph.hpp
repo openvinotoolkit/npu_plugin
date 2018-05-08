@@ -279,7 +279,7 @@ namespace mv
 
         public:
             
-            iterable(graph& master_graph, T_content content, unsigned long id) : 
+            iterable(graph& master_graph, const T_content &content, unsigned long id) : 
             graph_(master_graph),
             content_(content),
             id_(id),
@@ -702,8 +702,8 @@ private:
 
             search_iterator(const base_iterator<T_iterable, T_content> &other) :
             base_iterator<T_iterable, T_content>(other),
-            labeled_(allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>()),
-            search_list_(allocator_.template make_deque<access_ptr<T_iterable>>()),
+            labeled_(graph::allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>()),
+            search_list_(graph::allocator_.template make_deque<access_ptr<T_iterable>>()),
             allocator_(graph::allocator_)
             {
                 if (this->get())
@@ -1360,7 +1360,7 @@ private:
             return nodes_.size() == 0;
         }
 
-        edge_list_iterator edge_insert(base_iterator<node, T_node> const &n1_it, base_iterator<node, T_node> const &n2_it, T_edge content)
+        edge_list_iterator edge_insert(const base_iterator<node, T_node> &n1_it, const base_iterator<node, T_node> &n2_it, const T_edge &content)
         {
             if (n1_it != node_end() && n2_it != node_end())
             {
@@ -1510,7 +1510,7 @@ private:
 
         }
 
-        node_list_iterator node_insert(const base_iterator<node, T_node> &n1_it, T_node n_content, T_edge e_content)
+        node_list_iterator node_insert(const base_iterator<node, T_node> &n1_it, const T_node &n_content, const T_edge &e_content)
         {
 
             if (n1_it != node_end())
