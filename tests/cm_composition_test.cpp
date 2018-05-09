@@ -33,7 +33,7 @@ TEST(computation_model, minimal_functional_composition)
     auto outIt = cm.output(convIt);
 
     // Check if model is valid
-    ASSERT_EQ(cm.isValid(), true);
+    ASSERT_EQ(cm.isValid(), false);
 
     // Check output shape
     ASSERT_EQ(outIt->getOutputShape(), mv::Shape(1, 8, 8, 3));
