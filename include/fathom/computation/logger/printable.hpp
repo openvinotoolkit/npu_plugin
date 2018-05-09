@@ -68,6 +68,43 @@ namespace mv
             }
         }
 
+        static string toString(AttrType value)
+        {
+
+            switch (value)
+            {
+
+                case AttrType::ByteType:
+                    return "byte";
+
+                case AttrType::UnsingedType:
+                    return "unsigned";
+
+                case AttrType::IntegerType:
+                    return "int";
+
+                case AttrType::FloatType:
+                   return "float";
+
+                case AttrType::TensorType:
+                    return "const tensor";
+                
+                case AttrType::DTypeType:
+                    return "dType";
+
+                case AttrType::OrderType:
+                    return "order";
+
+                case AttrType::ShapeType:
+                    return "shape";
+
+                default:
+                    return "unknown";
+
+            }
+            
+        }
+
     };
 
 }

@@ -5,7 +5,7 @@
 #include "include/fathom/computation/model/iterator.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
 #include "include/fathom/computation/tensor/constant.hpp"
-
+#include "include/fathom/computation/model/attribute.hpp"
 
 namespace mv
 {
@@ -18,9 +18,7 @@ namespace mv
         virtual const OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "") = 0;
         virtual const OpListIterator output(OpListIterator &predecessor, const string &name = "") = 0;
         virtual OpListIterator convolutional(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, const string &name = "") = 0;
-        /*virtual bool attr(OpListIterator &op, const string &name, const float_type &val) = 0;
-        virtual bool attr(OpListIterator &op, const string &name, const int_type &val) = 0;
-        virtual bool attr(OpListIterator &op, const string &name, const ConstantTensor &val) = 0;*/
+        virtual bool addAttr(OpListIterator &op, const string &name, const Attribute &attr) = 0;
 
     };
 

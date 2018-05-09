@@ -16,8 +16,18 @@ int main()
     auto convIt = cm.convolutional(inIt, weights, 2, 2);
     auto outIt = cm.output(convIt);
 
-    auto attr = outIt->getAttr<mv::Shape>("outputShape");
-    std::cout << attr.getContent<mv::Shape>().toString() << std::endl;
+    auto attr = outIt->getAttr("outputShape");
+    std::cout << "Op '" << outIt->getName() << "' attribute 'outputShape' content: " <<  attr.getContent<mv::Shape>().toString() << std::endl;
+    std::cout << "Op '" << outIt->getName() << "' attribute 'outputShape' type: " <<  mv::Printable::toString(outIt->getAttrType("outputShape")) << std::endl;
+
+    convIt->addAttr("customAttr", mv::Attribute(mv::AttrType::IntegerType, 10));
+    convIt->addAttr("customAttr", mv::Attribute(mv::AttrType::IntegerType, 10));
+
+    cm.addAttr(inIt, "customAttr", mv::Attribute(mv::AttrType::UnsingedType, 1U));
+
+    std::cout << "Op '" << inIt->getName() << "' - number of attributes: " << inIt->attrsCount() << std::endl;
+    std::cout << "Op '" << convIt->getName() << "' - number of attributes: " << convIt->attrsCount() << std::endl;
+    std::cout << "Op '" << outIt->getName() << "' - number of attributes: " << outIt->attrsCount() << std::endl;
 
     return 0;
 

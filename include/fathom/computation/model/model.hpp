@@ -22,26 +22,19 @@ namespace mv
         static allocator allocator_;
         computation_graph ops_graph;
         Logger &logger_;
-
         OpListIterator input_;
         OpListIterator output_;
 
-        static Logger &getLogger(Logger::VerboseLevel verboseLevel, bool logTime)
-        {
-            static StdOutLogger logger(verboseLevel, logTime);
-            return logger;
-        }
+        static Logger &getLogger(Logger::VerboseLevel verboseLevel, bool logTime);
 
     public:
 
         ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
         ComputationModel(Logger &logger);
-
         const OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "");
         const OpListIterator output(OpListIterator &predecessor, const string &name = "");
-
-        virtual OpListIterator convolutional(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, const string &name = "");
-
+        OpListIterator convolutional(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, const string &name = "");
+        bool addAttr(OpListIterator &op, const string &name, const Attribute &attr);
         const Logger& logger() const;
 
     };

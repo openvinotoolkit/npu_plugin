@@ -26,7 +26,6 @@ namespace mv
         ComputationOp* operator->() const
         {
             return (computation_graph::node_list_iterator::operator*()).operator->();
-            //return &computation_graph::node_list_iterator::operator*();
         }
 
     };

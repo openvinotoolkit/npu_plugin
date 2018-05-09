@@ -49,7 +49,20 @@ namespace mv
         Float
     };
 
+    enum class AttrType
+    {
+        
+        UnknownType,
+        ByteType,
+        UnsingedType,
+        IntegerType,
+        FloatType,
+        TensorType,
+        DTypeType,
+        OrderType,
+        ShapeType
 
+    };
 
 }
 
