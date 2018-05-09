@@ -13,7 +13,7 @@ int main()
      15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f};
 
     mv::ConstantTensor weights(mv::Shape(1, 3, 3, 3), mv::DType::Float, mv::Order::NWHC, weightsData);
-    auto convIt = cm.convolutional(inIt, weights, 2, 2);
+    auto convIt = cm.conv2D(inIt, weights, 2, 2);
     auto outIt = cm.output(convIt);
 
     auto attr = outIt->getAttr("outputShape");

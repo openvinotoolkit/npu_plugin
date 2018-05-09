@@ -1294,7 +1294,7 @@ private:
 
         }
 
-        const node_list_iterator node_begin()
+        const node_list_iterator node_begin() const
         {     
             if (!nodes_->empty())
                 return node_list_iterator(*(nodes_->begin()));
@@ -1648,7 +1648,7 @@ private:
             return edges_->size();
         }
 
-        bool disjoint()
+        bool disjoint() const
         {
 
             for (auto it = node_begin(); it != node_end(); ++it)

@@ -78,6 +78,19 @@ namespace mv
             return *this;
         }
 
+        bool operator==(const Shape &other) const
+        {
+            if (ndims_ != other.ndims_)
+                return false;
+
+            for (byte_type i = 0; i < ndims_; ++i)
+                if (dims_[i] != other.dims_[i])
+                    return false;
+
+            return true;
+
+        }
+
         string toString() const
         {
 

@@ -28,7 +28,7 @@ const mv::OpListIterator mv::ComputationModel::input(const Shape &shape, DType d
     if (inputName.empty())
         inputName = "0";
 
-    input_ = ops_graph.node_insert(allocator_.make_owner<Input>(logger_, inputName, shape, dType, order));
+    input_ = ops_graph_.node_insert(allocator_.make_owner<Input>(logger_, inputName, shape, dType, order));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
 
     return input_;
@@ -44,14 +44,14 @@ const mv::OpListIterator mv::ComputationModel::output(OpListIterator &predecesso
         outputName = "0";
 
     auto inTensor = predecessor->getOutput();
-    output_ = ops_graph.node_insert(predecessor, allocator_.make_owner<Output>(logger_, outputName, inTensor), inTensor);
+    output_ = ops_graph_.node_insert(predecessor, allocator_.make_owner<Output>(logger_, outputName, inTensor), inTensor);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
 
     return output_;
 
 }
 
-mv::OpListIterator mv::ComputationModel::convolutional(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, const string &name)
+mv::OpListIterator mv::ComputationModel::conv2D(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, const string &name)
 {
 
     string convName = name;
@@ -60,7 +60,7 @@ mv::OpListIterator mv::ComputationModel::convolutional(OpListIterator &predecess
         convName = "0";
 
     auto inTensor = predecessor->getOutput();
-    OpListIterator conv = ops_graph.node_insert(predecessor, allocator_.make_owner<Conv>(logger_, convName, inTensor, weights, strideX, strideY), inTensor);
+    OpListIterator conv = ops_graph_.node_insert(predecessor, allocator_.make_owner<Conv>(logger_, convName, inTensor, weights, strideX, strideY), inTensor);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + conv->toString());
 
     return conv;
@@ -69,6 +69,11 @@ mv::OpListIterator mv::ComputationModel::convolutional(OpListIterator &predecess
 bool mv::ComputationModel::addAttr(OpListIterator &op, const string &name, const Attribute &attr)
 {
     return op->addAttr(name, attr);
+}
+
+bool mv::ComputationModel::isValid() const
+{
+    return !ops_graph_.disjoint() && input_ != ops_graph_.node_end() && output_ != ops_graph_.node_end();
 }
 
 const mv::Logger &mv::ComputationModel::logger() const
