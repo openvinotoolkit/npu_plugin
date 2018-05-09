@@ -9,7 +9,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 #add_executable(graph_container graph_container.cpp ${graph})
 #include_directories(include/fathom/graph)
 
-add_executable(MCM_unit_tests MCM_unit_tests.cpp graph_container_test.cpp graph_visualizer_test.cpp)
+add_executable(MCM_unit_tests MCM_unit_tests.cpp graph_container_test.cpp graph_visualizer_test.cpp model_serializer_test.cpp)
 target_link_libraries (MCM_unit_tests gtest)
 target_sources(MCM_unit_tests PUBLIC ${allocator})
 
