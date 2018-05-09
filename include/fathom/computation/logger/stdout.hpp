@@ -25,9 +25,14 @@ namespace mv
             std::cout << content << std::endl;
         }
 
+        void logDebug(const string &content) const
+        {
+            std::cout << content << std::endl;
+        }
+
     public:
 
-        StdOutLogger(VerboseLevel verboseLevel = VerboseSilent, bool outputTime = true) :
+        StdOutLogger(VerboseLevel verboseLevel = VerboseLevel::VerboseSilent, bool outputTime = true) :
         Logger(verboseLevel, outputTime)
         {
             

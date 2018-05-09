@@ -11,11 +11,13 @@ namespace mv
 
     class ModelTensor : public Tensor, public ComputationElement
     {
-    
+
     public:
 
         ModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order);
+        ModelTensor(const ModelTensor &other);
         virtual ~ModelTensor() = 0;
+
 
     };
 

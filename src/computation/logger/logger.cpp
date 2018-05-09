@@ -21,22 +21,28 @@ void mv::Logger::logMessage(MessageType messageType, const string &content) cons
 
     switch (messageType)
     {
-        case MessageError:
+        case MessageType::MessageError:
             logMessage += "ERROR:\t";
             logMessage += content;
             logError(logMessage);
             break;
 
-        case MessageWarning:
+        case MessageType::MessageWarning:
             logMessage += "WARNING:\t";
             logMessage += content;
             logWarning(logMessage);
             break;
 
-        default:
+        case MessageType::MessageInfo:
             logMessage += "INFO:\t";
             logMessage += content;
             logInfo(logMessage);
+            break;
+
+        default:
+            logMessage += "DEBUG:\t";
+            logMessage += content;
+            logDebug(logMessage);
             break;
 
     }
@@ -66,17 +72,22 @@ void mv::Logger::log(MessageType messageType, const string &content) const
     switch (verboseLevel_)
     {
 
-        case VerboseDebug:
+         case VerboseLevel::VerboseDebug:
             logMessage(messageType, content);
             break;
 
-        case VerboseWarning:
-            if (messageType == MessageError || messageType == MessageWarning)
+        case VerboseLevel::VerboseInfo:
+            if (messageType == MessageType::MessageError || messageType == MessageType::MessageWarning || messageType == MessageType::MessageInfo)
                 logMessage(messageType, content);
             break;
 
-        case VerboseError:
-            if (messageType == MessageError)
+        case VerboseLevel::VerboseWarning:
+            if (messageType == MessageType::MessageError || messageType == MessageType::MessageWarning)
+                logMessage(messageType, content);
+            break;
+
+        case VerboseLevel::VerboseError:
+            if (messageType == MessageType::MessageError)
                 logMessage(messageType, content);
             break;
 

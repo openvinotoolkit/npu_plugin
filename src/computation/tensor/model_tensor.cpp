@@ -4,6 +4,15 @@ mv::ModelTensor::ModelTensor(const Logger &logger, const string &name, const Sha
 Tensor(shape, dType, order),
 ComputationElement(logger, name)
 {
+    addAttr("dType", AttrType::DTypeType, dType_);
+    addAttr("order", AttrType::OrderType, order_);
+    addAttr("shape", AttrType::ShapeType, shape_);
+}
+
+mv::ModelTensor::ModelTensor(const ModelTensor &other) :
+Tensor(other),
+ComputationElement(other.logger_, other.name_)
+{
 
 }
 

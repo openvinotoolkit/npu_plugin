@@ -5,21 +5,9 @@
 
 namespace mv
 {
-
+    
     class Tensor
     {
-    
-    public:
-
-        enum Order
-        {
-            NWHC
-        };
-
-        enum DType
-        {
-            Float
-        };
 
     protected:
 
@@ -31,6 +19,8 @@ namespace mv
 
         Tensor(const Shape &shape, DType dType, Order order);
         virtual ~Tensor() = 0;
+
+        Tensor(const Tensor &other);
         
         Shape getShape() const;
         DType getDType() const;
