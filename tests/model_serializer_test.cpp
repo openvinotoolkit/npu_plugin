@@ -4,12 +4,12 @@
 #include <vector>
 #include "include/fathom/graph/graph.hpp"
 #include "include/fathom/graph/stl_allocator.hpp"
-#include "include/fathom/computation/model/serializer.hpp"
+#include "include/fathom/serializer/serializer.hpp"
 
 using int_int_graph = mv::graph<int, int, mv::stl_allocator>;
 using char_int_graph = mv::graph<char, int, mv::stl_allocator>;
 
-TEST (graph_seriallizer, blob_output) 
+TEST (model_serializer, blob_output) 
 {
 
     int_int_graph utest_graph_00;
@@ -36,23 +36,13 @@ TEST (graph_seriallizer, blob_output)
     utest_graph_00.edge_insert(itn6, itn7, 90607);
     utest_graph_00.edge_insert(itn0, itn1, 90001);
 
-    // declare serializer
+    // declare serializer as blob
     mv::Serializer gs(mv::mvblob_mode);
 
-    // check blob output
+    // serialize compute model to file
+    uint64_t filesize = gs.serialize(utest_graph_00, "test_1conv_blob.txt");
 
-/*
-    FILE *obs;             // output file
-    char const *out_file_name = "test_output.txt";
-
-    if ((obs = fopen(out_file_name, "w")) == NULL)
-    {
-       printf("ERROR: Could not open output file \n");
-    }
-*/
-
-    gs.write_blob(utest_graph_00);
-
-    EXPECT_EQ (0,0) << "ERROR: unexpected blob output";
+    // compare filesize written to expected
+    EXPECT_EQ (876, filesize) << "ERROR: wrong blob size";
 
 }
