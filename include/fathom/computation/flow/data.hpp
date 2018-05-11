@@ -2,7 +2,7 @@
 #define DATA_FLOW_HPP_
 
 #include "include/fathom/computation/model/types.hpp"
-#include "include/fathom/computation/tensor/model_unpopulated.hpp"
+#include "include/fathom/computation/tensor/unpopulated.hpp"
 
 namespace mv
 {
@@ -10,14 +10,19 @@ namespace mv
     class DataFlow
     {
 
-        allocator::access_ptr<UnpopulatedModelTensor> data_;
+        allocator::access_ptr<UnpopulatedTensor> data_;
 
     public:
 
-        DataFlow(allocator::owner_ptr<UnpopulatedModelTensor> data) :
+        DataFlow(allocator::owner_ptr<UnpopulatedTensor> data) :
         data_(data)
         {
 
+        }
+
+        UnpopulatedTensor &getTensor()
+        {
+            return *data_.lock();
         }
 
     };

@@ -3,7 +3,7 @@
 
 #include "include/fathom/computation/model/element.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
-#include "include/fathom/computation/tensor/model_unpopulated.hpp"
+#include "include/fathom/computation/tensor/unpopulated.hpp"
 
 namespace mv
 {
@@ -22,7 +22,6 @@ namespace mv
 
         ComputationOp(const Logger &logger, const string &name, DType dType, Order order, Shape inputShape, Shape outputShape);
         virtual ~ComputationOp() = 0;
-        //ComputationOp(const ComputationOp &other);
 
         DType getDType() const;
         Order getOrder() const;
@@ -30,7 +29,7 @@ namespace mv
         Shape getInputShape() const;
         Shape getOutputShape() const;
 
-        UnpopulatedModelTensor getOutput() const;
+        UnpopulatedTensor getOutput() const;
 
         virtual string toString() const;
 

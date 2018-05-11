@@ -5,7 +5,9 @@
 * @date 4/27/2018
 */
 
-#include "graph.hpp"
+#include "include/fathom/graph/graph.hpp"
+#include <stdio.h>
+#include <iostream>
 
 namespace mv
 {

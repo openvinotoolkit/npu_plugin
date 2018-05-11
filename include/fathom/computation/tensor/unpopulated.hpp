@@ -1,23 +1,23 @@
-#ifndef MODEL_UNPOPULATED_TENSOR_HPP_
-#define MODEL_UNPOPULATED_TENSOR_HPP_
+#ifndef UNPOPULATED_TENSOR_HPP_
+#define UNPOPULATED_TENSOR_HPP_
 
 #include "include/fathom/computation/tensor/model_tensor.hpp"
 
 namespace mv
 {
 
-    class UnpopulatedModelTensor : public ModelTensor
+    class UnpopulatedTensor : public ModelTensor
     {
 
     public:
 
-        UnpopulatedModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order) : 
+        UnpopulatedTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order) : 
         ModelTensor(logger, "vt_" + name, shape, dType, order)
         {
 
         }
 
-        UnpopulatedModelTensor(const UnpopulatedModelTensor &other) :
+        UnpopulatedTensor(const UnpopulatedTensor &other) :
         ModelTensor(other)
         {
 
@@ -32,4 +32,4 @@ namespace mv
 
 }
 
-#endif // MODEL_UNPOPULATED_TENSOR_HPP_
+#endif // UNPOPULATED_TENSOR_HPP_

@@ -43,9 +43,9 @@ mv::string mv::ComputationOp::toString() const
     return "'" + name_ + "' " + ComputationElement::toString();
 }
 
-mv::UnpopulatedModelTensor mv::ComputationOp::getOutput() const
+mv::UnpopulatedTensor mv::ComputationOp::getOutput() const
 {
 
-    return UnpopulatedModelTensor(logger_, name_ + "_out:0", outputShape_, dType_, order_);
+    return UnpopulatedTensor(logger_, name_ + "_out:0", outputShape_, dType_, order_);
 
 }

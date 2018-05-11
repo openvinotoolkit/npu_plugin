@@ -14,7 +14,7 @@ namespace mv
 
     protected:
 
-        friend class ComputationModel;
+        friend class OpModel;
 
         static allocator allocator_;
         const Logger &logger_;

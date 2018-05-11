@@ -406,7 +406,7 @@ private:
             virtual base_iterator& operator++() = 0;
             //virtual T_iterator& operator--() = 0;
             
-            virtual T_content& operator*() const
+            T_content& operator*() const
             {
                 return access_ptr<T_iterable>::operator*().get_content();
             }

@@ -4,22 +4,21 @@
 #include "include/fathom/graph/graph.hpp"
 #include "include/fathom/computation/api/compositional_model.hpp"
 #include "include/fathom/computation/model/types.hpp"
-#include "include/fathom/computation/model/iterator.hpp"
+#include "include/fathom/computation/model/iterator/op_iterator.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
-#include "include/fathom/computation/tensor/model_populated.hpp"
-#include "include/fathom/computation/tensor/model_unpopulated.hpp"
-#include "include/fathom/computation/op/input.hpp"
-#include "include/fathom/computation/op/output.hpp"
-#include "include/fathom/computation/op/conv.hpp"
+#include "include/fathom/computation/tensor/populated.hpp"
+#include "include/fathom/computation/tensor/unpopulated.hpp"
 #include "include/fathom/computation/logger/stdout.hpp"
 #include "include/fathom/computation/flow/data.hpp"
 
 namespace mv
 {
 
-    class ComputationModel : public CompositionalModel
+    class ComputationModel
     {
     
+    protected:
+
         struct TensorOrderComparator
         {
             bool operator()(const allocator::owner_ptr<ModelTensor> &lhs, const allocator::owner_ptr<ModelTensor> &rhs)
@@ -29,9 +28,17 @@ namespace mv
         };
 
         static allocator allocator_;
-        computation_graph ops_graph_;
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<UnpopulatedModelTensor>, TensorOrderComparator>> flowTensors_;
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<PopulatedModelTensor>, TensorOrderComparator>> parameterTensors_;
+
+        /*
+        There are two reasons to store all member variables that are non-static members as either references or smart pointers provided by
+        the Allocator concept
+            - for objects that are containers - enforcing to be failure safe by using Allocator's factory methods (no possibility of 
+            having unhandled bad allocation errors, particularly STL exceptions)
+            - obtaining a capability of shallow coping the ComputationModel that is exploited by e.g. switchable contexts (OpModel, DataModel)
+        */
+        allocator::owner_ptr<computation_graph> ops_graph_;
+        allocator::owner_ptr<allocator::set<allocator::owner_ptr<UnpopulatedTensor>, TensorOrderComparator>> flowTensors_;
+        allocator::owner_ptr<allocator::set<allocator::owner_ptr<PopulatedTensor>, TensorOrderComparator>> parameterTensors_;
         const allocator::owner_ptr<Logger> defaultLogger_;
         Logger &logger_;
         OpListIterator input_;
@@ -41,10 +48,15 @@ namespace mv
 
         ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
         ComputationModel(Logger &logger);
-        const OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "");
-        const OpListIterator output(OpListIterator &predecessor, const string &name = "");
-        OpListIterator conv2D(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
-        bool addAttr(OpListIterator &op, const string &name, const Attribute &attr);
+
+        /**
+         * @brief Copy constructor performing shallow copy
+         * 
+         * @param other Object that will share all members with the new one
+         */
+        ComputationModel(const ComputationModel &other);
+
+        virtual ~ComputationModel() = 0;
         bool isValid() const;
         const Logger& logger() const;
 
