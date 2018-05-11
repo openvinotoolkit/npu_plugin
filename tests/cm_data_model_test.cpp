@@ -21,12 +21,4 @@ TEST(computation_model, data_model_construction)
     // Check if model is valid
     ASSERT_TRUE(dm.isValid());
 
-    // Check input and output tensor shape
-    ASSERT_EQ((*dm.getInput()).getTensor().getAttr<
-
-    std::cout << "Input op: " << (*om.getInput()).getName() << std::endl;
-    std::cout << "Input tensor (output tensor of the input op): " << (*dm.getInput()).getTensor().getName() << std::endl;
-    std::cout << "Output op: " << (*om.getOutput()).getName() << std::endl;
-    std::cout << "Output tensor (input tensor of the output op): " << (*dm.getOutput()).getTensor().getName() << std::endl;
-
 }
