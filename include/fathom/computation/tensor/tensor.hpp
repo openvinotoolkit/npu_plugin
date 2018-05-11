@@ -6,7 +6,7 @@
 namespace mv
 {
     
-    class Tensor
+    class Tensor : public Printable
     {
 
     protected:
@@ -25,6 +25,8 @@ namespace mv
         Shape getShape() const;
         DType getDType() const;
         Order getOrder() const;
+
+        string toString() const;
 
     };
 

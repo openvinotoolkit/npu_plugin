@@ -35,3 +35,8 @@ mv::Order mv::Tensor::getOrder() const
 {
     return order_;
 }
+
+mv::string mv::Tensor::toString() const
+{
+    return string("tensor "  + shape_.toString());
+}

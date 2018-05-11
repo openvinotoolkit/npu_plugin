@@ -3,6 +3,30 @@
 
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/logger/printable.hpp"
+#include "include/fathom/computation/tensor/shape.hpp"
+#include "include/fathom/computation/tensor/constant.hpp"
+
+template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value = false }; };
+#define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }
+
+DEFINE_ENUMERATED_TYPE(mv::int_type, mv::AttrType::IntegerType);
+DEFINE_ENUMERATED_TYPE(mv::unsigned_type, mv::AttrType::UnsingedType);
+DEFINE_ENUMERATED_TYPE(mv::float_type, mv::AttrType::FloatType);
+DEFINE_ENUMERATED_TYPE(mv::Shape, mv::AttrType::ShapeType);
+DEFINE_ENUMERATED_TYPE(mv::byte_type, mv::AttrType::ByteType);
+DEFINE_ENUMERATED_TYPE(mv::DType, mv::AttrType::DTypeType);
+DEFINE_ENUMERATED_TYPE(mv::Order, mv::AttrType::OrderType);
+DEFINE_ENUMERATED_TYPE(mv::ConstantTensor, mv::AttrType::TensorType);
+
+template<class T, class U>
+struct is_same {
+    enum { value = false };
+};
+
+template<class T>
+struct is_same<T, T> {
+    enum { value = true };
+};
 
 namespace mv
 {
@@ -12,21 +36,49 @@ namespace mv
 
     private:
 
-        static byte_type nextTypeId();
+        /*static byte_type nextTypeId();*/
 
         template <class T>
-        static byte_type getTypeId()
+        static AttrType getTypeId()
         {
-            static byte_type result(nextTypeId());
-            return result;
+            //static byte_type result(nextTypeId());
+            //return result;
+
+            if ( AttrTypeToType<AttrType::ByteType>::value && is_same<T, AttrTypeToType<AttrType::ByteType>::type>::value)
+                return AttrType::ByteType;
+            
+            if (AttrTypeToType<AttrType::DTypeType>::value  && is_same<T, AttrTypeToType<AttrType::DTypeType>::type>::value)
+                return AttrType::DTypeType;
+
+            if (AttrTypeToType<AttrType::FloatType>::value  && is_same<T, AttrTypeToType<AttrType::FloatType>::type>::value)
+                return AttrType::FloatType;
+
+            if (AttrTypeToType<AttrType::IntegerType>::value  && is_same<T, AttrTypeToType<AttrType::IntegerType>::type>::value)
+                return AttrType::IntegerType;
+
+            if (AttrTypeToType<AttrType::OrderType>::value  && is_same<T, AttrTypeToType<AttrType::OrderType>::type>::value)
+                return AttrType::OrderType;
+            
+            if (AttrTypeToType<AttrType::ShapeType>::value  && is_same<T, AttrTypeToType<AttrType::ShapeType>::type>::value)
+                return AttrType::ShapeType;
+
+            if (AttrTypeToType<AttrType::TensorType>::value  && is_same<T, AttrTypeToType<AttrType::TensorType>::type>::value)
+                return AttrType::TensorType;
+
+            if (AttrTypeToType<AttrType::UnsingedType>::value  && is_same<T, AttrTypeToType<AttrType::UnsingedType>::type>::value)
+                return AttrType::UnsingedType;
+
+            return AttrType::UnknownType;
+
         }
         
         struct GenericAttributeContent
         {
 
-            byte_type typeId_;
+            //byte_type typeId_;
+            AttrType typeId_;
 
-            GenericAttributeContent(const byte_type typeId) : typeId_(typeId) {}
+            GenericAttributeContent(AttrType typeId) : typeId_(typeId) {}
             virtual ~GenericAttributeContent() {}
 
         };
@@ -66,10 +118,12 @@ namespace mv
         }
 
         template <class T>
-        const T& getContent() const
+        T getContent() const
         {
+
             assert(getTypeId<T>() == content_->typeId_ && "Attribute type mismatch");
             return cast_pointer<AttributeContent<T>>(content_)->getContent();
+        
         }
 
     };

@@ -114,7 +114,7 @@ namespace mv
         stl_map& operator=(const stl_map &other) noexcept
         {
             stl_map_ = other.stl_map_;
-            allocator_ = other.allocator_;
+            //allocator_ = other.allocator_;
             return *this;
         }
 

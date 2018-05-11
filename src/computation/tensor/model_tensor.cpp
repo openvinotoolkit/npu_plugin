@@ -1,8 +1,11 @@
 #include "include/fathom/computation/tensor/model_tensor.hpp"
 
+mv::size_type mv::ModelTensor::currentId_ = 0;
+
 mv::ModelTensor::ModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order) : 
 Tensor(shape, dType, order),
-ComputationElement(logger, name)
+ComputationElement(logger, name),
+id_(currentId_++)
 {
     addAttr("dType", AttrType::DTypeType, dType_);
     addAttr("order", AttrType::OrderType, order_);
@@ -10,8 +13,13 @@ ComputationElement(logger, name)
 }
 
 mv::ModelTensor::ModelTensor(const ModelTensor &other) :
-Tensor(other),
-ComputationElement(other.logger_, other.name_)
+ModelTensor(other.logger_, other.name_, other.shape_, other.dType_, other.order_)
+{
+
+}
+
+mv::ModelTensor::ModelTensor(const Logger &logger, const string &name, const ConstantTensor &other) :
+ModelTensor(logger, name, other.getShape(), other.getDType(), other.getOrder())
 {
 
 }
@@ -20,3 +28,19 @@ mv::ModelTensor::~ModelTensor()
 {
     
 }
+
+mv::size_type mv::ModelTensor::getID() const
+{
+    return id_;
+}
+
+/*mv::ModelTensor& mv::ModelTensor::operator=(const ModelTensor &other)
+{
+    shape_ = other.shape_;
+    dType_ = other.dType_;
+    order_ = other.order_;
+    name_ = other.name_;
+    id_ = other.id_;
+    attributes_ = other.attributes_;
+    return *this;
+}*/

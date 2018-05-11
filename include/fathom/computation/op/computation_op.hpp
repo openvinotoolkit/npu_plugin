@@ -3,7 +3,7 @@
 
 #include "include/fathom/computation/model/element.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
-#include "include/fathom/computation/tensor/model_variable.hpp"
+#include "include/fathom/computation/tensor/model_unpopulated.hpp"
 
 namespace mv
 {
@@ -30,7 +30,7 @@ namespace mv
         Shape getInputShape() const;
         Shape getOutputShape() const;
 
-        VariableTensor getOutput() const;
+        UnpopulatedModelTensor getOutput() const;
 
         virtual string toString() const;
 

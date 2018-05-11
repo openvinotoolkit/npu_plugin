@@ -11,7 +11,7 @@ namespace mv
 
     public:
 
-        Output(const Logger &logger, const string &name, VariableTensor input) : 
+        Output(const Logger &logger, const string &name, UnpopulatedModelTensor input) : 
         ComputationOp(logger, "output_" + name, input.getDType(), input.getOrder(), input.getShape(), input.getShape())
         {
 

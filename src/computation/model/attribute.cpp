@@ -1,14 +1,14 @@
 #include "include/fathom/computation/model/attribute.hpp"
-#include "include/fathom/computation/tensor/model_constant.hpp"
+#include "include/fathom/computation/tensor/model_populated.hpp"
 
 mv::allocator mv::Attribute::allocator_;
 
-mv::byte_type mv::Attribute::nextTypeId()
+/*mv::byte_type mv::Attribute::nextTypeId()
 {
     static byte_type id(0);
     assert(id < max_byte && "Out of attribute types ID");
     return id++;
-}
+}*/
 
 mv::Attribute::Attribute() :
 attrType_(AttrType::UnknownType)
@@ -50,7 +50,7 @@ mv::string mv::Attribute::toString() const
             break;
 
         case AttrType::TensorType:
-            result += Printable::toString(getContent<ConstantModelTensor>());
+            result += Printable::toString(getContent<ConstantTensor>());
             break;
         
         case AttrType::DTypeType:

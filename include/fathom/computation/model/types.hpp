@@ -7,7 +7,6 @@
 #include "include/fathom/graph/stl_allocator.hpp"
 #include "include/fathom/graph/graph.hpp"
 
-
 namespace mv
 {
     /**
@@ -34,10 +33,10 @@ namespace mv
 
     typedef stl_allocator allocator;
 
-    class VariableTensor;
     class ComputationOp;
+    class DataFlow;
 
-    using computation_graph = graph<allocator::owner_ptr<ComputationOp>, VariableTensor, allocator, size_type>;
+    using computation_graph = graph<allocator::owner_ptr<ComputationOp>, DataFlow, allocator, size_type>;
 
     enum class Order
     {

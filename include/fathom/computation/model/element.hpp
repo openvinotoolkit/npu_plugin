@@ -14,6 +14,8 @@ namespace mv
 
     protected:
 
+        friend class ComputationModel;
+
         static allocator allocator_;
         const Logger &logger_;
         string name_;
@@ -28,12 +30,13 @@ namespace mv
 
         }
 
+        bool addAttr(const string &name, const Attribute &attr);
+
     public:
 
         ComputationElement(const Logger &logger, const string &name);
         virtual ~ComputationElement() = 0;
         const string &getName() const;
-        bool addAttr(const string &name, const Attribute &attr);
         Attribute getAttr(const string &name);
         AttrType getAttrType(const string &name);
         unsigned_type attrsCount() const;

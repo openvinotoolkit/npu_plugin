@@ -12,10 +12,19 @@ namespace mv
     class ModelTensor : public Tensor, public ComputationElement
     {
 
+        static size_type currentId_;
+
+    protected:
+
+        size_type id_;
+
     public:
 
         ModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order);
+        ModelTensor(const Logger &logger, const string &name, const ConstantTensor &other);
         ModelTensor(const ModelTensor &other);
+        size_type getID() const;
+        //ModelTensor& operator=(const ModelTensor &other);
         virtual ~ModelTensor() = 0;
 
 

@@ -40,7 +40,7 @@ namespace mv
         }
 
         template <class T, typename... Args>
-        owner_ptr<T> make_owner(Args&... args) const noexcept
+        owner_ptr<T> make_owner(Args&&... args) const noexcept
         {
 
             try

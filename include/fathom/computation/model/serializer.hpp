@@ -6,7 +6,8 @@
 */
 
 #include <string>
-#include "graph.hpp"
+#include <iostream>
+#include "include/fathom/graph/graph.hpp"
 
 namespace mv
 {
@@ -235,7 +236,7 @@ class WBuffer
             }
 
             // data buffer
-            for (int i=0; i<buffer_size; i++) 
+            for (unsigned i=0; i<buffer_size; i++) 
             {
                 AddBytes(1, buffer_data_val, fp);
             }
