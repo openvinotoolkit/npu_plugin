@@ -64,6 +64,10 @@ mv::string mv::Attribute::toString() const
             result += Printable::toString(getContent<Shape>());
             break;
 
+        case AttrType::StringType:
+            result += getContent<string>();
+            break;
+
         default:
             result += ": unknown";
             break;

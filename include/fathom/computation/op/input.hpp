@@ -11,8 +11,8 @@ namespace mv
 
     public:
 
-        Input(const Logger &logger, const string &name, Shape outputShape, DType dType, Order order) : 
-        ComputationOp(logger, "input_" + name, dType, order, outputShape, outputShape)
+        Input(const Logger &logger, Shape outputShape, DType dType, Order order, const string &name) : 
+        ComputationOp(logger, "input", dType, order, outputShape, outputShape,  name)
         {
 
         }

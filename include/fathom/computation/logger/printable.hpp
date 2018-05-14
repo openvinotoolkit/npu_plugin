@@ -98,6 +98,9 @@ namespace mv
                 case AttrType::ShapeType:
                     return "shape";
 
+                case AttrType::StringType:
+                    return "string";
+
                 default:
                     return "unknown";
 

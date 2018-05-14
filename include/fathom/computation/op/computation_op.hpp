@@ -11,8 +11,11 @@ namespace mv
     class ComputationOp : public ComputationElement
     {
 
+        static allocator::map<string, size_type> idDict_;
+
     protected:
 
+        string opType;
         DType dType_;
         Order order_;
         Shape inputShape_;
@@ -20,7 +23,7 @@ namespace mv
 
     public:
 
-        ComputationOp(const Logger &logger, const string &name, DType dType, Order order, Shape inputShape, Shape outputShape);
+        ComputationOp(const Logger &logger, const string &opType, DType dType, Order order, Shape inputShape, Shape outputShape, const string &name);
         virtual ~ComputationOp() = 0;
 
         DType getDType() const;

@@ -1,25 +1,21 @@
 #ifndef CONV_HPP_
 #define CONV_HPP_
 
-#include "include/fathom/computation/op/computation_op.hpp"
+#include "include/fathom/computation/op/kernel_op.hpp"
 #include "include/fathom/computation/tensor/populated.hpp"
 
 namespace mv
 {
-
-    class Conv : public ComputationOp
+    /// \todo Add assertions (dimensions)   
+    class Conv : public KernelOp
     {
 
     public:
 
-        Conv(const Logger &logger, const string &name, const UnpopulatedTensor &input, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY) :
-        ComputationOp(logger, "conv_" + name, input.getDType(), input.getOrder(), input.getShape(), Shape(input.getShape()[0], input.getShape()[1] / strideX, input.getShape()[2] / strideY, weights.getShape()[2]))
+        Conv(const Logger &logger, const UnpopulatedTensor &input, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name) :
+        KernelOp(logger, "conv", input, Shape(weights.getShape()[0], weights.getShape()[1], weights.getShape()[3]), strideX, strideY, padX, padY, name)
         {
             addAttr("weights", AttrType::TensorType, weights);
-            addAttr("strideX", AttrType::ByteType, strideX);
-            addAttr("strideY", AttrType::ByteType, strideY);
-            addAttr("padX", AttrType::ByteType, padX);
-            addAttr("padY", AttrType::ByteType, padY);
         }
 
         string toString() const

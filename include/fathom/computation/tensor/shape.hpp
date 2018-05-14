@@ -57,7 +57,7 @@ namespace mv
 
             unsigned_type result = dims_[0];
 
-            for (byte_type i = 0; i < ndims_; ++i)
+            for (byte_type i = 1; i < ndims_; ++i)
                 result *= dims_[i];
 
             return result;

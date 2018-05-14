@@ -17,7 +17,9 @@ namespace mv
 
         virtual OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "") = 0;
         virtual OpListIterator output(OpListIterator &predecessor, const string &name = "") = 0;
-        virtual OpListIterator conv2D(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, 
+        virtual OpListIterator conv(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, 
+        byte_type strideY, byte_type padX, byte_type padY, const string &name = "") = 0;
+        virtual OpListIterator maxpool(OpListIterator &predecessor, const Shape &kernelShape, byte_type strideX, 
         byte_type strideY, byte_type padX, byte_type padY, const string &name = "") = 0;
         virtual bool addAttr(OpListIterator &op, const string &name, const Attribute &attr) = 0;
         virtual bool isValid() const = 0;

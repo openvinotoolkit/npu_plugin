@@ -1,7 +1,7 @@
 #ifndef TYPES_HPP_
 #define TYPES_HPP_
 
-#include <stdint.h>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include "include/fathom/graph/stl_allocator.hpp"
@@ -59,7 +59,8 @@ namespace mv
         TensorType,
         DTypeType,
         OrderType,
-        ShapeType
+        ShapeType,
+        StringType
 
     };
 

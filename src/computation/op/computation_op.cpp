@@ -1,13 +1,16 @@
 #include "include/fathom/computation/op/computation_op.hpp"
 
-mv::ComputationOp::ComputationOp(const Logger &logger, const string &name, DType dType, Order order, Shape inputShape, Shape outputShape) :
-ComputationElement(logger, "op_" + name),
+mv::allocator::map<mv::string, mv::size_type> mv::ComputationOp::idDict_(allocator_);
+
+mv::ComputationOp::ComputationOp(const Logger &logger, const string &opType, DType dType, Order order, Shape inputShape, Shape outputShape, const string &name) :
+ComputationElement(logger, "op_" + opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }()),
 dType_(dType),
 order_(order),
 inputShape_(inputShape),
 outputShape_(outputShape)
 {
     logger_.log(Logger::MessageType::MessageDebug, "Defined computation op " + toString());
+    addAttr("opType", AttrType::StringType, opType);
     addAttr("dType", AttrType::DTypeType, dType_);
     addAttr("order", AttrType::OrderType, order_);
     addAttr("inputShape", AttrType::ShapeType, inputShape_);
