@@ -4,43 +4,47 @@ mv::string mv::Logger::getTime() const
 {
     struct tm *timeInfo;
     time_t rawTime;
-    char buffer[80];
+    char buffer[18];
     time(&rawTime);
     timeInfo = localtime(&rawTime);
-    strftime(buffer, 80, "%T %D", timeInfo);
+    strftime(buffer, 18, "%T %D", timeInfo);
     return string(buffer);
 }
 
-void mv::Logger::logMessage(MessageType messageType, const string &content) const
+void mv::Logger::logMessage(MessageType messageType, string content) const
 {
 
     string logMessage;
 
     if (logTime_)
-        logMessage += getTime() + "\t";
+        logMessage += getTime() + " ";
 
     switch (messageType)
     {
         case MessageType::MessageError:
-            logMessage += "ERROR:\t";
+            logMessage += "ERROR:   ";
+            replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logError(logMessage);
             break;
 
         case MessageType::MessageWarning:
-            logMessage += "WARNING:\t";
+            logMessage += "WARNING: ";
+            replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logWarning(logMessage);
             break;
 
         case MessageType::MessageInfo:
-            logMessage += "INFO:\t";
+            logMessage += "INFO:    ";
+            replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logInfo(logMessage);
             break;
 
         default:
-            logMessage += "DEBUG:\t";
+            logMessage += "DEBUG:   ";
+            replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logDebug(logMessage);
             break;
@@ -53,7 +57,10 @@ mv::Logger::Logger(VerboseLevel verboseLevel, bool logTime) :
 verboseLevel_(verboseLevel), 
 logTime_(logTime)
 {
-
+    if (logTime_)
+        indent_ = "                     ";
+    else
+        indent_ = "   ";
 }
 
 mv::Logger::~Logger()

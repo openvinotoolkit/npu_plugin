@@ -31,7 +31,7 @@ bool mv::ComputationElement::addAttr(const string &name, const Attribute &attr)
     }
     else
     {
-        logger_.log(Logger::MessageType::MessageError, "Element '" + name_ + "' - failed adding attribute of a duplicated name '" + name + "'");
+        logger_.log(Logger::MessageType::MessageWarning, "Element '" + name_ + "' - failed adding attribute of a duplicated name '" + name + "'");
         return false;
     }
 
@@ -64,7 +64,7 @@ mv::string mv::ComputationElement::toString() const
     string result;
 
     for (auto it = attributes_.begin(); it != attributes_.end(); ++it)
-        result += "\n\t\t'" +  it->first + "' " + it->second.toString();
+        result += "\n'" +  it->first + "' " + it->second.toString();
 
     return result;
 

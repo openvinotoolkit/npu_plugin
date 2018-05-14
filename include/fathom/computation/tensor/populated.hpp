@@ -18,7 +18,7 @@ namespace mv
         ModelTensor(logger, "ct_" + name, data),
         data_(data)
         {
-
+            //logger_.log(Logger::MessageType::MessageInfo, "Defined populated tensor '" + toString());
         }
 
         PopulatedTensor(const PopulatedTensor &other) :
@@ -35,7 +35,7 @@ namespace mv
 
         string toString() const
         {
-            return string("const tensor " + name_ + " " + shape_.toString());
+            return "populated tensor '" + name_ + "' " + ComputationElement::toString();
         }
 
     };

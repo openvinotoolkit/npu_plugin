@@ -30,9 +30,14 @@ namespace mv
 
         }
 
-        DataFlow* operator->() const
+        /*DataFlow* operator->() const
         {
             return &(computation_graph::edge_list_iterator::operator*());
+        }*/
+
+        DataFlow& operator*() const
+        {
+            return computation_graph::edge_list_iterator::operator*();
         }
 
     };

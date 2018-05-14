@@ -7,6 +7,7 @@ Tensor(shape, dType, order),
 ComputationElement(logger, name),
 id_(currentId_++)
 {
+    logger_.log(Logger::MessageType::MessageDebug, "Defined model tensor " + toString());
     addAttr("dType", AttrType::DTypeType, dType_);
     addAttr("order", AttrType::OrderType, order_);
     addAttr("shape", AttrType::ShapeType, shape_);
@@ -27,6 +28,11 @@ ModelTensor(logger, name, other.getShape(), other.getDType(), other.getOrder())
 mv::ModelTensor::~ModelTensor()
 {
     
+}
+
+mv::string mv::ModelTensor::toString() const
+{
+    return "'" + name_ + "' " + ComputationElement::toString();
 }
 
 mv::size_type mv::ModelTensor::getID() const

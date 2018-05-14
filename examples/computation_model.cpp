@@ -5,8 +5,7 @@
 int main()
 {
 
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseDebug);
-
+    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
     auto inIt = om.input(mv::Shape(1, 32, 32, 1), mv::DType::Float, mv::Order::NWHC);
 
     mv::vector<mv::float_type> weightsData =
@@ -17,23 +16,25 @@ int main()
     auto convIt = om.conv2D(inIt, weights, 2, 2, 1, 1);
     auto outIt = om.output(convIt);
 
+    auto msgType = mv::Logger::MessageType::MessageInfo;
+
     auto attr = (*outIt).getAttr("outputShape");
-    std::cout << "Op '" << (*outIt).getName() << "' attribute 'outputShape' content: " <<  attr.getContent<mv::Shape>().toString() << std::endl;
-    std::cout << "Op '" << (*outIt).getName() << "' attribute 'outputShape' type: " <<  mv::Printable::toString((*outIt).getAttrType("outputShape")) << std::endl;
+    om.logger().log(msgType, "Op '" + (*outIt).getName() + "' attribute 'outputShape' content: " + attr.getContent<mv::Shape>().toString());
+    om.logger().log(msgType, "Op '" + (*outIt).getName() + "' attribute 'outputShape' type: " +  mv::Printable::toString((*outIt).getAttrType("outputShape")));
 
     om.addAttr(convIt, "customAttr", mv::Attribute(mv::AttrType::IntegerType, 10));
     om.addAttr(inIt, "customAttr", mv::Attribute(mv::AttrType::UnsingedType, 1U));
 
-    std::cout << "Op '" << (*inIt).getName() << "' - number of attributes: " << (*inIt).attrsCount() << std::endl;
-    std::cout << "Op '" << (*convIt).getName() << "' - number of attributes: " << (*convIt).attrsCount() << std::endl;
-    std::cout << "Op '" << (*outIt).getName() << "' - number of attributes: " << (*outIt).attrsCount() << std::endl;
+    om.logger().log(msgType, "Op '" + (*inIt).getName() + "' - number of attributes: " + mv::Printable::toString((*inIt).attrsCount()));
+    om.logger().log(msgType, "Op '" + (*convIt).getName() + "' - number of attributes: " + mv::Printable::toString((*convIt).attrsCount()));
+    om.logger().log(msgType, "Op '" + (*outIt).getName() + "' - number of attributes: " + mv::Printable::toString((*outIt).attrsCount()));
 
     mv::DataModel dm(om);
 
-    std::cout << "Input op: " << (*om.getInput()).getName() << std::endl;
-    std::cout << "Input tensor (output tensor of the input op): " << (*dm.getInput()).getTensor().getName() << std::endl;
-    std::cout << "Output op: " << (*om.getOutput()).getName() << std::endl;
-    std::cout << "Output tensor (input tensor of the output op): " << (*dm.getOutput()).getTensor().getName() << std::endl;
+    dm.logger().log(msgType, "Input op: " + (*om.getInput()).getName());
+    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + (*dm.getInput()).getTensor().getName());
+    dm.logger().log(msgType, "Output op: " + (*om.getOutput()).getName());
+    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + (*dm.getOutput()).getTensor().getName());
 
     return 0;
 

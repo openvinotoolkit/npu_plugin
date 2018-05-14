@@ -27,6 +27,8 @@ namespace mv
         //ModelTensor& operator=(const ModelTensor &other);
         virtual ~ModelTensor() = 0;
 
+        virtual string toString() const;
+
 
     };
 

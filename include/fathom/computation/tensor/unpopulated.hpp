@@ -14,7 +14,7 @@ namespace mv
         UnpopulatedTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order) : 
         ModelTensor(logger, "vt_" + name, shape, dType, order)
         {
-
+            //logger_.log(Logger::MessageType::MessageInfo, "Defined unpopulated tensor '" + name_ + "'");
         }
 
         UnpopulatedTensor(const UnpopulatedTensor &other) :
@@ -25,7 +25,7 @@ namespace mv
 
         string toString() const
         {
-            return string("var tensor " + name_ + " " + shape_.toString());
+            return "unpopulated tensor " + name_ + " " + ComputationElement::toString();
         }
 
     };

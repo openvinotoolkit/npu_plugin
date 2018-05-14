@@ -35,8 +35,10 @@ mv::OpListIterator mv::OpModel::output(OpListIterator &predIt, const string &nam
     if (outputName.empty())
         outputName = "0";
 
-    auto inTensorIt = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
-    output_ = ops_graph_->node_insert(predIt, allocator_.make_owner<Output>(logger_, outputName, **inTensorIt.first), *inTensorIt.first);
+    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
+
+    output_ = ops_graph_->node_insert(predIt, allocator_.make_owner<Output>(logger_, outputName, **inTensorRes.first), *inTensorRes.first);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*output_).toString());
 
     return output_;
@@ -51,8 +53,12 @@ mv::OpListIterator mv::OpModel::conv2D(OpListIterator &predIt, const ConstantTen
     if (convName.empty())
         convName = "0";
 
-    auto inTensorIt = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
-    OpListIterator convIt = ops_graph_->node_insert(predIt, allocator_.make_owner<Conv>(logger_, convName, **inTensorIt.first, weights, strideX, strideY, padX, padY), *inTensorIt.first);
+    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
+
+    OpListIterator convIt = ops_graph_->node_insert(predIt, allocator_.make_owner<Conv>(logger_, convName, **inTensorRes.first, weights, strideX, strideY, padX, padY), *inTensorRes.first);
+    auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, (*convIt).getName() + "_" + "weights", (*convIt).getAttr("weights").getContent<ConstantTensor>()));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*resultT.first)->toString());
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*convIt).toString());
 
     return convIt;
@@ -73,6 +79,8 @@ bool mv::OpModel::addAttr(OpListIterator &opIt, const string &name, const Attrib
             parameterTensors_->erase(*resultT.first);
             return false;
         }
+
+        logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*resultT.first)->toString());
 
     }
     else

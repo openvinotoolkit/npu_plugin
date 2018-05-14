@@ -7,6 +7,7 @@ order_(order),
 inputShape_(inputShape),
 outputShape_(outputShape)
 {
+    logger_.log(Logger::MessageType::MessageDebug, "Defined computation op " + toString());
     addAttr("dType", AttrType::DTypeType, dType_);
     addAttr("order", AttrType::OrderType, order_);
     addAttr("inputShape", AttrType::ShapeType, inputShape_);
