@@ -32,6 +32,12 @@ namespace mv
 
     public:
 
+        /*stl_owner_ptr(const stl_owner_ptr &other) noexcept :
+        ptr_(other.ptr_)
+        {
+
+        }*/
+
         template <class T_other>
         stl_owner_ptr(const stl_owner_ptr<T_other> &other) noexcept :
         ptr_(other.ptr_)
@@ -100,6 +106,12 @@ namespace mv
                 return true;
             else
                 return false;
+        }
+
+        template <class T_second>
+        stl_owner_ptr<T_second> cast_pointer() const
+        {
+            return stl_owner_ptr<T_second>(std::static_pointer_cast<T_second>(ptr_));
         }
 
     };
@@ -251,12 +263,6 @@ namespace mv
         }
 
     };
-
-    template <class T_first, class T_second>
-    static stl_owner_ptr<T_first> cast_pointer(const stl_owner_ptr<T_second> &other)
-    {
-        return stl_owner_ptr<T_first>(std::static_pointer_cast<T_first>(other.ptr_));
-    }
 
 }
 

@@ -2,9 +2,103 @@
 #define GRAPH_CONTAINER_HPP_
 
 #include <stdint.h>
+#include "include/fathom/graph/pair.hpp"
 
 namespace mv
 {
+
+    template<class T_size>
+    class unique_element_class
+    {
+    
+    protected:
+
+        T_size id_;
+
+    public:
+
+        unique_element_class(T_size id) : id_(id)
+        {
+
+        }
+
+        virtual ~unique_element_class() = 0;
+
+        T_size getID()
+        {
+            return id_;
+        }
+
+        bool operator==(const unique_element_class &other) const
+        {
+            return id_ == other.id_;
+        }
+
+        bool operator!=(const unique_element_class &other) const
+        {
+            return !(*this == other);
+        }
+
+    };
+
+    template <class T_node, class T_size>
+    class base_node_class : public unique_element_class<T_size>
+    {
+
+        T_node content_;
+        
+    public:
+
+        base_node_class(const T_node &content, unsigned long id) :
+        unique_element_class<T_size>(id),
+        content_(content)
+        {
+
+        }
+
+        T_node &get_content()
+        {
+            return content_;
+        }
+
+    };
+
+    /**
+     * @brief Helper struct that implements the comparison for use in underlying set containers.
+     * 
+     * @tparam T_unique Type of compared iterable object
+     */
+    template <class T_unique, class T_allocator>
+    struct id_comparator_class
+    {
+
+        /**
+         * @brief Implementation of comparison operator for access_ptr.
+         * 
+         * @param lhs Left hand side access_ptr
+         * @param rhs Right hand side access_ptr
+         * @return true If rhs has greater ID than lhs
+         * @return false If lhs has greater or equal ID to rhs
+         */
+        bool operator()(const typename T_allocator::template access_ptr<T_unique> &lhs, const typename T_allocator::template access_ptr<T_unique> &rhs)
+        {
+            return lhs.lock()->getID() < rhs.lock()->getID();
+        }
+
+        /**
+         * @brief Implementation of comparison operator for owner_ptr.
+         * 
+         * @param lhs Left hand side owner_ptr
+         * @param rhs Right hand side owner_ptr
+         * @return true If rhs has greater ID than lhs
+         * @return false If lhs has greater or equal ID to rhs
+         */
+        bool operator()(const typename T_allocator::template owner_ptr<T_unique> &lhs, const typename T_allocator::template owner_ptr<T_unique> &rhs)
+        {
+            return lhs->getID() < rhs->getID();
+        }
+        
+    };
 
     // factory method pattern
     /**
@@ -25,6 +119,12 @@ namespace mv
     class graph
     {
 
+        using unique_element = unique_element_class<T_size>;
+        using base_node = base_node_class<T_node, T_size>;
+
+        template <class T_unique>
+        using id_comparator = id_comparator_class<T_unique, T_allocator>;
+
         template <class T>
         using owner_ptr = typename T_allocator::template owner_ptr<T>;
 
@@ -43,45 +143,14 @@ namespace mv
         template <class T_iterable, class T_content> class parent_iterator;
         template <class T_iterable, class T_content> class sibling_iterator;
         template <class T_iterable, class T_content> class iterable;
+
+    protected:
         class node;
+
+    private:
         class edge;
 
-        /**
-         * @brief Helper struct that implements the comparison for use in underlying set containers.
-         * 
-         * @tparam T_iterable Type of compared iterable object
-         */
-        template <class T_iterable>
-        struct id_comparator
-        {
-
-            /**
-             * @brief Implementation of comparison operator for access_ptr.
-             * 
-             * @param lhs Left hand side access_ptr
-             * @param rhs Right hand side access_ptr
-             * @return true If rhs has greater ID than lhs
-             * @return false If lhs has greater or equal ID to rhs
-             */
-            bool operator()(const access_ptr<T_iterable> &lhs, const access_ptr<T_iterable> &rhs)
-            {
-                return lhs.lock()->id_ < rhs.lock()->id_;
-            }
-
-            /**
-             * @brief Implementation of comparison operator for owner_ptr.
-             * 
-             * @param lhs Left hand side owner_ptr
-             * @param rhs Right hand side owner_ptr
-             * @return true If rhs has greater ID than lhs
-             * @return false If lhs has greater or equal ID to rhs
-             */
-            bool operator()(const owner_ptr<T_iterable> &lhs, const owner_ptr<T_iterable> &rhs)
-            {
-                return lhs->id_ < rhs->id_;
-            }
-            
-        };
+        
 
         template <class T_iterable>
         using iterable_access_set = typename T_allocator::template set<access_ptr<T_iterable>, id_comparator<T_iterable>>;
@@ -100,33 +169,36 @@ namespace mv
 
         template <class T_iterable>
         using access_deque_ptr = owner_ptr<access_deque<T_iterable>>;
-
-    private:
+        
 
         // Curiously recurring template pattern
         template <class T_iterable, class T_content>
-        class iterable
+        class iterable : public unique_element
         {
 
         protected:
 
             graph &graph_;
-            T_content content_;
-            unsigned long id_;
+            //T_content content_;
             const T_allocator &allocator_;
 
             iterable_access_set_ptr<T_iterable> children_;
             iterable_access_set_ptr<T_iterable> parents_;
             iterable_access_set_ptr<T_iterable> siblings_;
 
+            virtual T_content& get_stored_content_() = 0;
+            virtual void set_stored_content_(const T_content &content) = 0;
+
             T_content& get_content()
             {
-                return content_; 
+                return static_cast<T_iterable&>(*this).get_stored_content_();
+                //return content_; 
             }
 
             void set_content(const T_content &content)
             {
-                content_ = content;
+                static_cast<T_iterable&>(*this).set_stored_content_(content);
+                //content_ = content;
             }
 
             iterable_access_set<T_iterable> &get_children() 
@@ -279,10 +351,11 @@ namespace mv
 
         public:
             
-            iterable(graph& master_graph, const T_content &content, unsigned long id) : 
+            //iterable(graph& master_graph, const T_content &content, T_size id) :
+            iterable(graph& master_graph, T_size id) :
+            unique_element(id), 
             graph_(master_graph),
-            content_(content),
-            id_(id),
+            //content_(content),
             allocator_(master_graph.allocator_),
             children_(allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>()),
             parents_(allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>()),
@@ -294,16 +367,6 @@ namespace mv
             iterable(const iterable& other) = delete;
 
             virtual ~iterable() = 0;
-        
-            bool operator==(const iterable &other) const
-            {
-                return id_ == other.id_;
-            }
-
-            bool operator!=(const iterable &other) const
-            {
-                return !(*this == other);
-            }
 
             T_size children_size() const
             {
@@ -351,9 +414,6 @@ namespace mv
             }
 
         };
-
-
-private:
 
         template <class T_iterable, class T_content>
         class base_iterator : public access_ptr<T_iterable>
@@ -882,7 +942,7 @@ private:
                 iterable_access_set<T_iterable> *adj;
                 
                 if (dir_ == forward)
-                    adj= &v->get_children();
+                    adj = &v->get_children();
                 else
                     adj = &v->get_parents();
 
@@ -891,8 +951,10 @@ private:
 
                     for (auto it = adj->begin(); it != adj->end(); ++it)
                     {
+
                         if (*it)
                         {
+
                             bool result = this->search_list_->push_back(*it);
                             if (!result)
                             {
@@ -1133,20 +1195,47 @@ private:
         typedef sibling_iterator<node, T_node> node_sibling_iterator;
         typedef sibling_iterator<edge, T_edge> edge_sibling_iterator;
 
-    private:
+    protected:
 
         class node : public iterable<node, T_node>
         {
 
             friend class graph;
 
+            access_ptr<base_node> content_;
+
             iterable_access_set_ptr<edge> inputs_;
             iterable_access_set_ptr<edge> outputs_;
 
+            T_node& get_stored_content_()
+            {
+                return content_.lock()->get_content();
+            }
+            
+            void set_stored_content_(const T_node &content)
+            {
+                content_.lock()->get_content() = content;
+            }
+
+            void set_id_(T_size id)
+            {
+                this->id_ = id;
+            }
+
         public:
             
-            node(graph& master_graph, const T_node &content, unsigned long id) : 
-            iterable<node, T_node>(master_graph, content, id),
+            node(graph& master_graph, owner_ptr<base_node> &content) : 
+            //iterable<node, T_node>(master_graph, content, id),
+            iterable<node, T_node>(master_graph, content->getID()),
+            content_(content),
+            inputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>()),
+            outputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>())
+            {
+
+            }
+
+            node(graph& master_graph, T_size id) :
+            iterable<node, T_node>(master_graph, id),
             inputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>()),
             outputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>())
             {
@@ -1189,20 +1278,36 @@ private:
             }
 
         };
+
+    private:
         
         class edge : public iterable<edge, T_edge>
         {
 
             friend class graph;
             
+            T_edge content_;
+
             access_ptr<node> source_;
             access_ptr<node> sink_;
+
+            T_edge& get_stored_content_()
+            {
+                return content_;
+            }
+            
+            void set_stored_content_(const T_edge &content)
+            {
+                content_ = content;
+            }
 
         public:
 
             edge(graph& master_graph, const node_list_iterator &source, const node_list_iterator &sink,
             const T_edge &content, unsigned long id) : 
-            iterable<edge, T_edge>(master_graph, content, id),
+            //iterable<edge, T_edge>(master_graph, content, id),
+            iterable<edge, T_edge>(master_graph, id),
+            content_(content),
             source_(source),
             sink_(sink)
             {
@@ -1226,12 +1331,23 @@ private:
 
         };
 
+    protected:
 
+        typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<base_node_class<T_node, T_size>>, id_comparator<base_node_class<T_node, T_size>>>> base_nodes_;
+        
+    private:
+        
         iterable_owner_set_ptr<node> nodes_;
         iterable_owner_set_ptr<edge> edges_;
 
-        T_size element_id_;
+    protected:
 
+        owner_ptr<T_size> node_id_;
+        owner_ptr<T_size> edge_id_;
+
+    private:
+
+        owner_ptr<node> search_node_;
         static T_allocator allocator_;
 
         typename iterable_owner_set<node>::iterator find(access_ptr<node> node_ptr)
@@ -1284,12 +1400,121 @@ private:
             return edges_->rend();
         }
 
-    public:
+    protected:
+    
+        owner_ptr<node> get_node_(owner_ptr<base_node> &b_node)
+        {
+            //owner_ptr<node> n_ptr(*this, b_node);
+            //return *nodes_->find(n_ptr);
+            search_node_->content_ = b_node;
+            search_node_->set_id_(b_node->getID());
+            return *nodes_->find(search_node_);
+        }
 
-        graph() : 
+        virtual bool make_node_(owner_ptr<base_node> &b_node, owner_ptr<node> &new_node)
+        {
+
+            new_node = allocator_.template make_owner<node>(*this, b_node);
+
+            if (new_node)
+            {   
+                
+                auto result = nodes_->insert(nodes_->end(), new_node);
+
+                if (result == nodes_->end())
+                    return false;
+                
+            }
+            else
+                return false;
+
+            return true;
+
+        }
+
+        virtual void terminate_node_(owner_ptr<base_node> &b_node, owner_ptr<node> &del_node)
+        {
+            
+            if (del_node)
+            {
+
+                // Remove relations with parents of the node and edges being deleted by iterating
+                // over node's input edges
+                for (auto ec_it = del_node->inputs_->begin(); ec_it != del_node->inputs_->end(); ++ec_it)
+                {
+                    auto e_ptr = (*ec_it).lock();
+                    auto parent_ptr = e_ptr->source_.lock();
+
+                    // Remove the deleted node from the set of children of the parent node
+                    parent_ptr->remove_child_(del_node);
+
+                    // Remove input edges of the node being deleted from sets of children
+                    // of inputs edges of the parent node
+                    for (auto parent_ref : *parent_ptr->inputs_)
+                    {
+                        parent_ref->remove_child_(e_ptr);
+                    }
+
+                    // Remove input edge of the node being deleted from set of output edges
+                    // of the parent node
+                    parent_ptr->outputs_->erase(e_ptr);
+
+                    // Remove egde from set of graph's edges (delete edge)
+                    edges_->erase(e_ptr);
+                }
+
+                // Remove relations with children of the node and edges being deleted by iterating
+                // over node's output edges
+                for (auto ec_it = del_node->outputs_->begin(); ec_it != del_node->outputs_->end(); ++ec_it)
+                {
+                    auto e_ptr = (*ec_it).lock();
+                    auto child_ptr = e_ptr->sink_.lock();
+
+                    // Remove deleted node from the set of parents of the child node
+                    child_ptr->remove_parent_(del_node, child_ptr);
+
+                    // Remove output edges of the node being deleted from sets of children
+                    // of output edges of the child node
+                    for (auto child_ref : *child_ptr->outputs_)
+                    {
+                        child_ref->remove_parent_(e_ptr, child_ref);
+                    }
+
+                    // Remove output edge of the node being deleted from set of input edges
+                    // of the child node
+                    child_ptr->inputs_->erase(e_ptr);
+
+                    // Remove egde from set of graph's edges (delete edge)
+                    edges_->erase(e_ptr);
+                }
+
+                nodes_->erase(del_node);
+
+            }
+            
+        }
+
+        virtual void terminate_all_()
+        {
+            nodes_->clear();
+            edges_->clear();
+        }
+
+        graph(const typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<base_node_class<T_node, T_size>>, id_comparator<base_node_class<T_node, T_size>>>> &base_nodes, const owner_ptr<T_size> &node_id) : 
+        base_nodes_(base_nodes), 
         nodes_(allocator_.template make_set<owner_ptr<node>, id_comparator<node>>()), 
         edges_(allocator_.template make_set<owner_ptr<edge>, id_comparator<edge>>()), 
-        element_id_(0)
+        node_id_(node_id),
+        edge_id_(allocator_.template make_owner<T_size>(T_size(0))),
+        search_node_(allocator_.template make_owner<node>(*this, (*node_id_)++))
+        {
+
+        }
+
+    public:
+
+        graph() :
+        graph(allocator_.template make_set<owner_ptr<base_node>, id_comparator<base_node>>(), allocator_.template make_owner<T_size>(T_size(0)))
         {
 
         }
@@ -1360,13 +1585,65 @@ private:
             return nodes_.size() == 0;
         }
 
+        node_list_iterator node_insert(const T_node &content)
+        {
+
+            auto n_base_ptr = allocator_.template make_owner<base_node>(content, *node_id_);
+            
+            if (!n_base_ptr)
+                return node_end();
+            
+            if (base_nodes_->insert(base_nodes_->end(), n_base_ptr) == base_nodes_->end())
+                return node_end();
+                
+            ++(*node_id_);
+
+            owner_ptr<node> n_ptr;
+            bool result = make_node_(n_base_ptr, n_ptr);
+
+            if (!result)
+            {
+                base_nodes_->erase(n_base_ptr);
+                return node_end();
+            }
+            
+            return node_list_iterator(n_ptr);
+            
+        }
+
+        node_list_iterator node_insert(const base_iterator<node, T_node> &n1_it, const T_node &n_content, const T_edge &e_content)
+        {
+
+            if (n1_it != node_end())
+            {
+
+                auto n2_it = node_insert(n_content);
+
+                if (n2_it == node_end())
+                    return node_end();
+
+                auto e_it = edge_insert(n1_it, n2_it, e_content);
+
+                if (e_it == edge_end())
+                {
+                    node_erase(n2_it);
+                    return node_end();
+                }
+
+                return n2_it;
+            }
+            else
+                return node_end();
+        
+        }
+
         edge_list_iterator edge_insert(const base_iterator<node, T_node> &n1_it, const base_iterator<node, T_node> &n2_it, const T_edge &content)
         {
             if (n1_it != node_end() && n2_it != node_end())
             {
     
                 // Construct an edge with a defined content
-                auto e_ptr = allocator_.template make_owner<edge>(*this, n1_it, n2_it, content, element_id_);
+                auto e_ptr = allocator_.template make_owner<edge>(*this, n1_it, n2_it, content, *edge_id_);
 
                 if (!e_ptr)
                     return edge_end();
@@ -1473,7 +1750,7 @@ private:
 
                 }
 
-                ++element_id_;
+                ++(*edge_id_);
                 
                 return edge_list_iterator(e_ptr);
 
@@ -1483,116 +1760,23 @@ private:
 
         }
 
-        node_list_iterator node_insert(const T_node &content)
-        {
-
-            auto n_ptr = allocator_.template make_owner<node>(*this, content, element_id_);
-
-            if (!n_ptr)
-                return node_end();
-
-            if (n_ptr)
-            {
-
-                auto result = nodes_->insert(nodes_->end(), n_ptr);
-
-                if (result == nodes_->end())
-                    return node_end();
-
-                ++element_id_;
-                return node_list_iterator(n_ptr);
-
-            }
-            else
-            {
-                return node_end();
-            }
-
-        }
-
-        node_list_iterator node_insert(const base_iterator<node, T_node> &n1_it, const T_node &n_content, const T_edge &e_content)
-        {
-
-            if (n1_it != node_end())
-            {
-
-                auto n2_it = node_insert(n_content);
-
-                if (n2_it == node_end())
-                    return node_end();
-
-                auto e_it = edge_insert(n1_it, n2_it, e_content);
-
-                if (e_it == edge_end())
-                {
-                    node_erase(n2_it);
-                    return node_end();
-                }
-
-                return n2_it;
-            }
-            else
-                return node_end();
-        
-        }
-
         void node_erase(base_iterator<node, T_node> &n_it)
         {
 
             if (n_it != node_end())
             {
                 
-                // Remove relations with parents of the node and edges being deleted by iterating
-                // over node's input edges
-                for (auto ec_it = n_it->inputs_->begin(); ec_it != n_it->inputs_->end(); ++ec_it)
-                {
-                    auto e_ptr = (*ec_it).lock();
-                    auto parent_ptr = e_ptr->source_.lock();
+                auto n_ptr = n_it.get().lock();
+                auto base_n_ptr = n_ptr->content_.lock();
 
-                    // Remove the deleted node from the set of children of the parent node
-                    parent_ptr->remove_child_(n_it.get());
+                // Delete node
+                terminate_node_(base_n_ptr, n_ptr);
+                //nodes_->erase(n_it.get().lock());
 
-                    // Remove input edges of the node being deleted from sets of children
-                    // of inputs edges of the parent node
-                    for (auto parent_ref : *parent_ptr->inputs_)
-                    {
-                        parent_ref->remove_child_(e_ptr);
-                    }
+                if (base_n_ptr)
+                    base_nodes_->erase(base_n_ptr);
 
-                    // Remove input edge of the node being deleted from set of output edges
-                    // of the parent node
-                    parent_ptr->outputs_->erase(e_ptr);
-
-                    // Remove egde from set of graph's edges (delete edge)
-                    edges_->erase(e_ptr);
-                }
-
-                // Remove relations with children of the node and edges being deleted by iterating
-                // over node's output edges
-                for (auto ec_it = n_it->outputs_->begin(); ec_it != n_it->outputs_->end(); ++ec_it)
-                {
-                    auto e_ptr = (*ec_it).lock();
-                    auto child_ptr = e_ptr->sink_.lock();
-
-                    // Remove deleted node from the set of parents of the child node
-                    child_ptr->remove_parent_(n_it.get(), child_ptr);
-
-                    // Remove output edges of the node being deleted from sets of children
-                    // of output edges of the child node
-                    for (auto child_ref : *child_ptr->outputs_)
-                    {
-                        child_ref->remove_parent_(e_ptr, child_ref);
-                    }
-
-                    // Remove output edge of the node being deleted from set of input edges
-                    // of the child node
-                    child_ptr->inputs_->erase(e_ptr);
-
-                    // Remove egde from set of graph's edges (delete edge)
-                    edges_->erase(e_ptr);
-                }
-                
-                nodes_->erase(n_it.get().lock());
+                // Invalidate input iterator
                 n_it = node_end();
 
             }
@@ -1638,7 +1822,7 @@ private:
 
         }
 
-        T_size node_size()
+        virtual T_size node_size()
         {
             return nodes_->size();
         }
@@ -1646,6 +1830,12 @@ private:
         T_size edge_size()
         {
             return edges_->size();
+        }
+
+        void clear()
+        {
+            terminate_all_();
+            base_nodes_->clear();
         }
 
         bool disjoint() const
@@ -1659,12 +1849,80 @@ private:
             
         }
 
+        /// Complexity n 
+        node_list_iterator node_find(const T_node &val) const
+        {
+
+            for (auto it = node_begin(); it != node_end(); ++it)
+                if (*it == val)
+                    return it;
+
+            return node_end();
+
+        }
+
+        node_list_iterator node_lower_bound(const T_node &val)
+        {
+            return node_find(val);
+        }
+
+        node_list_iterator node_upper_bound(const T_node &val)
+        {
+            for (auto it = node_rbegin(); it != node_rend(); ++it)
+                if (*it == val)
+                    return it;
+
+            return node_end();
+        }
+
+        pair<node_list_iterator, node_list_iterator> node_equal_range(const T_node &val)
+        {
+            return pair<node_list_iterator, node_list_iterator>(node_lower_bound(val), node_upper_bound(val));
+        }
+
+        /// Complexity n 
+        edge_list_iterator edge_find(const T_edge &val) const
+        {
+
+            for (auto it = edge_begin(); it != edge_end(); ++it)
+                if (*it == val)
+                    return it;
+
+            return edge_end();
+
+        }
+
+        edge_list_iterator edge_lower_bound(const T_edge &val)
+        {
+            return edge_find(val);
+        }
+
+        edge_list_iterator edge_upper_bound(const T_edge &val)
+        {
+            for (auto it = edge_rbegin(); it != edge_rend(); ++it)
+                if (*it == val)
+                    return it;
+
+            return edge_end();
+        }
+
+        pair<edge_list_iterator, edge_list_iterator> edge_equal_range(const T_edge &val)
+        {
+            return pair<edge_list_iterator, edge_list_iterator>(edge_lower_bound(val), edge_upper_bound(val));
+        }
+
     };
 
 };
 
 template <class T_node, class T_edge, class T_allocator, class T_size>
 T_allocator mv::graph<T_node, T_edge, T_allocator, T_size>::allocator_;
+
+template <class T_size>
+mv::unique_element_class<T_size>::~unique_element_class()
+{
+
+}
 
 template <class T_node, class T_edge, class T_allocator, class T_size>
 template <class T_iterable, class T_content>
@@ -1693,5 +1951,11 @@ mv::graph<T_node, T_edge, T_allocator, T_size>::relative_iterator<T_iterable, T_
 {
 
 }
+
+/*template <class T_node, class T_edge, class T_allocator, class T_size>
+mv::graph<T_node, T_edge, T_allocator, T_size>::base_node::~base_node()
+{
+
+}*/
 
 #endif // GRAPH_CONTAINER_HPP_

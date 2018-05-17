@@ -1,5 +1,6 @@
 #include "include/fathom/computation/model/op_model.hpp"
 #include "include/fathom/computation/model/data_model.hpp"
+#include "include/fathom/computation/model/control_model.hpp"
 #include "include/fathom/computation/utils/data_generator.hpp"
 
 int main()
@@ -38,6 +39,18 @@ int main()
     dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + (*dm.getInput()).getTensor().getName());
     dm.logger().log(msgType, "Output op: " + (*om.getOutput()).getName());
     dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + (*dm.getOutput()).getTensor().getName());
+
+    mv::ControlModel cm(om);
+
+    cm.logger().log(msgType, "First op: " + (*cm.getFirst()).getName());
+    cm.logger().log(msgType, "Last op: " + (*cm.getLast()).getName());
+
+    mv::size_type i = 0;
+    for (auto it = cm.getFirst(); it != cm.end(); ++it)
+    {
+        cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + (*it).getName());
+        ++i;
+    }
 
     return 0;
 

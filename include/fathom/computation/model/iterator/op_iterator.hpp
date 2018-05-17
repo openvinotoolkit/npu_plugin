@@ -7,13 +7,13 @@
 namespace mv
 {
 
-    class OpListIterator : public computation_graph::node_list_iterator
+    class OpListIterator : public computation_graph::first_graph::node_list_iterator
     {
 
     public:
 
-        OpListIterator(const computation_graph::node_list_iterator &other) :
-        computation_graph::node_list_iterator(other)
+        OpListIterator(const computation_graph::first_graph::node_list_iterator &other) :
+        computation_graph::first_graph::node_list_iterator(other)
         {
 
         }
@@ -30,7 +30,7 @@ namespace mv
 
         ComputationOp& operator*() const
         {
-            return *(computation_graph::node_list_iterator::operator*());
+            return *(computation_graph::first_graph::node_list_iterator::operator*());
         }
 
     };

@@ -340,7 +340,7 @@ class Blob_buffer : public WBuffer
 
        void write_mv_header()
         {
-            uint32_t total_header_size = blob_stats.elf_header_size+blob_stats.mv_header_size; 
+            //uint32_t total_header_size = blob_stats.elf_header_size+blob_stats.mv_header_size; 
 
             uint32_t mv_magic_number = 8708 ;
             uint32_t mv_version_major = 2 ;
@@ -459,13 +459,13 @@ class Blob_buffer : public WBuffer
 
             AddBytes(4, (blob_stats.buffer_header_size + blob_stats.buffer_data_size));
 
-            for (int i=0; i<buffer_header_pad_size; i++)
+            for (unsigned i=0; i<buffer_header_pad_size; i++)
             {   
                 AddBytes(4, buffer_header_pad_val);
             }
 
             // data buffer
-            for (int i=0; i< blob_stats.buffer_data_size; i++) 
+            for (unsigned i=0; i< blob_stats.buffer_data_size; i++) 
             {
                 AddBytes(1, buffer_data_val);
             }

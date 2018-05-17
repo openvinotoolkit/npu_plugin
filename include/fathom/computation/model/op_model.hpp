@@ -1,6 +1,7 @@
 #ifndef OP_MODEL_HPP_
 #define OP_MODEL_HPP_
 
+#include "include/fathom/computation/api/compositional_model.hpp"
 #include "include/fathom/computation/model/model.hpp"
 #include "include/fathom/computation/op/input.hpp"
 #include "include/fathom/computation/op/output.hpp"

@@ -126,7 +126,7 @@ namespace mv
         {
 
             assert(getTypeId<T>() == content_->typeId_ && "Attribute type mismatch");
-            return cast_pointer<AttributeContent<T>>(content_)->getContent();
+            return content_.cast_pointer<AttributeContent<T>>()->getContent();
         
         }
 

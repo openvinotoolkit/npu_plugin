@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 #include "include/fathom/graph/stl_allocator.hpp"
-#include "include/fathom/graph/graph.hpp"
+#include "include/fathom/graph/conjoined_graph.hpp"
 
 namespace mv
 {
@@ -35,8 +35,10 @@ namespace mv
 
     class ComputationOp;
     class DataFlow;
+    class ControlFlow;
 
-    using computation_graph = graph<allocator::owner_ptr<ComputationOp>, DataFlow, allocator, size_type>;
+    using computation_graph = conjoined_graph<allocator::owner_ptr<ComputationOp>, DataFlow, ControlFlow, allocator, size_type>;
+    //using control_graph = graph<allocator::owner_ptr<ComputationOp>, ControlFlow, allocator, size_type>;
 
     enum class Order
     {

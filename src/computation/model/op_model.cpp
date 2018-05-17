@@ -15,8 +15,10 @@ ComputationModel(logger)
 mv::OpListIterator mv::OpModel::input(const Shape &shape, DType dType, Order order, const string &name)
 {
 
-    input_ = ops_graph_->node_insert(allocator_.make_owner<Input>(logger_, shape, dType, order, name));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*input_).toString());
+    input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(logger_, shape, dType, order, name));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*input_)->toString());
+
+    lastOp_ = controlGraph_.node_find(*input_);
 
     return input_;
 
@@ -28,8 +30,12 @@ mv::OpListIterator mv::OpModel::output(OpListIterator &predIt, const string &nam
     auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
 
-    output_ = ops_graph_->node_insert(predIt, allocator_.make_owner<Output>(logger_, **inTensorRes.first, name), *inTensorRes.first);
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*output_).toString());
+    output_ = dataGraph_.node_insert(predIt, allocator_.make_owner<Output>(logger_, **inTensorRes.first, name), *inTensorRes.first);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*output_)->toString());
+
+    auto currentOp = controlGraph_.node_find(*output_);
+    controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
+    lastOp_ = currentOp;
 
     return output_;
 
@@ -42,10 +48,14 @@ mv::OpListIterator mv::OpModel::conv(OpListIterator &predIt, const ConstantTenso
     auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
 
-    OpListIterator convIt = ops_graph_->node_insert(predIt, allocator_.make_owner<Conv>(logger_, **inTensorRes.first, weights, strideX, strideY, padX, padY, name), *inTensorRes.first);
-    auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, (*convIt).getName() + "_" + "weights", (*convIt).getAttr("weights").getContent<ConstantTensor>()));
+    computation_graph::first_graph::node_list_iterator convIt = dataGraph_.node_insert(predIt, allocator_.make_owner<Conv>(logger_, **inTensorRes.first, weights, strideX, strideY, padX, padY, name), *inTensorRes.first);
+    auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, (*convIt)->getName() + "_" + "weights", (*convIt)->getAttr("weights").getContent<ConstantTensor>()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*resultT.first)->toString());
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*convIt).toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*convIt)->toString());
+
+    auto currentOp = controlGraph_.node_find(*convIt);
+    controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
+    lastOp_ = currentOp;
 
     return convIt;
 }
@@ -56,8 +66,12 @@ mv::OpListIterator mv::OpModel::maxpool(OpListIterator &predIt, const Shape &ker
     auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
 
-    OpListIterator poolIt = ops_graph_->node_insert(predIt, allocator_.make_owner<MaxPool>(logger_, **inTensorRes.first, kernelShape, strideX, strideY, padX, padY, name), *inTensorRes.first);
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*poolIt).toString());
+    computation_graph::first_graph::node_list_iterator poolIt = dataGraph_.node_insert(predIt, allocator_.make_owner<MaxPool>(logger_, **inTensorRes.first, kernelShape, strideX, strideY, padX, padY, name), *inTensorRes.first);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*poolIt)->toString());
+
+    auto currentOp = controlGraph_.node_find(*poolIt);
+    controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
+    lastOp_ = currentOp;
 
     return poolIt;
 }

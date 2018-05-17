@@ -31,7 +31,7 @@ TEST(computation_model, minimal_functional_composition)
     auto convIt = om.conv(inIt, weights, 4, 4, 1, 1);
     auto outIt = om.output(convIt);
 
-    // Check if model is valid
+    // Check if model is valid 
     ASSERT_TRUE(om.isValid());
 
     // Check output shape

@@ -36,6 +36,8 @@ namespace mv
 
         virtual string toString() const;
 
+        bool operator==(const ComputationOp &other) const;
+
     };
 
 }

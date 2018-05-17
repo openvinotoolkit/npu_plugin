@@ -53,3 +53,8 @@ mv::UnpopulatedTensor mv::ComputationOp::getOutput() const
     return UnpopulatedTensor(logger_, name_ + "_out:0", outputShape_, dType_, order_);
 
 }
+
+bool mv::ComputationOp::operator==(const ComputationOp &other) const
+{
+    return getName() == other.getName();
+}

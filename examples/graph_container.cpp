@@ -4,11 +4,12 @@
 #include "include/fathom/graph/stl_allocator.hpp"
 
 
-using graph = mv::graph<char, int, mv::stl_allocator>;
+using graph_char_int= mv::graph<char, int, mv::stl_allocator>;
+using graph_char_bool = mv::graph<char, bool, mv::stl_allocator>;
 
 int main()
 {
-
+    
     //mv::stl_allocator::callback n_callback = &foo;
     //mv::stl_allocator::alloc_fail_callback = n_callback;
 
@@ -43,7 +44,9 @@ int main()
     */
 
     // Define graph
-    graph g;
+    graph_char_int g;
+
+    //graph_char_bool g2 = graph_char_int::shallow_nodes_copy<bool>(g);
 
     auto na = g.node_insert('a');
     auto nb = g.node_insert('b');
@@ -124,25 +127,25 @@ int main()
 
     // Reverse list
     std::cout << "Nodes reverse list: ";
-    for (graph::node_reverse_list_iterator it = g.node_rbegin(); it != g.node_rend(); ++it)
+    for (graph_char_int::node_reverse_list_iterator it = g.node_rbegin(); it != g.node_rend(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
     std::cout << std::endl;
 
     // Search
-    auto dfs_fdir = graph::node_dfs_iterator::forward;
-    auto dfs_rdir = graph::node_dfs_iterator::reverse;
-    auto dfs_lside = graph::node_dfs_iterator::leftmost;
-    auto dfs_rside = graph::node_dfs_iterator::rightmost;
-    auto bfs_fdir = graph::node_bfs_iterator::forward;
-    auto bfs_rdir = graph::node_bfs_iterator::reverse;
-    auto bfs_lside = graph::node_bfs_iterator::leftmost;
-    auto bfs_rside = graph::node_bfs_iterator::rightmost;
+    auto dfs_fdir = graph_char_int::node_dfs_iterator::forward;
+    auto dfs_rdir = graph_char_int::node_dfs_iterator::reverse;
+    auto dfs_lside = graph_char_int::node_dfs_iterator::leftmost;
+    auto dfs_rside = graph_char_int::node_dfs_iterator::rightmost;
+    auto bfs_fdir = graph_char_int::node_bfs_iterator::forward;
+    auto bfs_rdir = graph_char_int::node_bfs_iterator::reverse;
+    auto bfs_lside = graph_char_int::node_bfs_iterator::leftmost;
+    auto bfs_rside = graph_char_int::node_bfs_iterator::rightmost;
 
     // DFS (forward leftmost) - startng from node na
     std::cout << "Nodes DFS forward leftmost (starting na): ";
-    for (graph::node_dfs_iterator it(na); it != g.node_end(); ++it)
+    for (graph_char_int::node_dfs_iterator it(na); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -150,7 +153,7 @@ int main()
 
      // DFS (forward rightmost) - startng from node na
     std::cout << "Nodes DFS forward rightmost (starting na): ";
-    for (graph::node_dfs_iterator it(na, dfs_fdir, dfs_rside); it != g.node_end(); ++it)
+    for (graph_char_int::node_dfs_iterator it(na, dfs_fdir, dfs_rside); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -158,7 +161,7 @@ int main()
 
     // DFS (reverse leftmost) - startng from node np
     std::cout << "Nodes DFS reverse leftmost (starting np): ";
-    for (graph::node_dfs_iterator it(np, dfs_rdir, dfs_lside); it != g.node_end(); ++it)
+    for (graph_char_int::node_dfs_iterator it(np, dfs_rdir, dfs_lside); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -166,7 +169,7 @@ int main()
 
      // DFS (reverse rigthmost)- startng from node na
     std::cout << "Nodes DFS reverse rightmost (starting np): ";
-    for (graph::node_dfs_iterator it(np, dfs_rdir, dfs_rside); it != g.node_end(); ++it)
+    for (graph_char_int::node_dfs_iterator it(np, dfs_rdir, dfs_rside); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -174,7 +177,7 @@ int main()
 
     // BFS (forward leftmost) - startng from node na
     std::cout << "Nodes BFS forward leftmost (starting na): ";
-    for (graph::node_bfs_iterator it(na, bfs_fdir, bfs_lside); it != g.node_end(); ++it)
+    for (graph_char_int::node_bfs_iterator it(na, bfs_fdir, bfs_lside); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -182,7 +185,7 @@ int main()
 
      // BFS (forward rightmost) - startng from node na
     std::cout << "Nodes BFS forward rightmost (starting na): ";
-    for (graph::node_bfs_iterator it(na, bfs_fdir, bfs_rside); it != g.node_end(); ++it)
+    for (graph_char_int::node_bfs_iterator it(na, bfs_fdir, bfs_rside); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -190,7 +193,7 @@ int main()
 
     // BFS (reverse leftmost) - startng from node np
     std::cout << "Nodes BFS reverse leftmost (starting np): ";
-    for (graph::node_bfs_iterator it(np, bfs_rdir, bfs_lside); it != g.node_end(); ++it)
+    for (graph_char_int::node_bfs_iterator it(np, bfs_rdir, bfs_lside); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -198,7 +201,7 @@ int main()
 
      // BFS (reverse rigthmost) - startng from node np
     std::cout << "Nodes BFS reverse rightmost (starting np): ";
-    for (graph::node_bfs_iterator it(np, bfs_rdir, bfs_rside); it != g.node_end(); ++it)
+    for (graph_char_int::node_bfs_iterator it(np, bfs_rdir, bfs_rside); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -217,7 +220,7 @@ int main()
 
     // Reverse list
     std::cout << "Edges reverse list: ";
-    for (graph::edge_reverse_list_iterator it = g.edge_rbegin(); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_reverse_list_iterator it = g.edge_rbegin(); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -225,7 +228,7 @@ int main()
 
     // DFS - startng from edge e1
     std::cout << "Edges DFS (starting e1): ";
-    for (graph::edge_dfs_iterator it(e1); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_dfs_iterator it(e1); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -233,7 +236,7 @@ int main()
 
     // BFS - starting from edge e1
     std::cout << "Edges BFS (starting e1): ";
-    for (graph::edge_bfs_iterator it(e1); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_bfs_iterator it(e1); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -244,7 +247,7 @@ int main()
 
     // Chilren of node nc
     std::cout << "Children (nc): ";
-    for (graph::node_child_iterator it(nc); it != g.node_end(); ++it)
+    for (graph_char_int::node_child_iterator it(nc); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -255,7 +258,7 @@ int main()
 
     // Parents of node np
     std::cout << "Parents (np): ";
-    for (graph::node_parent_iterator it(np); it != g.node_end(); ++it)
+    for (graph_char_int::node_parent_iterator it(np); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -266,7 +269,7 @@ int main()
 
     // Siblings of node nd
     std::cout << "Siblings (nd): ";
-    for (graph::node_sibling_iterator it(nd); it != g.node_end(); ++it)
+    for (graph_char_int::node_sibling_iterator it(nd); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -279,7 +282,7 @@ int main()
 
     // Chilren of edge e1
     std::cout << "Children (e1): ";
-    for (graph::edge_child_iterator it(e1); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_child_iterator it(e1); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -290,7 +293,7 @@ int main()
 
     // Parents of edge e13
     std::cout << "Parents (e13): ";
-    for (graph::edge_parent_iterator it(e13); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_parent_iterator it(e13); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -301,7 +304,7 @@ int main()
 
     // Siblings of edge e17
     std::cout << "Siblings (e17): ";
-    for (graph::edge_sibling_iterator it(e17); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_sibling_iterator it(e17); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -313,10 +316,10 @@ int main()
     // Node removal (ng)
      
     // Initialize traversing before deletion
-    graph::node_dfs_iterator dfs_nc(nc);
-    graph::node_bfs_iterator bfs_nc(nc);
-    graph::edge_dfs_iterator dfs_e4(e4);
-    graph::edge_bfs_iterator bfs_e4(e4);
+    graph_char_int::node_dfs_iterator dfs_nc(nc);
+    graph_char_int::node_bfs_iterator bfs_nc(nc);
+    graph_char_int::edge_dfs_iterator dfs_e4(e4);
+    graph_char_int::edge_bfs_iterator bfs_e4(e4);
 
     // Delete ng
     g.node_erase(ng);
@@ -357,7 +360,7 @@ int main()
 
     // Node reverse list
     std::cout << "Nodes reverse list: ";
-    for (graph::node_reverse_list_iterator it = g.node_rbegin(); it != g.node_rend(); ++it)
+    for (graph_char_int::node_reverse_list_iterator it = g.node_rbegin(); it != g.node_rend(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -373,7 +376,7 @@ int main()
 
     // Edges reverse list
     std::cout << "Edges reverse list: ";
-    for (graph::edge_reverse_list_iterator it = g.edge_rbegin(); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_reverse_list_iterator it = g.edge_rbegin(); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -413,7 +416,7 @@ int main()
 
     // Chilren of node ne
     std::cout << "Children (ne): ";
-    for (graph::node_child_iterator it(ne); it != g.node_end(); ++it)
+    for (graph_char_int::node_child_iterator it(ne); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -421,7 +424,7 @@ int main()
 
     // Parents of node nj
     std::cout << "Parents (nj): ";
-    for (graph::node_parent_iterator it(nj); it != g.node_end(); ++it)
+    for (graph_char_int::node_parent_iterator it(nj); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -429,7 +432,7 @@ int main()
 
     // Siblings of node nh
     std::cout << "Siblings (nh): ";
-    for (graph::node_sibling_iterator it(nh); it != g.node_end(); ++it)
+    for (graph_char_int::node_sibling_iterator it(nh); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -437,7 +440,7 @@ int main()
 
     // Chilren of edge e5
     std::cout << "Children (e5): ";
-    for (graph::edge_child_iterator it(e5); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_child_iterator it(e5); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -445,7 +448,7 @@ int main()
 
     // Parents of edge e18
     std::cout << "Parents (e18): ";
-    for (graph::edge_parent_iterator it(e18); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_parent_iterator it(e18); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -453,7 +456,7 @@ int main()
 
     // Siblings of edge e12
     std::cout << "Siblings (e12): ";
-    for (graph::edge_sibling_iterator it(e12); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_sibling_iterator it(e12); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -463,8 +466,8 @@ int main()
     // Edge removal (e14)
      
     // Initialize traversing before deletion
-    graph::node_dfs_iterator dfs_nb(nb);
-    graph::node_bfs_iterator bfs_nb(nb);
+    graph_char_int::node_dfs_iterator dfs_nb(nb);
+    graph_char_int::node_bfs_iterator bfs_nb(nb);
     dfs_e4 = e4;    
     bfs_e4 = e4;
 
@@ -487,7 +490,7 @@ int main()
 
     // Node reverse list
     std::cout << "Nodes reverse list: ";
-    for (graph::node_reverse_list_iterator it = g.node_rbegin(); it != g.node_rend(); ++it)
+    for (graph_char_int::node_reverse_list_iterator it = g.node_rbegin(); it != g.node_rend(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -503,7 +506,7 @@ int main()
 
     // Edges reverse list
     std::cout << "Edges reverse list: ";
-    for (graph::edge_reverse_list_iterator it = g.edge_rbegin(); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_reverse_list_iterator it = g.edge_rbegin(); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -543,7 +546,7 @@ int main()
 
     // Chilren of node nh
     std::cout << "Children (nh): ";
-    for (graph::node_child_iterator it(nh); it != g.node_end(); ++it)
+    for (graph_char_int::node_child_iterator it(nh); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -551,7 +554,7 @@ int main()
 
     // Parents of node nj
     std::cout << "Parents (nj): ";
-    for (graph::node_parent_iterator it(nj); it != g.node_end(); ++it)
+    for (graph_char_int::node_parent_iterator it(nj); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -559,7 +562,7 @@ int main()
 
     // Siblings of node nk
     std::cout << "Siblings (nk): ";
-    for (graph::node_sibling_iterator it(nk); it != g.node_end(); ++it)
+    for (graph_char_int::node_sibling_iterator it(nk); it != g.node_end(); ++it)
     {
         std::cout << "n" << *it << " ";
     }
@@ -567,7 +570,7 @@ int main()
 
     // Chilren of edge e10
     std::cout << "Children (e10): ";
-    for (graph::edge_child_iterator it(e10); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_child_iterator it(e10); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -575,7 +578,7 @@ int main()
 
     // Parents of edge e18
     std::cout << "Parents (e18): ";
-    for (graph::edge_parent_iterator it(e18); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_parent_iterator it(e18); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }
@@ -583,7 +586,7 @@ int main()
 
     // Siblings of edge e15
     std::cout << "Siblings (e15): ";
-    for (graph::edge_sibling_iterator it(e15); it != g.edge_end(); ++it)
+    for (graph_char_int::edge_sibling_iterator it(e15); it != g.edge_end(); ++it)
     {
         std::cout << "e" << *it << " ";
     }

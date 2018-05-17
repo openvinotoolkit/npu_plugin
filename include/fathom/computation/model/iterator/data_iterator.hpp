@@ -8,19 +8,19 @@
 namespace mv
 {
 
-    class DataListIterator : public computation_graph::edge_list_iterator
+    class DataListIterator : public computation_graph::first_graph::edge_list_iterator
     {
 
     public:
 
-        DataListIterator(const computation_graph::edge_list_iterator &other) :
-        computation_graph::edge_list_iterator(other)
+        DataListIterator(const computation_graph::first_graph::edge_list_iterator &other) :
+        computation_graph::first_graph::edge_list_iterator(other)
         {
 
         }
 
-        DataListIterator(const computation_graph::edge_sibling_iterator &other) :
-        computation_graph::edge_list_iterator(other)
+        DataListIterator(const computation_graph::first_graph::edge_sibling_iterator &other) :
+        computation_graph::first_graph::edge_list_iterator(other)
         {
             
         }
@@ -37,7 +37,7 @@ namespace mv
 
         DataFlow& operator*() const
         {
-            return computation_graph::edge_list_iterator::operator*();
+            return computation_graph::first_graph::edge_list_iterator::operator*();
         }
 
     };
