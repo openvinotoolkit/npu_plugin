@@ -46,7 +46,7 @@ int main()
     cm.logger().log(msgType, "Last op: " + (*cm.getLast()).getName());
 
     mv::size_type i = 0;
-    for (auto it = cm.getFirst(); it != cm.end(); ++it)
+    for (mv::ControlDFSIterator it = cm.getFirst(); it != cm.end(); ++it)
     {
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + (*it).getName());
         ++i;

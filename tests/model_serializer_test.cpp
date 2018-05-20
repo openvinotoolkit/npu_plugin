@@ -4,7 +4,7 @@
 #include <vector>
 #include "include/fathom/graph/graph.hpp"
 #include "include/fathom/graph/stl_allocator.hpp"
-#include "include/fathom/serializer/serializer.hpp"
+#include "include/fathom/deployer/serializer.hpp"
 
 using int_int_graph = mv::graph<int, int, mv::stl_allocator>;
 using char_int_graph = mv::graph<char, int, mv::stl_allocator>;

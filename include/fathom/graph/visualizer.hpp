@@ -12,17 +12,17 @@ namespace mv
 {
     /// List of supported node visualization formats
     enum viz_node
-        {
-            node_content,
-            node_pointer
-        };
+    {
+        node_content,
+        node_pointer
+    };
 
     /// List of supported edge visualization formats
     enum viz_edge
-        {
-            edge_content,
-            edge_pointer
-        };
+    {
+        edge_content,
+        edge_pointer
+    };
 
 
 
@@ -51,7 +51,7 @@ namespace mv
         void print_dottext()
         {
 
-        std::cout << "DBG in print_dot" << std::endl;
+            std::cout << "DBG in print_dot" << std::endl;
 
         }
 

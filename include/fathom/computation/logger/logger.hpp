@@ -3,6 +3,7 @@
 
 #include <time.h>
 #include "include/fathom/computation/model/types.hpp"
+#include "include/fathom/computation/logger/printable.hpp"
 
 namespace mv
 {
@@ -37,16 +38,6 @@ namespace mv
         
         string getTime() const;
         void logMessage(MessageType messageType, string content) const;
-
-        inline static void replaceSub(string &input, const string &oldSub, const string &newSub)
-        {
-            string::size_type pos = 0u;
-            while((pos = input.find(oldSub, pos)) != string::npos)
-            {
-                input.replace(pos, oldSub.length(), newSub);
-                pos += newSub.length();
-            }
-        }
 
     protected:
 

@@ -50,9 +50,24 @@ bool mv::ComputationModel::isValid() const
     return !dataGraph_.disjoint() && input_ != dataGraph_.node_end() && output_ != dataGraph_.node_end();
 }
 
-const mv::Logger &mv::ComputationModel::logger() const
+mv::Logger &mv::ComputationModel::logger()
 {
 
     return logger_;
 
 }
+
+/*mv::OpModel mv::ComputationModel::getOpModel()
+{
+    return OpModel(*this);
+}
+
+mv::DataModel mv::ComputationModel::getDataModel()
+{
+    return DataModel(*this);
+}
+
+mv::ControlModel mv::ComputationModel::getControlModel()
+{
+    return ControlModel(*this);
+}*/

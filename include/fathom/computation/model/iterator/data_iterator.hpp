@@ -21,7 +21,7 @@ namespace mv
 
         DataListIterator(const computation_graph::first_graph::edge_sibling_iterator &other) :
         computation_graph::first_graph::edge_list_iterator(other)
-        {
+        {   
             
         }
 

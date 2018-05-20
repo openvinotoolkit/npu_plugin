@@ -7,5 +7,8 @@ target_sources(graph_container PUBLIC ${allocator})
 add_executable(computation_model computation_model.cpp)
 target_sources(computation_model PUBLIC ${allocator} ${computation_model} ${logger} ${tensor})
 
+add_executable(cm_two_branch cm_two_branch.cpp)
+target_sources(cm_two_branch PUBLIC ${allocator} ${computation_model} ${logger} ${tensor} ${pass})
+
 add_executable(conjoined_graph conjoined_graph.cpp)
 target_sources(conjoined_graph PUBLIC ${allocator})

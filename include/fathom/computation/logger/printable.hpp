@@ -12,6 +12,16 @@ namespace mv
 
     public:
 
+        inline static void replaceSub(string &input, const string &oldSub, const string &newSub)
+        {
+            string::size_type pos = 0u;
+            while((pos = input.find(oldSub, pos)) != string::npos)
+            {
+                input.replace(pos, oldSub.length(), newSub);
+                pos += newSub.length();
+            }
+        }
+
         virtual string toString() const = 0;
 
         static string toString(const Printable &obj)

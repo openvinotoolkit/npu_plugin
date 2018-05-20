@@ -12,6 +12,12 @@ ComputationModel(logger)
 
 }
 
+mv::OpModel::OpModel(const ComputationModel &other) :
+ComputationModel(other)
+{
+
+}
+
 mv::OpListIterator mv::OpModel::input(const Shape &shape, DType dType, Order order, const string &name)
 {
 
@@ -76,6 +82,26 @@ mv::OpListIterator mv::OpModel::maxpool(OpListIterator &predIt, const Shape &ker
     return poolIt;
 }
 
+mv::OpListIterator mv::OpModel::concat(OpListIterator &input0, OpListIterator &input1, const string &name)
+{
+
+    auto in0TensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*input0).getOutput()));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*in0TensorRes.first)->toString());
+
+    auto in1TensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*input1).getOutput()));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*in1TensorRes.first)->toString());
+
+    computation_graph::first_graph::node_list_iterator concatIt = dataGraph_.node_insert(input0, allocator_.make_owner<Concat>(logger_, **in0TensorRes.first, **in1TensorRes.first, name), *in0TensorRes.first);
+    dataGraph_.edge_insert(input1, concatIt, *in1TensorRes.first);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*concatIt)->toString());
+
+    auto currentOp = controlGraph_.node_find(*concatIt);
+    controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
+    lastOp_ = currentOp;
+
+    return concatIt;
+}
+
 bool mv::OpModel::addAttr(OpListIterator &opIt, const string &name, const Attribute &attr)
 {
 
@@ -115,4 +141,14 @@ mv::OpListIterator mv::OpModel::getInput()
 mv::OpListIterator mv::OpModel::getOutput()
 {
     return output_;
+}
+
+mv::OpListIterator mv::OpModel::opEnd()
+{
+    return dataGraph_.node_end();
+}
+
+mv::DataListIterator mv::OpModel::dataEnd()
+{
+    return dataGraph_.edge_end();
 }

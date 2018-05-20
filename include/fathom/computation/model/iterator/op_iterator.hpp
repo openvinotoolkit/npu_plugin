@@ -35,6 +35,29 @@ namespace mv
 
     };
 
+    class OpDFSIterator : public computation_graph::first_graph::node_dfs_iterator
+    {
+
+    public:
+
+        OpDFSIterator(const computation_graph::first_graph::node_list_iterator &other) :
+        computation_graph::first_graph::node_dfs_iterator(other)
+        {
+
+        }
+
+        /*ComputationOp* operator->() const
+        {
+            return (computation_graph::node_list_iterator::operator*()).operator->();
+        }*/
+
+        ComputationOp& operator*() const
+        {
+            return *(computation_graph::first_graph::node_dfs_iterator::operator*());
+        }
+
+    };
+
 }
 
 #endif // OP_ITERATOR_HPP_

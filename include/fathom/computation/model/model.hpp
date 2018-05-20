@@ -4,6 +4,7 @@
 #include "include/fathom/graph/graph.hpp"
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/model/iterator/op_iterator.hpp"
+#include "include/fathom/computation/model/iterator/data_iterator.hpp"
 #include "include/fathom/computation/model/iterator/control_iterator.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
 #include "include/fathom/computation/tensor/populated.hpp"
@@ -62,7 +63,11 @@ namespace mv
 
         virtual ~ComputationModel() = 0;
         bool isValid() const;
-        const Logger& logger() const;
+        Logger& logger();
+
+        /*OpModel getOpModel();
+        DataModel getDataModel();
+        ControlModel getControlModel();*/
 
     };
 

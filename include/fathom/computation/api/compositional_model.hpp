@@ -21,6 +21,7 @@ namespace mv
         byte_type strideY, byte_type padX, byte_type padY, const string &name = "") = 0;
         virtual OpListIterator maxpool(OpListIterator &predecessor, const Shape &kernelShape, byte_type strideX, 
         byte_type strideY, byte_type padX, byte_type padY, const string &name = "") = 0;
+        virtual OpListIterator concat(OpListIterator &input0, OpListIterator &input1, const string &name = "") = 0;
         virtual bool addAttr(OpListIterator &op, const string &name, const Attribute &attr) = 0;
         virtual bool isValid() const = 0;
 

@@ -44,6 +44,37 @@ namespace mv
 
     };
 
+    class ControlDFSIterator : public computation_graph::second_graph::node_dfs_iterator
+    {
+
+    public:
+
+        ControlDFSIterator(const computation_graph::second_graph::node_list_iterator &other) :
+        computation_graph::second_graph::node_dfs_iterator(other)
+        {
+
+        }
+
+        /*ComputationOp* operator->() const
+        {
+            return (computation_graph::node_list_iterator::operator*()).operator->();
+        }*/
+
+        ComputationOp& operator*() const
+        {
+            return *(computation_graph::second_graph::node_dfs_iterator::operator*());
+        }
+
+        ControlDFSIterator& operator=(const computation_graph::second_graph::node_list_iterator &other)
+        {
+            
+            computation_graph::second_graph::node_dfs_iterator::operator=(other);
+            return *this;
+            
+        }
+
+    };
+
 }
 
 #endif // OP_ITERATOR_HPP_

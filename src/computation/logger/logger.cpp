@@ -23,28 +23,28 @@ void mv::Logger::logMessage(MessageType messageType, string content) const
     {
         case MessageType::MessageError:
             logMessage += "ERROR:   ";
-            replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logError(logMessage);
             break;
 
         case MessageType::MessageWarning:
             logMessage += "WARNING: ";
-            replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logWarning(logMessage);
             break;
 
         case MessageType::MessageInfo:
             logMessage += "INFO:    ";
-            replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logInfo(logMessage);
             break;
 
         default:
             logMessage += "DEBUG:   ";
-            replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             logMessage += content;
             logDebug(logMessage);
             break;
