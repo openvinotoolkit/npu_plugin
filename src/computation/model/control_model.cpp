@@ -7,14 +7,14 @@ ComputationModel(other)
 }
 
 
-mv::ControlListIterator mv::ControlModel::getFirst()
+mv::ControlContext::OpListIterator mv::ControlModel::getFirst()
 {
    computation_graph::first_graph::node_list_iterator it = input_;
-   return controlGraph_.node_find(*it);
+   return opsGraph_->get_second_iterator(it);
 }
 
 
-mv::ControlListIterator mv::ControlModel::getLast()
+mv::ControlContext::OpListIterator mv::ControlModel::getLast()
 {
     return lastOp_;
 }
@@ -25,7 +25,7 @@ bool mv::ControlModel::isValid() const
     return ComputationModel::isValid();
 }
 
-mv::ControlListIterator mv::ControlModel::end()
+mv::ControlContext::OpListIterator mv::ControlModel::opEnd()
 {
     return controlGraph_.node_end();
 }

@@ -117,10 +117,7 @@ TEST (graph_container, int_int_graph_contruction) {
     {
         for (int_int_graph::node_sibling_iterator sibitx(node_list_it); sibitx != utest_graph_00.node_end(); ++sibitx)
         {   
-            if (sibitx)
-            {
-                test_sum_node_siblings += *sibitx ;
-            }
+            test_sum_node_siblings += *sibitx ;
         }
     }
     EXPECT_EQ (14482, test_sum_node_siblings) << "ERROR: node_siblings_iterator ALL test ";
@@ -134,10 +131,7 @@ TEST (graph_container, int_int_graph_contruction) {
     {
        for (int_int_graph::edge_child_iterator itx(edge_list_it); itx != utest_graph_00.edge_end(); ++itx)
        {
-           if (itx)
-           {
-               test_sum_edge_children += *itx ;
-           }
+            test_sum_edge_children += *itx ;
        }
     }
 
@@ -151,10 +145,7 @@ TEST (graph_container, int_int_graph_contruction) {
     {
        for (int_int_graph::edge_parent_iterator itx(edge_list_it); itx != utest_graph_00.edge_end(); ++itx)
        {
-           if (itx)
-           {
-               test_sum_edge_parents += *itx ;
-           }
+            test_sum_edge_parents += *itx ;
        }
     }
 
@@ -167,10 +158,7 @@ TEST (graph_container, int_int_graph_contruction) {
     {
        for (int_int_graph::edge_sibling_iterator itx(edge_list_it); itx != utest_graph_00.edge_end(); ++itx)
        {
-           if (itx)
-           {
-               test_sum_edge_siblings += *itx ;
-           }
+            test_sum_edge_siblings += *itx ;
        }
     }
 

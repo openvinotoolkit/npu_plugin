@@ -38,6 +38,7 @@ namespace mv
         virtual ~ComputationElement() = 0;
         const string &getName() const;
         Attribute getAttr(const string &name);
+        vector<string> getAttrKeys() const;
         AttrType getAttrType(const string &name);
         unsigned_type attrsCount() const;
         string toString() const;

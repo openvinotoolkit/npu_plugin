@@ -21,17 +21,16 @@ namespace mv
         OpModel(Logger &logger);
         OpModel(const ComputationModel &model);
 
-        OpListIterator getInput();
-        OpListIterator getOutput();
-        OpListIterator opEnd();
-        DataListIterator dataEnd();
+        DataContext::OpListIterator getInput();
+        DataContext::OpListIterator getOutput();
+        DataContext::OpListIterator opEnd();
 
-        OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "");
-        OpListIterator output(OpListIterator &predecessor, const string &name = "");
-        OpListIterator conv(OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
-        OpListIterator maxpool(OpListIterator &predecessor, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
-        OpListIterator concat(OpListIterator &input0, OpListIterator &input1, const string &name = "");
-        bool addAttr(OpListIterator &op, const string &name, const Attribute &attr);
+        DataContext::OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "");
+        DataContext::OpListIterator output(DataContext::OpListIterator &predecessor, const string &name = "");
+        DataContext::OpListIterator conv(DataContext::OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
+        DataContext::OpListIterator maxpool(DataContext::OpListIterator &predecessor, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
+        DataContext::OpListIterator concat(DataContext::OpListIterator &input0, DataContext::OpListIterator &input1, const string &name = "");
+        bool addAttr(DataContext::OpListIterator &op, const string &name, const Attribute &attr);
         bool isValid() const;
        
     };

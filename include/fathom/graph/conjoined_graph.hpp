@@ -101,7 +101,7 @@ namespace mv
         template <class T>
         using owner_ptr = typename T_allocator::template owner_ptr<T>;
 
-        bool make_node_(owner_ptr<base_node_class<T_node, T_size>> &b_node, owner_ptr<typename first_graph::node> &new_node)
+        bool make_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename first_graph::node> &new_node)
         {   
 
             bool result = first_graph::make_node_(b_node, new_node);
@@ -122,7 +122,7 @@ namespace mv
 
         }
 
-        bool make_node_(owner_ptr<base_node_class<T_node, T_size>> &b_node, owner_ptr<typename second_graph::node> &new_node)
+        bool make_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename second_graph::node> &new_node)
         {   
 
             bool result = second_graph::make_node_(b_node, new_node);
@@ -143,14 +143,14 @@ namespace mv
 
         }
 
-        void terminate_node_(owner_ptr<base_node_class<T_node, T_size>> &b_node, owner_ptr<typename first_graph::node> &del_node)
+        void terminate_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename first_graph::node> &del_node)
         {
             first_graph::terminate_node_(b_node, del_node);
             auto second_del_node = second_graph::get_node_(b_node);
             second_graph::terminate_node_(b_node, second_del_node);
         }
 
-        void terminate_node_(owner_ptr<base_node_class<T_node, T_size>> &b_node, owner_ptr<typename second_graph::node> &del_node)
+        void terminate_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename second_graph::node> &del_node)
         {
             second_graph::terminate_node_(b_node, del_node);
             auto second_del_node = first_graph::get_node_(b_node);
@@ -172,14 +172,26 @@ namespace mv
             //second_graph::base_nodes_ = first_graph::base_nodes_;
         }
 
-        graph<T_node, T_edge1, T_allocator, T_size>& get_first()
+        first_graph& get_first()
         {
             return *this;
         }
 
-        graph<T_node, T_edge2, T_allocator, T_size>& get_second()
+        second_graph& get_second()
         {
             return *this;
+        }
+
+        typename first_graph::node_list_iterator get_first_iterator(typename second_graph::node_list_iterator &other)
+        {
+            auto b_node = second_graph::get_base_node_(other);
+            return typename first_graph::node_list_iterator(first_graph::get_node_(b_node));
+        }
+
+        typename second_graph::node_list_iterator get_second_iterator(typename first_graph::node_list_iterator &other)
+        {
+            auto b_node = first_graph::get_base_node_(other);
+            return typename second_graph::node_list_iterator(second_graph::get_node_(b_node));
         }
 
     };

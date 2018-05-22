@@ -7,98 +7,104 @@
 namespace mv
 {
 
-    template<class T_size>
-    class unique_element_class
+    namespace detail
     {
+
+        template<class T_size>
+        class unique_element_class
+        {
+        
+        protected:
+
+            T_size id_;
+
+        public:
+
+            unique_element_class(T_size id) : id_(id)
+            {
+
+            }
+
+            virtual ~unique_element_class() = 0;
+
+            T_size getID()
+            {
+                return id_;
+            }
+
+            bool operator==(const unique_element_class &other) const
+            {
+                return id_ == other.id_;
+            }
+
+            bool operator!=(const unique_element_class &other) const
+            {
+                return !(*this == other);
+            }
+
+        };
+
+        template <class T_node, class T_size>
+        class base_node_class : public unique_element_class<T_size>
+        {
+
+            T_node content_;
+            
+        public:
+
+            base_node_class(const T_node &content, unsigned long id) :
+            unique_element_class<T_size>(id),
+            content_(content)
+            {
+
+            }
+
+            T_node &get_content()
+            {
+                return content_;
+            }
+
+        };
     
-    protected:
-
-        T_size id_;
-
-    public:
-
-        unique_element_class(T_size id) : id_(id)
-        {
-
-        }
-
-        virtual ~unique_element_class() = 0;
-
-        T_size getID()
-        {
-            return id_;
-        }
-
-        bool operator==(const unique_element_class &other) const
-        {
-            return id_ == other.id_;
-        }
-
-        bool operator!=(const unique_element_class &other) const
-        {
-            return !(*this == other);
-        }
-
-    };
-
-    template <class T_node, class T_size>
-    class base_node_class : public unique_element_class<T_size>
-    {
-
-        T_node content_;
-        
-    public:
-
-        base_node_class(const T_node &content, unsigned long id) :
-        unique_element_class<T_size>(id),
-        content_(content)
-        {
-
-        }
-
-        T_node &get_content()
-        {
-            return content_;
-        }
-
-    };
-
-    /**
-     * @brief Helper struct that implements the comparison for use in underlying set containers.
-     * 
-     * @tparam T_unique Type of compared iterable object
-     */
-    template <class T_unique, class T_allocator>
-    struct id_comparator_class
-    {
 
         /**
-         * @brief Implementation of comparison operator for access_ptr.
+         * @brief Helper struct that implements the comparison for use in underlying set containers.
          * 
-         * @param lhs Left hand side access_ptr
-         * @param rhs Right hand side access_ptr
-         * @return true If rhs has greater ID than lhs
-         * @return false If lhs has greater or equal ID to rhs
+         * @tparam T_unique Type of compared iterable object
          */
-        bool operator()(const typename T_allocator::template access_ptr<T_unique> &lhs, const typename T_allocator::template access_ptr<T_unique> &rhs)
+        template <class T_unique, class T_allocator>
+        struct id_comparator_class
         {
-            return lhs.lock()->getID() < rhs.lock()->getID();
-        }
 
-        /**
-         * @brief Implementation of comparison operator for owner_ptr.
-         * 
-         * @param lhs Left hand side owner_ptr
-         * @param rhs Right hand side owner_ptr
-         * @return true If rhs has greater ID than lhs
-         * @return false If lhs has greater or equal ID to rhs
-         */
-        bool operator()(const typename T_allocator::template owner_ptr<T_unique> &lhs, const typename T_allocator::template owner_ptr<T_unique> &rhs)
-        {
-            return lhs->getID() < rhs->getID();
-        }
-        
-    };
+            /**
+             * @brief Implementation of comparison operator for access_ptr.
+             * 
+             * @param lhs Left hand side access_ptr
+             * @param rhs Right hand side access_ptr
+             * @return true If rhs has greater ID than lhs
+             * @return false If lhs has greater or equal ID to rhs
+             */
+            bool operator()(const typename T_allocator::template access_ptr<T_unique> &lhs, const typename T_allocator::template access_ptr<T_unique> &rhs)
+            {
+                return lhs.lock()->getID() < rhs.lock()->getID();
+            }
+
+            /**
+             * @brief Implementation of comparison operator for owner_ptr.
+             * 
+             * @param lhs Left hand side owner_ptr
+             * @param rhs Right hand side owner_ptr
+             * @return true If rhs has greater ID than lhs
+             * @return false If lhs has greater or equal ID to rhs
+             */
+            bool operator()(const typename T_allocator::template owner_ptr<T_unique> &lhs, const typename T_allocator::template owner_ptr<T_unique> &rhs)
+            {
+                return lhs->getID() < rhs->getID();
+            }
+            
+        };
+
+    }
 
     // factory method pattern
     /**
@@ -119,11 +125,17 @@ namespace mv
     class graph
     {
 
-        using unique_element = unique_element_class<T_size>;
-        using base_node = base_node_class<T_node, T_size>;
+    protected:
+
+        class node;
+
+    private:
+
+        using unique_element = detail::unique_element_class<T_size>;
+        using base_node = detail::base_node_class<T_node, T_size>;
 
         template <class T_unique>
-        using id_comparator = id_comparator_class<T_unique, T_allocator>;
+        using id_comparator = detail::id_comparator_class<T_unique, T_allocator>;
 
         template <class T>
         using owner_ptr = typename T_allocator::template owner_ptr<T>;
@@ -144,14 +156,8 @@ namespace mv
         template <class T_iterable, class T_content> class sibling_iterator;
         template <class T_iterable, class T_content> class iterable;
 
-    protected:
-        class node;
-
-    private:
         class edge;
-
         
-
         template <class T_iterable>
         using iterable_access_set = typename T_allocator::template set<access_ptr<T_iterable>, id_comparator<T_iterable>>;
 
@@ -416,7 +422,7 @@ namespace mv
         };
 
         template <class T_iterable, class T_content>
-        class base_iterator : public access_ptr<T_iterable>
+        class base_iterator : protected access_ptr<T_iterable>
         {
 
             friend class graph;
@@ -471,10 +477,20 @@ namespace mv
                 return access_ptr<T_iterable>::operator*().get_content();
             }
 
-            /*T_iterable* operator->() const
+            T_iterable* operator->() const
             {
                 return access_ptr<T_iterable>::operator->();
-            }*/
+            }
+
+            bool operator==(const base_iterator &other) const noexcept
+            {
+                return access_ptr<T_iterable>::operator==(other);
+            }
+
+            bool operator!=(const base_iterator &other) const noexcept
+            {
+                return !operator==(other);
+            }
 
         };
 
@@ -1179,7 +1195,7 @@ namespace mv
         };
 
     public:
-
+    
         typedef list_iterator<node, T_node> node_list_iterator;
         typedef list_iterator<edge, T_edge> edge_list_iterator;
         typedef reverse_list_iterator<node, T_node> node_reverse_list_iterator;
@@ -1247,14 +1263,14 @@ namespace mv
 
             }
 
-            T_size outputs_size() const 
-            {
-                return outputs_->size();
-            }
-
             T_size inputs_size() const
             {
                 return inputs_->size();
+            }
+
+            T_size outputs_size() const 
+            {
+                return outputs_->size();
             }
 
             edge_sibling_iterator leftmost_output()
@@ -1333,7 +1349,7 @@ namespace mv
 
     protected:
 
-        typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<base_node_class<T_node, T_size>>, id_comparator<base_node_class<T_node, T_size>>>> base_nodes_;
+        typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<detail::base_node_class<T_node, T_size>>, id_comparator<detail::base_node_class<T_node, T_size>>>> base_nodes_;
         
     private:
         
@@ -1401,7 +1417,7 @@ namespace mv
         }
 
     protected:
-    
+
         owner_ptr<node> get_node_(owner_ptr<base_node> &b_node)
         {
             //owner_ptr<node> n_ptr(*this, b_node);
@@ -1409,6 +1425,11 @@ namespace mv
             search_node_->content_ = b_node;
             search_node_->set_id_(b_node->getID());
             return *nodes_->find(search_node_);
+        }
+
+        owner_ptr<base_node> get_base_node_(node_list_iterator &node_it)
+        {
+            return node_it->content_.lock();
         }
 
         virtual bool make_node_(owner_ptr<base_node> &b_node, owner_ptr<node> &new_node)
@@ -1500,7 +1521,7 @@ namespace mv
             edges_->clear();
         }
 
-        graph(const typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<base_node_class<T_node, T_size>>, id_comparator<base_node_class<T_node, T_size>>>> &base_nodes, const owner_ptr<T_size> &node_id) : 
+        graph(const typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<detail::base_node_class<T_node, T_size>>, id_comparator<detail::base_node_class<T_node, T_size>>>> &base_nodes, const owner_ptr<T_size> &node_id) : 
         base_nodes_(base_nodes), 
         nodes_(allocator_.template make_set<owner_ptr<node>, id_comparator<node>>()), 
         edges_(allocator_.template make_set<owner_ptr<edge>, id_comparator<edge>>()), 
@@ -1919,7 +1940,7 @@ template <class T_node, class T_edge, class T_allocator, class T_size>
 T_allocator mv::graph<T_node, T_edge, T_allocator, T_size>::allocator_;
 
 template <class T_size>
-mv::unique_element_class<T_size>::~unique_element_class()
+mv::detail::unique_element_class<T_size>::~unique_element_class()
 {
 
 }

@@ -25,55 +25,49 @@ mv::AttrType mv::Attribute::getType() const
     return attrType_;
 }
 
-mv::string mv::Attribute::toString() const
+mv::string mv::Attribute::getContentStr() const
 {
-    string result = "(" + Printable::toString(attrType_) + "): ";
 
     switch (attrType_)
     {
         
         case AttrType::ByteType:
-            result += Printable::toString(getContent<byte_type>());
-            break;
+            return Printable::toString(getContent<byte_type>());
 
         case AttrType::UnsingedType:
-            result += Printable::toString(getContent<unsigned_type>());
-            break;
+            return Printable::toString(getContent<unsigned_type>());
 
         case AttrType::IntegerType:
-            result += Printable::toString(getContent<int_type>());
-            break;
+            return Printable::toString(getContent<int_type>());
 
         case AttrType::FloatType:
-            result += Printable::toString(getContent<float_type>());
-            break;
+            return Printable::toString(getContent<float_type>());
 
         case AttrType::TensorType:
-            result += Printable::toString(getContent<ConstantTensor>());
-            break;
-        
+            return Printable::toString(getContent<ConstantTensor>());
+
         case AttrType::DTypeType:
-            result += Printable::toString(getContent<DType>());
-            break;
+            return Printable::toString(getContent<DType>());
 
         case AttrType::OrderType:
-            result += Printable::toString(getContent<Order>());
-            break;
+            return Printable::toString(getContent<Order>());
 
         case AttrType::ShapeType:
-            result += Printable::toString(getContent<Shape>());
-            break;
+            return Printable::toString(getContent<Shape>());
 
         case AttrType::StringType:
-            result += getContent<string>();
-            break;
+            return getContent<string>();
 
         default:
-            result += ": unknown";
-            break;
+            return "unknown";
 
     }
 
-    return result;
+}
+
+mv::string mv::Attribute::toString() const
+{
+    
+    return "(" + Printable::toString(attrType_) + "): " + getContentStr();
 
 }

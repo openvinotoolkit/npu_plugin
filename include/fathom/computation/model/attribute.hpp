@@ -106,12 +106,11 @@ namespace mv
 
     public:
 
-        
-
         Attribute();
         ~Attribute();
         AttrType getType() const;
         string toString() const;
+        string getContentStr() const;
 
         template <class T>
         Attribute(AttrType attrType, const T &content) : 

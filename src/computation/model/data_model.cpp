@@ -23,12 +23,17 @@ bool mv::DataModel::isValid() const
     return ComputationModel::isValid();
 }
 
-mv::DataListIterator mv::DataModel::getInput()
+mv::DataContext::FlowSiblingIterator mv::DataModel::getInput()
 {
     return input_->leftmost_output();
 }
 
-mv::DataListIterator mv::DataModel::getOutput()
+mv::DataContext::FlowSiblingIterator mv::DataModel::getOutput()
 {
     return output_->leftmost_input();
+}
+
+mv::DataContext::FlowListIterator mv::DataModel::flowEnd()
+{
+    return dataGraph_.edge_end();
 }

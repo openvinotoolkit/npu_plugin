@@ -29,25 +29,25 @@ int main()
     auto msgType = mv::Logger::MessageType::MessageInfo;
     mv::DataModel dm(om);
 
-    dm.logger().log(msgType, "Input op: " + (*om.getInput()).getName());
-    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + (*dm.getInput()).getTensor().getName());
-    dm.logger().log(msgType, "Output op: " + (*om.getOutput()).getName());
-    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + (*dm.getOutput()).getTensor().getName());
+    dm.logger().log(msgType, "Input op: " + om.getInput()->getName());
+    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + dm.getInput()->getTensor().getName());
+    dm.logger().log(msgType, "Output op: " + om.getOutput()->getName());
+    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + dm.getOutput()->getTensor().getName());
 
     mv::ControlModel cm(om);
 
-    cm.logger().log(msgType, "First op: " + (*cm.getFirst()).getName());
-    cm.logger().log(msgType, "Last op: " + (*cm.getLast()).getName());
+    cm.logger().log(msgType, "First op: " + cm.getFirst()->getName());
+    cm.logger().log(msgType, "Last op: " + cm.getLast()->getName());
 
     mv::size_type i = 0;
-    for (auto it = cm.getFirst(); it != cm.end(); ++it)
+    for (auto it = cm.getFirst(); it != cm.opEnd(); ++it)
     {
-        cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + (*it).getName());
+        cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
 
     mv::StdOStream ostream;
-    mv::pass::DotPass dotPass(cm.logger(), ostream, mv::pass::DotPass::ContentLevel::ContentFull);
+    mv::pass::DotPass dotPass(cm.logger(), ostream, mv::pass::DotPass::OutputScope::OpModel, mv::pass::DotPass::ContentLevel::ContentFull);
 
     dotPass.run(cm);    
 

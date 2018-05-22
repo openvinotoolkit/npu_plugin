@@ -2,7 +2,7 @@
 #define DATA_MODEL_HPP_
 
 #include "include/fathom/computation/model/model.hpp"
-#include "include/fathom/computation/model/iterator/data_iterator.hpp"
+#include "include/fathom/computation/model/iterator/data_context.hpp"
 #include "include/fathom/computation/op/computation_op.hpp"
 
 namespace mv
@@ -19,8 +19,9 @@ namespace mv
 
         DataModel(const ComputationModel &ComputationModel);
 
-        DataListIterator getInput();
-        DataListIterator getOutput();
+        DataContext::FlowSiblingIterator getInput();
+        DataContext::FlowSiblingIterator getOutput();
+        DataContext::FlowListIterator flowEnd();
 
         bool isValid() const;
 

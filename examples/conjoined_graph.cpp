@@ -50,9 +50,9 @@ int main()
     auto g2n3It = g2.node_insert(g2n1It, "g2_n3", "g2_e2");
 
 
-    auto g1g2n1It = g1.node_find(*g2n1It);
-    auto g1g2n2It = g1.node_find(*g2n2It);
-    auto g1g2n3It = g1.node_find(*g2n3It);
+    auto g1g2n1It = cg.get_first_iterator(g2n1It);
+    auto g1g2n2It = cg.get_first_iterator(g2n2It);
+    auto g1g2n3It = cg.get_first_iterator(g2n3It);
     auto g1e5It = g1.edge_insert(g1n1It, g1g2n1It, "g1_e5");
     auto g1e6It = g1.edge_insert(g1n3It, g1g2n2It, "g1_e6");
     auto g1e7It = g1.edge_insert(g1n5It, g1g2n3It, "g1_e7");
@@ -101,5 +101,7 @@ int main()
     std::cout << g1.edge_size() << std::endl;
     std::cout << g2.node_size() << std::endl;
     std::cout << g2.edge_size() << std::endl;
+
+    
 
 }

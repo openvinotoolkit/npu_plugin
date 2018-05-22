@@ -46,6 +46,14 @@ mv::Attribute mv::ComputationElement::getAttr(const string &name)
 
 }
 
+mv::vector<mv::string> mv::ComputationElement::getAttrKeys() const
+{
+    mv::vector<mv::string> attrKeys;
+    for (auto it = attributes_.begin(); it != attributes_.end(); ++it)
+        attrKeys.push_back(it->first);
+    return attrKeys;
+}
+
 mv::AttrType mv::ComputationElement::getAttrType(const string &name)
 {
     if (attributes_.find(name) != attributes_.end())

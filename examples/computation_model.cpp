@@ -23,32 +23,32 @@ int main()
     auto msgType = mv::Logger::MessageType::MessageInfo;
 
     auto attr = (*outIt).getAttr("outputShape");
-    om.logger().log(msgType, "Op '" + (*outIt).getName() + "' attribute 'outputShape' content: " + attr.getContent<mv::Shape>().toString());
-    om.logger().log(msgType, "Op '" + (*outIt).getName() + "' attribute 'outputShape' type: " +  mv::Printable::toString((*outIt).getAttrType("outputShape")));
+    om.logger().log(msgType, "Op '" + outIt->getName() + "' attribute 'outputShape' content: " + attr.getContent<mv::Shape>().toString());
+    om.logger().log(msgType, "Op '" + outIt->getName() + "' attribute 'outputShape' type: " +  mv::Printable::toString(outIt->getAttrType("outputShape")));
 
     om.addAttr(conv1It, "customAttr", mv::Attribute(mv::AttrType::IntegerType, 10));
     om.addAttr(inIt, "customAttr", mv::Attribute(mv::AttrType::UnsingedType, 1U));
 
-    om.logger().log(msgType, "Op '" + (*inIt).getName() + "' - number of attributes: " + mv::Printable::toString((*inIt).attrsCount()));
-    om.logger().log(msgType, "Op '" + (*conv1It).getName() + "' - number of attributes: " + mv::Printable::toString((*conv1It).attrsCount()));
-    om.logger().log(msgType, "Op '" + (*outIt).getName() + "' - number of attributes: " + mv::Printable::toString((*outIt).attrsCount()));
+    om.logger().log(msgType, "Op '" + inIt->getName() + "' - number of attributes: " + mv::Printable::toString(inIt->attrsCount()));
+    om.logger().log(msgType, "Op '" + conv1It->getName() + "' - number of attributes: " + mv::Printable::toString(conv1It->attrsCount()));
+    om.logger().log(msgType, "Op '" + outIt->getName() + "' - number of attributes: " + mv::Printable::toString(outIt->attrsCount()));
 
     mv::DataModel dm(om);
 
-    dm.logger().log(msgType, "Input op: " + (*om.getInput()).getName());
-    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + (*dm.getInput()).getTensor().getName());
-    dm.logger().log(msgType, "Output op: " + (*om.getOutput()).getName());
-    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + (*dm.getOutput()).getTensor().getName());
+    dm.logger().log(msgType, "Input op: " + om.getInput()->getName());
+    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + dm.getInput()->getTensor().getName());
+    dm.logger().log(msgType, "Output op: " + om.getOutput()->getName());
+    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + dm.getOutput()->getTensor().getName());
 
     mv::ControlModel cm(om);
 
-    cm.logger().log(msgType, "First op: " + (*cm.getFirst()).getName());
-    cm.logger().log(msgType, "Last op: " + (*cm.getLast()).getName());
+    cm.logger().log(msgType, "First op: " + cm.getFirst()->getName());
+    cm.logger().log(msgType, "Last op: " + cm.getLast()->getName());
 
     mv::size_type i = 0;
-    for (mv::ControlDFSIterator it = cm.getFirst(); it != cm.end(); ++it)
+    for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
     {
-        cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + (*it).getName());
+        cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
 
