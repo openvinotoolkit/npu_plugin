@@ -19,12 +19,17 @@ namespace mv
             
         public:
 
-            ModelIterator(const ModelIterator &other) :
-            it_(other.it_)
+            ModelIterator()
             {
 
             }
 
+            template <class OtherIteratorType>
+            ModelIterator(const ModelIterator<OtherIteratorType> &other) :
+            it_(other.it_)
+            {
+
+            }
             ModelIterator(const IteratorType &it) :
             it_(it)
             {
@@ -47,6 +52,13 @@ namespace mv
             bool operator!=(const ModelIterator<OtherIteratorType> &other) const
             {
                 return !operator==(other);
+            }
+
+            template <class OtherIteratorType>
+            ModelIterator& operator=(ModelIterator<OtherIteratorType> &other)
+            {
+                this->it_ = other.it_;
+                return *this;
             }
 
             size_type childrenSize()
@@ -81,8 +93,20 @@ namespace mv
 
         public:
 
+            OpIterator()
+            {
+
+            }
+
             OpIterator(const IteratorType &it) :
             ModelIterator<IteratorType>(it)
+            {
+
+            }
+
+            template <class OtherIteratorType>
+            OpIterator(const OpIterator<GraphType, OtherIteratorType, NodeContentType, EdgeContentType> &other) :
+            ModelIterator<IteratorType>(other)
             {
 
             }
@@ -95,6 +119,13 @@ namespace mv
             NodeContentType* operator->() const
             {
                 return (*this->it_).operator->();
+            }
+
+            template <class OtherIteratorType>
+            OpIterator& operator=(OpIterator<GraphType, OtherIteratorType, NodeContentType, EdgeContentType> &other)
+            {
+                ModelIterator<IteratorType>::operator=(other);
+                return *this;
             }
             
             size_type inputsSize()
@@ -127,10 +158,29 @@ namespace mv
 
         public:
 
+            FlowIterator()
+            {
+
+            }
+
             FlowIterator(const IteratorType &it) :
             ModelIterator<IteratorType>(it)
             {
 
+            }
+
+            template <class OtherIteratorType>
+            FlowIterator(const FlowIterator<GraphType, OtherIteratorType, EdgeContentType, NodeContentType> &other) :
+            ModelIterator<IteratorType>(other)
+            {
+
+            }
+
+            template <class OtherIteratorType>
+            FlowIterator& operator=(FlowIterator<GraphType, OtherIteratorType, EdgeContentType, NodeContentType> &other)
+            {
+                ModelIterator<IteratorType>::operator=(other);
+                return *this;
             }
 
             EdgeContentType& operator*() const

@@ -47,7 +47,7 @@ int main()
     }
 
     mv::StdOStream ostream;
-    mv::pass::DotPass dotPass(cm.logger(), ostream, mv::pass::DotPass::OutputScope::OpModel, mv::pass::DotPass::ContentLevel::ContentFull);
+    mv::pass::DotPass dotPass(cm.logger(), ostream, mv::pass::DotPass::OutputScope::ControlModel, mv::pass::DotPass::ContentLevel::ContentFull);
 
     dotPass.run(cm);    
 

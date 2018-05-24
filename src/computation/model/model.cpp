@@ -8,7 +8,11 @@ dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, TensorOrderComparator>()),
 parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, TensorOrderComparator>()),
-logger_(logger)
+logger_(logger),
+dataOpEnd_(dataGraph_.node_end()),
+dataFlowEnd_(dataGraph_.edge_end()),
+controlOpEnd_(controlGraph_.node_end()),
+controlFlowEnd_(controlGraph_.edge_end())
 {
 
 }
@@ -20,7 +24,11 @@ controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, TensorOrderComparator>()),
 parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, TensorOrderComparator>()),
 defaultLogger_(allocator_.make_owner<StdOutLogger>(verboseLevel, logTime)),
-logger_(*defaultLogger_)
+logger_(*defaultLogger_),
+dataOpEnd_(dataGraph_.node_end()),
+dataFlowEnd_(dataGraph_.edge_end()),
+controlOpEnd_(controlGraph_.node_end()),
+controlFlowEnd_(controlGraph_.edge_end())
 {
 
 }
@@ -35,7 +43,11 @@ parameterTensors_(other.parameterTensors_),
 logger_(other.logger_),
 input_(other.input_),
 output_(other.output_),
-lastOp_(other.lastOp_)
+lastOp_(other.lastOp_),
+dataOpEnd_(other.dataOpEnd_),
+dataFlowEnd_(other.dataFlowEnd_),
+controlOpEnd_(other.controlOpEnd_),
+controlFlowEnd_(other.controlFlowEnd_)
 {
 
 }
@@ -47,7 +59,7 @@ mv::ComputationModel::~ComputationModel()
 
 bool mv::ComputationModel::isValid() const
 {
-    return !dataGraph_.disjoint() && input_ != dataGraph_.node_end() && output_ != dataGraph_.node_end();
+    return !dataGraph_.disjoint() && input_ != dataOpEnd_ && output_ != dataOpEnd_;
 }
 
 mv::Logger &mv::ComputationModel::logger()

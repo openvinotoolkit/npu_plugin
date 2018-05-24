@@ -51,7 +51,7 @@ int main()
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
-
+    
     return 0;
 
 }

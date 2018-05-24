@@ -3,6 +3,7 @@
 
 #include "include/fathom/computation/model/model.hpp"
 #include "include/fathom/computation/model/iterator/control_context.hpp"
+#include "include/fathom/computation/model/iterator/data_context.hpp"
 #include "include/fathom/computation/op/computation_op.hpp"
 
 namespace mv
@@ -15,9 +16,14 @@ namespace mv
 
         ControlModel(const ComputationModel &ComputationModel);
 
+        ControlContext::OpListIterator switchContext(DataContext::OpListIterator &other);
+
         ControlContext::OpListIterator getFirst();
         ControlContext::OpListIterator getLast();
         ControlContext::OpListIterator opEnd();
+        ControlContext::FlowListIterator getInput();
+        ControlContext::FlowListIterator getOutput();
+        ControlContext::FlowListIterator flowEnd();
 
         bool isValid() const;
 

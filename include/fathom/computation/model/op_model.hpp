@@ -21,6 +21,8 @@ namespace mv
         OpModel(Logger &logger);
         OpModel(const ComputationModel &model);
 
+        DataContext::OpListIterator switchContext(ControlContext::OpListIterator &other);
+
         DataContext::OpListIterator getInput();
         DataContext::OpListIterator getOutput();
         DataContext::OpListIterator opEnd();

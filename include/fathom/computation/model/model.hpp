@@ -44,9 +44,18 @@ namespace mv
         allocator::owner_ptr<allocator::set<allocator::owner_ptr<PopulatedTensor>, TensorOrderComparator>> parameterTensors_;
         const allocator::owner_ptr<Logger> defaultLogger_;
         Logger &logger_;
-        computation_graph::first_graph::node_list_iterator input_;
-        computation_graph::first_graph::node_list_iterator output_;
-        computation_graph::second_graph::node_list_iterator lastOp_;
+        //computation_graph::first_graph::node_list_iterator input_;
+        //computation_graph::first_graph::node_list_iterator output_;
+        //computation_graph::second_graph::node_list_iterator lastOp_;
+
+        DataContext::OpListIterator input_;
+        DataContext::OpListIterator output_;
+        ControlContext::OpListIterator lastOp_;
+
+        DataContext::OpListIterator dataOpEnd_;
+        DataContext::FlowListIterator dataFlowEnd_;
+        ControlContext::OpListIterator controlOpEnd_;
+        ControlContext::FlowListIterator controlFlowEnd_;
 
     public:
 

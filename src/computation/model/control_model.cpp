@@ -6,6 +6,10 @@ ComputationModel(other)
 
 }
 
+mv::ControlContext::OpListIterator mv::ControlModel::switchContext(DataContext::OpListIterator &other)
+{
+    return opsGraph_->get_second_iterator(other);
+}
 
 mv::ControlContext::OpListIterator mv::ControlModel::getFirst()
 {
@@ -19,13 +23,29 @@ mv::ControlContext::OpListIterator mv::ControlModel::getLast()
     return lastOp_;
 }
 
+mv::ControlContext::OpListIterator mv::ControlModel::opEnd()
+{
+    return controlOpEnd_;
+}
+
+mv::ControlContext::FlowListIterator mv::ControlModel::getInput()
+{   
+    DataContext::OpListIterator it = input_;
+    return switchContext(it).leftmostOutput();
+}
+
+mv::ControlContext::FlowListIterator mv::ControlModel::getOutput()
+{
+    DataContext::OpListIterator it = output_;
+    return switchContext(it).leftmostInput();
+}
+
+mv::ControlContext::FlowListIterator mv::ControlModel::flowEnd()
+{
+    return controlFlowEnd_;
+}
 
 bool mv::ControlModel::isValid() const
 {
     return ComputationModel::isValid();
-}
-
-mv::ControlContext::OpListIterator mv::ControlModel::opEnd()
-{
-    return controlGraph_.node_end();
 }

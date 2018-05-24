@@ -48,7 +48,7 @@ namespace mv
             bool run(ComputationModel &model)
             {
                 OpModel opModel(model);
-                ostream_ << "digraph G {\n";
+                ostream_ << "digraph G {\n\tgraph [splines=spline]\n";
 
                 for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
                 {
@@ -128,43 +128,20 @@ namespace mv
                 if (outputScope_ == OutputScope::ControlModel || outputScope_ == OutputScope::OpControlModel)
                 {
 
-                    /*ControlModel controlModel(model);
+                    ControlModel controlModel(model);
 
                     for (auto opIt = controlModel.getFirst(); opIt != controlModel.opEnd(); ++opIt)
                     {
 
-                        for (auto controlIt = opIt->leftmost_output(); dataIt != opModel.dataEnd(); ++dataIt)
+                        for (auto controlIt = opIt.leftmostOutput(); controlIt != controlModel.flowEnd(); ++controlIt)
                         {
 
-                            string edgeDef = "\t" + (*opIt).getName() + " -> " + (*(*dataIt->sink())).getName();
-                            if (htmlLike_)
-                            {
-                                edgeDef += " [label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + (*dataIt).getTensor().getName() + "</B></FONT></TD></TR>";
-                                if (contentLevel_ == ContentLevel::ContentFull)
-                                {   
-                                    vector<string> attrKeys((*dataIt).getTensor().getAttrKeys());
-                                    for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                        edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + (*dataIt).getTensor().getAttr(*attrIt).getContentStr() + "</FONT></TD></TR>";
-                                }
-                                edgeDef += "</TABLE>>];";
-                            }
-                            else
-                            {
-                                edgeDef += " [label=\"" + (*dataIt).getTensor().getName() + "\\n";
-                                if (contentLevel_ == ContentLevel::ContentFull)
-                                {   
-                                    vector<string> attrKeys((*dataIt).getTensor().getAttrKeys());
-                                    for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                        edgeDef += *attrIt + ": " + (*dataIt).getTensor().getAttr(*attrIt).getContentStr() + "\\n";
-                                }
-                                edgeDef += "\"];";
-                            }
-
+                            string edgeDef = "\t" + opIt->getName() + " -> " + controlIt.sink()->getName() + " [style=dashed]";
                             ostream_ << edgeDef << "\n";
 
                         }
 
-                    }*/
+                    }
 
                 }
 

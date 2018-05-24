@@ -18,11 +18,16 @@ ComputationModel(other)
 
 }
 
+mv::DataContext::OpListIterator mv::OpModel::switchContext(ControlContext::OpListIterator &other)
+{
+    return opsGraph_->get_first_iterator(other);
+}
+
 mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dType, Order order, const string &name)
 {
 
     input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(logger_, shape, dType, order, name));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*input_)->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
 
     lastOp_ = opsGraph_->get_second_iterator(input_);
 
@@ -33,11 +38,11 @@ mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dTy
 mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator &predIt, const string &name)
 {
 
-    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
+    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>(predIt->getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
 
     output_ = dataGraph_.node_insert(predIt, allocator_.make_owner<Output>(logger_, **inTensorRes.first, name), *inTensorRes.first);
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*output_)->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
 
     auto currentOp = opsGraph_->get_second_iterator(output_);
     controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
@@ -51,13 +56,13 @@ mv::DataContext::OpListIterator mv::OpModel::conv(DataContext::OpListIterator &p
 {
 
 
-    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
+    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>(predIt->getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
 
-    computation_graph::first_graph::node_list_iterator convIt = dataGraph_.node_insert(predIt, allocator_.make_owner<Conv>(logger_, **inTensorRes.first, weights, strideX, strideY, padX, padY, name), *inTensorRes.first);
-    auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, (*convIt)->getName() + "_" + "weights", (*convIt)->getAttr("weights").getContent<ConstantTensor>()));
+    DataContext::OpListIterator convIt = dataGraph_.node_insert(predIt, allocator_.make_owner<Conv>(logger_, **inTensorRes.first, weights, strideX, strideY, padX, padY, name), *inTensorRes.first);
+    auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, convIt->getName() + "_" + "weights", convIt->getAttr("weights").getContent<ConstantTensor>()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*resultT.first)->toString());
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*convIt)->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + convIt->toString());
 
     auto currentOp = opsGraph_->get_second_iterator(convIt);
     controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
@@ -72,8 +77,8 @@ mv::DataContext::OpListIterator mv::OpModel::maxpool(DataContext::OpListIterator
     auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
 
-    computation_graph::first_graph::node_list_iterator poolIt = dataGraph_.node_insert(predIt, allocator_.make_owner<MaxPool>(logger_, **inTensorRes.first, kernelShape, strideX, strideY, padX, padY, name), *inTensorRes.first);
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*poolIt)->toString());
+    DataContext::OpListIterator poolIt = dataGraph_.node_insert(predIt, allocator_.make_owner<MaxPool>(logger_, **inTensorRes.first, kernelShape, strideX, strideY, padX, padY, name), *inTensorRes.first);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + poolIt->toString());
 
     auto currentOp = opsGraph_->get_second_iterator(poolIt);
     controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
@@ -91,9 +96,9 @@ mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::OpListIterator 
     auto in1TensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*input1).getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*in1TensorRes.first)->toString());
 
-    computation_graph::first_graph::node_list_iterator concatIt = dataGraph_.node_insert(input0, allocator_.make_owner<Concat>(logger_, **in0TensorRes.first, **in1TensorRes.first, name), *in0TensorRes.first);
+    DataContext::OpListIterator concatIt = dataGraph_.node_insert(input0, allocator_.make_owner<Concat>(logger_, **in0TensorRes.first, **in1TensorRes.first, name), *in0TensorRes.first);
     dataGraph_.edge_insert(input1, concatIt, *in1TensorRes.first);
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*concatIt)->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + concatIt->toString());
 
     auto currentOp = opsGraph_->get_second_iterator(concatIt);
     controlGraph_.edge_insert(lastOp_, currentOp, ControlFlow());
@@ -107,11 +112,11 @@ bool mv::OpModel::addAttr(DataContext::OpListIterator &opIt, const string &name,
 
     if  (attr.getType() == AttrType::TensorType)
     {
-        auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, (*opIt).getName() + "_" + name, attr.getContent<ConstantTensor>()));
+        auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, opIt->getName() + "_" + name, attr.getContent<ConstantTensor>()));
         if (!resultT.second)
             return false;
 
-        bool resultA =  (*opIt).addAttr(name, attr);
+        bool resultA =  opIt->addAttr(name, attr);
         if (!resultA)
         {
             parameterTensors_->erase(*resultT.first);
@@ -122,7 +127,7 @@ bool mv::OpModel::addAttr(DataContext::OpListIterator &opIt, const string &name,
 
     }
     else
-        return (*opIt).addAttr(name, attr);
+        return opIt->addAttr(name, attr);
 
     return false;
 
@@ -145,5 +150,5 @@ mv::DataContext::OpListIterator mv::OpModel::getOutput()
 
 mv::DataContext::OpListIterator mv::OpModel::opEnd()
 {
-    return dataGraph_.node_end();
+    return dataOpEnd_;
 }

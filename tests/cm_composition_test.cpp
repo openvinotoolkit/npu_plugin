@@ -35,24 +35,24 @@ TEST(computation_model, minimal_functional_composition)
     ASSERT_TRUE(om.isValid());
 
     // Check output shape
-    ASSERT_EQ((*outIt).getOutputShape(), mv::Shape(1, 8, 8, 3));
+    ASSERT_EQ(outIt->getOutputShape(), mv::Shape(1, 8, 8, 3));
 
     // Check number of convolution parameters
-    ASSERT_EQ((*convIt).attrsCount(), 10);
+    ASSERT_EQ(convIt->attrsCount(), 10);
 
     // Check accessibility of convolution parameters
-    ASSERT_EQ((*convIt).getAttr("weights").getType(), mv::AttrType::TensorType);
-    ASSERT_EQ((*convIt).getAttr("strideX").getType(), mv::AttrType::ByteType);
-    ASSERT_EQ((*convIt).getAttr("strideY").getType(), mv::AttrType::ByteType);
-    ASSERT_EQ((*convIt).getAttr("padX").getType(), mv::AttrType::ByteType);
-    ASSERT_EQ((*convIt).getAttr("padY").getType(), mv::AttrType::ByteType);
+    ASSERT_EQ(convIt->getAttr("weights").getType(), mv::AttrType::TensorType);
+    ASSERT_EQ(convIt->getAttr("strideX").getType(), mv::AttrType::ByteType);
+    ASSERT_EQ(convIt->getAttr("strideY").getType(), mv::AttrType::ByteType);
+    ASSERT_EQ(convIt->getAttr("padX").getType(), mv::AttrType::ByteType);
+    ASSERT_EQ(convIt->getAttr("padY").getType(), mv::AttrType::ByteType);
 
     // Check parameters values
-    ASSERT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getData(), weightsData);
-    ASSERT_EQ((*convIt).getAttr("strideX").getContent<mv::byte_type>(), 4);
-    ASSERT_EQ((*convIt).getAttr("strideY").getContent<mv::byte_type>(), 4);
-    ASSERT_EQ((*convIt).getAttr("padX").getContent<mv::byte_type>(), 1);
-    ASSERT_EQ((*convIt).getAttr("padY").getContent<mv::byte_type>(), 1);
+    ASSERT_EQ(convIt->getAttr("weights").getContent<mv::ConstantTensor>().getData(), weightsData);
+    ASSERT_EQ(convIt->getAttr("strideX").getContent<mv::byte_type>(), 4);
+    ASSERT_EQ(convIt->getAttr("strideY").getContent<mv::byte_type>(), 4);
+    ASSERT_EQ(convIt->getAttr("padX").getContent<mv::byte_type>(), 1);
+    ASSERT_EQ(convIt->getAttr("padY").getContent<mv::byte_type>(), 1);
 
 }
 

@@ -18,6 +18,11 @@ ComputationModel(other)
 
 }
 
+mv::DataContext::OpListIterator mv::DataModel::switchContext(ControlContext::OpListIterator &other)
+{
+    return opsGraph_->get_first_iterator(other);
+}
+
 bool mv::DataModel::isValid() const
 {
     return ComputationModel::isValid();
@@ -25,15 +30,15 @@ bool mv::DataModel::isValid() const
 
 mv::DataContext::FlowSiblingIterator mv::DataModel::getInput()
 {
-    return input_->leftmost_output();
+    return input_.leftmostOutput();
 }
 
 mv::DataContext::FlowSiblingIterator mv::DataModel::getOutput()
 {
-    return output_->leftmost_input();
+    return output_.leftmostInput();
 }
 
 mv::DataContext::FlowListIterator mv::DataModel::flowEnd()
 {
-    return dataGraph_.edge_end();
+    return dataFlowEnd_;
 }

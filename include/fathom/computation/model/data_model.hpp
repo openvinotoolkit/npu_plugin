@@ -19,6 +19,8 @@ namespace mv
 
         DataModel(const ComputationModel &ComputationModel);
 
+        DataContext::OpListIterator switchContext(ControlContext::OpListIterator &other);
+
         DataContext::FlowSiblingIterator getInput();
         DataContext::FlowSiblingIterator getOutput();
         DataContext::FlowListIterator flowEnd();
