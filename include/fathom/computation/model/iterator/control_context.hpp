@@ -1,5 +1,5 @@
-#ifndef CONTROL_ITERATOR_HPP_
-#define CONTROL_ITERATOR_HPP_
+#ifndef CONTROL_CONTEXT_HPP_
+#define CONTROL_CONTEXT_HPP_
 
 #include "include/fathom/graph/graph.hpp"
 #include "include/fathom/computation/model/iterator/model_iterator.hpp"
@@ -30,4 +30,4 @@ namespace mv
 
 }
 
-#endif // OP_ITERATOR_HPP_
+#endif // CONTROL_CONTEXT_HPP_

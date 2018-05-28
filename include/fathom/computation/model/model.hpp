@@ -5,12 +5,14 @@
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/model/iterator/data_context.hpp"
 #include "include/fathom/computation/model/iterator/control_context.hpp"
+#include "include/fathom/computation/model/iterator/group_context.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
 #include "include/fathom/computation/tensor/populated.hpp"
 #include "include/fathom/computation/tensor/unpopulated.hpp"
 #include "include/fathom/computation/logger/stdout.hpp"
 #include "include/fathom/computation/flow/data.hpp"
 #include "include/fathom/computation/flow/control.hpp"
+#include "include/fathom/computation/model/group.hpp"
 
 namespace mv
 {
@@ -19,14 +21,6 @@ namespace mv
     {
     
     protected:
-
-        struct TensorOrderComparator
-        {
-            bool operator()(const allocator::owner_ptr<ModelTensor> &lhs, const allocator::owner_ptr<ModelTensor> &rhs)
-            {
-                return lhs->getID() < rhs->getID();
-            }
-        };
 
         static allocator allocator_;
 
@@ -40,13 +34,11 @@ namespace mv
         allocator::owner_ptr<computation_graph> opsGraph_;
         computation_graph::first_graph &dataGraph_;
         computation_graph::second_graph &controlGraph_;
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<UnpopulatedTensor>, TensorOrderComparator>> flowTensors_;
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<PopulatedTensor>, TensorOrderComparator>> parameterTensors_;
+        allocator::owner_ptr<allocator::set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>> flowTensors_;
+        allocator::owner_ptr<allocator::set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>> parameterTensors_;
+        allocator::owner_ptr<allocator::set<allocator::owner_ptr<ComputationGroup>, ComputationGroup::GroupOrderComparator>> groups_;
         const allocator::owner_ptr<Logger> defaultLogger_;
         Logger &logger_;
-        //computation_graph::first_graph::node_list_iterator input_;
-        //computation_graph::first_graph::node_list_iterator output_;
-        //computation_graph::second_graph::node_list_iterator lastOp_;
 
         DataContext::OpListIterator input_;
         DataContext::OpListIterator output_;
@@ -56,6 +48,9 @@ namespace mv
         DataContext::FlowListIterator dataFlowEnd_;
         ControlContext::OpListIterator controlOpEnd_;
         ControlContext::FlowListIterator controlFlowEnd_;
+
+        // Passing as value rather than reference allows to do implicit cast of pointer type
+        GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> newElement, mv::GroupContext::GroupIterator &group);
 
     public:
 
@@ -71,11 +66,19 @@ namespace mv
 
         virtual ~ComputationModel() = 0;
         bool isValid() const;
+        GroupContext::GroupIterator addGroup(const string &name);
+        bool hasGroup(const string &name);
+        GroupContext::GroupIterator getGroup(const string &name);
+        GroupContext::MemberIterator addGroupElement(DataContext::OpListIterator &newElement, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(DataContext::FlowListIterator &newElement, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(ControlContext::OpListIterator &newElement, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(ControlContext::FlowListIterator &newElement, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(GroupContext::GroupIterator &newElement, GroupContext::GroupIterator &group);
+        GroupContext::GroupIterator groupBegin();
+        GroupContext::GroupIterator groupEnd();
+        GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
         Logger& logger();
-
-        /*OpModel getOpModel();
-        DataModel getDataModel();
-        ControlModel getControlModel();*/
 
     };
 

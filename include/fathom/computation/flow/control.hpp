@@ -1,19 +1,27 @@
 #ifndef CONTROL_FLOW_HPP_
 #define CONTROL_FLOW_HPP_
 
-#include "include/fathom/computation/model/types.hpp"
+#include "include/fathom/computation/flow/flow.hpp"
+#include "include/fathom/computation/model/iterator/control_context.hpp"
+#include "include/fathom/computation/op/computation_op.hpp"
 
 namespace mv
 {
 
-    class ControlFlow
+    class ControlFlow : public ComputationFlow
     {
 
     public:
 
-        ControlFlow()
+        ControlFlow(const Logger &logger, ControlContext::OpListIterator &source, ControlContext::OpListIterator &sink) :
+        ComputationFlow(logger, "cf_" + source->getName() + "_" + sink->getName())
         {
 
+        }
+
+        string toString() const
+        {
+            return "control flow '" + name_ + "' " + ComputationElement::toString();
         }
         
     };

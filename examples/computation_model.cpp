@@ -22,7 +22,7 @@ int main()
 
     auto msgType = mv::Logger::MessageType::MessageInfo;
 
-    auto attr = (*outIt).getAttr("outputShape");
+    auto attr = outIt->getAttr("outputShape");
     om.logger().log(msgType, "Op '" + outIt->getName() + "' attribute 'outputShape' content: " + attr.getContent<mv::Shape>().toString());
     om.logger().log(msgType, "Op '" + outIt->getName() + "' attribute 'outputShape' type: " +  mv::Printable::toString(outIt->getAttrType("outputShape")));
 

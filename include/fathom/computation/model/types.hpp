@@ -37,8 +37,7 @@ namespace mv
     class DataFlow;
     class ControlFlow;
 
-    using computation_graph = conjoined_graph<allocator::owner_ptr<ComputationOp>, DataFlow, ControlFlow, allocator, size_type>;
-    //using control_graph = graph<allocator::owner_ptr<ComputationOp>, ControlFlow, allocator, size_type>;
+    using computation_graph = conjoined_graph<allocator::owner_ptr<ComputationOp>, allocator::owner_ptr<DataFlow>, allocator::owner_ptr<ControlFlow>, allocator, size_type>;
 
     enum class Order
     {

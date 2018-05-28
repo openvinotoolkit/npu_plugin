@@ -80,6 +80,12 @@ namespace mv
         {
             return make_owner<deque<T>>(*this);
         }
+
+        template<class T_key, class T_value>
+        owner_ptr<map<T_key, T_value>> make_map() const noexcept
+        {
+            return make_owner<map<T_key, T_value>>(*this);
+        }
         
     };
 
