@@ -10,7 +10,7 @@ namespace mv
         template <class IteratorType>
         class ModelIterator
         {
-
+            
             template <class OtherIteratorType> friend class ModelIterator;
 
         protected:
@@ -30,6 +30,7 @@ namespace mv
             {
 
             }
+
             ModelIterator(const IteratorType &it) :
             it_(it)
             {
@@ -61,34 +62,103 @@ namespace mv
                 return *this;
             }
 
-            size_type childrenSize()
-            {
-                return it_->children_size();
-            }
-
-            size_type siblingsSize()
-            {
-                return it_->siblings_size();
-            }
-
-            size_type parentsSize()
-            {
-                return it_->parents_size();
-            }
-
             operator IteratorType&()
             {
                 return it_;
             }
-
             
+        };
+
+        template <class IteratorType, class ContentType>
+        class ModelLinearIterator : public ModelIterator<IteratorType>
+        {
+
+        public:
+
+            ModelLinearIterator()
+            {
+                
+            }
+
+            template <class OtherIteratorType>
+            ModelLinearIterator(const ModelLinearIterator<OtherIteratorType, ContentType> &other) :
+            ModelIterator<IteratorType>(other)
+            {
+
+            }
+
+            ModelLinearIterator(const IteratorType &it) :
+            ModelIterator<IteratorType>(it)
+            {
+
+            }
+
+            ContentType& operator*() const
+            {
+                return *(*this->it_);
+            }
+
+            ContentType* operator->() const
+            {
+                return (*this->it_).operator->();
+            }
+
+            operator allocator::owner_ptr<ContentType>()
+            {
+                return *this->it_;
+            }
+
+        };
+
+
+        template <class IteratorType>
+        class ModelGraphIterator : public ModelIterator<IteratorType>
+        {
+
+            template <class OtherIteratorType> friend class ModelGraphIterator;
+
+        public:
+
+            ModelGraphIterator()
+            {
+
+            }
+
+            template <class OtherIteratorType>
+            ModelGraphIterator(const ModelGraphIterator<OtherIteratorType> &other) :
+            ModelIterator<IteratorType>(other.it_)
+            {
+
+            }
+
+            ModelGraphIterator(const IteratorType &it) :
+            ModelIterator<IteratorType>(it)
+            {
+
+            }
+
+            size_type childrenSize()
+            {
+                return this->it_->children_size();
+            }
+
+            size_type siblingsSize()
+            {
+                return this->it_->siblings_size();
+            }
+
+            size_type parentsSize()
+            {
+                return this->it_->parents_size();
+            }
+
         };
 
         template <class GraphType, class IteratorType, class NodeContentType, class EdgeContentType> class OpIterator;
         template <class GraphType, class IteratorType, class EdgeContentType, class NodeContentType> class FlowIterator;
         
         template <class GraphType, class IteratorType, class NodeContentType, class EdgeContentType>
-        class OpIterator : public ModelIterator<IteratorType>
+        class OpIterator : public ModelGraphIterator<IteratorType>
         {
 
         public:
@@ -99,14 +169,14 @@ namespace mv
             }
 
             OpIterator(const IteratorType &it) :
-            ModelIterator<IteratorType>(it)
+            ModelGraphIterator<IteratorType>(it)
             {
 
             }
 
             template <class OtherIteratorType>
             OpIterator(const OpIterator<GraphType, OtherIteratorType, NodeContentType, EdgeContentType> &other) :
-            ModelIterator<IteratorType>(other)
+            ModelGraphIterator<IteratorType>(other)
             {
 
             }
@@ -124,7 +194,7 @@ namespace mv
             template <class OtherIteratorType>
             OpIterator& operator=(OpIterator<GraphType, OtherIteratorType, NodeContentType, EdgeContentType> &other)
             {
-                ModelIterator<IteratorType>::operator=(other);
+                ModelGraphIterator<IteratorType>::operator=(other);
                 return *this;
             }
             
@@ -136,6 +206,11 @@ namespace mv
             size_type outputsSize()
             {
                 return this->it_->outputs_size();
+            }
+
+            operator allocator::owner_ptr<NodeContentType>&()
+            {
+                return *this->it_;
             }
 
             OpIterator<GraphType, typename GraphType::node_child_iterator, NodeContentType, EdgeContentType> leftmostChild();
@@ -153,7 +228,7 @@ namespace mv
         };
 
         template <class GraphType, class IteratorType, class EdgeContentType, class NodeContentType>
-        class FlowIterator : public ModelIterator<IteratorType>
+        class FlowIterator : public ModelGraphIterator<IteratorType>
         {
 
         public:
@@ -164,14 +239,14 @@ namespace mv
             }
 
             FlowIterator(const IteratorType &it) :
-            ModelIterator<IteratorType>(it)
+            ModelGraphIterator<IteratorType>(it)
             {
 
             }
 
             template <class OtherIteratorType>
             FlowIterator(const FlowIterator<GraphType, OtherIteratorType, EdgeContentType, NodeContentType> &other) :
-            ModelIterator<IteratorType>(other)
+            ModelGraphIterator<IteratorType>(other)
             {
 
             }
@@ -179,18 +254,23 @@ namespace mv
             template <class OtherIteratorType>
             FlowIterator& operator=(FlowIterator<GraphType, OtherIteratorType, EdgeContentType, NodeContentType> &other)
             {
-                ModelIterator<IteratorType>::operator=(other);
+                ModelGraphIterator<IteratorType>::operator=(other);
                 return *this;
             }
 
             EdgeContentType& operator*() const
             {
-                return  *this->it_;
+                return  *(*this->it_);
             }
 
             EdgeContentType* operator->() const
             {
-                return &(*this->it_);
+                return (*this->it_).operator->();
+            }
+
+            operator allocator::owner_ptr<EdgeContentType>&()
+            {
+                return *this->it_;
             }
 
             FlowIterator<GraphType, typename GraphType::edge_child_iterator, EdgeContentType, NodeContentType> leftmostChild();

@@ -9,6 +9,32 @@ attributes_(allocator_)
 {
 
 }
+mv::ComputationElement::ComputationElement(const ComputationElement &other) :
+logger_(other.logger_),
+name_(other.name_),
+attributes_(allocator_)
+{
+
+    for (auto it = other.attributes_.cbegin(); it != other.attributes_.cend(); ++it)
+    {
+        attributes_[it->first] = it->second;
+    }
+
+}
+
+mv::ComputationElement& mv::ComputationElement::operator=(const ComputationElement &other)
+{
+
+    this->name_ = other.name_;
+    
+    for (auto it = other.attributes_.cbegin(); it != other.attributes_.cend(); ++it)
+    {
+        attributes_[it->first] = it->second;
+    } 
+
+    return *this;
+
+}
 
 mv::ComputationElement::~ComputationElement()
 {
@@ -37,6 +63,16 @@ bool mv::ComputationElement::addAttr(const string &name, const Attribute &attr)
 
 }
 
+bool mv::ComputationElement::hasAttr(const string &name)
+{
+    
+    if (attributes_.find(name) != attributes_.end())
+        return true;
+
+    return false;
+
+}
+
 mv::Attribute mv::ComputationElement::getAttr(const string &name)
 {
     if (attributes_.find(name) != attributes_.end())
@@ -49,7 +85,7 @@ mv::Attribute mv::ComputationElement::getAttr(const string &name)
 mv::vector<mv::string> mv::ComputationElement::getAttrKeys() const
 {
     mv::vector<mv::string> attrKeys;
-    for (auto it = attributes_.begin(); it != attributes_.end(); ++it)
+    for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
         attrKeys.push_back(it->first);
     return attrKeys;
 }
@@ -71,7 +107,7 @@ mv::string mv::ComputationElement::toString() const
 {
     string result;
 
-    for (auto it = attributes_.begin(); it != attributes_.end(); ++it)
+    for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
         result += "\n'" +  it->first + "' " + it->second.toString();
 
     return result;

@@ -1,5 +1,5 @@
-#ifndef OP_ITERATOR_HPP_
-#define OP_ITERATOR_HPP_
+#ifndef DATA_CONTEXT_HPP_
+#define DATA_CONTEXT_HPP_
 
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/model/iterator/model_iterator.hpp"
@@ -26,8 +26,10 @@ namespace mv
         using FlowParentIterator = IteratorDetail::FlowIterator<computation_graph::first_graph, computation_graph::first_graph::edge_child_iterator, DataFlow, ComputationOp>;
         using FlowSiblingIterator = IteratorDetail::FlowIterator<computation_graph::first_graph, computation_graph::first_graph::edge_sibling_iterator, DataFlow, ComputationOp>;
 
+        
+
     }
 
 }
 
-#endif // OP_ITERATOR_HPP_
+#endif // DATA_CONTEXT_HPP_

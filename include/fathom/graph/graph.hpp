@@ -159,22 +159,22 @@ namespace mv
         class edge;
         
         template <class T_iterable>
-        using iterable_access_set = typename T_allocator::template set<access_ptr<T_iterable>, id_comparator<T_iterable>>;
+        using iterable_access_set = typename T_allocator::template set<access_ptr<T_iterable>, id_comparator<T_iterable> >;
 
         template <class T_iterable>
-        using iterable_access_set_ptr = owner_ptr<iterable_access_set<T_iterable>>;
+        using iterable_access_set_ptr = owner_ptr<iterable_access_set<T_iterable> >;
 
         template <class T_iterable>
-        using iterable_owner_set = typename T_allocator::template set<owner_ptr<T_iterable>, id_comparator<T_iterable>>;
+        using iterable_owner_set = typename T_allocator::template set<owner_ptr<T_iterable>, id_comparator<T_iterable> >;
 
         template <class T_iterable>
-        using iterable_owner_set_ptr = owner_ptr<iterable_owner_set<T_iterable>>;
+        using iterable_owner_set_ptr = owner_ptr<iterable_owner_set<T_iterable> >;
 
         template <class T_iterable>
-        using access_deque = typename T_allocator::template deque<access_ptr<T_iterable>>;
+        using access_deque = typename T_allocator::template deque<access_ptr<T_iterable> >;
 
         template <class T_iterable>
-        using access_deque_ptr = owner_ptr<access_deque<T_iterable>>;
+        using access_deque_ptr = owner_ptr<access_deque<T_iterable> >;
         
 
         // Curiously recurring template pattern

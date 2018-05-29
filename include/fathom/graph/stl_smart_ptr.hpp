@@ -32,11 +32,17 @@ namespace mv
 
     public:
 
-        /*stl_owner_ptr(const stl_owner_ptr &other) noexcept :
+        stl_owner_ptr(const stl_owner_ptr &other) noexcept :
         ptr_(other.ptr_)
         {
 
-        }*/
+        }
+
+        stl_owner_ptr(stl_owner_ptr &other) noexcept :
+        ptr_(other.ptr_)
+        {
+
+        }
 
         template <class T_other>
         stl_owner_ptr(const stl_owner_ptr<T_other> &other) noexcept :
@@ -45,8 +51,15 @@ namespace mv
 
         }
 
+        template <class T_other>
+        stl_owner_ptr(stl_owner_ptr<T_other> &other) noexcept :
+        ptr_(other.ptr_)
+        {
+
+        }
+
         template<typename... Args>
-        stl_owner_ptr(Args&... args) :
+        stl_owner_ptr(Args&... args) noexcept :
         ptr_(std::make_shared<T>(args...))
         {
             
@@ -120,7 +133,11 @@ namespace mv
     class stl_access_ptr
     {
 
-    private:
+        template <class T_other>
+        friend class stl_access_ptr;
+
+        template <class T_other>
+        friend class stl_owner_ptr;
 
         std::weak_ptr<T> ptr_;
 
@@ -143,12 +160,38 @@ namespace mv
 
     public:
 
-        stl_access_ptr(const stl_owner_ptr<T> &other) noexcept : ptr_(other.ptr_)
+        stl_access_ptr(const stl_access_ptr &other) noexcept :
+        ptr_(other.ptr_)
+        {
+
+        }
+
+        stl_access_ptr(stl_access_ptr &other) noexcept :
+        ptr_(other.ptr_)
+        {
+
+        }
+
+        template <class T_other>
+        stl_access_ptr(const stl_owner_ptr<T_other> &other) noexcept : ptr_(other.ptr_)
         {
             
         }
 
-        stl_access_ptr(const stl_access_ptr<T> &other) noexcept : ptr_(other.ptr_)
+        template <class T_other>
+        stl_access_ptr(stl_owner_ptr<T_other> &other) noexcept : ptr_(other.ptr_)
+        {
+            
+        }
+
+        template <class T_other>
+        stl_access_ptr(const stl_access_ptr<T_other> &other) noexcept : ptr_(other.ptr_)
+        {
+            
+        }
+
+        template <class T_other>
+        stl_access_ptr(stl_access_ptr<T_other> &other) noexcept : ptr_(other.ptr_)
         {
             
         }
@@ -209,6 +252,12 @@ namespace mv
         explicit operator bool() const noexcept
         {
             return !ptr_.expired();
+        }
+
+        template<class T_second>
+        stl_access_ptr<T_second> cast_pointer()
+        {   
+            return stl_access_ptr<T_second>(std::static_pointer_cast<T_second>(ptr_.lock()));
         }
 
     };

@@ -34,12 +34,22 @@ namespace mv
 
         }
 
-        const_iterator begin() const noexcept
+        const_iterator cbegin() const noexcept
+        {
+            return stl_map_.cbegin();
+        }
+
+        const_iterator cend() const noexcept
+        {
+            return stl_map_.cend();
+        }
+
+        iterator begin() noexcept
         {
             return stl_map_.begin();
         }
 
-        const_iterator end() const noexcept
+        iterator end() noexcept
         {
             return stl_map_.end();
         }
@@ -97,9 +107,14 @@ namespace mv
 
         }
 
+        pair<iterator, bool> emplace(const T_key &key, const T_value &value)
+        {
+            auto result = stl_map_.emplace(key, value);
+            return pair<iterator, bool>(result.first, result.second);
+        }
+
         T_value& operator[](const T_key &key)
         {
-
             try
             {
                 return stl_map_[key];

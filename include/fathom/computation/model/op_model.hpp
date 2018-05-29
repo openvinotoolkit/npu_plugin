@@ -15,6 +15,8 @@ namespace mv
     class OpModel : public ComputationModel, public CompositionalModel
     {
 
+        bool updateControlFlow_(DataContext::OpListIterator &newOp);
+
     public:
 
         OpModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);

@@ -12,6 +12,18 @@ namespace mv
     class ModelTensor : public Tensor, public ComputationElement
     {
 
+    public:
+
+        struct TensorOrderComparator
+        {
+            bool operator()(const allocator::owner_ptr<ModelTensor> &lhs, const allocator::owner_ptr<ModelTensor> &rhs)
+            {
+                return lhs->getID() < rhs->getID();
+            }
+        };
+
+    private:
+
         static size_type currentId_;
 
     protected:
