@@ -4,8 +4,9 @@
 * @author Patrick Doyle
 * @date 4/27/2018
 */
-
 #include "include/fathom/computation/model/op_model.hpp"
+#include <mv_types.h>
+#include <Fp16Convert.h>
 
 namespace mv
 {
@@ -225,7 +226,7 @@ class Blob_stage
             InputDimY = 32 ;
             InputDimZ = 3 ;
             InputStrideX = 2 ;
-            InputStrideY = 4 ;
+            InputStrideY = 64 ;
             InputStrideZ = 2 ;
             InputOffset = 0 ;
             InputLocation = 1 ;
@@ -260,8 +261,8 @@ class Blob_stage
             BiasStrideX = 0 ;
             BiasStrideY = 0 ;
             BiasStrideZ = 0 ;
-            BiasOffset = 0 ;
-            BiasLocation = 0 ;
+            BiasOffset = 1 ;
+            BiasLocation = 3 ;
             BiasDataType = 0 ;
             BiasOrder = 1 ;
 
@@ -316,7 +317,7 @@ class Blob_buffer : public WBuffer
             {
                 if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
                 {
-                    std::cout << "calculating buffer sizes for convolution"<< std::endl;
+ //                   std::cout << "calculating buffer sizes for convolution"<< std::endl;
 
                     // set Input and output sizes from compute model for single convolution
                     blob_stats.input_size = it->getInputShape()[0]*it->getInputShape()[1]*it->getInputShape()[2]*it->getInputShape()[3] ;
@@ -354,11 +355,33 @@ class Blob_buffer : public WBuffer
             int j;
             const int elfhdr_length = 34 ;
 
+            AddBytes(2, 0x0000);  // 0x00
+            AddBytes(2, 0x0001);
+            AddBytes(2, 0x0002);
+            AddBytes(2, 0x0001);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+
+            AddBytes(2, 0x0000);  // 0x10
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0110);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+
+            AddBytes(2, 0x0000);  // 0x20
+
+
+/* disable zero elf header
             for (j=0; j< elfhdr_length; j++)
                 {
                    AddBytes(1, 0x00);
                 }
-
+*/
 /* temporarily disable elf header
             // E_IDENT
             AddBytes(4, 0x464c457f);// EI_MAG = x7f.ELF
@@ -422,7 +445,7 @@ class Blob_buffer : public WBuffer
             {
                 if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
                 {
-                    std::cout << "writing stage for convolution"<< std::endl;
+ //                   std::cout << "writing stage for convolution"<< std::endl;
 
             // this stage header
             AddBytes(4, test_1conv_stage.next);
@@ -518,8 +541,7 @@ class Blob_buffer : public WBuffer
             {
                 if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
                 {
-                    std::cout << "writing buffer for convolution"<< std::endl;
-
+  //                  std::cout << "writing buffer for convolution"<< std::endl;
                     // buffer data section for convolution has 3 regions: taps, bias, and params
                     // size of TAP region = align((roundUp(8,#kernels)*kernelX*kernelY*kernelZ)*dataSize),0x40)
                     //  TODO       BIAS region = align((#biases*dataSize),0x40) 
@@ -538,7 +560,9 @@ class Blob_buffer : public WBuffer
                     // write weights and pad to file
                     for (unsigned i=0; i< buffer_taps_weights_len; i++)
                     {
-                        AddBytes(weights_number_size, buffer_taps_val);
+                        uint16_t cur_weight = f32Tof16(it->getAttr("weights").getContent<mv::ConstantTensor>().getData()[i]) ; 
+                        AddBytes(weights_number_size, cur_weight) ; 
+ //                   std::cout << "gathering weights " << i<< " = "<< it->getAttr("weights").getContent<mv::ConstantTensor>().getData()[i] << std::endl; 
                     }
                     for (unsigned i=0; i< blob_stats.weights_region_pad_size; i++)
                     {
@@ -547,7 +571,7 @@ class Blob_buffer : public WBuffer
 
                     // BIAS region
                     uint32_t bias_number_size = 2 ;             // TODO assume FP16 
-                    uint32_t buffer_bias_val = 0x00000000;      // TODO always add zero for now 
+                    uint32_t buffer_bias_val = f32Tof16(0.0f);  // TODO bias = 0 hardcoded 
                     uint32_t buffer_bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
                     uint32_t buffer_bias_values_size = buffer_bias_values_len*bias_number_size;   
                     uint32_t buffer_bias_region_size = align(buffer_bias_values_size,64) ;
