@@ -2,8 +2,8 @@
 #include "include/fathom/computation/model/op_model.hpp"
 #include "include/fathom/computation/model/control_model.hpp"
 #include "include/fathom/deployer/serializer.hpp"
-#include <mv_types.h>
-#include <Fp16Convert.h>
+//#include <mv_types.h>
+#include "include/fathom/deployer/Fp16Convert.h"
 
 TEST (model_serializer, convert_fp32_to_fp16)
 {

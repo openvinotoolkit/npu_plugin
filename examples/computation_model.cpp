@@ -15,7 +15,7 @@ int main()
 
     auto conv1It = om.conv(inIt, mv::ConstantTensor(mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC, conv1WeightsData), 2, 2, 1, 1);
     auto pool1It = om.maxpool(conv1It, mv::Shape(3, 3), 2, 2, 1, 1);
-    auto conv2It = om.conv(pool1It, mv::ConstantTensor(mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC, conv2WeightsData), 2, 2, 2, 2, "customName");
+    auto conv2It = om.conv(pool1It, mv::ConstantTensor(mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC, conv2WeightsData), 2, 2, 2, 2);
     auto pool2It = om.maxpool(conv2It, mv::Shape(5, 5), 4, 4, 2, 2);
     auto conv3It = om.conv(pool2It, mv::ConstantTensor(mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::NWHC, conv3WeightsData), 1, 1, 0, 0);
     auto outIt = om.output(conv3It);

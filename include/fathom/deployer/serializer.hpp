@@ -5,8 +5,8 @@
 * @date 4/27/2018
 */
 #include "include/fathom/computation/model/op_model.hpp"
-#include <mv_types.h>
-#include <Fp16Convert.h>
+#include "mv_types.h"
+#include "Fp16Convert.h"
 
 namespace mv
 {

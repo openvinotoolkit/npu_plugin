@@ -71,7 +71,6 @@ mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator 
 mv::DataContext::OpListIterator mv::OpModel::conv(DataContext::OpListIterator &predIt, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name)
 {
 
-
     auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>(predIt->getOutput()));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
 

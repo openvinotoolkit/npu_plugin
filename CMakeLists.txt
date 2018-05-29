@@ -1,16 +1,11 @@
 cmake_minimum_required(VERSION 3.1.0)
-project(fathom VERSION 1.0.0)
+project(fathom VERSION 0.0.1)
 
-set (CMAKE_CXX_STANDARD 11)
-
-#set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
-#set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
 include_directories(${PROJECT_SOURCE_DIR})
-include_directories(include/fathom/graph)
-include_directories(include/fathom/cm)
-include_directories(include/fathom/deployer)
 
 file(GLOB allocator "src/graph/base_allocator.cpp")
 file(GLOB computation_model 
@@ -31,6 +26,8 @@ file(GLOB pass "src/pass/deploy/deploy_pass.cpp")
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
 add_subdirectory(examples)
+
+add_library(cm SHARED ${allocator} ${computation_model} ${logger} ${tensor} ${pass})
 
 #set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 #set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
