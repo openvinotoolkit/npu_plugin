@@ -30,7 +30,7 @@ namespace mv
 
         string toString() const
         {
-            return "data flow '" + name_ + "' " + ComputationElement::toString();
+            return "data flow '" + name_ + "'\n'tensor' (unpopulated tensor): " + data_.lock()->getName() + ComputationElement::toString();
         }
 
     };

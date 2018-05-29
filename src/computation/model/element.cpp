@@ -1,6 +1,7 @@
 #include "include/fathom/computation/model/element.hpp"
 
 mv::allocator mv::ComputationElement::allocator_;
+mv::Attribute mv::ComputationElement::unknownAttr_;
 
 mv::ComputationElement::ComputationElement(const Logger &logger, const string &name) : 
 logger_(logger),
@@ -73,12 +74,12 @@ bool mv::ComputationElement::hasAttr(const string &name)
 
 }
 
-mv::Attribute mv::ComputationElement::getAttr(const string &name)
+mv::Attribute& mv::ComputationElement::getAttr(const string &name)
 {
     if (attributes_.find(name) != attributes_.end())
         return attributes_[name];
     else
-        return Attribute();
+        return unknownAttr_;
 
 }
 

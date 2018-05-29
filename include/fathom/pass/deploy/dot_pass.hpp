@@ -53,27 +53,27 @@ namespace mv
                 for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
                 {
 
-                    string nodeDef = "\t" + (*opIt).getName() + " [shape=box,"; 
+                    string nodeDef = "\t" + opIt->getName() + " [shape=box,"; 
                     
                     if (htmlLike_)
                     {
-                        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + (*opIt).getName() + "</B></FONT></TD></TR>";
+                        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + opIt->getName() + "</B></FONT></TD></TR>";
                         if (contentLevel_ == ContentLevel::ContentFull)
                         {   
-                            vector<string> attrKeys((*opIt).getAttrKeys());
+                            vector<string> attrKeys(opIt->getAttrKeys());
                             for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + (*opIt).getAttr(*attrIt).getContentStr() + "</FONT></TD></TR>";
+                                nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + opIt->getAttr(*attrIt).getContentStr() + "</FONT></TD></TR>";
                         }
                         nodeDef += "</TABLE>>";
                     }
                     else
                     {
-                        nodeDef += " label=\"" + (*opIt).getName() + "\\n";
+                        nodeDef += " label=\"" + opIt->getName() + "\\n";
                         if (contentLevel_ == ContentLevel::ContentFull)
                         {   
-                            vector<string> attrKeys((*opIt).getAttrKeys());
+                            vector<string> attrKeys(opIt->getAttrKeys());
                             for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                nodeDef += *attrIt + ": " + (*opIt).getAttr(*attrIt).getContentStr() + "\\n";
+                                nodeDef += *attrIt + ": " + opIt->getAttr(*attrIt).getContentStr() + "\\n";
                         }
                         nodeDef += "\"";
                     }
@@ -93,26 +93,26 @@ namespace mv
                         for (auto dataIt = opIt.leftmostOutput(); dataIt != dataModel.flowEnd(); ++dataIt)
                         {
 
-                            string edgeDef = "\t" + (*opIt).getName() + " -> " + dataIt.sink()->getName();
+                            string edgeDef = "\t" + opIt->getName() + " -> " + dataIt.sink()->getName();
                             if (htmlLike_)
                             {
-                                edgeDef += " [label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + (*dataIt).getTensor().getName() + "</B></FONT></TD></TR>";
+                                edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + dataIt->getTensor().getName() + "</B></FONT></TD></TR>";
                                 if (contentLevel_ == ContentLevel::ContentFull)
                                 {   
-                                    vector<string> attrKeys((*dataIt).getTensor().getAttrKeys());
+                                    vector<string> attrKeys(dataIt->getTensor().getAttrKeys());
                                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                        edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + (*dataIt).getTensor().getAttr(*attrIt).getContentStr() + "</FONT></TD></TR>";
+                                        edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + dataIt->getTensor().getAttr(*attrIt).getContentStr() + "</FONT></TD></TR>";
                                 }
                                 edgeDef += "</TABLE>>];";
                             }
                             else
                             {
-                                edgeDef += " [label=\"" + (*dataIt).getTensor().getName() + "\\n";
+                                edgeDef += " [label=\"" + dataIt->getTensor().getName() + "\\n";
                                 if (contentLevel_ == ContentLevel::ContentFull)
                                 {   
-                                    vector<string> attrKeys((*dataIt).getTensor().getAttrKeys());
+                                    vector<string> attrKeys(dataIt->getTensor().getAttrKeys());
                                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                        edgeDef += *attrIt + ": " + (*dataIt).getTensor().getAttr(*attrIt).getContentStr() + "\\n";
+                                        edgeDef += *attrIt + ": " + dataIt->getTensor().getAttr(*attrIt).getContentStr() + "\\n";
                                 }
                                 edgeDef += "\"];";
                             }
@@ -136,7 +136,7 @@ namespace mv
                         for (auto controlIt = opIt.leftmostOutput(); controlIt != controlModel.flowEnd(); ++controlIt)
                         {
 
-                            string edgeDef = "\t" + opIt->getName() + " -> " + controlIt.sink()->getName() + " [style=dashed]";
+                            string edgeDef = "\t" + opIt->getName() + " -> " + controlIt.sink()->getName() + " [penwidth=2.0, style=dashed]";
                             ostream_ << edgeDef << "\n";
 
                         }

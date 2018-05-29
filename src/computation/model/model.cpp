@@ -75,8 +75,10 @@ mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &nam
         
         auto result = groups_->insert(allocator_.make_owner<ComputationGroup>(logger_, name));
         if (result.second)
+        {
+            logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*result.first)->toString());
             return result.first;
-        
+        }
         return groups_->end();
         
     }
@@ -110,7 +112,12 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(allocato
 {
     if (group != groupEnd())
     {
-        return group->addElement(newElement);
+        auto result = group->addElement(newElement);
+        if (result != group->end())
+        {
+            logger_.log(Logger::MessageType::MessageInfo, "Appended new member '" + (*result)->getName() + "' to group '" + group->getName() + "'");
+            return result;
+        }
     }
 
     return group->end();

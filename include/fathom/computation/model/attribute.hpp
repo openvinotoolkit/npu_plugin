@@ -97,6 +97,7 @@ namespace mv
 
             AttributeContent(const T &content) : GenericAttributeContent(getTypeId<T>()), content_(content) {};
             T& getContent() { return content_; }
+            void setContent(const T &content) { content_ = content;}
 
         };
 
@@ -126,6 +127,15 @@ namespace mv
 
             assert(getTypeId<T>() == content_->typeId_ && "Attribute type mismatch");
             return content_.cast_pointer<AttributeContent<T>>()->getContent();
+        
+        }
+
+        template <class T>
+        void setContent(const T &content)
+        {
+
+            assert(getTypeId<T>() == content_->typeId_ && "Attribute type mismatch");
+            return content_.cast_pointer<AttributeContent<T>>()->setContent(content);
         
         }
 

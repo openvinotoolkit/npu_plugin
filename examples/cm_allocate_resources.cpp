@@ -2,6 +2,8 @@
 #include "include/fathom/computation/model/data_model.hpp"
 #include "include/fathom/computation/model/control_model.hpp"
 #include "include/fathom/computation/utils/data_generator.hpp"
+#include "include/fathom/deployer/std_ostream.hpp"
+#include "include/fathom/pass/deploy/dot_pass.hpp"
 
 int main()
 {
@@ -34,6 +36,10 @@ int main()
     om.addGroupElement(group1It, group3It);
     om.addGroupElement(group2It, group3It);
 
+    auto group4It = om.addGroup("first");
+    om.addGroupElement(conv1It, group4It);
+    om.addGroupElement(pool1It, group4It);
+
     for (auto it = om.groupBegin(); it != om.groupEnd(); ++it)
     {
 
@@ -45,5 +51,15 @@ int main()
         }
 
     }
+
+    std::cout << conv1It->toString() << std::endl;
+
+    /*mv::StdOStream ostream;
+    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentFull);
+    dotPass.run(om);*/
+
+    std::cout << group1It->toString() << std::endl;
+
+    return 0;
 
 }

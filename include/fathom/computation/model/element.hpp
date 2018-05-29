@@ -34,6 +34,7 @@ namespace mv
         friend class ComputationGroup;
 
         static allocator allocator_;
+        static Attribute unknownAttr_;
         const Logger &logger_;
         string name_;
         allocator::map<string, Attribute> attributes_;
@@ -57,7 +58,7 @@ namespace mv
         virtual ~ComputationElement() = 0;
         const string &getName() const;
         bool hasAttr(const string &name);
-        Attribute getAttr(const string &name);
+        Attribute& getAttr(const string &name);
         vector<string> getAttrKeys() const;
         AttrType getAttrType(const string &name);
         unsigned_type attrsCount() const;
