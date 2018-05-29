@@ -10,6 +10,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(include/fathom/graph)
 include_directories(include/fathom/cm)
+include_directories(include/fathom/deployer)
 
 file(GLOB allocator "src/graph/base_allocator.cpp")
 file(GLOB computation_model 

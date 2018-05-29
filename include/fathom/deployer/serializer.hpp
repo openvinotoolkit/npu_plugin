@@ -4,14 +4,13 @@
 * @author Patrick Doyle
 * @date 4/27/2018
 */
-
-#include "include/fathom/graph/graph.hpp"
-#include <stdio.h>
-#include <iostream>
+#include "include/fathom/computation/model/op_model.hpp"
+#include <mv_types.h>
+#include <Fp16Convert.h>
 
 namespace mv
 {
-/// List of supported node serialization formats
+/// List of supported graph serialization formats
 enum serializer_mode
 {
     mvblob_mode,
@@ -22,7 +21,7 @@ enum serializer_mode
 
 // Generic 4KB output buffer supporting bit-level output to file.
 // Buffer empties at 3800 level. Assumes add size < 296 to prevent
-// excessive checking during adds.
+// excessive size checking during adds.
 
 class WBuffer 
 {
@@ -46,7 +45,6 @@ class WBuffer
         {
             return align_size+(number_2_round/align_size)*align_size ;
         }
-
 
         template <typename field_T>
         void AddBytes(int numbytes, field_T field)
@@ -221,14 +219,14 @@ class Blob_stage
             radixStrideY = 2 ;
             padX = 0 ;
             padY = 0 ;
-            padStyle = 3 ;
+            padStyle = 1 ;
             dilation = 1 ;
 
             InputDimX = 32 ;
             InputDimY = 32 ;
             InputDimZ = 3 ;
-            InputStrideX = 6 ;
-            InputStrideY = 0xc0 ;
+            InputStrideX = 2 ;
+            InputStrideY = 64 ;
             InputStrideZ = 2 ;
             InputOffset = 0 ;
             InputLocation = 1 ;
@@ -238,8 +236,8 @@ class Blob_stage
             OutputDimX = 16 ;
             OutputDimY = 16 ;
             OutputDimZ = 8 ;
-            OutputStrideX = 16 ;
-            OutputStrideY = 0x100 ;
+            OutputStrideX = 2 ;
+            OutputStrideY = 0x10 ;
             OutputStrideZ = 2 ;
             OutputOffset = 0 ;
             OutputLocation = 2 ;
@@ -247,10 +245,10 @@ class Blob_stage
             OutputOrder = 0 ;
 
             TapsDimX = 9 ;
-            TapsDimY = 3 ;
-            TapsDimZ = 8 ;
-            TapsStrideX = 48 ;
-            TapsStrideY = 16 ;
+            TapsDimY = 1 ;
+            TapsDimZ = 1 ;
+            TapsStrideX = 2 ;
+            TapsStrideY = 2 ;
             TapsStrideZ = 2 ;
             TapsOffset = 0 ;
             TapsLocation = 3 ;
@@ -263,13 +261,13 @@ class Blob_stage
             BiasStrideX = 0 ;
             BiasStrideY = 0 ;
             BiasStrideZ = 0 ;
-            BiasOffset = 0 ;
-            BiasLocation = 0 ;
+            BiasOffset = 1 ;
+            BiasLocation = 3 ;
             BiasDataType = 0 ;
             BiasOrder = 1 ;
 
             preop_type = 5 ;
-            postop_type = 5 ;
+            postop_type = 9 ;
         }
 };
 
@@ -281,6 +279,11 @@ struct blob_summary {
     uint32_t buffer_header_size; 
     uint32_t buffer_data_size; 
     uint32_t relocation_section_size; 
+    uint32_t weights_region_size; 
+    uint32_t weights_region_pad_size; 
+    uint32_t bias_region_size; 
+    uint32_t params_region_size; 
+    uint32_t weights_number_size; 
     uint32_t stage_count;
     uint32_t input_size;
     uint32_t output_size;
@@ -294,20 +297,56 @@ class Blob_buffer : public WBuffer
         blob_summary blob_stats;
 
     public:
-        template <class T_node, class T_edge>
-        void calc(mv::graph<T_node, T_edge, mv::stl_allocator >& graph_2_show)
+        const mv::string conv_str = "conv" ;
+        void calc(mv::ControlModel& cm)
         {
+            // set fixed sizes for single convolution
             blob_stats.elf_header_size = 34 ;
             blob_stats.mv_header_size = 40 ;
             uint32_t headers_data_size = blob_stats.elf_header_size+blob_stats.mv_header_size ;
             blob_stats.header_pad_size = align(headers_data_size,0x10)-headers_data_size;
             blob_stats.stage_section_size = 0xf0 ;
             blob_stats.buffer_header_size = 0x10 ;
-            blob_stats.buffer_data_size = 0x200 ;
-            blob_stats.relocation_section_size = 0x1c ;
             blob_stats.stage_count = 1 ;
-            blob_stats.input_size = 0x0c00 ;
-            blob_stats.output_size = 0x800 ;
+            blob_stats.weights_number_size = 2 ;          // TODO assume FP16 
+            blob_stats.bias_region_size = 64 ;            // TODO assume 1 bias 
+            blob_stats.params_region_size = 64 ;          // TODO assume 1 param 
+
+            // parse compute model to determine buffer sizes
+            for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            {
+                if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
+                {
+ //                   std::cout << "calculating buffer sizes for convolution"<< std::endl;
+
+                    // set Input and output sizes from compute model for single convolution
+                    blob_stats.input_size = it->getInputShape()[0]*it->getInputShape()[1]*it->getInputShape()[2]*it->getInputShape()[3] ;
+                    blob_stats.output_size = it->getOutputShape()[0]*it->getOutputShape()[1]*it->getOutputShape()[2]*it->getOutputShape()[3] ;
+
+                    // buffer data section for convolution has 3 regions: taps, bias, and params
+                    // size of TAP region = align((roundUp(8,#kernels)*kernelX*kernelY*kernelZ)*dataSize),0x40)
+                    //  TODO       BIAS region = align((#biases*dataSize),0x40) 
+                    //  TODO       PARAMS region = align((#params*dataSize),0x40) 
+
+                    // TAPS region
+                    // calculate buffer sizes etc related to weights
+                    uint32_t kernel_sizeX = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0] ;
+                    uint32_t kernel_sizeY = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1] ;
+                    uint32_t kernel_sizeZ = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2] ;
+                    uint32_t kernel_sizeN = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3] ;
+                    uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN;
+                    uint32_t buffer_taps_weights_size = buffer_taps_weights_len*blob_stats.weights_number_size;
+                    blob_stats.weights_region_size = align(kernel_sizeN,8)*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size ;
+                    blob_stats.weights_region_size = align(blob_stats.weights_region_size,64) ;
+                    blob_stats.weights_region_pad_size = blob_stats.weights_region_size - buffer_taps_weights_size ;
+
+                    blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size + blob_stats.params_region_size ;
+
+                    blob_stats.relocation_section_size = 20 + 16*blob_stats.stage_count ;
+
+                 }
+            }
+
             blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
         }
 
@@ -316,11 +355,33 @@ class Blob_buffer : public WBuffer
             int j;
             const int elfhdr_length = 34 ;
 
+            AddBytes(2, 0x0000);  // 0x00
+            AddBytes(2, 0x0001);
+            AddBytes(2, 0x0002);
+            AddBytes(2, 0x0001);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+
+            AddBytes(2, 0x0000);  // 0x10
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0110);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+            AddBytes(2, 0x0000);
+
+            AddBytes(2, 0x0000);  // 0x20
+
+
+/* disable zero elf header
             for (j=0; j< elfhdr_length; j++)
                 {
                    AddBytes(1, 0x00);
                 }
-
+*/
 /* temporarily disable elf header
             // E_IDENT
             AddBytes(4, 0x464c457f);// EI_MAG = x7f.ELF
@@ -340,11 +401,10 @@ class Blob_buffer : public WBuffer
 
        void write_mv_header()
         {
-            //uint32_t total_header_size = blob_stats.elf_header_size+blob_stats.mv_header_size; 
 
             uint32_t mv_magic_number = 8708 ;
             uint32_t mv_version_major = 2 ;
-            uint32_t mv_version_minor = 4 ;
+            uint32_t mv_version_minor = 3 ;
             uint32_t mv_num_shaves = 1 ;
 
             uint32_t mv_stage_section_offset = blob_stats.elf_header_size+blob_stats.mv_header_size+blob_stats.header_pad_size ;
@@ -376,10 +436,16 @@ class Blob_buffer : public WBuffer
             AddBytes(4, blob_stats.output_size);
        }
 
-       void write_stage()
+       void write_stages(mv::ControlModel& cm)
        {
 
             Blob_stage test_1conv_stage ;
+
+            for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            {
+                if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
+                {
+ //                   std::cout << "writing stage for convolution"<< std::endl;
 
             // this stage header
             AddBytes(4, test_1conv_stage.next);
@@ -387,76 +453,83 @@ class Blob_buffer : public WBuffer
             AddBytes(4, test_1conv_stage.implementation);
 
             // operator specific info
-            AddBytes(4, test_1conv_stage.radixX);
-            AddBytes(4, test_1conv_stage.radixY);
-            AddBytes(4, test_1conv_stage.radixStrideX);
-            AddBytes(4, test_1conv_stage.radixStrideY);
-            AddBytes(4, test_1conv_stage.padX);
-            AddBytes(4, test_1conv_stage.padY);
-            AddBytes(4, test_1conv_stage.padStyle);
+                    AddBytes(4, it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0]); //radixX
+                    AddBytes(4, it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1]); //radixY
+                    AddBytes(4, it->getAttr("strideX").getContent<mv::byte_type>()); //strideX
+                    AddBytes(4, it->getAttr("strideY").getContent<mv::byte_type>()); //strideY
+                    AddBytes(4, it->getAttr("padX").getContent<mv::byte_type>());  // padX
+                    AddBytes(4, it->getAttr("padY").getContent<mv::byte_type>());  // padY
+            AddBytes(4, test_1conv_stage.padStyle);   // 0x80
             AddBytes(4, test_1conv_stage.dilation);
 
             // python helper push
-            AddBytes(4, test_1conv_stage.InputDimX);
-            AddBytes(4, test_1conv_stage.InputDimY);
-            AddBytes(4, test_1conv_stage.InputDimZ);
+                    AddBytes(4, it->getInputShape()[1]);  // input X-dimension size
+                    AddBytes(4, it->getInputShape()[2]);  // input Y-dimension size
+                    AddBytes(4, it->getInputShape()[3]);  // input Z-dimension size   (0x90)
             AddBytes(4, test_1conv_stage.InputStrideX);
             AddBytes(4, test_1conv_stage.InputStrideY);
             AddBytes(4, test_1conv_stage.InputStrideZ);
-            AddBytes(4, test_1conv_stage.InputOffset);
+            AddBytes(4, test_1conv_stage.InputOffset);     //  0xa0
             AddBytes(4, test_1conv_stage.InputLocation);
             AddBytes(4, test_1conv_stage.InputDataType);
             AddBytes(4, test_1conv_stage.InputOrder);
 
-            AddBytes(4, test_1conv_stage.OutputDimX);
-            AddBytes(4, test_1conv_stage.OutputDimY);
-            AddBytes(4, test_1conv_stage.OutputDimZ);
+                    AddBytes(4, it->getOutputShape()[1]);  // output X-dimension size  (0xb0)
+                    AddBytes(4, it->getOutputShape()[2]);  // output Y-dimension size
+                    AddBytes(4, it->getOutputShape()[3]);  // output Z-dimension size
             AddBytes(4, test_1conv_stage.OutputStrideX);
-            AddBytes(4, test_1conv_stage.OutputStrideY);
+            AddBytes(4, test_1conv_stage.OutputStrideY);   // 0xc0
             AddBytes(4, test_1conv_stage.OutputStrideZ);
             AddBytes(4, test_1conv_stage.OutputOffset);
             AddBytes(4, test_1conv_stage.OutputLocation);
-            AddBytes(4, test_1conv_stage.OutputDataType);
+            AddBytes(4, test_1conv_stage.OutputDataType);   //0xd0
             AddBytes(4, test_1conv_stage.OutputOrder);
 
             AddBytes(4, test_1conv_stage.TapsDimX);
             AddBytes(4, test_1conv_stage.TapsDimY);
-            AddBytes(4, test_1conv_stage.TapsDimZ);
+            AddBytes(4, test_1conv_stage.TapsDimZ);    // 0xe0
             AddBytes(4, test_1conv_stage.TapsStrideX);
             AddBytes(4, test_1conv_stage.TapsStrideY);
             AddBytes(4, test_1conv_stage.TapsStrideZ);
-            AddBytes(4, test_1conv_stage.TapsOffset);
+            AddBytes(4, test_1conv_stage.TapsOffset);   // 0xf0
             AddBytes(4, test_1conv_stage.TapsLocation);
             AddBytes(4, test_1conv_stage.TapsDataType);
             AddBytes(4, test_1conv_stage.TapsOrder);
 
-            AddBytes(4, test_1conv_stage.BiasDimX);
+            AddBytes(4, test_1conv_stage.BiasDimX);   // 0x100
             AddBytes(4, test_1conv_stage.BiasDimY);
             AddBytes(4, test_1conv_stage.BiasDimZ);
             AddBytes(4, test_1conv_stage.BiasStrideX);
-            AddBytes(4, test_1conv_stage.BiasStrideY);
+            AddBytes(4, test_1conv_stage.BiasStrideY);   // 0x110
             AddBytes(4, test_1conv_stage.BiasStrideZ);
             AddBytes(4, test_1conv_stage.BiasOffset);
             AddBytes(4, test_1conv_stage.BiasLocation);
-            AddBytes(4, test_1conv_stage.BiasDataType);
+            AddBytes(4, test_1conv_stage.BiasDataType);   // 0x120
             AddBytes(4, test_1conv_stage.BiasOrder);
 
             AddBytes(4, test_1conv_stage.preop_type);
-            AddBytes(4, test_1conv_stage.postop_type);
+            AddBytes(4, test_1conv_stage.postop_type);    // 0x12c
 
             uint32_t total_stage_size = (0x50+(8*4+48*4)) ;
             uint32_t buffer_section_offset = align(total_stage_size,0x10) ;
             uint32_t stage_pad_size = buffer_section_offset - total_stage_size ;
 
             AddBytes(stage_pad_size, 0x00);
+
+                }
+            }
         }
 
-       void write_buffer_section()
+       void write_buffer_section(mv::ControlModel& cm)
        {
             uint32_t buffer_header_pad_size = 3 ;
             uint32_t buffer_header_pad_val = 0x002a ;
-            uint8_t buffer_data_val = 0xFF ;
+            uint8_t buffer_taps_val = 0x66 ;
+            uint8_t buffer_bias_val = 0x88 ;
+            uint8_t buffer_param_val = 0xaa ;
+            uint8_t buffer_pad_val = 0x00 ;
 
+            // buffer section header
             AddBytes(4, (blob_stats.buffer_header_size + blob_stats.buffer_data_size));
 
             for (unsigned i=0; i<buffer_header_pad_size; i++)
@@ -464,32 +537,98 @@ class Blob_buffer : public WBuffer
                 AddBytes(4, buffer_header_pad_val);
             }
 
-            // data buffer
-            for (unsigned i=0; i< blob_stats.buffer_data_size; i++) 
+            for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
-                AddBytes(1, buffer_data_val);
-            }
+                if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
+                {
+  //                  std::cout << "writing buffer for convolution"<< std::endl;
+                    // buffer data section for convolution has 3 regions: taps, bias, and params
+                    // size of TAP region = align((roundUp(8,#kernels)*kernelX*kernelY*kernelZ)*dataSize),0x40)
+                    //  TODO       BIAS region = align((#biases*dataSize),0x40) 
+                    //  TODO       PARAMS region = align((#params*dataSize),0x40) 
 
+                    // TAPS region
+                    // calculate buffer sizes etc related to weights
+                    uint32_t kernel_sizeX = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0] ; 
+                    uint32_t kernel_sizeY = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1] ; 
+                    uint32_t kernel_sizeZ = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2] ; 
+                    uint32_t kernel_sizeN = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3] ; 
+                    uint32_t weights_number_size = 2 ;          // TODO assume FP16 
+                    uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN; 
+                    uint32_t buffer_taps_weights_size = buffer_taps_weights_len*weights_number_size;
+
+                    // write weights and pad to file
+                    for (unsigned i=0; i< buffer_taps_weights_len; i++)
+                    {
+                        uint16_t cur_weight = f32Tof16(it->getAttr("weights").getContent<mv::ConstantTensor>().getData()[i]) ; 
+                        AddBytes(weights_number_size, cur_weight) ; 
+ //                   std::cout << "gathering weights " << i<< " = "<< it->getAttr("weights").getContent<mv::ConstantTensor>().getData()[i] << std::endl; 
+                    }
+                    for (unsigned i=0; i< blob_stats.weights_region_pad_size; i++)
+                    {
+                        AddBytes(1, buffer_pad_val);
+                    }
+
+                    // BIAS region
+                    uint32_t bias_number_size = 2 ;             // TODO assume FP16 
+                    uint32_t buffer_bias_val = f32Tof16(0.0f);  // TODO bias = 0 hardcoded 
+                    uint32_t buffer_bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
+                    uint32_t buffer_bias_values_size = buffer_bias_values_len*bias_number_size;   
+                    uint32_t buffer_bias_region_size = align(buffer_bias_values_size,64) ;
+                    uint32_t buffer_bias_pad_size = buffer_bias_region_size - (buffer_bias_values_size);
+                    for (unsigned i=0; i< buffer_bias_values_len; i++)
+                    {
+                        AddBytes(bias_number_size, buffer_bias_val);
+                    }
+                    for (unsigned i=0; i< buffer_bias_pad_size; i++)
+                    {
+                        AddBytes(1, buffer_pad_val);
+                    }
+
+                    // PARAMS region
+                    uint32_t params_number_size = 4 ;           // assume int32 for postop param 
+                    uint32_t buffer_params_val = 0x00000001;    // TODO always use bias postop 
+                    uint32_t buffer_params_values_len = 1;      // TODO use 1 for now (same bias all outputs)
+                    uint32_t buffer_params_values_size = buffer_params_values_len*params_number_size; 
+                    uint32_t buffer_params_region_size = align(buffer_params_values_size,64) ;
+                    uint32_t buffer_params_pad_size = buffer_params_region_size - (buffer_params_values_size);
+                    for (unsigned i=0; i< buffer_params_values_len; i++)
+                    {
+                        AddBytes(params_number_size, buffer_params_val);
+                    }
+                    for (unsigned i=0; i< buffer_params_pad_size; i++)
+                    {
+                        AddBytes(1, buffer_pad_val);
+                    }
+
+                }
+            }
        }
 
        void write_relocation_section()
        {
 
-            uint32_t relocation_section_size = 0x1c;
-            uint32_t blob_buffer_reloc_offset = 0x364;
-            uint32_t blob_buffer_reloc_size = 0x8;
-            uint32_t work_buffer_reloc_offset= 0x36c;
+            uint32_t number_of_convolutions = 1 ;           // TODO get number from graph
+            uint32_t relocation_section_header_size = 20 ;   
+            uint32_t blob_buffer_reloc_size = 16*number_of_convolutions ;
+            uint32_t relocation_section_size = blob_buffer_reloc_size + relocation_section_header_size ;
+            uint32_t blob_buffer_reloc_offset = blob_stats.blob_file_size - relocation_section_size + relocation_section_header_size ;
+            uint32_t work_buffer_reloc_offset = blob_buffer_reloc_offset + blob_buffer_reloc_size ;
             uint32_t work_buffer_reloc_size = 0x00;
-            uint32_t work_link_off = 0x00;
-            uint32_t work_link_size = 0x03;
 
-            AddBytes(4,relocation_section_size );
+            AddBytes(4, relocation_section_size );
             AddBytes(4, blob_buffer_reloc_offset);
             AddBytes(4, blob_buffer_reloc_size);
             AddBytes(4, work_buffer_reloc_offset);
             AddBytes(4, work_buffer_reloc_size);
-            AddBytes(4, work_link_off);
-            AddBytes(4, work_link_size);
+
+            // relocation section: blob buffer relocation information
+            // weights region 
+            AddBytes(4, 0x00000000);        // offset from start of buffer section
+            AddBytes(4, 0x3);               // memory type = heap/bss  
+            // bias region of 
+            AddBytes(4, blob_stats.weights_region_size);
+            AddBytes(4, 0x3);
 
         }
 
@@ -515,31 +654,31 @@ class Blob_buffer : public WBuffer
         }
 
 /**
-* @brief serialize writes the blob format output file desecribing the computre model.
+* @brief serialize writes the specified format output file desecribing the compute model.
 *
-* @param graph_2_show (by reference) points to the graph you want to visualize
+* @param graph_2_deploy (by reference) points to the graph you want to deploy
 */
-        template <class T_node, class T_edge>
-        uint64_t serialize(mv::graph<T_node, T_edge, mv::stl_allocator >& graph_2_show, const char* ofilename )
+        uint64_t serialize(mv::ControlModel& graph_2_deploy, const char* ofilename )
         {
             uint64_t fsize = 0 ;
             switch( output_format )
             {
                 case mvblob_mode:
+                    // 3 passes of graph: calculate, stages, buffer
                     // calculate sizes and offsets for headers
-                    odata.calc(graph_2_show);
+                    odata.calc(graph_2_deploy);
                     // write to file
                     odata.open(ofilename);
                     odata.write_elf_header();
                     odata.write_mv_header();
                     odata.write_stage_section_header();
-                    odata.write_stage();  //TODO temp, only one stage
-                    odata.write_buffer_section();
+                    odata.write_stages(graph_2_deploy); 
+                    odata.write_buffer_section(graph_2_deploy);
                     odata.write_relocation_section();
                     fsize = odata.End() ;
                 break;
                 default:
-                    std::cout << "ERROR: unsupported output format " << output_format << std::endl; 
+                    std::cout << "ERROR: unsupported deployment output format " << output_format << std::endl; 
                 break;
             }
             return (fsize);
@@ -549,7 +688,6 @@ class Blob_buffer : public WBuffer
         {
             std::cout << "serializer output mode= " << output_format << std::endl;
         }
-
 };
 
 }

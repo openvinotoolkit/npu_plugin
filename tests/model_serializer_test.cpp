@@ -1,48 +1,79 @@
 #include "gtest/gtest.h"
-#include <iostream>
-#include <string>
-#include <vector>
-#include "include/fathom/graph/graph.hpp"
-#include "include/fathom/graph/stl_allocator.hpp"
+#include "include/fathom/computation/model/op_model.hpp"
+#include "include/fathom/computation/model/control_model.hpp"
 #include "include/fathom/deployer/serializer.hpp"
+#include <mv_types.h>
+#include <Fp16Convert.h>
 
-using int_int_graph = mv::graph<int, int, mv::stl_allocator>;
-using char_int_graph = mv::graph<char, int, mv::stl_allocator>;
-
-TEST (model_serializer, blob_output) 
+TEST (model_serializer, convert_fp32_to_fp16)
 {
+   ASSERT_EQ(f32Tof16(1.0f),0x3c00 );
+   ASSERT_EQ(f32Tof16(1.0009765625f),0x3c01 );
+   ASSERT_EQ(f32Tof16(-2.0f),0xc000 );
+   ASSERT_EQ(f32Tof16(65504.0f),0x7bff );
+   ASSERT_EQ(f32Tof16(0.0000610352f),0x0400 );
+   ASSERT_EQ(f32Tof16(0.0000609756f),0x0000 );
+   ASSERT_EQ(f32Tof16(0.0000000596046f),0x0000 );
+   ASSERT_EQ(f32Tof16(0.0f),0x0000 );
+   ASSERT_EQ(f32Tof16(0.333251953125f),0x3555 );
+}
 
-    int_int_graph utest_graph_00;
 
-    // define test graph 0 
-    int_int_graph::node_list_iterator itn0 = utest_graph_00.node_insert(800);
-    int_int_graph::node_list_iterator itn1 ;
-    itn1 = utest_graph_00.node_insert(801);
-    auto itn7 = utest_graph_00.node_insert(807);
-    int_int_graph::node_list_iterator itn2 = utest_graph_00.node_insert(itn1, 802, 90102);
-    auto itn3 = utest_graph_00.node_insert(itn2, 803, 90203);
-    int_int_graph::node_list_iterator itn5 ;
-    itn5 = utest_graph_00.node_insert(itn3, 805, 90305);
-    auto itn4 = utest_graph_00.node_insert(itn5, 804, 90504);
-    auto itn6 = utest_graph_00.node_insert(itn5, 806, 90506);
-    auto itn8 = utest_graph_00.node_insert(itn6, 808, 90608);
-    int_int_graph::edge_list_iterator ite0402 = utest_graph_00.edge_insert(itn4, itn2, 90402);
-    auto ite403 = utest_graph_00.edge_insert(itn4, itn3, 90403);
-    auto ite405 = utest_graph_00.edge_insert(itn4, itn5, 90405);
-    auto ite502 = utest_graph_00.edge_insert(itn5, itn2, 90502);
-    auto ite604 = utest_graph_00.edge_insert(itn6, itn4, 90604);
-    auto ite106 = utest_graph_00.edge_insert(itn1, itn6, 90106);
-    auto ite701 = utest_graph_00.edge_insert(itn7, itn1, 90701);
-    utest_graph_00.edge_insert(itn6, itn7, 90607);
-    utest_graph_00.edge_insert(itn0, itn1, 90001);
+TEST (model_serializer, blob_output_1conv) 
+{
+    // define test compute model: 1 convolution 
+    mv::OpModel test_cm ;
+
+    // Compose minimal functional computation model - one computation operation of type conv2D
+    auto inIt = test_cm.input(mv::Shape(1, 32, 32, 1), mv::DType::Float, mv::Order::NWHC);
+    mv::vector<mv::float_type> weightsData =
+    { 0.1111f, 0.1121f, 0.1131f, 0.1141f, 0.1151f, 0.1161f, 0.1171f, 0.1181f, 0.1191f };
+    mv::ConstantTensor weights(mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC, weightsData);
+    auto convIt = test_cm.conv(inIt, weights, 4, 4, 0, 0);
+    auto outIt = test_cm.output(convIt);
+
+    // Check if model is valid 
+    ASSERT_TRUE(test_cm.isValid());
+
+    // Check output shape
+    ASSERT_EQ((*outIt).getOutputShape(), mv::Shape(1, 8, 8, 1));
+
+    // Check number of convolution parameters
+    ASSERT_EQ((*convIt).attrsCount(), 10);
+
+    // Check parameters values
+    ASSERT_EQ((*convIt).getAttr("opType").getContent<mv::string>(), "conv");
+    ASSERT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getData(), weightsData);
+    ASSERT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0], 3);
+    ASSERT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1], 3);
+    ASSERT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2], 1);
+    ASSERT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3], 1);
+    ASSERT_EQ((*convIt).getAttr("strideX").getContent<mv::byte_type>(), 4);
+    ASSERT_EQ((*convIt).getAttr("strideY").getContent<mv::byte_type>(), 4);
+    ASSERT_EQ((*convIt).getAttr("padX").getContent<mv::byte_type>(), 0);
+    ASSERT_EQ((*convIt).getAttr("padY").getContent<mv::byte_type>(), 0);
+    ASSERT_EQ((*convIt).getInputShape()[1], 32);    // X dim
+    ASSERT_EQ((*convIt).getInputShape()[2], 32);    // Y dim
+    ASSERT_EQ((*convIt).getInputShape()[3], 1);     // Z dim (aka C)
+    ASSERT_EQ((*convIt).getOutputShape()[1], 8);    // X dim
+    ASSERT_EQ((*convIt).getOutputShape()[2], 8);    // Y dim
+    ASSERT_EQ((*convIt).getOutputShape()[3], 1);    // Z dim 
+
+    mv::ControlModel cm(test_cm);
 
     // declare serializer as blob
     mv::Serializer gs(mv::mvblob_mode);
 
     // serialize compute model to file
-    uint64_t filesize = gs.serialize(utest_graph_00, "test_1conv_blob.txt");
+    uint64_t filesize = gs.serialize(cm, "test_1conv.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (876, filesize) << "ERROR: wrong blob size";
+    EXPECT_EQ (692, filesize) << "ERROR: wrong blob size";
+
+    // compare blob file contents to blob previously generated with mvNCCheck
+    const char *command1 = "cp ../../tests/gold_blobs/gold_01.blob .";
+    system(command1);
+    const char *command2 = "diff test_1conv.blob gold_01.blob";
+    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 
 }
