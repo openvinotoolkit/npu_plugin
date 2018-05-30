@@ -13,14 +13,16 @@ namespace mv
         byte_type ndims_;
         dim_type dims_[max_ndims];
 
-        void addDim(byte_type dim)
+//        void addDim(byte_type dim)
+        void addDim(dim_type dim)
         {
             dims_[ndims_] = dim;
             ++ndims_;
         }
 
         template<typename... Dims>
-        void addDim(byte_type dim, Dims... dims)
+//        void addDim(byte_type dim, Dims... dims)
+        void addDim(dim_type dim, Dims... dims)
         {
             addDim(dim);
             addDim(dims...);

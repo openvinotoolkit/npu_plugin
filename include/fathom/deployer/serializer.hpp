@@ -5,8 +5,8 @@
 * @date 4/27/2018
 */
 #include "include/fathom/computation/model/op_model.hpp"
-#include "mv_types.h"
-#include "Fp16Convert.h"
+#include "include/fathom/deployer/mv_types.h"
+#include "include/fathom/deployer/Fp16Convert.h"
 
 namespace mv
 {
@@ -286,7 +286,7 @@ struct blob_summary {
     uint32_t weights_number_size; 
     uint32_t stage_count;
     uint32_t input_size;
-    uint32_t output_size;
+    uint32_t D2output_size;
     uint32_t blob_file_size; 
 };
 
@@ -321,10 +321,10 @@ class Blob_buffer : public WBuffer
 
                     // set Input and output sizes from compute model for single convolution
                     blob_stats.input_size = it->getInputShape()[0]*it->getInputShape()[1]*it->getInputShape()[2]*it->getInputShape()[3] ;
-                    blob_stats.output_size = it->getOutputShape()[0]*it->getOutputShape()[1]*it->getOutputShape()[2]*it->getOutputShape()[3] ;
+                    blob_stats.D2output_size = it->getOutputShape()[1]*it->getOutputShape()[2] ;
 
                     // buffer data section for convolution has 3 regions: taps, bias, and params
-                    // size of TAP region = align((roundUp(8,#kernels)*kernelX*kernelY*kernelZ)*dataSize),0x40)
+                    // size of TAP region = align((roundUp(8,#kC)*kernelX*kernelY*kN)*dataSize),0x40)
                     //  TODO       BIAS region = align((#biases*dataSize),0x40) 
                     //  TODO       PARAMS region = align((#params*dataSize),0x40) 
 
@@ -332,11 +332,11 @@ class Blob_buffer : public WBuffer
                     // calculate buffer sizes etc related to weights
                     uint32_t kernel_sizeX = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0] ;
                     uint32_t kernel_sizeY = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1] ;
-                    uint32_t kernel_sizeZ = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2] ;
+                    uint32_t kernel_sizeC = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2] ;
                     uint32_t kernel_sizeN = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3] ;
-                    uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN;
+                    uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeC*kernel_sizeN;
                     uint32_t buffer_taps_weights_size = buffer_taps_weights_len*blob_stats.weights_number_size;
-                    blob_stats.weights_region_size = align(kernel_sizeN,8)*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size ;
+                    blob_stats.weights_region_size = align(kernel_sizeC,8)*kernel_sizeX*kernel_sizeY*kernel_sizeN*blob_stats.weights_number_size ;
                     blob_stats.weights_region_size = align(blob_stats.weights_region_size,64) ;
                     blob_stats.weights_region_pad_size = blob_stats.weights_region_size - buffer_taps_weights_size ;
 
@@ -352,8 +352,6 @@ class Blob_buffer : public WBuffer
 
         void write_elf_header()
         {
-            int j;
-            const int elfhdr_length = 34 ;
 
             AddBytes(2, 0x0000);  // 0x00
             AddBytes(2, 0x0001);
@@ -377,6 +375,8 @@ class Blob_buffer : public WBuffer
 
 
 /* disable zero elf header
+            int j;
+            const int elfhdr_length = 34 ;
             for (j=0; j< elfhdr_length; j++)
                 {
                    AddBytes(1, 0x00);
@@ -431,9 +431,9 @@ class Blob_buffer : public WBuffer
 
        void write_stage_section_header()
        {
-            AddBytes(4, blob_stats.stage_count);
+            AddBytes(4, blob_stats.stage_count);   // 0x50
             AddBytes(4, blob_stats.stage_section_size);
-            AddBytes(4, blob_stats.output_size);
+            AddBytes(4, blob_stats.D2output_size);
        }
 
        void write_stages(mv::ControlModel& cm)
@@ -449,13 +449,13 @@ class Blob_buffer : public WBuffer
 
             // this stage header
             AddBytes(4, test_1conv_stage.next);
-            AddBytes(4, test_1conv_stage.op_type);
+            AddBytes(4, test_1conv_stage.op_type);    // 0x60
             AddBytes(4, test_1conv_stage.implementation);
 
             // operator specific info
                     AddBytes(4, it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0]); //radixX
                     AddBytes(4, it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1]); //radixY
-                    AddBytes(4, it->getAttr("strideX").getContent<mv::byte_type>()); //strideX
+                    AddBytes(4, it->getAttr("strideX").getContent<mv::byte_type>()); //strideX  (0x70)
                     AddBytes(4, it->getAttr("strideY").getContent<mv::byte_type>()); //strideY
                     AddBytes(4, it->getAttr("padX").getContent<mv::byte_type>());  // padX
                     AddBytes(4, it->getAttr("padY").getContent<mv::byte_type>());  // padY
@@ -463,12 +463,13 @@ class Blob_buffer : public WBuffer
             AddBytes(4, test_1conv_stage.dilation);
 
             // python helper push
+                    int number_size = 2 ;  // TODO assume FP16
                     AddBytes(4, it->getInputShape()[1]);  // input X-dimension size
                     AddBytes(4, it->getInputShape()[2]);  // input Y-dimension size
                     AddBytes(4, it->getInputShape()[3]);  // input Z-dimension size   (0x90)
-            AddBytes(4, test_1conv_stage.InputStrideX);
-            AddBytes(4, test_1conv_stage.InputStrideY);
-            AddBytes(4, test_1conv_stage.InputStrideZ);
+                    AddBytes(4, number_size*it->getInputShape()[3]);    // InputStrideX
+            AddBytes(4, number_size*it->getInputShape()[3]*it->getInputShape()[1]);  // InputStrideY
+            AddBytes(4, number_size*it->getInputShape()[0]);   // InputStrideZ
             AddBytes(4, test_1conv_stage.InputOffset);     //  0xa0
             AddBytes(4, test_1conv_stage.InputLocation);
             AddBytes(4, test_1conv_stage.InputDataType);
@@ -476,19 +477,23 @@ class Blob_buffer : public WBuffer
 
                     AddBytes(4, it->getOutputShape()[1]);  // output X-dimension size  (0xb0)
                     AddBytes(4, it->getOutputShape()[2]);  // output Y-dimension size
-                    AddBytes(4, it->getOutputShape()[3]);  // output Z-dimension size
+                    AddBytes(4, it->getOutputShape()[0]);  // output Z-dimension size
             AddBytes(4, test_1conv_stage.OutputStrideX);
-            AddBytes(4, test_1conv_stage.OutputStrideY);   // 0xc0
+//            AddBytes(4, test_1conv_stage.OutputStrideY);   // 0xc0
+                    AddBytes(4, number_size*it->getOutputShape()[1]);   // 0xc0
             AddBytes(4, test_1conv_stage.OutputStrideZ);
             AddBytes(4, test_1conv_stage.OutputOffset);
             AddBytes(4, test_1conv_stage.OutputLocation);
             AddBytes(4, test_1conv_stage.OutputDataType);   //0xd0
             AddBytes(4, test_1conv_stage.OutputOrder);
 
-            AddBytes(4, test_1conv_stage.TapsDimX);
-            AddBytes(4, test_1conv_stage.TapsDimY);
+//            AddBytes(4, test_1conv_stage.TapsDimX);
+            AddBytes(4, it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0]*it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1]);
+//            AddBytes(4, test_1conv_stage.TapsDimY);
+            AddBytes(4, it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3]);
             AddBytes(4, test_1conv_stage.TapsDimZ);    // 0xe0
-            AddBytes(4, test_1conv_stage.TapsStrideX);
+//            AddBytes(4, test_1conv_stage.TapsStrideX);
+            AddBytes(4, number_size*it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3]);
             AddBytes(4, test_1conv_stage.TapsStrideY);
             AddBytes(4, test_1conv_stage.TapsStrideZ);
             AddBytes(4, test_1conv_stage.TapsOffset);   // 0xf0
@@ -524,9 +529,6 @@ class Blob_buffer : public WBuffer
        {
             uint32_t buffer_header_pad_size = 3 ;
             uint32_t buffer_header_pad_val = 0x002a ;
-            uint8_t buffer_taps_val = 0x66 ;
-            uint8_t buffer_bias_val = 0x88 ;
-            uint8_t buffer_param_val = 0xaa ;
             uint8_t buffer_pad_val = 0x00 ;
 
             // buffer section header
@@ -555,7 +557,6 @@ class Blob_buffer : public WBuffer
                     uint32_t kernel_sizeN = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3] ; 
                     uint32_t weights_number_size = 2 ;          // TODO assume FP16 
                     uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN; 
-                    uint32_t buffer_taps_weights_size = buffer_taps_weights_len*weights_number_size;
 
                     // write weights and pad to file
                     for (unsigned i=0; i< buffer_taps_weights_len; i++)
@@ -571,7 +572,7 @@ class Blob_buffer : public WBuffer
 
                     // BIAS region
                     uint32_t bias_number_size = 2 ;             // TODO assume FP16 
-                    uint32_t buffer_bias_val = f32Tof16(0.0f);  // TODO bias = 0 hardcoded 
+                    uint16_t buffer_bias_val = f32Tof16(0.0f);  // TODO bias = 0 hardcoded 
                     uint32_t buffer_bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
                     uint32_t buffer_bias_values_size = buffer_bias_values_len*bias_number_size;   
                     uint32_t buffer_bias_region_size = align(buffer_bias_values_size,64) ;
@@ -626,7 +627,7 @@ class Blob_buffer : public WBuffer
             // weights region 
             AddBytes(4, 0x00000000);        // offset from start of buffer section
             AddBytes(4, 0x3);               // memory type = heap/bss  
-            // bias region of 
+            // bias region offset 
             AddBytes(4, blob_stats.weights_region_size);
             AddBytes(4, 0x3);
 
