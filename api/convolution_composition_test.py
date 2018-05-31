@@ -73,41 +73,43 @@ class Conv(Layer):
 
 class TestComposition(unittest.TestCase):
 
-    def setUp(self):
+    def test_simple(self):
+        self.assertEqual('foo'.upper(), 'FOO')
 
-        self.g = ca.getOM()      # mv::OpModel om;
-
-        print("Graph:", self.g)
-
+    def test_empty_om(self):
+        self.g = ca.getOM()
         self.assertFalse(self.g.isValid())
 
-    def testMinimal(self):
-        shape = ca.getShape(1, 32, 32, 3)
-        dtype = ca.getDtype()
-        order = ca.getOrder()
+    def test_SWIG_connection(self):
+        self.assertEqual(1, ca.testSWIG())
 
-        in_ = self.g.input(shape, dtype, order)
-        out_ = self.g.output(in_)
+    def test_minimal_om(self):
+        self.g = ca.getOM()
+        shape = ca.getShape(1, 32, 32, 3)
+
+        in_ = ca.input(self.g, shape)
+        out_ = ca.output(self.g, in_)
 
         self.assertTrue(self.g.isValid())
 
-    def testConvolution(self):
+    def test_convolution(self):
+        self.g = ca.getOM()
 
         shape = ca.getShape(1, 32, 32, 3)
-        dtype = ca.getDtype()
-        order = ca.getOrder()
 
-        weights = ca.getData(np.array(
-            [   1, 2, 3, 4, 5, 6, 7, 8, 9,
-                10, 11, 12, 13, 14, 15, 16, 17, 18,
-                19, 20, 21, 22, 23, 24, 25, 26, 27]
-            )
-        )
+        arr = [
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+            10, 11, 12, 13, 14, 15, 16, 17, 18,
+            19, 20, 21, 22, 23, 24, 25, 26, 27
+        ]
+
+        weights = ca.getData(arr, len(arr))
+
         weights = ca.getConstantTensor(ca.getShape(3, 3, 1, 3), dtype, order, weights)
 
-        in_ = self.g.input(shape, dtype, order)
-        c_ = self.conv(in_, weights, 4, 4, 1, 1)
-        out_ = self.g.output(c_)
+        in_ = ca.input(self.g, shape)
+        c_ = ca.conv(self.g, in_, weights, 4, 4, 1, 1)
+        out_ = ca.output(self.g, c_)
 
         self.assertTrue(self.g.isValid())
         self.assertEqual(out_.getOutputShape(), ca.getShape(1, 8, 8, 3))
@@ -120,8 +122,6 @@ class TestComposition(unittest.TestCase):
         self.assertEqual(ca.getAttrByte(c_.getAttr("padY")), 1)
 
 
-    def test_simple(self):
-        self.assertEqual('foo'.upper(), 'FOO')
 
 if __name__ == '__main__':
     unittest.main()
