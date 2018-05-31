@@ -1,13 +1,20 @@
+%{
+#define SWIG_FILE_WITH_INIT
+%}
+%include "numpy.i"
+%init %{
+import_array();
+%}
+
  %module composition_api
  %{
-    // #include <cm>
     #include <include/fathom/computation/model/op_model.hpp>
     #include <include/fathom/computation/model/iterator/model_iterator.hpp>
     #include <include/fathom/computation/tensor/shape.hpp>
     #include <include/fathom/computation/tensor/constant.hpp>
     #include <include/fathom/computation/model/attribute.hpp>
 
-    mv::OpModel om;
+    // mv::OpModel om;
 
     int testSWIG(){
         int test = 1;
@@ -15,7 +22,8 @@
     }
 
     mv::OpModel * getOM(){
-        return &om;
+        mv::OpModel *om = new mv::OpModel();
+        return om;
     }
 
     mv::Shape * getShape(int w, int x, int y, int z){
@@ -23,17 +31,16 @@
         return a;
     }
 
-    mv::vector<mv::float_type> * getData(float* d, int len){
-        mv::vector<mv::float_type> weightsData = {
-           1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f,
-           10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 17.0f, 18.0f,
-           19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f
+    mv::vector<mv::float_type> * getData(float * d, size_t len){
+        mv::vector<mv::float_type> * weightsData = new mv::vector<mv::float_type>{1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f,
+            15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f
         };
-        return &weightsData;
+        return weightsData;
     }
 
-    mv::ConstantTensor getConstantTensor(mv::Shape s, mv::DType d, mv::Order o, mv::vector<mv::float_type> data ){
-        return mv::ConstantTensor(s, d, o, data);
+    mv::ConstantTensor * getConstantTensor(mv::Shape * s, mv::vector<mv::float_type> data ){
+        mv::ConstantTensor * a = new mv::ConstantTensor(*s, mv::DType::Float, mv::Order::NWHC, data);
+        return a;
     }
 
     int getAttrByte(mv::Attribute a){
@@ -46,6 +53,12 @@
 
     mv::DataContext::OpListIterator output(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor){
         return o->output(predecessor);
+    }
+
+    mv::DataContext::OpListIterator conv(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::ConstantTensor &weights,
+        uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY){
+
+        return o->conv(predecessor, weights, strideX, strideY, padX, padY);
     }
 
  %}
@@ -99,8 +112,15 @@ namespace mv
 int testSWIG();
 mv::OpModel * getOM();
 mv::Shape * getShape(int w, int x, int y, int z);
-mv::vector<mv::float_type> * getData(float* d, int len);
+mv::ConstantTensor * getConstantTensor(mv::Shape * s, mv::vector<mv::float_type> data );
+
+%include "stdint.i"
+
+%apply (float* INPLACE_ARRAY1, int DIM1) {(float* d, int len)}
+mv::vector<mv::float_type> * getData(float * d, int len);
 
 
 mv::DataContext::OpListIterator input(mv::OpModel * o, const mv::Shape &shape);
 mv::DataContext::OpListIterator output(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor);
+mv::DataContext::OpListIterator conv(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::ConstantTensor &weights,
+    uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY);
