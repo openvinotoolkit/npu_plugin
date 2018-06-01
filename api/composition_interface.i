@@ -72,6 +72,16 @@ import_array();
         return o->output(predecessor);
     }
 
+    mv::DataContext::OpListIterator maxpool(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::Shape &shape,
+        uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY){
+
+        return o->maxpool(predecessor, shape, strideX, strideY, padX, padY);
+    }
+
+    mv::DataContext::OpListIterator concat(mv::OpModel * o, mv::DataContext::OpListIterator &in0, mv::DataContext::OpListIterator &in1){
+        return o->concat(in0, in1);
+    }
+
     mv::DataContext::OpListIterator conv(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::ConstantTensor &weights,
         uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY){
 
@@ -99,29 +109,8 @@ namespace mv
 {
     class OpModel : public ComputationModel, public CompositionalModel
     {
-
-        // bool updateControlFlow_(DataContext::OpListIterator &newOp);
-
     public:
-
-        // OpModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
-        // OpModel(Logger &logger);
-        // OpModel(const ComputationModel &model);
-
-        // DataContext::OpListIterator switchContext(ControlContext::OpListIterator &other);
-
-        // DataContext::OpListIterator getInput();
-        // DataContext::OpListIterator getOutput();
-        // DataContext::OpListIterator opEnd();
-
-        // mv::DataContext::OpListIterator input(const mv::Shape &shape, mv::DType dType, mv::Order order, const std::string &name = "");
-        // DataContext::OpListIterator output(DataContext::OpListIterator &predecessor, const string &name = "");
-        // DataContext::OpListIterator conv(DataContext::OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
-        // DataContext::OpListIterator maxpool(DataContext::OpListIterator &predecessor, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
-        // DataContext::OpListIterator concat(DataContext::OpListIterator &input0, DataContext::OpListIterator &input1, const string &name = "");
-        // bool addAttr(DataContext::OpListIterator &op, const string &name, const Attribute &attr);
         bool isValid() const;
-
     };
 }
 
@@ -141,6 +130,10 @@ mv::DataContext::OpListIterator input(mv::OpModel * o, const mv::Shape &shape);
 mv::DataContext::OpListIterator output(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor);
 mv::DataContext::OpListIterator conv(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::ConstantTensor &weights,
     uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY);
+mv::DataContext::OpListIterator maxpool(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::Shape &shape,
+    uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY);
+mv::DataContext::OpListIterator concat(mv::OpModel * o, mv::DataContext::OpListIterator &in0, mv::DataContext::OpListIterator &in1);
+
 
 int testConv(
     mv::DataContext::OpListIterator &target,
