@@ -1,8 +1,9 @@
-swig3.0 -c++ -python composition_interface.i
+Requirements:
+ - swig3.0
+ - g++ >= 4.7
+ - python3 (note: only 3.6 currently supported)
+ - numpy
 
-g++ -std=c++11 -Wall -shared -fpic composition_interface_wrap.cxx -L../build/lib -lcm -I/usr/include/python3.6 -I.. -o _composition_api.so
+To add the shared .so for use, after running make, ensure your LD_LIBRARY_PATH enviroment variable is pointing to the correct folder. 
 
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:../build/lib
-
-
-python3 convolution_composition_test.py
+This Python3 API's primary aim is to facilitate transformation from the old python-based compiler to this mcmCompiler. Therefore the functionality has been limited to these requirements.
