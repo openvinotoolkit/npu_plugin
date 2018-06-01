@@ -44,15 +44,7 @@ class TestComposition(unittest.TestCase):
         out_ = ca.output(g, c_)
 
         self.assertTrue(g.isValid())
-        # self.assertEqual(out_.getOutputShape(), ca.getShape(1, 8, 8, 3))
-        # self.assertEqual(c_.attrsCount(), 10)
-
-        # self.assertEqual(ca.getAttrByte(c_.getAttr("weights")), 10)
-        # self.assertEqual(ca.getAttrByte(c_.getAttr("strideX")), 4)
-        # self.assertEqual(ca.getAttrByte(c_.getAttr("strideY")), 4)
-        # self.assertEqual(ca.getAttrByte(c_.getAttr("padX")), 1)
-        # self.assertEqual(ca.getAttrByte(c_.getAttr("padY")), 1)
-
+        self.assertEqual(ca.testConv(c_, 4, 4, 1, 1), 0)
 
 
 if __name__ == '__main__':
