@@ -3,6 +3,7 @@
 
 #include "include/fathom/graph/graph.hpp"
 #include "include/fathom/computation/model/iterator/model_iterator.hpp"
+#include "include/fathom/computation/resource/stage.hpp"
 
 namespace mv
 {
@@ -26,6 +27,9 @@ namespace mv
         using FlowParentIterator = IteratorDetail::FlowIterator<computation_graph::second_graph, computation_graph::second_graph::edge_child_iterator, ControlFlow, ComputationOp>;
         using FlowSiblingIterator = IteratorDetail::FlowIterator<computation_graph::second_graph, computation_graph::second_graph::edge_sibling_iterator, ControlFlow, ComputationOp>;
         
+        using StageIterator = IteratorDetail::ModelLinearIterator<allocator::set<allocator::owner_ptr<ComputationStage>, ComputationGroup::GroupOrderComparator>::iterator, ComputationStage>;
+        using StageMemberIterator = IteratorDetail::ModelLinearIterator<allocator::set<allocator::access_ptr<ComputationElement>, ComputationGroup::GroupOrderComparator>::iterator, ComputationElement>;
+
     }
 
 }

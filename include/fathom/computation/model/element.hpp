@@ -32,6 +32,7 @@ namespace mv
 
         friend class OpModel;
         friend class ComputationGroup;
+        friend class ComputationStage;
 
         static allocator allocator_;
         static Attribute unknownAttr_;
@@ -59,9 +60,10 @@ namespace mv
         const string &getName() const;
         bool hasAttr(const string &name);
         Attribute& getAttr(const string &name);
-        vector<string> getAttrKeys() const;
+        allocator::vector<string> getAttrKeys() const;
         AttrType getAttrType(const string &name);
         unsigned_type attrsCount() const;
+        bool removeAttr(const string &name);
         string toString() const;
     
     };

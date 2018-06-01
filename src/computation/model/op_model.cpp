@@ -173,3 +173,18 @@ mv::DataContext::OpListIterator mv::OpModel::opEnd()
 {
     return dataOpEnd_;
 }
+
+
+mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(DataContext::OpListIterator &newElement, GroupContext::GroupIterator &group)
+{
+
+    allocator::owner_ptr<ComputationOp> ptr = newElement;
+    return addGroupElement_(ptr, group);
+
+}
+
+bool mv::OpModel::removeGroupElement(DataContext::OpListIterator &element, GroupContext::GroupIterator &group)
+{
+    allocator::owner_ptr<ComputationOp> ptr = element;
+    return removeGroupElement_(ptr, group);
+}

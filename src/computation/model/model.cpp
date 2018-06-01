@@ -9,6 +9,7 @@ controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>()),
 parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>()),
 groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationGroup::GroupOrderComparator>()),
+stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationGroup::GroupOrderComparator>()),
 logger_(logger),
 dataOpEnd_(dataGraph_.node_end()),
 dataFlowEnd_(dataGraph_.edge_end()),
@@ -25,6 +26,7 @@ controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>()),
 parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>()),
 groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationGroup::GroupOrderComparator>()),
+stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationGroup::GroupOrderComparator>()),
 defaultLogger_(allocator_.make_owner<StdOutLogger>(verboseLevel, logTime)),
 logger_(*defaultLogger_),
 dataOpEnd_(dataGraph_.node_end()),
@@ -43,6 +45,7 @@ controlGraph_(other.controlGraph_),
 flowTensors_(other.flowTensors_),
 parameterTensors_(other.parameterTensors_),
 groups_(other.groups_),
+stages_(other.stages_),
 logger_(other.logger_),
 input_(other.input_),
 output_(other.output_),
@@ -67,8 +70,6 @@ bool mv::ComputationModel::isValid() const
 
 mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &name)
 {
-    
-    
     
     if (getGroup(name) == groupEnd())
     {
@@ -108,11 +109,11 @@ mv::GroupContext::GroupIterator mv::ComputationModel::getGroup(const string &nam
 }
 
 
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(allocator::owner_ptr<ComputationElement> newElement, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(allocator::owner_ptr<ComputationElement> element, GroupContext::GroupIterator &group)
 {
     if (group != groupEnd())
     {
-        auto result = group->addElement(newElement);
+        auto result = group->addElement(element);
         if (result != group->end())
         {
             logger_.log(Logger::MessageType::MessageInfo, "Appended new member '" + (*result)->getName() + "' to group '" + group->getName() + "'");
@@ -124,36 +125,35 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(allocato
     
 }
 
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(DataContext::OpListIterator &newElement, GroupContext::GroupIterator &group)
+bool mv::ComputationModel::removeGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group)
 {
 
-    allocator::owner_ptr<ComputationOp> ptr = newElement;
-    return addGroupElement_(ptr, group);
+    if (group != groupEnd())
+    {
+
+        GroupContext::MemberIterator it = group->find(element);
+
+        if (it != memberEnd(group))
+        {
+            return group->removeElement(it);
+        }
+
+    }
+
+    return false;
 
 }
 
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(DataContext::FlowListIterator &newElement, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
 {
-    allocator::owner_ptr<DataFlow> ptr = newElement;
-    return addGroupElement_(ptr, group);
-}  
-
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(ControlContext::OpListIterator &newElement, GroupContext::GroupIterator &group)
-{
-    allocator::owner_ptr<ComputationOp> ptr = newElement;
+    allocator::owner_ptr<ComputationGroup> ptr = element;
     return addGroupElement_(ptr, group);
 }
 
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(ControlContext::FlowListIterator &newElement, GroupContext::GroupIterator &group)
+bool mv::ComputationModel::removeGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
 {
-    allocator::owner_ptr<ControlFlow> ptr = newElement;
-    return addGroupElement_(ptr, group);
-}
-
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &newElement, GroupContext::GroupIterator &group)
-{
-    allocator::owner_ptr<ComputationGroup> ptr = newElement;
-    return addGroupElement_(ptr, group);
+    allocator::owner_ptr<ComputationGroup> ptr = element;
+    return removeGroupElement_(ptr, group);
 }
 
 mv::GroupContext::GroupIterator mv::ComputationModel::groupBegin()

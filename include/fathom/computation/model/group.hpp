@@ -10,9 +10,66 @@ namespace mv
     class ComputationGroup : public ComputationElement
     {
         
-        using MembersSet = allocator::set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
-        MembersSet members_;
+        using MemberSet = allocator::set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
+        MemberSet members_;
     
+    protected:
+
+        virtual bool markMembmer(ComputationElement &member)
+        {
+            if (!member.hasAttr("groups"))
+            {
+                member.addAttr("groups", AttrType::ByteType, (byte_type)1);
+                member.addAttr("group_0", AttrType::StringType, name_);
+            }
+            else
+            {
+                byte_type groups = member.getAttr("groups").template getContent<byte_type>();
+                member.addAttr("group_" + Printable::toString(groups), AttrType::StringType, name_);
+                member.getAttr("groups").template setContent<byte_type>(groups + 1);
+            }
+
+            return true; 
+
+        }
+
+        virtual bool unmarkMembmer(ComputationElement &member)
+        {
+            if (member.hasAttr("groups"))
+            {
+                byte_type groups = member.getAttr("groups").template getContent<byte_type>();
+
+                for (byte_type i = 0; i < groups; ++i)
+                {
+                    string group = member.getAttr("group_" + i).template getContent<string>();
+                    if (group == name_)
+                    {
+                        member.removeAttr("group_" + i);
+
+                        if (groups - 1 == 0)
+                        {
+                            member.removeAttr("groups");
+                        }
+                        else
+                        {
+                            member.getAttr("groups").template setContent<byte_type>(groups - 1);
+                        }
+
+                        return true;
+
+                    }
+
+                }
+                
+                return true;
+
+            }
+
+            return false; 
+
+        }
+                
+
     public:
 
         struct GroupOrderComparator
@@ -33,43 +90,47 @@ namespace mv
         }
 
         template <class ElementType>
-        MembersSet::iterator addElement(allocator::owner_ptr<ElementType> &newMember)
+        MemberSet::iterator addElement(allocator::owner_ptr<ElementType> &newMember)
         {
 
             auto result = members_.insert(newMember);
 
             if (result.second)
             {
-                if (!newMember->hasAttr("groups"))
-                {
-                    newMember->addAttr("groups", AttrType::ByteType, (byte_type)1);
-                    newMember->addAttr("group_0", AttrType::StringType, name_);
-                }
+                if (markMembmer(*newMember))
+                    return result.first;
                 else
-                {
-                    byte_type groups = newMember->getAttr("groups").template getContent<byte_type>();
-                    newMember->addAttr("group_" + Printable::toString(groups), AttrType::StringType, name_);
-                    newMember->getAttr("groups").template setContent<byte_type>(groups + 1);
-                }
-                
-                return result.first;
+                    members_.erase(newMember);
             }
 
             return members_.end();
 
         }
 
-        MembersSet::iterator begin()
+        bool removeElement(MemberSet::iterator &member)
+        {
+            if (member != members_.end())
+            {
+                members_.erase(member);
+                unmarkMembmer(**member);
+                return true;
+            }
+
+            return false;
+
+        }
+
+        MemberSet::iterator begin()
         {
             return members_.begin();
         }
 
-        MembersSet::iterator end()
+        MemberSet::iterator end()
         {
             return members_.end();
         }
 
-        string toString() const
+        virtual string toString() const
         {
 
             string result = "group '" + name_ + "'";
@@ -80,6 +141,12 @@ namespace mv
 
             return result + ComputationElement::toString();
 
+        }
+
+        template <class ElementType>
+        MemberSet::iterator find(allocator::owner_ptr<ElementType> &member)
+        {
+            return members_.find(member);
         }
         
     };

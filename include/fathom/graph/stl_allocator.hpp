@@ -6,6 +6,7 @@
 #include "stl_set.hpp"
 #include "stl_deque.hpp"
 #include "stl_map.hpp"
+#include "stl_vector.hpp"
 
 namespace mv
 {
@@ -33,6 +34,9 @@ namespace mv
 
         template<class T_key, class T_value>
         using map = stl_map<T_key, T_value>;
+
+        template<class T>
+        using vector = stl_vector<T, stl_allocator>;
 
         stl_allocator() noexcept
         {

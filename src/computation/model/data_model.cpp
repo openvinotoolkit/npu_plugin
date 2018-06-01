@@ -42,3 +42,15 @@ mv::DataContext::FlowListIterator mv::DataModel::flowEnd()
 {
     return dataFlowEnd_;
 }
+
+mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group)
+{
+    allocator::owner_ptr<DataFlow> ptr = element;
+    return addGroupElement_(ptr, group);
+}
+
+bool mv::DataModel::removeGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group)
+{
+    allocator::owner_ptr<DataFlow> ptr = element;
+    return removeGroupElement_(ptr, group);
+}

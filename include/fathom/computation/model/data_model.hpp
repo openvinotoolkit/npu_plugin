@@ -27,6 +27,11 @@ namespace mv
 
         bool isValid() const;
 
+        GroupContext::MemberIterator addGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group);
+        using ComputationModel::addGroupElement;
+        using ComputationModel::removeGroupElement;
+        
     };
 
 }

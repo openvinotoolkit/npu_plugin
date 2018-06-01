@@ -60,6 +60,32 @@ int main()
 
     std::cout << group1It->toString() << std::endl;
 
+    mv::ControlModel cm(om);
+
+    auto stage0It = cm.addStage();
+    auto stage1It = cm.addStage();
+    auto stage2It = cm.addStage();
+    auto stage3It = cm.addStage();
+    auto stage4It = cm.addStage();
+    auto stage5It = cm.addStage();
+    auto stage6It = cm.addStage();
+
+    cm.addToStage(stage0It, inIt);
+    cm.addToStage(stage1It, conv1It);
+    cm.addToStage(stage2It, pool1It);
+    cm.addToStage(stage3It, conv2It);
+    cm.addToStage(stage4It, pool2It);
+    cm.addToStage(stage5It, conv3It);
+    cm.addToStage(stage6It, outIt);
+
+    for (auto itStage = cm.stageBegin(); itStage != cm.stageEnd(); ++itStage)
+    {
+        std::cout << itStage->getName() << ":";
+        for (auto it = cm.stageMemberBegin(itStage); it != cm.stageMemberEnd(itStage); ++it)
+            std::cout << " " << it->getName();
+        std::cout << std::endl;
+    }
+
     return 0;
 
 }

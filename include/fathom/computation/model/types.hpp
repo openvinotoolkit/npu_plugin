@@ -28,10 +28,11 @@ namespace mv
 
     typedef std::string string;
 
-    template <typename T>
-    using vector = std::vector<T>;
-
     typedef stl_allocator allocator;
+    
+    template <class T>
+    using vector = allocator::vector<T>;
+    
 
     class ComputationOp;
     class DataFlow;

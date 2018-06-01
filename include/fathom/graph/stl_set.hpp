@@ -75,6 +75,20 @@ namespace mv
             
         }
 
+        iterator erase(iterator pos) noexcept
+        {
+
+            try
+            {
+                return stl_set_.erase(pos);
+            }
+            catch (std::exception &e)
+            {
+                return stl_set_.end();
+            }
+            
+        }
+
         iterator find(const T& key) noexcept
         {
 

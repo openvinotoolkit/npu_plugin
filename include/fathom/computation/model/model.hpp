@@ -13,6 +13,7 @@
 #include "include/fathom/computation/flow/data.hpp"
 #include "include/fathom/computation/flow/control.hpp"
 #include "include/fathom/computation/model/group.hpp"
+#include "include/fathom/computation/resource/stage.hpp"
 
 namespace mv
 {
@@ -34,9 +35,16 @@ namespace mv
         allocator::owner_ptr<computation_graph> opsGraph_;
         computation_graph::first_graph &dataGraph_;
         computation_graph::second_graph &controlGraph_;
+        /*
+        There are two reasons to use sets as underlying containers:
+        - All operations complexity n * log(n)
+        - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
+            - ModelLinearIterators are wrapping containers iterators
+        */
         allocator::owner_ptr<allocator::set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>> flowTensors_;
         allocator::owner_ptr<allocator::set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>> parameterTensors_;
         allocator::owner_ptr<allocator::set<allocator::owner_ptr<ComputationGroup>, ComputationGroup::GroupOrderComparator>> groups_;
+        allocator::owner_ptr<allocator::set<allocator::owner_ptr<ComputationStage>, ComputationGroup::GroupOrderComparator>> stages_;
         const allocator::owner_ptr<Logger> defaultLogger_;
         Logger &logger_;
 
@@ -50,7 +58,8 @@ namespace mv
         ControlContext::FlowListIterator controlFlowEnd_;
 
         // Passing as value rather than reference allows to do implicit cast of pointer type
-        GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> newElement, mv::GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
+        bool removeGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
 
     public:
 
@@ -69,11 +78,11 @@ namespace mv
         GroupContext::GroupIterator addGroup(const string &name);
         bool hasGroup(const string &name);
         GroupContext::GroupIterator getGroup(const string &name);
-        GroupContext::MemberIterator addGroupElement(DataContext::OpListIterator &newElement, GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator addGroupElement(DataContext::FlowListIterator &newElement, GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator addGroupElement(ControlContext::OpListIterator &newElement, GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator addGroupElement(ControlContext::FlowListIterator &newElement, GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator addGroupElement(GroupContext::GroupIterator &newElement, GroupContext::GroupIterator &group);
+        
+        
+        
+        GroupContext::MemberIterator addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group);
         GroupContext::GroupIterator groupBegin();
         GroupContext::GroupIterator groupEnd();
         GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);

@@ -36,6 +36,11 @@ namespace mv
         DataContext::OpListIterator concat(DataContext::OpListIterator &input0, DataContext::OpListIterator &input1, const string &name = "");
         bool addAttr(DataContext::OpListIterator &op, const string &name, const Attribute &attr);
         bool isValid() const;
+
+        GroupContext::MemberIterator addGroupElement(DataContext::OpListIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(DataContext::OpListIterator &element, GroupContext::GroupIterator &group);
+        using ComputationModel::addGroupElement;
+        using ComputationModel::removeGroupElement;
        
     };
 

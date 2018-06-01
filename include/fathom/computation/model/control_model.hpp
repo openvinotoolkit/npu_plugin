@@ -25,6 +25,28 @@ namespace mv
         ControlContext::FlowListIterator getOutput();
         ControlContext::FlowListIterator flowEnd();
 
+        GroupContext::MemberIterator addGroupElement(ControlContext::OpListIterator &element, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(ControlContext::FlowListIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(ControlContext::OpListIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(ControlContext::FlowListIterator &element, GroupContext::GroupIterator &group);
+        using ComputationModel::addGroupElement;
+        using ComputationModel::removeGroupElement;
+
+        ControlContext::StageIterator addStage();
+        ControlContext::StageIterator getStage(unsigned_type stageIdx);
+        bool addToStage(ControlContext::StageIterator &stage, ControlContext::OpListIterator &op);
+        bool addToStage(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
+        bool removeFromStage(ControlContext::OpListIterator &op);
+        bool removeFromStage(DataContext::OpListIterator &op);
+        unsigned_type stageSize() const;
+
+        ControlContext::StageIterator stageBegin();
+        ControlContext::StageIterator stageEnd();
+
+        ControlContext::StageMemberIterator stageMemberBegin(ControlContext::StageIterator &stage);
+        ControlContext::StageMemberIterator stageMemberEnd(ControlContext::StageIterator &stage);
+        
+
         bool isValid() const;
 
     };

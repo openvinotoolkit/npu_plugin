@@ -83,9 +83,9 @@ mv::Attribute& mv::ComputationElement::getAttr(const string &name)
 
 }
 
-mv::vector<mv::string> mv::ComputationElement::getAttrKeys() const
+mv::allocator::vector<mv::string> mv::ComputationElement::getAttrKeys() const
 {
-    mv::vector<mv::string> attrKeys;
+    allocator::vector<mv::string> attrKeys;
     for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
         attrKeys.push_back(it->first);
     return attrKeys;
@@ -102,6 +102,20 @@ mv::AttrType mv::ComputationElement::getAttrType(const string &name)
 mv::unsigned_type mv::ComputationElement::attrsCount() const
 {
     return attributes_.size();
+}
+
+bool mv::ComputationElement::removeAttr(const string &name)
+{
+
+    auto it = attributes_.find(name);
+
+    if (it != attributes_.end())
+    {
+        attributes_.erase(it);
+        return false;
+    }
+    
+    return false;
 }
 
 mv::string mv::ComputationElement::toString() const

@@ -10,9 +10,9 @@ namespace mv
     {
 
         template <class T_data>
-        vector<T_data> generateSequence(size_type dataSize)
+        allocator::vector<T_data> generateSequence(size_type dataSize)
         {
-            vector<T_data> result(dataSize);
+            allocator::vector<T_data> result(dataSize);
             
             for (unsigned i = 0; i < result.size(); ++i)
                 result[i] = i;
