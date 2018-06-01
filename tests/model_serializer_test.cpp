@@ -28,8 +28,9 @@ TEST (model_serializer, blob_output_conv_01)
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto inIt = test_cm.input(mv::Shape(1, 32, 32, 1), mv::DType::Float, mv::Order::NWHC);
-    mv::vector<mv::float_type> weightsData =
-    { 0.1111f, 0.1121f, 0.1131f, 0.1141f, 0.1151f, 0.1161f, 0.1171f, 0.1181f, 0.1191f };
+    mv::float_type rawData[] =
+    { 0.1111f, 0.1121f, 0.1131f, 0.1141f, 0.1151f, 0.1161f, 0.1171f, 0.1181f, 0.1191f};
+    mv::vector<mv::float_type> weightsData(rawData);
     mv::ConstantTensor weights(mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC, weightsData);
     auto convIt = test_cm.conv(inIt, weights, 4, 4, 0, 0);
     auto outIt = test_cm.output(convIt);
@@ -88,10 +89,11 @@ TEST (model_serializer, blob_output_conv_02)
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto inIt2 = test_cm2.input(mv::Shape(1, 32, 32, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
-    mv::vector<mv::float_type> weightsData2 =
+    mv::float_type rawData[] =
     { 0.101f, 0.102f, 0.103f, 0.104f, 0.105f, 0.106f, 0.107f, 0.108f, 0.109f ,
      0.111f, 0.112f, 0.113f, 0.114f, 0.115f, 0.116f, 0.117f, 0.118f, 0.119f ,
-     0.121f, 0.122f, 0.123f, 0.124f, 0.125f, 0.126f, 0.127f, 0.128f, 0.129f  };
+     0.121f, 0.122f, 0.123f, 0.124f, 0.125f, 0.126f, 0.127f, 0.128f, 0.129f  };     
+    mv::vector<mv::float_type> weightsData2(rawData);
 
     mv::ConstantTensor weights2(mv::Shape(3, 3, 1, 3), mv::DType::Float, mv::Order::NWHC, weightsData2);   // kh, kw, kN, C
     auto convIt2 = test_cm2.conv(inIt2, weights2, 4, 4, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
@@ -154,10 +156,11 @@ TEST (model_serializer, blob_output_conv_03)
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto inIt3 = test_cm3.input(mv::Shape(1, 256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
-    mv::vector<mv::float_type> weightsData3 =
-    { 0.101f, 0.102f, 0.103f, 0.104f, 0.105f, 0.106f, 0.107f, 0.108f, 0.109f ,
-     0.111f, 0.112f, 0.113f, 0.114f, 0.115f, 0.116f, 0.117f, 0.118f, 0.119f ,
-     0.121f, 0.122f, 0.123f, 0.124f, 0.125f, 0.126f, 0.127f, 0.128f, 0.129f  };
+    mv::float_type rawData[] =
+    { 0.101f, 0.102f, 0.103f, 0.104f, 0.105f, 0.106f, 0.107f, 0.108f, 0.109f,
+     0.111f, 0.112f, 0.113f, 0.114f, 0.115f, 0.116f, 0.117f, 0.118f, 0.119f,
+     0.121f, 0.122f, 0.123f, 0.124f, 0.125f, 0.126f, 0.127f, 0.128f, 0.129f};
+    mv::vector<mv::float_type> weightsData3(rawData);
 
     mv::ConstantTensor weights3(mv::Shape(3, 3, 1, 3), mv::DType::Float, mv::Order::NWHC, weightsData3);   // kh, kw, kN, C
     auto convIt3 = test_cm3.conv(inIt3, weights3, 2, 2, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
@@ -221,7 +224,7 @@ TEST (model_serializer, blob_output_conv_04)
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto inIt4 = test_cm4.input(mv::Shape(1, 256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
-    mv::vector<mv::float_type> weightsData4 =
+    mv::float_type rawData[] =
     { 0.00f, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f, 0.09f ,
       0.10f, 0.11f, 0.12f, 0.13f, 0.14f, 0.15f, 0.16f, 0.17f, 0.18f, 0.19f ,
       0.20f, 0.21f, 0.22f, 0.23f, 0.24f, 0.25f, 0.26f, 0.27f, 0.28f, 0.29f ,
@@ -230,6 +233,7 @@ TEST (model_serializer, blob_output_conv_04)
       0.50f, 0.51f, 0.52f, 0.53f, 0.54f, 0.55f, 0.56f, 0.57f, 0.58f, 0.59f ,
       0.60f, 0.61f, 0.62f, 0.63f, 0.64f, 0.65f, 0.66f, 0.67f, 0.68f, 0.69f ,
       0.70f, 0.71f, 0.72f, 0.73f, 0.74f  };
+    mv::vector<mv::float_type> weightsData4(rawData);
 
     mv::ConstantTensor weights4(mv::Shape(5, 5, 1, 3), mv::DType::Float, mv::Order::NWHC, weightsData4);   // kh, kw, kN, C
     auto convIt4 = test_cm4.conv(inIt4, weights4, 2, 2, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
