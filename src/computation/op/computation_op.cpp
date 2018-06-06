@@ -1,6 +1,6 @@
 #include "include/fathom/computation/op/computation_op.hpp"
 
-mv::allocator::map<mv::string, mv::size_type> mv::ComputationOp::idDict_(allocator_);
+mv::allocator::map<mv::string, mv::size_type> mv::ComputationOp::idDict_;
 
 mv::ComputationOp::ComputationOp(const Logger &logger, const string &opType, DType dType, Order order, Shape inputShape, Shape outputShape, const string &name) :
 ComputationElement(logger, "op_" + opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }()),
@@ -40,6 +40,11 @@ mv::Shape mv::ComputationOp::getInputShape() const
 mv::Shape mv::ComputationOp::getOutputShape() const
 {
     return outputShape_;
+}
+
+mv::string mv::ComputationOp::getOpType()
+{
+    return getAttr("opType").getContent<string>();
 }
 
 mv::string mv::ComputationOp::toString() const

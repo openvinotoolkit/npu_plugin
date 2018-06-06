@@ -62,7 +62,7 @@ int main()
 
     mv::ControlModel cm(om);
 
-    auto stage0It = cm.addStage();
+    /*auto stage0It = cm.addStage();
     auto stage1It = cm.addStage();
     auto stage2It = cm.addStage();
     auto stage3It = cm.addStage();
@@ -76,7 +76,7 @@ int main()
     cm.addToStage(stage3It, conv2It);
     cm.addToStage(stage4It, pool2It);
     cm.addToStage(stage5It, conv3It);
-    cm.addToStage(stage6It, outIt);
+    cm.addToStage(stage6It, outIt);*/
 
     for (auto itStage = cm.stageBegin(); itStage != cm.stageEnd(); ++itStage)
     {
@@ -85,6 +85,20 @@ int main()
             std::cout << " " << it->getName();
         std::cout << std::endl;
     }
+
+    //cm.removeStage(stage5It);
+
+    mv::DataModel dm(cm);
+
+    auto stageIt = cm.stageBegin();
+
+    dm.addAllocator("BSS", 1048576);
+    dm.allocateTensor("BSS", stageIt, conv1It.leftmostInput()->getTensor());
+    dm.allocateTensor("BSS", stageIt, conv1It.leftmostOutput()->getTensor());
+
+    ++stageIt;
+
+    dm.allocateTensor("BSS", stageIt, pool1It.leftmostInput()->getTensor());
 
     return 0;
 

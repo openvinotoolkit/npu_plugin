@@ -96,23 +96,23 @@ namespace mv
                             string edgeDef = "\t" + opIt->getName() + " -> " + dataIt.sink()->getName();
                             if (htmlLike_)
                             {
-                                edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + dataIt->getTensor().getName() + "</B></FONT></TD></TR>";
+                                edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + dataIt->getTensor()->getName() + "</B></FONT></TD></TR>";
                                 if (contentLevel_ == ContentLevel::ContentFull)
                                 {   
-                                    allocator::vector<string> attrKeys(dataIt->getTensor().getAttrKeys());
+                                    allocator::vector<string> attrKeys(dataIt->getTensor()->getAttrKeys());
                                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                        edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + dataIt->getTensor().getAttr(*attrIt).getContentStr() + "</FONT></TD></TR>";
+                                        edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + dataIt->getTensor()->getAttr(*attrIt).getContentStr() + "</FONT></TD></TR>";
                                 }
                                 edgeDef += "</TABLE>>];";
                             }
                             else
                             {
-                                edgeDef += " [label=\"" + dataIt->getTensor().getName() + "\\n";
+                                edgeDef += " [label=\"" + dataIt->getTensor()->getName() + "\\n";
                                 if (contentLevel_ == ContentLevel::ContentFull)
                                 {   
-                                    allocator::vector<string> attrKeys(dataIt->getTensor().getAttrKeys());
+                                    allocator::vector<string> attrKeys(dataIt->getTensor()->getAttrKeys());
                                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
-                                        edgeDef += *attrIt + ": " + dataIt->getTensor().getAttr(*attrIt).getContentStr() + "\\n";
+                                        edgeDef += *attrIt + ": " + dataIt->getTensor()->getAttr(*attrIt).getContentStr() + "\\n";
                                 }
                                 edgeDef += "\"];";
                             }

@@ -15,7 +15,8 @@ namespace mv
     class OpModel : public ComputationModel, public CompositionalModel
     {
 
-        bool updateControlFlow_(DataContext::OpListIterator &newOp);
+        bool defaultControlFlow_(DataContext::OpListIterator &op);
+        bool defaultStage_(DataContext::OpListIterator &op);
 
     public:
 

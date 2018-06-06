@@ -34,6 +34,8 @@ namespace mv
 
         UnpopulatedTensor getOutput() const;
 
+        string getOpType();
+
         virtual string toString() const;
 
         bool operator==(const ComputationOp &other) const;

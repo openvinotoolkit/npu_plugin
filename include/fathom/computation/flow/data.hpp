@@ -4,6 +4,7 @@
 #include "include/fathom/computation/flow/flow.hpp"
 #include "include/fathom/computation/tensor/unpopulated.hpp"
 #include "include/fathom/computation/model/iterator/data_context.hpp"
+#include "include/fathom/computation/model/iterator/tensor_context.hpp"
 #include "include/fathom/computation/op/computation_op.hpp"
 
 namespace mv
@@ -12,25 +13,26 @@ namespace mv
     class DataFlow : public ComputationFlow
     {
 
-        allocator::access_ptr<UnpopulatedTensor> data_;
+        //allocator::access_ptr<UnpopulatedTensor> data_;
+        TensorContext::UnpopulatedTensorIterator data_;
 
     public:
 
-        DataFlow(const Logger &logger, DataContext::OpListIterator &source, DataContext::OpListIterator &sink, allocator::owner_ptr<UnpopulatedTensor> data) :
+        DataFlow(const Logger &logger, DataContext::OpListIterator &source, DataContext::OpListIterator &sink, TensorContext::UnpopulatedTensorIterator data) :
         ComputationFlow(logger, "df_" + source->getName() + "_" + sink->getName()),
         data_(data)
         {
 
         }
 
-        UnpopulatedTensor &getTensor()
+        TensorContext::UnpopulatedTensorIterator &getTensor()
         {
-            return *data_.lock();
+            return data_;
         }
 
         string toString() const
         {
-            return "data flow '" + name_ + "'\n'tensor' (unpopulated tensor): " + data_.lock()->getName() + ComputationElement::toString();
+            return "data flow '" + name_ + "'\n'tensor' (unpopulated tensor): " + data_->getName() + ComputationElement::toString();
         }
 
     };

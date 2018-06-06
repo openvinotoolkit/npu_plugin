@@ -36,9 +36,9 @@ int main()
     mv::DataModel dm(om);
 
     dm.logger().log(msgType, "Input op: " + om.getInput()->getName());
-    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + dm.getInput()->getTensor().getName());
+    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + dm.getInput()->getTensor()->getName());
     dm.logger().log(msgType, "Output op: " + om.getOutput()->getName());
-    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + dm.getOutput()->getTensor().getName());
+    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + dm.getOutput()->getTensor()->getName());
 
     mv::ControlModel cm(om);
 

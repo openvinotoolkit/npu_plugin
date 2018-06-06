@@ -43,7 +43,7 @@ TEST(computation_model, minimal_functional_composition)
     ASSERT_EQ(outIt->getOutputShape(), mv::Shape(1, 8, 8, 3));
 
     // Check number of convolution parameters
-    ASSERT_EQ(convIt->attrsCount(), 10);
+    ASSERT_EQ(convIt->attrsCount(), 11);
 
     // Check accessibility of convolution parameters
     ASSERT_EQ(convIt->getAttr("weights").getType(), mv::AttrType::TensorType);

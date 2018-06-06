@@ -29,15 +29,13 @@ mv::ControlContext::OpListIterator mv::ControlModel::opEnd()
 }
 
 mv::ControlContext::FlowListIterator mv::ControlModel::getInput()
-{   
-    DataContext::OpListIterator it = input_;
-    return switchContext(it).leftmostOutput();
+{
+    return switchContext(input_).leftmostOutput();
 }
 
 mv::ControlContext::FlowListIterator mv::ControlModel::getOutput()
 {
-    DataContext::OpListIterator it = output_;
-    return switchContext(it).leftmostInput();
+    return switchContext(output_).leftmostInput();
 }
 
 mv::ControlContext::FlowListIterator mv::ControlModel::flowEnd()
@@ -71,30 +69,41 @@ bool mv::ControlModel::removeGroupElement(ControlContext::FlowListIterator &elem
 
 mv::ControlContext::StageIterator mv::ControlModel::addStage()
 {   
+    
+    //auto it = stages_->insert(stages_->end(), allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
+    //return it;
+    return addStage_();
 
-    //auto result = stages_->insert(stages_->end(), allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
-    //return result;
-    //return stages_->insert(stages_->end(), allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
-    //stages_->push_back(allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
-    //return getStage(stages_->size() - 1);
-    
-    auto it = stages_->insert(stages_->end(), allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
-    return it;
-    
 }
 
 mv::ControlContext::StageIterator mv::ControlModel::getStage(unsigned_type stageIdx)
 {
 
-    allocator::owner_ptr<ComputationStage> searchGroup = allocator_.make_owner<ComputationStage>(logger_, stageIdx);
-    return stages_->find(searchGroup);
+    allocator::owner_ptr<ComputationStage> searchStage = allocator_.make_owner<ComputationStage>(logger_, stageIdx);
+    return stages_->find(searchStage);
+
+}
+
+bool mv::ControlModel::removeStage(ControlContext::StageIterator &stage)
+{
+    if (stage != stageEnd())
+    {
+        auto stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+        allocator::owner_ptr<ComputationStage> searchStage = allocator_.make_owner<ComputationStage>(logger_, stageIdx);
+        stage->removeAllElements();
+        stages_->erase(searchStage);
+        stage = stageEnd();
+        return true;
+    }
+    
+    return false;
 
 }
 
 bool mv::ControlModel::addToStage(ControlContext::StageIterator &stage, ControlContext::OpListIterator &op)
 {
 
-    if (stage != stageEnd())
+    /*if (stage != stageEnd())
     {
         allocator::owner_ptr<ComputationOp> ptr = op;
         auto result = stage->addElement(ptr);
@@ -103,15 +112,18 @@ bool mv::ControlModel::addToStage(ControlContext::StageIterator &stage, ControlC
             return true;
     }
 
-    return false;
+    return false;*/
+    DataContext::OpListIterator it(opsGraph_->get_first_iterator(op));
+    return addToStage_(stage, it);
 
 }
 
 bool mv::ControlModel::addToStage(ControlContext::StageIterator &stage, DataContext::OpListIterator &op)
 {
 
-    auto it = switchContext(op);
-    return addToStage(stage, it);
+    //auto it = switchContext(op);
+    //return addToStage(stage, it);
+    return addToStage_(stage, op);
 
 }
 
@@ -179,10 +191,4 @@ mv::ControlContext::StageMemberIterator mv::ControlModel::stageMemberEnd(Control
     }
     
     return ControlContext::StageMemberIterator();
-}
-
-
-bool mv::ControlModel::isValid() const
-{
-    return ComputationModel::isValid();
 }

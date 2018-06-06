@@ -14,6 +14,7 @@
 #include "include/fathom/computation/flow/control.hpp"
 #include "include/fathom/computation/model/group.hpp"
 #include "include/fathom/computation/resource/stage.hpp"
+#include "include/fathom/computation/resource/memory_allocator.hpp"
 
 namespace mv
 {
@@ -41,10 +42,11 @@ namespace mv
         - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
             - ModelLinearIterators are wrapping containers iterators
         */
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>> flowTensors_;
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>> parameterTensors_;
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<ComputationGroup>, ComputationGroup::GroupOrderComparator>> groups_;
-        allocator::owner_ptr<allocator::set<allocator::owner_ptr<ComputationStage>, ComputationGroup::GroupOrderComparator>> stages_;
+        allocator::owner_ptr<set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>> flowTensors_;
+        allocator::owner_ptr<set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>> parameterTensors_;
+        allocator::owner_ptr<set<allocator::owner_ptr<ComputationGroup>, ComputationElement::ElementOrderComparator>> groups_;
+        allocator::owner_ptr<set<allocator::owner_ptr<ComputationStage>, ComputationElement::ElementOrderComparator>> stages_;
+        allocator::owner_ptr<map<string, allocator::owner_ptr<MemoryAllocator>>> memoryAllocators_;
         const allocator::owner_ptr<Logger> defaultLogger_;
         Logger &logger_;
 
@@ -57,9 +59,14 @@ namespace mv
         ControlContext::OpListIterator controlOpEnd_;
         ControlContext::FlowListIterator controlFlowEnd_;
 
-        // Passing as value rather than reference allows to do implicit cast of pointer type
+        // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
         bool removeGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
+        
+        // Check if every operation has computation stage assigned
+        bool checkOpsStages_() const;
+        ControlContext::StageIterator addStage_();
+        bool addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
 
     public:
 
@@ -74,12 +81,17 @@ namespace mv
         ComputationModel(const ComputationModel &other);
 
         virtual ~ComputationModel() = 0;
+        /**
+         * @brief Check basic logical cohesion of the computation model. Does not guarantee that mondel can be run successfully on the
+         * target platform
+         * 
+         * @return true Computation model is valid.
+         * @return false Computation model is invalid.
+         */
         bool isValid() const;
         GroupContext::GroupIterator addGroup(const string &name);
         bool hasGroup(const string &name);
         GroupContext::GroupIterator getGroup(const string &name);
-        
-        
         
         GroupContext::MemberIterator addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group);
         bool removeGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group);

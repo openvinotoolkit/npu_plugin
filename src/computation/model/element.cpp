@@ -5,15 +5,13 @@ mv::Attribute mv::ComputationElement::unknownAttr_;
 
 mv::ComputationElement::ComputationElement(const Logger &logger, const string &name) : 
 logger_(logger),
-name_(name),
-attributes_(allocator_)
+name_(name)
 {
 
 }
 mv::ComputationElement::ComputationElement(const ComputationElement &other) :
 logger_(other.logger_),
-name_(other.name_),
-attributes_(allocator_)
+name_(other.name_)
 {
 
     for (auto it = other.attributes_.cbegin(); it != other.attributes_.cend(); ++it)
@@ -127,4 +125,9 @@ mv::string mv::ComputationElement::toString() const
 
     return result;
 
+}
+
+bool mv::ComputationElement::operator<(ComputationElement &other)
+{
+    return name_ < other.name_;
 }

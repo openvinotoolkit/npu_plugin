@@ -9,13 +9,13 @@ namespace mv
 
     class ComputationGroup : public ComputationElement
     {
-        
-        using MemberSet = allocator::set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
-        MemberSet members_;
     
     protected:
 
-        virtual bool markMembmer(ComputationElement &member)
+        using MemberSet = allocator::set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
+        MemberSet members_;
+
+        virtual bool markMembmer_(ComputationElement &member)
         {
             if (!member.hasAttr("groups"))
             {
@@ -33,7 +33,7 @@ namespace mv
 
         }
 
-        virtual bool unmarkMembmer(ComputationElement &member)
+        virtual bool unmarkMembmer_(ComputationElement &member)
         {
             if (member.hasAttr("groups"))
             {
@@ -41,10 +41,10 @@ namespace mv
 
                 for (byte_type i = 0; i < groups; ++i)
                 {
-                    string group = member.getAttr("group_" + i).template getContent<string>();
+                    string group = member.getAttr("group_" + Printable::toString(i)).template getContent<string>();
                     if (group == name_)
                     {
-                        member.removeAttr("group_" + i);
+                        member.removeAttr("group_" + Printable::toString(i));
 
                         if (groups - 1 == 0)
                         {
@@ -72,19 +72,9 @@ namespace mv
 
     public:
 
-        struct GroupOrderComparator
-        {
-
-            bool operator()(const allocator::owner_ptr<ComputationGroup> &lhs, const allocator::owner_ptr<ComputationGroup> &rhs)
-            {
-                return lhs->getName() < rhs->getName();
-            }
-        
-        };
-
         ComputationGroup(const Logger &logger, const string &name) :
         ComputationElement(logger, name),
-        members_(allocator_)
+        members_()
         {
 
         }
@@ -92,15 +82,17 @@ namespace mv
         template <class ElementType>
         MemberSet::iterator addElement(allocator::owner_ptr<ElementType> &newMember)
         {
-
-            auto result = members_.insert(newMember);
-
-            if (result.second)
+            
+            if (markMembmer_(*newMember))
             {
-                if (markMembmer(*newMember))
+
+                auto result = members_.insert(newMember);
+
+                if (result.second)
                     return result.first;
                 else
-                    members_.erase(newMember);
+                    unmarkMembmer_(*newMember);
+
             }
 
             return members_.end();
@@ -112,12 +104,22 @@ namespace mv
             if (member != members_.end())
             {
                 members_.erase(member);
-                unmarkMembmer(**member);
+                unmarkMembmer_(**member);
                 return true;
             }
 
             return false;
 
+        }
+
+        void removeAllElements()
+        {
+            for (auto it = members_.begin(); it != members_.end(); ++it)
+            {
+                unmarkMembmer_(**it);
+            }
+            
+            members_.clear();
         }
 
         MemberSet::iterator begin()
@@ -137,7 +139,7 @@ namespace mv
 
             unsigned_type idx = 0;
             for (auto it = members_.begin(); it != members_.end(); ++it)
-                result += "'\nmember_" + Printable::toString(idx++) + ": " + (*it)->getName();
+                result += "\n'member_" + Printable::toString(idx++) + "': " + (*it)->getName();
 
             return result + ComputationElement::toString();
 

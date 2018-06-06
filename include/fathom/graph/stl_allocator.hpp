@@ -27,13 +27,13 @@ namespace mv
         using opaque_ptr = stl_opaque_ptr<T>;
 
         template <class T, class T_comparator>
-        using set = stl_set<T, T_comparator>;
+        using set = stl_set<T, T_comparator, stl_allocator>;
 
         template <class T>
         using deque = stl_deque<T>;
 
         template<class T_key, class T_value>
-        using map = stl_map<T_key, T_value>;
+        using map = stl_map<T_key, T_value, stl_allocator>;
 
         template<class T>
         using vector = stl_vector<T, stl_allocator>;
@@ -76,7 +76,7 @@ namespace mv
         template <class T, class T_comparator>
         owner_ptr<set<T, T_comparator>> make_set() const noexcept
         {
-            return make_owner<set<T, T_comparator>>(*this);
+            return make_owner<set<T, T_comparator>>(set<T, T_comparator>());
         }
 
         template <class T>
@@ -85,11 +85,6 @@ namespace mv
             return make_owner<deque<T>>(*this);
         }
 
-        template<class T_key, class T_value>
-        owner_ptr<map<T_key, T_value>> make_map() const noexcept
-        {
-            return make_owner<map<T_key, T_value>>(*this);
-        }
         
     };
 

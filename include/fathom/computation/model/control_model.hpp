@@ -34,6 +34,7 @@ namespace mv
 
         ControlContext::StageIterator addStage();
         ControlContext::StageIterator getStage(unsigned_type stageIdx);
+        bool removeStage(ControlContext::StageIterator &stage);
         bool addToStage(ControlContext::StageIterator &stage, ControlContext::OpListIterator &op);
         bool addToStage(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
         bool removeFromStage(ControlContext::OpListIterator &op);
@@ -45,9 +46,6 @@ namespace mv
 
         ControlContext::StageMemberIterator stageMemberBegin(ControlContext::StageIterator &stage);
         ControlContext::StageMemberIterator stageMemberEnd(ControlContext::StageIterator &stage);
-        
-
-        bool isValid() const;
 
     };
 

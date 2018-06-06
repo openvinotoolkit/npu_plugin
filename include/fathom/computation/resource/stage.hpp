@@ -9,23 +9,40 @@ namespace mv
     class ComputationStage : public ComputationGroup
     {
 
-        unsigned_type idx_;
-
     protected:
 
-        virtual bool markMembmer(ComputationElement &member)
+        virtual bool markMembmer_(ComputationElement &member)
         {
-            if (!member.hasAttr("stage"))
+            if (member.hasAttr("opType"))
             {
-                member.addAttr("stage", AttrType::UnsingedType, idx_);
-                return true;
+                auto memberType = member.getAttr("opType").getContent<string>();
+                if (memberType != "input" && memberType != "output")
+                {
+                    if (!member.hasAttr("stage"))
+                    {
+                        member.addAttr("stage", AttrType::UnsingedType, getAttr("idx").getContent<unsigned_type>());
+                        return true;
+                    }
+                    else
+                    {
+                        logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' that was already assigned to the stage 'stage_" + Printable::toString(member.getAttr("stage").getContent<unsigned_type>()) + "'");
+                    }
+                }
+                else
+                {
+                    logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' of invalid type '" + memberType + "'");
+                }
+            }    
+            else
+            {
+                logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending non-op member '" + member.getName() + "'");
             }
             
             return false;
             
         }
 
-        virtual bool unmarkMembmer(ComputationElement &member)
+        virtual bool unmarkMembmer_(ComputationElement &member)
         {
 
             if (member.hasAttr("stage"))
@@ -43,10 +60,27 @@ namespace mv
     public:
 
         ComputationStage(const Logger &logger, unsigned_type idx) :
-        ComputationGroup(logger, "stage_" + Printable::toString(idx)),
-        idx_(idx)
+        ComputationGroup(logger, "stage_" + Printable::toString(idx))
+        {
+            addAttr("idx", AttrType::UnsingedType, idx);
+        }
+
+        string toString() const
         {
 
+            string result = "stage '" + name_ + "'";
+
+            unsigned_type idx = 0;
+            for (auto it = members_.begin(); it != members_.end(); ++it)
+                result += "\n'member_" + Printable::toString(idx++) + "': " + (*it)->getName();
+
+            return result + ComputationElement::toString();
+
+        }
+
+        bool operator <(ComputationElement &other)
+        {
+            return getAttr("idx").getContent<unsigned_type>() < other.getAttr("idx").getContent<unsigned_type>();
         }
 
     };

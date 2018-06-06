@@ -3,6 +3,7 @@
 
 #include "include/fathom/computation/model/model.hpp"
 #include "include/fathom/computation/model/iterator/data_context.hpp"
+#include "include/fathom/computation/model/iterator/tensor_context.hpp"
 #include "include/fathom/computation/op/computation_op.hpp"
 
 namespace mv
@@ -25,13 +26,22 @@ namespace mv
         DataContext::FlowSiblingIterator getOutput();
         DataContext::FlowListIterator flowEnd();
 
-        bool isValid() const;
-
         GroupContext::MemberIterator addGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group);
         bool removeGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
         
+        TensorContext::PopulatedTensorIterator getPopulatedTensor(string name);
+        TensorContext::UnpopulatedTensorIterator getUnpopulatedTensor(string name);
+        TensorContext::PopulatedTensorIterator getPopulatedTensor(size_type id);
+        TensorContext::UnpopulatedTensorIterator getUnpopulatedTensor(size_type id);
+
+        bool addAllocator(const string &name, size_type maxSize);
+        bool allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::PopulatedTensorIterator &tensor);
+        bool allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::UnpopulatedTensorIterator &tensor);
+
+
+
     };
 
 }

@@ -8,26 +8,25 @@
 namespace mv
 {
 
-    template <class T, class T_comparator> 
+    template <class T, class T_comparator, class T_allocator> 
     class stl_set
     {
 
         std::set<T, T_comparator> stl_set_;
-        const base_allocator &allocator_;
+        const T_allocator allocator_;
 
     public:
 
         using iterator = typename std::set<T, T_comparator>::iterator;
         using reverse_iterator = typename std::set<T, T_comparator>::reverse_iterator;
 
-        stl_set(const base_allocator &allocator) : allocator_(allocator)
+        stl_set()
         {
 
         }
 
         stl_set(const stl_set &other):
-        stl_set_(other.stl_set_),
-        allocator_(other.allocator_)
+        stl_set_(other.stl_set_)
         {
 
         }

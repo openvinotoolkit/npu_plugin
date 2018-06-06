@@ -33,6 +33,13 @@ namespace mv
     template <class T>
     using vector = allocator::vector<T>;
     
+    template <class T_key, class T_value>
+    using map = allocator::map<T_key, T_value>;
+
+    template <class T_value, class T_comparator>
+    using set = allocator::set<T_value, T_comparator>;
+
+    
 
     class ComputationOp;
     class DataFlow;

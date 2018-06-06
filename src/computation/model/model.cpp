@@ -8,8 +8,9 @@ dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>()),
 parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>()),
-groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationGroup::GroupOrderComparator>()),
-stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationGroup::GroupOrderComparator>()),
+groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationElement::ElementOrderComparator>()),
+stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationElement::ElementOrderComparator>()),
+memoryAllocators_(allocator_.make_owner<map<string, allocator::owner_ptr<MemoryAllocator>>>(map<string, allocator::owner_ptr<MemoryAllocator>>())),
 logger_(logger),
 dataOpEnd_(dataGraph_.node_end()),
 dataFlowEnd_(dataGraph_.edge_end()),
@@ -25,8 +26,9 @@ dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>()),
 parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>()),
-groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationGroup::GroupOrderComparator>()),
-stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationGroup::GroupOrderComparator>()),
+groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationElement::ElementOrderComparator>()),
+stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationElement::ElementOrderComparator>()),
+memoryAllocators_(allocator_.make_owner<map<string, allocator::owner_ptr<MemoryAllocator>>>(map<string, allocator::owner_ptr<MemoryAllocator>>())),
 defaultLogger_(allocator_.make_owner<StdOutLogger>(verboseLevel, logTime)),
 logger_(*defaultLogger_),
 dataOpEnd_(dataGraph_.node_end()),
@@ -46,6 +48,7 @@ flowTensors_(other.flowTensors_),
 parameterTensors_(other.parameterTensors_),
 groups_(other.groups_),
 stages_(other.stages_),
+memoryAllocators_(other.memoryAllocators_),
 logger_(other.logger_),
 input_(other.input_),
 output_(other.output_),
@@ -65,7 +68,7 @@ mv::ComputationModel::~ComputationModel()
 
 bool mv::ComputationModel::isValid() const
 {
-    return !dataGraph_.disjoint() && input_ != dataOpEnd_ && output_ != dataOpEnd_;
+    return !dataGraph_.disjoint() && !controlGraph_.disjoint() && input_ != dataOpEnd_ && output_ != dataOpEnd_ && checkOpsStages_();
 }
 
 mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &name)
@@ -142,6 +145,49 @@ bool mv::ComputationModel::removeGroupElement_(allocator::owner_ptr<ComputationE
 
     return false;
 
+}
+
+bool mv::ComputationModel::checkOpsStages_() const
+{
+
+    if (input_ == dataOpEnd_)
+        return false;
+    
+    for (auto opIt = input_; opIt != dataOpEnd_; ++opIt)
+    {
+        if (!opIt->hasAttr("stage") && !(opIt->getOpType() == "input" || opIt->getOpType() == "output"))
+            return false;
+    }
+
+    return true;
+    
+}
+
+mv::ControlContext::StageIterator mv::ComputationModel::addStage_()
+{   
+    
+    mv::ControlContext::StageIterator it = stages_->insert(stages_->end(), allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + it->toString());
+    return it;
+    
+}
+
+bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op)
+{
+    ControlContext::StageIterator stageEnd(stages_->end());
+    if (stage != stageEnd)
+    {
+        allocator::owner_ptr<ComputationOp> ptr = op;
+        auto result = stage->addElement(ptr);
+
+        if (result != stage->end())
+        {
+            logger_.log(Logger::MessageType::MessageInfo, "Appended new member '" + (*result)->getName() + "' to stage " + (*result)->getAttr("stage").getContentStr());
+            return true;
+        }
+    }
+
+    return false;
 }
 
 mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)

@@ -42,7 +42,7 @@ TEST (model_serializer, blob_output_conv_01)
     EXPECT_EQ((*outIt).getOutputShape(), mv::Shape(1, 8, 8, 1));
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt).attrsCount(), 10);
+    EXPECT_EQ((*convIt).attrsCount(), 11);
 
     // Check parameters values
     EXPECT_EQ((*convIt).getAttr("opType").getContent<mv::string>(), "conv");
@@ -106,7 +106,7 @@ TEST (model_serializer, blob_output_conv_02)
     EXPECT_EQ((*outIt2).getOutputShape(), mv::Shape(1, 8, 8, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt2).attrsCount(), 10);
+    EXPECT_EQ((*convIt2).attrsCount(), 11);
 
     // Check parameters values
     EXPECT_EQ((*convIt2).getAttr("opType").getContent<mv::string>(), "conv");
@@ -174,7 +174,7 @@ TEST (model_serializer, blob_output_conv_03)
     EXPECT_EQ((*outIt3).getOutputShape(), mv::Shape(1, 127, 127, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt3).attrsCount(), 10);
+    EXPECT_EQ((*convIt3).attrsCount(), 11);
 
     // Check parameters values
     EXPECT_EQ((*convIt3).getAttr("opType").getContent<mv::string>(), "conv");
@@ -246,7 +246,7 @@ TEST (model_serializer, blob_output_conv_04)
     EXPECT_EQ((*outIt4).getOutputShape(), mv::Shape(1, 126, 126, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt4).attrsCount(), 10);
+    EXPECT_EQ((*convIt4).attrsCount(), 11);
 
     // Check parameters values
     EXPECT_EQ((*convIt4).getAttr("opType").getContent<mv::string>(), "conv");

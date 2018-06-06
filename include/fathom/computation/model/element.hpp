@@ -19,13 +19,15 @@ namespace mv
 
             bool operator()(const allocator::access_ptr<ComputationElement> &lhs, const allocator::access_ptr<ComputationElement> &rhs)
             {
-                return lhs.lock()->getName() < rhs.lock()->getName();
+                //return lhs.lock()->getName() < rhs.lock()->getName();
+                return *lhs < *rhs;
             }
 
-            bool operator()(const allocator::owner_ptr<ComputationElement> &lhs, const allocator::owner_ptr<ComputationElement> &rhs)
+            /*bool operator()(const allocator::owner_ptr<ComputationElement> &lhs, const allocator::owner_ptr<ComputationElement> &rhs)
             {
-                return lhs->getName() < rhs->getName();
-            }
+                //return lhs->getName() < rhs->getName();
+                return *lhs < *rhs;
+            }*/
         };
 
     protected:
@@ -65,7 +67,8 @@ namespace mv
         unsigned_type attrsCount() const;
         bool removeAttr(const string &name);
         string toString() const;
-    
+        virtual bool operator <(ComputationElement &other);
+
     };
 
 }

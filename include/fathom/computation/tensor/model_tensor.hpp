@@ -41,7 +41,6 @@ namespace mv
 
         virtual string toString() const;
 
-
     };
 
 }

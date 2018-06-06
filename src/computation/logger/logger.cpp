@@ -24,6 +24,7 @@ void mv::Logger::logMessage(MessageType messageType, string content) const
         case MessageType::MessageError:
             logMessage += "ERROR:   ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logMessage += content;
             logError(logMessage);
             break;
@@ -31,6 +32,7 @@ void mv::Logger::logMessage(MessageType messageType, string content) const
         case MessageType::MessageWarning:
             logMessage += "WARNING: ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logMessage += content;
             logWarning(logMessage);
             break;
@@ -38,6 +40,7 @@ void mv::Logger::logMessage(MessageType messageType, string content) const
         case MessageType::MessageInfo:
             logMessage += "INFO:    ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logMessage += content;
             logInfo(logMessage);
             break;
@@ -45,6 +48,7 @@ void mv::Logger::logMessage(MessageType messageType, string content) const
         default:
             logMessage += "DEBUG:   ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
+            Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logMessage += content;
             logDebug(logMessage);
             break;

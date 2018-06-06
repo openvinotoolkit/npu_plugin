@@ -7,12 +7,12 @@
 namespace mv
 {
 
-    template<class T_key, class T_value>
+    template<class T_key, class T_value, class T_allocator>
     class stl_map
     {
 
         std::map<T_key, T_value> stl_map_;
-        const base_allocator &allocator_;
+        const T_allocator allocator_;
 
         T_value dummy_value_;
 
@@ -22,17 +22,16 @@ namespace mv
         using const_iterator = typename std::map<T_key, T_value>::const_iterator;
         using reverse_iterator = typename std::map<T_key, T_value>::reverse_iterator;
 
-        stl_map(const base_allocator &allocator) : allocator_(allocator)
+        stl_map()
         {
 
         }
 
-        stl_map(const stl_map &other):
-        stl_map_(other.stl_map_),
-        allocator_(other.allocator_)
+        /*stl_map(const stl_map &other):
+        stl_map_(other.stl_map_)
         {
 
-        }
+        }*/
 
         const_iterator cbegin() const noexcept
         {
@@ -54,12 +53,12 @@ namespace mv
             return stl_map_.end();
         }
 
-        reverse_iterator rbegin() const noexcept
+        reverse_iterator rbegin() noexcept
         {
             return stl_map_.rbegin();
         }
 
-        reverse_iterator rend() const noexcept
+        reverse_iterator rend() noexcept
         {
             return stl_map_.rend();
         }
@@ -92,8 +91,36 @@ namespace mv
             }
             
         }
+
+        void erase(const T_key& key) noexcept
+        {
+
+            try
+            {
+                stl_map_.erase(key);
+            }
+            catch (std::exception &e)
+            {
+                
+            }
+            
+        }
         
         iterator find(const T_key& key) noexcept
+        {
+
+            try
+            {
+                return stl_map_.find(key);
+            }
+            catch (std::exception &e)
+            {
+                return stl_map_.end();
+            }
+
+        }
+
+        const_iterator find(const T_key& key) const noexcept
         {
 
             try
@@ -118,6 +145,19 @@ namespace mv
             try
             {
                 return stl_map_[key];
+            }
+            catch (std::exception &e)
+            {
+                return dummy_value_;
+            }
+
+        }
+
+        T_value at(const T_key &key) const noexcept
+        {
+            try
+            {
+                return stl_map_.at(key);
             }
             catch (std::exception &e)
             {
