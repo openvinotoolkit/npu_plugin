@@ -4,6 +4,21 @@
 #include "include/fathom/deployer/serializer.hpp"
 #include "include/fathom/deployer/Fp16Convert.h"
 
+/*
+// return full path of this executable 
+char* get_exe_path()
+{ 
+    const int PATH_MAX = 250 ;
+    char path_arr[PATH_MAX];
+    ssize_t path_len = ::readlink("/proc/self/exe", path_arr, sizeof(path_arr));
+    char *exe_path = new char[path_len];
+    memcpy(exe_path, path_arr, path_len);
+    return exe_path;
+    //std::cout << "Running tests from " << exe_path << std::endl;
+    //std::cout << "copied " << path_len << " chars" << std::endl;
+}
+*/
+
 TEST (model_serializer, convert_fp32_to_fp16)
 {
    EXPECT_EQ(f32Tof16(1.0f),0x3c00 );
@@ -74,6 +89,7 @@ TEST (model_serializer, blob_output_conv_01)
     EXPECT_EQ (692, filesize) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
+    
     const char *command1 = "cp ../../tests/data/gold_01.blob .";
     system(command1);
     const char *command2 = "diff test_conv_01.blob gold_01.blob";
@@ -285,6 +301,62 @@ TEST (model_serializer, blob_output_conv_04)
     system(command1);
 
     const char *command2 = "diff test_conv_04.blob gold_04.blob";
+    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+
+}
+
+// test 05 : 2 successive 3x3 convolutions (blur->edge filters)
+TEST (model_serializer, blob_blur_edge_05)
+{
+    // define test compute model: 1 convolution 
+    mv::OpModel test_cm5 ;
+
+    // Define input as 1 greyscale 256x256 image
+    auto inIt = test_cm5.input(mv::Shape(1, 256, 256, 1), mv::DType::Float, mv::Order::NWHC);
+
+    mv::float_type k1rawData[] = { 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 } ;
+    mv::vector<mv::float_type> blurKData(k1rawData);
+    mv::float_type k2rawData[] = { 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 } ;
+    mv::vector<mv::float_type> edgeKData(k2rawData);
+    mv::ConstantTensor bweights(mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC, blurKData);
+    mv::ConstantTensor eweights(mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC, edgeKData);
+    auto conv1It = test_cm5.conv(inIt, bweights, 1, 1, 0, 0);
+    auto conv2It = test_cm5.conv(conv1It, eweights, 1, 1, 0, 0);
+    auto outIt = test_cm5.output(conv2It);
+
+    // Check if model is valid 
+    EXPECT_TRUE(test_cm5.isValid());
+
+    // Check output shape
+    EXPECT_EQ((*outIt).getOutputShape(), mv::Shape(1, 252, 252, 1));
+
+    // Check number of convolution parameters
+    EXPECT_EQ((*conv1It).attrsCount(), 11);
+    EXPECT_EQ((*conv2It).attrsCount(), 11);
+
+    // Check parameters values
+    EXPECT_EQ((*conv1It).getInputShape()[1], 256);    // X dim
+    EXPECT_EQ((*conv1It).getInputShape()[2], 256);    // Y dim
+    EXPECT_EQ((*conv1It).getInputShape()[3], 1);      // Z dim (aka C)
+    EXPECT_EQ((*conv2It).getOutputShape()[1], 252);   // X dim
+    EXPECT_EQ((*conv2It).getOutputShape()[2], 252);   // Y dim
+    EXPECT_EQ((*conv2It).getOutputShape()[3], 1);     // Z dim 
+
+    mv::ControlModel cm5(test_cm5);
+
+    // declare serializer as blob
+    mv::Serializer gs5(mv::mvblob_mode);
+
+    // serialize compute model to file
+    uint64_t filesize5 = gs5.serialize(cm5, "test_conv_05.blob");
+
+    // compare filesize written to expected
+    EXPECT_EQ (1252, filesize5) << "ERROR: wrong blob size";
+
+    // compare blob file contents to blob previously generated with mvNCCheck
+    const char *command1 = "cp ../../tests/data/gold_05.blob .";
+    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_05.blob to current folder";
+    const char *command2 = "diff test_conv_05.blob gold_05.blob";
     EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 
 }
