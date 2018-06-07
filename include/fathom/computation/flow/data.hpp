@@ -18,7 +18,7 @@ namespace mv
 
     public:
 
-        DataFlow(const Logger &logger, DataContext::OpListIterator &source, DataContext::OpListIterator &sink, TensorContext::UnpopulatedTensorIterator data) :
+        DataFlow(const Logger &logger, const DataContext::OpListIterator &source, const DataContext::OpListIterator &sink, const TensorContext::UnpopulatedTensorIterator &data) :
         ComputationFlow(logger, "df_" + source->getName() + "_" + sink->getName()),
         data_(data)
         {

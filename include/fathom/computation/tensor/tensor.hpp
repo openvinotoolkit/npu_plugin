@@ -18,6 +18,7 @@ namespace mv
     public:
 
         Tensor(const Shape &shape, DType dType, Order order);
+        Tensor();
         virtual ~Tensor() = 0;
 
         Tensor(const Tensor &other);

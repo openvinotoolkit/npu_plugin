@@ -1,27 +1,42 @@
 #ifndef OUTPUT_HPP_
 #define OUTPUT_HPP_
 
-#include "include/fathom/computation/op/computation_op.hpp"
+#include "include/fathom/computation/op/multisink_op.hpp"
 
 namespace mv
 {
 
-    class Output : public ComputationOp
+    class Output : public MultiSinkOp
     {
 
     public:
 
-        Output(const Logger &logger, UnpopulatedTensor input, const string &name) : 
-        ComputationOp(logger, "output", input.getDType(), input.getOrder(), input.getShape(), input.getShape(), name)
+        Output(const Logger &logger, const string &name) : 
+        ComputationOp(logger, "output", name),
+        MultiSinkOp(logger, "output", 1, name)
         {
-
+            addAttr("executable", AttrType::BoolType, false);
         }
 
-        string toString() const
+        UnpopulatedTensor getOutputDef()
         {
-            return "output " + ComputationOp::toString();
+            logger_.log(Logger::MessageType::MessageWarning, "Attempt of getting output tensor of model output operation");
+            return UnpopulatedTensor(logger_);
         }
 
+        virtual bool setInput(TensorContext::UnpopulatedTensorIterator &tensor, byte_type idx)
+        {
+
+            bool result = MultiSinkOp::setInput(tensor, idx);
+            if (result)
+            {
+                addAttr("shape", AttrType::ShapeType, tensor->getShape());
+                addAttr("dType", AttrType::DTypeType, tensor->getDType());
+                addAttr("order", AttrType::OrderType, tensor->getOrder());        
+            }
+            return result;
+
+        }
 
     };
 

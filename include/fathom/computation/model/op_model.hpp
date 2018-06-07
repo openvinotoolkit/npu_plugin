@@ -8,6 +8,7 @@
 #include "include/fathom/computation/op/conv.hpp"
 #include "include/fathom/computation/op/maxpool.hpp"
 #include "include/fathom/computation/op/concat.hpp"
+#include "include/fathom/computation/op/constant.hpp"
 
 namespace mv
 {
@@ -31,10 +32,11 @@ namespace mv
         DataContext::OpListIterator opEnd();
 
         DataContext::OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "");
-        DataContext::OpListIterator output(DataContext::OpListIterator &predecessor, const string &name = "");
-        DataContext::OpListIterator conv(DataContext::OpListIterator &predecessor, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
-        DataContext::OpListIterator maxpool(DataContext::OpListIterator &predecessor, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
+        DataContext::OpListIterator output(DataContext::OpListIterator &input, const string &name = "");
+        DataContext::OpListIterator conv(DataContext::OpListIterator &input, DataContext::OpListIterator &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
+        DataContext::OpListIterator maxpool(DataContext::OpListIterator &input, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name = "");
         DataContext::OpListIterator concat(DataContext::OpListIterator &input0, DataContext::OpListIterator &input1, const string &name = "");
+        DataContext::OpListIterator constant(const ConstantTensor &tensor, const string &name = "");
         bool addAttr(DataContext::OpListIterator &op, const string &name, const Attribute &attr);
         bool isValid() const;
 
@@ -42,6 +44,9 @@ namespace mv
         bool removeGroupElement(DataContext::OpListIterator &element, GroupContext::GroupIterator &group);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
+
+        vector<Shape> getInputShapes(DataContext::OpListIterator &op);
+        vector<Shape> getOutputShapes(DataContext::OpListIterator &op);
        
     };
 

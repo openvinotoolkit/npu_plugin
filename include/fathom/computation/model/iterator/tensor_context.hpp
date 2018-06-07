@@ -12,8 +12,8 @@ namespace mv
     namespace TensorContext
     {
 
-        using PopulatedTensorIterator = IteratorDetail::ModelLinearIterator<allocator::set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>::iterator, PopulatedTensor>;
-        using UnpopulatedTensorIterator = IteratorDetail::ModelLinearIterator<allocator::set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>::iterator, UnpopulatedTensor>;
+        using PopulatedTensorIterator = IteratorDetail::ModelLinearIterator<map<string, allocator::owner_ptr<PopulatedTensor>>::iterator, PopulatedTensor>;
+        using UnpopulatedTensorIterator = IteratorDetail::ModelLinearIterator<map<string, allocator::owner_ptr<UnpopulatedTensor>>::iterator, UnpopulatedTensor>;
 
     }
 

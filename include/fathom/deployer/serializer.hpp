@@ -211,10 +211,15 @@ class Blob_buffer : public WBuffer
 
                     // TAPS region
                     // calculate buffer sizes etc related to weights
-                    uint32_t kernel_sizeX = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0] ;
-                    uint32_t kernel_sizeY = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1] ;
-                    uint32_t kernel_sizeC = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2] ;
-                    uint32_t kernel_sizeN = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3] ;
+                    //uint32_t kernel_sizeX = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0] ;
+                    //uint32_t kernel_sizeY = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1] ;
+                    //uint32_t kernel_sizeC = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2] ;
+                    //uint32_t kernel_sizeN = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3] ;
+                    auto weightsShape = it->getInput(1)->getShape();
+                    uint32_t kernel_sizeX = weightsShape[0];
+                    uint32_t kernel_sizeY = weightsShape[1];
+                    uint32_t kernel_sizeC = weightsShape[2];
+                    uint32_t kernel_sizeN = weightsShape[3];
                     uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeC*kernel_sizeN;
                     uint32_t buffer_taps_weights_size = buffer_taps_weights_len*blob_stats.weights_number_size;
                     uint32_t weights_region_size = align(kernel_sizeC,8)*kernel_sizeX*kernel_sizeY*kernel_sizeN*blob_stats.weights_number_size ;

@@ -31,10 +31,7 @@ namespace mv
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
         
-        TensorContext::PopulatedTensorIterator getPopulatedTensor(string name);
-        TensorContext::UnpopulatedTensorIterator getUnpopulatedTensor(string name);
-        TensorContext::PopulatedTensorIterator getPopulatedTensor(size_type id);
-        TensorContext::UnpopulatedTensorIterator getUnpopulatedTensor(size_type id);
+        TensorContext::UnpopulatedTensorIterator findUnpopulatedTensor(string name);
 
         bool addAllocator(const string &name, size_type maxSize);
         bool allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::PopulatedTensorIterator &tensor);

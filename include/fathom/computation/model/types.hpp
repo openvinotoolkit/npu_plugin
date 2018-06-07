@@ -49,12 +49,14 @@ namespace mv
 
     enum class Order
     {
-        NWHC
+        NWHC,
+        Unknown
     };
 
     enum class DType
     {
-        Float
+        Float,
+        Unknown
     };
 
     enum class AttrType
@@ -69,7 +71,8 @@ namespace mv
         DTypeType,
         OrderType,
         ShapeType,
-        StringType
+        StringType,
+        BoolType
 
     };
 

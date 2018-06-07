@@ -13,7 +13,6 @@ namespace mv
         byte_type ndims_;
         dim_type dims_[max_ndims];
 
-//        void addDim(byte_type dim)
         void addDim(dim_type dim)
         {
             dims_[ndims_] = dim;
@@ -21,7 +20,6 @@ namespace mv
         }
 
         template<typename... Dims>
-//        void addDim(byte_type dim, Dims... dims)
         void addDim(dim_type dim, Dims... dims)
         {
             addDim(dim);
@@ -41,6 +39,11 @@ namespace mv
         {
             for (byte_type i = 0; i < ndims_; ++i)
                 dims_[i] = other.dims_[i];
+        }
+
+        Shape() : ndims_(0)
+        {
+            
         }
 
         byte_type ndims() const

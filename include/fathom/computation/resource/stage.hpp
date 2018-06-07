@@ -15,8 +15,7 @@ namespace mv
         {
             if (member.hasAttr("opType"))
             {
-                auto memberType = member.getAttr("opType").getContent<string>();
-                if (memberType != "input" && memberType != "output")
+                if (member.getAttr("executable").getContent<bool>())
                 {
                     if (!member.hasAttr("stage"))
                     {
@@ -30,7 +29,7 @@ namespace mv
                 }
                 else
                 {
-                    logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' of invalid type '" + memberType + "'");
+                    logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' of invalid type '" + member.getAttr("opType").getContentStr() + "'");
                 }
             }    
             else

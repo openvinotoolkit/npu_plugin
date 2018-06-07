@@ -18,9 +18,37 @@ namespace mv
 
     public:
 
-        using iterator = typename std::map<T_key, T_value>::iterator;
+        template <class T_iterator>
+        class value_iterator : public T_iterator
+        {
+
+        public:
+
+            value_iterator(T_iterator other) :
+            T_iterator(other)
+            {
+
+            }
+
+            value_iterator()
+            {
+                
+            }
+
+            const T_value& operator*() const
+            {
+                return T_iterator::operator*().second;
+            }
+
+        };
+
+        /*using iterator = typename std::map<T_key, T_value>::iterator;
         using const_iterator = typename std::map<T_key, T_value>::const_iterator;
-        using reverse_iterator = typename std::map<T_key, T_value>::reverse_iterator;
+        using reverse_iterator = typename std::map<T_key, T_value>::reverse_iterator;*/
+
+        using iterator = value_iterator<typename std::map<T_key, T_value>::iterator>;
+        using const_iterator = value_iterator<typename std::map<T_key, T_value>::const_iterator>;
+        using reverse_iterator = value_iterator<typename std::map<T_key, T_value>::reverse_iterator>;
 
         stl_map()
         {
@@ -153,7 +181,20 @@ namespace mv
 
         }
 
-        T_value at(const T_key &key) const noexcept
+        const T_value& at(const T_key &key) const noexcept
+        {
+            try
+            {
+                return stl_map_.at(key);
+            }
+            catch (std::exception &e)
+            {
+                return dummy_value_;
+            }
+
+        }
+
+        T_value& at(const T_key &key) noexcept
         {
             try
             {

@@ -17,7 +17,10 @@ file(GLOB computation_model
     "src/computation/op/computation_op.cpp"
     "src/computation/op/kernel_op.cpp"
     "src/computation/model/attribute.cpp"
-    "src/computation/flow/flow.cpp")
+    "src/computation/flow/flow.cpp"
+    "src/computation/op/source_op.cpp"
+    "src/computation/op/sink_op.cpp"
+    "src/computation/op/multisink_op.cpp")
 
 file(GLOB logger "src/computation/logger/logger.cpp")
 file(GLOB tensor "src/computation/tensor/tensor.cpp" "src/computation/tensor/model_tensor.cpp")

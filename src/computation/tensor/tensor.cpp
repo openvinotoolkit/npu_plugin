@@ -16,6 +16,13 @@ order_(other.order_)
 
 }
 
+mv::Tensor::Tensor() :
+dType_(DType::Unknown),
+order_(Order::Unknown)
+{
+
+}
+
 mv::Tensor::~Tensor()
 {
     

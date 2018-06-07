@@ -79,8 +79,7 @@ mv::ControlContext::StageIterator mv::ControlModel::addStage()
 mv::ControlContext::StageIterator mv::ControlModel::getStage(unsigned_type stageIdx)
 {
 
-    allocator::owner_ptr<ComputationStage> searchStage = allocator_.make_owner<ComputationStage>(logger_, stageIdx);
-    return stages_->find(searchStage);
+    return stages_->find(stageIdx);
 
 }
 
@@ -88,10 +87,8 @@ bool mv::ControlModel::removeStage(ControlContext::StageIterator &stage)
 {
     if (stage != stageEnd())
     {
-        auto stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
-        allocator::owner_ptr<ComputationStage> searchStage = allocator_.make_owner<ComputationStage>(logger_, stageIdx);
         stage->removeAllElements();
-        stages_->erase(searchStage);
+        stages_->erase(stage->getAttr("idx").getContent<unsigned_type>());
         stage = stageEnd();
         return true;
     }

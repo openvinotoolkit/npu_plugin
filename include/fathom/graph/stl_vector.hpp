@@ -30,6 +30,12 @@ namespace mv
 
         }
 
+        stl_vector(T_size size, const T &value) :
+        stl_vector_(size, value)
+        {
+
+        }
+
         stl_vector(const stl_vector &other) :
         stl_vector_(other.stl_vector_),
         allocator_(other.allocator_)

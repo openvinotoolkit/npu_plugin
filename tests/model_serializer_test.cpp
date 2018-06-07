@@ -36,7 +36,7 @@ TEST (model_serializer, convert_fp32_to_fp16)
 }
 
 // test 01 : 1 2d convolution
-TEST (model_serializer, blob_output_conv_01) 
+/*TEST (model_serializer, blob_output_conv_01) 
 {
     // define test compute model: 1 convolution 
     mv::OpModel test_cm ;

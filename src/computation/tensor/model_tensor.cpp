@@ -1,11 +1,8 @@
 #include "include/fathom/computation/tensor/model_tensor.hpp"
 
-mv::size_type mv::ModelTensor::currentId_ = 0;
-
 mv::ModelTensor::ModelTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order) : 
 Tensor(shape, dType, order),
-ComputationElement(logger, name),
-id_(currentId_++)
+ComputationElement(logger, name)
 {
     logger_.log(Logger::MessageType::MessageDebug, "Defined model tensor " + toString());
     addAttr("dType", AttrType::DTypeType, dType_);
@@ -22,7 +19,13 @@ ModelTensor(other.logger_, other.name_, other.shape_, other.dType_, other.order_
 mv::ModelTensor::ModelTensor(const Logger &logger, const string &name, const ConstantTensor &other) :
 ModelTensor(logger, name, other.getShape(), other.getDType(), other.getOrder())
 {
+    
+}
 
+mv::ModelTensor::ModelTensor(const Logger &logger) : 
+ComputationElement(logger, "unknown_tensor")
+{
+    logger_.log(Logger::MessageType::MessageWarning, "Defined unknown model tensor");
 }
 
 mv::ModelTensor::~ModelTensor()
@@ -33,11 +36,6 @@ mv::ModelTensor::~ModelTensor()
 mv::string mv::ModelTensor::toString() const
 {
     return "'" + name_ + "' " + ComputationElement::toString();
-}
-
-mv::size_type mv::ModelTensor::getID() const
-{
-    return id_;
 }
 
 /*mv::ModelTensor& mv::ModelTensor::operator=(const ModelTensor &other)

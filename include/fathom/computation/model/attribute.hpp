@@ -18,6 +18,7 @@ DEFINE_ENUMERATED_TYPE(mv::DType, mv::AttrType::DTypeType);
 DEFINE_ENUMERATED_TYPE(mv::Order, mv::AttrType::OrderType);
 DEFINE_ENUMERATED_TYPE(mv::ConstantTensor, mv::AttrType::TensorType);
 DEFINE_ENUMERATED_TYPE(mv::string, mv::AttrType::StringType);
+DEFINE_ENUMERATED_TYPE(bool, mv::AttrType::BoolType);
 
 template<class T, class U>
 struct is_same {
@@ -71,6 +72,9 @@ namespace mv
             
             if (AttrTypeToType<AttrType::StringType>::value  && is_same<T, AttrTypeToType<AttrType::StringType>::type>::value)
                 return AttrType::StringType;
+
+            if (AttrTypeToType<AttrType::BoolType>::value  && is_same<T, AttrTypeToType<AttrType::BoolType>::type>::value)
+                return AttrType::BoolType;
 
             return AttrType::UnknownType;
 

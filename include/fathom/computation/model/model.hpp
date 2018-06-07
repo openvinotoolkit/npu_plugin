@@ -42,10 +42,10 @@ namespace mv
         - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
             - ModelLinearIterators are wrapping containers iterators
         */
-        allocator::owner_ptr<set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>> flowTensors_;
-        allocator::owner_ptr<set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>> parameterTensors_;
-        allocator::owner_ptr<set<allocator::owner_ptr<ComputationGroup>, ComputationElement::ElementOrderComparator>> groups_;
-        allocator::owner_ptr<set<allocator::owner_ptr<ComputationStage>, ComputationElement::ElementOrderComparator>> stages_;
+        allocator::owner_ptr<map<string, allocator::owner_ptr<UnpopulatedTensor>>> flowTensors_;
+        allocator::owner_ptr<map<string, allocator::owner_ptr<PopulatedTensor>>> parameterTensors_;
+        allocator::owner_ptr<map<string, allocator::owner_ptr<ComputationGroup>>> groups_;
+        allocator::owner_ptr<map<unsigned_type, allocator::owner_ptr<ComputationStage>>> stages_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<MemoryAllocator>>> memoryAllocators_;
         const allocator::owner_ptr<Logger> defaultLogger_;
         Logger &logger_;
@@ -58,6 +58,7 @@ namespace mv
         DataContext::FlowListIterator dataFlowEnd_;
         ControlContext::OpListIterator controlOpEnd_;
         ControlContext::FlowListIterator controlFlowEnd_;
+        TensorContext::UnpopulatedTensorIterator unpopulatedTensorEnd_;
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
@@ -67,6 +68,8 @@ namespace mv
         bool checkOpsStages_() const;
         ControlContext::StageIterator addStage_();
         bool addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
+        TensorContext::UnpopulatedTensorIterator getUnpopulatedTensor_(const UnpopulatedTensor &tensorDef);
+        TensorContext::UnpopulatedTensorIterator findUnpopulatedTensor_(const string &name);
 
     public:
 
@@ -82,7 +85,7 @@ namespace mv
 
         virtual ~ComputationModel() = 0;
         /**
-         * @brief Check basic logical cohesion of the computation model. Does not guarantee that mondel can be run successfully on the
+         * @brief Check basic logical cohesion of the computation model. Does not guarantee that the model can executed successfully on the
          * target platform
          * 
          * @return true Computation model is valid.

@@ -16,14 +16,18 @@ int main()
     mv::vector<mv::float_type> conv3WeightsData = mv::utils::generateSequence<mv::float_type>(5u * 5u * 16u * 32u);
     mv::vector<mv::float_type> conv4WeightsData = mv::utils::generateSequence<mv::float_type>(6u * 6u * 32u * 64u);
 
-    auto conv1It = om.conv(inIt, mv::ConstantTensor(mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC, conv1WeightsData), 2, 2, 1, 1);
+    auto conv1WeightsIt = om.constant(mv::ConstantTensor(mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC, conv1WeightsData));
+    auto conv1It = om.conv(inIt, conv1WeightsIt, 2, 2, 1, 1);
     auto pool1It = om.maxpool(conv1It, mv::Shape(3, 3), 2, 2, 1, 1);
-    auto conv2It = om.conv(inIt, mv::ConstantTensor(mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC, conv1WeightsData), 2, 2, 1, 1);
+    auto conv2WeightsIt = om.constant(mv::ConstantTensor(mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC, conv2WeightsData));
+    auto conv2It = om.conv(inIt, conv2WeightsIt, 2, 2, 1, 1);
     auto pool2It = om.maxpool(conv2It, mv::Shape(3, 3), 2, 2, 1, 1);
     auto concat1It = om.concat(pool1It, pool2It);
-    auto conv3It = om.conv(concat1It, mv::ConstantTensor(mv::Shape(5, 5, 16, 32), mv::DType::Float, mv::Order::NWHC, conv3WeightsData), 2, 2, 2, 2);
+    auto conv3WeightsIt = om.constant(mv::ConstantTensor(mv::Shape(5, 5, 16, 32), mv::DType::Float, mv::Order::NWHC, conv3WeightsData));
+    auto conv3It = om.conv(concat1It, conv3WeightsIt, 2, 2, 2, 2);
     auto pool3It = om.maxpool(conv3It, mv::Shape(5, 5), 3, 3, 2, 2);
-    auto conv4It = om.conv(pool3It, mv::ConstantTensor(mv::Shape(6, 6, 32, 64), mv::DType::Float, mv::Order::NWHC, conv4WeightsData), 1, 1, 0, 0);
+    auto conv4WeightsIt = om.constant(mv::ConstantTensor(mv::Shape(6, 6, 32, 64), mv::DType::Float, mv::Order::NWHC, conv4WeightsData));
+    auto conv4It = om.conv(pool3It, conv4WeightsIt, 1, 1, 0, 0);
     auto outIt = om.output(conv4It);
 
     auto msgType = mv::Logger::MessageType::MessageInfo;

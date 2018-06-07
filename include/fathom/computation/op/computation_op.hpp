@@ -4,6 +4,7 @@
 #include "include/fathom/computation/model/element.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
 #include "include/fathom/computation/tensor/unpopulated.hpp"
+#include "include/fathom/computation/model/iterator/tensor_context.hpp"
 
 namespace mv
 {
@@ -15,28 +16,24 @@ namespace mv
 
     protected:
 
-        string opType;
-        DType dType_;
-        Order order_;
-        Shape inputShape_;
-        Shape outputShape_;
+        bool validOutputDef_();
 
     public:
 
-        ComputationOp(const Logger &logger, const string &opType, DType dType, Order order, Shape inputShape, Shape outputShape, const string &name);
+        ComputationOp(const Logger &logger, const string &opType, const string &name);
         virtual ~ComputationOp() = 0;
 
-        DType getDType() const;
-        Order getOrder() const;
+        string getOpType() const;
+        string toString() const;
+        virtual string getOutputName() const;
 
-        Shape getInputShape() const;
-        Shape getOutputShape() const;
-
-        UnpopulatedTensor getOutput() const;
-
-        string getOpType();
-
-        virtual string toString() const;
+        virtual bool setInput(TensorContext::UnpopulatedTensorIterator &tensor, byte_type idx);
+        virtual bool setOutput(TensorContext::UnpopulatedTensorIterator &tensor);
+        virtual TensorContext::UnpopulatedTensorIterator getInput(byte_type idx);
+        virtual TensorContext::UnpopulatedTensorIterator getOutput();
+        virtual bool hasInputDef();
+        virtual UnpopulatedTensor getOutputDef() = 0;
+        virtual byte_type inputSlots();
 
         bool operator==(const ComputationOp &other) const;
 

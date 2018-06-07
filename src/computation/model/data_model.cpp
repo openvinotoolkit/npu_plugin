@@ -50,40 +50,11 @@ bool mv::DataModel::removeGroupElement(DataContext::FlowListIterator &element, G
     return removeGroupElement_(ptr, group);
 }
 
-mv::TensorContext::PopulatedTensorIterator mv::DataModel::getPopulatedTensor(string name)
+mv::TensorContext::UnpopulatedTensorIterator mv::DataModel::findUnpopulatedTensor(string name)
 {
-    for (auto it = parameterTensors_->begin(); it != parameterTensors_->end(); ++it)
-        if ((*it)->getName() == name)
-            return it;
 
-    return parameterTensors_->end();
-}
+    return ComputationModel::findUnpopulatedTensor_(name);
 
-mv::TensorContext::UnpopulatedTensorIterator mv::DataModel::getUnpopulatedTensor(string name)
-{
-    for (auto it = flowTensors_->begin(); it != flowTensors_->end(); ++it)
-        if ((*it)->getName() == name)
-            return it;
-
-    return flowTensors_->end();
-}
-
-mv::TensorContext::PopulatedTensorIterator mv::DataModel::getPopulatedTensor(size_type id)
-{
-    for (auto it = parameterTensors_->begin(); it != parameterTensors_->end(); ++it)
-        if ((*it)->getID() == id)
-            return it;
-
-    return parameterTensors_->end();
-}
-
-mv::TensorContext::UnpopulatedTensorIterator mv::DataModel::getUnpopulatedTensor(size_type id)
-{
-    for (auto it = flowTensors_->begin(); it != flowTensors_->end(); ++it)
-        if ((*it)->getID() == id)
-            return it;
-
-    return flowTensors_->end();
 }
 
 bool mv::DataModel::addAllocator(const string &name, size_type maxSize)

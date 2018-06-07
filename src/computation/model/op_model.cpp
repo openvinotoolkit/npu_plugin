@@ -55,23 +55,27 @@ mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dTy
 
     input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(logger_, shape, dType, order, name));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
-
     lastOp_ = opsGraph_->get_second_iterator(input_);
-
     return input_;
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator &predIt, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator &input, const string &name)
 {
 
-    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>(predIt->getOutput()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
+    output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(logger_, name));
 
-    output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(logger_, **inTensorRes.first, name));
+    auto inputTensorIt = findUnpopulatedTensor_(input->getOutputName());
+    if (inputTensorIt == unpopulatedTensorEnd_)
+    {
+        inputTensorIt = getUnpopulatedTensor_(input->getOutputDef());
+    }
+
+    output_->setInput(inputTensorIt, 0);
+
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
-
-    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(predIt, output_, allocator_.make_owner<DataFlow>(logger_, predIt, output_, inTensorRes.first));
+    
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(input, output_, allocator_.make_owner<DataFlow>(logger_, input, output_, inputTensorIt));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
 
     defaultControlFlow_(output_);
@@ -80,20 +84,33 @@ mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator 
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::conv(DataContext::OpListIterator &predIt, const ConstantTensor &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::conv(DataContext::OpListIterator &input, DataContext::OpListIterator &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name)
 {
 
-    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>(predIt->getOutput()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
+    DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv>(logger_, strideX, strideY, padX, padY, name));
+    
+    auto inputTensorIt = findUnpopulatedTensor_(input->getOutputName());
+    if (inputTensorIt == unpopulatedTensorEnd_)
+    {
+        inputTensorIt = getUnpopulatedTensor_(input->getOutputDef());
+    }
 
-    DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv>(logger_, **inTensorRes.first, weights, strideX, strideY, padX, padY, name));
+    auto weightsTensorIt = findUnpopulatedTensor_(weights->getOutputName());
+    if (weightsTensorIt == unpopulatedTensorEnd_)
+    {
+        weightsTensorIt = getUnpopulatedTensor_(weights->getOutputDef());
+    }
+
+    convIt->setInput(inputTensorIt, 0);
+    convIt->setInput(weightsTensorIt, 1);
+
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + convIt->toString());
 
-    auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, convIt->getName() + "_" + "weights", convIt->getAttr("weights").getContent<ConstantTensor>()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*resultT.first)->toString());
+    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(input, convIt, allocator_.make_owner<DataFlow>(logger_, input, convIt, inputTensorIt));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
 
-    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(predIt, convIt, allocator_.make_owner<DataFlow>(logger_, predIt, convIt, inTensorRes.first));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
+    DataContext::FlowListIterator weightsFlow = dataGraph_.edge_insert(weights, convIt, allocator_.make_owner<DataFlow>(logger_, weights, convIt, weightsTensorIt));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + weightsFlow->toString());
 
     defaultControlFlow_(convIt);
     defaultStage_(convIt);
@@ -101,16 +118,22 @@ mv::DataContext::OpListIterator mv::OpModel::conv(DataContext::OpListIterator &p
     return convIt;
 }
 
-mv::DataContext::OpListIterator mv::OpModel::maxpool(DataContext::OpListIterator &predIt, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::maxpool(DataContext::OpListIterator &input, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name)
 {
 
-    auto inTensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>((*predIt).getOutput()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*inTensorRes.first)->toString());
+    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool>(logger_, kernelShape, strideX, strideY, padX, padY, name));
+    
+    auto inputTensorIt = findUnpopulatedTensor_(input->getOutputName());
+    if (inputTensorIt == unpopulatedTensorEnd_)
+    {
+        inputTensorIt = getUnpopulatedTensor_(input->getOutputDef());
+    }
 
-    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool>(logger_, **inTensorRes.first, kernelShape, strideX, strideY, padX, padY, name));
+    poolIt->setInput(inputTensorIt, 0);
+
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + poolIt->toString());
 
-    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(predIt, poolIt, allocator_.make_owner<DataFlow>(logger_, predIt, poolIt, inTensorRes.first));
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(input, poolIt, allocator_.make_owner<DataFlow>(logger_, input, poolIt, inputTensorIt));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
 
     defaultControlFlow_(poolIt);
@@ -122,50 +145,49 @@ mv::DataContext::OpListIterator mv::OpModel::maxpool(DataContext::OpListIterator
 mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::OpListIterator &input0, DataContext::OpListIterator &input1, const string &name)
 {
 
-    auto in0TensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>(input0->getOutput()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*in0TensorRes.first)->toString());
+    DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(logger_, name));
+    
+    auto input0TensorIt = findUnpopulatedTensor_(input0->getOutputName());
+    if (input0TensorIt == unpopulatedTensorEnd_)
+    {
+        input0TensorIt = getUnpopulatedTensor_(input0->getOutputDef());
+    }
 
-    auto in1TensorRes = flowTensors_->insert(allocator_.make_owner<UnpopulatedTensor>(input1->getOutput()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*in1TensorRes.first)->toString());
+    auto input1TensorIt = findUnpopulatedTensor_(input1->getOutputName());
+    if (input1TensorIt == unpopulatedTensorEnd_)
+    {
+        input1TensorIt = getUnpopulatedTensor_(input1->getOutputDef());
+    }
 
-    DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(logger_, **in0TensorRes.first, **in1TensorRes.first, name));
+    concatIt->setInput(input0TensorIt, 0);
+    concatIt->setInput(input1TensorIt, 1);
+    
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + concatIt->toString());
 
-    DataContext::FlowListIterator input0Flow = dataGraph_.edge_insert(input0, concatIt, allocator_.make_owner<DataFlow>(logger_, input0, concatIt, in0TensorRes.first));
+    DataContext::FlowListIterator input0Flow = dataGraph_.edge_insert(input0, concatIt, allocator_.make_owner<DataFlow>(logger_, input0, concatIt, input0TensorIt));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input0Flow->toString());
 
-    DataContext::FlowListIterator input1Flow = dataGraph_.edge_insert(input1, concatIt, allocator_.make_owner<DataFlow>(logger_, input1, concatIt, in1TensorRes.first));
+    DataContext::FlowListIterator input1Flow = dataGraph_.edge_insert(input1, concatIt, allocator_.make_owner<DataFlow>(logger_, input1, concatIt, input1TensorIt));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input1Flow->toString());
 
     defaultControlFlow_(concatIt);
     defaultStage_(concatIt);
 
     return concatIt;
+
+}
+
+mv::DataContext::OpListIterator mv::OpModel::constant(const ConstantTensor &tensor, const string &name)
+{
+    DataContext::OpListIterator constIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(logger_, tensor, name));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + constIt->toString());
+    return constIt;
 }
 
 bool mv::OpModel::addAttr(DataContext::OpListIterator &opIt, const string &name, const Attribute &attr)
 {
 
-    if  (attr.getType() == AttrType::TensorType)
-    {
-        auto resultT = parameterTensors_->insert(allocator_.make_owner<PopulatedTensor>(logger_, opIt->getName() + "_" + name, attr.getContent<ConstantTensor>()));
-        if (!resultT.second)
-            return false;
-
-        bool resultA =  opIt->addAttr(name, attr);
-        if (!resultA)
-        {
-            parameterTensors_->erase(*resultT.first);
-            return false;
-        }
-
-        logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*resultT.first)->toString());
-
-    }
-    else
-        return opIt->addAttr(name, attr);
-
-    return false;
+    return opIt->addAttr(name, attr);
 
 }
 
@@ -202,4 +224,32 @@ bool mv::OpModel::removeGroupElement(DataContext::OpListIterator &element, Group
 {
     allocator::owner_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);
+}
+
+mv::vector<mv::Shape> mv::OpModel::getInputShapes(DataContext::OpListIterator &op)
+{
+
+    vector<Shape> shapes;
+
+    for (auto it = op.leftmostInput(); it != dataFlowEnd_; ++it)
+    {
+        shapes.push_back(it->getTensor()->getShape());
+    }
+
+    return shapes;
+
+}
+
+mv::vector<mv::Shape> mv::OpModel::getOutputShapes(DataContext::OpListIterator &op)
+{
+
+    vector<Shape> shapes;
+
+    for (auto it = op.leftmostOutput(); it != dataFlowEnd_; ++it)
+    {
+        shapes.push_back(it->getTensor()->getShape());
+    }
+
+    return shapes;
+
 }

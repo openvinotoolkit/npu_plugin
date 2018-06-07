@@ -29,7 +29,6 @@ namespace mv
 
         struct MemoryBuffer
         {
-            string owner;
             size_type offset;
             size_type lenght;
             MemoryLayout memoryLayout;
@@ -39,7 +38,7 @@ namespace mv
 
         string name_;
         size_type maxSize_;
-        map<unsigned_type, map<size_type, MemoryBuffer>> states_;
+        map<unsigned_type, map<string, MemoryBuffer>> states_;
 
         size_type findOffset_(unsigned_type stageIdx)
         {
@@ -75,15 +74,15 @@ namespace mv
 
             if (states_.find(stageIdx) == states_.end())
             {
-                states_.emplace(stageIdx, map<size_type, MemoryBuffer>());
+                states_.emplace(stageIdx, map<string, MemoryBuffer>());
             }
             
             // No need to unroll, because if stage was not referenced before there can be no
             // already allocated tensor in it
-            if (states_[stageIdx].find(tensor.getID()) != states_[stageIdx].end())
+            if (states_[stageIdx].find(tensor.getName()) != states_[stageIdx].end())
                 return false;
 
-            states_[stageIdx].emplace(tensor.getID(), {tensor.getName(), newOffset, tensor.getShape().totalSize(), MemoryLayout::LayoutPlain});
+            states_[stageIdx].emplace(tensor.getName(), {newOffset, tensor.getShape().totalSize(), MemoryLayout::LayoutPlain});
 
             return true;
 
@@ -94,9 +93,9 @@ namespace mv
 
             if (states_.find(stageIdx) != states_.end())
             {
-                if (states_[stageIdx].find(tensor.getID()) != states_[stageIdx].end())
+                if (states_[stageIdx].find(tensor.getName()) != states_[stageIdx].end())
                 {
-                    states_[stageIdx].erase(tensor.getID());
+                    states_[stageIdx].erase(tensor.getName());
                     return true;
                 }
             }
@@ -143,7 +142,7 @@ namespace mv
                 for (auto itEntry = it->second.cbegin(); itEntry != it->second.cend(); ++itEntry)
                 {
                     
-                    result += "\n\towner: '" + itEntry->second.owner + "'; offset: " + Printable::toString(itEntry->second.offset) + "; lenght: " + Printable::toString(itEntry->second.lenght) + "; layout: ";
+                    result += "\n\towner: '" + itEntry->first + "'; offset: " + Printable::toString(itEntry->second.offset) + "; lenght: " + Printable::toString(itEntry->second.lenght) + "; layout: ";
                     
                     switch(itEntry->second.memoryLayout)
                     {

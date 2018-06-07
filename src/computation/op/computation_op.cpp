@@ -2,19 +2,11 @@
 
 mv::allocator::map<mv::string, mv::size_type> mv::ComputationOp::idDict_;
 
-mv::ComputationOp::ComputationOp(const Logger &logger, const string &opType, DType dType, Order order, Shape inputShape, Shape outputShape, const string &name) :
-ComputationElement(logger, "op_" + opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }()),
-dType_(dType),
-order_(order),
-inputShape_(inputShape),
-outputShape_(outputShape)
+mv::ComputationOp::ComputationOp(const Logger &logger, const string &opType, const string &name) :
+ComputationElement(logger, opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }())
 {
     logger_.log(Logger::MessageType::MessageDebug, "Defined computation op " + toString());
     addAttr("opType", AttrType::StringType, opType);
-    addAttr("dType", AttrType::DTypeType, dType_);
-    addAttr("order", AttrType::OrderType, order_);
-    addAttr("inputShape", AttrType::ShapeType, inputShape_);
-    addAttr("outputShape", AttrType::ShapeType, outputShape_);
 }
 
 mv::ComputationOp::~ComputationOp()
@@ -32,31 +24,62 @@ outputShape_(other.outputShape_)
 
 }*/
 
-mv::Shape mv::ComputationOp::getInputShape() const
+bool mv::ComputationOp::validOutputDef_()
 {
-    return inputShape_;
+
+    if (!hasInputDef())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + "' because of undefined input/inputs");
+        return false;
+    }
+
+    return true;
+
 }
 
-mv::Shape mv::ComputationOp::getOutputShape() const
-{
-    return outputShape_;
-}
-
-mv::string mv::ComputationOp::getOpType()
+mv::string mv::ComputationOp::getOpType() const 
 {
     return getAttr("opType").getContent<string>();
 }
 
 mv::string mv::ComputationOp::toString() const
 {
-    return "'" + name_ + "' " + ComputationElement::toString();
+    return getAttr("opType").getContentStr() + " '" + name_ + "' " + ComputationElement::toString();
 }
 
-mv::UnpopulatedTensor mv::ComputationOp::getOutput() const
+mv::TensorContext::UnpopulatedTensorIterator mv::ComputationOp::getInput(byte_type idx)
 {
+    return mv::TensorContext::UnpopulatedTensorIterator();
+}
 
-    return UnpopulatedTensor(logger_, name_ + "_out:0", outputShape_, dType_, order_);
+mv::TensorContext::UnpopulatedTensorIterator mv::ComputationOp::getOutput()
+{
+    return mv::TensorContext::UnpopulatedTensorIterator();
+}
 
+bool mv::ComputationOp::setInput(TensorContext::UnpopulatedTensorIterator &tensor, byte_type idx)
+{
+    return false;
+}
+
+bool mv::ComputationOp::setOutput(TensorContext::UnpopulatedTensorIterator &tensor)
+{
+    return false;
+}
+
+bool mv::ComputationOp::hasInputDef()
+{
+    return true;
+}
+
+mv::byte_type mv::ComputationOp::inputSlots()
+{
+    return 0;
+}
+
+mv::string mv::ComputationOp::getOutputName() const
+{
+    return "";
 }
 
 bool mv::ComputationOp::operator==(const ComputationOp &other) const

@@ -12,7 +12,7 @@ namespace mv
     namespace GroupContext
     { 
 
-        using GroupIterator = IteratorDetail::ModelLinearIterator<allocator::set<allocator::owner_ptr<ComputationGroup>, ComputationElement::ElementOrderComparator>::iterator, ComputationGroup>;
+        using GroupIterator = IteratorDetail::ModelLinearIterator<map<string, allocator::owner_ptr<ComputationGroup>>::iterator, ComputationGroup>;
         using MemberIterator = IteratorDetail::ModelLinearIterator<allocator::set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>::iterator, ComputationElement>;
 
     }

@@ -58,6 +58,9 @@ mv::string mv::Attribute::getContentStr() const
         case AttrType::StringType:
             return getContent<string>();
 
+        case AttrType::BoolType:
+            return Printable::toString(getContent<bool>());
+
         default:
             return "unknown";
 

@@ -40,7 +40,7 @@ namespace mv
         static Attribute unknownAttr_;
         const Logger &logger_;
         string name_;
-        allocator::map<string, Attribute> attributes_;
+        map<string, Attribute> attributes_;
 
         template <class T>
         bool addAttr(const string &name, AttrType attrType, const T &content)
@@ -60,10 +60,11 @@ namespace mv
         ComputationElement& operator=(const ComputationElement &other);
         virtual ~ComputationElement() = 0;
         const string &getName() const;
-        bool hasAttr(const string &name);
+        bool hasAttr(const string &name) const;
         Attribute& getAttr(const string &name);
+        const Attribute& getAttr(const string &name) const;
         allocator::vector<string> getAttrKeys() const;
-        AttrType getAttrType(const string &name);
+        AttrType getAttrType(const string &name) const;
         unsigned_type attrsCount() const;
         bool removeAttr(const string &name);
         string toString() const;

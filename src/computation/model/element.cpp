@@ -62,10 +62,10 @@ bool mv::ComputationElement::addAttr(const string &name, const Attribute &attr)
 
 }
 
-bool mv::ComputationElement::hasAttr(const string &name)
+bool mv::ComputationElement::hasAttr(const string &name) const
 {
     
-    if (attributes_.find(name) != attributes_.end())
+    if (attributes_.find(name) != attributes_.cend())
         return true;
 
     return false;
@@ -75,7 +75,16 @@ bool mv::ComputationElement::hasAttr(const string &name)
 mv::Attribute& mv::ComputationElement::getAttr(const string &name)
 {
     if (attributes_.find(name) != attributes_.end())
-        return attributes_[name];
+        return attributes_.at(name);
+    else
+        return unknownAttr_;
+
+}
+
+const mv::Attribute& mv::ComputationElement::getAttr(const string &name) const
+{
+    if (attributes_.find(name) != attributes_.cend())
+        return attributes_.at(name);
     else
         return unknownAttr_;
 
@@ -89,10 +98,10 @@ mv::allocator::vector<mv::string> mv::ComputationElement::getAttrKeys() const
     return attrKeys;
 }
 
-mv::AttrType mv::ComputationElement::getAttrType(const string &name)
+mv::AttrType mv::ComputationElement::getAttrType(const string &name) const
 {
-    if (attributes_.find(name) != attributes_.end())
-        return attributes_[name].getType();
+    if (attributes_.find(name) != attributes_.cend())
+        return attributes_.at(name).getType();
     else
         return AttrType::UnknownType;
 }

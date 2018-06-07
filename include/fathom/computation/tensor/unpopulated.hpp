@@ -12,13 +12,19 @@ namespace mv
     public:
 
         UnpopulatedTensor(const Logger &logger, const string &name, const Shape &shape, DType dType, Order order) : 
-        ModelTensor(logger, "vt_" + name, shape, dType, order)
+        ModelTensor(logger, name, shape, dType, order)
         {
             //logger_.log(Logger::MessageType::MessageInfo, "Defined unpopulated tensor '" + name_ + "'");
         }
 
         UnpopulatedTensor(const UnpopulatedTensor &other) :
         ModelTensor(other)
+        {
+
+        }
+
+        UnpopulatedTensor(const Logger &logger) :
+        ModelTensor(logger)
         {
 
         }

@@ -54,6 +54,11 @@ namespace mv
             return toString((unsigned_type)value);
         }
 
+        static string toString(bool value)
+        {
+            return std::to_string(value);
+        }
+
         static string toString(DType value)
         {
             switch (value)
@@ -110,6 +115,9 @@ namespace mv
 
                 case AttrType::StringType:
                     return "string";
+
+                case AttrType::BoolType:
+                    return "bool";
 
                 default:
                     return "unknown";
