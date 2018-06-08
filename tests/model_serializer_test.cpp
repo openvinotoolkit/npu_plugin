@@ -37,7 +37,7 @@ TEST (model_serializer, convert_fp32_to_fp16)
 }
 
 // test 01 : 1 2d convolution
-/*TEST (model_serializer, blob_output_conv_01) 
+TEST (model_serializer, blob_output_conv_01) 
 {
     // define test compute model: 1 convolution 
     mv::OpModel test_cm ;
@@ -210,7 +210,7 @@ TEST (model_serializer, blob_output_conv_03)
 
     // declare serializer as blob
     mv::Serializer gs3(mv::mvblob_mode);
-
+    
     // serialize compute model to file
     mv::ControlModel cm3(test_cm3);
     uint64_t filesize3 = gs3.serialize(cm3, "test_conv_03.blob");
@@ -299,33 +299,33 @@ TEST (model_serializer, blob_blur_edge_05)
     // Define input as 1 greyscale 256x256 image
     auto inIt = test_cm5.input(mv::Shape(1, 256, 256, 1), mv::DType::Float, mv::Order::NWHC);
 
-    mv::float_type k1rawData[] = { 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 } ;
+    mv::float_type k1rawData[] = { 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 };
     mv::vector<mv::float_type> blurKData(k1rawData);
-    mv::float_type k2rawData[] = { 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 } ;
+    mv::float_type k2rawData[] = { 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 };
     mv::vector<mv::float_type> edgeKData(k2rawData);
-    mv::ConstantTensor bweights(mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC, blurKData);
-    mv::ConstantTensor eweights(mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC, edgeKData);
-    auto conv1It = test_cm5.conv(inIt, bweights, 1, 1, 0, 0);
-    auto conv2It = test_cm5.conv(conv1It, eweights, 1, 1, 0, 0);
+    auto bweightsIt = test_cm5.constant(blurKData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
+    auto eweightsIt = test_cm5.constant(edgeKData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
+    auto conv1It = test_cm5.conv(inIt, bweightsIt, 1, 1, 0, 0);
+    auto conv2It = test_cm5.conv(conv1It, eweightsIt, 1, 1, 0, 0);
     auto outIt = test_cm5.output(conv2It);
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm5.isValid());
 
     // Check output shape
-    EXPECT_EQ((*outIt).getOutputShape(), mv::Shape(1, 252, 252, 1));
+    EXPECT_EQ( outIt->getInput(0)->getShape(), mv::Shape(1, 252, 252, 1));
 
     // Check number of convolution parameters
-    EXPECT_EQ((*conv1It).attrsCount(), 11);
-    EXPECT_EQ((*conv2It).attrsCount(), 11);
+    EXPECT_EQ(conv1It->attrsCount(), 11);
+    EXPECT_EQ(conv2It->attrsCount(), 11);
 
     // Check parameters values
-    EXPECT_EQ((*conv1It).getInputShape()[1], 256);    // X dim
-    EXPECT_EQ((*conv1It).getInputShape()[2], 256);    // Y dim
-    EXPECT_EQ((*conv1It).getInputShape()[3], 1);      // Z dim (aka C)
-    EXPECT_EQ((*conv2It).getOutputShape()[1], 252);   // X dim
-    EXPECT_EQ((*conv2It).getOutputShape()[2], 252);   // Y dim
-    EXPECT_EQ((*conv2It).getOutputShape()[3], 1);     // Z dim 
+    EXPECT_EQ(conv1It->getInput(0)->getShape()[1], 256);    // X dim
+    EXPECT_EQ(conv1It->getInput(0)->getShape()[2], 256);    // Y dim
+    EXPECT_EQ(conv1It->getInput(0)->getShape()[3], 1);      // Z dim (aka C)
+    EXPECT_EQ(conv2It->getOutput()->getShape()[1], 252);   // X dim
+    EXPECT_EQ(conv2It->getOutput()->getShape()[2], 252);   // Y dim
+    EXPECT_EQ(conv2It->getOutput()->getShape()[3], 1);     // Z dim 
 
     mv::ControlModel cm5(test_cm5);
 
@@ -345,4 +345,3 @@ TEST (model_serializer, blob_blur_edge_05)
     EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 
 }
-*/
