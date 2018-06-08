@@ -3,7 +3,7 @@
 
 #include "include/fathom/computation/model/element.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
-#include "include/fathom/computation/tensor/unpopulated.hpp"
+#include "include/fathom/computation/tensor/tensor.hpp"
 #include "include/fathom/computation/model/iterator/tensor_context.hpp"
 
 namespace mv
@@ -20,19 +20,20 @@ namespace mv
 
     public:
 
-        ComputationOp(const Logger &logger, const string &opType, const string &name);
+        ComputationOp(const string &opType, const string &name);
         virtual ~ComputationOp() = 0;
 
         string getOpType() const;
         string toString() const;
         virtual string getOutputName() const;
 
-        virtual bool setInput(TensorContext::UnpopulatedTensorIterator &tensor, byte_type idx);
-        virtual bool setOutput(TensorContext::UnpopulatedTensorIterator &tensor);
-        virtual TensorContext::UnpopulatedTensorIterator getInput(byte_type idx);
-        virtual TensorContext::UnpopulatedTensorIterator getOutput();
+        virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx);
+        virtual bool setOutput(TensorContext::TensorIterator &tensor);
+        virtual TensorContext::TensorIterator getInput(byte_type idx);
+        virtual TensorContext::TensorIterator getOutput();
         virtual bool hasInputDef();
-        virtual UnpopulatedTensor getOutputDef() = 0;
+        virtual bool hasInputDef(byte_type idx);
+        virtual Tensor getOutputDef() = 0;
         virtual byte_type inputSlots();
 
         bool operator==(const ComputationOp &other) const;

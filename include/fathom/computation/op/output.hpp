@@ -11,20 +11,20 @@ namespace mv
 
     public:
 
-        Output(const Logger &logger, const string &name) : 
-        ComputationOp(logger, "output", name),
-        MultiSinkOp(logger, "output", 1, name)
+        Output(const string &name) : 
+        ComputationOp("output", name),
+        MultiSinkOp("output", 1, name)
         {
             addAttr("executable", AttrType::BoolType, false);
         }
 
-        UnpopulatedTensor getOutputDef()
+        Tensor getOutputDef()
         {
             logger_.log(Logger::MessageType::MessageWarning, "Attempt of getting output tensor of model output operation");
-            return UnpopulatedTensor(logger_);
+            return Tensor();
         }
 
-        virtual bool setInput(TensorContext::UnpopulatedTensorIterator &tensor, byte_type idx)
+        virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx)
         {
 
             bool result = MultiSinkOp::setInput(tensor, idx);

@@ -39,8 +39,6 @@ namespace mv
     template <class T_value, class T_comparator>
     using set = allocator::set<T_value, T_comparator>;
 
-    
-
     class ComputationOp;
     class DataFlow;
     class ControlFlow;
@@ -67,7 +65,7 @@ namespace mv
         UnsingedType,
         IntegerType,
         FloatType,
-        TensorType,
+        //TensorType,
         DTypeType,
         OrderType,
         ShapeType,
@@ -75,6 +73,10 @@ namespace mv
         BoolType
 
     };
+
+    class StdOutLogger;
+
+    typedef StdOutLogger DefaultLogger;
 
 }
 

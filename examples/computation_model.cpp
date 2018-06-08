@@ -13,13 +13,13 @@ int main()
     mv::vector<mv::float_type> conv2WeightsData = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
     mv::vector<mv::float_type> conv3WeightsData = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
 
-    auto conv1WeightsIt = om.constant(mv::ConstantTensor(mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC, conv1WeightsData));
+    auto conv1WeightsIt = om.constant(conv1WeightsData, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC);
     auto conv1It = om.conv(inIt, conv1WeightsIt, 2, 2, 1, 1);
     auto pool1It = om.maxpool(conv1It, mv::Shape(3, 3), 2, 2, 1, 1);
-    auto conv2WeightsIt = om.constant(mv::ConstantTensor(mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC, conv2WeightsData));
+    auto conv2WeightsIt = om.constant(conv2WeightsData, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC);
     auto conv2It = om.conv(pool1It, conv2WeightsIt, 2, 2, 2, 2);
     auto pool2It = om.maxpool(conv2It, mv::Shape(5, 5), 4, 4, 2, 2);
-    auto conv3WeightsIt = om.constant(mv::ConstantTensor(mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::NWHC, conv3WeightsData));
+    auto conv3WeightsIt = om.constant(conv3WeightsData, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::NWHC);
     auto conv3It = om.conv(pool2It, conv3WeightsIt, 1, 1, 0, 0);
     auto outIt = om.output(conv3It);
 
@@ -54,7 +54,5 @@ int main()
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
-    
-    return 0;
 
 }

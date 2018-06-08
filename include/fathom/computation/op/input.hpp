@@ -11,9 +11,9 @@ namespace mv
 
     public:
 
-        Input(const Logger &logger, Shape outputShape, DType dType, Order order, const string &name) :
-        ComputationOp(logger, "input", name),
-        SourceOp(logger, "input", name)
+        Input(Shape outputShape, DType dType, Order order, const string &name) :
+        ComputationOp("input", name),
+        SourceOp("input", name)
         {
 
             addAttr("shape", AttrType::ShapeType, outputShape);
@@ -23,12 +23,12 @@ namespace mv
 
         }
 
-        UnpopulatedTensor getOutputDef()
+        Tensor getOutputDef()
         {
             auto outputShape = getAttr("shape").getContent<Shape>();
             auto dType = getAttr("dType").getContent<DType>();
             auto order = getAttr("order").getContent<Order>();
-            return UnpopulatedTensor(logger_, getOutputName(), outputShape, dType, order);
+            return Tensor(getOutputName(), outputShape, dType, order);
         }
 
     };

@@ -2,8 +2,8 @@
 
 mv::allocator::map<mv::string, mv::size_type> mv::ComputationOp::idDict_;
 
-mv::ComputationOp::ComputationOp(const Logger &logger, const string &opType, const string &name) :
-ComputationElement(logger, opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }())
+mv::ComputationOp::ComputationOp(const string &opType, const string &name) :
+ComputationElement(opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }())
 {
     logger_.log(Logger::MessageType::MessageDebug, "Defined computation op " + toString());
     addAttr("opType", AttrType::StringType, opType);
@@ -47,27 +47,32 @@ mv::string mv::ComputationOp::toString() const
     return getAttr("opType").getContentStr() + " '" + name_ + "' " + ComputationElement::toString();
 }
 
-mv::TensorContext::UnpopulatedTensorIterator mv::ComputationOp::getInput(byte_type idx)
+mv::TensorContext::TensorIterator mv::ComputationOp::getInput(byte_type idx)
 {
-    return mv::TensorContext::UnpopulatedTensorIterator();
+    return mv::TensorContext::TensorIterator();
 }
 
-mv::TensorContext::UnpopulatedTensorIterator mv::ComputationOp::getOutput()
+mv::TensorContext::TensorIterator mv::ComputationOp::getOutput()
 {
-    return mv::TensorContext::UnpopulatedTensorIterator();
+    return mv::TensorContext::TensorIterator();
 }
 
-bool mv::ComputationOp::setInput(TensorContext::UnpopulatedTensorIterator &tensor, byte_type idx)
+bool mv::ComputationOp::setInput(TensorContext::TensorIterator &tensor, byte_type idx)
 {
     return false;
 }
 
-bool mv::ComputationOp::setOutput(TensorContext::UnpopulatedTensorIterator &tensor)
+bool mv::ComputationOp::setOutput(TensorContext::TensorIterator &tensor)
 {
     return false;
 }
 
 bool mv::ComputationOp::hasInputDef()
+{
+    return true;
+}
+
+bool mv::ComputationOp::hasInputDef(byte_type idx)
 {
     return true;
 }

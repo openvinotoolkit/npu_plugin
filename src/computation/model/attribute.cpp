@@ -43,8 +43,8 @@ mv::string mv::Attribute::getContentStr() const
         case AttrType::FloatType:
             return Printable::toString(getContent<float_type>());
 
-        case AttrType::TensorType:
-            return Printable::toString(getContent<ConstantTensor>());
+        /*case AttrType::TensorType:
+            return Printable::toString(getContent<ConstantTensor>());*/
 
         case AttrType::DTypeType:
             return Printable::toString(getContent<DType>());

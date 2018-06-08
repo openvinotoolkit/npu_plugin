@@ -38,7 +38,7 @@ namespace mv
 
         static allocator allocator_;
         static Attribute unknownAttr_;
-        const Logger &logger_;
+        static Logger &logger_;
         string name_;
         map<string, Attribute> attributes_;
 
@@ -55,7 +55,7 @@ namespace mv
 
     public:
 
-        ComputationElement(const Logger &logger, const string &name);
+        ComputationElement(const string &name);
         ComputationElement(const ComputationElement &other);
         ComputationElement& operator=(const ComputationElement &other);
         virtual ~ComputationElement() = 0;

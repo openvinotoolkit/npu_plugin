@@ -11,7 +11,7 @@ namespace mv
 
     public:
 
-        EltwiseOp(const Logger &logger, const string &opType, const UnpopulatedTensor &input0, const UnpopulatedTensor &input1, const string &name);
+        EltwiseOp(const string &opType, const Tensor &input0, const Tensor &input1, const string &name);
         virtual ~EltwiseOp() = 0;
 
     };

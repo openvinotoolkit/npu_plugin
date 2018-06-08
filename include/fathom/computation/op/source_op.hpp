@@ -9,14 +9,14 @@ namespace mv
     class SourceOp : public virtual ComputationOp
     {
         
-        TensorContext::UnpopulatedTensorIterator output_;
+        TensorContext::TensorIterator output_;
 
     public:
 
-        SourceOp(const Logger &logger, const string &opType, const string &name);
+        SourceOp(const string &opType, const string &name);
         virtual ~SourceOp() = 0;
-        virtual bool setOutput(TensorContext::UnpopulatedTensorIterator &tensor);
-        virtual TensorContext::UnpopulatedTensorIterator getOutput();
+        virtual bool setOutput(TensorContext::TensorIterator &tensor);
+        virtual TensorContext::TensorIterator getOutput();
         byte_type outputSlots();
         string getOutputName() const;
 

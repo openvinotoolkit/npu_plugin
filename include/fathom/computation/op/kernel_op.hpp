@@ -20,7 +20,7 @@ namespace mv
 
     public:
 
-        KernelOp(const Logger &logger, const string &opType, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name);
+        KernelOp(const string &opType, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name);
         virtual ~KernelOp() = 0;
 
     };

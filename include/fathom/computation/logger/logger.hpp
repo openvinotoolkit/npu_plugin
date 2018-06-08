@@ -51,6 +51,7 @@ namespace mv
         Logger(VerboseLevel verboseLevel, bool logTime);
         virtual ~Logger() = 0;
         void setVerboseLevel(VerboseLevel verboseLevel);
+        void setLogTime(bool logTime);
         void log(MessageType messageType, const string &content) const;
 
     };

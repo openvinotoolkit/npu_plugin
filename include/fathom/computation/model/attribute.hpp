@@ -4,7 +4,7 @@
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/logger/printable.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
-#include "include/fathom/computation/tensor/constant.hpp"
+//#include "include/fathom/computation/tensor/constant.hpp"
 
 template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value = false }; };
 #define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }
@@ -16,7 +16,7 @@ DEFINE_ENUMERATED_TYPE(mv::Shape, mv::AttrType::ShapeType);
 DEFINE_ENUMERATED_TYPE(mv::byte_type, mv::AttrType::ByteType);
 DEFINE_ENUMERATED_TYPE(mv::DType, mv::AttrType::DTypeType);
 DEFINE_ENUMERATED_TYPE(mv::Order, mv::AttrType::OrderType);
-DEFINE_ENUMERATED_TYPE(mv::ConstantTensor, mv::AttrType::TensorType);
+//DEFINE_ENUMERATED_TYPE(mv::ConstantTensor, mv::AttrType::TensorType);
 DEFINE_ENUMERATED_TYPE(mv::string, mv::AttrType::StringType);
 DEFINE_ENUMERATED_TYPE(bool, mv::AttrType::BoolType);
 
@@ -64,8 +64,8 @@ namespace mv
             if (AttrTypeToType<AttrType::ShapeType>::value  && is_same<T, AttrTypeToType<AttrType::ShapeType>::type>::value)
                 return AttrType::ShapeType;
 
-            if (AttrTypeToType<AttrType::TensorType>::value  && is_same<T, AttrTypeToType<AttrType::TensorType>::type>::value)
-                return AttrType::TensorType;
+            /*if (AttrTypeToType<AttrType::TensorType>::value  && is_same<T, AttrTypeToType<AttrType::TensorType>::type>::value)
+                return AttrType::TensorType;*/
 
             if (AttrTypeToType<AttrType::UnsingedType>::value  && is_same<T, AttrTypeToType<AttrType::UnsingedType>::type>::value)
                 return AttrType::UnsingedType;

@@ -37,17 +37,39 @@ class Blob_stage
         uint32_t padY;
         uint32_t padStyle;
         uint32_t dilation;
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
 
-        uint32_t InputDimX;
-        uint32_t InputDimY;
-        uint32_t InputDimZ;
-        uint32_t InputStrideX;
-        uint32_t InputStrideY;
-        uint32_t InputStrideZ;
-        uint32_t InputOffset;
-        uint32_t InputLocation;
-        uint32_t InputDataType;
-        uint32_t InputOrder;
+
+        uint32_t InputDimX
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputDimY
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputDimZ
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputStri
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputStri
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputStri
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputOffs
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputLoca
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputData
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
+        uint32_t InputOrde
+    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+
 
         uint32_t OutputDimX;
         uint32_t OutputDimY;
@@ -473,10 +495,10 @@ class Blob_buffer : public WBuffer
 
                     // TAPS region
                     // calculate buffer sizes etc related to weights
-                    uint32_t kernel_sizeX = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0] ; 
-                    uint32_t kernel_sizeY = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1] ; 
-                    uint32_t kernel_sizeZ = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2] ; 
-                    uint32_t kernel_sizeN = it->getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3] ; 
+                    uint32_t kernel_sizeX = it->getInput(1)->getShape()[0] ; 
+                    uint32_t kernel_sizeY = it->getInput(1)->getShape()[1] ; 
+                    uint32_t kernel_sizeZ = it->getInput(1)->getShape()[2] ; 
+                    uint32_t kernel_sizeN = it->getInput(1)->getShape()[3] ; 
                     uint32_t weights_number_size = 2 ;          // TODO assume FP16 
                     uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN; 
                     uint32_t buffer_taps_weights_size = buffer_taps_weights_len*blob_stats.weights_number_size;
@@ -487,7 +509,7 @@ class Blob_buffer : public WBuffer
                     // write weights and pad to file
                     for (unsigned i=0; i< buffer_taps_weights_len; i++)
                     {
-                        uint16_t cur_weight = f32Tof16(it->getAttr("weights").getContent<mv::ConstantTensor>().getData()[i]) ; 
+                        uint16_t cur_weight = f32Tof16(it->getInput(1)->getData()[i]) ; 
                         AddBytes(weights_number_size, cur_weight) ; 
                     }
                     for (unsigned i=0; i< weights_region_pad_size; i++)

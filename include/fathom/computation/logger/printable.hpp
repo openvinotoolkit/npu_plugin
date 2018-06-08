@@ -101,8 +101,8 @@ namespace mv
                 case AttrType::FloatType:
                    return "float";
 
-                case AttrType::TensorType:
-                    return "const tensor";
+                /*case AttrType::TensorType:
+                    return "const tensor";*/
                 
                 case AttrType::DTypeType:
                     return "dType";

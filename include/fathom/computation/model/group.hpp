@@ -72,8 +72,8 @@ namespace mv
 
     public:
 
-        ComputationGroup(const Logger &logger, const string &name) :
-        ComputationElement(logger, name),
+        ComputationGroup(const string &name) :
+        ComputationElement(name),
         members_()
         {
 

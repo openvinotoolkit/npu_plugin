@@ -12,19 +12,20 @@ namespace mv
 
     public:
 
-        MaxPool(const Logger &logger, Shape kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name) :
-        ComputationOp(logger, "maxpool", name),
-        KernelOp(logger, "maxpool", strideX, strideY, padX, padY, name),
-        SinkOp(logger, "maxpool", name)
+        MaxPool(Shape kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name) :
+        ComputationOp("maxpool", name),
+        KernelOp("maxpool", strideX, strideY, padX, padY, name),
+        SinkOp("maxpool", name)
         {
             addAttr("kSize", AttrType::ShapeType, kernelShape);
+            addAttr("executable", AttrType::BoolType, true);
         }
 
-        UnpopulatedTensor getOutputDef()
+        Tensor getOutputDef()
         {
 
             if (!validOutputDef_())
-                return UnpopulatedTensor(logger_);
+                return Tensor();
 
             auto input = getInput(0);
             auto inputShape = input->getShape();
@@ -33,7 +34,7 @@ namespace mv
             {
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                         "' because of incorrect shape " + inputShape.toString() + " of input");
-                return UnpopulatedTensor(logger_);
+                return Tensor();
             }
 
             auto padX = getAttr("padX").getContent<byte_type>();
@@ -47,12 +48,12 @@ namespace mv
             {
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                         "' because of incorrect kernel shape " + kShape.toString());
-                return UnpopulatedTensor(logger_);
+                return Tensor();
             }
 
             Shape outputShape(inputShape[0], getOutputDim_(inputShape[1], kShape[0], padX, strideX), getOutputDim_(inputShape[2], kShape[1], padY, strideY), inputShape[3]);
 
-            return UnpopulatedTensor(logger_, getOutputName(), outputShape, input->getDType(), input->getOrder());
+            return Tensor(getOutputName(), outputShape, input->getDType(), input->getOrder());
 
         }
 

@@ -7,8 +7,7 @@
 #include "include/fathom/computation/model/iterator/control_context.hpp"
 #include "include/fathom/computation/model/iterator/group_context.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
-#include "include/fathom/computation/tensor/populated.hpp"
-#include "include/fathom/computation/tensor/unpopulated.hpp"
+#include "include/fathom/computation/tensor/tensor.hpp"
 #include "include/fathom/computation/logger/stdout.hpp"
 #include "include/fathom/computation/flow/data.hpp"
 #include "include/fathom/computation/flow/control.hpp"
@@ -42,13 +41,12 @@ namespace mv
         - Iterator of set is invalidated only on deletion of pointed element (on the other hand, vector's iterator is invalidated on the resize of the vector)
             - ModelLinearIterators are wrapping containers iterators
         */
-        allocator::owner_ptr<map<string, allocator::owner_ptr<UnpopulatedTensor>>> flowTensors_;
-        allocator::owner_ptr<map<string, allocator::owner_ptr<PopulatedTensor>>> parameterTensors_;
+        allocator::owner_ptr<map<string, allocator::owner_ptr<Tensor>>> flowTensors_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<ComputationGroup>>> groups_;
         allocator::owner_ptr<map<unsigned_type, allocator::owner_ptr<ComputationStage>>> stages_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<MemoryAllocator>>> memoryAllocators_;
-        const allocator::owner_ptr<Logger> defaultLogger_;
-        Logger &logger_;
+        static DefaultLogger defaultLogger_;
+        static Logger &logger_;
 
         DataContext::OpListIterator input_;
         DataContext::OpListIterator output_;
@@ -58,7 +56,7 @@ namespace mv
         DataContext::FlowListIterator dataFlowEnd_;
         ControlContext::OpListIterator controlOpEnd_;
         ControlContext::FlowListIterator controlFlowEnd_;
-        TensorContext::UnpopulatedTensorIterator unpopulatedTensorEnd_;
+        TensorContext::TensorIterator tensorEnd_;;
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
@@ -68,13 +66,12 @@ namespace mv
         bool checkOpsStages_() const;
         ControlContext::StageIterator addStage_();
         bool addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
-        TensorContext::UnpopulatedTensorIterator getUnpopulatedTensor_(const UnpopulatedTensor &tensorDef);
-        TensorContext::UnpopulatedTensorIterator findUnpopulatedTensor_(const string &name);
+        TensorContext::TensorIterator getTensor_(const Tensor &tensorDef);
+        TensorContext::TensorIterator findTensor_(const string &name);
 
     public:
 
         ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
-        ComputationModel(Logger &logger);
 
         /**
          * @brief Copy constructor performing shallow copy
@@ -102,7 +99,8 @@ namespace mv
         GroupContext::GroupIterator groupEnd();
         GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);
         GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
-        Logger& logger();
+        static Logger& logger();
+        static void setLogger(Logger &logger);
 
     };
 

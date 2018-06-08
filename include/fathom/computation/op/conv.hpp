@@ -12,19 +12,19 @@ namespace mv
 
     public:
 
-        Conv(const Logger &logger, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name) :
-        ComputationOp(logger, "conv", name),
-        KernelOp(logger, "conv", strideX, strideY, padX, padY, name),
-        MultiSinkOp(logger, "conv", 2, name)
+        Conv(byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name) :
+        ComputationOp("conv", name),
+        KernelOp("conv", strideX, strideY, padX, padY, name),
+        MultiSinkOp("conv", 2, name)
         {
-
+            addAttr("executable", AttrType::BoolType, true);
         }
 
-        UnpopulatedTensor getOutputDef()
+        Tensor getOutputDef()
         {
 
             if (!validOutputDef_())
-                return UnpopulatedTensor(logger_);
+                return Tensor();
 
             auto input = getInput(0);
             auto inputShape = input->getShape();
@@ -35,14 +35,14 @@ namespace mv
             {
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                         "' because of incorrect shape " + inputShape.toString() + " of input");
-                return UnpopulatedTensor(logger_);
+                return Tensor();
             }
             
             if (weightsShape.ndims() != 4)
             {
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                         "' because of incorrect shape " + inputShape.toString() + " of weights");
-                return UnpopulatedTensor(logger_);
+                return Tensor();
             }
 
             if (inputShape[3] != weightsShape[2])
@@ -50,7 +50,7 @@ namespace mv
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                         "' because of mismatch in channels dimensions between input (" + Printable::toString(inputShape[3])
                          + ") and weights (" + Printable::toString(weightsShape[2]) + ")");
-                return UnpopulatedTensor(logger_);
+                return Tensor();
             }
 
             auto padX = getAttr("padX").getContent<byte_type>();
@@ -60,7 +60,7 @@ namespace mv
 
             Shape outputShape(inputShape[0], getOutputDim_(inputShape[1], weightsShape[0], padX, strideX), getOutputDim_(inputShape[2], weightsShape[1], padY, strideY), weightsShape[3]);
 
-            return UnpopulatedTensor(logger_, getOutputName(), outputShape, input->getDType(), input->getOrder());
+            return Tensor(getOutputName(), outputShape, input->getDType(), input->getOrder());
 
         }
 

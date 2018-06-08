@@ -11,8 +11,8 @@ namespace mv
 
     public:
 
-        EltwiseSum(const Logger &logger, const string &opType, const UnpopulatedTensor &input0, const UnpopulatedTensor &input1, const string &name) :
-        EltwiseOp(logger, "eltsum", input0, input1, name)
+        EltwiseSum(const string &opType, const Tensor &input0, const Tensor &input1, const string &name) :
+        EltwiseOp("eltsum", input0, input1, name)
         {
 
         }

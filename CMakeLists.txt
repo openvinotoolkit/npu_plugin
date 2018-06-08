@@ -23,7 +23,6 @@ file(GLOB computation_model
     "src/computation/op/multisink_op.cpp")
 
 file(GLOB logger "src/computation/logger/logger.cpp")
-file(GLOB tensor "src/computation/tensor/tensor.cpp" "src/computation/tensor/model_tensor.cpp")
 file(GLOB pass "src/pass/deploy/deploy_pass.cpp")
 #add_library(graph STATIC src/graph/graph.cpp)
 add_subdirectory(contrib/googletest)
@@ -31,7 +30,7 @@ add_subdirectory(tests)
 add_subdirectory(examples)
 add_subdirectory(python/api)
 
-add_library(cm SHARED ${allocator} ${computation_model} ${logger} ${tensor} ${pass})
+add_library(cm SHARED ${allocator} ${computation_model} ${logger} ${pass})
 
 #set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 #set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

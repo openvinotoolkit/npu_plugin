@@ -6,12 +6,6 @@ ComputationModel(verboseLevel, logTime)
 
 }
 
-mv::OpModel::OpModel(Logger &logger) :
-ComputationModel(logger)
-{
-
-}
-
 mv::OpModel::OpModel(const ComputationModel &other) :
 ComputationModel(other)
 {
@@ -21,7 +15,7 @@ ComputationModel(other)
 bool mv::OpModel::defaultControlFlow_(DataContext::OpListIterator &op)
 {
     ControlContext::OpListIterator currentOp = opsGraph_->get_second_iterator(op);
-    ControlContext::FlowListIterator newFlow = controlGraph_.edge_insert(lastOp_, currentOp, allocator_.make_owner<ControlFlow>(logger_, lastOp_, currentOp));
+    ControlContext::FlowListIterator newFlow = controlGraph_.edge_insert(lastOp_, currentOp, allocator_.make_owner<ControlFlow>(lastOp_, currentOp));
 
     if (newFlow == controlFlowEnd_)
         return false;
@@ -53,7 +47,7 @@ mv::DataContext::OpListIterator mv::OpModel::switchContext(ControlContext::OpLis
 mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dType, Order order, const string &name)
 {
 
-    input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(logger_, shape, dType, order, name));
+    input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(shape, dType, order, name));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
     lastOp_ = opsGraph_->get_second_iterator(input_);
     return input_;
@@ -63,19 +57,20 @@ mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dTy
 mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator &input, const string &name)
 {
 
-    output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(logger_, name));
+    output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(name));
 
-    auto inputTensorIt = findUnpopulatedTensor_(input->getOutputName());
-    if (inputTensorIt == unpopulatedTensorEnd_)
+    auto inputTensor = findTensor_(input->getOutputName());
+    if (inputTensor == tensorEnd_)
     {
-        inputTensorIt = getUnpopulatedTensor_(input->getOutputDef());
+        inputTensor = getTensor_(input->getOutputDef());
     }
 
-    output_->setInput(inputTensorIt, 0);
+    output_->setInput(inputTensor, 0);
+    input->setOutput(inputTensor);
 
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
     
-    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(input, output_, allocator_.make_owner<DataFlow>(logger_, input, output_, inputTensorIt));
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(input, output_, allocator_.make_owner<DataFlow>(input, output_, inputTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
 
     defaultControlFlow_(output_);
@@ -87,101 +82,112 @@ mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator 
 mv::DataContext::OpListIterator mv::OpModel::conv(DataContext::OpListIterator &input, DataContext::OpListIterator &weights, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name)
 {
 
-    DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv>(logger_, strideX, strideY, padX, padY, name));
+    DataContext::OpListIterator conv = dataGraph_.node_insert(allocator_.make_owner<Conv>(strideX, strideY, padX, padY, name));
     
-    auto inputTensorIt = findUnpopulatedTensor_(input->getOutputName());
-    if (inputTensorIt == unpopulatedTensorEnd_)
+    auto inputTensor = findTensor_(input->getOutputName());
+    if (inputTensor == tensorEnd_)
     {
-        inputTensorIt = getUnpopulatedTensor_(input->getOutputDef());
+        inputTensor = getTensor_(input->getOutputDef());
     }
 
-    auto weightsTensorIt = findUnpopulatedTensor_(weights->getOutputName());
-    if (weightsTensorIt == unpopulatedTensorEnd_)
+    auto weightsTensor = findTensor_(weights->getOutputName());
+    if (weightsTensor == tensorEnd_)
     {
-        weightsTensorIt = getUnpopulatedTensor_(weights->getOutputDef());
+        weightsTensor = getTensor_(weights->getOutputDef());
     }
 
-    convIt->setInput(inputTensorIt, 0);
-    convIt->setInput(weightsTensorIt, 1);
+    conv->setInput(inputTensor, 0);
+    input->setOutput(inputTensor);
+    conv->setInput(weightsTensor, 1);
+    weights->setOutput(weightsTensor);
 
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + convIt->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + conv->toString());
 
-    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(input, convIt, allocator_.make_owner<DataFlow>(logger_, input, convIt, inputTensorIt));
+    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(input, conv, allocator_.make_owner<DataFlow>(input, conv, inputTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
 
-    DataContext::FlowListIterator weightsFlow = dataGraph_.edge_insert(weights, convIt, allocator_.make_owner<DataFlow>(logger_, weights, convIt, weightsTensorIt));
+    DataContext::FlowListIterator weightsFlow = dataGraph_.edge_insert(weights, conv, allocator_.make_owner<DataFlow>(weights, conv, weightsTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + weightsFlow->toString());
 
-    defaultControlFlow_(convIt);
-    defaultStage_(convIt);
+    defaultControlFlow_(conv);
+    defaultStage_(conv);
 
-    return convIt;
+    return conv;
 }
 
 mv::DataContext::OpListIterator mv::OpModel::maxpool(DataContext::OpListIterator &input, const Shape &kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name)
 {
 
-    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool>(logger_, kernelShape, strideX, strideY, padX, padY, name));
+    DataContext::OpListIterator pool = dataGraph_.node_insert(allocator_.make_owner<MaxPool>(kernelShape, strideX, strideY, padX, padY, name));
     
-    auto inputTensorIt = findUnpopulatedTensor_(input->getOutputName());
-    if (inputTensorIt == unpopulatedTensorEnd_)
+    auto inputTensor = findTensor_(input->getOutputName());
+    if (inputTensor == tensorEnd_)
     {
-        inputTensorIt = getUnpopulatedTensor_(input->getOutputDef());
+        inputTensor = getTensor_(input->getOutputDef());
     }
 
-    poolIt->setInput(inputTensorIt, 0);
+    pool->setInput(inputTensor, 0);
+    input->setOutput(inputTensor);
 
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + poolIt->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + pool->toString());
 
-    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(input, poolIt, allocator_.make_owner<DataFlow>(logger_, input, poolIt, inputTensorIt));
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(input, pool, allocator_.make_owner<DataFlow>(input, pool, inputTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
 
-    defaultControlFlow_(poolIt);
-    defaultStage_(poolIt);
+    defaultControlFlow_(pool);
+    defaultStage_(pool);
 
-    return poolIt;
+    return pool;
 }
 
 mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::OpListIterator &input0, DataContext::OpListIterator &input1, const string &name)
 {
 
-    DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(logger_, name));
+    DataContext::OpListIterator concat = dataGraph_.node_insert(allocator_.make_owner<Concat>(name));
     
-    auto input0TensorIt = findUnpopulatedTensor_(input0->getOutputName());
-    if (input0TensorIt == unpopulatedTensorEnd_)
+    auto input0Tensor = findTensor_(input0->getOutputName());
+    if (input0Tensor == tensorEnd_)
     {
-        input0TensorIt = getUnpopulatedTensor_(input0->getOutputDef());
+        input0Tensor = getTensor_(input0->getOutputDef());
     }
 
-    auto input1TensorIt = findUnpopulatedTensor_(input1->getOutputName());
-    if (input1TensorIt == unpopulatedTensorEnd_)
+    auto input1Tensor = findTensor_(input1->getOutputName());
+    if (input1Tensor == tensorEnd_)
     {
-        input1TensorIt = getUnpopulatedTensor_(input1->getOutputDef());
+        input1Tensor = getTensor_(input1->getOutputDef());
     }
 
-    concatIt->setInput(input0TensorIt, 0);
-    concatIt->setInput(input1TensorIt, 1);
+    concat->setInput(input0Tensor, 0);
+    input0->setOutput(input0Tensor);
+    concat->setInput(input1Tensor, 1);
+    input1->setOutput(input1Tensor);
     
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + concatIt->toString());
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + concat->toString());
 
-    DataContext::FlowListIterator input0Flow = dataGraph_.edge_insert(input0, concatIt, allocator_.make_owner<DataFlow>(logger_, input0, concatIt, input0TensorIt));
+    DataContext::FlowListIterator input0Flow = dataGraph_.edge_insert(input0, concat, allocator_.make_owner<DataFlow>(input0, concat, input0Tensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input0Flow->toString());
 
-    DataContext::FlowListIterator input1Flow = dataGraph_.edge_insert(input1, concatIt, allocator_.make_owner<DataFlow>(logger_, input1, concatIt, input1TensorIt));
+    DataContext::FlowListIterator input1Flow = dataGraph_.edge_insert(input1, concat, allocator_.make_owner<DataFlow>(input1, concat, input1Tensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input1Flow->toString());
 
-    defaultControlFlow_(concatIt);
-    defaultStage_(concatIt);
+    defaultControlFlow_(concat);
+    defaultStage_(concat);
 
-    return concatIt;
+    return concat;
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::constant(const ConstantTensor &tensor, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::constant(const vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name)
 {
-    DataContext::OpListIterator constIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(logger_, tensor, name));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + constIt->toString());
-    return constIt;
+    DataContext::OpListIterator constant = dataGraph_.node_insert(allocator_.make_owner<Constant>(data, shape, dType, order, name));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + constant->toString());
+    return constant;
+}
+
+mv::DataContext::OpListIterator mv::OpModel::constant(float_type *data, size_type size, const Shape &shape, DType dType, Order order, const string &name)
+{
+    vector<float_type> dataVec(data, size);
+    return constant(dataVec, shape, dType, order, name);
 }
 
 bool mv::OpModel::addAttr(DataContext::OpListIterator &opIt, const string &name, const Attribute &attr)

@@ -149,6 +149,11 @@ namespace mv
             stl_vector_.clear();
         }
 
+        void assign(T *data, T_size size) noexcept
+        {
+            stl_vector_.assign(data, data + size);
+        }
+
         stl_vector& operator=(const stl_vector &other) noexcept
         {
             stl_vector_ = other.stl_vector_;

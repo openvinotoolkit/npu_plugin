@@ -2,7 +2,7 @@
 #define MEMORY_ALLOCATOR_HPP_
 
 #include "include/fathom/computation/model/types.hpp"
-#include "include/fathom/computation/tensor/model_tensor.hpp"
+#include "include/fathom/computation/tensor/tensor.hpp"
 
 namespace mv
 {
@@ -62,7 +62,7 @@ namespace mv
 
         }
 
-        bool allocate(ModelTensor &tensor, unsigned_type stageIdx)
+        bool allocate(Tensor &tensor, unsigned_type stageIdx)
         {
 
             auto newOffset = findOffset_(stageIdx);
@@ -88,7 +88,7 @@ namespace mv
 
         }
 
-        bool deallocate(ModelTensor &tensor, unsigned_type stageIdx)
+        bool deallocate(Tensor &tensor, unsigned_type stageIdx)
         {
 
             if (states_.find(stageIdx) != states_.end())

@@ -3,6 +3,7 @@
 #include "include/fathom/computation/model/control_model.hpp"
 #include "include/fathom/deployer/serializer.hpp"
 #include "include/fathom/deployer/Fp16Convert.h"
+#include "include/fathom/computation/utils/data_generator.hpp"
 
 /*
 // return full path of this executable 
@@ -36,7 +37,7 @@ TEST (model_serializer, convert_fp32_to_fp16)
 }
 
 // test 01 : 1 2d convolution
-/*TEST (model_serializer, blob_output_conv_01) 
+TEST (model_serializer, blob_output_conv_01) 
 {
     // define test compute model: 1 convolution 
     mv::OpModel test_cm ;
@@ -46,36 +47,36 @@ TEST (model_serializer, convert_fp32_to_fp16)
     mv::float_type rawData[] =
     { 0.1111f, 0.1121f, 0.1131f, 0.1141f, 0.1151f, 0.1161f, 0.1171f, 0.1181f, 0.1191f};
     mv::vector<mv::float_type> weightsData(rawData);
-    mv::ConstantTensor weights(mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC, weightsData);
-    auto convIt = test_cm.conv(inIt, weights, 4, 4, 0, 0);
+    auto weightsIt = test_cm.constant(weightsData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
+    auto convIt = test_cm.conv(inIt, weightsIt, 4, 4, 0, 0);
     auto outIt = test_cm.output(convIt);
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm.isValid());
 
     // Check output shape
-    EXPECT_EQ((*outIt).getOutputShape(), mv::Shape(1, 8, 8, 1));
+    EXPECT_EQ(outIt->getInput(0)->getShape(), mv::Shape(1, 8, 8, 1));
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt).attrsCount(), 11);
+    EXPECT_EQ(convIt->attrsCount(), 11);
 
     // Check parameters values
-    EXPECT_EQ((*convIt).getAttr("opType").getContent<mv::string>(), "conv");
-    EXPECT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getData(), weightsData);
-    EXPECT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0], 3);
-    EXPECT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1], 3);
-    EXPECT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2], 1);
-    EXPECT_EQ((*convIt).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3], 1);
-    EXPECT_EQ((*convIt).getAttr("strideX").getContent<mv::byte_type>(), 4);
-    EXPECT_EQ((*convIt).getAttr("strideY").getContent<mv::byte_type>(), 4);
-    EXPECT_EQ((*convIt).getAttr("padX").getContent<mv::byte_type>(), 0);
-    EXPECT_EQ((*convIt).getAttr("padY").getContent<mv::byte_type>(), 0);
-    EXPECT_EQ((*convIt).getInputShape()[1], 32);    // X dim
-    EXPECT_EQ((*convIt).getInputShape()[2], 32);    // Y dim
-    EXPECT_EQ((*convIt).getInputShape()[3], 1);     // Z dim (aka C)
-    EXPECT_EQ((*convIt).getOutputShape()[1], 8);    // X dim
-    EXPECT_EQ((*convIt).getOutputShape()[2], 8);    // Y dim
-    EXPECT_EQ((*convIt).getOutputShape()[3], 1);    // Z dim 
+    EXPECT_EQ(convIt->getAttr("opType").getContent<mv::string>(), "conv");
+    EXPECT_EQ(convIt->getInput(1)->getData(), weightsData);
+    EXPECT_EQ(convIt->getInput(1)->getShape()[0], 3);
+    EXPECT_EQ(convIt->getInput(1)->getShape()[1], 3);
+    EXPECT_EQ(convIt->getInput(1)->getShape()[2], 1);
+    EXPECT_EQ(convIt->getInput(1)->getShape()[3], 1);
+    EXPECT_EQ(convIt->getAttr("strideX").getContent<mv::byte_type>(), 4);
+    EXPECT_EQ(convIt->getAttr("strideY").getContent<mv::byte_type>(), 4);
+    EXPECT_EQ(convIt->getAttr("padX").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt->getAttr("padY").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt->getInput(0)->getShape()[1], 32);    // X dim
+    EXPECT_EQ(convIt->getInput(0)->getShape()[2], 32);    // Y dim
+    EXPECT_EQ(convIt->getInput(0)->getShape()[3], 1);     // Z dim (aka C)
+    EXPECT_EQ(convIt->getOutput()->getShape()[1], 8);    // X dim
+    EXPECT_EQ(convIt->getOutput()->getShape()[2], 8);    // Y dim
+    EXPECT_EQ(convIt->getOutput()->getShape()[3], 1);    // Z dim 
 
     mv::ControlModel cm(test_cm);
 
@@ -104,46 +105,42 @@ TEST (model_serializer, blob_output_conv_02)
     mv::OpModel test_cm2 ;
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto inIt2 = test_cm2.input(mv::Shape(1, 32, 32, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
-    mv::float_type rawData[] =
-    { 0.101f, 0.102f, 0.103f, 0.104f, 0.105f, 0.106f, 0.107f, 0.108f, 0.109f ,
-     0.111f, 0.112f, 0.113f, 0.114f, 0.115f, 0.116f, 0.117f, 0.118f, 0.119f ,
-     0.121f, 0.122f, 0.123f, 0.124f, 0.125f, 0.126f, 0.127f, 0.128f, 0.129f  };     
-    mv::vector<mv::float_type> weightsData2(rawData);
+    auto inIt2 = test_cm2.input(mv::Shape(1, 32, 32, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C   
+    mv::vector<mv::float_type> weightsData2 = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 3u, 0.101f, 0.001f);
 
-    mv::ConstantTensor weights2(mv::Shape(3, 3, 1, 3), mv::DType::Float, mv::Order::NWHC, weightsData2);   // kh, kw, kN, C
-    auto convIt2 = test_cm2.conv(inIt2, weights2, 4, 4, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto weightsIt2 = test_cm2.constant(weightsData2, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
+    auto convIt2 = test_cm2.conv(inIt2, weightsIt2, 4, 4, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
     auto outIt2 = test_cm2.output(convIt2);
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm2.isValid());
 
     // Check output shape
-    EXPECT_EQ((*outIt2).getOutputShape(), mv::Shape(1, 8, 8, 3));   // batch, x, y, c
+    EXPECT_EQ(outIt2->getInput(0)->getShape(), mv::Shape(1, 8, 8, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt2).attrsCount(), 11);
+    EXPECT_EQ(convIt2->attrsCount(), 11);
 
     // Check parameters values
-    EXPECT_EQ((*convIt2).getAttr("opType").getContent<mv::string>(), "conv");
-    EXPECT_EQ((*convIt2).getAttr("weights").getContent<mv::ConstantTensor>().getData(), weightsData2);
-    EXPECT_EQ((*convIt2).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0], 3);
-    EXPECT_EQ((*convIt2).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1], 3);
-    EXPECT_EQ((*convIt2).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2], 1);
-    EXPECT_EQ((*convIt2).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3], 3);
-    EXPECT_EQ((*convIt2).getAttr("strideX").getContent<mv::byte_type>(), 4);
-    EXPECT_EQ((*convIt2).getAttr("strideY").getContent<mv::byte_type>(), 4);
-    EXPECT_EQ((*convIt2).getAttr("padX").getContent<mv::byte_type>(), 0);
-    EXPECT_EQ((*convIt2).getAttr("padY").getContent<mv::byte_type>(), 0);
-    EXPECT_EQ((*convIt2).getInputShape()[0], 1);     // batch size 
-    EXPECT_EQ((*convIt2).getInputShape()[1], 32);    // X dim
-    EXPECT_EQ((*convIt2).getInputShape()[2], 32);    // Y dim
-    EXPECT_EQ((*convIt2).getInputShape()[3], 3);     // Z (C) dim
+    EXPECT_EQ(convIt2->getAttr("opType").getContent<mv::string>(), "conv");
+    EXPECT_EQ(convIt2->getInput(1)->getData(), weightsData2);
+    EXPECT_EQ(convIt2->getInput(1)->getShape()[0], 3);
+    EXPECT_EQ(convIt2->getInput(1)->getShape()[1], 3);
+    EXPECT_EQ(convIt2->getInput(1)->getShape()[2], 3);
+    EXPECT_EQ(convIt2->getInput(1)->getShape()[3], 3);
+    EXPECT_EQ(convIt2->getAttr("strideX").getContent<mv::byte_type>(), 4);
+    EXPECT_EQ(convIt2->getAttr("strideY").getContent<mv::byte_type>(), 4);
+    EXPECT_EQ(convIt2->getAttr("padX").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt2->getAttr("padY").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt2->getInput(0)->getShape()[0], 1);     // batch size 
+    EXPECT_EQ(convIt2->getInput(0)->getShape()[1], 32);    // X dim
+    EXPECT_EQ(convIt2->getInput(0)->getShape()[2], 32);    // Y dim
+    EXPECT_EQ(convIt2->getInput(0)->getShape()[3], 3);     // Z (C) dim
 
-    EXPECT_EQ((*convIt2).getOutputShape()[0], 1);    // batch size 
-    EXPECT_EQ((*convIt2).getOutputShape()[1], 8);    // X dim
-    EXPECT_EQ((*convIt2).getOutputShape()[2], 8);    // Y dim
-    EXPECT_EQ((*convIt2).getOutputShape()[3], 3);    // C 
+    EXPECT_EQ(convIt2->getOutput()->getShape()[0], 1);    // batch size 
+    EXPECT_EQ(convIt2->getOutput()->getShape()[1], 8);    // X dim
+    EXPECT_EQ(convIt2->getOutput()->getShape()[2], 8);    // Y dim
+    EXPECT_EQ(convIt2->getOutput()->getShape()[3], 3);    // C 
 
     mv::ControlModel cm2(test_cm2);
 
@@ -172,14 +169,11 @@ TEST (model_serializer, blob_output_conv_03)
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto inIt3 = test_cm3.input(mv::Shape(1, 256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
-    mv::float_type rawData[] =
-    { 0.101f, 0.102f, 0.103f, 0.104f, 0.105f, 0.106f, 0.107f, 0.108f, 0.109f,
-     0.111f, 0.112f, 0.113f, 0.114f, 0.115f, 0.116f, 0.117f, 0.118f, 0.119f,
-     0.121f, 0.122f, 0.123f, 0.124f, 0.125f, 0.126f, 0.127f, 0.128f, 0.129f};
-    mv::vector<mv::float_type> weightsData3(rawData);
 
-    mv::ConstantTensor weights3(mv::Shape(3, 3, 1, 3), mv::DType::Float, mv::Order::NWHC, weightsData3);   // kh, kw, kN, C
-    auto convIt3 = test_cm3.conv(inIt3, weights3, 2, 2, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    mv::vector<mv::float_type> weightsData3 = mv::utils::generateSequence(3u * 3u * 3u * 3u, 0.101f, 0.001f);
+
+    auto weightsIt3 = test_cm3.constant(weightsData3, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::NWHC);
+    auto convIt3 = test_cm3.conv(inIt3, weightsIt3, 2, 2, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
     auto outIt3 = test_cm3.output(convIt3);
 
     // Check if model is valid 
@@ -187,32 +181,32 @@ TEST (model_serializer, blob_output_conv_03)
 
 
     // Check output shape
-    EXPECT_EQ((*outIt3).getOutputShape(), mv::Shape(1, 127, 127, 3));   // batch, x, y, c
+    EXPECT_EQ(outIt3->getInput(0)->getShape(), mv::Shape(1, 127, 127, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt3).attrsCount(), 11);
+    EXPECT_EQ(convIt3->attrsCount(), 11);
 
     // Check parameters values
-    EXPECT_EQ((*convIt3).getAttr("opType").getContent<mv::string>(), "conv");
-    EXPECT_EQ((*convIt3).getAttr("weights").getContent<mv::ConstantTensor>().getData(), weightsData3);
-    EXPECT_EQ((*convIt3).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0], 3);
-    EXPECT_EQ((*convIt3).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1], 3);
-    EXPECT_EQ((*convIt3).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2], 1);
-    EXPECT_EQ((*convIt3).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3], 3);
-    EXPECT_EQ((*convIt3).getAttr("strideX").getContent<mv::byte_type>(), 2);
-    EXPECT_EQ((*convIt3).getAttr("strideY").getContent<mv::byte_type>(), 2);
-    EXPECT_EQ((*convIt3).getAttr("padX").getContent<mv::byte_type>(), 0);
-    EXPECT_EQ((*convIt3).getAttr("padY").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt3->getAttr("opType").getContent<mv::string>(), "conv");
+    EXPECT_EQ(convIt3->getInput(1)->getData(), weightsData3);
+    EXPECT_EQ(convIt3->getInput(1)->getShape()[0], 3);
+    EXPECT_EQ(convIt3->getInput(1)->getShape()[1], 3);
+    EXPECT_EQ(convIt3->getInput(1)->getShape()[2], 3);
+    EXPECT_EQ(convIt3->getInput(1)->getShape()[3], 3);
+    EXPECT_EQ(convIt3->getAttr("strideX").getContent<mv::byte_type>(), 2);
+    EXPECT_EQ(convIt3->getAttr("strideY").getContent<mv::byte_type>(), 2);
+    EXPECT_EQ(convIt3->getAttr("padX").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt3->getAttr("padY").getContent<mv::byte_type>(), 0);
 
-    EXPECT_EQ((*convIt3).getInputShape()[0], 1);     // batch size 
-    EXPECT_EQ((*convIt3).getInputShape()[1], 256);    // X dim
-    EXPECT_EQ((*convIt3).getInputShape()[2], 256);    // Y dim
-    EXPECT_EQ((*convIt3).getInputShape()[3], 3);     // Z (C) dim
+    EXPECT_EQ(convIt3->getInput(0)->getShape()[0], 1);     // batch size 
+    EXPECT_EQ(convIt3->getInput(0)->getShape()[1], 256);    // X dim
+    EXPECT_EQ(convIt3->getInput(0)->getShape()[2], 256);    // Y dim
+    EXPECT_EQ(convIt3->getInput(0)->getShape()[3], 3);     // Z (C) dim
 
-    EXPECT_EQ((*convIt3).getOutputShape()[0], 1);    // batch size 
-    EXPECT_EQ((*convIt3).getOutputShape()[1], 127);    // X dim
-    EXPECT_EQ((*convIt3).getOutputShape()[2], 127);    // Y dim
-    EXPECT_EQ((*convIt3).getOutputShape()[3], 3);    // C 
+    EXPECT_EQ(convIt3->getOutput()->getShape()[0], 1);    // batch size 
+    EXPECT_EQ(convIt3->getOutput()->getShape()[1], 127);    // X dim
+    EXPECT_EQ(convIt3->getOutput()->getShape()[2], 127);    // Y dim
+    EXPECT_EQ(convIt3->getOutput()->getShape()[3], 3);    // C 
 
     // declare serializer as blob
     mv::Serializer gs3(mv::mvblob_mode);
@@ -240,51 +234,42 @@ TEST (model_serializer, blob_output_conv_04)
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto inIt4 = test_cm4.input(mv::Shape(1, 256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
-    mv::float_type rawData[] =
-    { 0.00f, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f, 0.08f, 0.09f ,
-      0.10f, 0.11f, 0.12f, 0.13f, 0.14f, 0.15f, 0.16f, 0.17f, 0.18f, 0.19f ,
-      0.20f, 0.21f, 0.22f, 0.23f, 0.24f, 0.25f, 0.26f, 0.27f, 0.28f, 0.29f ,
-      0.30f, 0.31f, 0.32f, 0.33f, 0.34f, 0.35f, 0.36f, 0.37f, 0.38f, 0.39f ,
-      0.40f, 0.41f, 0.42f, 0.43f, 0.44f, 0.45f, 0.46f, 0.47f, 0.48f, 0.49f ,
-      0.50f, 0.51f, 0.52f, 0.53f, 0.54f, 0.55f, 0.56f, 0.57f, 0.58f, 0.59f ,
-      0.60f, 0.61f, 0.62f, 0.63f, 0.64f, 0.65f, 0.66f, 0.67f, 0.68f, 0.69f ,
-      0.70f, 0.71f, 0.72f, 0.73f, 0.74f  };
-    mv::vector<mv::float_type> weightsData4(rawData);
+    mv::vector<mv::float_type> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.00f, 0.01f);
 
-    mv::ConstantTensor weights4(mv::Shape(5, 5, 1, 3), mv::DType::Float, mv::Order::NWHC, weightsData4);   // kh, kw, kN, C
-    auto convIt4 = test_cm4.conv(inIt4, weights4, 2, 2, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto weightsIt4 = test_cm4.constant(weightsData4, mv::Shape(5, 5, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
+    auto convIt4 = test_cm4.conv(inIt4, weightsIt4, 2, 2, 0, 0);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
     auto outIt4 = test_cm4.output(convIt4);
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm4.isValid());
 
     // Check output shape
-    EXPECT_EQ((*outIt4).getOutputShape(), mv::Shape(1, 126, 126, 3));   // batch, x, y, c
+    EXPECT_EQ(outIt4->getInput(0)->getShape(), mv::Shape(1, 126, 126, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ((*convIt4).attrsCount(), 11);
+    EXPECT_EQ(convIt4->attrsCount(), 11);
 
     // Check parameters values
-    EXPECT_EQ((*convIt4).getAttr("opType").getContent<mv::string>(), "conv");
-    EXPECT_EQ((*convIt4).getAttr("weights").getContent<mv::ConstantTensor>().getData(), weightsData4);
-    EXPECT_EQ((*convIt4).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[0], 5);
-    EXPECT_EQ((*convIt4).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[1], 5);
-    EXPECT_EQ((*convIt4).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[2], 1);
-    EXPECT_EQ((*convIt4).getAttr("weights").getContent<mv::ConstantTensor>().getShape()[3], 3);
-    EXPECT_EQ((*convIt4).getAttr("strideX").getContent<mv::byte_type>(), 2);
-    EXPECT_EQ((*convIt4).getAttr("strideY").getContent<mv::byte_type>(), 2);
-    EXPECT_EQ((*convIt4).getAttr("padX").getContent<mv::byte_type>(), 0);
-    EXPECT_EQ((*convIt4).getAttr("padY").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt4->getAttr("opType").getContent<mv::string>(), "conv");
+    EXPECT_EQ(convIt4->getInput(1)->getData(), weightsData4);
+    EXPECT_EQ(convIt4->getInput(1)->getShape()[0], 5);
+    EXPECT_EQ(convIt4->getInput(1)->getShape()[1], 5);
+    EXPECT_EQ(convIt4->getInput(1)->getShape()[2], 3);
+    EXPECT_EQ(convIt4->getInput(1)->getShape()[3], 3);
+    EXPECT_EQ(convIt4->getAttr("strideX").getContent<mv::byte_type>(), 2);
+    EXPECT_EQ(convIt4->getAttr("strideY").getContent<mv::byte_type>(), 2);
+    EXPECT_EQ(convIt4->getAttr("padX").getContent<mv::byte_type>(), 0);
+    EXPECT_EQ(convIt4->getAttr("padY").getContent<mv::byte_type>(), 0);
 
-    EXPECT_EQ((*convIt4).getInputShape()[0], 1);     // batch size 
-    EXPECT_EQ((*convIt4).getInputShape()[1], 256);    // X dim
-    EXPECT_EQ((*convIt4).getInputShape()[2], 256);    // Y dim
-    EXPECT_EQ((*convIt4).getInputShape()[3], 3);     // Z (C) dim
+    EXPECT_EQ(convIt4->getInput(0)->getShape()[0], 1);     // batch size 
+    EXPECT_EQ(convIt4->getInput(0)->getShape()[1], 256);    // X dim
+    EXPECT_EQ(convIt4->getInput(0)->getShape()[2], 256);    // Y dim
+    EXPECT_EQ(convIt4->getInput(0)->getShape()[3], 3);     // Z (C) dim
 
-    EXPECT_EQ((*convIt4).getOutputShape()[0], 1);    // batch size 
-    EXPECT_EQ((*convIt4).getOutputShape()[1], 126);    // X dim
-    EXPECT_EQ((*convIt4).getOutputShape()[2], 126);    // Y dim
-    EXPECT_EQ((*convIt4).getOutputShape()[3], 3);    // C 
+    EXPECT_EQ(convIt4->getOutput()->getShape()[0], 1);    // batch size 
+    EXPECT_EQ(convIt4->getOutput()->getShape()[1], 126);    // X dim
+    EXPECT_EQ(convIt4->getOutput()->getShape()[2], 126);    // Y dim
+    EXPECT_EQ(convIt4->getOutput()->getShape()[3], 3);    // C 
 
     // declare serializer as blob
     mv::Serializer gs4(mv::mvblob_mode);

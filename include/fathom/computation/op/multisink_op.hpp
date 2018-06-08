@@ -9,15 +9,16 @@ namespace mv
     class MultiSinkOp : public virtual ComputationOp
     {
         
-        vector<TensorContext::UnpopulatedTensorIterator> inputs_;
+        vector<TensorContext::TensorIterator> inputs_;
 
     public:
 
-        MultiSinkOp(const Logger &logger, const string &opType, byte_type inputsCount, const string &name);
+        MultiSinkOp(const string &opType, byte_type inputsCount, const string &name);
         virtual ~MultiSinkOp() = 0;
-        virtual bool setInput(TensorContext::UnpopulatedTensorIterator &tensor, byte_type idx);
-        virtual TensorContext::UnpopulatedTensorIterator getInput(byte_type idx);
+        virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx);
+        virtual TensorContext::TensorIterator getInput(byte_type idx);
         bool hasInputDef();
+        bool hasInputDef(byte_type idx);
         byte_type inputSlots();
 
     };

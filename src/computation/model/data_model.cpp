@@ -50,10 +50,10 @@ bool mv::DataModel::removeGroupElement(DataContext::FlowListIterator &element, G
     return removeGroupElement_(ptr, group);
 }
 
-mv::TensorContext::UnpopulatedTensorIterator mv::DataModel::findUnpopulatedTensor(string name)
+mv::TensorContext::TensorIterator mv::DataModel::findTensor(string name)
 {
 
-    return ComputationModel::findUnpopulatedTensor_(name);
+    return ComputationModel::findTensor_(name);
 
 }
 
@@ -68,28 +68,7 @@ bool mv::DataModel::addAllocator(const string &name, size_type maxSize)
     return false;
 }
 
-bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::PopulatedTensorIterator &tensor)
-{
-
-    if (memoryAllocators_->find(allocatorName) != memoryAllocators_->end())
-    {
-        if ((*memoryAllocators_)[allocatorName]->allocate(*tensor, stage->getAttr("idx").getContent<unsigned_type>()))
-        {
-            logger_.log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " + (*memoryAllocators_)[allocatorName]->toString());
-            return true;
-        }
-        else
-        {
-            logger_.log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " + Printable::toString(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
-        }
-
-    }
-
-    return false;
-
-}
-
-bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::UnpopulatedTensorIterator &tensor)
+bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::TensorIterator &tensor)
 {
     if (memoryAllocators_->find(allocatorName) != memoryAllocators_->end())
     {

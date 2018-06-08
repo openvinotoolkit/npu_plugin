@@ -58,8 +58,8 @@ namespace mv
 
     public:
 
-        ComputationStage(const Logger &logger, unsigned_type idx) :
-        ComputationGroup(logger, "stage_" + Printable::toString(idx))
+        ComputationStage(unsigned_type idx) :
+        ComputationGroup("stage_" + Printable::toString(idx))
         {
             addAttr("idx", AttrType::UnsingedType, idx);
         }

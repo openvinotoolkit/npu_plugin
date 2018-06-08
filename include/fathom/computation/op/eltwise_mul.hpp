@@ -11,8 +11,8 @@ namespace mv
 
     public:
 
-        EltwiseMul(const Logger &logger, const string &opType, const UnpopulatedTensor &input0, const UnpopulatedTensor &input1, const string &name) :
-        EltwiseOp(logger, "eltmul", input0, input1, name)
+        EltwiseMul(const string &opType, const Tensor &input0, const Tensor &input1, const string &name) :
+        EltwiseOp("eltmul", input0, input1, name)
         {
 
         }

@@ -13,8 +13,8 @@ namespace mv
 
     public:
 
-        ControlFlow(const Logger &logger, ControlContext::OpListIterator &source, ControlContext::OpListIterator &sink) :
-        ComputationFlow(logger, "cf_" + source->getName() + "_" + sink->getName())
+        ControlFlow(ControlContext::OpListIterator &source, ControlContext::OpListIterator &sink) :
+        ComputationFlow("cf_" + source->getName() + "_" + sink->getName())
         {
 
         }

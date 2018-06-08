@@ -77,6 +77,11 @@ void mv::Logger::setVerboseLevel(VerboseLevel verboseLevel)
     verboseLevel_ = verboseLevel;
 }
 
+void mv::Logger::setLogTime(bool logTime)
+{
+    logTime_ = logTime;
+}
+
 void mv::Logger::log(MessageType messageType, const string &content) const
 {
 

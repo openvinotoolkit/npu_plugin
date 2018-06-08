@@ -11,7 +11,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(MCM_unit_tests MCM_unit_tests.cpp graph_container_test.cpp graph_visualizer_test.cpp model_serializer_test.cpp cm_composition_test.cpp cm_data_model_test.cpp)
 target_link_libraries (MCM_unit_tests gtest)
-target_sources(MCM_unit_tests PUBLIC ${allocator} ${computation_model} ${logger} ${tensor})
+target_sources(MCM_unit_tests PUBLIC ${allocator} ${computation_model} ${logger})
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")

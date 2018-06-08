@@ -1,16 +1,16 @@
 #include "include/fathom/computation/model/element.hpp"
+#include "include/fathom/computation/model/model.hpp"
 
 mv::allocator mv::ComputationElement::allocator_;
 mv::Attribute mv::ComputationElement::unknownAttr_;
+mv::Logger &mv::ComputationElement::logger_= mv::ComputationModel::logger();
 
-mv::ComputationElement::ComputationElement(const Logger &logger, const string &name) : 
-logger_(logger),
+mv::ComputationElement::ComputationElement(const string &name) : 
 name_(name)
 {
 
 }
 mv::ComputationElement::ComputationElement(const ComputationElement &other) :
-logger_(other.logger_),
 name_(other.name_)
 {
 

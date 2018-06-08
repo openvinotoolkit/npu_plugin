@@ -12,7 +12,7 @@ namespace mv
 
     public:
 
-        ComputationFlow(const Logger &logger, const string &name);
+        ComputationFlow(const string &name);
         virtual ~ComputationFlow() = 0;
         virtual string toString() const;
 
