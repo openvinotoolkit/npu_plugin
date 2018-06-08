@@ -69,12 +69,12 @@ bool mv::ComputationOp::setOutput(TensorContext::TensorIterator &tensor)
 
 bool mv::ComputationOp::hasInputDef()
 {
-    return true;
+    return false;
 }
 
 bool mv::ComputationOp::hasInputDef(byte_type idx)
 {
-    return true;
+    return false;
 }
 
 mv::byte_type mv::ComputationOp::inputSlots()
