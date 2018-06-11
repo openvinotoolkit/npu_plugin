@@ -47,17 +47,37 @@ class TestComposition(unittest.TestCase):
         self.assertTrue(g.isValid())
         self.assertEqual(ca.testConv(c_, 4, 4, 1, 1), 0)
 
-    @unittest.skip("unimplemented")
     def test_maxpool(self):
-        pass
+        g = ca.getOM()
+        shape = ca.getShape(1, 32, 32, 3)
 
-    @unittest.skip("unimplemented")
-    def test_avepool(self):
-        pass
+        in_ = ca.input(g, shape)
+        mx_ = ca.maxpool(g, in_, ca.getShape(0, 0, 0, 0), 2, 2, 0, 0)
+        out_ = ca.output(g, mx_)
 
-    @unittest.skip("unimplemented")
+        self.assertTrue(g.isValid())
+
     def test_concat(self):
-        pass
+
+        g = ca.getOM()
+        shape = ca.getShape(1, 256, 256, 1)
+        in_ = ca.input(g, shape)
+
+        k1data = [ 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ]
+        k1blurData = ca.getData(np.array(k1data).astype(np.float32))
+        bweights = ca.getConstantTensor(ca.getShape(3, 3, 1, 1), k1blurData)
+
+
+        k2data = [ 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 ]
+        k2edgeData = ca.getData(np.array(k2data).astype(np.float32))
+        eweights = ca.getConstantTensor(ca.getShape(3, 3, 1, 1), k2edgeData)
+
+        c1_ = ca.conv(g, in_, bweights, 1, 1, 0, 0)
+        c2_ = ca.conv(g, c1_, eweights, 1, 1, 0, 0)
+        cc_ = ca.concat(g, c1_, c2_)
+        out_ = ca.output(g, cc_)
+
+        self.assertTrue(g.isValid())
 
     def test_serialize_convolution_01(self):
         """
