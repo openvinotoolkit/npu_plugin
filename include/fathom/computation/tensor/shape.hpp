@@ -3,6 +3,7 @@
 
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/logger/printable.hpp"
+#include "include/fathom/graph/static_vector.hpp"
 
 namespace mv
 {
@@ -10,50 +11,46 @@ namespace mv
     class Shape : public Printable
     {
 
-        byte_type ndims_;
-        dim_type dims_[max_ndims];
+        static_vector<dim_type, byte_type, max_ndims> dims_;
 
-        void addDim(dim_type dim)
+        void addDim(dim_type newDim)
         {
-            dims_[ndims_] = dim;
-            ++ndims_;
+            dims_.push_back(newDim);
         }
 
         template<typename... Dims>
-        void addDim(dim_type dim, Dims... dims)
+        void addDim(dim_type newDim, Dims... newDims)
         {
-            addDim(dim);
-            addDim(dims...);
+            dims_.push_back(newDim);
+            addDim(newDims...);
         }
 
     public:
 
         template<typename... Dims>
-        Shape(Dims... dims) : ndims_(0)
-        { 
+        Shape(Dims... dims)
+        {
             addDim(dims...);
         }
 
         Shape(const Shape &other) :
-        ndims_(other.ndims_)
+        dims_(other.dims_)
         {
-            for (byte_type i = 0; i < ndims_; ++i)
-                dims_[i] = other.dims_[i];
+
         }
 
-        Shape() : ndims_(0)
+        Shape()
         {
             
         }
 
         byte_type ndims() const
         {
-            return ndims_;
+            return dims_.length();
         }
 
         dim_type dim(byte_type ndim) const
         {
-            assert(ndim < ndims_ && "Index of dimensinos exceeds number of dimensions");
             return dims_[ndim];
         }
 
@@ -62,7 +59,7 @@ namespace mv
 
             unsigned_type result = dims_[0];
 
-            for (byte_type i = 1; i < ndims_; ++i)
+            for (byte_type i = 1; i < dims_.length(); ++i)
                 result *= dims_[i];
 
             return result;
@@ -76,24 +73,13 @@ namespace mv
 
         Shape& operator=(const Shape &other)
         {
-            ndims_ = other.ndims_;
-            for (byte_type i = 0; i < ndims_; ++i)
-                dims_[i] = other.dims_[i];
-
+            dims_ = other.dims_;
             return *this;
         }
 
         bool operator==(const Shape &other) const
         {
-            if (ndims_ != other.ndims_)
-                return false;
-
-            for (byte_type i = 0; i < ndims_; ++i)
-                if (dims_[i] != other.dims_[i])
-                    return false;
-
-            return true;
-
+            return dims_ == other.dims_;
         }
 
         string toString() const
@@ -101,13 +87,13 @@ namespace mv
 
             string output("(");
 
-            for (byte_type i = 0; i < ndims_ - 1; ++i)
+            for (byte_type i = 0; i < dims_.length() - 1; ++i)
             {
                 output += std::to_string(dims_[i]);
                 output += ", ";
             }
 
-            output += std::to_string(dims_[ndims_ - 1]);
+            output += std::to_string(dims_[dims_.length() - 1]);
             output += ")";
             
             return output;

@@ -16,9 +16,19 @@ DEFINE_ENUMERATED_TYPE(mv::Shape, mv::AttrType::ShapeType);
 DEFINE_ENUMERATED_TYPE(mv::byte_type, mv::AttrType::ByteType);
 DEFINE_ENUMERATED_TYPE(mv::DType, mv::AttrType::DTypeType);
 DEFINE_ENUMERATED_TYPE(mv::Order, mv::AttrType::OrderType);
-//DEFINE_ENUMERATED_TYPE(mv::ConstantTensor, mv::AttrType::TensorType);
 DEFINE_ENUMERATED_TYPE(mv::string, mv::AttrType::StringType);
 DEFINE_ENUMERATED_TYPE(bool, mv::AttrType::BoolType);
+DEFINE_ENUMERATED_TYPE(mv::OpType, mv::AttrType::OpTypeType);
+DEFINE_ENUMERATED_TYPE(mv::FloatVector2D, mv::AttrType::FloatVec2DType);
+DEFINE_ENUMERATED_TYPE(mv::FloatVector3D, mv::AttrType::FloatVec3DType);
+DEFINE_ENUMERATED_TYPE(mv::FloatVector4D, mv::AttrType::FloatVec4DType);
+DEFINE_ENUMERATED_TYPE(mv::IntVector2D, mv::AttrType::IntVec2DType);
+DEFINE_ENUMERATED_TYPE(mv::IntVector3D, mv::AttrType::IntVec3DType);
+DEFINE_ENUMERATED_TYPE(mv::IntVector4D, mv::AttrType::IntVec4DType);
+DEFINE_ENUMERATED_TYPE(mv::UnsignedVector2D, mv::AttrType::UnsignedVec2DType);
+DEFINE_ENUMERATED_TYPE(mv::UnsignedVector3D, mv::AttrType::UnsignedVec3DType);
+DEFINE_ENUMERATED_TYPE(mv::UnsignedVector4D, mv::AttrType::UnsignedVec4DType);
+
 
 template<class T, class U>
 struct is_same {
@@ -38,13 +48,9 @@ namespace mv
 
     private:
 
-        /*static byte_type nextTypeId();*/
-
         template <class T>
         static AttrType getTypeId()
         {
-            //static byte_type result(nextTypeId());
-            //return result;
 
             if ( AttrTypeToType<AttrType::ByteType>::value && is_same<T, AttrTypeToType<AttrType::ByteType>::type>::value)
                 return AttrType::ByteType;
@@ -64,9 +70,6 @@ namespace mv
             if (AttrTypeToType<AttrType::ShapeType>::value  && is_same<T, AttrTypeToType<AttrType::ShapeType>::type>::value)
                 return AttrType::ShapeType;
 
-            /*if (AttrTypeToType<AttrType::TensorType>::value  && is_same<T, AttrTypeToType<AttrType::TensorType>::type>::value)
-                return AttrType::TensorType;*/
-
             if (AttrTypeToType<AttrType::UnsingedType>::value  && is_same<T, AttrTypeToType<AttrType::UnsingedType>::type>::value)
                 return AttrType::UnsingedType;
             
@@ -75,6 +78,36 @@ namespace mv
 
             if (AttrTypeToType<AttrType::BoolType>::value  && is_same<T, AttrTypeToType<AttrType::BoolType>::type>::value)
                 return AttrType::BoolType;
+
+            if (AttrTypeToType<AttrType::OpTypeType>::value  && is_same<T, AttrTypeToType<AttrType::OpTypeType>::type>::value)
+                return AttrType::OpTypeType;
+
+            if (AttrTypeToType<AttrType::FloatVec2DType>::value  && is_same<T, AttrTypeToType<AttrType::FloatVec2DType>::type>::value)
+                return AttrType::FloatVec2DType;
+            
+            if (AttrTypeToType<AttrType::FloatVec3DType>::value  && is_same<T, AttrTypeToType<AttrType::FloatVec3DType>::type>::value)
+                return AttrType::FloatVec3DType;
+
+            if (AttrTypeToType<AttrType::FloatVec4DType>::value  && is_same<T, AttrTypeToType<AttrType::FloatVec4DType>::type>::value)
+                return AttrType::FloatVec4DType;
+
+            if (AttrTypeToType<AttrType::IntVec2DType>::value  && is_same<T, AttrTypeToType<AttrType::IntVec2DType>::type>::value)
+                return AttrType::IntVec2DType;
+            
+            if (AttrTypeToType<AttrType::IntVec3DType>::value  && is_same<T, AttrTypeToType<AttrType::IntVec3DType>::type>::value)
+                return AttrType::IntVec3DType;
+
+            if (AttrTypeToType<AttrType::IntVec4DType>::value  && is_same<T, AttrTypeToType<AttrType::IntVec4DType>::type>::value)
+                return AttrType::IntVec4DType;
+
+            if (AttrTypeToType<AttrType::UnsignedVec2DType>::value  && is_same<T, AttrTypeToType<AttrType::UnsignedVec2DType>::type>::value)
+                return AttrType::UnsignedVec2DType;
+            
+            if (AttrTypeToType<AttrType::UnsignedVec3DType>::value  && is_same<T, AttrTypeToType<AttrType::UnsignedVec3DType>::type>::value)
+                return AttrType::UnsignedVec3DType;
+
+            if (AttrTypeToType<AttrType::UnsignedVec4DType>::value  && is_same<T, AttrTypeToType<AttrType::UnsignedVec4DType>::type>::value)
+                return AttrType::UnsignedVec4DType;
 
             return AttrType::UnknownType;
 

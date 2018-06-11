@@ -13,7 +13,7 @@ namespace mv
 
     public:
 
-        SinkOp(const string &opType, const string &name);
+        SinkOp(OpType opType, const string &name);
         virtual ~SinkOp() = 0;
         virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx);
         virtual TensorContext::TensorIterator getInput(byte_type idx);

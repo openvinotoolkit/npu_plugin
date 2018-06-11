@@ -10,7 +10,7 @@ namespace mv
     class Tensor : public ComputationElement
     {
 
-        allocator::owner_ptr<vector<float_type>> data_;
+        allocator::owner_ptr<dynamic_vector<float_type>> data_;
 
     public:
 
@@ -24,7 +24,7 @@ namespace mv
             addAttr("populated", AttrType::BoolType, false);
         }
 
-        Tensor(const string &name, const Shape &shape, DType dType, Order order, allocator::owner_ptr<vector<float_type>> data) :
+        Tensor(const string &name, const Shape &shape, DType dType, Order order, allocator::owner_ptr<dynamic_vector<float_type>> data) :
         ComputationElement(name)
         {
             data_ = data;
@@ -52,7 +52,7 @@ namespace mv
             addAttr("populated", AttrType::BoolType, false);
         }
 
-        bool populate(float_type *data, size_type size, const Shape &shape, DType dType, Order order)
+        bool populate(float_type *data, size_type size, const Shape &shape)
         {
 
             if (size != shape.totalSize())
@@ -85,7 +85,7 @@ namespace mv
         }
 
         // TODO - Handle the case when tensor got deleted, by the reference is still in use
-        vector<float_type> &getData()
+        dynamic_vector<float_type> &getData()
         {
             if (!isPopulated())
                 logger_.log(Logger::MessageType::MessageWarning, "Attempt of restoring data from an unpopulated tensor '" + name_ + "'");

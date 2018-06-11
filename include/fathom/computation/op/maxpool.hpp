@@ -12,12 +12,12 @@ namespace mv
 
     public:
 
-        MaxPool(Shape kernelShape, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name) :
-        ComputationOp("maxpool", name),
-        KernelOp("maxpool", strideX, strideY, padX, padY, name),
-        SinkOp("maxpool", name)
+        MaxPool(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
+        ComputationOp(OpType::MaxPool2D, name),
+        KernelOp(OpType::MaxPool2D, stride, padding, name),
+        SinkOp(OpType::MaxPool2D, name)
         {
-            addAttr("kSize", AttrType::ShapeType, kernelShape);
+            addAttr("kSize", AttrType::UnsignedVec2DType, kernelSize);
             addAttr("executable", AttrType::BoolType, true);
         }
 
@@ -37,21 +37,32 @@ namespace mv
                 return Tensor();
             }
 
-            auto padX = getAttr("padX").getContent<byte_type>();
-            auto padY = getAttr("padY").getContent<byte_type>();
-            auto strideX = getAttr("strideX").getContent<byte_type>();
-            auto strideY = getAttr("strideY").getContent<byte_type>();
-
-            auto kShape = getAttr("kSize").getContent<Shape>();
-
-            if (kShape.ndims() != 2)
+            auto padding = getAttr("padding").getContent<UnsignedVector4D>();
+            auto stride = getAttr("stride").getContent<UnsignedVector2D>();
+            auto kSize = getAttr("kSize").getContent<UnsignedVector2D>();
+            
+            if (inputShape[1] + padding.e0 + padding.e1 < kSize.e0)
             {
-                logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-                        "' because of incorrect kernel shape " + kShape.toString());
+                logger_.log(Logger::MessageType::MessageError, 
+                    "Unable to define output tensor for '" + name_ + 
+                    "' because of pooling kernel width (" + Printable::toString(kSize.e0) + 
+                    ") larger than padded input width (" + Printable::toString(inputShape[1] + padding.e0 + padding.e1) + ")");
+
                 return Tensor();
             }
 
-            Shape outputShape(inputShape[0], getOutputDim_(inputShape[1], kShape[0], padX, strideX), getOutputDim_(inputShape[2], kShape[1], padY, strideY), inputShape[3]);
+            if (inputShape[2] + padding.e2 + padding.e3 < kSize.e1)
+            {
+                logger_.log(Logger::MessageType::MessageError, 
+                    "Unable to define output tensor for '" + name_ + 
+                    "' because of pooling kernel height (" + Printable::toString(kSize.e1) + 
+                    ") larger than padded input height (" + Printable::toString(inputShape[2] + padding.e2 + padding.e3) + ")");
+
+                return Tensor();
+            }
+
+            Shape outputShape(inputShape[0], (inputShape[1] + padding.e0 + padding.e1 - kSize.e0) / stride.e0 + 1, (
+                inputShape[2] + padding.e2 + padding.e3 - kSize.e1) / stride.e1 + 1, inputShape[3]);
 
             return Tensor(getOutputName(), outputShape, input->getDType(), input->getOrder());
 

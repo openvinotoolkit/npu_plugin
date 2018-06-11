@@ -9,11 +9,11 @@ namespace mv
     class MultiSinkOp : public virtual ComputationOp
     {
         
-        vector<TensorContext::TensorIterator> inputs_;
+        dynamic_vector<TensorContext::TensorIterator> inputs_;
 
     public:
 
-        MultiSinkOp(const string &opType, byte_type inputsCount, const string &name);
+        MultiSinkOp(OpType opType, byte_type inputsCount, const string &name);
         virtual ~MultiSinkOp() = 0;
         virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx);
         virtual TensorContext::TensorIterator getInput(byte_type idx);

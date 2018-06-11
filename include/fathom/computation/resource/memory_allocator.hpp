@@ -116,18 +116,18 @@ namespace mv
         size_type freeSpace(unsigned_type stageIdx) const
         {
             
-            size_type freeSpace = maxSize_;
+            size_type freeSpaceValue = maxSize_;
 
             if (states_.find(stageIdx) != states_.cend())
             {
             
                 for (auto itEntry = states_.at(stageIdx).cbegin(); itEntry != states_.at(stageIdx).cend(); ++itEntry)
                 {
-                    freeSpace -= itEntry->second.lenght;
+                    freeSpaceValue -= itEntry->second.lenght;
                 }
 
             }
-            return freeSpace;
+            return freeSpaceValue;
 
         }
 

@@ -5,6 +5,7 @@
 #include "include/fathom/computation/tensor/shape.hpp"
 #include "include/fathom/computation/tensor/tensor.hpp"
 #include "include/fathom/computation/model/iterator/tensor_context.hpp"
+#include "include/fathom/computation/op/ops_register.hpp"
 
 namespace mv
 {
@@ -12,7 +13,7 @@ namespace mv
     class ComputationOp : public ComputationElement
     {
 
-        static allocator::map<string, size_type> idDict_;
+        static allocator::map<OpType, size_type> idDict_;
 
     protected:
 
@@ -20,15 +21,15 @@ namespace mv
 
     public:
 
-        ComputationOp(const string &opType, const string &name);
+        ComputationOp(OpType opType, const string& name);
         virtual ~ComputationOp() = 0;
 
-        string getOpType() const;
+        OpType getOpType() const;
         string toString() const;
         virtual string getOutputName() const;
 
-        virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx);
-        virtual bool setOutput(TensorContext::TensorIterator &tensor);
+        virtual bool setInput(TensorContext::TensorIterator& tensor, byte_type idx);
+        virtual bool setOutput(TensorContext::TensorIterator& tensor);
         virtual TensorContext::TensorIterator getInput(byte_type idx);
         virtual TensorContext::TensorIterator getOutput();
         virtual bool hasInputDef();

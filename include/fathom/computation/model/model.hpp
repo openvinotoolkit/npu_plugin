@@ -56,7 +56,7 @@ namespace mv
         DataContext::FlowListIterator dataFlowEnd_;
         ControlContext::OpListIterator controlOpEnd_;
         ControlContext::FlowListIterator controlFlowEnd_;
-        TensorContext::TensorIterator tensorEnd_;;
+        TensorContext::TensorIterator tensorEnd_;
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);

@@ -13,14 +13,14 @@ namespace mv
 
     protected:
 
-        static dim_type getOutputDim_(dim_type inputDim, dim_type kernelDim, byte_type padding, byte_type stride)
+        static dim_type getOutputDim_(dim_type inputDim, dim_type kernelDim, byte_type stride)
         {
-            return (inputDim - kernelDim + 2 * padding) / stride + 1;
+            return (inputDim - kernelDim) / stride + 1;
         }
 
     public:
 
-        KernelOp(const string &opType, byte_type strideX, byte_type strideY, byte_type padX, byte_type padY, const string &name);
+        KernelOp(OpType opType, UnsignedVector2D stride, UnsignedVector4D padding, const string &name);
         virtual ~KernelOp() = 0;
 
     };

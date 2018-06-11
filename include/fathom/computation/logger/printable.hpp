@@ -3,6 +3,7 @@
 
 #include <string>
 #include "include/fathom/computation/model/types.hpp"
+#include "include/fathom/computation/op/ops_register.hpp"
 
 namespace mv
 {
@@ -11,6 +12,11 @@ namespace mv
     {
 
     public:
+
+        virtual ~Printable()
+        {
+            
+        }
 
         inline static void replaceSub(string &input, const string &oldSub, const string &newSub)
         {
@@ -83,6 +89,24 @@ namespace mv
             }
         }
 
+        template <class T>
+        static string toString(Vector2D<T> value)
+        {
+            return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ")"; 
+        }
+
+        template <class T>
+        static string toString(Vector3D<T> value)
+        {
+            return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + ")"; 
+        }
+
+        template <class T>
+        static string toString(Vector4D<T> value)
+        {
+            return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + ", " + Printable::toString(value.e3) + ")"; 
+        }
+
         static string toString(AttrType value)
         {
 
@@ -100,9 +124,6 @@ namespace mv
 
                 case AttrType::FloatType:
                    return "float";
-
-                /*case AttrType::TensorType:
-                    return "const tensor";*/
                 
                 case AttrType::DTypeType:
                     return "dType";
@@ -119,11 +140,71 @@ namespace mv
                 case AttrType::BoolType:
                     return "bool";
 
+                case AttrType::OpTypeType:
+                    return "opType";
+
+                case AttrType::FloatVec2DType:
+                    return "floatVec2D";
+
+                case AttrType::FloatVec3DType:
+                    return "floatVec3D";
+
+                case AttrType::FloatVec4DType:
+                    return "floatVec4D";
+
+                case AttrType::IntVec2DType:
+                    return "intVec2D";
+
+                case AttrType::IntVec3DType:
+                    return "intVec3D";
+
+                case AttrType::IntVec4DType:
+                    return "intVec4D";
+
+                case AttrType::UnsignedVec2DType:
+                    return "unsignedVec2D";
+
+                case AttrType::UnsignedVec3DType:
+                    return "unsignedVec3D";
+
+                case AttrType::UnsignedVec4DType:
+                    return "unsignedVec4D";
+
                 default:
                     return "unknown";
 
             }
             
+        }
+
+        static string toString(OpType value)
+        {
+
+            switch (value)
+            {
+                case OpType::Input:
+                    return "input";
+
+                case OpType::Output:
+                    return "output";
+
+                case OpType::Constant:
+                    return "constant";
+
+                case OpType::Conv2D:
+                    return "conv2D";
+
+                case OpType::MaxPool2D:
+                    return "maxpool2D";
+
+                case OpType::Concat:
+                    return "concat";
+
+                default:
+                    return "unknown";
+
+            }
+
         }
 
     };

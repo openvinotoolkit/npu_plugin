@@ -1,6 +1,6 @@
 #include "include/fathom/computation/op/source_op.hpp"
 
-mv::SourceOp::SourceOp(const string &opType, const string &name) :
+mv::SourceOp::SourceOp(OpType opType, const string &name) :
 ComputationOp(opType, name)
 {
     addAttr("output", AttrType::StringType, name_ + ":out");

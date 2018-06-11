@@ -200,7 +200,7 @@ class Blob_buffer : public WBuffer
 
             for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
-                if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
+                if ( it->getOpType() == OpType::Conv2D )
                 {
 //                    std::cout << "calculating buffer sizes for convolution"<< std::endl;
 
@@ -341,7 +341,7 @@ class Blob_buffer : public WBuffer
             uint32_t op_count = 0 ;
             for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
-                if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
+                if ( it->getOpType() == OpType::Conv2D )
                 {
                     op_count++;
 //                    std::cout << "writing stage for convolution"<< std::endl;
@@ -376,10 +376,11 @@ class Blob_buffer : public WBuffer
                     // operator specific info
                     AddBytes(4, it->getInput(1)->getShape()[0]); //radixX
                     AddBytes(4, it->getInput(1)->getShape()[1]); //radixY
-                    AddBytes(4, it->getAttr("strideX").getContent<mv::byte_type>()); //strideX  (0x70)
-                    AddBytes(4, it->getAttr("strideY").getContent<mv::byte_type>()); //strideY
-                    AddBytes(4, it->getAttr("padX").getContent<mv::byte_type>());  // padX
-                    AddBytes(4, it->getAttr("padY").getContent<mv::byte_type>());  // padY
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX  (0x70)
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
+                    // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
+                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
+                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
             AddBytes(4, test_conv_stage.padStyle);   // 0x80
             AddBytes(4, test_conv_stage.dilation);
 
@@ -461,7 +462,7 @@ class Blob_buffer : public WBuffer
 
             for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
-                if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
+                if ( it->getOpType() == OpType::Conv2D )
                 {
                     // buffer data section for convolution has 3 regions: taps, bias, and params
                     // size of TAP region = align((roundUp(8,#kernels)*kernelX*kernelY*kernelZ)*dataSize),0x40)
@@ -487,6 +488,7 @@ class Blob_buffer : public WBuffer
                         uint16_t cur_weight = f32Tof16(it->getInput(1)->getData()[i]) ; 
                         AddBytes(weights_number_size, cur_weight) ; 
                     }
+
                     for (unsigned i=0; i< weights_region_pad_size; i++)
                     {
                         AddBytes(1, buffer_wpad_val);
@@ -549,7 +551,7 @@ class Blob_buffer : public WBuffer
             uint32_t running_offset = 0 ;
             for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
-                if ( it->getAttr("opType").getContent<mv::string>() == conv_str )
+                if ( it->getOpType() == OpType::Conv2D )
                 {
                     // calculate buffer sizes etc related to weights
                     uint32_t kernel_sizeX = it->getInput(1)->getShape()[0] ;

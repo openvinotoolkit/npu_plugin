@@ -10,14 +10,14 @@ namespace mv
     class Constant : public SourceOp
     {
 
-        allocator::owner_ptr<vector<float_type>> data_;
+        allocator::owner_ptr<dynamic_vector<float_type>> data_;
 
     public:
 
-        Constant(const vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name) :
-        ComputationOp("const", name),
-        SourceOp("const", name),
-        data_(allocator_.make_owner<vector<float_type>>(data))
+        Constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name) :
+        ComputationOp(OpType::Constant, name),
+        SourceOp(OpType::Constant, name),
+        data_(allocator_.make_owner<dynamic_vector<float_type>>(data))
         {
             addAttr("shape", AttrType::ShapeType, shape);
             addAttr("dType", AttrType::DTypeType, dType);

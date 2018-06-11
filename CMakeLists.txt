@@ -4,12 +4,13 @@ project(fathom VERSION 0.0.1)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic")
 include_directories(${PROJECT_SOURCE_DIR})
 
 file(GLOB allocator "src/graph/base_allocator.cpp")
 file(GLOB computation_model 
     "src/computation/model/model.cpp"
+    "src/computation/api/compositional_model.cpp"
     "src/computation/model/op_model.cpp"
     "src/computation/model/data_model.cpp"
     "src/computation/model/control_model.cpp"
@@ -20,7 +21,8 @@ file(GLOB computation_model
     "src/computation/flow/flow.cpp"
     "src/computation/op/source_op.cpp"
     "src/computation/op/sink_op.cpp"
-    "src/computation/op/multisink_op.cpp")
+    "src/computation/op/multisink_op.cpp"
+    "src/deployer/ostream.cpp")
 
 file(GLOB logger "src/computation/logger/logger.cpp")
 file(GLOB pass "src/pass/deploy/deploy_pass.cpp")

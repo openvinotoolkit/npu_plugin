@@ -71,8 +71,6 @@ int main()
     auto g2e7It = g2.edge_insert(g2g1n5It, g2n1It, "g2_e7");
 
     auto itA = g1.node_begin();
-    mv::conjoined_graph<char, int, bool, mv::stl_allocator>::first_graph::node_list_iterator it;
-
     std::cout << *itA << std::endl;
 
     std::cout << g1.node_size() << std::endl;

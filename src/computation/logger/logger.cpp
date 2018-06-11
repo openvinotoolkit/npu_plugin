@@ -14,43 +14,43 @@ mv::string mv::Logger::getTime() const
 void mv::Logger::logMessage(MessageType messageType, string content) const
 {
 
-    string logMessage;
+    string logContent;
 
     if (logTime_)
-        logMessage += getTime() + " ";
+        logContent += getTime() + " ";
 
     switch (messageType)
     {
         case MessageType::MessageError:
-            logMessage += "ERROR:   ";
+            logContent += "ERROR:   ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
-            logMessage += content;
-            logError(logMessage);
+            logContent += content;
+            logError(logContent);
             break;
 
         case MessageType::MessageWarning:
-            logMessage += "WARNING: ";
+            logContent += "WARNING: ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
-            logMessage += content;
-            logWarning(logMessage);
+            logContent += content;
+            logWarning(logContent);
             break;
 
         case MessageType::MessageInfo:
-            logMessage += "INFO:    ";
+            logContent += "INFO:    ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
-            logMessage += content;
-            logInfo(logMessage);
+            logContent += content;
+            logInfo(logContent);
             break;
 
         default:
-            logMessage += "DEBUG:   ";
+            logContent += "DEBUG:   ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
-            logMessage += content;
-            logDebug(logMessage);
+            logContent += content;
+            logDebug(logContent);
             break;
 
     }

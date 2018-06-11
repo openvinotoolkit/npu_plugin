@@ -1,12 +1,12 @@
 #include "include/fathom/computation/op/computation_op.hpp"
 
-mv::allocator::map<mv::string, mv::size_type> mv::ComputationOp::idDict_;
+mv::allocator::map<mv::OpType, mv::size_type> mv::ComputationOp::idDict_;
 
-mv::ComputationOp::ComputationOp(const string &opType, const string &name) :
-ComputationElement(opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }())
+mv::ComputationOp::ComputationOp(OpType opType, const string &name) :
+ComputationElement(Printable::toString(opType) + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }())
 {
     logger_.log(Logger::MessageType::MessageDebug, "Defined computation op " + toString());
-    addAttr("opType", AttrType::StringType, opType);
+    addAttr("opType", AttrType::OpTypeType, opType);
 }
 
 mv::ComputationOp::~ComputationOp()
@@ -37,9 +37,9 @@ bool mv::ComputationOp::validOutputDef_()
 
 }
 
-mv::string mv::ComputationOp::getOpType() const 
+mv::OpType mv::ComputationOp::getOpType() const 
 {
-    return getAttr("opType").getContent<string>();
+    return getAttr("opType").getContent<OpType>();
 }
 
 mv::string mv::ComputationOp::toString() const
@@ -47,7 +47,7 @@ mv::string mv::ComputationOp::toString() const
     return getAttr("opType").getContentStr() + " '" + name_ + "' " + ComputationElement::toString();
 }
 
-mv::TensorContext::TensorIterator mv::ComputationOp::getInput(byte_type idx)
+mv::TensorContext::TensorIterator mv::ComputationOp::getInput(byte_type)
 {
     return mv::TensorContext::TensorIterator();
 }
@@ -57,12 +57,12 @@ mv::TensorContext::TensorIterator mv::ComputationOp::getOutput()
     return mv::TensorContext::TensorIterator();
 }
 
-bool mv::ComputationOp::setInput(TensorContext::TensorIterator &tensor, byte_type idx)
+bool mv::ComputationOp::setInput(TensorContext::TensorIterator &, byte_type)
 {
     return false;
 }
 
-bool mv::ComputationOp::setOutput(TensorContext::TensorIterator &tensor)
+bool mv::ComputationOp::setOutput(TensorContext::TensorIterator &)
 {
     return false;
 }
@@ -72,7 +72,7 @@ bool mv::ComputationOp::hasInputDef()
     return false;
 }
 
-bool mv::ComputationOp::hasInputDef(byte_type idx)
+bool mv::ComputationOp::hasInputDef(byte_type)
 {
     return false;
 }

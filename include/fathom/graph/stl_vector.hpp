@@ -24,14 +24,14 @@ namespace mv
 
         }
 
-        stl_vector(T_size size) :
-        stl_vector_(size)
+        stl_vector(T_size data_size) :
+        stl_vector_(data_size)
         {
 
         }
 
-        stl_vector(T_size size, const T &value) :
-        stl_vector_(size, value)
+        stl_vector(T_size data_size, const T &value) :
+        stl_vector_(data_size, value)
         {
 
         }
@@ -50,8 +50,8 @@ namespace mv
 
         }
 
-        stl_vector(T *ptr, T_size size) :
-        stl_vector_(ptr, ptr + size)
+        stl_vector(T *ptr, T_size data_size) :
+        stl_vector_(ptr, ptr + data_size)
         {
 
         }
@@ -149,9 +149,9 @@ namespace mv
             stl_vector_.clear();
         }
 
-        void assign(T *data, T_size size) noexcept
+        void assign(T *data, T_size data_size) noexcept
         {
-            stl_vector_.assign(data, data + size);
+            stl_vector_.assign(data, data + data_size);
         }
 
         stl_vector& operator=(const stl_vector &other) noexcept

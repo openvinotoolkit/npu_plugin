@@ -14,9 +14,9 @@ namespace mv
     public:
 
         Concat(const string &name) :
-        ComputationOp("concat", name),
-        MultiSinkOp("concat", 2, name),
-        SourceOp("concat", name)
+        ComputationOp(OpType::Concat, name),
+        MultiSinkOp(OpType::Concat, 2, name),
+        SourceOp(OpType::Concat, name)
         {
             addAttr("executable", AttrType::BoolType, true);
         }

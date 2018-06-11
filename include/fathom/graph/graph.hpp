@@ -1319,13 +1319,13 @@ namespace mv
 
         public:
 
-            edge(graph& master_graph, const node_list_iterator &source, const node_list_iterator &sink,
+            edge(graph& master_graph, const node_list_iterator &sourceIt, const node_list_iterator &sinkIt,
             const T_edge &content, unsigned long id) : 
             //iterable<edge, T_edge>(master_graph, content, id),
             iterable<edge, T_edge>(master_graph, id),
             content_(content),
-            source_(source),
-            sink_(sink)
+            source_(sourceIt),
+            sink_(sinkIt)
             {
 
             }
@@ -1376,42 +1376,42 @@ namespace mv
             return edges_->find(edge_ptr.lock());
         }
 
-        typename iterable_owner_set<node>::iterator set_begin(access_ptr<node> node_ptr)
+        typename iterable_owner_set<node>::iterator set_begin(access_ptr<node>)
         {
             return nodes_->begin();
         }
 
-        typename iterable_owner_set<edge>::iterator set_begin(access_ptr<edge> edge_ptr)
+        typename iterable_owner_set<edge>::iterator set_begin(access_ptr<edge>)
         {
             return edges_->begin();
         }
 
-        typename iterable_owner_set<node>::iterator set_end(access_ptr<node> node_ptr)
+        typename iterable_owner_set<node>::iterator set_end(access_ptr<node>)
         {
             return nodes_->end();
         }
 
-        typename iterable_owner_set<edge>::iterator set_end(access_ptr<edge> edge_ptr)
+        typename iterable_owner_set<edge>::iterator set_end(access_ptr<edge>)
         {
             return edges_->end();
         }
 
-        typename iterable_owner_set<node>::reverse_iterator set_rbegin(access_ptr<node> node_ptr)
+        typename iterable_owner_set<node>::reverse_iterator set_rbegin(access_ptr<node>)
         {
             return nodes_->rbegin();
         }
 
-        typename iterable_owner_set<edge>::reverse_iterator set_rbegin(access_ptr<edge> edge_ptr)
+        typename iterable_owner_set<edge>::reverse_iterator set_rbegin(access_ptr<edge>)
         {
             return edges_->rbegin();
         }
 
-        typename iterable_owner_set<node>::reverse_iterator set_rend(access_ptr<node> node_ptr)
+        typename iterable_owner_set<node>::reverse_iterator set_rend(access_ptr<node>)
         {
             return nodes_->rend();
         }
 
-        typename iterable_owner_set<edge>::reverse_iterator set_rend(access_ptr<edge> edge_ptr)
+        typename iterable_owner_set<edge>::reverse_iterator set_rend(access_ptr<edge>)
         {
             return edges_->rend();
         }
@@ -1453,7 +1453,7 @@ namespace mv
 
         }
 
-        virtual void terminate_node_(owner_ptr<base_node> &b_node, owner_ptr<node> &del_node)
+        virtual void terminate_node_(owner_ptr<base_node> &, owner_ptr<node> &del_node)
         {
             
             if (del_node)
@@ -1538,6 +1538,11 @@ namespace mv
         graph(allocator_.template make_set<owner_ptr<base_node>, id_comparator<base_node>>(), allocator_.template make_owner<T_size>(T_size(0)))
         {
 
+        }
+
+        virtual ~graph()
+        {
+            
         }
 
         const node_list_iterator node_begin() const
@@ -1934,7 +1939,7 @@ namespace mv
 
     };
 
-};
+}
 
 template <class T_node, class T_edge, class T_allocator, class T_size>
 T_allocator mv::graph<T_node, T_edge, T_allocator, T_size>::allocator_;

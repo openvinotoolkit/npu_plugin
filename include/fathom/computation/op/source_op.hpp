@@ -13,7 +13,7 @@ namespace mv
 
     public:
 
-        SourceOp(const string &opType, const string &name);
+        SourceOp(OpType opType, const string &name);
         virtual ~SourceOp() = 0;
         virtual bool setOutput(TensorContext::TensorIterator &tensor);
         virtual TensorContext::TensorIterator getOutput();

@@ -1,6 +1,6 @@
 #include "include/fathom/computation/op/multisink_op.hpp"
 
-mv::MultiSinkOp::MultiSinkOp(const string &opType, byte_type inputsCount, const string &name) :
+mv::MultiSinkOp::MultiSinkOp(OpType opType, byte_type inputsCount, const string &name) :
 ComputationOp(opType, name),
 inputs_(inputsCount, TensorContext::TensorIterator())
 {

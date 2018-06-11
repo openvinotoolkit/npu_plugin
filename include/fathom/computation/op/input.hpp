@@ -12,8 +12,8 @@ namespace mv
     public:
 
         Input(Shape outputShape, DType dType, Order order, const string &name) :
-        ComputationOp("input", name),
-        SourceOp("input", name)
+        ComputationOp(OpType::Input, name),
+        SourceOp(OpType::Input, name)
         {
 
             addAttr("shape", AttrType::ShapeType, outputShape);

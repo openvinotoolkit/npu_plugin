@@ -1,6 +1,6 @@
 #include "include/fathom/computation/op/sink_op.hpp"
 
-mv::SinkOp::SinkOp(const string &opType, const string &name) :
+mv::SinkOp::SinkOp(OpType opType, const string &name) :
 ComputationOp(opType, name)
 {
     addAttr("inputs", AttrType::ByteType, (byte_type)1);

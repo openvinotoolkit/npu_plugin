@@ -12,8 +12,8 @@ namespace mv
     public:
 
         Output(const string &name) : 
-        ComputationOp("output", name),
-        MultiSinkOp("output", 1, name)
+        ComputationOp(OpType::Output, name),
+        MultiSinkOp(OpType::Output, 1, name)
         {
             addAttr("executable", AttrType::BoolType, false);
         }
