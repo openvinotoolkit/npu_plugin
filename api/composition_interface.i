@@ -12,11 +12,22 @@ import_array();
 %module composition_api
 %{
     #include <include/fathom/computation/model/op_model.hpp>
+    #include <include/fathom/computation/model/model.hpp>
     #include <include/fathom/computation/model/iterator/model_iterator.hpp>
     #include <include/fathom/computation/tensor/shape.hpp>
     #include <include/fathom/computation/tensor/constant.hpp>
     #include <include/fathom/computation/model/attribute.hpp>
+    #include <include/fathom/computation/model/control_model.hpp>
+    #include <include/fathom/deployer/serializer.hpp>
     #include <string>
+
+    int serialize(mv::OpModel * test_cm){
+        mv::ControlModel *cm = new mv::ControlModel(*test_cm);
+        mv::Serializer *gs = new mv::Serializer(mv::mvblob_mode);
+        uint64_t filesize = gs->serialize(*cm, "cpp.blob");
+
+        return filesize;   // Success, return filesize
+    }
 
     int testSWIG(){
         /// A simple test to ensure the connection between Python and C++ is working
@@ -100,12 +111,15 @@ import_array();
  %}
 
 #include <include/fathom/computation/model/op_model.hpp>
+#include <include/fathom/computation/model/model.hpp>
 #include <include/fathom/computation/model/iterator/model_iterator.hpp>
 #include <include/fathom/computation/model/iterator/data_context.hpp>
+#include <include/fathom/computation/model/control_model.hpp>
 #include <include/fathom/computation/tensor/shape.hpp>
 #include <include/fathom/computation/tensor/constant.hpp>
 #include <include/fathom/computation/model/attribute.hpp>
 #include <include/fathom/computation/api/compositional_model.hpp>
+#include <include/fathom/deployer/serializer.hpp>
 #include <include/fathom/computation/model/model.hpp>
 #include <include/fathom/computation/op/input.hpp>
 #include <include/fathom/computation/op/output.hpp>
@@ -153,3 +167,5 @@ int testConv(
     int exp_padX,
     int exp_padY
 );
+
+int serialize(mv::OpModel * test_cm);
