@@ -133,7 +133,7 @@ import_array();
 
 namespace mv
 {
-    class OpModel : public ComputationModel, public CompositionalModel
+    class OpModel
     {
     public:
         bool isValid() const;
