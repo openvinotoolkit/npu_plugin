@@ -10,6 +10,7 @@ opsGraph_(allocator_.make_owner<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_owner<map<string, allocator::owner_ptr<Tensor>>>(map<string, allocator::owner_ptr<Tensor>>())),
+tensorsSources_(allocator_.make_owner<map<string, DataContext::OpListIterator>>(map<string, DataContext::OpListIterator>())),
 groups_(allocator_.make_owner<map<string, allocator::owner_ptr<ComputationGroup>>>(map<string, allocator::owner_ptr<ComputationGroup>>())),
 stages_(allocator_.make_owner<map<unsigned_type, allocator::owner_ptr<ComputationStage>>>(map<unsigned_type, allocator::owner_ptr<ComputationStage>>())),
 memoryAllocators_(allocator_.make_owner<map<string, allocator::owner_ptr<MemoryAllocator>>>(map<string, allocator::owner_ptr<MemoryAllocator>>())),
@@ -29,6 +30,7 @@ opsGraph_(other.opsGraph_),
 dataGraph_(other.dataGraph_),
 controlGraph_(other.controlGraph_),
 flowTensors_(other.flowTensors_),
+tensorsSources_(other.tensorsSources_),
 groups_(other.groups_),
 stages_(other.stages_),
 memoryAllocators_(other.memoryAllocators_),
@@ -171,17 +173,28 @@ bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, Dat
     return false;
 }
 
-mv::DataContext::TensorIterator mv::ComputationModel::getTensor_(const Tensor &tensorDef)
+mv::DataContext::TensorIterator mv::ComputationModel::defineOutputTensor_(DataContext::OpListIterator &source)
 {
+    if (source == dataOpEnd_)
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - invalid source op");
+        return DataContext::TensorIterator();
+    }
+
+    auto tensorDef = source->getOutputDef();
+
     if (flowTensors_->find(tensorDef.getName()) == flowTensors_->end())
     {
+        // TODO: handle failure
         auto result = flowTensors_->emplace(tensorDef.getName(), allocator_.make_owner<Tensor>(tensorDef));
+        tensorsSources_->emplace(tensorDef.getName(), source);
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
         return result.first;
     }
     else
     {
-        return flowTensors_->find(tensorDef.getName());
+        logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
+        return DataContext::TensorIterator();
     }
 }
 
@@ -193,6 +206,21 @@ mv::DataContext::TensorIterator mv::ComputationModel::findTensor_(const string &
         return it;
 
     return DataContext::TensorIterator();
+
+}
+
+mv::DataContext::OpListIterator mv::ComputationModel::findSourceOp_(DataContext::TensorIterator &tensor)
+{
+
+    if (tensor == tensorEnd_)
+        return DataContext::OpListIterator();
+
+    auto it = tensorsSources_->find(tensor->getName());
+
+    if (it != tensorsSources_->end())
+        return it->second;
+
+    return DataContext::OpListIterator();
 
 }
 

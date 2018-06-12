@@ -10,7 +10,7 @@ TEST(computation_model, minimal_valid_composition)
 
     // Compose minimal valid computation model
     auto inIt = om.input(mv::Shape(32, 32, 3), mv::DType::Float, mv::Order::NWHC);
-    auto outIt = om.output(inIt);
+    auto outIt = om.output(inIt->getOutput());
 
     // Check if model is valid
     ASSERT_TRUE(om.isValid());
@@ -32,8 +32,8 @@ TEST(computation_model, minimal_functional_composition)
     15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f};
     mv::dynamic_vector<float> weightsData(rawData, 27);
     auto conv1WeightsIt = om.constant(weightsData, mv::Shape(3, 3, 1, 3), mv::DType::Float, mv::Order::NWHC);
-    auto convIt = om.conv2D(inIt, conv1WeightsIt, {4, 4}, {1, 1, 1, 1});
-    auto outIt = om.output(convIt);
+    auto convIt = om.conv2D(inIt->getOutput(), conv1WeightsIt->getOutput(), {4, 4}, {1, 1, 1, 1});
+    auto outIt = om.output(convIt->getOutput());
 
     // Check if model is valid 
     ASSERT_TRUE(om.isValid());
@@ -65,7 +65,7 @@ TEST(computation_model, failure_sanity)
     mv::OpModel om(mv::Logger::VerboseLevel::VerboseSilent);
 
     auto inIt = om.input(mv::Shape(32, 32, 3), mv::DType::Float, mv::Order::NWHC);
-    auto outIt = om.output(inIt);
+    auto outIt = om.output(inIt->getOutput());
 
     ASSERT_TRUE(om.addAttr(inIt, "customAttr", mv::Attribute(mv::AttrType::IntegerType, 10)));
     ASSERT_FALSE(om.addAttr(inIt, "customAttr", mv::Attribute(mv::AttrType::IntegerType, 10)));

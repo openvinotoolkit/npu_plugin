@@ -80,6 +80,10 @@ void mv::Logger::setVerboseLevel(VerboseLevel verboseLevel)
 void mv::Logger::setLogTime(bool logTime)
 {
     logTime_ = logTime;
+    if (logTime_)
+        indent_ = "                     ";
+    else
+        indent_ = "   ";
 }
 
 void mv::Logger::log(MessageType messageType, const string &content) const

@@ -42,6 +42,7 @@ namespace mv
             - ModelLinearIterators are wrapping containers iterators
         */
         allocator::owner_ptr<map<string, allocator::owner_ptr<Tensor>>> flowTensors_;
+        allocator::owner_ptr<map<string, DataContext::OpListIterator>> tensorsSources_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<ComputationGroup>>> groups_;
         allocator::owner_ptr<map<unsigned_type, allocator::owner_ptr<ComputationStage>>> stages_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<MemoryAllocator>>> memoryAllocators_;
@@ -66,8 +67,9 @@ namespace mv
         bool checkOpsStages_() const;
         ControlContext::StageIterator addStage_();
         bool addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
-        DataContext::TensorIterator getTensor_(const Tensor &tensorDef);
+        DataContext::TensorIterator defineOutputTensor_(DataContext::OpListIterator &source);
         DataContext::TensorIterator findTensor_(const string &name);
+        DataContext::OpListIterator findSourceOp_(DataContext::TensorIterator &tensor);
 
     public:
 

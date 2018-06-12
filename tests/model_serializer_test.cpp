@@ -48,8 +48,8 @@ TEST (model_serializer, blob_output_conv_01)
     { 0.1111f, 0.1121f, 0.1131f, 0.1141f, 0.1151f, 0.1161f, 0.1171f, 0.1181f, 0.1191f};
     mv::dynamic_vector<mv::float_type> weightsData(rawData);
     auto weightsIt = test_cm.constant(weightsData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
-    auto convIt = test_cm.conv2D(inIt, weightsIt, {4, 4}, {0, 0, 0, 0});
-    auto outIt = test_cm.output(convIt);
+    auto convIt = test_cm.conv2D(inIt->getOutput(), weightsIt->getOutput(), {4, 4}, {0, 0, 0, 0});
+    auto outIt = test_cm.output(convIt->getOutput());
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm.isValid());
@@ -111,8 +111,8 @@ TEST (model_serializer, blob_output_conv_02)
     mv::dynamic_vector<mv::float_type> weightsData2 = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 3u, 0.101f, 0.001f);
 
     auto weightsIt2 = test_cm2.constant(weightsData2, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
-    auto convIt2 = test_cm2.conv2D(inIt2, weightsIt2, {4, 4}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
-    auto outIt2 = test_cm2.output(convIt2);
+    auto convIt2 = test_cm2.conv2D(inIt2->getOutput(), weightsIt2->getOutput(), {4, 4}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto outIt2 = test_cm2.output(convIt2->getOutput());
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm2.isValid());
@@ -175,8 +175,8 @@ TEST (model_serializer, blob_output_conv_03)
     mv::dynamic_vector<mv::float_type> weightsData3 = mv::utils::generateSequence(3u * 3u * 3u * 3u, 0.101f, 0.001f);
 
     auto weightsIt3 = test_cm3.constant(weightsData3, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::NWHC);
-    auto convIt3 = test_cm3.conv2D(inIt3, weightsIt3, {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
-    auto outIt3 = test_cm3.output(convIt3);
+    auto convIt3 = test_cm3.conv2D(inIt3->getOutput(), weightsIt3->getOutput(), {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto outIt3 = test_cm3.output(convIt3->getOutput());
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm3.isValid());
@@ -239,8 +239,8 @@ TEST (model_serializer, blob_output_conv_04)
     mv::dynamic_vector<mv::float_type> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.00f, 0.01f);
 
     auto weightsIt4 = test_cm4.constant(weightsData4, mv::Shape(5, 5, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
-    auto convIt4 = test_cm4.conv2D(inIt4, weightsIt4, {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
-    auto outIt4 = test_cm4.output(convIt4);
+    auto convIt4 = test_cm4.conv2D(inIt4->getOutput(), weightsIt4->getOutput(), {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto outIt4 = test_cm4.output(convIt4->getOutput());
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm4.isValid());
@@ -307,9 +307,9 @@ TEST (model_serializer, blob_blur_edge_05)
     mv::dynamic_vector<mv::float_type> edgeKData(k2rawData);
     auto bweightsIt = test_cm5.constant(blurKData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
     auto eweightsIt = test_cm5.constant(edgeKData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
-    auto conv1It = test_cm5.conv2D(inIt, bweightsIt, {1, 1}, {0, 0, 0, 0});
-    auto conv2It = test_cm5.conv2D(conv1It, eweightsIt, {1, 1}, {0, 0, 0, 0});
-    auto outIt = test_cm5.output(conv2It);
+    auto conv1It = test_cm5.conv2D(inIt->getOutput(), bweightsIt->getOutput(), {1, 1}, {0, 0, 0, 0});
+    auto conv2It = test_cm5.conv2D(conv1It->getOutput(), eweightsIt->getOutput(), {1, 1}, {0, 0, 0, 0});
+    auto outIt = test_cm5.output(conv2It->getOutput());
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm5.isValid());

@@ -31,10 +31,10 @@ namespace mv
         DataContext::OpListIterator opEnd();
 
         DataContext::OpListIterator input(const Shape &shape, DType dType, Order order, const string &name = "");
-        DataContext::OpListIterator output(DataContext::OpListIterator &input, const string &name = "");
-        DataContext::OpListIterator conv2D(DataContext::OpListIterator &input, DataContext::OpListIterator &filters, UnsignedVector2D stride, UnsignedVector4D padding, const string &name = "");
-        DataContext::OpListIterator maxpool2D(DataContext::OpListIterator &input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name = "");
-        DataContext::OpListIterator concat(DataContext::OpListIterator &input0, DataContext::OpListIterator &input1, const string &name = "");
+        DataContext::OpListIterator output(DataContext::TensorIterator input, const string &name = "");
+        DataContext::OpListIterator conv2D(DataContext::TensorIterator input, DataContext::TensorIterator filters, UnsignedVector2D stride, UnsignedVector4D padding, const string &name = "");
+        DataContext::OpListIterator maxpool2D(DataContext::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name = "");
+        DataContext::OpListIterator concat(DataContext::TensorIterator input0, DataContext::TensorIterator input1, const string &name = "");
         DataContext::OpListIterator constant(float_type *data, size_type size, const Shape &shape, DType dType, Order order, const string &name = "");
         DataContext::OpListIterator constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name = "");
         bool addAttr(DataContext::OpListIterator &op, const string &name, const Attribute &attr);

@@ -50,27 +50,37 @@ mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dTy
     input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(shape, dType, order, name));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
     lastOp_ = opsGraph_->get_second_iterator(input_);
+
+    auto outputTensor = defineOutputTensor_(input_);
+    input_->setOutput(outputTensor);
+
     return input_;
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator &inputIt, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::output(DataContext::TensorIterator inputTensor, const string &name)
 {
 
-    output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(name));
-
-    auto inputTensor = findTensor_(inputIt->getOutputName());
     if (inputTensor == tensorEnd_)
     {
-        inputTensor = getTensor_(inputIt->getOutputDef());
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - unspecified input tensor" );
+        return DataContext::OpListIterator();
     }
 
-    output_->setInput(inputTensor, 0);
-    inputIt->setOutput(inputTensor);
+    auto sourceIt = findSourceOp_(inputTensor);
+    
+    if (sourceIt == opEnd())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - tensor '" + inputTensor->getName() + 
+            "' does not belong to the computation model");
+        return DataContext::OpListIterator();
+    }
 
+    output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(name));
+    output_->setInput(inputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
     
-    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(inputIt, output_, allocator_.make_owner<DataFlow>(inputIt, output_, inputTensor));
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(sourceIt, output_, allocator_.make_owner<DataFlow>(sourceIt, output_, inputTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
 
     defaultControlFlow_(output_);
@@ -79,34 +89,50 @@ mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator 
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::OpListIterator &inputIt, DataContext::OpListIterator &filtersIt, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::TensorIterator inputTensor, DataContext::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
 {
 
-    DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv2D>(stride, padding, name));
-    
-    auto inputTensor = findTensor_(inputIt->getOutputName());
     if (inputTensor == tensorEnd_)
     {
-        inputTensor = getTensor_(inputIt->getOutputDef());
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified input tensor" );
+        return DataContext::OpListIterator();
     }
 
-    auto filtersTensor = findTensor_(filtersIt->getOutputName());
     if (filtersTensor == tensorEnd_)
     {
-        filtersTensor = getTensor_(filtersIt->getOutputDef());
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified filters tensor" );
+        return DataContext::OpListIterator();
     }
 
-    convIt->setInput(inputTensor, 0);
-    inputIt->setOutput(inputTensor);
-    convIt->setInput(filtersTensor, 1);
-    filtersIt->setOutput(filtersTensor);
+    auto inputSourceIt = findSourceOp_(inputTensor);
+    
+    if (inputSourceIt == opEnd())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + inputTensor->getName() + 
+            "' does not belong to the computation model");
+        return DataContext::OpListIterator();
+    }
 
+    auto filtersSourceIt = findSourceOp_(filtersTensor);
+    
+    if (filtersSourceIt == opEnd())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + filtersTensor->getName() + 
+            "' does not belong to the computation model");
+        return DataContext::OpListIterator();
+    }
+
+    DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv2D>(stride, padding, name));
+    convIt->setInput(inputTensor, 0);
+    convIt->setInput(filtersTensor, 1);
+    auto outputTensor = defineOutputTensor_(convIt);
+    convIt->setOutput(outputTensor);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + convIt->toString());
 
-    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(inputIt, convIt, allocator_.make_owner<DataFlow>(inputIt, convIt, inputTensor));
+    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(inputSourceIt, convIt, allocator_.make_owner<DataFlow>(inputSourceIt, convIt, inputTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
 
-    DataContext::FlowListIterator filtersFlow = dataGraph_.edge_insert(filtersIt, convIt, allocator_.make_owner<DataFlow>(filtersIt, convIt, filtersTensor));
+    DataContext::FlowListIterator filtersFlow = dataGraph_.edge_insert(filtersSourceIt, convIt, allocator_.make_owner<DataFlow>(filtersSourceIt, convIt, filtersTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + filtersFlow->toString());
 
     defaultControlFlow_(convIt);
@@ -116,23 +142,31 @@ mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::OpListIterator 
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::OpListIterator &inputIt, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
 {
 
-    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool2D>(kernelSize, stride, padding, name));
-    
-    auto inputTensor = findTensor_(inputIt->getOutputName());
     if (inputTensor == tensorEnd_)
     {
-        inputTensor = getTensor_(inputIt->getOutputDef());
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - unspecified input tensor" );
+        return DataContext::OpListIterator();
     }
 
-    poolIt->setInput(inputTensor, 0);
-    inputIt->setOutput(inputTensor);
+    auto sourceIt = findSourceOp_(inputTensor);
+    
+    if (sourceIt == opEnd())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - tensor '" + inputTensor->getName() + 
+            "' does not belong to the computation model");
+        return DataContext::OpListIterator();
+    }
 
+    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool2D>(kernelSize, stride, padding, name));
+    poolIt->setInput(inputTensor, 0);
+    auto outputTensor = defineOutputTensor_(poolIt);
+    poolIt->setOutput(outputTensor);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + poolIt->toString());
 
-    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(inputIt, poolIt, allocator_.make_owner<DataFlow>(inputIt, poolIt, inputTensor));
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(sourceIt, poolIt, allocator_.make_owner<DataFlow>(sourceIt, poolIt, inputTensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
 
     defaultControlFlow_(poolIt);
@@ -141,34 +175,51 @@ mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::OpListIterat
     return poolIt;
 }
 
-mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::OpListIterator &input0It, DataContext::OpListIterator &input1It, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string &name)
 {
 
-    DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(name));
-    
-    auto input0Tensor = findTensor_(input0It->getOutputName());
     if (input0Tensor == tensorEnd_)
     {
-        input0Tensor = getTensor_(input0It->getOutputDef());
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified input 0 tensor" );
+        return DataContext::OpListIterator();
     }
 
-    auto input1Tensor = findTensor_(input1It->getOutputName());
     if (input1Tensor == tensorEnd_)
     {
-        input1Tensor = getTensor_(input1It->getOutputDef());
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified input 1 tensor" );
+        return DataContext::OpListIterator();
     }
 
+    auto input0SourceIt = findSourceOp_(input0Tensor);
+    
+    if (input0SourceIt == opEnd())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + input0Tensor->getName() + 
+            "' does not belong to the computation model");
+        return DataContext::OpListIterator();
+    }
+
+    auto input1SourceIt = findSourceOp_(input1Tensor);
+    
+    if (input1SourceIt == opEnd())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + input1Tensor->getName() + 
+            "' does not belong to the computation model");
+        return DataContext::OpListIterator();
+    }
+
+    DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(name));
     concatIt->setInput(input0Tensor, 0);
-    input0It->setOutput(input0Tensor);
     concatIt->setInput(input1Tensor, 1);
-    input1It->setOutput(input1Tensor);
+    auto outputTensor = defineOutputTensor_(concatIt);
+    concatIt->setOutput(outputTensor);
     
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + concatIt->toString());
 
-    DataContext::FlowListIterator input0Flow = dataGraph_.edge_insert(input0It, concatIt, allocator_.make_owner<DataFlow>(input0It, concatIt, input0Tensor));
+    DataContext::FlowListIterator input0Flow = dataGraph_.edge_insert(input0SourceIt, concatIt, allocator_.make_owner<DataFlow>(input0SourceIt, concatIt, input0Tensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input0Flow->toString());
 
-    DataContext::FlowListIterator input1Flow = dataGraph_.edge_insert(input1It, concatIt, allocator_.make_owner<DataFlow>(input1It, concatIt, input1Tensor));
+    DataContext::FlowListIterator input1Flow = dataGraph_.edge_insert(input1SourceIt, concatIt, allocator_.make_owner<DataFlow>(input1SourceIt, concatIt, input1Tensor));
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input1Flow->toString());
 
     defaultControlFlow_(concatIt);
@@ -181,6 +232,8 @@ mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::OpListIterator 
 mv::DataContext::OpListIterator mv::OpModel::constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name)
 {
     DataContext::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(data, shape, dType, order, name));
+    auto outputTensor = defineOutputTensor_(constantIt);
+    constantIt->setOutput(outputTensor);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + constantIt->toString());
     return constantIt;
 }

@@ -16,14 +16,14 @@ int main()
     mv::dynamic_vector<mv::float_type> conv3WeightsData = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
 
     auto conv1WeightsIt = om.constant(conv1WeightsData, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC);
-    auto conv1It = om.conv2D(inIt, conv1WeightsIt, {2, 2}, {1, 1, 1, 1});
-    auto pool1It = om.maxpool2D(conv1It, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto conv1It = om.conv2D(inIt->getOutput(), conv1WeightsIt->getOutput(), {2, 2}, {1, 1, 1, 1});
+    auto pool1It = om.maxpool2D(conv1It->getOutput(), {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto conv2WeightsIt = om.constant(conv2WeightsData, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC);
-    auto conv2It = om.conv2D(pool1It, conv2WeightsIt, {2, 2}, {2, 2, 2, 2});
-    auto pool2It = om.maxpool2D(conv2It, {5, 5}, {4, 4}, {2, 2, 2, 2});
+    auto conv2It = om.conv2D(pool1It->getOutput(), conv2WeightsIt->getOutput(), {2, 2}, {2, 2, 2, 2});
+    auto pool2It = om.maxpool2D(conv2It->getOutput(), {5, 5}, {4, 4}, {2, 2, 2, 2});
     auto conv3WeightsIt = om.constant(conv3WeightsData, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::NWHC);
-    auto conv3It = om.conv2D(pool2It, conv3WeightsIt, {1, 1}, {0, 0, 0, 0});
-    auto outIt = om.output(conv3It);
+    auto conv3It = om.conv2D(pool2It->getOutput(), conv3WeightsIt->getOutput(), {1, 1}, {0, 0, 0, 0});
+    auto outIt = om.output(conv3It->getOutput());
 
     auto group1It = om.addGroup("pools");
     om.addGroupElement(pool1It, group1It);
