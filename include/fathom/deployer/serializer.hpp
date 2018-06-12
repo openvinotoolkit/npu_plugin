@@ -386,11 +386,11 @@ class Blob_buffer : public WBuffer
 
                     // python helper push
                     int number_size = 2 ;  // TODO assume FP16
-                    AddBytes(4, it->getInput(0)->getShape()[1]);  // input X-dimension size
-                    AddBytes(4, it->getInput(0)->getShape()[2]);  // input Y-dimension size
-                    AddBytes(4, it->getInput(0)->getShape()[3]);  // input Z-dimension size   (0x90)
-                    AddBytes(4, number_size*it->getInput(0)->getShape()[3]);    // InputStrideX
-                    AddBytes(4, number_size*it->getInput(0)->getShape()[3]*it->getInput(0)->getShape()[1]);  // InputStrideY
+                    AddBytes(4, it->getInput(0)->getShape()[0]);  // input X-dimension size
+                    AddBytes(4, it->getInput(0)->getShape()[1]);  // input Y-dimension size
+                    AddBytes(4, it->getInput(0)->getShape()[2]);  // input Z-dimension size   (0x90)
+                    AddBytes(4, number_size*it->getInput(0)->getShape()[2]);    // InputStrideX
+                    AddBytes(4, number_size*it->getInput(0)->getShape()[2]*it->getInput(0)->getShape()[0]);  // InputStrideY
                     AddBytes(4, number_size*it->getInput(0)->getShape()[0]);   // InputStrideZ
             AddBytes(4, test_conv_stage.InputOffset);     //  0xa0
             AddBytes(4, test_conv_stage.InputLocation);

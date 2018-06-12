@@ -5,8 +5,8 @@
 #include "include/fathom/computation/model/model.hpp"
 #include "include/fathom/computation/op/input.hpp"
 #include "include/fathom/computation/op/output.hpp"
-#include "include/fathom/computation/op/conv.hpp"
-#include "include/fathom/computation/op/maxpool.hpp"
+#include "include/fathom/computation/op/conv2d.hpp"
+#include "include/fathom/computation/op/maxpool2d.hpp"
 #include "include/fathom/computation/op/concat.hpp"
 #include "include/fathom/computation/op/constant.hpp"
 

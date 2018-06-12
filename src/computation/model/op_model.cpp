@@ -82,7 +82,7 @@ mv::DataContext::OpListIterator mv::OpModel::output(DataContext::OpListIterator 
 mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::OpListIterator &inputIt, DataContext::OpListIterator &filtersIt, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
 {
 
-    DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv>(stride, padding, name));
+    DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv2D>(stride, padding, name));
     
     auto inputTensor = findTensor_(inputIt->getOutputName());
     if (inputTensor == tensorEnd_)
@@ -119,7 +119,7 @@ mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::OpListIterator 
 mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::OpListIterator &inputIt, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
 {
 
-    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool>(kernelSize, stride, padding, name));
+    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool2D>(kernelSize, stride, padding, name));
     
     auto inputTensor = findTensor_(inputIt->getOutputName());
     if (inputTensor == tensorEnd_)

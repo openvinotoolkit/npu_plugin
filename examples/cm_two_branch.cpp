@@ -9,7 +9,7 @@ int main()
 {
 
     mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
-    auto inIt = om.input(mv::Shape(1, 128, 128, 3), mv::DType::Float, mv::Order::NWHC);
+    auto inIt = om.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::NWHC);
 
     mv::dynamic_vector<mv::float_type> conv1WeightsData = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
     mv::dynamic_vector<mv::float_type> conv2WeightsData = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);

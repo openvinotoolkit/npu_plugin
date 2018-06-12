@@ -28,36 +28,36 @@ namespace mv
                 return Tensor();
 
             auto input0Shape = getInput(0)->getShape();
-            if (input0Shape.ndims() != 4)
+            if (input0Shape.ndims() != 3)
             {
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                     "' because of incorrect shape " + input0Shape.toString() + " of input 0");
                 return Tensor();
             }
 
-            dim_type lastDim = input0Shape[3];
+            dim_type lastDim = input0Shape[2];
 
             for (byte_type i = 1; i < inputSlots(); ++i)
             {
                 auto inputShape = getInput(i)->getShape();
-                if (inputShape.ndims() != 4)
+                if (inputShape.ndims() != 3)
                 {
                     logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                         "' because of incorrect shape " + inputShape.toString() + " of input " + Printable::toString(i));
                     return Tensor();
                 }
-                if (inputShape[0] != input0Shape[0] || inputShape[1] != input0Shape[1] || inputShape[2] != inputShape[2])
+                if (inputShape[0] != input0Shape[0] || inputShape[1] != input0Shape[1])
                 {
                     logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                         "' because of inconsistent inputs shapes " + input0Shape.toString() + " and " + inputShape.toString());
                     return Tensor();
                 }
 
-                lastDim += inputShape[3];
+                lastDim += inputShape[2];
 
             }
 
-            return Tensor(getOutputName(), Shape(input0Shape[0], input0Shape[1], input0Shape[2], lastDim), getInput(0)->getDType(), getInput(0)->getOrder());
+            return Tensor(getOutputName(), Shape(input0Shape[0], input0Shape[1], lastDim), getInput(0)->getDType(), getInput(0)->getOrder());
             
         }
 

@@ -43,7 +43,7 @@ TEST (model_serializer, blob_output_conv_01)
     mv::OpModel test_cm ;
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto inIt = test_cm.input(mv::Shape(1, 32, 32, 1), mv::DType::Float, mv::Order::NWHC);
+    auto inIt = test_cm.input(mv::Shape(32, 32, 1), mv::DType::Float, mv::Order::NWHC);
     mv::float_type rawData[] =
     { 0.1111f, 0.1121f, 0.1131f, 0.1141f, 0.1151f, 0.1161f, 0.1171f, 0.1181f, 0.1191f};
     mv::dynamic_vector<mv::float_type> weightsData(rawData);
@@ -55,7 +55,7 @@ TEST (model_serializer, blob_output_conv_01)
     EXPECT_TRUE(test_cm.isValid());
 
     // Check output shape
-    EXPECT_EQ(outIt->getInput(0)->getShape(), mv::Shape(1, 8, 8, 1));
+    EXPECT_EQ(outIt->getInput(0)->getShape(), mv::Shape(8, 8, 1));
 
     // Check number of convolution parameters
     EXPECT_EQ(convIt->attrsCount(), 9);
@@ -73,12 +73,12 @@ TEST (model_serializer, blob_output_conv_01)
     EXPECT_EQ(convIt->getAttr("padding").getContent<mv::UnsignedVector4D>().e1, 0);
     EXPECT_EQ(convIt->getAttr("padding").getContent<mv::UnsignedVector4D>().e2, 0);
     EXPECT_EQ(convIt->getAttr("padding").getContent<mv::UnsignedVector4D>().e3, 0);
-    EXPECT_EQ(convIt->getInput(0)->getShape()[1], 32);    // X dim
-    EXPECT_EQ(convIt->getInput(0)->getShape()[2], 32);    // Y dim
-    EXPECT_EQ(convIt->getInput(0)->getShape()[3], 1);     // Z dim (aka C)
-    EXPECT_EQ(convIt->getOutput()->getShape()[1], 8);    // X dim
-    EXPECT_EQ(convIt->getOutput()->getShape()[2], 8);    // Y dim
-    EXPECT_EQ(convIt->getOutput()->getShape()[3], 1);    // Z dim 
+    EXPECT_EQ(convIt->getInput(0)->getShape()[0], 32);    // X dim
+    EXPECT_EQ(convIt->getInput(0)->getShape()[1], 32);    // Y dim
+    EXPECT_EQ(convIt->getInput(0)->getShape()[2], 1);     // Z dim (aka C)
+    EXPECT_EQ(convIt->getOutput()->getShape()[0], 8);    // X dim
+    EXPECT_EQ(convIt->getOutput()->getShape()[1], 8);    // Y dim
+    EXPECT_EQ(convIt->getOutput()->getShape()[2], 1);    // Z dim 
 
     mv::ControlModel cm(test_cm);
 
@@ -107,7 +107,7 @@ TEST (model_serializer, blob_output_conv_02)
     mv::OpModel test_cm2 ;
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto inIt2 = test_cm2.input(mv::Shape(1, 32, 32, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C   
+    auto inIt2 = test_cm2.input(mv::Shape(32, 32, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C   
     mv::dynamic_vector<mv::float_type> weightsData2 = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 3u, 0.101f, 0.001f);
 
     auto weightsIt2 = test_cm2.constant(weightsData2, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
@@ -118,7 +118,7 @@ TEST (model_serializer, blob_output_conv_02)
     EXPECT_TRUE(test_cm2.isValid());
 
     // Check output shape
-    EXPECT_EQ(outIt2->getInput(0)->getShape(), mv::Shape(1, 8, 8, 3));   // batch, x, y, c
+    EXPECT_EQ(outIt2->getInput(0)->getShape(), mv::Shape(8, 8, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
     EXPECT_EQ(convIt2->attrsCount(), 9);
@@ -136,15 +136,13 @@ TEST (model_serializer, blob_output_conv_02)
     EXPECT_EQ(convIt2->getAttr("padding").getContent<mv::UnsignedVector4D>().e1, 0);
     EXPECT_EQ(convIt2->getAttr("padding").getContent<mv::UnsignedVector4D>().e2, 0);
     EXPECT_EQ(convIt2->getAttr("padding").getContent<mv::UnsignedVector4D>().e3, 0);
-    EXPECT_EQ(convIt2->getInput(0)->getShape()[0], 1);     // batch size 
-    EXPECT_EQ(convIt2->getInput(0)->getShape()[1], 32);    // X dim
-    EXPECT_EQ(convIt2->getInput(0)->getShape()[2], 32);    // Y dim
-    EXPECT_EQ(convIt2->getInput(0)->getShape()[3], 3);     // Z (C) dim
+    EXPECT_EQ(convIt2->getInput(0)->getShape()[0], 32);    // X dim
+    EXPECT_EQ(convIt2->getInput(0)->getShape()[1], 32);    // Y dim
+    EXPECT_EQ(convIt2->getInput(0)->getShape()[2], 3);     // Z (C) dim
 
-    EXPECT_EQ(convIt2->getOutput()->getShape()[0], 1);    // batch size 
-    EXPECT_EQ(convIt2->getOutput()->getShape()[1], 8);    // X dim
-    EXPECT_EQ(convIt2->getOutput()->getShape()[2], 8);    // Y dim
-    EXPECT_EQ(convIt2->getOutput()->getShape()[3], 3);    // C 
+    EXPECT_EQ(convIt2->getOutput()->getShape()[0], 8);    // X dim
+    EXPECT_EQ(convIt2->getOutput()->getShape()[1], 8);    // Y dim
+    EXPECT_EQ(convIt2->getOutput()->getShape()[2], 3);    // C 
 
     mv::ControlModel cm2(test_cm2);
 
@@ -172,7 +170,7 @@ TEST (model_serializer, blob_output_conv_03)
     mv::OpModel test_cm3(mv::Logger::VerboseLevel::VerboseWarning) ;
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto inIt3 = test_cm3.input(mv::Shape(1, 256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
+    auto inIt3 = test_cm3.input(mv::Shape(256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
 
     mv::dynamic_vector<mv::float_type> weightsData3 = mv::utils::generateSequence(3u * 3u * 3u * 3u, 0.101f, 0.001f);
 
@@ -185,7 +183,7 @@ TEST (model_serializer, blob_output_conv_03)
 
 
     // Check output shape
-    EXPECT_EQ(outIt3->getInput(0)->getShape(), mv::Shape(1, 127, 127, 3));   // batch, x, y, c
+    EXPECT_EQ(outIt3->getInput(0)->getShape(), mv::Shape(127, 127, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
     EXPECT_EQ(convIt3->attrsCount(), 9);
@@ -204,15 +202,13 @@ TEST (model_serializer, blob_output_conv_03)
     EXPECT_EQ(convIt3->getAttr("padding").getContent<mv::UnsignedVector4D>().e2, 0);
     EXPECT_EQ(convIt3->getAttr("padding").getContent<mv::UnsignedVector4D>().e3, 0);
 
-    EXPECT_EQ(convIt3->getInput(0)->getShape()[0], 1);     // batch size 
-    EXPECT_EQ(convIt3->getInput(0)->getShape()[1], 256);    // X dim
-    EXPECT_EQ(convIt3->getInput(0)->getShape()[2], 256);    // Y dim
-    EXPECT_EQ(convIt3->getInput(0)->getShape()[3], 3);     // Z (C) dim
+    EXPECT_EQ(convIt3->getInput(0)->getShape()[0], 256);    // X dim
+    EXPECT_EQ(convIt3->getInput(0)->getShape()[1], 256);    // Y dim
+    EXPECT_EQ(convIt3->getInput(0)->getShape()[2], 3);     // Z (C) dim
 
-    EXPECT_EQ(convIt3->getOutput()->getShape()[0], 1);    // batch size 
-    EXPECT_EQ(convIt3->getOutput()->getShape()[1], 127);    // X dim
-    EXPECT_EQ(convIt3->getOutput()->getShape()[2], 127);    // Y dim
-    EXPECT_EQ(convIt3->getOutput()->getShape()[3], 3);    // C 
+    EXPECT_EQ(convIt3->getOutput()->getShape()[0], 127);    // X dim
+    EXPECT_EQ(convIt3->getOutput()->getShape()[1], 127);    // Y dim
+    EXPECT_EQ(convIt3->getOutput()->getShape()[2], 3);    // C 
 
     // declare serializer as blob
     mv::Serializer gs3(mv::mvblob_mode);
@@ -239,7 +235,7 @@ TEST (model_serializer, blob_output_conv_04)
     mv::OpModel test_cm4(mv::Logger::VerboseLevel::VerboseWarning) ;
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto inIt4 = test_cm4.input(mv::Shape(1, 256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
+    auto inIt4 = test_cm4.input(mv::Shape(256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
     mv::dynamic_vector<mv::float_type> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.00f, 0.01f);
 
     auto weightsIt4 = test_cm4.constant(weightsData4, mv::Shape(5, 5, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
@@ -250,7 +246,7 @@ TEST (model_serializer, blob_output_conv_04)
     EXPECT_TRUE(test_cm4.isValid());
 
     // Check output shape
-    EXPECT_EQ(outIt4->getInput(0)->getShape(), mv::Shape(1, 126, 126, 3));   // batch, x, y, c
+    EXPECT_EQ(outIt4->getInput(0)->getShape(), mv::Shape(126, 126, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
     EXPECT_EQ(convIt4->attrsCount(), 9);
@@ -269,15 +265,13 @@ TEST (model_serializer, blob_output_conv_04)
     EXPECT_EQ(convIt4->getAttr("padding").getContent<mv::UnsignedVector4D>().e2, 0);
     EXPECT_EQ(convIt4->getAttr("padding").getContent<mv::UnsignedVector4D>().e3, 0);
 
-    EXPECT_EQ(convIt4->getInput(0)->getShape()[0], 1);     // batch size 
-    EXPECT_EQ(convIt4->getInput(0)->getShape()[1], 256);    // X dim
-    EXPECT_EQ(convIt4->getInput(0)->getShape()[2], 256);    // Y dim
-    EXPECT_EQ(convIt4->getInput(0)->getShape()[3], 3);     // Z (C) dim
+    EXPECT_EQ(convIt4->getInput(0)->getShape()[0], 256);    // X dim
+    EXPECT_EQ(convIt4->getInput(0)->getShape()[1], 256);    // Y dim
+    EXPECT_EQ(convIt4->getInput(0)->getShape()[2], 3);     // Z (C) dim
 
-    EXPECT_EQ(convIt4->getOutput()->getShape()[0], 1);    // batch size 
-    EXPECT_EQ(convIt4->getOutput()->getShape()[1], 126);    // X dim
-    EXPECT_EQ(convIt4->getOutput()->getShape()[2], 126);    // Y dim
-    EXPECT_EQ(convIt4->getOutput()->getShape()[3], 3);    // C 
+    EXPECT_EQ(convIt4->getOutput()->getShape()[0], 126);    // X dim
+    EXPECT_EQ(convIt4->getOutput()->getShape()[1], 126);    // Y dim
+    EXPECT_EQ(convIt4->getOutput()->getShape()[2], 3);    // C 
 
     // declare serializer as blob
     mv::Serializer gs4(mv::mvblob_mode);
@@ -305,7 +299,7 @@ TEST (model_serializer, blob_blur_edge_05)
     mv::OpModel test_cm5 ;
 
     // Define input as 1 greyscale 256x256 image
-    auto inIt = test_cm5.input(mv::Shape(1, 256, 256, 1), mv::DType::Float, mv::Order::NWHC);
+    auto inIt = test_cm5.input(mv::Shape(256, 256, 1), mv::DType::Float, mv::Order::NWHC);
 
     mv::float_type k1rawData[] = { 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 };
     mv::dynamic_vector<mv::float_type> blurKData(k1rawData);
@@ -321,19 +315,19 @@ TEST (model_serializer, blob_blur_edge_05)
     EXPECT_TRUE(test_cm5.isValid());
 
     // Check output shape
-    EXPECT_EQ( outIt->getInput(0)->getShape(), mv::Shape(1, 252, 252, 1));
+    EXPECT_EQ( outIt->getInput(0)->getShape(), mv::Shape(252, 252, 1));
 
     // Check number of convolution parameters
     EXPECT_EQ(conv1It->attrsCount(), 9);
     EXPECT_EQ(conv2It->attrsCount(), 9);
 
     // Check parameters values
-    EXPECT_EQ(conv1It->getInput(0)->getShape()[1], 256);    // X dim
-    EXPECT_EQ(conv1It->getInput(0)->getShape()[2], 256);    // Y dim
-    EXPECT_EQ(conv1It->getInput(0)->getShape()[3], 1);      // Z dim (aka C)
-    EXPECT_EQ(conv2It->getOutput()->getShape()[1], 252);   // X dim
-    EXPECT_EQ(conv2It->getOutput()->getShape()[2], 252);   // Y dim
-    EXPECT_EQ(conv2It->getOutput()->getShape()[3], 1);     // Z dim 
+    EXPECT_EQ(conv1It->getInput(0)->getShape()[0], 256);    // X dim
+    EXPECT_EQ(conv1It->getInput(0)->getShape()[1], 256);    // Y dim
+    EXPECT_EQ(conv1It->getInput(0)->getShape()[2], 1);      // Z dim (aka C)
+    EXPECT_EQ(conv2It->getOutput()->getShape()[0], 252);   // X dim
+    EXPECT_EQ(conv2It->getOutput()->getShape()[1], 252);   // Y dim
+    EXPECT_EQ(conv2It->getOutput()->getShape()[2], 1);     // Z dim 
 
     mv::ControlModel cm5(test_cm5);
 
