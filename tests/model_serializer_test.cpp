@@ -48,8 +48,8 @@ TEST (model_serializer, blob_output_conv_01)
     { 0.1111f, 0.1121f, 0.1131f, 0.1141f, 0.1151f, 0.1161f, 0.1171f, 0.1181f, 0.1191f};
     mv::dynamic_vector<mv::float_type> weightsData(rawData);
     auto weightsIt = test_cm.constant(weightsData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
-    auto convIt = test_cm.conv2D(inIt->getOutput(), weightsIt->getOutput(), {4, 4}, {0, 0, 0, 0});
-    auto outIt = test_cm.output(convIt->getOutput());
+    auto convIt = test_cm.conv2D(inIt->getOutput(0), weightsIt->getOutput(0), {4, 4}, {0, 0, 0, 0});
+    auto outIt = test_cm.output(convIt->getOutput(0));
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm.isValid());
@@ -58,7 +58,7 @@ TEST (model_serializer, blob_output_conv_01)
     EXPECT_EQ(outIt->getInput(0)->getShape(), mv::Shape(8, 8, 1));
 
     // Check number of convolution parameters
-    EXPECT_EQ(convIt->attrsCount(), 9);
+    EXPECT_EQ(convIt->attrsCount(), 10);
 
     // Check parameters values
     EXPECT_EQ(convIt->getOpType(), mv::OpType::Conv2D);
@@ -76,9 +76,9 @@ TEST (model_serializer, blob_output_conv_01)
     EXPECT_EQ(convIt->getInput(0)->getShape()[0], 32);    // X dim
     EXPECT_EQ(convIt->getInput(0)->getShape()[1], 32);    // Y dim
     EXPECT_EQ(convIt->getInput(0)->getShape()[2], 1);     // Z dim (aka C)
-    EXPECT_EQ(convIt->getOutput()->getShape()[0], 8);    // X dim
-    EXPECT_EQ(convIt->getOutput()->getShape()[1], 8);    // Y dim
-    EXPECT_EQ(convIt->getOutput()->getShape()[2], 1);    // Z dim 
+    EXPECT_EQ(convIt->getOutput(0)->getShape()[0], 8);    // X dim
+    EXPECT_EQ(convIt->getOutput(0)->getShape()[1], 8);    // Y dim
+    EXPECT_EQ(convIt->getOutput(0)->getShape()[2], 1);    // Z dim 
 
     mv::ControlModel cm(test_cm);
 
@@ -111,8 +111,8 @@ TEST (model_serializer, blob_output_conv_02)
     mv::dynamic_vector<mv::float_type> weightsData2 = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 3u, 0.101f, 0.001f);
 
     auto weightsIt2 = test_cm2.constant(weightsData2, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
-    auto convIt2 = test_cm2.conv2D(inIt2->getOutput(), weightsIt2->getOutput(), {4, 4}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
-    auto outIt2 = test_cm2.output(convIt2->getOutput());
+    auto convIt2 = test_cm2.conv2D(inIt2->getOutput(0), weightsIt2->getOutput(0), {4, 4}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto outIt2 = test_cm2.output(convIt2->getOutput(0));
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm2.isValid());
@@ -121,7 +121,7 @@ TEST (model_serializer, blob_output_conv_02)
     EXPECT_EQ(outIt2->getInput(0)->getShape(), mv::Shape(8, 8, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ(convIt2->attrsCount(), 9);
+    EXPECT_EQ(convIt2->attrsCount(), 10);
 
     // Check parameters values
     EXPECT_EQ(convIt2->getOpType(), mv::OpType::Conv2D);
@@ -140,9 +140,9 @@ TEST (model_serializer, blob_output_conv_02)
     EXPECT_EQ(convIt2->getInput(0)->getShape()[1], 32);    // Y dim
     EXPECT_EQ(convIt2->getInput(0)->getShape()[2], 3);     // Z (C) dim
 
-    EXPECT_EQ(convIt2->getOutput()->getShape()[0], 8);    // X dim
-    EXPECT_EQ(convIt2->getOutput()->getShape()[1], 8);    // Y dim
-    EXPECT_EQ(convIt2->getOutput()->getShape()[2], 3);    // C 
+    EXPECT_EQ(convIt2->getOutput(0)->getShape()[0], 8);    // X dim
+    EXPECT_EQ(convIt2->getOutput(0)->getShape()[1], 8);    // Y dim
+    EXPECT_EQ(convIt2->getOutput(0)->getShape()[2], 3);    // C 
 
     mv::ControlModel cm2(test_cm2);
 
@@ -175,8 +175,8 @@ TEST (model_serializer, blob_output_conv_03)
     mv::dynamic_vector<mv::float_type> weightsData3 = mv::utils::generateSequence(3u * 3u * 3u * 3u, 0.101f, 0.001f);
 
     auto weightsIt3 = test_cm3.constant(weightsData3, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::NWHC);
-    auto convIt3 = test_cm3.conv2D(inIt3->getOutput(), weightsIt3->getOutput(), {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
-    auto outIt3 = test_cm3.output(convIt3->getOutput());
+    auto convIt3 = test_cm3.conv2D(inIt3->getOutput(0), weightsIt3->getOutput(0), {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto outIt3 = test_cm3.output(convIt3->getOutput(0));
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm3.isValid());
@@ -186,7 +186,7 @@ TEST (model_serializer, blob_output_conv_03)
     EXPECT_EQ(outIt3->getInput(0)->getShape(), mv::Shape(127, 127, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ(convIt3->attrsCount(), 9);
+    EXPECT_EQ(convIt3->attrsCount(), 10);
 
     // Check parameters values
     EXPECT_EQ(convIt3->getOpType(), mv::OpType::Conv2D);
@@ -206,9 +206,9 @@ TEST (model_serializer, blob_output_conv_03)
     EXPECT_EQ(convIt3->getInput(0)->getShape()[1], 256);    // Y dim
     EXPECT_EQ(convIt3->getInput(0)->getShape()[2], 3);     // Z (C) dim
 
-    EXPECT_EQ(convIt3->getOutput()->getShape()[0], 127);    // X dim
-    EXPECT_EQ(convIt3->getOutput()->getShape()[1], 127);    // Y dim
-    EXPECT_EQ(convIt3->getOutput()->getShape()[2], 3);    // C 
+    EXPECT_EQ(convIt3->getOutput(0)->getShape()[0], 127);    // X dim
+    EXPECT_EQ(convIt3->getOutput(0)->getShape()[1], 127);    // Y dim
+    EXPECT_EQ(convIt3->getOutput(0)->getShape()[2], 3);    // C 
 
     // declare serializer as blob
     mv::Serializer gs3(mv::mvblob_mode);
@@ -239,8 +239,8 @@ TEST (model_serializer, blob_output_conv_04)
     mv::dynamic_vector<mv::float_type> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.101f, 0.001f);
 
     auto weightsIt4 = test_cm4.constant(weightsData4, mv::Shape(5, 5, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
-    auto convIt4 = test_cm4.conv2D(inIt4->getOutput(), weightsIt4->getOutput(), {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
-    auto outIt4 = test_cm4.output(convIt4->getOutput());
+    auto convIt4 = test_cm4.conv2D(inIt4->getOutput(0), weightsIt4->getOutput(0), {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto outIt4 = test_cm4.output(convIt4->getOutput(0));
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm4.isValid());
@@ -249,7 +249,7 @@ TEST (model_serializer, blob_output_conv_04)
     EXPECT_EQ(outIt4->getInput(0)->getShape(), mv::Shape(126, 126, 3));   // batch, x, y, c
 
     // Check number of convolution parameters
-    EXPECT_EQ(convIt4->attrsCount(), 9);
+    EXPECT_EQ(convIt4->attrsCount(), 10);
 
     // Check parameters values
     EXPECT_EQ(convIt4->getOpType(), mv::OpType::Conv2D);
@@ -269,9 +269,9 @@ TEST (model_serializer, blob_output_conv_04)
     EXPECT_EQ(convIt4->getInput(0)->getShape()[1], 256);    // Y dim
     EXPECT_EQ(convIt4->getInput(0)->getShape()[2], 3);     // Z (C) dim
 
-    EXPECT_EQ(convIt4->getOutput()->getShape()[0], 126);    // X dim
-    EXPECT_EQ(convIt4->getOutput()->getShape()[1], 126);    // Y dim
-    EXPECT_EQ(convIt4->getOutput()->getShape()[2], 3);    // C 
+    EXPECT_EQ(convIt4->getOutput(0)->getShape()[0], 126);    // X dim
+    EXPECT_EQ(convIt4->getOutput(0)->getShape()[1], 126);    // Y dim
+    EXPECT_EQ(convIt4->getOutput(0)->getShape()[2], 3);    // C 
 
     // declare serializer as blob
     mv::Serializer gs4(mv::mvblob_mode);
@@ -307,9 +307,9 @@ TEST (model_serializer, blob_blur_edge_05)
     mv::dynamic_vector<mv::float_type> edgeKData(k2rawData);
     auto bweightsIt = test_cm5.constant(blurKData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
     auto eweightsIt = test_cm5.constant(edgeKData, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::NWHC);
-    auto conv1It = test_cm5.conv2D(inIt->getOutput(), bweightsIt->getOutput(), {1, 1}, {0, 0, 0, 0});
-    auto conv2It = test_cm5.conv2D(conv1It->getOutput(), eweightsIt->getOutput(), {1, 1}, {0, 0, 0, 0});
-    auto outIt = test_cm5.output(conv2It->getOutput());
+    auto conv1It = test_cm5.conv2D(inIt->getOutput(0), bweightsIt->getOutput(0), {1, 1}, {0, 0, 0, 0});
+    auto conv2It = test_cm5.conv2D(conv1It->getOutput(0), eweightsIt->getOutput(0), {1, 1}, {0, 0, 0, 0});
+    auto outIt = test_cm5.output(conv2It->getOutput(0));
 
     // Check if model is valid 
     EXPECT_TRUE(test_cm5.isValid());
@@ -318,16 +318,16 @@ TEST (model_serializer, blob_blur_edge_05)
     EXPECT_EQ( outIt->getInput(0)->getShape(), mv::Shape(252, 252, 1));
 
     // Check number of convolution parameters
-    EXPECT_EQ(conv1It->attrsCount(), 9);
-    EXPECT_EQ(conv2It->attrsCount(), 9);
+    EXPECT_EQ(conv1It->attrsCount(), 10);
+    EXPECT_EQ(conv2It->attrsCount(), 10);
 
     // Check parameters values
     EXPECT_EQ(conv1It->getInput(0)->getShape()[0], 256);    // X dim
     EXPECT_EQ(conv1It->getInput(0)->getShape()[1], 256);    // Y dim
     EXPECT_EQ(conv1It->getInput(0)->getShape()[2], 1);      // Z dim (aka C)
-    EXPECT_EQ(conv2It->getOutput()->getShape()[0], 252);   // X dim
-    EXPECT_EQ(conv2It->getOutput()->getShape()[1], 252);   // Y dim
-    EXPECT_EQ(conv2It->getOutput()->getShape()[2], 1);     // Z dim 
+    EXPECT_EQ(conv2It->getOutput(0)->getShape()[0], 252);   // X dim
+    EXPECT_EQ(conv2It->getOutput(0)->getShape()[1], 252);   // Y dim
+    EXPECT_EQ(conv2It->getOutput(0)->getShape()[2], 1);     // Z dim 
 
     mv::ControlModel cm5(test_cm5);
 

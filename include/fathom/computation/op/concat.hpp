@@ -1,28 +1,31 @@
 #ifndef CONCAT_HPP_
 #define CONCAT_HPP_
 
-#include "include/fathom/computation/op/multisink_op.hpp"
+#include "include/fathom/computation/op/sink_op.hpp"
 #include "include/fathom/computation/op/source_op.hpp"
 
 
 namespace mv
 {
     /// \todo Add assertions (dimensions)   
-    class Concat : public MultiSinkOp, public SourceOp
+    class Concat : public SinkOp, public SourceOp
     {
 
     public:
 
         Concat(const string &name) :
         ComputationOp(OpType::Concat, name),
-        MultiSinkOp(OpType::Concat, 2, name),
-        SourceOp(OpType::Concat, name)
+        SinkOp(OpType::Concat, 2, name),
+        SourceOp(OpType::Concat, 1, name)
         {
             addAttr("executable", AttrType::BoolType, true);
         }
 
-        Tensor getOutputDef()
+        Tensor getOutputDef(byte_type idx)
         {
+            
+            if (idx > 0)
+                return Tensor();
 
             if (!validOutputDef_())
                 return Tensor();
@@ -57,7 +60,7 @@ namespace mv
 
             }
 
-            return Tensor(getOutputName(), Shape(input0Shape[0], input0Shape[1], lastDim), getInput(0)->getDType(), getInput(0)->getOrder());
+            return Tensor(name_ + ":0", Shape(input0Shape[0], input0Shape[1], lastDim), getInput(0)->getDType(), getInput(0)->getOrder());
             
         }
 

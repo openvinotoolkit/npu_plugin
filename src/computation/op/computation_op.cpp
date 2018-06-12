@@ -44,7 +44,7 @@ mv::OpType mv::ComputationOp::getOpType() const
 
 mv::string mv::ComputationOp::toString() const
 {
-    return getAttr("opType").getContentStr() + " '" + name_ + "' " + ComputationElement::toString();
+    return "op " + getAttr("opType").getContentStr() + " '" + name_ + "' " + ComputationElement::toString();
 }
 
 mv::DataContext::TensorIterator mv::ComputationOp::getInput(byte_type)
@@ -52,17 +52,17 @@ mv::DataContext::TensorIterator mv::ComputationOp::getInput(byte_type)
     return mv::DataContext::TensorIterator();
 }
 
-mv::DataContext::TensorIterator mv::ComputationOp::getOutput()
+mv::DataContext::TensorIterator mv::ComputationOp::getOutput(byte_type)
 {
     return mv::DataContext::TensorIterator();
 }
 
-bool mv::ComputationOp::setInput(DataContext::TensorIterator &, byte_type)
+bool mv::ComputationOp::setInput(DataContext::TensorIterator&, byte_type)
 {
     return false;
 }
 
-bool mv::ComputationOp::setOutput(DataContext::TensorIterator &)
+bool mv::ComputationOp::setOutput(DataContext::TensorIterator&, byte_type)
 {
     return false;
 }
@@ -80,11 +80,6 @@ bool mv::ComputationOp::hasInputDef(byte_type)
 mv::byte_type mv::ComputationOp::inputSlots()
 {
     return 0;
-}
-
-mv::string mv::ComputationOp::getOutputName() const
-{
-    return "";
 }
 
 bool mv::ComputationOp::operator==(const ComputationOp &other) const

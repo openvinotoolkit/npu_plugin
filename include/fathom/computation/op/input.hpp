@@ -13,7 +13,7 @@ namespace mv
 
         Input(Shape outputShape, DType dType, Order order, const string &name) :
         ComputationOp(OpType::Input, name),
-        SourceOp(OpType::Input, name)
+        SourceOp(OpType::Input, 1, name)
         {
 
             addAttr("shape", AttrType::ShapeType, outputShape);
@@ -23,12 +23,25 @@ namespace mv
 
         }
 
-        Tensor getOutputDef()
+        virtual bool setOutput(DataContext::TensorIterator &tensor, byte_type idx)
         {
+
+            bool result = SourceOp::setOutput(tensor, idx);
+            return result;
+
+        }
+
+        Tensor getOutputDef(byte_type idx)
+        {
+
+            if (idx > 0)
+                return Tensor();
+
             auto outputShape = getAttr("shape").getContent<Shape>();
             auto dType = getAttr("dType").getContent<DType>();
             auto order = getAttr("order").getContent<Order>();
-            return Tensor(getOutputName(), outputShape, dType, order);
+            return Tensor(name_ + ":0", outputShape, dType, order);
+
         }
 
     };

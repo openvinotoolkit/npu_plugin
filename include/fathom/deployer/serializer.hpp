@@ -180,7 +180,7 @@ class Blob_buffer : public WBuffer
         {
             // calculate blob statistics
             // set input size from compute model 
-            blob_stats.input_size = cm.getFirst()->getOutput()->getShape().totalSize();
+            blob_stats.input_size = cm.getFirst()->getOutput(0)->getShape().totalSize();
 
             // set fixed header sizes for blob
             blob_stats.elf_header_size = 34 ;
@@ -397,11 +397,11 @@ class Blob_buffer : public WBuffer
             AddBytes(4, test_conv_stage.InputDataType);
             AddBytes(4, test_conv_stage.InputOrder);
 
-                    AddBytes(4, it->getOutput()->getShape()[0]);  // output X-dimension size  (0xb0)
-                    AddBytes(4, it->getOutput()->getShape()[1]);  // output Y-dimension size
-                    AddBytes(4, it->getOutput()->getShape()[2]);  // output Z-dimension size
-                    AddBytes(4, number_size*it->getOutput()->getShape()[2]);  // output stepX 
-                    AddBytes(4, number_size*it->getOutput()->getShape()[0]*it->getOutput()->getShape()[2]);   // 0xc0
+                    AddBytes(4, it->getOutput(0)->getShape()[0]);  // output X-dimension size  (0xb0)
+                    AddBytes(4, it->getOutput(0)->getShape()[1]);  // output Y-dimension size
+                    AddBytes(4, it->getOutput(0)->getShape()[2]);  // output Z-dimension size
+                    AddBytes(4, number_size*it->getOutput(0)->getShape()[2]);  // output stepX 
+                    AddBytes(4, number_size*it->getOutput(0)->getShape()[0]*it->getOutput(0)->getShape()[2]);   // 0xc0
             AddBytes(4, test_conv_stage.OutputStrideZ);
             AddBytes(4, test_conv_stage.OutputOffset);
             AddBytes(4, test_conv_stage.OutputLocation);

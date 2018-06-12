@@ -1,9 +1,10 @@
 #include "include/fathom/computation/op/sink_op.hpp"
 
-mv::SinkOp::SinkOp(OpType opType, const string &name) :
-ComputationOp(opType, name)
+mv::SinkOp::SinkOp(OpType opType, byte_type inputsCount, const string &name) :
+ComputationOp(opType, name),
+inputs_(inputsCount, DataContext::TensorIterator())
 {
-    addAttr("inputs", AttrType::ByteType, (byte_type)1);
+    addAttr("inputs", AttrType::ByteType, inputsCount);
 }
 
 mv::SinkOp::~SinkOp()
@@ -13,37 +14,51 @@ mv::SinkOp::~SinkOp()
 
 bool mv::SinkOp::setInput(DataContext::TensorIterator &tensor, byte_type idx)
 {
-    if (idx > 1)
+    if (idx >= getAttr("inputs").getContent<byte_type>())
         return false;
 
-    input_ = tensor;
-    addAttr("input0", AttrType::StringType, tensor->getName());
-    logger_.log(Logger::MessageType::MessageDebug, "Set input 0 for " + toString() + " as " + tensor->toString());
+    inputs_[idx] = tensor;
+    addAttr("input" + Printable::toString(idx), AttrType::StringType, tensor->getName());
+    logger_.log(Logger::MessageType::MessageDebug, "Set input " + Printable::toString(idx) + " for " + toString() + " as " + tensor->toString());
     return true;
 }
 
 mv::DataContext::TensorIterator mv::SinkOp::getInput(byte_type idx)
 {
-    if (idx > 1)
+    if (idx >= getAttr("inputs").getContent<byte_type>())
         return DataContext::TensorIterator();
 
-    return input_;
-
+    return inputs_[idx];
 }
 
 bool mv::SinkOp::hasInputDef()
 {
 
+    for (unsigned_type i = 0; i < inputs_.size(); ++i)
+    {
+        if (!hasInputDef(i))
+            return false;
+    }
+
+    return true;
+
+}
+
+bool mv::SinkOp::hasInputDef(byte_type idx)
+{
+
     DataContext::TensorIterator emptyIt;
-    
-    if (input_ == emptyIt)
+
+    if (inputs_[idx] == emptyIt)
         return false;
-    
+
     return true;
 
 }
 
 mv::byte_type mv::SinkOp::inputSlots()
 {
-    return 1;
+
+    return inputs_.size();
+    
 }

@@ -173,7 +173,7 @@ bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, Dat
     return false;
 }
 
-mv::DataContext::TensorIterator mv::ComputationModel::defineOutputTensor_(DataContext::OpListIterator &source)
+mv::DataContext::TensorIterator mv::ComputationModel::defineOutputTensor_(DataContext::OpListIterator &source, byte_type outputIdx)
 {
     if (source == dataOpEnd_)
     {
@@ -181,7 +181,7 @@ mv::DataContext::TensorIterator mv::ComputationModel::defineOutputTensor_(DataCo
         return DataContext::TensorIterator();
     }
 
-    auto tensorDef = source->getOutputDef();
+    auto tensorDef = source->getOutputDef(outputIdx);
 
     if (flowTensors_->find(tensorDef.getName()) == flowTensors_->end())
     {

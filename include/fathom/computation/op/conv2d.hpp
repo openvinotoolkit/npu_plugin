@@ -2,12 +2,12 @@
 #define CONV_HPP_
 
 #include "include/fathom/computation/op/kernel_op.hpp"
-#include "include/fathom/computation/op/multisink_op.hpp"
+#include "include/fathom/computation/op/sink_op.hpp"
 
 namespace mv
 {
     /// \todo Add assertions (dimensions)   
-    class Conv2D : public KernelOp, public MultiSinkOp
+    class Conv2D : public KernelOp, public SinkOp
     {
 
     public:
@@ -15,13 +15,16 @@ namespace mv
         Conv2D(UnsignedVector2D stride, UnsignedVector4D padding, const string& name) :
         ComputationOp(OpType::Conv2D, name),
         KernelOp(OpType::Conv2D, stride, padding, name),
-        MultiSinkOp(OpType::Conv2D, 2, name)
+        SinkOp(OpType::Conv2D, 2, name)
         {
             addAttr("executable", AttrType::BoolType, true);
         }
 
-        Tensor getOutputDef()
+        Tensor getOutputDef(byte_type idx)
         {
+
+            if (idx > 0)
+                return Tensor();
 
             if (!validOutputDef_())
                 return Tensor();
@@ -80,7 +83,7 @@ namespace mv
             Shape outputShape((inputShape[0] + padding.e0 + padding.e1 - weightsShape[0]) / stride.e0 + 1, (
                 inputShape[1] + padding.e2 + padding.e3 - weightsShape[1]) / stride.e1 + 1, weightsShape[3]);
 
-            return Tensor(getOutputName(), outputShape, input->getDType(), input->getOrder());
+            return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
 
         }
 

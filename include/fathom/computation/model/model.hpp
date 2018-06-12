@@ -67,7 +67,7 @@ namespace mv
         bool checkOpsStages_() const;
         ControlContext::StageIterator addStage_();
         bool addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
-        DataContext::TensorIterator defineOutputTensor_(DataContext::OpListIterator &source);
+        DataContext::TensorIterator defineOutputTensor_(DataContext::OpListIterator &source, byte_type outputIdx);
         DataContext::TensorIterator findTensor_(const string &name);
         DataContext::OpListIterator findSourceOp_(DataContext::TensorIterator &tensor);
 

@@ -1,9 +1,10 @@
 #include "include/fathom/computation/op/source_op.hpp"
 
-mv::SourceOp::SourceOp(OpType opType, const string &name) :
-ComputationOp(opType, name)
+mv::SourceOp::SourceOp(OpType opType, byte_type outputsCount, const string &name) :
+ComputationOp(opType, name),
+outputs_(outputsCount, DataContext::TensorIterator())
 {
-    addAttr("output", AttrType::StringType, name_ + ":out");
+    addAttr("outputs", AttrType::ByteType, outputsCount);
 }
 
 mv::SourceOp::~SourceOp()
@@ -11,19 +12,32 @@ mv::SourceOp::~SourceOp()
 
 }
 
-bool mv::SourceOp::setOutput(DataContext::TensorIterator &tensor)
+bool mv::SourceOp::setOutput(DataContext::TensorIterator &tensor, byte_type idx)
 {
-    output_ = tensor;
-    logger_.log(Logger::MessageType::MessageDebug, "Set output for " + toString() + " as " + tensor->toString());
+    
+    if (idx >= getAttr("outputs").getContent<byte_type>())
+        return false;   
+    
+    outputs_[idx] = tensor;
+    addAttr("output" + Printable::toString(idx), AttrType::StringType, tensor->getName());
+    logger_.log(Logger::MessageType::MessageDebug, "Set output " + Printable::toString(idx) + " for " + toString() + " as " + tensor->toString());
     return true;
+
 }
 
-mv::DataContext::TensorIterator mv::SourceOp::getOutput()
+mv::DataContext::TensorIterator mv::SourceOp::getOutput(byte_type idx)
 {
-    return output_;
+
+    if (idx >= getAttr("outputs").getContent<byte_type>())
+        return DataContext::TensorIterator();
+
+    return outputs_[idx];
+
 }
 
-mv::string mv::SourceOp::getOutputName() const
+mv::byte_type mv::SourceOp::outputSlots()
 {
-    return getAttr("output").getContent<string>();
+
+    return outputs_.size();
+    
 }

@@ -16,7 +16,7 @@ namespace mv
 
         Constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name) :
         ComputationOp(OpType::Constant, name),
-        SourceOp(OpType::Constant, name),
+        SourceOp(OpType::Constant, 1, name),
         data_(allocator_.make_owner<dynamic_vector<float_type>>(data))
         {
             addAttr("shape", AttrType::ShapeType, shape);
@@ -25,12 +25,16 @@ namespace mv
             addAttr("executable", AttrType::BoolType, false);
         }
 
-        Tensor getOutputDef()
+        Tensor getOutputDef(byte_type idx)
         {
+            
+            if (idx > 0)
+                return Tensor();
+
             auto shape = getAttr("shape").getContent<Shape>();
             auto dType = getAttr("dType").getContent<DType>();
             auto order = getAttr("order").getContent<Order>();
-            return Tensor(getOutputName(), shape, dType, order, data_);
+            return Tensor(name_ + ":0", shape, dType, order, data_);
         }
 
     };

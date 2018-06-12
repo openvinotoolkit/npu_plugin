@@ -9,16 +9,15 @@ namespace mv
     class SourceOp : public virtual ComputationOp
     {
         
-        DataContext::TensorIterator output_;
+        dynamic_vector<DataContext::TensorIterator> outputs_;
 
     public:
 
-        SourceOp(OpType opType, const string &name);
+        SourceOp(OpType opType, byte_type outputsCount, const string &name);
         virtual ~SourceOp() = 0;
-        virtual bool setOutput(DataContext::TensorIterator &tensor);
-        virtual DataContext::TensorIterator getOutput();
+        virtual bool setOutput(DataContext::TensorIterator &tensor, byte_type idx);
+        virtual DataContext::TensorIterator getOutput(byte_type idx);
         byte_type outputSlots();
-        string getOutputName() const;
 
     };
 

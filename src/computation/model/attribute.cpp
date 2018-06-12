@@ -61,6 +61,33 @@ mv::string mv::Attribute::getContentStr() const
         case AttrType::OpTypeType:
             return Printable::toString(getContent<OpType>());
 
+        case AttrType::FloatVec2DType:
+            return Printable::toString(getContent<FloatVector2D>());
+
+        case AttrType::FloatVec3DType:
+            return Printable::toString(getContent<FloatVector3D>());
+
+        case AttrType::FloatVec4DType:
+            return Printable::toString(getContent<FloatVector4D>());
+
+        case AttrType::IntVec2DType:
+            return Printable::toString(getContent<IntVector2D>());
+
+        case AttrType::IntVec3DType:
+            return Printable::toString(getContent<IntVector3D>());
+
+        case AttrType::IntVec4DType:
+            return Printable::toString(getContent<IntVector4D>());
+
+        case AttrType::UnsignedVec2DType:
+            return Printable::toString(getContent<UnsignedVector2D>());
+
+        case AttrType::UnsignedVec3DType:
+            return Printable::toString(getContent<UnsignedVector3D>());
+
+        case AttrType::UnsignedVec4DType:
+            return Printable::toString(getContent<UnsignedVector4D>());
+
         default:
             return "unknown";
 

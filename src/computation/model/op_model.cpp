@@ -48,12 +48,11 @@ mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dTy
 {
 
     input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(shape, dType, order, name));
+    auto outputTensor = defineOutputTensor_(input_, 0);
+    input_->setOutput(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
+
     lastOp_ = opsGraph_->get_second_iterator(input_);
-
-    auto outputTensor = defineOutputTensor_(input_);
-    input_->setOutput(outputTensor);
-
     return input_;
 
 }
@@ -125,8 +124,8 @@ mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::TensorIterator 
     DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv2D>(stride, padding, name));
     convIt->setInput(inputTensor, 0);
     convIt->setInput(filtersTensor, 1);
-    auto outputTensor = defineOutputTensor_(convIt);
-    convIt->setOutput(outputTensor);
+    auto outputTensor = defineOutputTensor_(convIt, 0);
+    convIt->setOutput(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + convIt->toString());
 
     DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(inputSourceIt, convIt, allocator_.make_owner<DataFlow>(inputSourceIt, convIt, inputTensor));
@@ -162,8 +161,8 @@ mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::TensorIterat
 
     DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool2D>(kernelSize, stride, padding, name));
     poolIt->setInput(inputTensor, 0);
-    auto outputTensor = defineOutputTensor_(poolIt);
-    poolIt->setOutput(outputTensor);
+    auto outputTensor = defineOutputTensor_(poolIt, 0);
+    poolIt->setOutput(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + poolIt->toString());
 
     DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(sourceIt, poolIt, allocator_.make_owner<DataFlow>(sourceIt, poolIt, inputTensor));
@@ -211,8 +210,8 @@ mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator 
     DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(name));
     concatIt->setInput(input0Tensor, 0);
     concatIt->setInput(input1Tensor, 1);
-    auto outputTensor = defineOutputTensor_(concatIt);
-    concatIt->setOutput(outputTensor);
+    auto outputTensor = defineOutputTensor_(concatIt, 0);
+    concatIt->setOutput(outputTensor, 0);
     
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + concatIt->toString());
 
@@ -232,8 +231,8 @@ mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator 
 mv::DataContext::OpListIterator mv::OpModel::constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name)
 {
     DataContext::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(data, shape, dType, order, name));
-    auto outputTensor = defineOutputTensor_(constantIt);
-    constantIt->setOutput(outputTensor);
+    auto outputTensor = defineOutputTensor_(constantIt, 0);
+    constantIt->setOutput(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + constantIt->toString());
     return constantIt;
 }

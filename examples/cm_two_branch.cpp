@@ -17,18 +17,18 @@ int main()
     mv::dynamic_vector<mv::float_type> conv4WeightsData = mv::utils::generateSequence<mv::float_type>(6u * 6u * 32u * 64u);
 
     auto conv1WeightsIt = om.constant(conv1WeightsData, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC);
-    auto conv1It = om.conv2D(inIt->getOutput(), conv1WeightsIt->getOutput(), {2, 2}, {1, 1, 1, 1});
-    auto pool1It = om.maxpool2D(conv1It->getOutput(), {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto conv1It = om.conv2D(inIt->getOutput(0), conv1WeightsIt->getOutput(0), {2, 2}, {1, 1, 1, 1});
+    auto pool1It = om.maxpool2D(conv1It->getOutput(0), {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto conv2WeightsIt = om.constant(conv2WeightsData, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC);
-    auto conv2It = om.conv2D(inIt->getOutput(), conv2WeightsIt->getOutput(), {2, 2}, {1, 1, 1, 1});
-    auto pool2It = om.maxpool2D(conv2It->getOutput(), {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto concat1It = om.concat(pool1It->getOutput(), pool2It->getOutput());
+    auto conv2It = om.conv2D(inIt->getOutput(0), conv2WeightsIt->getOutput(0), {2, 2}, {1, 1, 1, 1});
+    auto pool2It = om.maxpool2D(conv2It->getOutput(0), {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto concat1It = om.concat(pool1It->getOutput(0), pool2It->getOutput(0));
     auto conv3WeightsIt = om.constant(conv3WeightsData, mv::Shape(5, 5, 16, 32), mv::DType::Float, mv::Order::NWHC);
-    auto conv3It = om.conv2D(concat1It->getOutput(), conv3WeightsIt->getOutput(), {2, 2}, {2, 2, 2, 2});
-    auto pool3It = om.maxpool2D(conv3It->getOutput(), {5, 5}, {3, 3}, {2, 2, 2, 2});
+    auto conv3It = om.conv2D(concat1It->getOutput(0), conv3WeightsIt->getOutput(0), {2, 2}, {2, 2, 2, 2});
+    auto pool3It = om.maxpool2D(conv3It->getOutput(0), {5, 5}, {3, 3}, {2, 2, 2, 2});
     auto conv4WeightsIt = om.constant(conv4WeightsData, mv::Shape(6, 6, 32, 64), mv::DType::Float, mv::Order::NWHC);
-    auto conv4It = om.conv2D(pool3It->getOutput(), conv4WeightsIt->getOutput(), {1, 1}, {0, 0, 0, 0});
-    auto outIt = om.output(conv4It->getOutput());
+    auto conv4It = om.conv2D(pool3It->getOutput(0), conv4WeightsIt->getOutput(0), {1, 1}, {0, 0, 0, 0});
+    auto outIt = om.output(conv4It->getOutput(0));
 
     auto msgType = mv::Logger::MessageType::MessageInfo;
     mv::DataModel dm(om);

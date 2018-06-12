@@ -109,7 +109,7 @@ namespace mv
 
         string toString() const
         {
-            return "'" + name_ + "' " + ComputationElement::toString();
+            return "tensor '" + name_ + "' " + ComputationElement::toString();
         }
 
     };

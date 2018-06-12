@@ -15,14 +15,17 @@ namespace mv
         MaxPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
         ComputationOp(OpType::MaxPool2D, name),
         KernelOp(OpType::MaxPool2D, stride, padding, name),
-        SinkOp(OpType::MaxPool2D, name)
+        SinkOp(OpType::MaxPool2D, 1, name)
         {
             addAttr("kSize", AttrType::UnsignedVec2DType, kernelSize);
             addAttr("executable", AttrType::BoolType, true);
         }
 
-        Tensor getOutputDef()
+        Tensor getOutputDef(byte_type idx)
         {
+
+            if (idx > 0)
+                return Tensor();
 
             if (!validOutputDef_())
                 return Tensor();
@@ -64,7 +67,7 @@ namespace mv
             Shape outputShape((inputShape[0] + padding.e0 + padding.e1 - kSize.e0) / stride.e0 + 1, (
                 inputShape[1] + padding.e2 + padding.e3 - kSize.e1) / stride.e1 + 1, inputShape[2]);
 
-            return Tensor(getOutputName(), outputShape, input->getDType(), input->getOrder());
+            return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
 
         }
 
