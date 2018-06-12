@@ -33,7 +33,7 @@ namespace mv
             addDim(dims...);
         }
 
-        Shape(const Shape &other) :
+        Shape(const Shape& other) :
         dims_(other.dims_)
         {
 
@@ -71,15 +71,20 @@ namespace mv
             return dim(ndim);
         }
 
-        Shape& operator=(const Shape &other)
+        Shape& operator=(const Shape& other)
         {
             dims_ = other.dims_;
             return *this;
         }
 
-        bool operator==(const Shape &other) const
+        bool operator==(const Shape& other) const
         {
             return dims_ == other.dims_;
+        }
+
+        bool operator!=(const Shape& other) const
+        {
+            return !operator==(other);
         }
 
         string toString() const

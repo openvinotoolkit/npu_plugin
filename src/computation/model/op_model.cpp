@@ -6,14 +6,15 @@ ComputationModel(verboseLevel, logTime)
 
 }
 
-mv::OpModel::OpModel(const ComputationModel &other) :
+mv::OpModel::OpModel(const ComputationModel& other) :
 ComputationModel(other)
 {
 
 }
 
-bool mv::OpModel::defaultControlFlow_(DataContext::OpListIterator &op)
+bool mv::OpModel::defaultControlFlow_(DataContext::OpListIterator& op)
 {
+
     ControlContext::OpListIterator currentOp = opsGraph_->get_second_iterator(op);
     ControlContext::FlowListIterator newFlow = controlGraph_.edge_insert(lastOp_, currentOp, allocator_.make_owner<ControlFlow>(lastOp_, currentOp));
 
@@ -27,7 +28,7 @@ bool mv::OpModel::defaultControlFlow_(DataContext::OpListIterator &op)
 
 }
 
-bool mv::OpModel::defaultStage_(DataContext::OpListIterator &op)
+bool mv::OpModel::defaultStage_(DataContext::OpListIterator& op)
 {
 
     auto stageIt = addStage_();
@@ -39,12 +40,34 @@ bool mv::OpModel::defaultStage_(DataContext::OpListIterator &op)
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::switchContext(ControlContext::OpListIterator &other)
+mv::DataContext::OpListIterator mv::OpModel::checkInputTensor_(DataContext::TensorIterator& inputTensor)
+{
+
+    if (inputTensor == tensorEnd_)
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - unspecified input tensor" );
+        return opEnd();
+    }
+
+    auto sourceIt = findSourceOp_(inputTensor);
+    
+    if (sourceIt == opEnd())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - tensor '" + inputTensor->getName() + 
+            "' does not belong to the computation model");
+        return opEnd();
+    }
+
+    return sourceIt;
+
+}
+
+mv::DataContext::OpListIterator mv::OpModel::switchContext(ControlContext::OpListIterator& other)
 {
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dType, Order order, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const string& name)
 {
 
     input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(shape, dType, order, name));
@@ -57,23 +80,12 @@ mv::DataContext::OpListIterator mv::OpModel::input(const Shape &shape, DType dTy
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::output(DataContext::TensorIterator inputTensor, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::output(DataContext::TensorIterator inputTensor, const string& name)
 {
-
-    if (inputTensor == tensorEnd_)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - unspecified input tensor" );
-        return DataContext::OpListIterator();
-    }
-
-    auto sourceIt = findSourceOp_(inputTensor);
     
+    auto sourceIt = checkInputTensor_(inputTensor);
     if (sourceIt == opEnd())
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - tensor '" + inputTensor->getName() + 
-            "' does not belong to the computation model");
         return DataContext::OpListIterator();
-    }
 
     output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(name));
     output_->setInput(inputTensor, 0);
@@ -88,38 +100,31 @@ mv::DataContext::OpListIterator mv::OpModel::output(DataContext::TensorIterator 
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::TensorIterator inputTensor, DataContext::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name)
+{
+    DataContext::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(data, shape, dType, order, name));
+    auto outputTensor = defineOutputTensor_(constantIt, 0);
+    constantIt->setOutput(outputTensor, 0);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + constantIt->toString());
+    return constantIt;
+}
+
+mv::DataContext::OpListIterator mv::OpModel::constant(float_type *data, size_type size, const Shape& shape, DType dType, Order order, const string& name)
+{
+    dynamic_vector<float_type> dataVec(data, size);
+    return constant(dataVec, shape, dType, order, name);
+}
+
+mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::TensorIterator inputTensor, DataContext::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
 {
 
-    if (inputTensor == tensorEnd_)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified input tensor" );
-        return DataContext::OpListIterator();
-    }
-
-    if (filtersTensor == tensorEnd_)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified filters tensor" );
-        return DataContext::OpListIterator();
-    }
-
-    auto inputSourceIt = findSourceOp_(inputTensor);
-    
+    auto inputSourceIt = checkInputTensor_(inputTensor);
     if (inputSourceIt == opEnd())
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + inputTensor->getName() + 
-            "' does not belong to the computation model");
         return DataContext::OpListIterator();
-    }
 
-    auto filtersSourceIt = findSourceOp_(filtersTensor);
-    
+    auto filtersSourceIt = checkInputTensor_(filtersTensor);
     if (filtersSourceIt == opEnd())
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + filtersTensor->getName() + 
-            "' does not belong to the computation model");
         return DataContext::OpListIterator();
-    }
 
     DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv2D>(stride, padding, name));
     convIt->setInput(inputTensor, 0);
@@ -141,23 +146,41 @@ mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::TensorIterator 
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::fullyConnected(DataContext::TensorIterator inputTensor, DataContext::TensorIterator weightsTensor, const string& name)
+{
+    auto inputSourceIt = checkInputTensor_(inputTensor);
+    if (inputSourceIt == opEnd())
+        return DataContext::OpListIterator();
+
+    auto weightsSourceIt = checkInputTensor_(weightsTensor);
+    if (weightsSourceIt == opEnd())
+        return DataContext::OpListIterator();
+
+    DataContext::OpListIterator fullyConnectedIt = dataGraph_.node_insert(allocator_.make_owner<FullyConnected>(name));
+    fullyConnectedIt->setInput(inputTensor, 0);
+    fullyConnectedIt->setInput(weightsTensor, 1);
+    auto outputTensor = defineOutputTensor_(fullyConnectedIt, 0);
+    fullyConnectedIt->setOutput(outputTensor, 0);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + fullyConnectedIt->toString());
+
+    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(inputSourceIt, fullyConnectedIt, allocator_.make_owner<DataFlow>(inputSourceIt, fullyConnectedIt, inputTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
+
+    DataContext::FlowListIterator filtersFlow = dataGraph_.edge_insert(weightsSourceIt, fullyConnectedIt, allocator_.make_owner<DataFlow>(weightsSourceIt, fullyConnectedIt, weightsTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + filtersFlow->toString());
+
+    defaultControlFlow_(fullyConnectedIt);
+    defaultStage_(fullyConnectedIt);
+
+    return fullyConnectedIt;
+}
+
+mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
 {
 
-    if (inputTensor == tensorEnd_)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - unspecified input tensor" );
-        return DataContext::OpListIterator();
-    }
-
-    auto sourceIt = findSourceOp_(inputTensor);
-    
+    auto sourceIt = checkInputTensor_(inputTensor);
     if (sourceIt == opEnd())
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output op - tensor '" + inputTensor->getName() + 
-            "' does not belong to the computation model");
         return DataContext::OpListIterator();
-    }
 
     DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool2D>(kernelSize, stride, padding, name));
     poolIt->setInput(inputTensor, 0);
@@ -174,38 +197,16 @@ mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::TensorIterat
     return poolIt;
 }
 
-mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string &name)
+mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string& name)
 {
 
-    if (input0Tensor == tensorEnd_)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified input 0 tensor" );
-        return DataContext::OpListIterator();
-    }
-
-    if (input1Tensor == tensorEnd_)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - unspecified input 1 tensor" );
-        return DataContext::OpListIterator();
-    }
-
-    auto input0SourceIt = findSourceOp_(input0Tensor);
-    
+    auto input0SourceIt = checkInputTensor_(input0Tensor);
     if (input0SourceIt == opEnd())
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + input0Tensor->getName() + 
-            "' does not belong to the computation model");
         return DataContext::OpListIterator();
-    }
 
-    auto input1SourceIt = findSourceOp_(input1Tensor);
-    
+    auto input1SourceIt = checkInputTensor_(input1Tensor);
     if (input1SourceIt == opEnd())
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define conv2D op - tensor '" + input1Tensor->getName() + 
-            "' does not belong to the computation model");
         return DataContext::OpListIterator();
-    }
 
     DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(name));
     concatIt->setInput(input0Tensor, 0);
@@ -228,22 +229,7 @@ mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator 
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name)
-{
-    DataContext::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(data, shape, dType, order, name));
-    auto outputTensor = defineOutputTensor_(constantIt, 0);
-    constantIt->setOutput(outputTensor, 0);
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + constantIt->toString());
-    return constantIt;
-}
-
-mv::DataContext::OpListIterator mv::OpModel::constant(float_type *data, size_type size, const Shape &shape, DType dType, Order order, const string &name)
-{
-    dynamic_vector<float_type> dataVec(data, size);
-    return constant(dataVec, shape, dType, order, name);
-}
-
-bool mv::OpModel::addAttr(DataContext::OpListIterator &opIt, const string &name, const Attribute &attr)
+bool mv::OpModel::addAttr(DataContext::OpListIterator& opIt, const string& name, const Attribute& attr)
 {
 
     return opIt->addAttr(name, attr);
@@ -271,7 +257,7 @@ mv::DataContext::OpListIterator mv::OpModel::opEnd()
 }
 
 
-mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(DataContext::OpListIterator &newElement, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(DataContext::OpListIterator& newElement, GroupContext::GroupIterator& group)
 {
 
     allocator::owner_ptr<ComputationOp> ptr = newElement;
@@ -279,13 +265,13 @@ mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(DataContext::OpLis
 
 }
 
-bool mv::OpModel::removeGroupElement(DataContext::OpListIterator &element, GroupContext::GroupIterator &group)
+bool mv::OpModel::removeGroupElement(DataContext::OpListIterator& element, GroupContext::GroupIterator& group)
 {
     allocator::owner_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);
 }
 
-mv::dynamic_vector<mv::Shape> mv::OpModel::getInputShapes(DataContext::OpListIterator &op)
+mv::dynamic_vector<mv::Shape> mv::OpModel::getInputShapes(DataContext::OpListIterator& op)
 {
 
     dynamic_vector<Shape> shapes;
@@ -299,7 +285,7 @@ mv::dynamic_vector<mv::Shape> mv::OpModel::getInputShapes(DataContext::OpListIte
 
 }
 
-mv::dynamic_vector<mv::Shape> mv::OpModel::getOutputShapes(DataContext::OpListIterator &op)
+mv::dynamic_vector<mv::Shape> mv::OpModel::getOutputShapes(DataContext::OpListIterator& op)
 {
 
     dynamic_vector<Shape> shapes;

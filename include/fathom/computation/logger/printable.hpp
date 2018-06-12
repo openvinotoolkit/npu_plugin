@@ -194,11 +194,44 @@ namespace mv
                 case OpType::Conv2D:
                     return "conv2D";
 
+                case OpType::FullyConnected:
+                    return "fullyConnected";
+
                 case OpType::MaxPool2D:
                     return "maxpool2D";
 
+                case OpType::AvgPool2D:
+                    return "avgpool2D";
+
                 case OpType::Concat:
                     return "concat";
+                
+                case OpType::ReLu:
+                    return "relu";
+
+                case OpType::Softmax:
+                    return "softmax";
+
+                case OpType::Scale:
+                    return "scale";
+
+                case OpType::BatchNorm:
+                    return "batchnorm";
+
+                case OpType::Add:
+                    return "add";
+
+                case OpType::Subtract:
+                    return "subtract";
+
+                case OpType::Muliply:
+                    return "multiply";
+
+                case OpType::Divide:
+                    return "divide";
+
+                case OpType::Reshape:
+                    return "reshape";
 
                 default:
                     return "unknown";

@@ -1,5 +1,5 @@
-#ifndef CONV_HPP_
-#define CONV_HPP_
+#ifndef CONV2D_OP_HPP_
+#define CONV2D_OP_HPP_
 
 #include "include/fathom/computation/op/kernel_op.hpp"
 #include "include/fathom/computation/op/sink_op.hpp"
@@ -91,4 +91,4 @@ namespace mv
 
 }
 
-#endif // CONV_HPP_
+#endif // CONV2D_OP_HPP_

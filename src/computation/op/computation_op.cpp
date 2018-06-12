@@ -14,16 +14,6 @@ mv::ComputationOp::~ComputationOp()
 
 }
 
-/*mv::ComputationOp::ComputationOp(const ComputationOp &other) :
-ComputationElement(other),
-dType_(other.dType_),
-order_(other.order_),
-inputShape_(other.inputShape_),
-outputShape_(other.outputShape_)
-{
-
-}*/
-
 bool mv::ComputationOp::validOutputDef_()
 {
 

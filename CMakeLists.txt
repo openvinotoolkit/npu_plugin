@@ -21,6 +21,9 @@ file(GLOB computation_model
     "src/computation/flow/flow.cpp"
     "src/computation/op/source_op.cpp"
     "src/computation/op/sink_op.cpp"
+    "src/computation/op/pool2d_op.cpp"
+    "src/computation/op/activation_op.cpp"
+    "src/computation/op/eltwise_op.cpp"
     "src/deployer/ostream.cpp")
 
 file(GLOB logger "src/computation/logger/logger.cpp")

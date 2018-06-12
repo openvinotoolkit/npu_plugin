@@ -30,7 +30,8 @@ namespace mv
             if (!validOutputDef_())
                 return Tensor();
 
-            auto input0Shape = getInput(0)->getShape();
+            auto input0 = getInput(0);
+            auto input0Shape = input0->getShape();
             if (input0Shape.ndims() != 3)
             {
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
@@ -60,7 +61,7 @@ namespace mv
 
             }
 
-            return Tensor(name_ + ":0", Shape(input0Shape[0], input0Shape[1], lastDim), getInput(0)->getDType(), getInput(0)->getOrder());
+            return Tensor(name_ + ":0", Shape(input0Shape[0], input0Shape[1], lastDim), input0->getDType(), input0->getOrder());
             
         }
 
