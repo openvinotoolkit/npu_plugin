@@ -236,7 +236,7 @@ TEST (model_serializer, blob_output_conv_04)
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto inIt4 = test_cm4.input(mv::Shape(256, 256, 3), mv::DType::Float, mv::Order::NWHC);   //N WH C
-    mv::dynamic_vector<mv::float_type> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.00f, 0.01f);
+    mv::dynamic_vector<mv::float_type> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.101f, 0.001f);
 
     auto weightsIt4 = test_cm4.constant(weightsData4, mv::Shape(5, 5, 3, 3), mv::DType::Float, mv::Order::NWHC);   // kh, kw, kN, C
     auto convIt4 = test_cm4.conv2D(inIt4->getOutput(), weightsIt4->getOutput(), {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady

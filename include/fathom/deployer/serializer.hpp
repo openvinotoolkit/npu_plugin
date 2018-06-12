@@ -231,7 +231,7 @@ class Blob_buffer : public WBuffer
                 
             }
 
-            blob_stats.output_size = cm.getLast()->getInput(0)->getShape()[0] * cm.getLast()->getInput(0)->getShape()[1] ;
+            blob_stats.output_size = cm.getLast()->getInput(0)->getShape()[0] * cm.getLast()->getInput(0)->getShape()[1] * cm.getLast()->getInput(0)->getShape()[2];
             blob_stats.stage_section_size = align(blob_stats.stage_section_size, 16) ;
             blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size + blob_stats.params_region_size ;
 
@@ -400,8 +400,8 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, it->getOutput()->getShape()[0]);  // output X-dimension size  (0xb0)
                     AddBytes(4, it->getOutput()->getShape()[1]);  // output Y-dimension size
                     AddBytes(4, it->getOutput()->getShape()[2]);  // output Z-dimension size
-            AddBytes(4, test_conv_stage.OutputStrideX);
-                    AddBytes(4, number_size*it->getOutput()->getShape()[0]);   // 0xc0
+                    AddBytes(4, number_size*it->getOutput()->getShape()[2]);  // output stepX 
+                    AddBytes(4, number_size*it->getOutput()->getShape()[0]*it->getOutput()->getShape()[2]);   // 0xc0
             AddBytes(4, test_conv_stage.OutputStrideZ);
             AddBytes(4, test_conv_stage.OutputOffset);
             AddBytes(4, test_conv_stage.OutputLocation);
@@ -409,10 +409,11 @@ class Blob_buffer : public WBuffer
             AddBytes(4, test_conv_stage.OutputOrder);
 
             AddBytes(4, it->getInput(1)->getShape()[0]*it->getInput(1)->getShape()[1]);
-            AddBytes(4, it->getInput(1)->getShape()[3]);
-            AddBytes(4, test_conv_stage.TapsDimZ);    // 0xe0
-            AddBytes(4, number_size*it->getInput(1)->getShape()[3]);
-            AddBytes(4, test_conv_stage.TapsStrideY);
+            AddBytes(4, it->getInput(1)->getShape()[2]);
+            AddBytes(4, it->getInput(1)->getShape()[3]);     // 0xe0   TapsDImZ
+
+            AddBytes(4, number_size*it->getInput(1)->getShape()[2]*it->getInput(1)->getShape()[3]);   // Taps step X
+            AddBytes(4, number_size*it->getInput(1)->getShape()[3]);   // Taps step Y
             AddBytes(4, test_conv_stage.TapsStrideZ);
             AddBytes(4, test_conv_stage.TapsOffset);   // 0xf0
             AddBytes(4, test_conv_stage.TapsLocation);
