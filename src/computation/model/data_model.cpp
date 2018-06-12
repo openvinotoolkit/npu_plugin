@@ -50,7 +50,7 @@ bool mv::DataModel::removeGroupElement(DataContext::FlowListIterator &element, G
     return removeGroupElement_(ptr, group);
 }
 
-mv::TensorContext::TensorIterator mv::DataModel::findTensor(string name)
+mv::DataContext::TensorIterator mv::DataModel::findTensor(string name)
 {
 
     return ComputationModel::findTensor_(name);
@@ -68,7 +68,7 @@ bool mv::DataModel::addAllocator(const string &name, size_type maxSize)
     return false;
 }
 
-bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::TensorIterator &tensor)
+bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, DataContext::TensorIterator &tensor)
 {
     if (memoryAllocators_->find(allocatorName) != memoryAllocators_->end())
     {

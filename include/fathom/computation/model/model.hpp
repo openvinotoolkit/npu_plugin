@@ -56,7 +56,7 @@ namespace mv
         DataContext::FlowListIterator dataFlowEnd_;
         ControlContext::OpListIterator controlOpEnd_;
         ControlContext::FlowListIterator controlFlowEnd_;
-        TensorContext::TensorIterator tensorEnd_;
+        DataContext::TensorIterator tensorEnd_;
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
@@ -66,8 +66,8 @@ namespace mv
         bool checkOpsStages_() const;
         ControlContext::StageIterator addStage_();
         bool addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
-        TensorContext::TensorIterator getTensor_(const Tensor &tensorDef);
-        TensorContext::TensorIterator findTensor_(const string &name);
+        DataContext::TensorIterator getTensor_(const Tensor &tensorDef);
+        DataContext::TensorIterator findTensor_(const string &name);
 
     public:
 

@@ -24,7 +24,7 @@ namespace mv
             return Tensor();
         }
 
-        virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx)
+        virtual bool setInput(DataContext::TensorIterator &tensor, byte_type idx)
         {
 
             bool result = MultiSinkOp::setInput(tensor, idx);

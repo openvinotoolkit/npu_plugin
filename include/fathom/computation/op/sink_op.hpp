@@ -9,14 +9,14 @@ namespace mv
     class SinkOp : public virtual ComputationOp
     {
         
-        TensorContext::TensorIterator input_;
+        DataContext::TensorIterator input_;
 
     public:
 
         SinkOp(OpType opType, const string &name);
         virtual ~SinkOp() = 0;
-        virtual bool setInput(TensorContext::TensorIterator &tensor, byte_type idx);
-        virtual TensorContext::TensorIterator getInput(byte_type idx);
+        virtual bool setInput(DataContext::TensorIterator &tensor, byte_type idx);
+        virtual DataContext::TensorIterator getInput(byte_type idx);
         bool hasInputDef();
         byte_type inputSlots();
 

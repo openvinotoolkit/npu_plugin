@@ -4,7 +4,6 @@
 #include "include/fathom/computation/flow/flow.hpp"
 #include "include/fathom/computation/tensor/tensor.hpp"
 #include "include/fathom/computation/model/iterator/data_context.hpp"
-#include "include/fathom/computation/model/iterator/tensor_context.hpp"
 #include "include/fathom/computation/op/computation_op.hpp"
 
 namespace mv
@@ -14,18 +13,18 @@ namespace mv
     {
 
         //allocator::access_ptr<Tensor> data_;
-        TensorContext::TensorIterator data_;
+        DataContext::TensorIterator data_;
 
     public:
 
-        DataFlow(const DataContext::OpListIterator &source, const DataContext::OpListIterator &sink, const TensorContext::TensorIterator &data) :
+        DataFlow(const DataContext::OpListIterator &source, const DataContext::OpListIterator &sink, const DataContext::TensorIterator &data) :
         ComputationFlow("df_" + source->getName() + "_" + sink->getName()),
         data_(data)
         {
 
         }
 
-        TensorContext::TensorIterator &getTensor()
+        DataContext::TensorIterator &getTensor()
         {
             return data_;
         }

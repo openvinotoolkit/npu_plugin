@@ -11,7 +11,7 @@ mv::SinkOp::~SinkOp()
 
 }
 
-bool mv::SinkOp::setInput(TensorContext::TensorIterator &tensor, byte_type idx)
+bool mv::SinkOp::setInput(DataContext::TensorIterator &tensor, byte_type idx)
 {
     if (idx > 1)
         return false;
@@ -22,10 +22,10 @@ bool mv::SinkOp::setInput(TensorContext::TensorIterator &tensor, byte_type idx)
     return true;
 }
 
-mv::TensorContext::TensorIterator mv::SinkOp::getInput(byte_type idx)
+mv::DataContext::TensorIterator mv::SinkOp::getInput(byte_type idx)
 {
     if (idx > 1)
-        return TensorContext::TensorIterator();
+        return DataContext::TensorIterator();
 
     return input_;
 
@@ -34,7 +34,7 @@ mv::TensorContext::TensorIterator mv::SinkOp::getInput(byte_type idx)
 bool mv::SinkOp::hasInputDef()
 {
 
-    TensorContext::TensorIterator emptyIt;
+    DataContext::TensorIterator emptyIt;
     
     if (input_ == emptyIt)
         return false;

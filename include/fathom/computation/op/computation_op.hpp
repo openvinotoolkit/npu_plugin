@@ -4,8 +4,8 @@
 #include "include/fathom/computation/model/element.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
 #include "include/fathom/computation/tensor/tensor.hpp"
-#include "include/fathom/computation/model/iterator/tensor_context.hpp"
 #include "include/fathom/computation/op/ops_register.hpp"
+#include "include/fathom/computation/model/iterator/data_context.hpp"
 
 namespace mv
 {
@@ -28,10 +28,10 @@ namespace mv
         string toString() const;
         virtual string getOutputName() const;
 
-        virtual bool setInput(TensorContext::TensorIterator& tensor, byte_type idx);
-        virtual bool setOutput(TensorContext::TensorIterator& tensor);
-        virtual TensorContext::TensorIterator getInput(byte_type idx);
-        virtual TensorContext::TensorIterator getOutput();
+        virtual bool setInput(DataContext::TensorIterator& tensor, byte_type idx);
+        virtual bool setOutput(DataContext::TensorIterator& tensor);
+        virtual DataContext::TensorIterator getInput(byte_type idx);
+        virtual DataContext::TensorIterator getOutput();
         virtual bool hasInputDef();
         virtual bool hasInputDef(byte_type idx);
         virtual Tensor getOutputDef() = 0;

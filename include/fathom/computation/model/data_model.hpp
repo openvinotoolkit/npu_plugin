@@ -3,7 +3,6 @@
 
 #include "include/fathom/computation/model/model.hpp"
 #include "include/fathom/computation/model/iterator/data_context.hpp"
-#include "include/fathom/computation/model/iterator/tensor_context.hpp"
 #include "include/fathom/computation/op/computation_op.hpp"
 
 namespace mv
@@ -31,10 +30,10 @@ namespace mv
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
         
-        TensorContext::TensorIterator findTensor(string name);
+        DataContext::TensorIterator findTensor(string name);
 
         bool addAllocator(const string &name, size_type maxSize);
-        bool allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::TensorIterator &tensor);
+        bool allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, DataContext::TensorIterator &tensor);
 
 
 

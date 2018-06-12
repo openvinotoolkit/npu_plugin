@@ -171,7 +171,7 @@ bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, Dat
     return false;
 }
 
-mv::TensorContext::TensorIterator mv::ComputationModel::getTensor_(const Tensor &tensorDef)
+mv::DataContext::TensorIterator mv::ComputationModel::getTensor_(const Tensor &tensorDef)
 {
     if (flowTensors_->find(tensorDef.getName()) == flowTensors_->end())
     {
@@ -185,14 +185,14 @@ mv::TensorContext::TensorIterator mv::ComputationModel::getTensor_(const Tensor 
     }
 }
 
-mv::TensorContext::TensorIterator mv::ComputationModel::findTensor_(const string &name)
+mv::DataContext::TensorIterator mv::ComputationModel::findTensor_(const string &name)
 {
     auto it = flowTensors_->find(name);
 
     if (it != flowTensors_->end())
         return it;
 
-    return TensorContext::TensorIterator();
+    return DataContext::TensorIterator();
 
 }
 

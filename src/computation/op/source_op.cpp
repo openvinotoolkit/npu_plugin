@@ -11,14 +11,14 @@ mv::SourceOp::~SourceOp()
 
 }
 
-bool mv::SourceOp::setOutput(TensorContext::TensorIterator &tensor)
+bool mv::SourceOp::setOutput(DataContext::TensorIterator &tensor)
 {
     output_ = tensor;
     logger_.log(Logger::MessageType::MessageDebug, "Set output for " + toString() + " as " + tensor->toString());
     return true;
 }
 
-mv::TensorContext::TensorIterator mv::SourceOp::getOutput()
+mv::DataContext::TensorIterator mv::SourceOp::getOutput()
 {
     return output_;
 }

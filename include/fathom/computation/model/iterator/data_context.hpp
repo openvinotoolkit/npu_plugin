@@ -3,6 +3,7 @@
 
 #include "include/fathom/computation/model/types.hpp"
 #include "include/fathom/computation/model/iterator/model_iterator.hpp"
+#include "include/fathom/computation/tensor/tensor.hpp"
 
 namespace mv
 {
@@ -26,7 +27,7 @@ namespace mv
         using FlowParentIterator = IteratorDetail::FlowIterator<computation_graph::first_graph, computation_graph::first_graph::edge_child_iterator, DataFlow, ComputationOp>;
         using FlowSiblingIterator = IteratorDetail::FlowIterator<computation_graph::first_graph, computation_graph::first_graph::edge_sibling_iterator, DataFlow, ComputationOp>;
 
-        
+        using TensorIterator = IteratorDetail::ModelLinearIterator<map<string, allocator::owner_ptr<Tensor>>::iterator, Tensor>;
 
     }
 
