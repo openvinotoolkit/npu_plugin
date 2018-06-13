@@ -1,7 +1,7 @@
 #include <iostream>
 #include <string>
-#include "include/fathom/graph/graph.hpp"
-#include "include/fathom/graph/stl_allocator.hpp"
+#include "include/mcm/graph/graph.hpp"
+#include "include/mcm/graph/stl_allocator.hpp"
 
 
 using graph_char_int= mv::graph<char, int, mv::stl_allocator>;

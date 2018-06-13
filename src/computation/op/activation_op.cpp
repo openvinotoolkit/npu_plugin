@@ -1,4 +1,4 @@
-#include "include/fathom/computation/op/activation_op.hpp"
+#include "include/mcm/computation/op/activation_op.hpp"
 
 mv::ActivationOp::ActivationOp(OpType activationType, const string& name) :
 ComputationOp(activationType, name),

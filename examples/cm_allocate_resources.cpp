@@ -1,9 +1,9 @@
-#include "include/fathom/computation/model/op_model.hpp"
-#include "include/fathom/computation/model/data_model.hpp"
-#include "include/fathom/computation/model/control_model.hpp"
-#include "include/fathom/utils/data_generator.hpp"
-#include "include/fathom/deployer/cstd_ostream.hpp"
-#include "include/fathom/pass/deploy/dot_pass.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/deployer/cstd_ostream.hpp"
+#include "include/mcm/pass/deploy/dot_pass.hpp"
 
 int main()
 {

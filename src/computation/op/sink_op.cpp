@@ -1,4 +1,4 @@
-#include "include/fathom/computation/op/sink_op.hpp"
+#include "include/mcm/computation/op/sink_op.hpp"
 
 mv::SinkOp::SinkOp(OpType opType, byte_type inputsCount, const string &name) :
 ComputationOp(opType, name),

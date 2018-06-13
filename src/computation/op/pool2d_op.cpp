@@ -1,4 +1,4 @@
-#include "include/fathom/computation/op/pool2d_op.hpp"
+#include "include/mcm/computation/op/pool2d_op.hpp"
 
 mv::Pool2DOp::Pool2DOp(OpType poolType, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
 ComputationOp(poolType, name),

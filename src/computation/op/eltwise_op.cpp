@@ -1,4 +1,4 @@
-#include "include/fathom/computation/op/eltwise_op.hpp"
+#include "include/mcm/computation/op/eltwise_op.hpp"
 
 mv::EltwiseOp::EltwiseOp(OpType eltwiseType, const string &name) :
 ComputationOp(eltwiseType, name),

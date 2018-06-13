@@ -1,8 +1,8 @@
 #include <iostream>
 #include <string>
-#include "include/fathom/graph/stl_allocator.hpp"
-#include "include/fathom/graph/conjoined_graph.hpp"
-#include "include/fathom/graph/visualizer.hpp"
+#include "include/mcm/graph/stl_allocator.hpp"
+#include "include/mcm/graph/conjoined_graph.hpp"
+#include "include/mcm/graph/visualizer.hpp"
 
 class string_1 : public std::string
 {

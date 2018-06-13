@@ -1,4 +1,4 @@
-#include "include/fathom/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
 
 mv::ControlModel::ControlModel(const ComputationModel &other) :
 ComputationModel(other)

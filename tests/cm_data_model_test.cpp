@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
-#include "include/fathom/computation/model/op_model.hpp"
-#include "include/fathom/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 
 TEST(computation_model, data_model_construction)
 {

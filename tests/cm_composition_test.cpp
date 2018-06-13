@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "include/fathom/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
 
 TEST(computation_model, minimal_valid_composition)
 {
