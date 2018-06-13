@@ -48,14 +48,14 @@ namespace mv
                 return Tensor();
             }
 
-            if (input0Shape[1] != input1Shape[0])
+            if (input1Shape[1] != input0Shape[0])
             {
                 logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                     "' because of inconsistent shape of input 0 " + input0Shape.toString() + " and input 1 " + input1Shape.toString());
                 return Tensor();
             }
 
-            return Tensor(name_ + ":0", Shape(input0Shape[0], input1Shape[1]), input0->getDType(), input0->getOrder());
+            return Tensor(name_ + ":0", Shape(input1Shape[0], input0Shape[1]), input0->getDType(), input0->getOrder());
             
         }
 

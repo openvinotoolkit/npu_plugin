@@ -197,6 +197,28 @@ mv::DataContext::TensorIterator mv::OpModel::maxpool2D(DataContext::TensorIterat
     return outputTensor;
 }
 
+mv::DataContext::TensorIterator mv::OpModel::avgpool2D(DataContext::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
+{
+
+    auto sourceIt = checkInputTensor_(inputTensor);
+    if (sourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<AvgPool2D>(kernelSize, stride, padding, name));
+    poolIt->setInput(inputTensor, 0);
+    auto outputTensor = defineOutputTensor_(poolIt, 0);
+    poolIt->setOutput(outputTensor, 0);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + poolIt->toString());
+
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(sourceIt, poolIt, allocator_.make_owner<DataFlow>(sourceIt, poolIt, inputTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
+
+    defaultControlFlow_(poolIt);
+    defaultStage_(poolIt);
+
+    return outputTensor;
+}
+
 mv::DataContext::TensorIterator mv::OpModel::concat(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string& name)
 {
 
@@ -365,6 +387,29 @@ mv::DataContext::TensorIterator mv::OpModel::add(DataContext::TensorIterator inp
 
     defaultControlFlow_(sumIt);
     defaultStage_(sumIt);
+
+    return outputTensor;
+
+}
+
+mv::DataContext::TensorIterator mv::OpModel::reshape(DataContext::TensorIterator inputTensor, const Shape& shape, const string& name)
+{
+
+    auto sourceIt = checkInputTensor_(inputTensor);
+    if (sourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    DataContext::OpListIterator reshapeIt = dataGraph_.node_insert(allocator_.make_owner<Reshape>(shape, name));
+    reshapeIt->setInput(inputTensor, 0);
+    auto outputTensor = defineOutputTensor_(reshapeIt, 0);
+    reshapeIt->setOutput(outputTensor, 0);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + reshapeIt->toString());
+
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(sourceIt, reshapeIt, allocator_.make_owner<DataFlow>(sourceIt, reshapeIt, inputTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
+
+    defaultControlFlow_(reshapeIt);
+    defaultStage_(reshapeIt);
 
     return outputTensor;
 

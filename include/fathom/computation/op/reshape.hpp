@@ -15,10 +15,11 @@ namespace mv
 
         Reshape(Shape outputShape, const string& name) :
         ComputationOp(OpType::Reshape, name),
-        SinkOp(OpType::Reshape, 1, name),
-        SourceOp(OpType::Reshape, 1, name)
+        SourceOp(OpType::Reshape, 1, name),
+        SinkOp(OpType::Reshape, 1, name)
         {
             addAttr("shape", AttrType::ShapeType, outputShape);
+            addAttr("executable", AttrType::BoolType, true);
         }
 
         Tensor getOutputDef(byte_type idx)

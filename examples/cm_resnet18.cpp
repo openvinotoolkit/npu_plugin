@@ -6,7 +6,7 @@
 #include "include/fathom/pass/deploy/dot_pass.hpp"
 
 
-mv::DataContext::TensorIterator convBatchNormBlock(mv::OpModel &model, mv::DataContext::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
+mv::DataContext::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::DataContext::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
 {
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(kernelShape.totalSize());
     auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::NWHC);
@@ -23,6 +23,32 @@ mv::DataContext::TensorIterator convBatchNormBlock(mv::OpModel &model, mv::DataC
     return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
+mv::DataContext::TensorIterator residualBlock(mv::OpModel& model, mv::DataContext::TensorIterator input)
+{
+
+    auto inputShape = input->getShape();
+    auto branch2a = convBatchNormBlock(model, input, mv::Shape(3, 3, inputShape[2], inputShape[2]), {1, 1}, {1, 1, 1, 1});
+    branch2a = model.relu(branch2a);
+    auto branch2b = convBatchNormBlock(model, branch2a, mv::Shape(3, 3, inputShape[2], inputShape[2]), {1, 1}, {1, 1, 1, 1});
+
+    auto res = model.add(input, branch2b);
+    return model.relu(res);
+
+}
+
+mv::DataContext::TensorIterator residualConvBlock(mv::OpModel& model, mv::DataContext::TensorIterator input, mv::unsigned_type outputDepth, mv::UnsignedVector2D stride)
+{
+
+    auto inputShape = input->getShape();
+    auto branch1 = convBatchNormBlock(model, input, mv::Shape(1, 1, inputShape[2], outputDepth), stride, {0, 0, 0, 0});
+    auto branch2a = convBatchNormBlock(model, input, mv::Shape(3, 3, inputShape[2], outputDepth), {1, 1}, {1, 1, 1, 1});
+    branch2a = model.relu(branch2a);
+    auto branch2b = convBatchNormBlock(model, branch2a, mv::Shape(3, 3, outputDepth, outputDepth), stride, {1, 1, 1, 1});
+
+    auto res = model.add(branch1, branch2b);
+    return model.relu(res);
+
+}
 
 int main()
 {
@@ -32,16 +58,18 @@ int main()
     auto conv1 = convBatchNormBlock(om, input, mv::Shape(7, 7, 3, 64), {2, 2}, {3, 3, 3, 3});
     conv1 = om.relu(conv1);
     auto pool1 = om.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto res2a = residualConvBlock(om, pool1, 64, {1, 1});
+    auto res2b = residualBlock(om, res2a);
+    auto res3a = residualConvBlock(om, res2b, 128, {2, 2});
+    auto res3b = residualBlock(om, res3a);
+    auto res4a = residualConvBlock(om, res3b, 256, {2, 2});
+    auto res4b = residualBlock(om, res4a);
+    auto res5a = residualConvBlock(om, res4b, 512, {2, 2});
+    auto res5b = residualBlock(om, res5a);
+    auto pool5 = om.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
+    pool5 = om.reshape(pool5, mv::Shape(pool5->getShape()[2], 1));
 
-    auto res2a_branch1 = convBatchNormBlock(om, pool1, mv::Shape(1, 1, 64, 64), {1, 1}, {0, 0, 0, 0});
-    auto res2a_branch2a = convBatchNormBlock(om, pool1, mv::Shape(3, 3, 64, 64), {1, 1}, {1, 1, 1, 1});
-    res2a_branch2a = om.relu(res2a_branch2a);
-    auto res2a_branch2b = convBatchNormBlock(om, res2a_branch2a, mv::Shape(3, 3, 64, 64), {1, 1}, {1, 1, 1, 1});
-
-    auto res2a = om.add(res2a_branch1, res2a_branch2b);
-    res2a = om.relu(res2a);
-
-    om.output(res2a);
+    om.output(pool5);
 
     mv::FStdOStream ostream("cm.dot");
     mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentFull);
