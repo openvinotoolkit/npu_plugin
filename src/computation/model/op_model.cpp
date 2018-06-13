@@ -285,6 +285,33 @@ mv::Data::TensorIterator mv::OpModel::add(Data::TensorIterator input0Tensor, Dat
 
 }
 
+mv::Data::TensorIterator mv::OpModel::subtract(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+{
+
+    Data::OpListIterator add = dataGraph_.node_insert(allocator_.make_owner<Op::Subtract>(name));
+    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
+    return defineOp_(add, inputs, 2);
+
+}
+
+mv::Data::TensorIterator mv::OpModel::multiply(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+{
+
+    Data::OpListIterator add = dataGraph_.node_insert(allocator_.make_owner<Op::Multiply>(name));
+    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
+    return defineOp_(add, inputs, 2);
+
+}
+
+mv::Data::TensorIterator mv::OpModel::divide(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+{
+
+    Data::OpListIterator add = dataGraph_.node_insert(allocator_.make_owner<Op::Divide>(name));
+    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
+    return defineOp_(add, inputs, 2);
+
+}
+
 mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator inputTensor, const Shape& shape, const string& name)
 {
 

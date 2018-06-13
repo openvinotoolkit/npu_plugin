@@ -30,6 +30,9 @@ namespace mv
         virtual Data::TensorIterator relu(Data::TensorIterator input, const string& name = "") = 0;
         virtual Data::TensorIterator softmax(Data::TensorIterator input, const string& name = "") = 0;
         virtual Data::TensorIterator add(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") = 0;
+        virtual Data::TensorIterator subtract(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") = 0;
+        virtual Data::TensorIterator multiply(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") = 0;
+        virtual Data::TensorIterator divide(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") = 0;
         virtual Data::TensorIterator reshape(Data::TensorIterator input, const Shape& shape, const string& name = "") = 0;
 
         virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;
