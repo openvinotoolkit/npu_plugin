@@ -67,7 +67,7 @@ mv::DataContext::OpListIterator mv::OpModel::switchContext(ControlContext::OpLis
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::DataContext::OpListIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const string& name)
 {
 
     input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(shape, dType, order, name));
@@ -76,16 +76,16 @@ mv::DataContext::OpListIterator mv::OpModel::input(const Shape& shape, DType dTy
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
 
     lastOp_ = opsGraph_->get_second_iterator(input_);
-    return input_;
+    return outputTensor;
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::output(DataContext::TensorIterator inputTensor, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::output(DataContext::TensorIterator inputTensor, const string& name)
 {
     
     auto sourceIt = checkInputTensor_(inputTensor);
     if (sourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     output_ = dataGraph_.node_insert(allocator_.make_owner<Output>(name));
     output_->setInput(inputTensor, 0);
@@ -96,35 +96,35 @@ mv::DataContext::OpListIterator mv::OpModel::output(DataContext::TensorIterator 
 
     defaultControlFlow_(output_);
 
-    return output_;
+    return inputTensor;
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name)
 {
     DataContext::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(data, shape, dType, order, name));
     auto outputTensor = defineOutputTensor_(constantIt, 0);
     constantIt->setOutput(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + constantIt->toString());
-    return constantIt;
+    return outputTensor;
 }
 
-mv::DataContext::OpListIterator mv::OpModel::constant(float_type *data, size_type size, const Shape& shape, DType dType, Order order, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::constant(float_type *data, size_type size, const Shape& shape, DType dType, Order order, const string& name)
 {
     dynamic_vector<float_type> dataVec(data, size);
     return constant(dataVec, shape, dType, order, name);
 }
 
-mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::TensorIterator inputTensor, DataContext::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::conv2D(DataContext::TensorIterator inputTensor, DataContext::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
 {
 
     auto inputSourceIt = checkInputTensor_(inputTensor);
     if (inputSourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     auto filtersSourceIt = checkInputTensor_(filtersTensor);
     if (filtersSourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     DataContext::OpListIterator convIt = dataGraph_.node_insert(allocator_.make_owner<Conv2D>(stride, padding, name));
     convIt->setInput(inputTensor, 0);
@@ -142,19 +142,19 @@ mv::DataContext::OpListIterator mv::OpModel::conv2D(DataContext::TensorIterator 
     defaultControlFlow_(convIt);
     defaultStage_(convIt);
 
-    return convIt;
+    return outputTensor;
 
 }
 
-mv::DataContext::OpListIterator mv::OpModel::fullyConnected(DataContext::TensorIterator inputTensor, DataContext::TensorIterator weightsTensor, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::fullyConnected(DataContext::TensorIterator inputTensor, DataContext::TensorIterator weightsTensor, const string& name)
 {
     auto inputSourceIt = checkInputTensor_(inputTensor);
     if (inputSourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     auto weightsSourceIt = checkInputTensor_(weightsTensor);
     if (weightsSourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     DataContext::OpListIterator fullyConnectedIt = dataGraph_.node_insert(allocator_.make_owner<FullyConnected>(name));
     fullyConnectedIt->setInput(inputTensor, 0);
@@ -172,15 +172,15 @@ mv::DataContext::OpListIterator mv::OpModel::fullyConnected(DataContext::TensorI
     defaultControlFlow_(fullyConnectedIt);
     defaultStage_(fullyConnectedIt);
 
-    return fullyConnectedIt;
+    return outputTensor;
 }
 
-mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::maxpool2D(DataContext::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
 {
 
     auto sourceIt = checkInputTensor_(inputTensor);
     if (sourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     DataContext::OpListIterator poolIt = dataGraph_.node_insert(allocator_.make_owner<MaxPool2D>(kernelSize, stride, padding, name));
     poolIt->setInput(inputTensor, 0);
@@ -194,19 +194,19 @@ mv::DataContext::OpListIterator mv::OpModel::maxpool2D(DataContext::TensorIterat
     defaultControlFlow_(poolIt);
     defaultStage_(poolIt);
 
-    return poolIt;
+    return outputTensor;
 }
 
-mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string& name)
+mv::DataContext::TensorIterator mv::OpModel::concat(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string& name)
 {
 
     auto input0SourceIt = checkInputTensor_(input0Tensor);
     if (input0SourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     auto input1SourceIt = checkInputTensor_(input1Tensor);
     if (input1SourceIt == opEnd())
-        return DataContext::OpListIterator();
+        return DataContext::TensorIterator();
 
     DataContext::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<Concat>(name));
     concatIt->setInput(input0Tensor, 0);
@@ -225,11 +225,16 @@ mv::DataContext::OpListIterator mv::OpModel::concat(DataContext::TensorIterator 
     defaultControlFlow_(concatIt);
     defaultStage_(concatIt);
 
-    return concatIt;
+    return outputTensor;
 
 }
 
-bool mv::OpModel::addAttr(DataContext::OpListIterator& opIt, const string& name, const Attribute& attr)
+mv::DataContext::OpListIterator mv::OpModel::getSourceOp(DataContext::TensorIterator tensor)
+{
+    return findSourceOp_(tensor);
+}
+
+bool mv::OpModel::addAttr(DataContext::OpListIterator opIt, const string& name, const Attribute& attr)
 {
 
     return opIt->addAttr(name, attr);
@@ -257,7 +262,7 @@ mv::DataContext::OpListIterator mv::OpModel::opEnd()
 }
 
 
-mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(DataContext::OpListIterator& newElement, GroupContext::GroupIterator& group)
+mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(DataContext::OpListIterator newElement, GroupContext::GroupIterator group)
 {
 
     allocator::owner_ptr<ComputationOp> ptr = newElement;
@@ -265,7 +270,7 @@ mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(DataContext::OpLis
 
 }
 
-bool mv::OpModel::removeGroupElement(DataContext::OpListIterator& element, GroupContext::GroupIterator& group)
+bool mv::OpModel::removeGroupElement(DataContext::OpListIterator element, GroupContext::GroupIterator group)
 {
     allocator::owner_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);

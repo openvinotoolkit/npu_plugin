@@ -34,18 +34,7 @@ namespace mv
             ContentLevel contentLevel_;
             bool htmlLike_;
 
-        public:
-
-            DotPass(Logger &logger, OStream &ostream, OutputScope outputScope = OutputScope::OpControlModel, ContentLevel contentLevel = ContentLevel::ContentName, bool htmlLike = true) :
-            DeployPass(logger, ostream),
-            outputScope_(outputScope),
-            contentLevel_(contentLevel),
-            htmlLike_(htmlLike)
-            {
-
-            }
-
-            bool run(ComputationModel &model)
+            bool run_(ComputationModel &model)
             {
                 OpModel opModel(model);
                 ostream_ << "digraph G {\n\tgraph [splines=spline]\n";
@@ -148,6 +137,17 @@ namespace mv
                 ostream_ << "}\n";
 
                 return true;
+
+            }
+
+        public:
+
+            DotPass(Logger &logger, OStream &ostream, OutputScope outputScope = OutputScope::OpControlModel, ContentLevel contentLevel = ContentLevel::ContentName, bool htmlLike = true) :
+            DeployPass(logger, ostream),
+            outputScope_(outputScope),
+            contentLevel_(contentLevel),
+            htmlLike_(htmlLike)
+            {
 
             }
 
