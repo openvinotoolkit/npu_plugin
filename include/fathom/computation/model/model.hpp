@@ -8,12 +8,12 @@
 #include "include/fathom/computation/model/iterator/group_context.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
 #include "include/fathom/computation/tensor/tensor.hpp"
-#include "include/fathom/computation/logger/stdout.hpp"
 #include "include/fathom/computation/flow/data.hpp"
 #include "include/fathom/computation/flow/control.hpp"
 #include "include/fathom/computation/model/group.hpp"
 #include "include/fathom/computation/resource/stage.hpp"
 #include "include/fathom/computation/resource/memory_allocator.hpp"
+#include "include/fathom/logger/stdout.hpp"
 
 namespace mv
 {

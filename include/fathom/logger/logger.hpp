@@ -3,7 +3,7 @@
 
 #include <time.h>
 #include "include/fathom/computation/model/types.hpp"
-#include "include/fathom/computation/logger/printable.hpp"
+#include "include/fathom/logger/printable.hpp"
 
 namespace mv
 {

@@ -1,22 +1,9 @@
 #ifndef OP_MODEL_HPP_
 #define OP_MODEL_HPP_
 
-#include "include/fathom/computation/api/compositional_model.hpp"
+#include "include/fathom/api/compositional_model.hpp"
 #include "include/fathom/computation/model/model.hpp"
-#include "include/fathom/computation/op/input.hpp"
-#include "include/fathom/computation/op/output.hpp"
-#include "include/fathom/computation/op/conv2d.hpp"
-#include "include/fathom/computation/op/maxpool2d.hpp"
-#include "include/fathom/computation/op/avgpool2d.hpp"
-#include "include/fathom/computation/op/concat.hpp"
-#include "include/fathom/computation/op/constant.hpp"
-#include "include/fathom/computation/op/fully_connected.hpp"
-#include "include/fathom/computation/op/batch_norm.hpp"
-#include "include/fathom/computation/op/scale.hpp"
-#include "include/fathom/computation/op/relu.hpp"
-#include "include/fathom/computation/op/softmax.hpp"
-#include "include/fathom/computation/op/add.hpp"
-#include "include/fathom/computation/op/reshape.hpp"
+#include "include/fathom/computation/op/ops_headers.hpp"
 
 namespace mv
 {

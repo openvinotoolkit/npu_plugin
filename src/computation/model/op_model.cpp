@@ -137,7 +137,7 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
         return tensorEnd_;
     }
 
-    input_ = dataGraph_.node_insert(allocator_.make_owner<Input>(shape, dType, order, name));
+    input_ = dataGraph_.node_insert(allocator_.make_owner<Op::Input>(shape, dType, order, name));
     
     if (input_ == opEnd())
     {
@@ -157,7 +157,7 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
 mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, const string& name)
 {
     
-    auto output = dataGraph_.node_insert(allocator_.make_owner<Output>(name));
+    auto output = dataGraph_.node_insert(allocator_.make_owner<Op::Output>(name));
 
     if (output == dataGraph_.node_end())
     {
@@ -182,7 +182,7 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
 
 mv::Data::TensorIterator mv::OpModel::constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name)
 {
-    Data::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<Constant>(data, shape, dType, order, name));
+    Data::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<Op::Constant>(data, shape, dType, order, name));
     auto outputTensor = defineOutputTensor_(constantIt, 0);
     constantIt->setOutput(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + constantIt->toString());
@@ -198,7 +198,7 @@ mv::Data::TensorIterator mv::OpModel::constant(float_type *data, size_type size,
 mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
 {
 
-    auto conv = dataGraph_.node_insert(allocator_.make_owner<Conv2D>(stride, padding, name));
+    auto conv = dataGraph_.node_insert(allocator_.make_owner<Op::Conv2D>(stride, padding, name));
     Data::TensorIterator inputs[] = {inputTensor, filtersTensor};
     return defineOp_(conv, inputs, 2);;
 
@@ -207,7 +207,7 @@ mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, D
 mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const string& name)
 {
 
-    auto fullyConnected = dataGraph_.node_insert(allocator_.make_owner<FullyConnected>(name));
+    auto fullyConnected = dataGraph_.node_insert(allocator_.make_owner<Op::FullyConnected>(name));
     Data::TensorIterator inputs[] = {inputTensor, weightsTensor};
     return defineOp_(fullyConnected, inputs, 2);
     
@@ -216,7 +216,7 @@ mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputT
 mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
 {
 
-    auto pool = dataGraph_.node_insert(allocator_.make_owner<MaxPool2D>(kernelSize, stride, padding, name));
+    auto pool = dataGraph_.node_insert(allocator_.make_owner<Op::MaxPool2D>(kernelSize, stride, padding, name));
     Data::TensorIterator inputs[] = {inputTensor};
     return defineOp_(pool, inputs, 1);
 
@@ -225,7 +225,7 @@ mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor
 mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
 {
 
-    auto pool = dataGraph_.node_insert(allocator_.make_owner<AvgPool2D>(kernelSize, stride, padding, name));
+    auto pool = dataGraph_.node_insert(allocator_.make_owner<Op::AvgPool2D>(kernelSize, stride, padding, name));
     Data::TensorIterator inputs[] = {inputTensor};
     return defineOp_(pool, inputs, 1);
 
@@ -234,7 +234,7 @@ mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor
 mv::Data::TensorIterator mv::OpModel::concat(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
 {
 
-    Data::OpListIterator concat = dataGraph_.node_insert(allocator_.make_owner<Concat>(name));
+    Data::OpListIterator concat = dataGraph_.node_insert(allocator_.make_owner<Op::Concat>(name));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     return defineOp_(concat, inputs, 2);
 
@@ -243,7 +243,7 @@ mv::Data::TensorIterator mv::OpModel::concat(Data::TensorIterator input0Tensor, 
 mv::Data::TensorIterator mv::OpModel::batchNorm(Data::TensorIterator inputTensor, Data::TensorIterator meanTensor, Data::TensorIterator varianceTensor, Data::TensorIterator offsetTensor, Data::TensorIterator scaleTensor, float_type varianceEps, const string& name)
 {
 
-    Data::OpListIterator batchNorm = dataGraph_.node_insert(allocator_.make_owner<BatchNorm>(varianceEps, name));
+    Data::OpListIterator batchNorm = dataGraph_.node_insert(allocator_.make_owner<Op::BatchNorm>(varianceEps, name));
     Data::TensorIterator inputs[] = {inputTensor, meanTensor, varianceTensor, offsetTensor, scaleTensor};
     return defineOp_(batchNorm, inputs, 5);
 
@@ -252,7 +252,7 @@ mv::Data::TensorIterator mv::OpModel::batchNorm(Data::TensorIterator inputTensor
 mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator inputTensor, Data::TensorIterator scaleTensor, const string& name)
 {
 
-    Data::OpListIterator scale = dataGraph_.node_insert(allocator_.make_owner<Scale>(name));
+    Data::OpListIterator scale = dataGraph_.node_insert(allocator_.make_owner<Op::Scale>(name));
     Data::TensorIterator inputs[] = {inputTensor, scaleTensor};
     return defineOp_(scale, inputs, 2);
 
@@ -261,7 +261,7 @@ mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator inputTensor, Da
 mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, const string& name)
 {
 
-    Data::OpListIterator relu = dataGraph_.node_insert(allocator_.make_owner<ReLu>(name));
+    Data::OpListIterator relu = dataGraph_.node_insert(allocator_.make_owner<Op::ReLu>(name));
     Data::TensorIterator inputs[] = {inputTensor};
     return defineOp_(relu, inputs, 1);
 
@@ -270,7 +270,7 @@ mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, con
 mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator inputTensor, const string& name)
 {
 
-    Data::OpListIterator softmax = dataGraph_.node_insert(allocator_.make_owner<Softmax>(name));
+    Data::OpListIterator softmax = dataGraph_.node_insert(allocator_.make_owner<Op::Softmax>(name));
     Data::TensorIterator inputs[] = {inputTensor};
     return defineOp_(softmax, inputs, 1);
 
@@ -279,7 +279,7 @@ mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator inputTensor, 
 mv::Data::TensorIterator mv::OpModel::add(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
 {
 
-    Data::OpListIterator add = dataGraph_.node_insert(allocator_.make_owner<Add>(name));
+    Data::OpListIterator add = dataGraph_.node_insert(allocator_.make_owner<Op::Add>(name));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     return defineOp_(add, inputs, 2);
 
@@ -288,7 +288,7 @@ mv::Data::TensorIterator mv::OpModel::add(Data::TensorIterator input0Tensor, Dat
 mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator inputTensor, const Shape& shape, const string& name)
 {
 
-    Data::OpListIterator reshape = dataGraph_.node_insert(allocator_.make_owner<Reshape>(shape, name));
+    Data::OpListIterator reshape = dataGraph_.node_insert(allocator_.make_owner<Op::Reshape>(shape, name));
     Data::TensorIterator inputs[] = {inputTensor};
     return defineOp_(reshape, inputs, 1);
 

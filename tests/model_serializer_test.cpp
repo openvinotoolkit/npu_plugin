@@ -3,7 +3,7 @@
 #include "include/fathom/computation/model/control_model.hpp"
 #include "include/fathom/deployer/serializer.hpp"
 #include "include/fathom/deployer/Fp16Convert.h"
-#include "include/fathom/computation/utils/data_generator.hpp"
+#include "include/fathom/utils/data_generator.hpp"
 
 /*
 // return full path of this executable 

@@ -1,4 +1,4 @@
-#include "include/fathom/computation/api/compositional_model.hpp"
+#include "include/fathom/api/compositional_model.hpp"
 
 mv::CompositionalModel::~CompositionalModel()
 {

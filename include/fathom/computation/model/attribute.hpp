@@ -2,9 +2,8 @@
 #define ATTRIBUTE_HPP_
 
 #include "include/fathom/computation/model/types.hpp"
-#include "include/fathom/computation/logger/printable.hpp"
 #include "include/fathom/computation/tensor/shape.hpp"
-//#include "include/fathom/computation/tensor/constant.hpp"
+#include "include/fathom/logger/printable.hpp"
 
 template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value = false }; };
 #define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }

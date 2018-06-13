@@ -2,7 +2,7 @@
 #define STDOUT_HPP_
 
 #include <iostream>
-#include "include/fathom/computation/logger/logger.hpp"
+#include "include/fathom/logger/logger.hpp"
 
 namespace mv
 {

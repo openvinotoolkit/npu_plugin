@@ -2,7 +2,7 @@
 #define SHAPE_HPP_
 
 #include "include/fathom/computation/model/types.hpp"
-#include "include/fathom/computation/logger/printable.hpp"
+#include "include/fathom/logger/printable.hpp"
 #include "include/fathom/graph/static_vector.hpp"
 
 namespace mv

@@ -1,4 +1,4 @@
-#include "include/fathom/computation/logger/logger.hpp"
+#include "include/fathom/logger/logger.hpp"
 
 mv::string mv::Logger::getTime() const
 {

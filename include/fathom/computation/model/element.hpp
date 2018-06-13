@@ -2,9 +2,8 @@
 #define COMPUTATION_ELEMENT_HPP_
 
 #include "include/fathom/computation/model/types.hpp"
-#include "include/fathom/computation/logger/logger.hpp"
-#include "include/fathom/computation/logger/printable.hpp"
 #include "include/fathom/computation/model/attribute.hpp"
+#include "include/fathom/logger/logger.hpp"
 
 namespace mv
 {

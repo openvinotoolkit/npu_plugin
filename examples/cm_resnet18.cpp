@@ -1,7 +1,7 @@
 #include "include/fathom/computation/model/op_model.hpp"
 #include "include/fathom/computation/model/data_model.hpp"
 #include "include/fathom/computation/model/control_model.hpp"
-#include "include/fathom/computation/utils/data_generator.hpp"
+#include "include/fathom/utils/data_generator.hpp"
 #include "include/fathom/deployer/fstd_ostream.hpp"
 #include "include/fathom/pass/deploy/dot_pass.hpp"
 
