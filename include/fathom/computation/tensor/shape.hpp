@@ -66,8 +66,10 @@ namespace mv
             
         }
 
-        dim_type operator[](byte_type ndim) const
+        dim_type operator[](int_type ndim) const
         {
+            if (ndim < 0)
+                return dim(dims_.length() - ndim);
             return dim(ndim);
         }
 

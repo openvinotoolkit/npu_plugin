@@ -229,6 +229,60 @@ mv::DataContext::TensorIterator mv::OpModel::concat(DataContext::TensorIterator 
 
 }
 
+mv::DataContext::TensorIterator mv::OpModel::batchNorm(DataContext::TensorIterator inputTensor, DataContext::TensorIterator meanTensor, DataContext::TensorIterator varianceTensor, DataContext::TensorIterator offsetTensor, DataContext::TensorIterator scaleTensor, float_type varianceEps, const string& name)
+{
+    auto inputSourceIt = checkInputTensor_(inputTensor);
+    if (inputSourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    auto meanSourceIt = checkInputTensor_(meanTensor);
+    if (meanSourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    auto varianceSourceIt = checkInputTensor_(varianceTensor);
+    if (varianceSourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    auto offsetSourceIt = checkInputTensor_(offsetTensor);
+    if (offsetSourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    auto scaleSourceIt = checkInputTensor_(scaleTensor);
+    if (scaleSourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    DataContext::OpListIterator batchNormIt = dataGraph_.node_insert(allocator_.make_owner<BatchNorm>(varianceEps, name));
+    batchNormIt->setInput(inputTensor, 0);
+    batchNormIt->setInput(meanTensor, 1);
+    batchNormIt->setInput(varianceTensor, 2);
+    batchNormIt->setInput(offsetTensor, 3);
+    batchNormIt->setInput(scaleTensor, 4);
+    auto outputTensor = defineOutputTensor_(batchNormIt, 0);
+    batchNormIt->setOutput(outputTensor, 0);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + batchNormIt->toString());
+
+    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(inputSourceIt, batchNormIt, allocator_.make_owner<DataFlow>(inputSourceIt, batchNormIt, inputTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
+
+    DataContext::FlowListIterator meanFlow = dataGraph_.edge_insert(meanSourceIt, batchNormIt, allocator_.make_owner<DataFlow>(meanSourceIt, batchNormIt, meanTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + meanFlow->toString());
+
+    DataContext::FlowListIterator varianceFlow = dataGraph_.edge_insert(varianceSourceIt, batchNormIt, allocator_.make_owner<DataFlow>(varianceSourceIt, batchNormIt, varianceTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + varianceFlow->toString());
+
+    DataContext::FlowListIterator offsetFlow = dataGraph_.edge_insert(offsetSourceIt, batchNormIt, allocator_.make_owner<DataFlow>(offsetSourceIt, batchNormIt, offsetTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + offsetFlow->toString());
+
+    DataContext::FlowListIterator scaleFlow = dataGraph_.edge_insert(scaleSourceIt, batchNormIt, allocator_.make_owner<DataFlow>(scaleSourceIt, batchNormIt, scaleTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + scaleFlow->toString());
+
+    defaultControlFlow_(batchNormIt);
+    defaultStage_(batchNormIt);
+
+    return outputTensor;
+
+}
+
 mv::DataContext::OpListIterator mv::OpModel::getSourceOp(DataContext::TensorIterator tensor)
 {
     return findSourceOp_(tensor);

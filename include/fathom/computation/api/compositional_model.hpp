@@ -24,6 +24,7 @@ namespace mv
         virtual DataContext::TensorIterator fullyConnected(DataContext::TensorIterator input, DataContext::TensorIterator weights, const string& name) = 0;
         virtual DataContext::TensorIterator maxpool2D(DataContext::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "") = 0;
         virtual DataContext::TensorIterator concat(DataContext::TensorIterator input0, DataContext::TensorIterator input1, const string& name = "") = 0;
+        virtual DataContext::TensorIterator batchNorm(DataContext::TensorIterator input, DataContext::TensorIterator mean, DataContext::TensorIterator variance, DataContext::TensorIterator offset, DataContext::TensorIterator scale, float_type varianceEps, const string& name = "") = 0;
 
         virtual DataContext::OpListIterator getSourceOp(DataContext::TensorIterator tensor) = 0;
         virtual bool addAttr(DataContext::OpListIterator op, const string& name, const Attribute& attr) = 0;
