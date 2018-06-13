@@ -76,3 +76,8 @@ bool mv::ComputationOp::operator==(const ComputationOp &other) const
 {
     return getName() == other.getName();
 }
+
+bool mv::ComputationOp::isExecutable() const
+{
+    return getAttr("executable").getContent<bool>();
+}

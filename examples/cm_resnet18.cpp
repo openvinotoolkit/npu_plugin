@@ -76,7 +76,7 @@ int main()
     om.output(softmax);
 
     mv::FStdOStream ostream("cm.dot");
-    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentName);
+    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::ExecOpModel, mv::pass::DotPass::ContentLevel::ContentName);
     bool dotResult = dotPass.run(om);    
     if (dotResult)
         system("dot -Tsvg cm.dot -o cm.svg");

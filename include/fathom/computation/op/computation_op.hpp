@@ -35,6 +35,7 @@ namespace mv
         virtual bool hasInputDef(byte_type idx);
         virtual Tensor getOutputDef(byte_type idx) = 0;
         virtual byte_type inputSlots();
+        bool isExecutable() const;
 
         bool operator==(const ComputationOp &other) const;
 
