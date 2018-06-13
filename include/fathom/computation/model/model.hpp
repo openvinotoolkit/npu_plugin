@@ -42,22 +42,22 @@ namespace mv
             - ModelLinearIterators are wrapping containers iterators
         */
         allocator::owner_ptr<map<string, allocator::owner_ptr<Tensor>>> flowTensors_;
-        allocator::owner_ptr<map<string, DataContext::OpListIterator>> tensorsSources_;
+        allocator::owner_ptr<map<string, Data::OpListIterator>> tensorsSources_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<ComputationGroup>>> groups_;
         allocator::owner_ptr<map<unsigned_type, allocator::owner_ptr<ComputationStage>>> stages_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<MemoryAllocator>>> memoryAllocators_;
         static DefaultLogger defaultLogger_;
         static Logger &logger_;
 
-        DataContext::OpListIterator input_;
-        DataContext::OpListIterator output_;
-        ControlContext::OpListIterator lastOp_;
+        Data::OpListIterator dataOpEnd_;
+        Data::FlowListIterator dataFlowEnd_;
+        Control::OpListIterator controlOpEnd_;
+        Control::FlowListIterator controlFlowEnd_;
+        Data::TensorIterator tensorEnd_;
 
-        DataContext::OpListIterator dataOpEnd_;
-        DataContext::FlowListIterator dataFlowEnd_;
-        ControlContext::OpListIterator controlOpEnd_;
-        ControlContext::FlowListIterator controlFlowEnd_;
-        DataContext::TensorIterator tensorEnd_;
+        Data::OpListIterator input_;
+        Data::OpListIterator output_;
+        Control::OpListIterator lastOp_;
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
@@ -65,11 +65,11 @@ namespace mv
         
         // Check if every operation has computation stage assigned
         bool checkOpsStages_() const;
-        ControlContext::StageIterator addStage_();
-        bool addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
-        DataContext::TensorIterator defineOutputTensor_(DataContext::OpListIterator &source, byte_type outputIdx);
-        DataContext::TensorIterator findTensor_(const string &name);
-        DataContext::OpListIterator findSourceOp_(DataContext::TensorIterator &tensor);
+        Control::StageIterator addStage_();
+        bool addToStage_(Control::StageIterator &stage, Data::OpListIterator &op);
+        Data::TensorIterator defineOutputTensor_(Data::OpListIterator source, byte_type outputIdx);
+        Data::TensorIterator findTensor_(const string &name);
+        Data::OpListIterator findSourceOp_(Data::TensorIterator &tensor);
 
     public:
 

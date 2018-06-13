@@ -27,10 +27,10 @@ namespace mv
         OpType getOpType() const;
         string toString() const;
 
-        virtual bool setInput(DataContext::TensorIterator& tensor, byte_type idx);
-        virtual bool setOutput(DataContext::TensorIterator& tensor, byte_type idx);
-        virtual DataContext::TensorIterator getInput(byte_type idx);
-        virtual DataContext::TensorIterator getOutput(byte_type idx);
+        virtual bool setInput(Data::TensorIterator& tensor, byte_type idx);
+        virtual bool setOutput(Data::TensorIterator& tensor, byte_type idx);
+        virtual Data::TensorIterator getInput(byte_type idx);
+        virtual Data::TensorIterator getOutput(byte_type idx);
         virtual bool hasInputDef();
         virtual bool hasInputDef(byte_type idx);
         virtual Tensor getOutputDef(byte_type idx) = 0;

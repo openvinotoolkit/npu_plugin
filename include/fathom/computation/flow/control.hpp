@@ -13,7 +13,7 @@ namespace mv
 
     public:
 
-        ControlFlow(ControlContext::OpListIterator &source, ControlContext::OpListIterator &sink) :
+        ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink) :
         ComputationFlow("cf_" + source->getName() + "_" + sink->getName())
         {
 

@@ -18,39 +18,39 @@ ComputationModel(other)
 
 }
 
-mv::DataContext::OpListIterator mv::DataModel::switchContext(ControlContext::OpListIterator &other)
+mv::Data::OpListIterator mv::DataModel::switchContext(Control::OpListIterator &other)
 {
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::DataContext::FlowSiblingIterator mv::DataModel::getInput()
+mv::Data::FlowSiblingIterator mv::DataModel::getInput()
 {
     return input_.leftmostOutput();
 }
 
-mv::DataContext::FlowSiblingIterator mv::DataModel::getOutput()
+mv::Data::FlowSiblingIterator mv::DataModel::getOutput()
 {
     return output_.leftmostInput();
 }
 
-mv::DataContext::FlowListIterator mv::DataModel::flowEnd()
+mv::Data::FlowListIterator mv::DataModel::flowEnd()
 {
     return dataFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group)
 {
     allocator::owner_ptr<DataFlow> ptr = element;
     return addGroupElement_(ptr, group);
 }
 
-bool mv::DataModel::removeGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group)
+bool mv::DataModel::removeGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group)
 {
     allocator::owner_ptr<DataFlow> ptr = element;
     return removeGroupElement_(ptr, group);
 }
 
-mv::DataContext::TensorIterator mv::DataModel::findTensor(string name)
+mv::Data::TensorIterator mv::DataModel::findTensor(string name)
 {
 
     return ComputationModel::findTensor_(name);
@@ -68,7 +68,7 @@ bool mv::DataModel::addAllocator(const string &name, size_type maxSize)
     return false;
 }
 
-bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, DataContext::TensorIterator &tensor)
+bool mv::DataModel::allocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor)
 {
     if (memoryAllocators_->find(allocatorName) != memoryAllocators_->end())
     {

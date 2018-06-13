@@ -2,7 +2,7 @@
 
 mv::SourceOp::SourceOp(OpType opType, byte_type outputsCount, const string &name) :
 ComputationOp(opType, name),
-outputs_(outputsCount, DataContext::TensorIterator())
+outputs_(outputsCount, Data::TensorIterator())
 {
     addAttr("outputs", AttrType::ByteType, outputsCount);
 }
@@ -12,7 +12,7 @@ mv::SourceOp::~SourceOp()
 
 }
 
-bool mv::SourceOp::setOutput(DataContext::TensorIterator &tensor, byte_type idx)
+bool mv::SourceOp::setOutput(Data::TensorIterator &tensor, byte_type idx)
 {
     
     if (idx >= getAttr("outputs").getContent<byte_type>())
@@ -25,11 +25,11 @@ bool mv::SourceOp::setOutput(DataContext::TensorIterator &tensor, byte_type idx)
 
 }
 
-mv::DataContext::TensorIterator mv::SourceOp::getOutput(byte_type idx)
+mv::Data::TensorIterator mv::SourceOp::getOutput(byte_type idx)
 {
 
     if (idx >= getAttr("outputs").getContent<byte_type>())
-        return DataContext::TensorIterator();
+        return Data::TensorIterator();
 
     return outputs_[idx];
 

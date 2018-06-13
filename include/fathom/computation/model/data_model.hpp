@@ -19,21 +19,21 @@ namespace mv
 
         DataModel(const ComputationModel &ComputationModel);
 
-        DataContext::OpListIterator switchContext(ControlContext::OpListIterator &other);
+        Data::OpListIterator switchContext(Control::OpListIterator &other);
 
-        DataContext::FlowSiblingIterator getInput();
-        DataContext::FlowSiblingIterator getOutput();
-        DataContext::FlowListIterator flowEnd();
+        Data::FlowSiblingIterator getInput();
+        Data::FlowSiblingIterator getOutput();
+        Data::FlowListIterator flowEnd();
 
-        GroupContext::MemberIterator addGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group);
-        bool removeGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
         
-        DataContext::TensorIterator findTensor(string name);
+        Data::TensorIterator findTensor(string name);
 
         bool addAllocator(const string &name, size_type maxSize);
-        bool allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, DataContext::TensorIterator &tensor);
+        bool allocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor);
 
 
 

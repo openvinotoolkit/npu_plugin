@@ -6,7 +6,7 @@
 #include "include/fathom/pass/deploy/dot_pass.hpp"
 
 
-mv::DataContext::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::DataContext::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
+mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
 {
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(kernelShape.totalSize());
     auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::NWHC);
@@ -23,7 +23,7 @@ mv::DataContext::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::DataC
     return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
-mv::DataContext::TensorIterator residualBlock(mv::OpModel& model, mv::DataContext::TensorIterator input)
+mv::Data::TensorIterator residualBlock(mv::OpModel& model, mv::Data::TensorIterator input)
 {
 
     auto inputShape = input->getShape();
@@ -36,7 +36,7 @@ mv::DataContext::TensorIterator residualBlock(mv::OpModel& model, mv::DataContex
 
 }
 
-mv::DataContext::TensorIterator residualConvBlock(mv::OpModel& model, mv::DataContext::TensorIterator input, mv::unsigned_type outputDepth, mv::UnsignedVector2D stride)
+mv::Data::TensorIterator residualConvBlock(mv::OpModel& model, mv::Data::TensorIterator input, mv::unsigned_type outputDepth, mv::UnsignedVector2D stride)
 {
 
     auto inputShape = input->getShape();
@@ -76,24 +76,11 @@ int main()
     om.output(softmax);
 
     mv::FStdOStream ostream("cm.dot");
-    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::ExecOpModel, mv::pass::DotPass::ContentLevel::ContentName);
+    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::ExecOpModel, mv::pass::DotPass::ContentLevel::ContentFull);
     bool dotResult = dotPass.run(om);    
     if (dotResult)
         system("dot -Tsvg cm.dot -o cm.svg");
 
     return 0;
-
-    /*mv::dynamic_vector<mv::float_type> weights2Data = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
-    mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
-
-    auto weights1 = om.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC);
-    auto conv1 = om.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
-    auto pool1 = om.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto weights2 = om.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC);
-    auto conv2 = om.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
-    auto pool2 = om.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
-    auto weights3 = om.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::NWHC);
-    auto conv3 = om.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
-    auto output = om.output(conv3);*/
 
 }

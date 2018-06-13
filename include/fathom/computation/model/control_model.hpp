@@ -16,36 +16,36 @@ namespace mv
 
         ControlModel(const ComputationModel &ComputationModel);
 
-        ControlContext::OpListIterator switchContext(DataContext::OpListIterator &other);
+        Control::OpListIterator switchContext(Data::OpListIterator &other);
 
-        ControlContext::OpListIterator getFirst();
-        ControlContext::OpListIterator getLast();
-        ControlContext::OpListIterator opEnd();
-        ControlContext::FlowListIterator getInput();
-        ControlContext::FlowListIterator getOutput();
-        ControlContext::FlowListIterator flowEnd();
+        Control::OpListIterator getFirst();
+        Control::OpListIterator getLast();
+        Control::OpListIterator opEnd();
+        Control::FlowListIterator getInput();
+        Control::FlowListIterator getOutput();
+        Control::FlowListIterator flowEnd();
 
-        GroupContext::MemberIterator addGroupElement(ControlContext::OpListIterator &element, GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator addGroupElement(ControlContext::FlowListIterator &element, GroupContext::GroupIterator &group);
-        bool removeGroupElement(ControlContext::OpListIterator &element, GroupContext::GroupIterator &group);
-        bool removeGroupElement(ControlContext::FlowListIterator &element, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group);
+        bool removeGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
 
-        ControlContext::StageIterator addStage();
-        ControlContext::StageIterator getStage(unsigned_type stageIdx);
-        bool removeStage(ControlContext::StageIterator &stage);
-        bool addToStage(ControlContext::StageIterator &stage, ControlContext::OpListIterator &op);
-        bool addToStage(ControlContext::StageIterator &stage, DataContext::OpListIterator &op);
-        bool removeFromStage(ControlContext::OpListIterator &op);
-        bool removeFromStage(DataContext::OpListIterator &op);
+        Control::StageIterator addStage();
+        Control::StageIterator getStage(unsigned_type stageIdx);
+        bool removeStage(Control::StageIterator &stage);
+        bool addToStage(Control::StageIterator &stage, Control::OpListIterator &op);
+        bool addToStage(Control::StageIterator &stage, Data::OpListIterator &op);
+        bool removeFromStage(Control::OpListIterator &op);
+        bool removeFromStage(Data::OpListIterator &op);
         unsigned_type stageSize() const;
 
-        ControlContext::StageIterator stageBegin();
-        ControlContext::StageIterator stageEnd();
+        Control::StageIterator stageBegin();
+        Control::StageIterator stageEnd();
 
-        ControlContext::StageMemberIterator stageMemberBegin(ControlContext::StageIterator &stage);
-        ControlContext::StageMemberIterator stageMemberEnd(ControlContext::StageIterator &stage);
+        Control::StageMemberIterator stageMemberBegin(Control::StageIterator &stage);
+        Control::StageMemberIterator stageMemberEnd(Control::StageIterator &stage);
 
     };
 

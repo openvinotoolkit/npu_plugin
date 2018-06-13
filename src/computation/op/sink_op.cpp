@@ -2,7 +2,7 @@
 
 mv::SinkOp::SinkOp(OpType opType, byte_type inputsCount, const string &name) :
 ComputationOp(opType, name),
-inputs_(inputsCount, DataContext::TensorIterator())
+inputs_(inputsCount, Data::TensorIterator())
 {
     addAttr("inputs", AttrType::ByteType, inputsCount);
 }
@@ -12,7 +12,7 @@ mv::SinkOp::~SinkOp()
 
 }
 
-bool mv::SinkOp::setInput(DataContext::TensorIterator &tensor, byte_type idx)
+bool mv::SinkOp::setInput(Data::TensorIterator &tensor, byte_type idx)
 {
     if (idx >= getAttr("inputs").getContent<byte_type>())
         return false;
@@ -23,10 +23,10 @@ bool mv::SinkOp::setInput(DataContext::TensorIterator &tensor, byte_type idx)
     return true;
 }
 
-mv::DataContext::TensorIterator mv::SinkOp::getInput(byte_type idx)
+mv::Data::TensorIterator mv::SinkOp::getInput(byte_type idx)
 {
     if (idx >= getAttr("inputs").getContent<byte_type>())
-        return DataContext::TensorIterator();
+        return Data::TensorIterator();
 
     return inputs_[idx];
 }
@@ -47,7 +47,7 @@ bool mv::SinkOp::hasInputDef()
 bool mv::SinkOp::hasInputDef(byte_type idx)
 {
 
-    DataContext::TensorIterator emptyIt;
+    Data::TensorIterator emptyIt;
 
     if (inputs_[idx] == emptyIt)
         return false;

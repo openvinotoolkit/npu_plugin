@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    namespace DataContext
+    namespace Data
     {
 
         using OpListIterator = IteratorDetail::OpIterator<computation_graph::first_graph, computation_graph::first_graph::node_list_iterator, ComputationOp, DataFlow>;

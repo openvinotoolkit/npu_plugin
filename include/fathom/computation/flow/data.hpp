@@ -13,18 +13,18 @@ namespace mv
     {
 
         //allocator::access_ptr<Tensor> data_;
-        DataContext::TensorIterator data_;
+        Data::TensorIterator data_;
 
     public:
 
-        DataFlow(const DataContext::OpListIterator &source, const DataContext::OpListIterator &sink, const DataContext::TensorIterator &data) :
+        DataFlow(const Data::OpListIterator &source, const Data::OpListIterator &sink, const Data::TensorIterator &data) :
         ComputationFlow("df_" + source->getName() + "_" + sink->getName()),
         data_(data)
         {
 
         }
 
-        DataContext::TensorIterator &getTensor()
+        Data::TensorIterator &getTensor()
         {
             return data_;
         }

@@ -10,7 +10,7 @@ opsGraph_(allocator_.make_owner<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 flowTensors_(allocator_.make_owner<map<string, allocator::owner_ptr<Tensor>>>(map<string, allocator::owner_ptr<Tensor>>())),
-tensorsSources_(allocator_.make_owner<map<string, DataContext::OpListIterator>>(map<string, DataContext::OpListIterator>())),
+tensorsSources_(allocator_.make_owner<map<string, Data::OpListIterator>>(map<string, Data::OpListIterator>())),
 groups_(allocator_.make_owner<map<string, allocator::owner_ptr<ComputationGroup>>>(map<string, allocator::owner_ptr<ComputationGroup>>())),
 stages_(allocator_.make_owner<map<unsigned_type, allocator::owner_ptr<ComputationStage>>>(map<unsigned_type, allocator::owner_ptr<ComputationStage>>())),
 memoryAllocators_(allocator_.make_owner<map<string, allocator::owner_ptr<MemoryAllocator>>>(map<string, allocator::owner_ptr<MemoryAllocator>>())),
@@ -18,7 +18,9 @@ dataOpEnd_(dataGraph_.node_end()),
 dataFlowEnd_(dataGraph_.edge_end()),
 controlOpEnd_(controlGraph_.node_end()),
 controlFlowEnd_(controlGraph_.edge_end()),
-tensorEnd_()
+tensorEnd_(),
+input_(dataOpEnd_),
+output_(dataOpEnd_)
 {
     logger_.setVerboseLevel(verboseLevel);
     logger_.setLogTime(logTime);
@@ -34,13 +36,13 @@ tensorsSources_(other.tensorsSources_),
 groups_(other.groups_),
 stages_(other.stages_),
 memoryAllocators_(other.memoryAllocators_),
-input_(other.input_),
-output_(other.output_),
-lastOp_(other.lastOp_),
 dataOpEnd_(other.dataOpEnd_),
 dataFlowEnd_(other.dataFlowEnd_),
 controlOpEnd_(other.controlOpEnd_),
-controlFlowEnd_(other.controlFlowEnd_)
+controlFlowEnd_(other.controlFlowEnd_),
+input_(other.input_),
+output_(other.output_),
+lastOp_(other.lastOp_)
 {
 
 }
@@ -146,7 +148,7 @@ bool mv::ComputationModel::checkOpsStages_() const
     
 }
 
-mv::ControlContext::StageIterator mv::ComputationModel::addStage_()
+mv::Control::StageIterator mv::ComputationModel::addStage_()
 {   
 
     auto it = stages_->emplace(stages_->size(), allocator_.make_owner<ComputationStage>(stages_->size()));
@@ -155,9 +157,9 @@ mv::ControlContext::StageIterator mv::ComputationModel::addStage_()
     
 }
 
-bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op)
+bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpListIterator &op)
 {
-    ControlContext::StageIterator stageEnd(stages_->end());
+    Control::StageIterator stageEnd(stages_->end());
     if (stage != stageEnd)
     {
         allocator::owner_ptr<ComputationOp> ptr = op;
@@ -173,12 +175,12 @@ bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, Dat
     return false;
 }
 
-mv::DataContext::TensorIterator mv::ComputationModel::defineOutputTensor_(DataContext::OpListIterator &source, byte_type outputIdx)
+mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListIterator source, byte_type outputIdx)
 {
     if (source == dataOpEnd_)
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - invalid source op");
-        return DataContext::TensorIterator();
+        return Data::TensorIterator();
     }
 
     auto tensorDef = source->getOutputDef(outputIdx);
@@ -194,33 +196,33 @@ mv::DataContext::TensorIterator mv::ComputationModel::defineOutputTensor_(DataCo
     else
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
-        return DataContext::TensorIterator();
+        return Data::TensorIterator();
     }
 }
 
-mv::DataContext::TensorIterator mv::ComputationModel::findTensor_(const string &name)
+mv::Data::TensorIterator mv::ComputationModel::findTensor_(const string &name)
 {
     auto it = flowTensors_->find(name);
 
     if (it != flowTensors_->end())
         return it;
 
-    return DataContext::TensorIterator();
+    return Data::TensorIterator();
 
 }
 
-mv::DataContext::OpListIterator mv::ComputationModel::findSourceOp_(DataContext::TensorIterator &tensor)
+mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterator &tensor)
 {
 
     if (tensor == tensorEnd_)
-        return DataContext::OpListIterator();
+        return Data::OpListIterator();
 
     auto it = tensorsSources_->find(tensor->getName());
 
     if (it != tensorsSources_->end())
         return it->second;
 
-    return DataContext::OpListIterator();
+    return Data::OpListIterator();
 
 }
 

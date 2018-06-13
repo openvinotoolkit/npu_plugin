@@ -9,7 +9,6 @@ int main()
 
     mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
     auto input = om.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::NWHC);
-
     mv::dynamic_vector<mv::float_type> weights1Data = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
     mv::dynamic_vector<mv::float_type> weights2Data = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
     mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
@@ -50,7 +49,7 @@ int main()
     cm.logger().log(msgType, "Last op: " + cm.getLast()->getName());
 
     mv::size_type i = 0;
-    for (mv::ControlContext::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+    for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
     {
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;

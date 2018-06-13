@@ -18,7 +18,7 @@ namespace mv
             addAttr("executable", AttrType::BoolType, false);
         }
 
-        virtual bool setInput(DataContext::TensorIterator &tensor, byte_type idx)
+        virtual bool setInput(Data::TensorIterator &tensor, byte_type idx)
         {
 
             bool result = SinkOp::setInput(tensor, idx);

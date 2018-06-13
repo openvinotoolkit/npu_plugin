@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    namespace ControlContext
+    namespace Control
     {
 
         using OpListIterator = IteratorDetail::OpIterator<computation_graph::second_graph, computation_graph::second_graph::node_list_iterator, ComputationOp, ControlFlow>;

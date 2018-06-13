@@ -198,7 +198,7 @@ class Blob_buffer : public WBuffer
             blob_stats.bias_region_size = 0 ;  
             blob_stats.params_region_size = 0 ; 
 
-            for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
                 {
@@ -339,7 +339,7 @@ class Blob_buffer : public WBuffer
             Blob_stage test_conv_stage ;
 
             uint32_t op_count = 0 ;
-            for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
                 {
@@ -461,7 +461,7 @@ class Blob_buffer : public WBuffer
                 AddBytes(4, buffer_header_pad_val);
             }
 
-            for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
                 {
@@ -550,7 +550,7 @@ class Blob_buffer : public WBuffer
 
             // write buffer data relocation info
             uint32_t running_offset = 0 ;
-            for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
                 {
