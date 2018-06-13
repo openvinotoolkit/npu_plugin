@@ -13,6 +13,7 @@
 #include "include/fathom/computation/op/batch_norm.hpp"
 #include "include/fathom/computation/op/scale.hpp"
 #include "include/fathom/computation/op/relu.hpp"
+#include "include/fathom/computation/op/add.hpp"
 
 namespace mv
 {
@@ -46,6 +47,7 @@ namespace mv
         DataContext::TensorIterator batchNorm(DataContext::TensorIterator input, DataContext::TensorIterator mean, DataContext::TensorIterator variance, DataContext::TensorIterator offset, DataContext::TensorIterator scale, float_type varianceEps, const string& name = "");
         DataContext::TensorIterator scale(DataContext::TensorIterator input, DataContext::TensorIterator scale, const string& name = "");
         DataContext::TensorIterator relu(DataContext::TensorIterator input, const string& name = "");
+        DataContext::TensorIterator add(DataContext::TensorIterator input0, DataContext::TensorIterator input1, const string& name = "");
 
         DataContext::OpListIterator getSourceOp(DataContext::TensorIterator tensor);
         bool addAttr(DataContext::OpListIterator op, const string& name, const Attribute& attr);

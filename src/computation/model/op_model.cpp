@@ -338,6 +338,38 @@ mv::DataContext::TensorIterator mv::OpModel::relu(DataContext::TensorIterator in
 
 }
 
+mv::DataContext::TensorIterator mv::OpModel::add(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string& name)
+{
+
+    auto input0SourceIt = checkInputTensor_(input0Tensor);
+    if (input0SourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    auto input1SourceIt = checkInputTensor_(input1Tensor);
+    if (input1SourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    DataContext::OpListIterator sumIt = dataGraph_.node_insert(allocator_.make_owner<Add>(name));
+    sumIt->setInput(input0Tensor, 0);
+    sumIt->setInput(input1Tensor, 1);
+    auto outputTensor = defineOutputTensor_(sumIt, 0);
+    sumIt->setOutput(outputTensor, 0);
+    
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + sumIt->toString());
+
+    DataContext::FlowListIterator input0Flow = dataGraph_.edge_insert(input0SourceIt, sumIt, allocator_.make_owner<DataFlow>(input0SourceIt, sumIt, input0Tensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + input0Flow->toString());
+
+    DataContext::FlowListIterator input1Flow = dataGraph_.edge_insert(input1SourceIt, sumIt, allocator_.make_owner<DataFlow>(input1SourceIt, sumIt, input1Tensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + input1Flow->toString());
+
+    defaultControlFlow_(sumIt);
+    defaultStage_(sumIt);
+
+    return outputTensor;
+
+}
+
 mv::DataContext::OpListIterator mv::OpModel::getSourceOp(DataContext::TensorIterator tensor)
 {
     return findSourceOp_(tensor);
