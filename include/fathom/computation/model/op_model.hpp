@@ -11,6 +11,8 @@
 #include "include/fathom/computation/op/constant.hpp"
 #include "include/fathom/computation/op/fully_connected.hpp"
 #include "include/fathom/computation/op/batch_norm.hpp"
+#include "include/fathom/computation/op/scale.hpp"
+#include "include/fathom/computation/op/relu.hpp"
 
 namespace mv
 {
@@ -42,6 +44,8 @@ namespace mv
         DataContext::TensorIterator maxpool2D(DataContext::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "");
         DataContext::TensorIterator concat(DataContext::TensorIterator input0, DataContext::TensorIterator input1, const string& name = "");
         DataContext::TensorIterator batchNorm(DataContext::TensorIterator input, DataContext::TensorIterator mean, DataContext::TensorIterator variance, DataContext::TensorIterator offset, DataContext::TensorIterator scale, float_type varianceEps, const string& name = "");
+        DataContext::TensorIterator scale(DataContext::TensorIterator input, DataContext::TensorIterator scale, const string& name = "");
+        DataContext::TensorIterator relu(DataContext::TensorIterator input, const string& name = "");
 
         DataContext::OpListIterator getSourceOp(DataContext::TensorIterator tensor);
         bool addAttr(DataContext::OpListIterator op, const string& name, const Attribute& attr);

@@ -20,13 +20,14 @@ int main()
     mv::dynamic_vector<mv::float_type> variance1Data = mv::utils::generateSequence<mv::float_type>(conv1->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> offset1Data = mv::utils::generateSequence<mv::float_type>(conv1->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> scale1Data = mv::utils::generateSequence<mv::float_type>(conv1->getShape().totalSize());
-    auto mean1 = om.constant(mean1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
-    auto variance1 = om.constant(variance1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
-    auto offset1 = om.constant(offset1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
-    auto scale1 = om.constant(scale1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
-    auto batchNorm1 = om.batchNorm(conv1, mean1, variance1, offset1, scale1, 1e-6);
+    auto bnmean1 = om.constant(mean1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
+    auto bnvariance1 = om.constant(variance1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
+    auto bnoffset1 = om.constant(offset1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
+    auto bnscale1 = om.constant(scale1Data, conv1->getShape(), mv::DType::Float, mv::Order::NWHC);
+    auto batchNorm1 = om.batchNorm(conv1, bnmean1, bnvariance1, bnoffset1, bnscale1, 1e-6);
+    auto relu1 = om.relu(batchNorm1);
 
-    om.output(batchNorm1);
+    om.output(relu1);
 
     mv::FStdOStream ostream("cm.dot");
     mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentFull);

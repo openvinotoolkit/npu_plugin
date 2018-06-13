@@ -283,6 +283,61 @@ mv::DataContext::TensorIterator mv::OpModel::batchNorm(DataContext::TensorIterat
 
 }
 
+mv::DataContext::TensorIterator mv::OpModel::scale(DataContext::TensorIterator inputTensor, DataContext::TensorIterator scaleTensor, const string& name)
+{
+
+    auto inputSourceIt = checkInputTensor_(inputTensor);
+    if (inputSourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    auto scaleSourceIt = checkInputTensor_(scaleTensor);
+    if (scaleSourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    DataContext::OpListIterator scaleIt = dataGraph_.node_insert(allocator_.make_owner<Scale>(name));
+    scaleIt->setInput(inputTensor, 0);
+    scaleIt->setInput(scaleTensor, 1);
+    auto outputTensor = defineOutputTensor_(scaleIt, 0);
+    scaleIt->setOutput(outputTensor, 0);
+    
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + scaleIt->toString());
+
+    DataContext::FlowListIterator inputFlow = dataGraph_.edge_insert(inputSourceIt, scaleIt, allocator_.make_owner<DataFlow>(inputSourceIt, scaleIt, inputTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
+
+    DataContext::FlowListIterator scaleFlow = dataGraph_.edge_insert(scaleSourceIt, scaleIt, allocator_.make_owner<DataFlow>(scaleSourceIt, scaleIt, scaleTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + scaleFlow->toString());
+
+    defaultControlFlow_(scaleIt);
+    defaultStage_(scaleIt);
+
+    return outputTensor;
+
+}
+
+mv::DataContext::TensorIterator mv::OpModel::relu(DataContext::TensorIterator inputTensor, const string& name)
+{
+
+    auto sourceIt = checkInputTensor_(inputTensor);
+    if (sourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    DataContext::OpListIterator reluIt = dataGraph_.node_insert(allocator_.make_owner<ReLu>(name));
+    reluIt->setInput(inputTensor, 0);
+    auto outputTensor = defineOutputTensor_(reluIt, 0);
+    reluIt->setOutput(outputTensor, 0);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + reluIt->toString());
+
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(sourceIt, reluIt, allocator_.make_owner<DataFlow>(sourceIt, reluIt, inputTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
+
+    defaultControlFlow_(reluIt);
+    defaultStage_(reluIt);
+
+    return outputTensor;
+
+}
+
 mv::DataContext::OpListIterator mv::OpModel::getSourceOp(DataContext::TensorIterator tensor)
 {
     return findSourceOp_(tensor);
