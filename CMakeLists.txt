@@ -10,7 +10,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 file(GLOB allocator "src/graph/base_allocator.cpp")
 file(GLOB computation_model 
     "src/computation/model/model.cpp"
-    "src/computation/api/compositional_model.cpp"
+    "src/api/compositional_model.cpp"
     "src/computation/model/op_model.cpp"
     "src/computation/model/data_model.cpp"
     "src/computation/model/control_model.cpp"
@@ -25,17 +25,12 @@ file(GLOB computation_model
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
     "src/deployer/ostream.cpp")
-
-file(GLOB logger "src/computation/logger/logger.cpp")
+file(GLOB logger "src/logger/logger.cpp")
 file(GLOB pass "src/pass/deploy/deploy_pass.cpp")
-#add_library(graph STATIC src/graph/graph.cpp)
+
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
 add_subdirectory(examples)
 add_subdirectory(python/api)
 
 add_library(cm SHARED ${allocator} ${computation_model} ${logger} ${pass})
-
-#set(CPACK_PROJECT_NAME ${PROJECT_NAME})
-#set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
-#include(CPack)
