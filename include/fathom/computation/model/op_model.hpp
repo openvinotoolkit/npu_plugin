@@ -14,6 +14,7 @@
 #include "include/fathom/computation/op/batch_norm.hpp"
 #include "include/fathom/computation/op/scale.hpp"
 #include "include/fathom/computation/op/relu.hpp"
+#include "include/fathom/computation/op/softmax.hpp"
 #include "include/fathom/computation/op/add.hpp"
 #include "include/fathom/computation/op/reshape.hpp"
 
@@ -43,13 +44,14 @@ namespace mv
         DataContext::TensorIterator constant(float_type *data, size_type size, const Shape& shape, DType dType, Order order, const string& name = "");
         DataContext::TensorIterator constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name = "");
         DataContext::TensorIterator conv2D(DataContext::TensorIterator input, DataContext::TensorIterator filters, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "");
-        DataContext::TensorIterator fullyConnected(DataContext::TensorIterator input, DataContext::TensorIterator weights, const string& name);
+        DataContext::TensorIterator fullyConnected(DataContext::TensorIterator input, DataContext::TensorIterator weights, const string& name = "");
         DataContext::TensorIterator maxpool2D(DataContext::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "");
         DataContext::TensorIterator avgpool2D(DataContext::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "");
         DataContext::TensorIterator concat(DataContext::TensorIterator input0, DataContext::TensorIterator input1, const string& name = "");
         DataContext::TensorIterator batchNorm(DataContext::TensorIterator input, DataContext::TensorIterator mean, DataContext::TensorIterator variance, DataContext::TensorIterator offset, DataContext::TensorIterator scale, float_type varianceEps, const string& name = "");
         DataContext::TensorIterator scale(DataContext::TensorIterator input, DataContext::TensorIterator scale, const string& name = "");
         DataContext::TensorIterator relu(DataContext::TensorIterator input, const string& name = "");
+        DataContext::TensorIterator softmax(DataContext::TensorIterator input, const string& name = "");
         DataContext::TensorIterator add(DataContext::TensorIterator input0, DataContext::TensorIterator input1, const string& name = "");
         DataContext::TensorIterator reshape(DataContext::TensorIterator input, const Shape& shape, const string& name = "");
 

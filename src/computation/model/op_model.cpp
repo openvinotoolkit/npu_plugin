@@ -360,6 +360,29 @@ mv::DataContext::TensorIterator mv::OpModel::relu(DataContext::TensorIterator in
 
 }
 
+mv::DataContext::TensorIterator mv::OpModel::softmax(DataContext::TensorIterator inputTensor, const string& name)
+{
+
+    auto sourceIt = checkInputTensor_(inputTensor);
+    if (sourceIt == opEnd())
+        return DataContext::TensorIterator();
+
+    DataContext::OpListIterator softmaxIt = dataGraph_.node_insert(allocator_.make_owner<Softmax>(name));
+    softmaxIt->setInput(inputTensor, 0);
+    auto outputTensor = defineOutputTensor_(softmaxIt, 0);
+    softmaxIt->setOutput(outputTensor, 0);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + softmaxIt->toString());
+
+    DataContext::FlowListIterator newFlow = dataGraph_.edge_insert(sourceIt, softmaxIt, allocator_.make_owner<DataFlow>(sourceIt, softmaxIt, inputTensor));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
+
+    defaultControlFlow_(softmaxIt);
+    defaultStage_(softmaxIt);
+
+    return outputTensor;
+
+}
+
 mv::DataContext::TensorIterator mv::OpModel::add(DataContext::TensorIterator input0Tensor, DataContext::TensorIterator input1Tensor, const string& name)
 {
 

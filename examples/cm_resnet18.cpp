@@ -68,11 +68,15 @@ int main()
     auto res5b = residualBlock(om, res5a);
     auto pool5 = om.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
     pool5 = om.reshape(pool5, mv::Shape(pool5->getShape()[2], 1));
+    mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
+    auto weights = om.constant(weightsData, mv::Shape(1000, pool5->getShape()[0]), mv::DType::Float, mv::Order::NWHC);
+    auto fc1000 = om.fullyConnected(pool5, weights);
+    auto softmax = om.softmax(fc1000);
 
-    om.output(pool5);
+    om.output(softmax);
 
     mv::FStdOStream ostream("cm.dot");
-    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentFull);
+    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentName);
     bool dotResult = dotPass.run(om);    
     if (dotResult)
         system("dot -Tsvg cm.dot -o cm.svg");
