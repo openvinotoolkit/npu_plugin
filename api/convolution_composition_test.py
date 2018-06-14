@@ -1,8 +1,12 @@
 import numpy as np
 import unittest
 from ctypes import *
+import os
 import composition_api as ca
 import filecmp
+import xmlrunner
+
+
 
 class TestComposition(unittest.TestCase):
 
@@ -78,6 +82,7 @@ class TestComposition(unittest.TestCase):
         out_ = ca.output(g, cc_)
 
         self.assertTrue(g.isValid())
+
 
     def test_serialize_convolution_01(self):
         """
@@ -260,7 +265,6 @@ class TestComposition(unittest.TestCase):
         self.assertTrue(filecmp.cmp("cpp.blob", "../tests/data/gold_05.blob"))
 
 
-
-
 if __name__ == '__main__':
-    unittest.main()
+    # unittest.main()
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output="./python_unittests_xml"))
