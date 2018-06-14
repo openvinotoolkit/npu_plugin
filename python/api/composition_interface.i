@@ -11,14 +11,10 @@ import_array();
 
 %module composition_api
 %{
-    #include <include/fathom/computation/model/op_model.hpp>
-    #include <include/fathom/computation/model/model.hpp>
-    #include <include/fathom/computation/model/iterator/model_iterator.hpp>
-    #include <include/fathom/computation/tensor/shape.hpp>
-    #include <include/fathom/computation/tensor/constant.hpp>
-    #include <include/fathom/computation/model/attribute.hpp>
-    #include <include/fathom/computation/model/control_model.hpp>
-    #include <include/fathom/deployer/serializer.hpp>
+    #include <include/mcm/computation/model/op_model.hpp>
+    #include <include/mcm/computation/model/control_model.hpp>
+    #include <include/mcm/computation/model/iterator/data_context.hpp>
+    #include <include/mcm/deployer/serializer.hpp>
     #include <string>
 
     int serialize(mv::OpModel * test_cm){
@@ -41,91 +37,106 @@ import_array();
         return om;
     }
 
-    mv::Shape * getShape(int w, int x, int y, int z){
+    mv::Shape * getShape(int x, int y, int z){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(w, x, y, z);
+        mv::Shape* a = new mv::Shape(x, y, z);
         return a;
     }
 
-    mv::vector<mv::float_type> * getData(float * d, size_t len){
+    mv::Shape * getShape(int b, int x, int y, int z){
+        /// Create a c++ shape object from a passed in set of dimension sizes
+        mv::Shape* a = new mv::Shape(b, x, y, z);
+        return a;
+    }
+
+    mv::dynamic_vector<mv::float_type> * getData(float * d, size_t len){
         /// Populate a Vector with a numpy array.
-        mv::vector<mv::float_type> * weightsData = new mv::vector<mv::float_type>(d, len);
+        mv::dynamic_vector<mv::float_type> * weightsData = new mv::dynamic_vector<mv::float_type>(d, len);
         return weightsData;
     }
 
-    mv::ConstantTensor * getConstantTensor(mv::Shape * s, mv::vector<mv::float_type> data ){
-        /// Create the internal ConstantTensor which is needed for future function calls
-        mv::ConstantTensor * a = new mv::ConstantTensor(*s, mv::DType::Float, mv::Order::NWHC, data);
-        return a;
-    }
-
     int testConv(
-        mv::DataContext::OpListIterator &target,
-        int exp_strideX,
-        int exp_strideY,
-        int exp_padX,
-        int exp_padY
+        mv::Data::OpListIterator &target,
+        unsigned exp_strideX,
+        unsigned exp_strideY,
+        unsigned exp_padX,
+        unsigned exp_padY
         ){
         /// A couple of simple checks to ensure we have loaded the items correctly.
 
         int ret_val = 0;    // Success
-        if(target->getAttr("strideX").getContent<mv::byte_type>() != exp_strideX)
+        mv::UnsignedVector2D stride = target->getAttr("stride").getContent<mv::UnsignedVector2D>();
+        mv::UnsignedVector4D pad = target->getAttr("padding").getContent<mv::UnsignedVector4D>();
+        if(stride.e0 != exp_strideX)
             ret_val = 1;
-        if(target->getAttr("strideY").getContent<mv::byte_type>() != exp_strideY)
+        if(stride.e1 != exp_strideY)
             ret_val = 2;
-        if(target->getAttr("padX").getContent<mv::byte_type>() != exp_padX)
+        if(pad.e1 != exp_padX)
             ret_val = 3;
-        if(target->getAttr("padY").getContent<mv::byte_type>() != exp_padY)
+        if(pad.e3 != exp_padY)
             ret_val = 4;
+        // TODO Consider assymetric padding
 
         return ret_val;
     }
 
-    mv::DataContext::OpListIterator input(mv::OpModel * o, const mv::Shape &shape){
+    mv::Data::TensorIterator input(mv::OpModel *o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
         return o->input(shape, mv::DType::Float, mv::Order::NWHC);
     }
 
-    mv::DataContext::OpListIterator output(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor){
+    mv::Data::TensorIterator output(mv::OpModel *o, mv::Data::TensorIterator input){
         /// Add an Output Layer to the OpModel and return the relevant iterator
-        return o->output(predecessor);
+        return o->output(input);
     }
 
-    mv::DataContext::OpListIterator maxpool(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::Shape &shape,
-        uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY){
+    mv::Data::TensorIterator maxpool2D(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
         /// Add a Max Pooling Layer to the OpModel and return the relevant iterator
-        return o->maxpool(predecessor, shape, strideX, strideY, padX, padY);
+        return o->maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+            {padX, padX, padY, padY});
     }
 
-    mv::DataContext::OpListIterator concat(mv::OpModel * o, mv::DataContext::OpListIterator &in0, mv::DataContext::OpListIterator &in1){
+    mv::Data::TensorIterator concat(mv::OpModel *o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         /// Add a Concat Layer to the OpModel and return the relevant iterator.
         /// Allows only two inputs at a time. More must cascade
-        return o->concat(in0, in1);
+        return o->concat(input0, input1);
     }
 
-    mv::DataContext::OpListIterator conv(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::ConstantTensor &weights,
-        uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY){
+    mv::Data::TensorIterator conv2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+        unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
         /// Add a Convolutional Layer to the OpModel and return the relevant iterator
-        return o->conv(predecessor, weights, strideX, strideY, padX, padY);
+        return o->conv2D(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
     }
+
+    mv::Data::TensorIterator constant(mv::OpModel *o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
+        /// Add a Constant Layer to the OpModel and return the relevant iterator
+        return o->constant(data, shape, mv::DType::Float, mv::Order::NWHC);
+    }
+
+    mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor){
+        // Get source operation of a tensor
+        return o->getSourceOp(tensor);
+    }
+
  %}
 
-#include <include/fathom/computation/model/op_model.hpp>
-#include <include/fathom/computation/model/model.hpp>
-#include <include/fathom/computation/model/iterator/model_iterator.hpp>
-#include <include/fathom/computation/model/iterator/data_context.hpp>
-#include <include/fathom/computation/model/control_model.hpp>
-#include <include/fathom/computation/tensor/shape.hpp>
-#include <include/fathom/computation/tensor/constant.hpp>
-#include <include/fathom/computation/model/attribute.hpp>
-#include <include/fathom/computation/api/compositional_model.hpp>
-#include <include/fathom/deployer/serializer.hpp>
-#include <include/fathom/computation/model/model.hpp>
-#include <include/fathom/computation/op/input.hpp>
-#include <include/fathom/computation/op/output.hpp>
-#include <include/fathom/computation/op/conv.hpp>
-#include <include/fathom/computation/op/maxpool.hpp>
-#include <include/fathom/computation/op/concat.hpp>
+#include <include/mcm/computation/model/op_model.hpp>
+#include <include/mcm/computation/model/model.hpp>
+#include <include/mcm/computation/model/iterator/model_iterator.hpp>
+#include <include/mcm/computation/model/iterator/data_context.hpp>
+#include <include/mcm/computation/model/control_model.hpp>
+#include <include/mcm/computation/tensor/shape.hpp>
+#include <include/mcm/computation/tensor/tensor.hpp>
+#include <include/mcm/computation/model/attribute.hpp>
+#include <include/mcm/api/compositional_model.hpp>
+#include <include/mcm/deployer/serializer.hpp>
+#include <include/mcm/computation/model/model.hpp>
+#include <include/mcm/computation/op/def/input.hpp>
+#include <include/mcm/computation/op/def/output.hpp>
+#include <include/mcm/computation/op/def/conv.hpp>
+#include <include/mcm/computation/op/def/maxpool.hpp>
+#include <include/mcm/computation/op/def/concat.hpp>
 #include <string>
 
 // The section below is exposing the functions within the included files,
@@ -133,44 +144,53 @@ import_array();
 
 namespace mv
 {
+
     class OpModel
     {
     public:
         bool isValid() const;
     };
 
-    namespace DataContext
+    namespace Data
     {
+        class TensorIterator
+        {
+        public:
+            ~TensorIterator();
+        };
+
         class OpListIterator
         {
         public:
             ~OpListIterator();
         };
+
     }
 }
 
 int testSWIG();
 mv::OpModel * getOM();
-mv::Shape * getShape(int w, int x, int y, int z);
-mv::ConstantTensor * getConstantTensor(mv::Shape * s, mv::vector<mv::float_type> data );
-
+mv::Shape * getShape(int x, int y, int z);
+mv::Shape * getShape(int b, int x, int y, int z);
 
 // Expand a numpy array to a data pointer and a length
 %include "stdint.i"
 %apply (float* INPLACE_ARRAY1, int DIM1) {(float* d, int len)}
-mv::vector<mv::float_type> * getData(float * d, int len);
+mv::dynamic_vector<mv::float_type> * getData(float * d, int len);
 
 
-mv::DataContext::OpListIterator input(mv::OpModel * o, const mv::Shape &shape);
-mv::DataContext::OpListIterator output(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor);
-mv::DataContext::OpListIterator conv(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::ConstantTensor &weights,
-    uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY);
-mv::DataContext::OpListIterator maxpool(mv::OpModel * o, mv::DataContext::OpListIterator &predecessor, const mv::Shape &shape,
-    uint8_t strideX, uint8_t strideY, uint8_t padX, uint8_t padY);
-mv::DataContext::OpListIterator concat(mv::OpModel * o, mv::DataContext::OpListIterator &in0, mv::DataContext::OpListIterator &in1);
+mv::Data::TensorIterator input(mv::OpModel * o, const mv::Shape &shape);
+mv::Data::TensorIterator output(mv::OpModel * o, mv::Data::TensorIterator input);
+mv::Data::TensorIterator conv2D(mv::OpModel * o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+    unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
+mv::Data::TensorIterator maxpool2D(mv::OpModel * o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+    unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
+mv::Data::TensorIterator concat(mv::OpModel * o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
+mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor);
 
 int testConv(
-    mv::DataContext::OpListIterator &target,
+    mv::Data::OpListIterator &target,
     int exp_strideX,
     int exp_strideY,
     int exp_padX,
