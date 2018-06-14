@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.5.0)
 
 set(CMAKE_CXX_STANDARD 11)
 
@@ -12,6 +12,12 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(CMAKE_SWIG_FLAGS "")
 
 set_source_files_properties(composition_interface.i PROPERTIES CPLUSPLUS on)
-swig_add_library(composition_api LANGUAGE python SOURCES composition_interface.i)
+if(NOT ${CMAKE_VERSION} VERSION_LESS "3.8.0") 
+    swig_add_library(composition_api LANGUAGE python SOURCES composition_interface.i)
+else()
+    swig_add_module(composition_api python composition_interface.i)
+    message("Consider updating to a newer version of CMake")
+endif()
+
 swig_link_libraries(composition_api ${PYTHON_LIBRARIES} cm)
 set_target_properties(${SWIG_MODULE_composition_api_REAL_NAME} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python/api")

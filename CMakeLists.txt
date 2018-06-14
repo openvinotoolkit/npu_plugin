@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.1.0)
+cmake_minimum_required(VERSION 3.5.0)
 project(fathom VERSION 0.0.1)
 
 set(CMAKE_CXX_STANDARD 11)

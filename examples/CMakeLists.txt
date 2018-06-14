@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.0.0)
+cmake_minimum_required(VERSION 3.5.0)
 project(fathom VERSION 1.0.0)
 
 add_executable(graph_container graph_container.cpp)
