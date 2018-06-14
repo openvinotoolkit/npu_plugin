@@ -12,3 +12,4 @@ clean:
 	rm *.so || true
 	rm *.blob || true
 	rm composition_api.py || true
+	rm -rf __pycache__ || true

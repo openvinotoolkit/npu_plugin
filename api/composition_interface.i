@@ -138,6 +138,15 @@ namespace mv
     public:
         bool isValid() const;
     };
+
+    namespace DataContext
+    {
+        class OpListIterator
+        {
+        public:
+            ~OpListIterator();
+        };
+    }
 }
 
 int testSWIG();
