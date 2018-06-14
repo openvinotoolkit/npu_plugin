@@ -26,6 +26,7 @@ file(GLOB pass "src/pass/deploy/deploy_pass.cpp")
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
 add_subdirectory(examples)
+add_subdirectory(python/api)
 
 add_library(cm SHARED ${allocator} ${computation_model} ${logger} ${tensor} ${pass})
 

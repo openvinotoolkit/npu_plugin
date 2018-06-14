@@ -1,11 +1,13 @@
+# TODO Improve this temporary solution
+import sys
+sys.path.append('../api/')
+
 import numpy as np
 import unittest
-from ctypes import *
 import os
 import composition_api as ca
 import filecmp
 import xmlrunner
-
 
 
 class TestComposition(unittest.TestCase):
@@ -25,7 +27,7 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(1, 32, 32, 3)
 
         in_ = ca.input(g, shape)
-        out_ = ca.output(g, in_)
+        ca.output(g, in_)
 
         self.assertTrue(g.isValid())
 
@@ -46,7 +48,7 @@ class TestComposition(unittest.TestCase):
         in_ = ca.input(g, shape)
 
         c_ = ca.conv(g, in_, weights, 4, 4, 1, 1)
-        out_ = ca.output(g, c_)
+        ca.output(g, c_)
 
         self.assertTrue(g.isValid())
         self.assertEqual(ca.testConv(c_, 4, 4, 1, 1), 0)
@@ -57,7 +59,7 @@ class TestComposition(unittest.TestCase):
 
         in_ = ca.input(g, shape)
         mx_ = ca.maxpool(g, in_, ca.getShape(0, 0, 0, 0), 2, 2, 0, 0)
-        out_ = ca.output(g, mx_)
+        ca.output(g, mx_)
 
         self.assertTrue(g.isValid())
 
@@ -79,7 +81,7 @@ class TestComposition(unittest.TestCase):
         c1_ = ca.conv(g, in_, bweights, 1, 1, 0, 0)
         c2_ = ca.conv(g, c1_, eweights, 1, 1, 0, 0)
         cc_ = ca.concat(g, c1_, c2_)
-        out_ = ca.output(g, cc_)
+        ca.output(g, cc_)
 
         self.assertTrue(g.isValid())
 
@@ -115,7 +117,7 @@ class TestComposition(unittest.TestCase):
         fs = ca.serialize(g)
         print(fs)
 
-        self.assertTrue(filecmp.cmp("cpp.blob", "../tests/data/gold_01.blob"))
+        self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_01.blob"))
 
     def test_serialize_convolution_02(self):
         """
@@ -150,7 +152,7 @@ class TestComposition(unittest.TestCase):
         fs = ca.serialize(g)
         print(fs)
 
-        self.assertTrue(filecmp.cmp("cpp.blob", "../tests/data/gold_02.blob"))
+        self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_02.blob"))
 
 
     def test_serialize_convolution_03(self):
@@ -186,7 +188,7 @@ class TestComposition(unittest.TestCase):
         fs = ca.serialize(g)
         print(fs)
 
-        self.assertTrue(filecmp.cmp("cpp.blob", "../tests/data/gold_03.blob"))
+        self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_03.blob"))
 
     def test_serialize_convolution_04(self):
         """
@@ -218,7 +220,7 @@ class TestComposition(unittest.TestCase):
         in_ = ca.input(g, shape)
 
         c_ = ca.conv(g, in_, weights, 2, 2, 0, 0)
-        out_ = ca.output(g, c_)
+        ca.output(g, c_)
 
         self.assertTrue(g.isValid())
         self.assertEqual(ca.testConv(c_, 2, 2, 0, 0), 0)
@@ -226,7 +228,7 @@ class TestComposition(unittest.TestCase):
         fs = ca.serialize(g)
         print(fs)
 
-        self.assertTrue(filecmp.cmp("cpp.blob", "../tests/data/gold_04.blob"))
+        self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_04.blob"))
 
 
     def test_serialize_convolution_05(self):
@@ -256,13 +258,13 @@ class TestComposition(unittest.TestCase):
 
         c1_ = ca.conv(g, in_, bweights, 1, 1, 0, 0)
         c2_ = ca.conv(g, c1_, eweights, 1, 1, 0, 0)
-        out_ = ca.output(g, c2_)
+        ca.output(g, c2_)
 
         self.assertTrue(g.isValid())
 
-        fs = ca.serialize(g)
+        ca.serialize(g)
 
-        self.assertTrue(filecmp.cmp("cpp.blob", "../tests/data/gold_05.blob"))
+        self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_05.blob"))
 
 
 if __name__ == '__main__':
