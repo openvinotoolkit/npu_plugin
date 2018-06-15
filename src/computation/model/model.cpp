@@ -1,42 +1,29 @@
-#include "include/fathom/computation/model/model.hpp"
+#include "include/mcm/computation/model/model.hpp"
 
 mv::allocator mv::ComputationModel::allocator_;
+mv::DefaultLogger mv::ComputationModel::defaultLogger_;
+mv::Logger &mv::ComputationModel::logger_ = mv::ComputationModel::defaultLogger_;
 
-mv::ComputationModel::ComputationModel(Logger &logger) : 
-opsGraph_(allocator_.make_owner<computation_graph>(computation_graph())),
-dataGraph_(opsGraph_->get_first()),
-controlGraph_(opsGraph_->get_second()),
-flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>()),
-parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>()),
-groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationElement::ElementOrderComparator>()),
-stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationElement::ElementOrderComparator>()),
-memoryAllocators_(allocator_.make_owner<map<string, allocator::owner_ptr<MemoryAllocator>>>(map<string, allocator::owner_ptr<MemoryAllocator>>())),
-logger_(logger),
-dataOpEnd_(dataGraph_.node_end()),
-dataFlowEnd_(dataGraph_.edge_end()),
-controlOpEnd_(controlGraph_.node_end()),
-controlFlowEnd_(controlGraph_.edge_end())
-{
-
-}
 
 mv::ComputationModel::ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime) :
 opsGraph_(allocator_.make_owner<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
-flowTensors_(allocator_.make_set<allocator::owner_ptr<UnpopulatedTensor>, ModelTensor::TensorOrderComparator>()),
-parameterTensors_(allocator_.make_set<allocator::owner_ptr<PopulatedTensor>, ModelTensor::TensorOrderComparator>()),
-groups_(allocator_.make_set<allocator::owner_ptr<ComputationGroup>, ComputationElement::ElementOrderComparator>()),
-stages_(allocator_.make_set<allocator::owner_ptr<ComputationStage>, ComputationElement::ElementOrderComparator>()),
+flowTensors_(allocator_.make_owner<map<string, allocator::owner_ptr<Tensor>>>(map<string, allocator::owner_ptr<Tensor>>())),
+tensorsSources_(allocator_.make_owner<map<string, Data::OpListIterator>>(map<string, Data::OpListIterator>())),
+groups_(allocator_.make_owner<map<string, allocator::owner_ptr<ComputationGroup>>>(map<string, allocator::owner_ptr<ComputationGroup>>())),
+stages_(allocator_.make_owner<map<unsigned_type, allocator::owner_ptr<ComputationStage>>>(map<unsigned_type, allocator::owner_ptr<ComputationStage>>())),
 memoryAllocators_(allocator_.make_owner<map<string, allocator::owner_ptr<MemoryAllocator>>>(map<string, allocator::owner_ptr<MemoryAllocator>>())),
-defaultLogger_(allocator_.make_owner<StdOutLogger>(verboseLevel, logTime)),
-logger_(*defaultLogger_),
 dataOpEnd_(dataGraph_.node_end()),
 dataFlowEnd_(dataGraph_.edge_end()),
 controlOpEnd_(controlGraph_.node_end()),
-controlFlowEnd_(controlGraph_.edge_end())
+controlFlowEnd_(controlGraph_.edge_end()),
+tensorEnd_(),
+input_(dataOpEnd_),
+output_(dataOpEnd_)
 {
-
+    logger_.setVerboseLevel(verboseLevel);
+    logger_.setLogTime(logTime);
 }
 
 
@@ -45,18 +32,17 @@ opsGraph_(other.opsGraph_),
 dataGraph_(other.dataGraph_),
 controlGraph_(other.controlGraph_),
 flowTensors_(other.flowTensors_),
-parameterTensors_(other.parameterTensors_),
+tensorsSources_(other.tensorsSources_),
 groups_(other.groups_),
 stages_(other.stages_),
 memoryAllocators_(other.memoryAllocators_),
-logger_(other.logger_),
-input_(other.input_),
-output_(other.output_),
-lastOp_(other.lastOp_),
 dataOpEnd_(other.dataOpEnd_),
 dataFlowEnd_(other.dataFlowEnd_),
 controlOpEnd_(other.controlOpEnd_),
-controlFlowEnd_(other.controlFlowEnd_)
+controlFlowEnd_(other.controlFlowEnd_),
+input_(other.input_),
+output_(other.output_),
+lastOp_(other.lastOp_)
 {
 
 }
@@ -68,7 +54,7 @@ mv::ComputationModel::~ComputationModel()
 
 bool mv::ComputationModel::isValid() const
 {
-    return !dataGraph_.disjoint() && !controlGraph_.disjoint() && input_ != dataOpEnd_ && output_ != dataOpEnd_ && checkOpsStages_();
+    return !dataGraph_.disjoint() && input_ != dataOpEnd_ && output_ != dataOpEnd_ && checkOpsStages_();
 }
 
 mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &name)
@@ -77,7 +63,7 @@ mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &nam
     if (getGroup(name) == groupEnd())
     {
         
-        auto result = groups_->insert(allocator_.make_owner<ComputationGroup>(logger_, name));
+        auto result = groups_->emplace(name, allocator_.make_owner<ComputationGroup>(name));
         if (result.second)
         {
             logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*result.first)->toString());
@@ -106,8 +92,7 @@ bool mv::ComputationModel::hasGroup(const string &name)
 mv::GroupContext::GroupIterator mv::ComputationModel::getGroup(const string &name)
 {
 
-    allocator::owner_ptr<ComputationGroup> searchGroup = allocator_.make_owner<ComputationGroup>(logger_, name);
-    return groups_->find(searchGroup);
+    return groups_->find(name);
 
 }
 
@@ -155,7 +140,7 @@ bool mv::ComputationModel::checkOpsStages_() const
     
     for (auto opIt = input_; opIt != dataOpEnd_; ++opIt)
     {
-        if (!opIt->hasAttr("stage") && !(opIt->getOpType() == "input" || opIt->getOpType() == "output"))
+        if (!opIt->hasAttr("stage") && opIt->getAttr("executable").getContent<bool>())
             return false;
     }
 
@@ -163,18 +148,18 @@ bool mv::ComputationModel::checkOpsStages_() const
     
 }
 
-mv::ControlContext::StageIterator mv::ComputationModel::addStage_()
+mv::Control::StageIterator mv::ComputationModel::addStage_()
 {   
-    
-    mv::ControlContext::StageIterator it = stages_->insert(stages_->end(), allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + it->toString());
-    return it;
+
+    auto it = stages_->emplace(stages_->size(), allocator_.make_owner<ComputationStage>(stages_->size()));
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + it.first->second->toString());
+    return it.first;
     
 }
 
-bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, DataContext::OpListIterator &op)
+bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpListIterator &op)
 {
-    ControlContext::StageIterator stageEnd(stages_->end());
+    Control::StageIterator stageEnd(stages_->end());
     if (stage != stageEnd)
     {
         allocator::owner_ptr<ComputationOp> ptr = op;
@@ -188,6 +173,57 @@ bool mv::ComputationModel::addToStage_(ControlContext::StageIterator &stage, Dat
     }
 
     return false;
+}
+
+mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListIterator source, byte_type outputIdx)
+{
+    if (source == dataOpEnd_)
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - invalid source op");
+        return Data::TensorIterator();
+    }
+
+    auto tensorDef = source->getOutputDef(outputIdx);
+
+    if (flowTensors_->find(tensorDef.getName()) == flowTensors_->end())
+    {
+        // TODO: handle failure
+        auto result = flowTensors_->emplace(tensorDef.getName(), allocator_.make_owner<Tensor>(tensorDef));
+        tensorsSources_->emplace(tensorDef.getName(), source);
+        logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+        return result.first;
+    }
+    else
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
+        return Data::TensorIterator();
+    }
+}
+
+mv::Data::TensorIterator mv::ComputationModel::findTensor_(const string &name)
+{
+    auto it = flowTensors_->find(name);
+
+    if (it != flowTensors_->end())
+        return it;
+
+    return Data::TensorIterator();
+
+}
+
+mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterator &tensor)
+{
+
+    if (tensor == tensorEnd_)
+        return Data::OpListIterator();
+
+    auto it = tensorsSources_->find(tensor->getName());
+
+    if (it != tensorsSources_->end())
+        return it->second;
+
+    return Data::OpListIterator();
+
 }
 
 mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
@@ -241,4 +277,9 @@ mv::Logger &mv::ComputationModel::logger()
 
     return logger_;
 
+}
+
+void mv::ComputationModel::setLogger(Logger &logger)
+{
+    logger_ = logger;
 }

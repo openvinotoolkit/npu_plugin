@@ -5,13 +5,16 @@ add_executable(graph_container graph_container.cpp)
 target_sources(graph_container PUBLIC ${allocator})
 
 add_executable(computation_model computation_model.cpp)
-target_sources(computation_model PUBLIC ${allocator} ${computation_model} ${logger} ${tensor})
+target_sources(computation_model PUBLIC ${allocator} ${computation_model} ${logger})
 
 add_executable(cm_two_branch cm_two_branch.cpp)
-target_sources(cm_two_branch PUBLIC ${allocator} ${computation_model} ${logger} ${tensor} ${pass})
+target_sources(cm_two_branch PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
 
 add_executable(cm_allocate_resources cm_allocate_resources.cpp)
-target_sources(cm_allocate_resources PUBLIC ${allocator} ${computation_model} ${logger} ${tensor} ${pass})
+target_sources(cm_allocate_resources PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
+
+add_executable(cm_resnet18 cm_resnet18.cpp)
+target_sources(cm_resnet18 PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
 
 add_executable(conjoined_graph conjoined_graph.cpp)
 target_sources(conjoined_graph PUBLIC ${allocator})

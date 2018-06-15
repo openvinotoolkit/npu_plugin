@@ -2,9 +2,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "include/fathom/graph/graph.hpp"
-#include "include/fathom/graph/stl_allocator.hpp"
-#include "include/fathom/graph/visualizer.hpp"
+#include "include/mcm/graph/graph.hpp"
+#include "include/mcm/graph/stl_allocator.hpp"
+#include "include/mcm/graph/visualizer.hpp"
 
 using int_int_graph = mv::graph<int, int, mv::stl_allocator>;
 
@@ -186,9 +186,9 @@ TEST (graph_container, search_order)
 
     std::vector<int> node_list_order= {1,2,3,4,5,6 } ;
     int count_node_list = 0 ;
-    for (auto it = g.node_begin(); it != g.node_end(); ++it)
+    for (auto nodeIt = g.node_begin(); nodeIt != g.node_end(); ++nodeIt)
     {
-        EXPECT_EQ (node_list_order[count_node_list], *it) << "ERROR: wrong node traversing node list forward";
+        EXPECT_EQ (node_list_order[count_node_list], *nodeIt) << "ERROR: wrong node traversing node list forward";
         count_node_list++; 
     }
     EXPECT_EQ (6, count_node_list) << "ERROR: wrong node count traversing node list forward";
@@ -234,9 +234,9 @@ TEST (graph_container, search_order)
 
     std::vector<int> node_list_order2= {801,803,804,805 } ;
     int count_node_list2 = 0 ;
-    for (auto it = g2.node_begin(); it != g2.node_end(); ++it)
+    for (auto nodeIt = g2.node_begin(); nodeIt != g2.node_end(); ++nodeIt)
     {
-        EXPECT_EQ (node_list_order2[count_node_list2], *it) << "ERROR: wrong node order traversing node list forward";
+        EXPECT_EQ (node_list_order2[count_node_list2], *nodeIt) << "ERROR: wrong node order traversing node list forward";
         count_node_list2++;
     }
     EXPECT_EQ (4, count_node_list2) << "ERROR: wrong node count traversing node list forward";

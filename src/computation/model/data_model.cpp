@@ -1,4 +1,4 @@
-#include "include/fathom/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 
 /*mv::DataModel::DataModel(Logger::VerboseLevel verboseLevel, bool logTime) :
 ComputationModel(verboseLevel, logTime)
@@ -18,72 +18,43 @@ ComputationModel(other)
 
 }
 
-mv::DataContext::OpListIterator mv::DataModel::switchContext(ControlContext::OpListIterator &other)
+mv::Data::OpListIterator mv::DataModel::switchContext(Control::OpListIterator &other)
 {
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::DataContext::FlowSiblingIterator mv::DataModel::getInput()
+mv::Data::FlowSiblingIterator mv::DataModel::getInput()
 {
     return input_.leftmostOutput();
 }
 
-mv::DataContext::FlowSiblingIterator mv::DataModel::getOutput()
+mv::Data::FlowSiblingIterator mv::DataModel::getOutput()
 {
     return output_.leftmostInput();
 }
 
-mv::DataContext::FlowListIterator mv::DataModel::flowEnd()
+mv::Data::FlowListIterator mv::DataModel::flowEnd()
 {
     return dataFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group)
 {
     allocator::owner_ptr<DataFlow> ptr = element;
     return addGroupElement_(ptr, group);
 }
 
-bool mv::DataModel::removeGroupElement(DataContext::FlowListIterator &element, GroupContext::GroupIterator &group)
+bool mv::DataModel::removeGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group)
 {
     allocator::owner_ptr<DataFlow> ptr = element;
     return removeGroupElement_(ptr, group);
 }
 
-mv::TensorContext::PopulatedTensorIterator mv::DataModel::getPopulatedTensor(string name)
+mv::Data::TensorIterator mv::DataModel::findTensor(string name)
 {
-    for (auto it = parameterTensors_->begin(); it != parameterTensors_->end(); ++it)
-        if ((*it)->getName() == name)
-            return it;
 
-    return parameterTensors_->end();
-}
+    return ComputationModel::findTensor_(name);
 
-mv::TensorContext::UnpopulatedTensorIterator mv::DataModel::getUnpopulatedTensor(string name)
-{
-    for (auto it = flowTensors_->begin(); it != flowTensors_->end(); ++it)
-        if ((*it)->getName() == name)
-            return it;
-
-    return flowTensors_->end();
-}
-
-mv::TensorContext::PopulatedTensorIterator mv::DataModel::getPopulatedTensor(size_type id)
-{
-    for (auto it = parameterTensors_->begin(); it != parameterTensors_->end(); ++it)
-        if ((*it)->getID() == id)
-            return it;
-
-    return parameterTensors_->end();
-}
-
-mv::TensorContext::UnpopulatedTensorIterator mv::DataModel::getUnpopulatedTensor(size_type id)
-{
-    for (auto it = flowTensors_->begin(); it != flowTensors_->end(); ++it)
-        if ((*it)->getID() == id)
-            return it;
-
-    return flowTensors_->end();
 }
 
 bool mv::DataModel::addAllocator(const string &name, size_type maxSize)
@@ -97,28 +68,7 @@ bool mv::DataModel::addAllocator(const string &name, size_type maxSize)
     return false;
 }
 
-bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::PopulatedTensorIterator &tensor)
-{
-
-    if (memoryAllocators_->find(allocatorName) != memoryAllocators_->end())
-    {
-        if ((*memoryAllocators_)[allocatorName]->allocate(*tensor, stage->getAttr("idx").getContent<unsigned_type>()))
-        {
-            logger_.log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " + (*memoryAllocators_)[allocatorName]->toString());
-            return true;
-        }
-        else
-        {
-            logger_.log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " + Printable::toString(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
-        }
-
-    }
-
-    return false;
-
-}
-
-bool mv::DataModel::allocateTensor(const string &allocatorName, ControlContext::StageIterator &stage, TensorContext::UnpopulatedTensorIterator &tensor)
+bool mv::DataModel::allocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor)
 {
     if (memoryAllocators_->find(allocatorName) != memoryAllocators_->end())
     {

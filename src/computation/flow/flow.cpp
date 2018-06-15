@@ -1,7 +1,7 @@
-#include "include/fathom/computation/flow/flow.hpp"
+#include "include/mcm/computation/flow/flow.hpp"
 
-mv::ComputationFlow::ComputationFlow(const Logger &logger, const string &name) :
-ComputationElement(logger, name)
+mv::ComputationFlow::ComputationFlow(const string &name) :
+ComputationElement(name)
 {
 
 }

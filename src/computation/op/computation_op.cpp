@@ -1,20 +1,12 @@
-#include "include/fathom/computation/op/computation_op.hpp"
+#include "include/mcm/computation/op/computation_op.hpp"
 
-mv::allocator::map<mv::string, mv::size_type> mv::ComputationOp::idDict_;
+mv::allocator::map<mv::OpType, mv::size_type> mv::ComputationOp::idDict_;
 
-mv::ComputationOp::ComputationOp(const Logger &logger, const string &opType, DType dType, Order order, Shape inputShape, Shape outputShape, const string &name) :
-ComputationElement(logger, "op_" + opType + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }()),
-dType_(dType),
-order_(order),
-inputShape_(inputShape),
-outputShape_(outputShape)
+mv::ComputationOp::ComputationOp(OpType opType, const string &name) :
+ComputationElement(Printable::toString(opType) + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }())
 {
     logger_.log(Logger::MessageType::MessageDebug, "Defined computation op " + toString());
-    addAttr("opType", AttrType::StringType, opType);
-    addAttr("dType", AttrType::DTypeType, dType_);
-    addAttr("order", AttrType::OrderType, order_);
-    addAttr("inputShape", AttrType::ShapeType, inputShape_);
-    addAttr("outputShape", AttrType::ShapeType, outputShape_);
+    addAttr("opType", AttrType::OpTypeType, opType);
 }
 
 mv::ComputationOp::~ComputationOp()
@@ -22,44 +14,70 @@ mv::ComputationOp::~ComputationOp()
 
 }
 
-/*mv::ComputationOp::ComputationOp(const ComputationOp &other) :
-ComputationElement(other),
-dType_(other.dType_),
-order_(other.order_),
-inputShape_(other.inputShape_),
-outputShape_(other.outputShape_)
+bool mv::ComputationOp::validOutputDef_()
 {
 
-}*/
+    if (!hasInputDef())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + "' because of undefined input/inputs");
+        return false;
+    }
 
-mv::Shape mv::ComputationOp::getInputShape() const
-{
-    return inputShape_;
+    return true;
+
 }
 
-mv::Shape mv::ComputationOp::getOutputShape() const
+mv::OpType mv::ComputationOp::getOpType() const 
 {
-    return outputShape_;
-}
-
-mv::string mv::ComputationOp::getOpType()
-{
-    return getAttr("opType").getContent<string>();
+    return getAttr("opType").getContent<OpType>();
 }
 
 mv::string mv::ComputationOp::toString() const
 {
-    return "'" + name_ + "' " + ComputationElement::toString();
+    return "op " + getAttr("opType").getContentStr() + " '" + name_ + "' " + ComputationElement::toString();
 }
 
-mv::UnpopulatedTensor mv::ComputationOp::getOutput() const
+mv::Data::TensorIterator mv::ComputationOp::getInput(byte_type)
 {
+    return mv::Data::TensorIterator();
+}
 
-    return UnpopulatedTensor(logger_, name_ + "_out:0", outputShape_, dType_, order_);
+mv::Data::TensorIterator mv::ComputationOp::getOutput(byte_type)
+{
+    return mv::Data::TensorIterator();
+}
 
+bool mv::ComputationOp::setInput(Data::TensorIterator&, byte_type)
+{
+    return false;
+}
+
+bool mv::ComputationOp::setOutput(Data::TensorIterator&, byte_type)
+{
+    return false;
+}
+
+bool mv::ComputationOp::hasInputDef()
+{
+    return false;
+}
+
+bool mv::ComputationOp::hasInputDef(byte_type)
+{
+    return false;
+}
+
+mv::byte_type mv::ComputationOp::inputSlots()
+{
+    return 0;
 }
 
 bool mv::ComputationOp::operator==(const ComputationOp &other) const
 {
     return getName() == other.getName();
+}
+
+bool mv::ComputationOp::isExecutable() const
+{
+    return getAttr("executable").getContent<bool>();
 }

@@ -1,37 +1,40 @@
-#include "include/fathom/computation/model/op_model.hpp"
-#include "include/fathom/computation/model/data_model.hpp"
-#include "include/fathom/computation/model/control_model.hpp"
-#include "include/fathom/computation/utils/data_generator.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/graph/static_vector.hpp"
 
 int main()
 {
 
     mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
-    auto inIt = om.input(mv::Shape(1, 128, 128, 3), mv::DType::Float, mv::Order::NWHC);
+    auto input = om.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::NWHC);
+    mv::dynamic_vector<mv::float_type> weights1Data = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
+    mv::dynamic_vector<mv::float_type> weights2Data = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
+    mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
 
-    mv::vector<mv::float_type> conv1WeightsData = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
-    mv::vector<mv::float_type> conv2WeightsData = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
-    mv::vector<mv::float_type> conv3WeightsData = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
-
-    auto conv1It = om.conv(inIt, mv::ConstantTensor(mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC, conv1WeightsData), 2, 2, 1, 1);
-    auto pool1It = om.maxpool(conv1It, mv::Shape(3, 3), 2, 2, 1, 1);
-    auto conv2It = om.conv(pool1It, mv::ConstantTensor(mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC, conv2WeightsData), 2, 2, 2, 2);
-    auto pool2It = om.maxpool(conv2It, mv::Shape(5, 5), 4, 4, 2, 2);
-    auto conv3It = om.conv(pool2It, mv::ConstantTensor(mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::NWHC, conv3WeightsData), 1, 1, 0, 0);
-    auto outIt = om.output(conv3It);
+    auto weights1 = om.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::NWHC);
+    auto conv1 = om.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
+    auto pool1 = om.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto weights2 = om.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::NWHC);
+    auto conv2 = om.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
+    auto pool2 = om.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
+    auto weights3 = om.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::NWHC);
+    auto conv3 = om.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
+    auto output = om.output(conv3);
 
     auto msgType = mv::Logger::MessageType::MessageInfo;
 
-    auto attr = outIt->getAttr("outputShape");
-    om.logger().log(msgType, "Op '" + outIt->getName() + "' attribute 'outputShape' content: " + attr.getContent<mv::Shape>().toString());
-    om.logger().log(msgType, "Op '" + outIt->getName() + "' attribute 'outputShape' type: " +  mv::Printable::toString(outIt->getAttrType("outputShape")));
+    auto attr = output->getAttr("shape");
+    om.logger().log(msgType, "Tensor '" + output->getName() + "' attribute 'shape' content: " + attr.getContent<mv::Shape>().toString());
+    om.logger().log(msgType, "Tensor '" + output->getName() + "' attribute 'shape' type: " +  mv::Printable::toString(output->getAttrType("shape")));
 
-    om.addAttr(conv1It, "customAttr", mv::Attribute(mv::AttrType::IntegerType, 10));
-    om.addAttr(inIt, "customAttr", mv::Attribute(mv::AttrType::UnsingedType, 1U));
+    om.addAttr(om.getSourceOp(conv1), "customAttr", mv::Attribute(mv::AttrType::IntegerType, 10));
+    om.addAttr(om.getSourceOp(input), "customAttr", mv::Attribute(mv::AttrType::UnsingedType, 1U));
 
-    om.logger().log(msgType, "Op '" + inIt->getName() + "' - number of attributes: " + mv::Printable::toString(inIt->attrsCount()));
-    om.logger().log(msgType, "Op '" + conv1It->getName() + "' - number of attributes: " + mv::Printable::toString(conv1It->attrsCount()));
-    om.logger().log(msgType, "Op '" + outIt->getName() + "' - number of attributes: " + mv::Printable::toString(outIt->attrsCount()));
+    om.logger().log(msgType, "Tensor '" + input->getName() + "' - number of attributes: " + mv::Printable::toString(input->attrsCount()));
+    om.logger().log(msgType, "Tensor '" + conv1->getName() + "' - number of attributes: " + mv::Printable::toString(conv1->attrsCount()));
+    om.logger().log(msgType, "Tensor '" + output->getName() + "' - number of attributes: " + mv::Printable::toString(output->attrsCount()));
 
     mv::DataModel dm(om);
 
@@ -46,12 +49,10 @@ int main()
     cm.logger().log(msgType, "Last op: " + cm.getLast()->getName());
 
     mv::size_type i = 0;
-    for (mv::ControlContext::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+    for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
     {
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
-    
-    return 0;
 
 }
