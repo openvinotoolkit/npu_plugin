@@ -160,6 +160,7 @@ struct blob_summary {
     uint32_t params_region_size;
     uint32_t weights_number_size;
     uint32_t stage_count;
+    uint32_t conv_count;
     uint32_t input_size;
     uint32_t output_size;
     uint32_t blob_file_size;
@@ -175,7 +176,6 @@ class Blob_buffer : public WBuffer
         Blob_buffer()
         {
         }
-        const mv::string conv_str = "conv" ;
         void calc(mv::ControlModel& cm)
         {
             // calculate blob statistics
@@ -193,6 +193,7 @@ class Blob_buffer : public WBuffer
             // parse compute model to determine stage dependent sizes
             // initialize values that will increase during parse of graph
             blob_stats.stage_count = 0 ;
+            blob_stats.conv_count = 0 ;
             blob_stats.stage_section_size = 4*3 ;    // start count including 12 byte header 
             blob_stats.weights_region_size = 0 ;
             blob_stats.bias_region_size = 0 ;  
@@ -213,38 +214,42 @@ class Blob_buffer : public WBuffer
                     // calculate buffer sizes etc related to weights
                     uint32_t kernel_sizeX = it->getInput(1)->getShape()[0] ;
                     uint32_t kernel_sizeY = it->getInput(1)->getShape()[1] ;
-                    uint32_t kernel_sizeC = it->getInput(1)->getShape()[2] ;
+                    uint32_t kernel_sizeZ = it->getInput(1)->getShape()[2] ;
                     uint32_t kernel_sizeN = it->getInput(1)->getShape()[3] ;
-                    uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeC*kernel_sizeN;
+//                    std::cout << "this weights shape = " << kernel_sizeX << " " << kernel_sizeY << " " << kernel_sizeZ << " " << kernel_sizeN << std::endl;
+                    uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN;
                     uint32_t buffer_taps_weights_size = buffer_taps_weights_len*blob_stats.weights_number_size;
-                    uint32_t weights_region_size = align(kernel_sizeC,8)*kernel_sizeX*kernel_sizeY*kernel_sizeN*blob_stats.weights_number_size ;
+                    uint32_t weights_region_size = align(kernel_sizeN,8)*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size;
                     weights_region_size = align(weights_region_size,64) ;
 //                    std::cout << "this weights_region_size = "<< weights_region_size << std::endl;
                     blob_stats.weights_region_size += weights_region_size ;
                     blob_stats.weights_region_pad_size = blob_stats.weights_region_size - buffer_taps_weights_size ;
 
                     blob_stats.stage_count++ ;
+                    blob_stats.conv_count++ ;
                     blob_stats.stage_section_size += (53*4) ;
                     blob_stats.bias_region_size += 64 ;                                
                     blob_stats.params_region_size += 64 ;    
+                } else if ( it->getOpType() == OpType::MaxPool2D )
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += (3+7+20+2)*4 ;
                 }
-                
             }
 
             blob_stats.output_size = cm.getLast()->getInput(0)->getShape()[0] * cm.getLast()->getInput(0)->getShape()[1] * cm.getLast()->getInput(0)->getShape()[2];
             blob_stats.stage_section_size = align(blob_stats.stage_section_size, 16) ;
             blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size + blob_stats.params_region_size ;
 
-/*
-            uint32_t number_of_convolutions = blob_stats.stage_count ;
-            uint32_t relocation_section_header_size = 20 ;
-            uint32_t blob_buffer_reloc_size = 16*number_of_convolutions ;
-            uint32_t work_buffer_reloc_size = 0x10 * (blob_stats.stage_count-1);
-            uint32_t relocation_section_size = work_buffer_reloc_size + blob_buffer_reloc_size + relocation_section_header_size ;
-*/
-
-            blob_stats.relocation_section_size = 20 + 16*blob_stats.stage_count + 16*(blob_stats.stage_count-1) ;
+            blob_stats.relocation_section_size = 20 + 16*blob_stats.conv_count + 16*(blob_stats.stage_count-1) ;
+//            std::cout << "headers_data_size = "<< headers_data_size << std::endl;
+//            std::cout << "blob_stats.header_pad_size = "<< blob_stats.header_pad_size << std::endl;
+//            std::cout << "blob_stats.stage_section_size = "<< blob_stats.stage_section_size << std::endl;
+//            std::cout << "blob_stats.buffer_header_size = "<< blob_stats.buffer_header_size << std::endl;
+//            std::cout << "blob_stats.buffer_data_size = "<< blob_stats.buffer_data_size << std::endl;
+//            std::cout << "blob_stats.relocation_section_size = "<< blob_stats.relocation_section_size << std::endl;
             blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
+//            std::cout << "blob_stats.blob_file_size = "<< blob_stats.blob_file_size << std::endl;
         }
 
         void write_elf_header()
@@ -336,42 +341,54 @@ class Blob_buffer : public WBuffer
        void write_stages(mv::ControlModel& cm)
        {
 
-            Blob_stage test_conv_stage ;
-
+            Blob_stage conv_pool_stage ;
             uint32_t op_count = 0 ;
+            uint32_t next_offset = 12 ;
+            uint32_t work_buffer_index = 3 ;
+
             for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
+
                 if ( it->getOpType() == OpType::Conv2D )
                 {
-                    op_count++;
-//                    std::cout << "writing stage for convolution"<< std::endl;
 
                     // this stage header
-                    if (op_count == blob_stats.stage_count)
-                    { 
-                        test_conv_stage.next = 0x0 ;
-                        test_conv_stage.OutputLocation = 0x00000002 ;
-                    }
-                    else
-                    {
-                        test_conv_stage.next = 0xe0 ;
-                        test_conv_stage.OutputLocation = 0x00000004 ;
-                    }
+                    op_count++;
 
+                    // buffer counting
                     if (op_count == 1)
                     {
-                        test_conv_stage.InputLocation = 0x00000001 ;
+                        conv_pool_stage.InputOffset = 0 ; 
+                        conv_pool_stage.InputLocation = 1 ;
+                        conv_pool_stage.OutputOffset =  0 ;
                     }
                     else
                     {
-                        test_conv_stage.InputLocation = 0x00000004 ;
-                        test_conv_stage.InputOffset++ ;
+                        conv_pool_stage.InputOffset = 1+(op_count-2)*2 ; 
+                        conv_pool_stage.InputLocation = 4 + (op_count-2) ;
                     }
 
-                    AddBytes(4, test_conv_stage.next);
-                    
-            AddBytes(4, test_conv_stage.op_type);    // 0x60
-            AddBytes(4, test_conv_stage.implementation);
+                    if (op_count == blob_stats.stage_count)
+                    {
+                        conv_pool_stage.OutputLocation = 0x00000002 ;
+                        conv_pool_stage.OutputOffset = 0x00 ;
+                        conv_pool_stage.next = 0x00 ;
+                    }
+                    else
+                    {
+                        work_buffer_index++ ;
+                        conv_pool_stage.OutputLocation = work_buffer_index ;
+                        next_offset += 0xd4 ;
+                        conv_pool_stage.next = next_offset ;
+                        if (op_count>1) 
+                        {
+                            conv_pool_stage.OutputOffset = conv_pool_stage.InputOffset + 1 ;
+                        }
+                    }                    
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, 0x00);                                // 0x60
+                    AddBytes(4, conv_pool_stage.implementation);
 
                     // operator specific info
                     AddBytes(4, it->getInput(1)->getShape()[0]); //radixX
@@ -381,8 +398,8 @@ class Blob_buffer : public WBuffer
                     // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
                     AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
                     AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
-            AddBytes(4, test_conv_stage.padStyle);   // 0x80
-            AddBytes(4, test_conv_stage.dilation);
+            AddBytes(4, conv_pool_stage.padStyle);   // 0x80
+            AddBytes(4, conv_pool_stage.dilation);
 
                     // python helper push
                     int number_size = 2 ;  // TODO assume FP16
@@ -392,21 +409,21 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, number_size*it->getInput(0)->getShape()[2]);    // InputStrideX
                     AddBytes(4, number_size*it->getInput(0)->getShape()[2]*it->getInput(0)->getShape()[0]);  // InputStrideY
                     AddBytes(4, number_size); // InputStrideZ
-            AddBytes(4, test_conv_stage.InputOffset);     //  0xa0
-            AddBytes(4, test_conv_stage.InputLocation);
-            AddBytes(4, test_conv_stage.InputDataType);
-            AddBytes(4, test_conv_stage.InputOrder);
+            AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
+            AddBytes(4, conv_pool_stage.InputLocation);
+            AddBytes(4, conv_pool_stage.InputDataType);
+            AddBytes(4, conv_pool_stage.InputOrder);
 
                     AddBytes(4, it->getOutput(0)->getShape()[0]);  // output X-dimension size  (0xb0)
                     AddBytes(4, it->getOutput(0)->getShape()[1]);  // output Y-dimension size
                     AddBytes(4, it->getOutput(0)->getShape()[2]);  // output Z-dimension size
                     AddBytes(4, number_size*it->getOutput(0)->getShape()[2]);  // output stepX 
                     AddBytes(4, number_size*it->getOutput(0)->getShape()[0]*it->getOutput(0)->getShape()[2]);   // 0xc0
-            AddBytes(4, test_conv_stage.OutputStrideZ);
-            AddBytes(4, test_conv_stage.OutputOffset);
-            AddBytes(4, test_conv_stage.OutputLocation);
-            AddBytes(4, test_conv_stage.OutputDataType);   //0xd0
-            AddBytes(4, test_conv_stage.OutputOrder);
+            AddBytes(4, conv_pool_stage.OutputStrideZ);
+            AddBytes(4, conv_pool_stage.OutputOffset);
+            AddBytes(4, conv_pool_stage.OutputLocation);
+            AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
+            AddBytes(4, conv_pool_stage.OutputOrder);
 
             AddBytes(4, it->getInput(1)->getShape()[0]*it->getInput(1)->getShape()[1]);
             AddBytes(4, it->getInput(1)->getShape()[2]);
@@ -414,36 +431,110 @@ class Blob_buffer : public WBuffer
 
             AddBytes(4, number_size*it->getInput(1)->getShape()[2]*it->getInput(1)->getShape()[3]);   // Taps step X
             AddBytes(4, number_size*it->getInput(1)->getShape()[3]);   // Taps step Y
-            AddBytes(4, test_conv_stage.TapsStrideZ);
-            AddBytes(4, test_conv_stage.TapsOffset);   // 0xf0
-            AddBytes(4, test_conv_stage.TapsLocation);
-            AddBytes(4, test_conv_stage.TapsDataType);
-            AddBytes(4, test_conv_stage.TapsOrder);
+            AddBytes(4, conv_pool_stage.TapsStrideZ);
+            AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
+            AddBytes(4, conv_pool_stage.TapsLocation);
+            AddBytes(4, conv_pool_stage.TapsDataType);
+            AddBytes(4, conv_pool_stage.TapsOrder);
 
-            AddBytes(4, test_conv_stage.BiasDimX);   // 0x100
-            AddBytes(4, test_conv_stage.BiasDimY);
-            AddBytes(4, test_conv_stage.BiasDimZ);
-            AddBytes(4, test_conv_stage.BiasStrideX);
-            AddBytes(4, test_conv_stage.BiasStrideY);   // 0x110
-            AddBytes(4, test_conv_stage.BiasStrideZ);
-            AddBytes(4, test_conv_stage.BiasOffset);
-            AddBytes(4, test_conv_stage.BiasLocation);
-            AddBytes(4, test_conv_stage.BiasDataType);   // 0x120
-            AddBytes(4, test_conv_stage.BiasOrder);
+            AddBytes(4, conv_pool_stage.BiasDimX);   // 0x100
+            AddBytes(4, conv_pool_stage.BiasDimY);
+            AddBytes(4, conv_pool_stage.BiasDimZ);
+            AddBytes(4, conv_pool_stage.BiasStrideX);
+            AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
+            AddBytes(4, conv_pool_stage.BiasStrideZ);
+            AddBytes(4, conv_pool_stage.BiasOffset);
+            AddBytes(4, conv_pool_stage.BiasLocation);
+            AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
+            AddBytes(4, conv_pool_stage.BiasOrder);
 
-            AddBytes(4, test_conv_stage.preop_type);
-            AddBytes(4, test_conv_stage.postop_type);    // 0x12c
+            AddBytes(4, conv_pool_stage.preop_type);
+            AddBytes(4, conv_pool_stage.postop_type);    // 0x12c
 
-                test_conv_stage.TapsOffset= test_conv_stage.TapsOffset+2 ;
-                test_conv_stage.BiasOffset= test_conv_stage.BiasOffset+2 ;
+                conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
+                conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
+                }
+                else if ( it->getOpType() == OpType::MaxPool2D )
+                {
+                    // this stage header
+                    op_count++;
+
+                    // buffer counting
+                    if (op_count == 1)
+                    {
+                        conv_pool_stage.InputOffset = 0 ;
+                        conv_pool_stage.InputLocation = 1 ;
+                    }
+                    else
+                    {
+                        conv_pool_stage.InputOffset = 1+(op_count-2)*2 ;
+                        conv_pool_stage.InputLocation = 4 + (op_count-2) ;
+                    }
+
+                    if (op_count == blob_stats.stage_count)
+                    {
+                        conv_pool_stage.OutputLocation = 0x00000002 ;
+                        conv_pool_stage.OutputOffset = 0x00 ;
+                        conv_pool_stage.next = 0x00 ;
+                    }
+                    else
+                    {
+                        work_buffer_index++ ;
+                        conv_pool_stage.OutputLocation = work_buffer_index ;
+                        conv_pool_stage.OutputOffset = conv_pool_stage.InputOffset + 1 ;
+                        next_offset += 0x80 ;
+                        conv_pool_stage.next = next_offset ;
+                    }
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, 0x00000001);
+                    AddBytes(4, conv_pool_stage.implementation);
+
+                    // operator specific info
+                    AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e0); // radix X
+                    AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1); // radix Y (0x140)
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX 
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
+                    // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
+// TODO temp TF pad                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
+// TODO temp TF pad                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
+                    AddBytes(4, 0x00);   // padX
+                    AddBytes(4, 0x00);   // padY 0x150
+                    AddBytes(4, 0x03);   // padstyle
+
+                    // python helper push
+                    int number_size = 2 ;  // TODO assume FP16
+                    AddBytes(4, it->getInput(0)->getShape()[0]);  // input X-dimension size
+                    AddBytes(4, it->getInput(0)->getShape()[1]);  // input Y-dimension size
+                    AddBytes(4, it->getInput(0)->getShape()[2]);  // input Z-dimension size   (0x160)
+                    AddBytes(4, number_size*it->getInput(0)->getShape()[2]);    // InputStrideX
+                    AddBytes(4, number_size*it->getInput(0)->getShape()[2]*it->getInput(0)->getShape()[0]);  // InputStrideY
+                    AddBytes(4, number_size); // InputStrideZ
+            AddBytes(4, conv_pool_stage.InputOffset);     //  0x170
+            AddBytes(4, conv_pool_stage.InputLocation);
+            AddBytes(4, conv_pool_stage.InputDataType);
+            AddBytes(4, conv_pool_stage.InputOrder);
+                    AddBytes(4, it->getOutput(0)->getShape()[0]);  // output X-dimension size  (0x180)
+                    AddBytes(4, it->getOutput(0)->getShape()[1]);  // output Y-dimension size
+                    AddBytes(4, it->getOutput(0)->getShape()[2]);  // output Z-dimension size
+                    AddBytes(4, number_size*it->getOutput(0)->getShape()[2]);  // output stepX 
+                    AddBytes(4, number_size*it->getOutput(0)->getShape()[0]*it->getOutput(0)->getShape()[2]);   // 0x190
+            AddBytes(4, conv_pool_stage.OutputStrideZ);
+            AddBytes(4, conv_pool_stage.OutputOffset);
+            AddBytes(4, conv_pool_stage.OutputLocation);
+            AddBytes(4, conv_pool_stage.OutputDataType);   //0x1a0
+            AddBytes(4, conv_pool_stage.OutputOrder);
+
+            AddBytes(4, conv_pool_stage.preop_type);
+                    AddBytes(4, 0x05);    // 0x1ac  postop type
+
                 }
             }
 
-            uint32_t total_stage_size = (0x50+(3*4)+(53*4*blob_stats.stage_count)) ;
-            uint32_t buffer_section_offset = align(total_stage_size,0x10) ;
-            uint32_t stage_pad_size = buffer_section_offset - total_stage_size ;
-
-            AddBytes(stage_pad_size, 0x00);
+            uint32_t valid_stage_end = (0x50+(3*4)+((blob_stats.stage_count-blob_stats.conv_count)*(0x80))+(blob_stats.conv_count*(0xd4))) ;
+            uint32_t buffer_section_offset = align(valid_stage_end,0x10) ;
+            uint32_t stage_pad_size = buffer_section_offset - valid_stage_end  ;
+            AddBytes(stage_pad_size, 0x00000000);
         }
 
        void write_buffer_section(mv::ControlModel& cm)
@@ -472,14 +563,16 @@ class Blob_buffer : public WBuffer
 
                     // TAPS region
                     // calculate buffer sizes etc related to weights
-                    uint32_t kernel_sizeX = it->getInput(1)->getShape()[0] ; 
-                    uint32_t kernel_sizeY = it->getInput(1)->getShape()[1] ; 
-                    uint32_t kernel_sizeZ = it->getInput(1)->getShape()[2] ; 
-                    uint32_t kernel_sizeN = it->getInput(1)->getShape()[3] ; 
+
+                    uint32_t kernel_sizeX = it->getInput(1)->getShape()[0] ;
+                    uint32_t kernel_sizeY = it->getInput(1)->getShape()[1] ;
+                    uint32_t kernel_sizeZ = it->getInput(1)->getShape()[2] ;
+                    uint32_t kernel_sizeN = it->getInput(1)->getShape()[3] ;
+//                    std::cout << "this weights shape = " << kernel_sizeX << " " << kernel_sizeY << " " << kernel_sizeZ << " " << kernel_sizeN << std::endl;
                     uint32_t weights_number_size = 2 ;          // TODO assume FP16 
                     uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN; 
                     uint32_t buffer_taps_weights_size = buffer_taps_weights_len*blob_stats.weights_number_size;
-                    uint32_t weights_region_size = align(kernel_sizeZ,8)*kernel_sizeX*kernel_sizeY*kernel_sizeN*blob_stats.weights_number_size ;
+                    uint32_t weights_region_size = align(kernel_sizeN,8)*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size ;
                     weights_region_size = align(weights_region_size,64) ;
                     uint32_t weights_region_pad_size = weights_region_size - buffer_taps_weights_size ;
 
@@ -532,17 +625,14 @@ class Blob_buffer : public WBuffer
 
        void write_relocation_section(mv::ControlModel& cm)
        {
-
-            uint32_t number_of_convolutions = blob_stats.stage_count ;
-            uint32_t relocation_section_header_size = 20 ;   
-            uint32_t blob_buffer_reloc_size = 16*number_of_convolutions ;
+            uint32_t relocation_section_header_size = 20 ;
+            uint32_t blob_buffer_reloc_size = 16*blob_stats.conv_count ;
             uint32_t work_buffer_reloc_size = 0x10 * (blob_stats.stage_count-1);
-            uint32_t relocation_section_size = work_buffer_reloc_size + blob_buffer_reloc_size + relocation_section_header_size ;
-            uint32_t blob_buffer_reloc_offset = blob_stats.blob_file_size - relocation_section_size + relocation_section_header_size ;
+            uint32_t blob_buffer_reloc_offset = blob_stats.blob_file_size - blob_stats.relocation_section_size + relocation_section_header_size ;
             uint32_t work_buffer_reloc_offset = blob_buffer_reloc_offset + blob_buffer_reloc_size ;
 
             // write relocation section header
-            AddBytes(4, relocation_section_size );
+            AddBytes(4, blob_stats.relocation_section_size );
             AddBytes(4, blob_buffer_reloc_offset);
             AddBytes(4, blob_buffer_reloc_size);
             AddBytes(4, work_buffer_reloc_offset);
@@ -550,6 +640,11 @@ class Blob_buffer : public WBuffer
 
             // write buffer data relocation info
             uint32_t running_offset = 0 ;
+            uint32_t prev_out_X_size = 0 ;
+            uint32_t prev_out_Y_size = 0 ;
+            uint32_t node_index = 0 ;
+            mv::dynamic_vector<uint32_t> inworkbuffer_size ;
+
             for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
@@ -557,11 +652,11 @@ class Blob_buffer : public WBuffer
                     // calculate buffer sizes etc related to weights
                     uint32_t kernel_sizeX = it->getInput(1)->getShape()[0] ;
                     uint32_t kernel_sizeY = it->getInput(1)->getShape()[1] ;
-                    uint32_t kernel_sizeC = it->getInput(1)->getShape()[2] ;
+                    uint32_t kernel_sizeZ = it->getInput(1)->getShape()[2] ;
                     uint32_t kernel_sizeN = it->getInput(1)->getShape()[3] ;
                     uint32_t bias_region_size = 64 ;
                     uint32_t params_region_size = 64 ;
-                    uint32_t weights_region_size = align(kernel_sizeC,8)*kernel_sizeX*kernel_sizeY*kernel_sizeN*blob_stats.weights_number_size ;
+                    uint32_t weights_region_size = align(kernel_sizeN,8)*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size ;
                     weights_region_size = align(weights_region_size,64) ;
                     // relocation section: blob buffer relocation information
                     // weights region 
@@ -572,22 +667,60 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, running_offset);
                     AddBytes(4, 0x00000003);          // memory type = heap/b
                     running_offset += bias_region_size + params_region_size ;
-                }
-            }
 
-           for (unsigned j=0; j<(blob_stats.stage_count-1); j++)
+                    // calculate input size including pad (work buffer size for intermediete tensor)
+                    if (node_index>0)
+                    {
+                        inworkbuffer_size.push_back(align(((prev_out_X_size+0)*(prev_out_Y_size+0)*2),64)+64);
+                        prev_out_X_size = 30 ;
+                        prev_out_Y_size = 30 ;
+                    }
+
+                }   // end convolution case
+
+                if ( it->getOpType() == OpType::MaxPool2D )
+                {
+                   // calculate input size including pad (work buffer size for intermediete tensor)
+                   if (node_index>0)
+                   {
+                       uint32_t buf_size = ((prev_out_X_size+2)*(prev_out_Y_size+2)*2);
+                       if ((buf_size % 64)==0)
+                       {
+                           inworkbuffer_size.push_back(((prev_out_X_size+2)*(prev_out_Y_size+2)*2));
+                       }
+                       else 
+                       {
+                           inworkbuffer_size.push_back(align(((prev_out_X_size+2)*(prev_out_Y_size+2)*2),64));
+                       }
+
+                       prev_out_X_size = 10 ;
+                       prev_out_Y_size = 10 ;
+                   }
+
+                }     // end maxpool case
+                node_index++;
+
+           }  // end graph pass
+ 
+           // output work buffer relocation info  
+           running_offset=0;
+
+           for (unsigned j=1; j<(blob_stats.stage_count); j++)
            {
                 // relocation section: work buffer relocation information
-                AddBytes(4, 0x00000000);          // offset from start of work section
-                AddBytes(4, 0x00000004);          // memory type =   
+                AddBytes(4, running_offset);          // offset from start of work section
+                AddBytes(4, 3+j);          // memory type =   
                 //  
-                AddBytes(4, 0x00000000);
-                AddBytes(4, 0x00000004);               // memory type = heap/bss  
-           }
+                AddBytes(4, running_offset);
+                AddBytes(4, 3+j);               // memory type = heap/bss
 
-        }
+                running_offset += inworkbuffer_size[j];
+//                std::cout << "running offset, j  = " << running_offset << " " << j << std::endl;
+            }    // end loop for work buffer output
 
-     };
+        }     // end class blob_buffer::write_relocation_section
+
+    };   // end class blob_buffer
 
 /**
 * @brief Serializer outputs verious representations of the compute graph. Initially moviduius binary blob format is supported.
