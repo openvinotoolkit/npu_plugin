@@ -1,3 +1,4 @@
+
 /// SWIG Interface File.
 
 // Include the external numpy swig bindings.
@@ -35,6 +36,30 @@ import_array();
         /// Get a blank OpModel
         mv::OpModel *om = new mv::OpModel();
         return om;
+    }
+
+    mv::UnsignedVector2D * get2DVector(int x, int y){
+        mv::UnsignedVector2D *a = new mv::UnsignedVector2D();
+        a->e0 = x;
+        a->e1 = y;
+        return a;
+    }
+
+
+    mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z){
+        mv::UnsignedVector4D *a = new mv::UnsignedVector4D();
+        a->e0 = w;
+        a->e1 = x;
+        a->e2 = y;
+        a->e3 = z;
+        return a;
+    }
+
+
+    mv::Shape * getShape(int x, int y){
+        /// Create a c++ shape object from a passed in set of dimension sizes
+        mv::Shape* a = new mv::Shape(x, y);
+        return a;
     }
 
     mv::Shape * getShape(int x, int y, int z){
@@ -119,6 +144,41 @@ import_array();
         return o->getSourceOp(tensor);
     }
 
+    mv::Data::TensorIterator fullyConnected(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights){
+        return o->fullyConnected(input, weights);
+    }
+
+    mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding){
+        return o->avgpool2D(input, kernelSize, stride, padding);
+    }
+
+    mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, mv::float_type varianceEps){
+        return o->batchNorm(input, mean, variance, offset, scale, varianceEps);
+    }
+    mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale){
+        return o->scale(input, scale);
+    }
+    mv::Data::TensorIterator relu(mv::OpModel *o,mv::Data::TensorIterator input){
+        return o->relu(input);
+    }
+    mv::Data::TensorIterator softmax(mv::OpModel *o,mv::Data::TensorIterator input){
+        return o->softmax(input);
+    }
+    mv::Data::TensorIterator add(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o->add(input0, input1);
+    }
+    mv::Data::TensorIterator subtract(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o->subtract(input0, input1);
+    }
+    mv::Data::TensorIterator multiply(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o->multiply(input0, input1);
+    }
+    mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o->divide(input0, input1);
+    }
+    mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape){
+        return o->reshape(input, shape);
+    }
  %}
 
 #include <include/mcm/computation/model/op_model.hpp>
@@ -170,8 +230,11 @@ namespace mv
 
 int testSWIG();
 mv::OpModel * getOM();
+mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
 mv::Shape * getShape(int b, int x, int y, int z);
+mv::UnsignedVector2D * get2DVector(int x, int y);
+mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z);
 
 // Expand a numpy array to a data pointer and a length
 %include "stdint.i"
@@ -186,8 +249,22 @@ mv::Data::TensorIterator conv2D(mv::OpModel * o, mv::Data::TensorIterator input,
 mv::Data::TensorIterator maxpool2D(mv::OpModel * o, mv::Data::TensorIterator input, unsigned kernelSizeX,
     unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
 mv::Data::TensorIterator concat(mv::OpModel * o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
 mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor);
+
+mv::Data::TensorIterator fullyConnected(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
+mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding);
+mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, float varianceEps);
+mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
+mv::Data::TensorIterator relu(mv::OpModel *o,mv::Data::TensorIterator input);
+mv::Data::TensorIterator softmax(mv::OpModel *o,mv::Data::TensorIterator input);
+mv::Data::TensorIterator add(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator subtract(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator multiply(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape);
+
+mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
+
 
 int testConv(
     mv::Data::OpListIterator &target,

@@ -80,6 +80,152 @@ class TestComposition(unittest.TestCase):
 
         self.assertTrue(g.isValid())
 
+    def test_avgpool(self):
+
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        kernels = ca.get2DVector(7, 7)
+        stride = ca.get2DVector(1, 1)
+        padding = ca.get4DVector(0, 0, 0, 0)
+        mx_ = ca.avgpool2D(g, in_, kernels, stride, padding)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
+    def test_fullyConnected(self):
+
+        g = ca.getOM()
+        shape = ca.getShape(100, 4)
+
+        in_ = ca.input(g, shape)
+        weightData = ca.getData(np.arange(3, 100).astype(np.float32))
+        weights_ = ca.constant(g, weightData, ca.getShape(100, 100))
+        mx_ = ca.fullyConnected(g, in_, weights_)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
+    def test_batchNorm(self):
+
+        g = ca.getOM()
+        shape = ca.getShape(28, 28, 4)
+
+        in_ = ca.input(g, shape)
+        meanData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        mean_ = ca.constant(g, meanData, ca.getShape(28, 28, 4))
+
+        varData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        variance_ = ca.constant(g, varData, ca.getShape(28, 28, 4))
+
+        offsetData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        offset_ = ca.constant(g, offsetData, ca.getShape(28, 28, 4))
+
+        scaleData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        scale_ = ca.constant(g, scaleData, ca.getShape(28, 28, 4))
+
+
+        eps_ = 2
+
+        mx_ = ca.batchNorm(g, in_, mean_, variance_, offset_, scale_, eps_)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
+    def test_scale(self):
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        weightData = ca.getData(np.arange(32, 32, 3).astype(np.float32))
+
+        scaleMatrix_ = ca.constant(g, weightData, ca.getShape(32, 32, 3))
+        mx_ = ca.scale(g, in_, scaleMatrix_)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
+    def test_relu(self):
+
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        mx_ = ca.relu(g, in_)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
+    def test_softmax(self):
+
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        mx_ = ca.softmax(g, in_)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
+    def test_add(self):
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        mx_ = ca.maxpool2D(g, in_, 1, 1, 1, 1, 0, 0)
+        ad_ = ca.add(g, in_, mx_)
+        ca.output(g, ad_)
+
+        self.assertTrue(g.isValid())
+
+    def test_subtract(self):
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        mx_ = ca.maxpool2D(g, in_, 1, 1, 1, 1, 0, 0)
+
+        sb_ = ca.subtract(g, in_, mx_)
+        ca.output(g, sb_)
+
+        self.assertTrue(g.isValid())
+
+    def test_multiply(self):
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        mx_ = ca.maxpool2D(g, in_, 1, 1, 1, 1, 0, 0)
+
+        mu_ = ca.multiply(g, in_, mx_)
+        ca.output(g, mu_)
+
+        self.assertTrue(g.isValid())
+
+    def test_divide(self):
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        mx_ = ca.maxpool2D(g, in_, 1, 1, 1, 1, 0, 0)
+        mu_ = ca.divide(g, in_, mx_)
+
+        ca.output(g, mu_)
+
+        self.assertTrue(g.isValid())
+
+    def test_reshape(self):
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+        new_shape = ca.getShape(32, 32, 3)
+        mx_ = ca.reshape(g, in_, new_shape)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
 
     def test_serialize_convolution_01(self):
         """
