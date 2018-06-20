@@ -3,6 +3,42 @@
 
 mv::allocator mv::Tensor::allocator_;
 
+
+unsigned mv::Tensor::subToInd(const Shape& shape, const dynamic_vector<unsigned>& sub)
+{
+    assert(sub.size() == shape.ndims() && "Shape and subs size mismatch");
+    assert(sub.size() != 0 && "Cannot compute index for an empty tensor");
+
+    unsigned currentResult = 0;
+
+    for (unsigned i = 0; i < sub.size(); ++i)
+    {
+        assert(sub[i] < shape[i] && "Index exceeds dimension of tensor");
+        currentResult = sub[i] + shape[i] * currentResult;
+    }
+
+    return currentResult;
+
+}
+
+mv::dynamic_vector<unsigned> mv::Tensor::indToSub(const Shape& s, unsigned idx)
+{
+
+    dynamic_vector<unsigned> sub(s.ndims());
+    sub[s.ndims() - 1] =  idx % s[s.ndims() - 1];
+    int offset = -sub[s.ndims() - 1];
+    int scale = s[s.ndims() - 1];
+    for (int i = s.ndims() - 2; i >= 0; --i)
+    {   
+        sub[i] = (idx + offset) / scale % s[i];
+        offset -= sub[i] * s[i + 1];
+        scale *= s[i];
+    }
+
+    return sub;
+
+}
+
 mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order) :
 ComputationElement(name),
 errValue(0.0f)
@@ -174,4 +210,84 @@ bool mv::Tensor::divide(const Tensor& other)
 mv::Logger& mv::Tensor::logger()
 {
     return logger_;
+}
+
+unsigned mv::Tensor::subToInd(const dynamic_vector<unsigned>& sub) const
+{
+    return subToInd(getShape(), sub);
+}
+
+mv::dynamic_vector<unsigned> mv::Tensor::indToSub(unsigned idx) const
+{
+
+    return indToSub(getShape(), idx);
+
+}
+
+mv::float_type& mv::Tensor::at(const dynamic_vector<unsigned>& sub)
+{
+    if (!isPopulated())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        return errValue;
+    }
+
+    return (*data_)[subToInd(sub)];
+}
+
+mv::float_type mv::Tensor::at(const dynamic_vector<unsigned>& sub) const
+{
+    if (!isPopulated())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        return errValue;
+    }
+
+    return (*data_)[subToInd(sub)];
+}
+
+mv::float_type& mv::Tensor::at(unsigned idx)
+{
+    
+    if (!isPopulated())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        return errValue;
+    }
+
+    return (*data_)[idx];
+
+}
+
+mv::float_type mv::Tensor::at(unsigned idx) const
+{
+
+    if (!isPopulated())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        return errValue;
+    }
+
+    return (*data_)[idx];
+
+}
+
+mv::float_type& mv::Tensor::operator()(unsigned idx)
+{
+    return at(idx);
+}
+
+mv::float_type mv::Tensor::operator()(unsigned idx) const
+{
+    return at(idx);
+}
+
+mv::float_type& mv::Tensor::operator()(const dynamic_vector<unsigned>& sub)
+{
+    return at(sub);
+}
+
+mv::float_type mv::Tensor::operator()(const dynamic_vector<unsigned>& sub) const
+{
+    return at(sub);
 }

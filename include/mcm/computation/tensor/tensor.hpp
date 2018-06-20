@@ -14,21 +14,22 @@ namespace mv
         allocator::owner_ptr<dynamic_vector<float_type>> data_;
         float_type errValue;
 
-        static inline void unfoldIndex_(unsigned_type& currentResult, const Shape& shape, byte_type dim, unsigned_type idx)
+        static inline void unfoldSubs_(dynamic_vector<unsigned> &output, byte_type &dim, unsigned_type sub)
         {
-            assert(idx < shape[dim] && "Index exceeds dimension of tensor");
-            currentResult = idx + shape[dim] * currentResult;
+            output[dim] = sub;
         }
 
-        template<typename... Idx>
-        static inline void unfoldIndex_(unsigned_type& currentResult, const Shape& shape, byte_type dim, unsigned_type idx, Idx... indices)
+        template<typename... Subs>
+        static inline void unfoldSubs_(dynamic_vector<unsigned> &output, byte_type &dim, unsigned_type sub, Subs... subs)
         {
-            assert(idx < shape[dim] && "Index exceeds dimension of tensor");
-            currentResult = idx + shape[dim] * currentResult;
-            unfoldIndex_(currentResult, shape, dim + 1, indices...);
+            output[dim] = sub;
+            unfoldSubs_(output, ++dim, subs...);
         }
 
     public:
+
+        static unsigned subToInd(const Shape& shape, const dynamic_vector<unsigned>& sub);
+        static dynamic_vector<unsigned> indToSub(const Shape& s, unsigned idx);
 
         Tensor(const string &name, const Shape &shape, DType dType, Order order);
         Tensor(const string &name, const Shape &shape, DType dType, Order order, allocator::owner_ptr<dynamic_vector<float_type>> data);
@@ -50,93 +51,27 @@ namespace mv
         bool mulitply(const Tensor& other);
         bool divide(const Tensor& other);
 
-        template<typename... Idx>
-        static unsigned subToInd(const Shape& s, Idx... indices)
-        {
-
-            assert(sizeof...(Idx) == s.ndims() && "Number of indices does not match ndims of tensor");
-            byte_type dim = 0u;
-            unsigned_type result = 0u;
-            unfoldIndex_(result, s, dim, indices...);
-            return result;
-
-        }
-
-        static unsigned subToInd(const Shape& shape, const dynamic_vector<unsigned>& sub)
-        {
-            assert(sub.size() == shape.ndims() && "Shape and subs size mismatch");
-            assert(sub.size() != 0 && "Cannot compute index for an empty tensor");
-
-            unsigned currentResult = 0;
-
-            for (unsigned i = 0; i < sub.size(); ++i)
-            {
-                assert(sub[i] < shape[i] && "Index exceeds dimension of tensor");
-                currentResult = sub[i] + shape[i] * currentResult;
-            }
-
-            return currentResult;
-
-        }
-
-        static dynamic_vector<unsigned> indToSub(const Shape& s, unsigned idx)
-        {
-
-            dynamic_vector<unsigned> sub(s.ndims());
-            sub[s.ndims() - 1] =  idx % s[s.ndims() - 1];
-            int offset = -sub[s.ndims() - 1];
-            int scale = s[s.ndims() - 1];
-            for (int i = s.ndims() - 2; i >= 0; --i)
-            {   
-                sub[i] = (idx + offset) / scale % s[i];
-                offset -= sub[i] * s[i + 1];
-                scale *= s[i];
-            }
-
-            return sub;
-
-        }
-
+        unsigned subToInd(const dynamic_vector<unsigned>& sub) const;
+        dynamic_vector<unsigned> indToSub(unsigned idx) const;
+        float_type& at(const dynamic_vector<unsigned>& sub);
+        float_type at(const dynamic_vector<unsigned>& sub) const;
+        float_type& at(unsigned idx);
+        float_type at(unsigned idx) const;
+        float_type& operator()(unsigned idx);
+        float_type operator()(unsigned idx) const;
+        float_type& operator()(const dynamic_vector<unsigned>& sub);
+        float_type operator()(const dynamic_vector<unsigned>& sub) const;
+        
         template<typename... Idx>
         unsigned subToInd(Idx... indices) const
         {
 
-            return subToInd(getShape(), indices...);
+            //return subToInd(getShape(), indices...);
+            dynamic_vector<unsigned> subs(getShape().ndims());
+            byte_type dim = 0;
+            unfoldSubs_(subs, dim, indices...);
+            return subToInd(getShape(), subs);
 
-        }
-
-        unsigned subToInd(const dynamic_vector<unsigned>& sub) const
-        {
-            return subToInd(getShape(), sub);
-        }
-
-        dynamic_vector<unsigned> indToSub(unsigned idx) const
-        {
-
-            return indToSub(getShape(), idx);
-
-        }
-
-        float_type& at(const dynamic_vector<unsigned>& sub)
-        {
-            if (!isPopulated())
-            {
-                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
-                return errValue;
-            }
-
-            return (*data_)[subToInd(sub)];
-        }
-
-        float_type at(const dynamic_vector<unsigned>& sub) const
-        {
-            if (!isPopulated())
-            {
-                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
-                return errValue;
-            }
-
-            return (*data_)[subToInd(sub)];
         }
 
         template<typename... Idx>
@@ -167,32 +102,6 @@ namespace mv
 
         }
 
-        float_type& at(unsigned idx)
-        {
-            
-            if (!isPopulated())
-            {
-                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
-                return errValue;
-            }
-
-            return (*data_)[idx];
-
-        }
-
-        float_type at(unsigned idx) const
-        {
-
-            if (!isPopulated())
-            {
-                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
-                return errValue;
-            }
-
-            return (*data_)[idx];
-
-        }
-
         template<typename... Idx>
         float_type& operator()(Idx... indices)
         {
@@ -203,26 +112,6 @@ namespace mv
         float_type operator()(Idx... indices) const
         {
             return at(indices...);
-        }
-
-        float_type& operator()(unsigned idx)
-        {
-            return at(idx);
-        }
-
-        float_type operator()(unsigned idx) const
-        {
-            return at(idx);
-        }
-        
-        float_type& operator()(const dynamic_vector<unsigned>& sub)
-        {
-            return at(sub);
-        }
-
-        float_type operator()(const dynamic_vector<unsigned>& sub) const
-        {
-            return at(sub);
         }
         
     };
