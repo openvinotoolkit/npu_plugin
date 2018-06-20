@@ -24,7 +24,7 @@ namespace mv
             virtual bool setInput(Data::TensorIterator &tensor, byte_type idx)
             {
 
-                bool result = SinkOp::setInput(tensor, idx);
+                bool result = SinkOp::setInputTensor(tensor, idx);
                 if (result)
                 {
                     addAttr("shape", AttrType::ShapeType, tensor->getShape());

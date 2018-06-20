@@ -18,5 +18,6 @@
 #include "include/mcm/computation/op/def/multiply.hpp"
 #include "include/mcm/computation/op/def/divide.hpp"
 #include "include/mcm/computation/op/def/reshape.hpp"
+#include "include/mcm/computation/op/def/bias.hpp"
 
 #endif // OPS_HEADERS_

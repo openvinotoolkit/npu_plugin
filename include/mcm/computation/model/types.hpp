@@ -33,7 +33,7 @@ namespace mv
     typedef stl_allocator allocator;
     
     template <class T>
-    using dynamic_vector = allocator::vector<T>;
+    using dynamic_vector = std::vector<T>;
     
     template <class T_key, class T_value>
     using map = allocator::map<T_key, T_value>;

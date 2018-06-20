@@ -23,7 +23,8 @@ namespace mv
         Subtract,
         Muliply,
         Divide,
-        Reshape
+        Reshape,
+        Bias
 
     };
 

@@ -16,5 +16,9 @@ target_sources(cm_allocate_resources PUBLIC ${allocator} ${computation_model} ${
 add_executable(cm_resnet18 cm_resnet18.cpp)
 target_sources(cm_resnet18 PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
 
+add_executable(cm_batchnorm_fuse cm_batchnorm_fuse.cpp)
+target_sources(cm_batchnorm_fuse PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
+target_link_libraries(cm_batchnorm_fuse m)
+
 add_executable(conjoined_graph conjoined_graph.cpp)
 target_sources(conjoined_graph PUBLIC ${allocator})

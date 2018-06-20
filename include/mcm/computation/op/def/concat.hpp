@@ -34,7 +34,7 @@ namespace mv
                 if (!validOutputDef_())
                     return Tensor();
 
-                auto input0 = getInput(0);
+                auto input0 = getInputTensor(0);
                 auto input0Shape = input0->getShape();
                 if (input0Shape.ndims() != 3)
                 {
@@ -47,7 +47,7 @@ namespace mv
 
                 for (byte_type i = 1; i < inputSlots(); ++i)
                 {
-                    auto inputShape = getInput(i)->getShape();
+                    auto inputShape = getInputTensor(i)->getShape();
                     if (inputShape.ndims() != 3)
                     {
                         logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 

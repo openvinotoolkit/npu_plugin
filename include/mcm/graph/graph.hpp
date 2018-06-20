@@ -376,17 +376,17 @@ namespace mv
 
             T_size children_size() const
             {
-                return children_.size();
+                return children_->size();
             }
 
             T_size siblings_size() const
             {
-                return siblings_.size();
+                return siblings_->size();
             }
 
             T_size parents_size() const
             {
-                return parents_.size();
+                return parents_->size();
             }
 
             child_iterator<T_iterable, T_content> leftmost_child()
@@ -1103,7 +1103,7 @@ namespace mv
             {
 
                 base_iterator<T_iterable, T_content>::operator=(other);
-                relatives_ = relatives_.relatives_;
+                relatives_ = other.relatives_;
                 current_relative_ = other.current_relative_;
                 return *this;
 

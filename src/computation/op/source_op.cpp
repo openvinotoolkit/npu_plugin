@@ -12,7 +12,7 @@ mv::SourceOp::~SourceOp()
 
 }
 
-bool mv::SourceOp::setOutput(Data::TensorIterator &tensor, byte_type idx)
+bool mv::SourceOp::setOutputTensor(Data::TensorIterator &tensor, byte_type idx)
 {
     
     if (idx >= getAttr("outputs").getContent<byte_type>())
@@ -25,7 +25,7 @@ bool mv::SourceOp::setOutput(Data::TensorIterator &tensor, byte_type idx)
 
 }
 
-mv::Data::TensorIterator mv::SourceOp::getOutput(byte_type idx)
+mv::Data::TensorIterator mv::SourceOp::getOutputTensor(byte_type idx)
 {
 
     if (idx >= getAttr("outputs").getContent<byte_type>())

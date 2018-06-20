@@ -37,22 +37,22 @@ mv::string mv::ComputationOp::toString() const
     return "op " + getAttr("opType").getContentStr() + " '" + name_ + "' " + ComputationElement::toString();
 }
 
-mv::Data::TensorIterator mv::ComputationOp::getInput(byte_type)
+mv::Data::TensorIterator mv::ComputationOp::getInputTensor(byte_type)
 {
     return mv::Data::TensorIterator();
 }
 
-mv::Data::TensorIterator mv::ComputationOp::getOutput(byte_type)
+mv::Data::TensorIterator mv::ComputationOp::getOutputTensor(byte_type)
 {
     return mv::Data::TensorIterator();
 }
 
-bool mv::ComputationOp::setInput(Data::TensorIterator&, byte_type)
+bool mv::ComputationOp::setInputTensor(Data::TensorIterator&, byte_type)
 {
     return false;
 }
 
-bool mv::ComputationOp::setOutput(Data::TensorIterator&, byte_type)
+bool mv::ComputationOp::setOutputTensor(Data::TensorIterator&, byte_type)
 {
     return false;
 }
@@ -68,6 +68,11 @@ bool mv::ComputationOp::hasInputDef(byte_type)
 }
 
 mv::byte_type mv::ComputationOp::inputSlots()
+{
+    return 0;
+}
+
+mv::byte_type mv::ComputationOp::outputSlots()
 {
     return 0;
 }

@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/deployer/fstd_ostream.hpp"
-#include "include/mcm/pass/deploy/dot_pass.hpp"
+#include "include/mcm/pass/deploy/generate_dot.hpp"
 
 
 mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
@@ -76,8 +76,8 @@ int main()
     om.output(softmax);
 
     mv::FStdOStream ostream("cm.dot");
-    mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::ExecOpModel, mv::pass::DotPass::ContentLevel::ContentFull);
-    bool dotResult = dotPass.run(om);    
+    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ExecOpModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    bool dotResult = generateDot.run(om);    
     if (dotResult)
         system("dot -Tsvg cm.dot -o cm.svg");
 

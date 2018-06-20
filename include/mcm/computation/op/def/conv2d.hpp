@@ -33,9 +33,9 @@ namespace mv
                 if (!validOutputDef_())
                     return Tensor();
 
-                auto input = getInput(0);
+                auto input = getInputTensor(0);
                 auto inputShape = input->getShape();
-                auto weights = getInput(1);
+                auto weights = getInputTensor(1);
                 auto weightsShape = weights->getShape();
 
                 if (inputShape.ndims() != 3)
@@ -48,7 +48,7 @@ namespace mv
                 if (weightsShape.ndims() != 4)
                 {
                     logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-                            "' because of incorrect shape " + inputShape.toString() + " of weights");
+                            "' because of incorrect shape " + weightsShape.toString() + " of weights");
                     return Tensor();
                 }
 

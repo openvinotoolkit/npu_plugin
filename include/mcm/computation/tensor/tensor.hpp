@@ -10,108 +10,221 @@ namespace mv
     class Tensor : public ComputationElement
     {
 
+        static allocator allocator_;
         allocator::owner_ptr<dynamic_vector<float_type>> data_;
+        float_type errValue;
+
+        static inline void unfoldIndex_(unsigned_type& currentResult, const Shape& shape, byte_type dim, unsigned_type idx)
+        {
+            assert(idx < shape[dim] && "Index exceeds dimension of tensor");
+            currentResult = idx + shape[dim] * currentResult;
+        }
+
+        template<typename... Idx>
+        static inline void unfoldIndex_(unsigned_type& currentResult, const Shape& shape, byte_type dim, unsigned_type idx, Idx... indices)
+        {
+            assert(idx < shape[dim] && "Index exceeds dimension of tensor");
+            currentResult = idx + shape[dim] * currentResult;
+            unfoldIndex_(currentResult, shape, dim + 1, indices...);
+        }
 
     public:
 
-        Tensor(const string &name, const Shape &shape, DType dType, Order order) :
-        ComputationElement(name)
+        Tensor(const string &name, const Shape &shape, DType dType, Order order);
+        Tensor(const string &name, const Shape &shape, DType dType, Order order, allocator::owner_ptr<dynamic_vector<float_type>> data);
+        Tensor(const string &name, const Shape &shape, DType dType, Order order, dynamic_vector<float_type>& data);
+        Tensor(const Tensor &other);
+        Tensor();
+        bool populate(dynamic_vector<float_type>& data);
+        bool unpopulate();
+        bool isPopulated() const;
+        dynamic_vector<float_type> &getData();
+        Shape getShape() const;
+        DType getDType() const;
+        Order getOrder() const;
+        string toString() const;
+        static Logger& logger();
+        
+        bool add(const Tensor& other);
+        bool subtract(const Tensor& other);
+        bool mulitply(const Tensor& other);
+        bool divide(const Tensor& other);
+
+        template<typename... Idx>
+        static unsigned subToInd(const Shape& s, Idx... indices)
         {
-            logger_.log(Logger::MessageType::MessageDebug, "Defined tensor " + toString());
-            addAttr("dType", AttrType::DTypeType, dType);
-            addAttr("order", AttrType::OrderType, order);
-            addAttr("shape", AttrType::ShapeType, shape);
-            addAttr("populated", AttrType::BoolType, false);
+
+            assert(sizeof...(Idx) == s.ndims() && "Number of indices does not match ndims of tensor");
+            byte_type dim = 0u;
+            unsigned_type result = 0u;
+            unfoldIndex_(result, s, dim, indices...);
+            return result;
+
         }
 
-        Tensor(const string &name, const Shape &shape, DType dType, Order order, allocator::owner_ptr<dynamic_vector<float_type>> data) :
-        ComputationElement(name)
+        static unsigned subToInd(const Shape& shape, const dynamic_vector<unsigned>& sub)
         {
-            data_ = data;
-            addAttr("dType", AttrType::DTypeType, dType);
-            addAttr("order", AttrType::OrderType, order);
-            addAttr("shape", AttrType::ShapeType, shape);
-            addAttr("populated", AttrType::BoolType, true);
-            logger_.log(Logger::MessageType::MessageDebug, "Defined tensor " + toString());
-        }
+            assert(sub.size() == shape.ndims() && "Shape and subs size mismatch");
+            assert(sub.size() != 0 && "Cannot compute index for an empty tensor");
 
-        Tensor(const Tensor &other) :
-        ComputationElement(other),
-        data_(other.data_)
-        {
-            logger_.log(Logger::MessageType::MessageDebug, "Copied tensor " + toString());
-        }
+            unsigned currentResult = 0;
 
-        Tensor() :
-        ComputationElement("unknown_tensor")
-        {
-            logger_.log(Logger::MessageType::MessageWarning, "Defined unknown tensor");
-            addAttr("dType", AttrType::DTypeType, DType::Unknown);
-            addAttr("order", AttrType::OrderType, Order::Unknown);
-            addAttr("shape", AttrType::ShapeType, Shape());
-            addAttr("populated", AttrType::BoolType, false);
-        }
-
-        bool populate(float_type *data, size_type size, const Shape &shape)
-        {
-
-            if (size != shape.totalSize())
+            for (unsigned i = 0; i < sub.size(); ++i)
             {
-                logger_.log(Logger::MessageType::MessageError, "Unable to populate tensor - mismatch between input array size (" + 
-                    Printable::toString(size) + ") and declared shape (" +shape.toString() + ")");
-                return false;
+                assert(sub[i] < shape[i] && "Index exceeds dimension of tensor");
+                currentResult = sub[i] + shape[i] * currentResult;
             }
-            //TODO failure handling
-            data_->assign(data, size);
-            getAttr("populated").setContent<bool>(true);
-            return true;
+
+            return currentResult;
 
         }
 
-        bool unpopulate()
+        static dynamic_vector<unsigned> indToSub(const Shape& s, unsigned idx)
         {
-            if (!getAttr("populated").getContent<bool>())
-                return false;
-            
-            data_->clear();
-            getAttr("populated").setContent<bool>(false);
-            return true;
+
+            dynamic_vector<unsigned> sub(s.ndims());
+            sub[s.ndims() - 1] =  idx % s[s.ndims() - 1];
+            int offset = -sub[s.ndims() - 1];
+            int scale = s[s.ndims() - 1];
+            for (int i = s.ndims() - 2; i >= 0; --i)
+            {   
+                sub[i] = (idx + offset) / scale % s[i];
+                offset -= sub[i] * s[i + 1];
+                scale *= s[i];
+            }
+
+            return sub;
 
         }
 
-        bool isPopulated() const
+        template<typename... Idx>
+        unsigned subToInd(Idx... indices) const
         {
-            return getAttr("populated").getContent<bool>();
+
+            return subToInd(getShape(), indices...);
+
         }
 
-        // TODO - Handle the case when tensor got deleted, by the reference is still in use
-        dynamic_vector<float_type> &getData()
+        unsigned subToInd(const dynamic_vector<unsigned>& sub) const
+        {
+            return subToInd(getShape(), sub);
+        }
+
+        dynamic_vector<unsigned> indToSub(unsigned idx) const
+        {
+
+            return indToSub(getShape(), idx);
+
+        }
+
+        float_type& at(const dynamic_vector<unsigned>& sub)
         {
             if (!isPopulated())
-                logger_.log(Logger::MessageType::MessageWarning, "Attempt of restoring data from an unpopulated tensor '" + name_ + "'");
-            return *data_;
+            {
+                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                return errValue;
+            }
+
+            return (*data_)[subToInd(sub)];
+        }
+
+        float_type at(const dynamic_vector<unsigned>& sub) const
+        {
+            if (!isPopulated())
+            {
+                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                return errValue;
+            }
+
+            return (*data_)[subToInd(sub)];
+        }
+
+        template<typename... Idx>
+        float_type& at(Idx... indices)
+        {
+            
+            if (!isPopulated())
+            {
+                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                return errValue;
+            }
+
+            return (*data_)[subToInd(indices...)];
+
+        }
+
+        template<typename... Idx>
+        float_type at(Idx... indices) const
+        {
+            
+            if (!isPopulated())
+            {
+                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                return errValue;
+            }
+
+            return (*data_)[subToInd(indices...)];
+
+        }
+
+        float_type& at(unsigned idx)
+        {
+            
+            if (!isPopulated())
+            {
+                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                return errValue;
+            }
+
+            return (*data_)[idx];
+
+        }
+
+        float_type at(unsigned idx) const
+        {
+
+            if (!isPopulated())
+            {
+                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                return errValue;
+            }
+
+            return (*data_)[idx];
+
+        }
+
+        template<typename... Idx>
+        float_type& operator()(Idx... indices)
+        {
+            return at(indices...);
+        }
+
+        template<typename... Idx>
+        float_type operator()(Idx... indices) const
+        {
+            return at(indices...);
+        }
+
+        float_type& operator()(unsigned idx)
+        {
+            return at(idx);
+        }
+
+        float_type operator()(unsigned idx) const
+        {
+            return at(idx);
         }
         
-        Shape getShape() const
+        float_type& operator()(const dynamic_vector<unsigned>& sub)
         {
-            return getAttr("shape").getContent<Shape>();
+            return at(sub);
         }
 
-        DType getDType() const
+        float_type operator()(const dynamic_vector<unsigned>& sub) const
         {
-            return getAttr("dType").getContent<DType>();
+            return at(sub);
         }
-
-        Order getOrder() const
-        {
-            return getAttr("order").getContent<Order>();
-        }
-
-        string toString() const
-        {
-            return "tensor '" + name_ + "' " + ComputationElement::toString();
-        }
-
+        
     };
 
 }

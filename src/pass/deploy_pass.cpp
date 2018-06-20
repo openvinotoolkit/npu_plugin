@@ -1,7 +1,8 @@
-#include "include/mcm/pass/deploy/deploy_pass.hpp"
+#include "include/mcm/pass/deploy_pass.hpp"
 
-mv::pass::DeployPass::DeployPass(Logger& logger, OStream& ostream) :
-logger_(logger),
+mv::Logger& mv::pass::DeployPass::logger_ = mv::ComputationModel::logger();
+
+mv::pass::DeployPass::DeployPass(OStream& ostream) :
 ostream_(ostream)
 {
 

@@ -14,8 +14,6 @@ namespace mv
         bool defaultControlFlow_(Data::OpListIterator op);
         bool defaultStage_(Data::OpListIterator op);
         Data::OpListIterator checkInputTensor_(Data::TensorIterator inputTensor);
-        bool defineInputFlow_(Data::TensorIterator inputTensor, byte_type inputIdx, Data::OpListIterator op);
-
         Data::TensorIterator defineOp_(computation_graph::first_graph::node_list_iterator& opNode, Data::TensorIterator* inputs, byte_type numInputs);
 
     public:
@@ -28,10 +26,10 @@ namespace mv
         Data::OpListIterator getInput();
         Data::OpListIterator getOutput();
         Data::OpListIterator opEnd();
+        Data::FlowListIterator flowEnd();
 
         Data::TensorIterator input(const Shape& shape, DType dType, Order order, const string& name = "");
         Data::TensorIterator output(Data::TensorIterator input, const string& name = "");
-        Data::TensorIterator constant(float_type *data, size_type size, const Shape& shape, DType dType, Order order, const string& name = "");
         Data::TensorIterator constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name = "");
         Data::TensorIterator conv2D(Data::TensorIterator input, Data::TensorIterator filters, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "");
         Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, const string& name = "");
@@ -47,10 +45,16 @@ namespace mv
         Data::TensorIterator multiply(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "");
         Data::TensorIterator divide(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "");
         Data::TensorIterator reshape(Data::TensorIterator input, const Shape& shape, const string& name = "");
+        Data::TensorIterator bias(Data::TensorIterator input, Data::TensorIterator biases, const string& name = "");
 
         Data::OpListIterator getSourceOp(Data::TensorIterator tensor);
         bool addAttr(Data::OpListIterator op, const string& name, const Attribute& attr);
         bool isValid() const;
+
+        bool removeOp(Data::OpListIterator op);
+        Data::FlowListIterator defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, byte_type inputIdx);
+        Data::FlowListIterator defineFlow(Data::OpListIterator sourceOp, byte_type outputIdx, Data::OpListIterator sinkOp, byte_type inputIdx);
+        bool undefineFlow(Data::FlowListIterator flow);
 
         GroupContext::MemberIterator addGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);
         bool removeGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);

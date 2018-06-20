@@ -22,7 +22,7 @@ mv::Tensor mv::ActivationOp::getOutputDef(byte_type idx)
     if (!validOutputDef_())
         return Tensor();
 
-    auto input = getInput(0);
+    auto input = getInputTensor(0);
 
     return Tensor(name_ + ":0", input->getShape(), input->getDType(), input->getOrder());
 
