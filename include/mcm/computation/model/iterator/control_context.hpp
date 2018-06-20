@@ -27,7 +27,7 @@ namespace mv
         using FlowParentIterator = IteratorDetail::FlowIterator<computation_graph::second_graph, computation_graph::second_graph::edge_child_iterator, ControlFlow, ComputationOp>;
         using FlowSiblingIterator = IteratorDetail::FlowIterator<computation_graph::second_graph, computation_graph::second_graph::edge_sibling_iterator, ControlFlow, ComputationOp>;
         
-        using StageIterator = IteratorDetail::ModelLinearIterator<map<unsigned_type, allocator::owner_ptr<ComputationStage>>::iterator, ComputationStage>;
+        using StageIterator = IteratorDetail::ModelValueIterator<map<unsigned_type, allocator::owner_ptr<ComputationStage>>::iterator, ComputationStage>;
         using StageMemberIterator = IteratorDetail::ModelLinearIterator<set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>::iterator, ComputationElement>;
 
     }

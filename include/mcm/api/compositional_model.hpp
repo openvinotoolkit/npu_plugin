@@ -38,6 +38,8 @@ namespace mv
         virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;
         virtual bool addAttr(Data::OpListIterator op, const string& name, const Attribute& attr) = 0;
         virtual bool isValid() const = 0;
+        virtual bool isValid(const Data::TensorIterator &it) const = 0;
+        virtual bool isValid(const Data::OpListIterator& it) const = 0;
 
     };
 

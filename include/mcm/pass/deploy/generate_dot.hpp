@@ -3,6 +3,7 @@
 
 #include "include/mcm/pass/deploy_pass.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
 
 namespace mv
 {

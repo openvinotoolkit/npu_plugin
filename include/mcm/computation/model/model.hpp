@@ -53,7 +53,6 @@ namespace mv
         Data::FlowListIterator dataFlowEnd_;
         Control::OpListIterator controlOpEnd_;
         Control::FlowListIterator controlFlowEnd_;
-        Data::TensorIterator tensorEnd_;
 
         Data::OpListIterator input_;
         Data::OpListIterator output_;
@@ -91,6 +90,9 @@ namespace mv
          * @return false Computation model is invalid.
          */
         bool isValid() const;
+        bool isValid(const Data::TensorIterator &it) const;
+        bool isValid(const Data::OpListIterator &it) const;
+        bool isValid(const Data::FlowListIterator &it) const;
         GroupContext::GroupIterator addGroup(const string &name);
         bool hasGroup(const string &name);
         GroupContext::GroupIterator getGroup(const string &name);
@@ -101,6 +103,7 @@ namespace mv
         GroupContext::GroupIterator groupEnd();
         GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);
         GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
+        Data::TensorIterator tensorEnd() const;
         static Logger& logger();
         static void setLogger(Logger &logger);
 

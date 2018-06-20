@@ -106,7 +106,7 @@ namespace mv
             stl_map_.clear();
         }
         
-        void erase(iterator pos) noexcept
+        void erase(iterator &pos) noexcept
         {
 
             try

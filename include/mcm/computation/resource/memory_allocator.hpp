@@ -82,7 +82,8 @@ namespace mv
             if (states_[stageIdx].find(tensor.getName()) != states_[stageIdx].end())
                 return false;
 
-            states_[stageIdx].emplace(tensor.getName(), {newOffset, tensor.getShape().totalSize(), MemoryLayout::LayoutPlain});
+            MemoryBuffer newBuffer = {newOffset, tensor.getShape().totalSize(), MemoryLayout::LayoutPlain};
+            states_[stageIdx].emplace(tensor.getName(), newBuffer);
 
             return true;
 

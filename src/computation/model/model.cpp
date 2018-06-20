@@ -18,7 +18,6 @@ dataOpEnd_(dataGraph_.node_end()),
 dataFlowEnd_(dataGraph_.edge_end()),
 controlOpEnd_(controlGraph_.node_end()),
 controlFlowEnd_(controlGraph_.edge_end()),
-tensorEnd_(),
 input_(dataOpEnd_),
 output_(dataOpEnd_)
 {
@@ -57,6 +56,38 @@ bool mv::ComputationModel::isValid() const
     return !dataGraph_.disjoint() && input_ != dataOpEnd_ && output_ != dataOpEnd_ && checkOpsStages_();
 }
 
+bool mv::ComputationModel::isValid(const Data::TensorIterator &it) const
+{
+
+    if (!it)
+        return false;
+
+    if (flowTensors_->find(it->getName()) != flowTensors_->end())
+        return true;
+    return false;
+}
+
+bool mv::ComputationModel::isValid(const Data::OpListIterator &it) const
+{
+    
+    if (!it)
+        return false;
+
+    if (dataGraph_.node_find(it) != dataGraph_.node_end())
+        return true;
+    return false;
+}
+
+bool mv::ComputationModel::isValid(const Data::FlowListIterator &it) const
+{
+    if (!it)
+        return false;
+
+    if (dataGraph_.edge_find(it) != dataGraph_.edge_end())
+        return true;
+    return false;
+} 
+
 mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &name)
 {
     
@@ -66,7 +97,7 @@ mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &nam
         auto result = groups_->emplace(name, allocator_.make_owner<ComputationGroup>(name));
         if (result.second)
         {
-            logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*result.first)->toString());
+            logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
             return result.first;
         }
         return groups_->end();
@@ -159,8 +190,7 @@ mv::Control::StageIterator mv::ComputationModel::addStage_()
 
 bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpListIterator &op)
 {
-    Control::StageIterator stageEnd(stages_->end());
-    if (stage != stageEnd)
+    if (stage)
     {
         allocator::owner_ptr<ComputationOp> ptr = op;
         auto result = stage->addElement(ptr);
@@ -177,7 +207,7 @@ bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpLi
 
 mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListIterator source, byte_type outputIdx)
 {
-    if (source == dataOpEnd_)
+    if (!source)
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - invalid source op");
         return Data::TensorIterator();
@@ -214,7 +244,7 @@ mv::Data::TensorIterator mv::ComputationModel::findTensor_(const string &name)
 mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterator &tensor)
 {
 
-    if (tensor == tensorEnd_)
+    if (tensor == tensorEnd())
         return Data::OpListIterator();
 
     auto it = tensorsSources_->find(tensor->getName());
@@ -270,6 +300,11 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberEnd(GroupContext::G
     
     return GroupContext::MemberIterator();
 
+}
+
+mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
+{
+    return Data::TensorIterator();
 }
 
 mv::Logger &mv::ComputationModel::logger()

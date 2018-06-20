@@ -14,12 +14,12 @@ add_executable(mcm_unit_tests
     graph_container_test.cpp
     graph_visualizer_test.cpp
     base_components_test.cpp
+    op_model_test.cpp
     ops_test.cpp
-    cm_composition_test.cpp
-    cm_data_model_test.cpp
+    data_model_test.cpp
     model_serializer_test.cpp)
 target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${logger})
+target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
