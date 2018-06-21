@@ -26,7 +26,7 @@ int main()
     om.output(batchnorm);
 
     mv::FStdOStream ostream("cm1.dot");
-    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::OpModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
     bool dotResult = generateDot.run(om);    
     if (dotResult)
         system("dot -Tsvg cm1.dot -o cm1.svg");

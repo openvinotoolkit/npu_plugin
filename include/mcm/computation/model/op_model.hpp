@@ -11,7 +11,7 @@ namespace mv
     class OpModel : public ComputationModel, public CompositionalModel
     {
 
-        bool defaultControlFlow_(Data::OpListIterator op);
+        bool defineDefaultControlFlow_(Data::OpListIterator op);
         bool defaultStage_(Data::OpListIterator op);
         Data::OpListIterator checkInputTensor_(Data::TensorIterator inputTensor);
         Data::TensorIterator defineOp_(computation_graph::first_graph::node_list_iterator& opNode, Data::TensorIterator* inputs, byte_type numInputs);

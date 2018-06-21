@@ -58,6 +58,8 @@ namespace mv
         Data::OpListIterator output_;
         Control::OpListIterator lastOp_;
 
+        bool defaultControlFlow_;
+
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
         bool removeGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
@@ -72,7 +74,8 @@ namespace mv
 
     public:
 
-        ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
+        ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, 
+            bool logTime = false, bool defaultControlFlow = true);
 
         /**
          * @brief Copy constructor performing shallow copy
@@ -92,7 +95,9 @@ namespace mv
         bool isValid() const;
         bool isValid(const Data::TensorIterator &it) const;
         bool isValid(const Data::OpListIterator &it) const;
+        bool isValid(const Control::OpListIterator &it) const;
         bool isValid(const Data::FlowListIterator &it) const;
+        bool isValid(const Control::FlowListIterator &it) const;
         GroupContext::GroupIterator addGroup(const string &name);
         bool hasGroup(const string &name);
         GroupContext::GroupIterator getGroup(const string &name);
@@ -104,6 +109,11 @@ namespace mv
         GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);
         GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
         Data::TensorIterator tensorEnd() const;
+
+        void disableDefaultControlFlow();
+        bool enableDefaultControlFlow(Control::OpListIterator lastOp);
+        bool enableDefaultControlFlow(Data::OpListIterator lastOp);
+
         static Logger& logger();
         static void setLogger(Logger &logger);
 

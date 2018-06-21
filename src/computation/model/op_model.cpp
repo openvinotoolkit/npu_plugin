@@ -12,8 +12,11 @@ ComputationModel(other)
 
 }
 
-bool mv::OpModel::defaultControlFlow_(Data::OpListIterator op)
+bool mv::OpModel::defineDefaultControlFlow_(Data::OpListIterator op)
 {
+
+    if (!defaultControlFlow_)
+        return true;
 
     Control::OpListIterator currentOp = opsGraph_->get_second_iterator(op);
     Control::FlowListIterator newFlow = controlGraph_.edge_insert(lastOp_, currentOp, allocator_.make_owner<ControlFlow>(lastOp_, currentOp));
@@ -87,7 +90,7 @@ mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::
     (*opNode)->setOutputTensor(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*opNode)->toString());
 
-    defaultControlFlow_(opNode);
+    defineDefaultControlFlow_(opNode);
     defaultStage_(opNode);
 
     return outputTensor;
@@ -145,7 +148,7 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
 
     output_ = outputIt;
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
-    defaultControlFlow_(output_);
+    defineDefaultControlFlow_(output_);
 
     return inputTensor;
 
@@ -326,28 +329,22 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
 {
     
     if (!isValid(sourceTensor))
-        return flowEnd();
-
-    if (sinkOp == opEnd())
-        return flowEnd();
-
-    if (sourceTensor == tensorEnd())
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to define source op - undefined input tensor" );
         return flowEnd();
     }
 
+    if (!isValid(sinkOp))
+        return flowEnd();
+
     auto sourceOp = findSourceOp_(sourceTensor);
     
-    if (sourceOp == opEnd())
+    if (!isValid(sourceOp))
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + sourceTensor->getName() + 
             "' does not belong to the computation model");
         return flowEnd();
     }
-
-    if (sourceOp == opEnd())
-        return flowEnd();
 
     if (!sinkOp->setInputTensor(sourceTensor, inputIdx))
     {
@@ -374,13 +371,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
 mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::OpListIterator sourceOp, byte_type outputIdx, Data::OpListIterator sinkOp, byte_type inputIdx)
 {
 
-    if (sourceOp == opEnd() || sinkOp == opEnd())
-        return flowEnd();
-
     auto sourceTensor = sourceOp->getOutputTensor(outputIdx);
-    if (sourceTensor == tensorEnd())
-        return flowEnd();
-
     return defineFlow(sourceTensor, sinkOp, inputIdx);
     
 }
@@ -388,7 +379,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::OpListIterator sourceOp
 bool mv::OpModel::undefineFlow(Data::FlowListIterator flow)
 {
 
-    if (flow == flowEnd())
+    if (!ComputationModel::isValid(flow))
         return false;
 
     dataGraph_.edge_erase(flow);

@@ -189,3 +189,48 @@ mv::Control::StageMemberIterator mv::ControlModel::stageMemberEnd(Control::Stage
     
     return Control::StageMemberIterator();
 }
+
+mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp)
+{
+
+    if (!isValid(sourceOp))
+        return flowEnd();
+
+    if (!isValid(sinkOp))
+        return flowEnd();
+
+    Control::FlowListIterator flow = controlGraph_.edge_insert(sourceOp, sinkOp, allocator_.make_owner<ControlFlow>(sourceOp, sinkOp));
+
+    if (flow != controlFlowEnd_)
+    {
+        logger_.log(Logger::MessageType::MessageInfo, "Defined " + flow->toString());
+        return flow;
+    }
+    else
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to define new control flow between " + 
+            sourceOp->getName() + " and " + sinkOp->getName());
+    }
+
+    return flowEnd();
+
+} 
+
+mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp)
+{
+
+   return defineFlow(switchContext(sourceOp), switchContext(sinkOp));
+
+} 
+
+
+bool mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
+{
+
+    if (!ComputationModel::isValid(flow))
+        return false;
+
+    controlGraph_.edge_erase(flow);
+    return true;
+
+}

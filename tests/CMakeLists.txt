@@ -9,15 +9,29 @@ include_directories(${GTEST_INCLUDE_DIRS})
 #add_executable(graph_container graph_container.cpp ${graph})
 #include_directories(include/mcm/graph)
 
+file(GLOB base_src
+    "base/*.cpp"    
+)
+
+file(GLOB op_src
+    "op/*.cpp"
+)
+
+file(GLOB pass_src
+    "pass/*.cpp"
+)
+
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     graph_container_test.cpp
     graph_visualizer_test.cpp
-    base_components_test.cpp
     op_model_test.cpp
-    ops_test.cpp
     data_model_test.cpp
-    model_serializer_test.cpp)
+    ${base_src}
+    ${op_src}
+    ${pass_src}
+    model_serializer_test.cpp
+)
 target_link_libraries (mcm_unit_tests gtest m)
 target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
 

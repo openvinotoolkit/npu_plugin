@@ -5,7 +5,7 @@ mv::DefaultLogger mv::ComputationModel::defaultLogger_;
 mv::Logger &mv::ComputationModel::logger_ = mv::ComputationModel::defaultLogger_;
 
 
-mv::ComputationModel::ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime) :
+mv::ComputationModel::ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime, bool defaultControlFlow) :
 opsGraph_(allocator_.make_owner<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
@@ -19,7 +19,8 @@ dataFlowEnd_(dataGraph_.edge_end()),
 controlOpEnd_(controlGraph_.node_end()),
 controlFlowEnd_(controlGraph_.edge_end()),
 input_(dataOpEnd_),
-output_(dataOpEnd_)
+output_(dataOpEnd_),
+defaultControlFlow_(defaultControlFlow)
 {
     logger_.setVerboseLevel(verboseLevel);
     logger_.setLogTime(logTime);
@@ -41,7 +42,8 @@ controlOpEnd_(other.controlOpEnd_),
 controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_),
-lastOp_(other.lastOp_)
+lastOp_(other.lastOp_),
+defaultControlFlow_(other.defaultControlFlow_)
 {
 
 }
@@ -78,12 +80,34 @@ bool mv::ComputationModel::isValid(const Data::OpListIterator &it) const
     return false;
 }
 
+bool mv::ComputationModel::isValid(const Control::OpListIterator &it) const
+{
+    
+    if (!it)
+        return false;
+
+    if (controlGraph_.node_find(it) != controlGraph_.node_end())
+        return true;
+    return false;
+
+}
+
 bool mv::ComputationModel::isValid(const Data::FlowListIterator &it) const
 {
     if (!it)
         return false;
 
     if (dataGraph_.edge_find(it) != dataGraph_.edge_end())
+        return true;
+    return false;
+} 
+
+bool mv::ComputationModel::isValid(const Control::FlowListIterator &it) const
+{
+    if (!it)
+        return false;
+
+    if (controlGraph_.edge_find(it) != controlGraph_.edge_end())
         return true;
     return false;
 } 
@@ -305,6 +329,29 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberEnd(GroupContext::G
 mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
 {
     return Data::TensorIterator();
+}
+
+void mv::ComputationModel::disableDefaultControlFlow()
+{
+    defaultControlFlow_ = false;
+}
+
+bool mv::ComputationModel::enableDefaultControlFlow(Control::OpListIterator lastOp)
+{
+    
+    if (!isValid(lastOp))
+        return false;
+
+    lastOp_ = lastOp;
+    defaultControlFlow_ = true;
+
+    return true;
+
+}
+
+bool mv::ComputationModel::enableDefaultControlFlow(Data::OpListIterator lastOp)
+{
+    return enableDefaultControlFlow(opsGraph_->get_second_iterator(lastOp));
 }
 
 mv::Logger &mv::ComputationModel::logger()
