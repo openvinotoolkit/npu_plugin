@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         /// \todo Add assertions (dimensions)
@@ -15,12 +15,7 @@ namespace mv
 
         public:
 
-            MaxPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
-            ComputationOp(OpType::MaxPool2D, name),
-            Pool2DOp(OpType::MaxPool2D, kernelSize, stride, padding, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
+            MaxPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name);
 
         };
 

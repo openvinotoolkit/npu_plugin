@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         class ReLu : public ActivationOp
@@ -14,12 +14,7 @@ namespace mv
 
         public:
 
-            ReLu(const string &name) :
-            ComputationOp(OpType::ReLu, name),
-            ActivationOp(OpType::ReLu, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
+            ReLu(const string &name);
 
         };
 

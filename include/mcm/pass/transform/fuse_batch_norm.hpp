@@ -15,93 +15,11 @@ namespace mv
         class FuseBatchNorm : public TransformPass
         {
 
-            bool run_(ComputationModel &model)
-            {
-                
-                OpModel om(model);
-                bool result = true;
-
-                for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-                {   
-
-                    if (opIt->getOpType() == OpType::BatchNorm)
-                    {
-                        
-                        auto batchNormName = opIt->getName();
-                        auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-                        
-                        auto bnMean = *opIt->getInputTensor(1);
-                        auto bnVar = *opIt->getInputTensor(2);
-                        auto bnOffset = *opIt->getInputTensor(3);
-                        auto bnScale = *opIt->getInputTensor(4);
-                        float bnEps = opIt->getAttr("varianceEps").getContent<float>();
-
-                        auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
-                        auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
-                        auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), offsetParam.getOrder());
-
-                        om.disableDefaultControlFlow();
-
-                        Data::TensorIterator sourceTensor;
-                        ControlModel cm(om);
-
-                        if (bnMean.getShape().ndims() == 1 &&  parentOpIt->getOpType() == OpType::Conv2D)
-                        {
-                            parentOpIt->getInputTensor(1)->mulitply(scaleParam);
-                            sourceTensor = opIt->getInputTensor(0);
-                        }
-                        else
-                        {
-                            auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-                            sourceTensor = om.multiply(opIt->getInputTensor(0), scale);
-                            cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
-                            parentOpIt = om.getSourceOp(sourceTensor);
-
-                        }
-
-                        if (offsetParam.getShape().ndims() == 1)
-                        {
-                            sourceTensor = om.bias(sourceTensor, offset); 
-                        }   
-                        else
-                        {
-                            sourceTensor = om.add(sourceTensor, offset);
-                        }
-
-                        cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
-                        cm.defineFlow(om.getSourceOp(sourceTensor), opIt.leftmostChild());
-
-                        for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-                        {
-                            byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
-                            sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
-                            om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
-                        }
-
-                        while(opIt.parentsSize() > 1)
-                        {
-                            auto paramOp = opIt.leftmostParent();
-                            ++paramOp;
-                            om.removeOp(paramOp);
-                        }
-                        
-                        om.removeOp(opIt);
-
-                    }
-
-                }
-
-                return result;
-
-            }
+            bool run_(ComputationModel &model);
 
         public:
 
-            FuseBatchNorm() :
-            TransformPass("FuseBatchNormPass")
-            {
-
-            }
+            FuseBatchNorm();
 
         };
 

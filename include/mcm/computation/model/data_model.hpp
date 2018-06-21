@@ -12,11 +12,7 @@ namespace mv
     {
 
     public:
-
-        //DataModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
-        //DataModel(Logger &logger);
-        //bool addAttr(OpListIterator &op, const string &name, const Attribute &attr);
-
+    
         DataModel(const ComputationModel &ComputationModel);
 
         Data::OpListIterator switchContext(Control::OpListIterator &other);

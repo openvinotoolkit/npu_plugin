@@ -33,7 +33,7 @@ add_executable(mcm_unit_tests
     model_serializer_test.cpp
 )
 target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${logger} ${pass})
+target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")

@@ -6,7 +6,7 @@
 namespace mv
 {   
     
-    namespace Op
+    namespace op
     {
 
         /// \todo Add assertions (dimensions)
@@ -15,13 +15,8 @@ namespace mv
 
         public:
 
-            AvgPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
-            ComputationOp(OpType::AvgPool2D, name),
-            Pool2DOp(OpType::AvgPool2D, kernelSize, stride, padding, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
-
+            AvgPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name);
+            
         };
         
     }

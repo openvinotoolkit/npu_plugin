@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         class Subtract : public EltwiseOp
@@ -14,13 +14,8 @@ namespace mv
 
         public:
 
-            Subtract(const string &name) :
-            ComputationOp(OpType::Subtract, name),
-            EltwiseOp(OpType::Subtract, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
-
+            Subtract(const string &name);
+            
         };
 
     }

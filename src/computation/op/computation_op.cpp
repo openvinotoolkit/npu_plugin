@@ -1,9 +1,7 @@
 #include "include/mcm/computation/op/computation_op.hpp"
 
-mv::allocator::map<mv::OpType, mv::size_type> mv::ComputationOp::idDict_;
-
 mv::ComputationOp::ComputationOp(OpType opType, const string &name) :
-ComputationElement(Printable::toString(opType) + "_" + [&name, &opType]() -> string { if (name.empty()) return Printable::toString(idDict_[opType]++); else return name; }())
+ComputationElement(name)
 {
     logger_.log(Logger::MessageType::MessageDebug, "Defined computation op " + toString());
     addAttr("opType", AttrType::OpTypeType, opType);

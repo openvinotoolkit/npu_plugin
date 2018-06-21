@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         class Divide : public EltwiseOp
@@ -14,12 +14,7 @@ namespace mv
 
         public:
 
-            Divide(const string &name) :
-            ComputationOp(OpType::Divide, name),
-            EltwiseOp(OpType::Divide, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
+            Divide(const string &name);
 
         };
 

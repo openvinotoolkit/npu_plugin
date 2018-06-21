@@ -46,6 +46,7 @@ namespace mv
         allocator::owner_ptr<map<string, allocator::owner_ptr<ComputationGroup>>> groups_;
         allocator::owner_ptr<map<unsigned_type, allocator::owner_ptr<ComputationStage>>> stages_;
         allocator::owner_ptr<map<string, allocator::owner_ptr<MemoryAllocator>>> memoryAllocators_;
+        allocator::owner_ptr<map<OpType, unsigned>> opsCounter_;
         static DefaultLogger defaultLogger_;
         static Logger &logger_;
 

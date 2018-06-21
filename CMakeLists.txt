@@ -7,7 +7,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic")
 include_directories(${PROJECT_SOURCE_DIR})
 
-file(GLOB allocator "src/graph/base_allocator.cpp")
+file(GLOB allocator
+    "src/graph/base_allocator.cpp"
+)
+
 file(GLOB computation_model 
     "src/computation/model/model.cpp"
     "src/api/compositional_model.cpp"
@@ -18,23 +21,61 @@ file(GLOB computation_model
     "src/computation/op/computation_op.cpp"
     "src/computation/op/kernel_op.cpp"
     "src/computation/model/attribute.cpp"
+    "src/computation/model/group.cpp"
     "src/computation/flow/flow.cpp"
+    "src/computation/flow/control.cpp"
+    "src/computation/flow/data.cpp"
+    "src/computation/resource/memory_allocator.cpp"
+    "src/computation/resource/stage.cpp"
     "src/computation/op/source_op.cpp"
     "src/computation/op/sink_op.cpp"
     "src/computation/op/pool2d_op.cpp"
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
+    "src/computation/tensor/shape.cpp"
     "src/computation/tensor/tensor.cpp"
     "src/computation/tensor/math.cpp"
-    "src/deployer/ostream.cpp")
-file(GLOB logger "src/logger/logger.cpp")
+    "src/deployer/ostream.cpp"
+    "src/logger/printable.cpp"
+
+)
+
+file(GLOB ops
+    "src/computation/op/def/add.cpp"
+    "src/computation/op/def/avgpool2d.cpp"
+    "src/computation/op/def/batch_norm.cpp"
+    "src/computation/op/def/bias.cpp"
+    "src/computation/op/def/concat.cpp"
+    "src/computation/op/def/constant.cpp"
+    "src/computation/op/def/conv2d.cpp"
+    "src/computation/op/def/divide.cpp"
+    "src/computation/op/def/fully_connected.cpp"
+    "src/computation/op/def/input.cpp"
+    "src/computation/op/def/maxpool2d.cpp"
+    "src/computation/op/def/multiply.cpp"
+    "src/computation/op/def/output.cpp"
+    "src/computation/op/def/relu.cpp"
+    "src/computation/op/def/reshape.cpp"
+    "src/computation/op/def/scale.cpp"
+    "src/computation/op/def/softmax.cpp"
+    "src/computation/op/def/subtract.cpp"
+)
+
+file(GLOB logger
+    "src/logger/logger.cpp"
+    "src/logger/stdout.cpp"
+)
+
 file(GLOB pass 
     "src/pass/deploy_pass.cpp"
-    "src/pass/transform_pass.cpp")
+    "src/pass/transform_pass.cpp"
+    "src/pass/deploy/generate_dot.cpp"
+    "src/pass/transform/fuse_batch_norm.cpp"
+)
 
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
 add_subdirectory(examples)
 add_subdirectory(python/api)
 
-add_library(cm SHARED ${allocator} ${computation_model} ${logger} ${pass})
+add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass})

@@ -13,8 +13,6 @@ namespace mv
     class ComputationOp : public ComputationElement
     {
 
-        static allocator::map<OpType, size_type> idDict_;
-
     protected:
 
         bool validOutputDef_();

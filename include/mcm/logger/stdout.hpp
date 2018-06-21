@@ -10,34 +10,14 @@ namespace mv
     class StdOutLogger : public Logger
     {
 
-        void logError(const string &content) const
-        {
-            std::cerr << content << std::endl;
-        }
-
-        void logWarning(const string &content) const
-        {
-            std::cerr << content << std::endl;
-        }
-
-        void logInfo(const string &content) const
-        {
-            std::cout << content << std::endl;
-        }
-
-        void logDebug(const string &content) const
-        {
-            std::cout << content << std::endl;
-        }
+        void logError(const string &content) const;
+        void logWarning(const string &content) const;
+        void logInfo(const string &content) const;
+        void logDebug(const string &content) const;
 
     public:
 
-        StdOutLogger(VerboseLevel verboseLevel = VerboseLevel::VerboseSilent, bool outputTime = true) :
-        Logger(verboseLevel, outputTime)
-        {
-            
-        }
-
+        StdOutLogger(VerboseLevel verboseLevel = VerboseLevel::VerboseSilent, bool outputTime = true);
     };
 
 }

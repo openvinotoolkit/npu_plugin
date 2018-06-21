@@ -13,17 +13,8 @@ namespace mv
 
     public:
 
-        ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink) :
-        ComputationFlow("cf_" + source->getName() + "_" + sink->getName())
-        {
-
-        }
-
-        string toString() const
-        {
-            return "control flow '" + name_ + "' " + ComputationElement::toString();
-        }
-        
+        ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink);
+        string toString() const;
     };
 
 }

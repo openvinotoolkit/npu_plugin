@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         class Softmax : public ActivationOp
@@ -14,13 +14,8 @@ namespace mv
 
         public:
 
-            Softmax(const string &name) :
-            ComputationOp(OpType::Softmax, name),
-            ActivationOp(OpType::Softmax, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
-
+            Softmax(const string &name);
+            
         };
 
     }

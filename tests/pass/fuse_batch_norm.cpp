@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/transform/fuse_batch_norm.hpp"
@@ -47,6 +48,11 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     ASSERT_FALSE(om.isValid(bnoffset));
     ASSERT_FALSE(om.isValid(bnscaleOp));
     ASSERT_FALSE(om.isValid(bnscale));
+
+    // Check general model properties
+    mv::DataModel dm(om);
+    ASSERT_EQ(om.opsCount(), 8);
+    ASSERT_EQ(dm.tensorsCount(), 7);
 
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);

@@ -12,30 +12,14 @@ namespace mv
     class DataFlow : public ComputationFlow
     {
 
-        //allocator::access_ptr<Tensor> data_;
         Data::TensorIterator data_;
 
     public:
 
-        DataFlow(const Data::OpListIterator &source, byte_type outputIdx, const Data::OpListIterator &sink, byte_type inputIdx, const Data::TensorIterator &data) :
-        ComputationFlow("df_" + source->getName() + Printable::toString(outputIdx) + "_" + sink->getName() + Printable::toString(inputIdx)),
-        data_(data)
-        {
-            addAttr("sourceOp", AttrType::StringType, source->getName());
-            addAttr("sourceOutput", AttrType::ByteType, outputIdx);
-            addAttr("sinkOp", AttrType::StringType, sink->getName());
-            addAttr("sinkInput", AttrType::ByteType, inputIdx);
-        }
-
-        Data::TensorIterator &getTensor()
-        {
-            return data_;
-        }
-
-        string toString() const
-        {
-            return "data flow '" + name_ + "'\n'tensor': " + data_->getName() + ComputationElement::toString();
-        }
+        DataFlow(const Data::OpListIterator& source, byte_type outputIdx, const Data::OpListIterator& sink, 
+            byte_type inputIdx, const Data::TensorIterator& data);
+        Data::TensorIterator& getTensor();
+        string toString() const;
 
     };
 

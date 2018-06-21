@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         class Multiply : public EltwiseOp
@@ -14,12 +14,7 @@ namespace mv
 
         public:
 
-            Multiply(const string &name) :
-            ComputationOp(OpType::Muliply, name),
-            EltwiseOp(OpType::Muliply, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
+            Multiply(const string &name);
 
         };
 

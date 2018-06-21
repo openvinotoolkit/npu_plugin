@@ -15,6 +15,9 @@ namespace mv
         bool defaultStage_(Data::OpListIterator op);
         Data::OpListIterator checkInputTensor_(Data::TensorIterator inputTensor);
         Data::TensorIterator defineOp_(computation_graph::first_graph::node_list_iterator& opNode, Data::TensorIterator* inputs, byte_type numInputs);
+        void incrementOpsCounter_(OpType opType);
+        void decrementOpsCounter_(OpType opType);
+        string getOpName_(OpType opType);
 
     public:
 
@@ -68,6 +71,7 @@ namespace mv
         dynamic_vector<Shape> getOutputShapes(Data::OpListIterator& op);
 
         unsigned opsCount() const;
+        unsigned opsCount(OpType opType) const;
        
     };
 

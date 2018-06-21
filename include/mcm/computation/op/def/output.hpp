@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         class Output : public SinkOp
@@ -14,33 +14,10 @@ namespace mv
 
         public:
 
-            Output(const string &name) : 
-            ComputationOp(OpType::Output, name),
-            SinkOp(OpType::Output, 1, name)
-            {
-                addAttr("executable", AttrType::BoolType, false);
-            }
-
-            virtual bool setInput(Data::TensorIterator &tensor, byte_type idx)
-            {
-
-                bool result = SinkOp::setInputTensor(tensor, idx);
-                if (result)
-                {
-                    addAttr("shape", AttrType::ShapeType, tensor->getShape());
-                    addAttr("dType", AttrType::DTypeType, tensor->getDType());
-                    addAttr("order", AttrType::OrderType, tensor->getOrder());        
-                }
-                return result;
-
-            }
-
-            Tensor getOutputDef(byte_type)
-            {
-                logger_.log(Logger::MessageType::MessageWarning, "Attempt of getting output tensor of model output operation");
-                return Tensor();
-            }
-
+            Output(const string &name);
+            bool setInputTensor(Data::TensorIterator &tensor, byte_type idx);
+            Tensor getOutputDef(byte_type);
+            
         };
 
     }

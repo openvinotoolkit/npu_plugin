@@ -6,7 +6,7 @@
 namespace mv
 {
 
-    namespace Op
+    namespace op
     {
 
         class Add : public EltwiseOp
@@ -14,13 +14,8 @@ namespace mv
 
         public:
 
-            Add(const string &name) :
-            ComputationOp(OpType::Add, name),
-            EltwiseOp(OpType::Add, name)
-            {
-                addAttr("executable", AttrType::BoolType, true);
-            }
-
+            Add(const string &name);
+            
         };
         
     }
