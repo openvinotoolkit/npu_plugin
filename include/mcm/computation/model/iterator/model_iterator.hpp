@@ -297,7 +297,12 @@ namespace mv
                 return *this->it_;
             }
 
-            operator allocator::owner_ptr<NodeContentType>() const
+            operator const allocator::owner_ptr<NodeContentType>&() const
+            {
+                return *this->it_;
+            }
+
+            operator const allocator::owner_ptr<NodeContentType>() const
             {
                 return *this->it_;
             }
@@ -362,7 +367,12 @@ namespace mv
                 return *this->it_;
             }
 
-            operator allocator::owner_ptr<EdgeContentType>() const
+            operator const allocator::owner_ptr<EdgeContentType>&() const
+            {
+                return *this->it_;
+            }
+
+            operator const allocator::owner_ptr<EdgeContentType>() const
             {
                 return *this->it_;
             }
