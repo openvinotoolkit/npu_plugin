@@ -27,7 +27,7 @@ namespace mv
         using FlowParentIterator = IteratorDetail::FlowIterator<computation_graph::first_graph, computation_graph::first_graph::edge_child_iterator, DataFlow, ComputationOp>;
         using FlowSiblingIterator = IteratorDetail::FlowIterator<computation_graph::first_graph, computation_graph::first_graph::edge_sibling_iterator, DataFlow, ComputationOp>;
 
-        using TensorIterator = IteratorDetail::ModelLinearIterator<map<string, allocator::owner_ptr<Tensor>>::iterator, Tensor>;
+        using TensorIterator = IteratorDetail::ModelValueIterator<map<string, allocator::owner_ptr<Tensor>>::iterator, Tensor>;
 
     }
 

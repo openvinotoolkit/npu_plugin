@@ -21,8 +21,8 @@ namespace mv
 
         Data::OpListIterator switchContext(Control::OpListIterator &other);
 
-        Data::FlowSiblingIterator getInput();
-        Data::FlowSiblingIterator getOutput();
+        Data::FlowSiblingIterator getInputFlow();
+        Data::FlowSiblingIterator getOutputFlow();
         Data::FlowListIterator flowEnd();
 
         GroupContext::MemberIterator addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group);
@@ -31,6 +31,7 @@ namespace mv
         using ComputationModel::removeGroupElement;
         
         Data::TensorIterator findTensor(string name);
+        unsigned tensorsCount() const;
 
         bool addAllocator(const string &name, size_type maxSize);
         bool allocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor);

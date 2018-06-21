@@ -22,7 +22,7 @@ mv::Tensor mv::Pool2DOp::getOutputDef(byte_type idx)
     if (!validOutputDef_())
         return Tensor();
 
-    auto input = getInput(0);
+    auto input = getInputTensor(0);
     auto inputShape = input->getShape();
 
     if (inputShape.ndims() != 3)

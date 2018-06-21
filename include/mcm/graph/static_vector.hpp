@@ -53,6 +53,12 @@ namespace mv
             return length_;
         }
 
+        T& at(T_size idx)
+        {
+            assert(idx < length_ && "Index of value exceeds the number of elements of a static vector");
+            return values_[idx];
+        }
+
         T at(T_size idx) const
         {
             assert(idx < length_ && "Index of value exceeds the number of elements of a static vector");
@@ -84,6 +90,11 @@ namespace mv
 
         }
 
+        T& operator[](T_size idx)
+        {
+            return at(idx);
+        }
+
         T operator[](T_size idx) const
         {
             return at(idx);
@@ -93,7 +104,7 @@ namespace mv
         {
             for (T_size i = 0; i < other.length_; ++i)
                 values_[i] = other.values_[i];
-
+            length_ = other.length_;
             return *this;
         }
 

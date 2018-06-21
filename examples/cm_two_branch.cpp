@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/deployer/fstd_ostream.hpp"
-#include "include/mcm/pass/deploy/dot_pass.hpp"
+#include "include/mcm/pass/deploy/generate_dot.hpp"
 
 int main()
 {
@@ -34,9 +34,9 @@ int main()
     mv::DataModel dm(om);
 
     dm.logger().log(msgType, "Input op: " + om.getInput()->getName());
-    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + dm.getInput()->getTensor()->getName());
+    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + dm.getInputFlow()->getTensor()->getName());
     dm.logger().log(msgType, "Output op: " + om.getOutput()->getName());
-    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + dm.getOutput()->getTensor()->getName());
+    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + dm.getOutputFlow()->getTensor()->getName());
 
     mv::ControlModel cm(om);
 
@@ -51,8 +51,8 @@ int main()
     }
 
     mv::FStdOStream ostream("cm.dot");
-    mv::pass::DotPass dotPass(cm.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentFull);
-    bool dotResult = dotPass.run(cm);    
+    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::OpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    bool dotResult = generateDot.run(cm);    
     if (dotResult)
         system("dot -Tsvg cm.dot -o cm.svg");
 

@@ -33,7 +33,7 @@ namespace mv
                 if (!validOutputDef_())
                     return Tensor();
 
-                auto input = getInput(0);
+                auto input = getInputTensor(0);
                 auto inputShape = input->getShape();
                 auto outputShape = getAttr("shape").getContent<Shape>();
 

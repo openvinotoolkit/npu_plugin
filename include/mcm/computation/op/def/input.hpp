@@ -29,7 +29,7 @@ namespace mv
             virtual bool setOutput(Data::TensorIterator &tensor, byte_type idx)
             {
 
-                bool result = SourceOp::setOutput(tensor, idx);
+                bool result = SourceOp::setOutputTensor(tensor, idx);
                 return result;
 
             }

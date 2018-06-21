@@ -1,7 +1,7 @@
 #ifndef STL_ALLOCATOR_HPP_
 #define STL_ALLOCATOR_HPP_
 
-#include "base_allocator.hpp"
+#include "include/mcm/graph/base_allocator.hpp"
 #include "stl_smart_ptr.hpp"
 #include "stl_set.hpp"
 #include "stl_deque.hpp"

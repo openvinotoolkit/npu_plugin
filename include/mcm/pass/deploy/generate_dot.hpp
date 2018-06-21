@@ -1,8 +1,9 @@
-#ifndef DOT_PASS_HPP_
-#define DOT_PASS_HPP_
+#ifndef GENERATE_DOT_HPP_
+#define GENERATE_DOT_HPP_
 
-#include "include/mcm/pass/deploy/deploy_pass.hpp"
+#include "include/mcm/pass/deploy_pass.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
 
 namespace mv
 {
@@ -10,7 +11,7 @@ namespace mv
     namespace pass 
     {
 
-        class DotPass : public DeployPass
+        class GenerateDot : public DeployPass
         {
         
         public:
@@ -155,8 +156,8 @@ namespace mv
 
         public:
 
-            DotPass(Logger &logger, OStream &ostream, OutputScope outputScope = OutputScope::OpControlModel, ContentLevel contentLevel = ContentLevel::ContentName, bool htmlLike = true) :
-            DeployPass(logger, ostream),
+            GenerateDot(OStream &ostream, OutputScope outputScope = OutputScope::OpControlModel, ContentLevel contentLevel = ContentLevel::ContentName, bool htmlLike = true) :
+            DeployPass(ostream),
             outputScope_(outputScope),
             contentLevel_(contentLevel),
             htmlLike_(htmlLike)

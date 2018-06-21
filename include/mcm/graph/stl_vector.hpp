@@ -175,6 +175,16 @@ namespace mv
             return stl_vector_[pos];
         }
 
+        const T& operator[](T_size pos) const
+        {
+            return stl_vector_[pos];
+        }
+
+        T& at(T_size pos)
+        {
+            return stl_vector_.at(pos);
+        }
+
     };
 
 }

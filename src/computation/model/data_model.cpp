@@ -23,12 +23,12 @@ mv::Data::OpListIterator mv::DataModel::switchContext(Control::OpListIterator &o
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::Data::FlowSiblingIterator mv::DataModel::getInput()
+mv::Data::FlowSiblingIterator mv::DataModel::getInputFlow()
 {
     return input_.leftmostOutput();
 }
 
-mv::Data::FlowSiblingIterator mv::DataModel::getOutput()
+mv::Data::FlowSiblingIterator mv::DataModel::getOutputFlow()
 {
     return output_.leftmostInput();
 }
@@ -55,6 +55,11 @@ mv::Data::TensorIterator mv::DataModel::findTensor(string name)
 
     return ComputationModel::findTensor_(name);
 
+}
+
+unsigned mv::DataModel::tensorsCount() const
+{
+    return flowTensors_->size();
 }
 
 bool mv::DataModel::addAllocator(const string &name, size_type maxSize)

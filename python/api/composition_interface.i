@@ -76,7 +76,7 @@ import_array();
 
     mv::dynamic_vector<mv::float_type> * getData(float * d, size_t len){
         /// Populate a Vector with a numpy array.
-        mv::dynamic_vector<mv::float_type> * weightsData = new mv::dynamic_vector<mv::float_type>(d, len);
+        mv::dynamic_vector<mv::float_type> * weightsData = new mv::dynamic_vector<mv::float_type>(d, d + len);
         return weightsData;
     }
 

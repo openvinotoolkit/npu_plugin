@@ -47,6 +47,11 @@ namespace mv
         Control::StageMemberIterator stageMemberBegin(Control::StageIterator &stage);
         Control::StageMemberIterator stageMemberEnd(Control::StageIterator &stage);
 
+        Control::FlowListIterator defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp);
+        Control::FlowListIterator defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp);
+        bool undefineFlow(Control::FlowListIterator flow);
+        bool undefineFlow(Data::FlowListIterator flow);
+
     };
 
 }

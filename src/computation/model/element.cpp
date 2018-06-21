@@ -10,6 +10,7 @@ name_(name)
 {
 
 }
+
 mv::ComputationElement::ComputationElement(const ComputationElement &other) :
 name_(other.name_)
 {

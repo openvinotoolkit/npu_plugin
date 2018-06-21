@@ -39,6 +39,12 @@ namespace mv
 
         }
 
+        Shape(byte_type n)
+        {
+            for (unsigned i = 0; i < n; ++i)
+                addDim(0);
+        }
+
         Shape()
         {
             
@@ -49,9 +55,14 @@ namespace mv
             return dims_.length();
         }
 
+        dim_type& dim(byte_type ndim)
+        {
+            return dims_.at(ndim);
+        }
+
         dim_type dim(byte_type ndim) const
         {
-            return dims_[ndim];
+            return dims_.at(ndim);
         }
 
         unsigned_type totalSize() const
@@ -66,10 +77,17 @@ namespace mv
             
         }
 
+        dim_type& operator[](int_type ndim)
+        {
+            if (ndim < 0)
+                return dim(dims_.length() + ndim);
+            return dim(ndim);
+        }
+
         dim_type operator[](int_type ndim) const
         {
             if (ndim < 0)
-                return dim(dims_.length() - ndim);
+                return dim(dims_.length() + ndim);
             return dim(ndim);
         }
 
@@ -106,6 +124,71 @@ namespace mv
             return output;
 
         }
+
+        static Shape broadcast(const Shape& s1, const Shape& s2)
+        {
+
+            if (s1.ndims() == 0 || s2.ndims() == 0)
+                return s1;
+
+            if (s1 == s2)
+                return s1;
+
+            const Shape *sM, *sS;
+
+            if (s1.ndims() >= s2.ndims())
+            {
+                sM = &s1;
+                sS = &s2;
+            }
+            else
+            {
+                sM = &s2;
+                sS = &s1;
+            }
+
+            Shape sO(*sM);
+
+            for (int_type i = 1; i <= sS->ndims(); ++i)
+            {
+
+                if ((*sM)[-i] != (*sS)[-i])
+                {
+
+                    if ((*sM)[-i] != 1 && (*sS)[-i] != 1)
+                    {
+                        return Shape();
+                    }
+
+                    if ((*sS)[-i] > (*sM)[-i])
+                        sO[-i] = (*sS)[-i];
+
+                }
+
+            }
+
+            return sO;
+
+        }
+
+        static Shape augment(const Shape& s, byte_type ndims)
+        {
+            if (ndims <= s.ndims())
+                return s;
+
+            Shape sAug(ndims);
+                            
+            for (int i = 0; i < ndims - s.ndims(); ++i)
+                sAug[i] = 1;
+
+            for (unsigned i = 0; i < s.ndims(); ++i)
+                sAug[i +  ndims - s.ndims()] = s[i];
+
+            return sAug;
+        }
+
+        
+
 
     };
 

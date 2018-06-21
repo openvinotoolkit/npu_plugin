@@ -16,14 +16,14 @@ namespace mv
 
         protected:
 
-            Logger &logger_;
+            static Logger &logger_;
             OStream &ostream_;
 
             virtual bool run_(ComputationModel &model) = 0;
 
         public:
 
-            DeployPass(Logger &logger, OStream &ostream);
+            DeployPass(OStream &ostream);
             bool run(ComputationModel &model);
             virtual ~DeployPass() = 0;
 

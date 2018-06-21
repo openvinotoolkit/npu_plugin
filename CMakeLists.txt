@@ -24,9 +24,13 @@ file(GLOB computation_model
     "src/computation/op/pool2d_op.cpp"
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
+    "src/computation/tensor/tensor.cpp"
+    "src/computation/tensor/math.cpp"
     "src/deployer/ostream.cpp")
 file(GLOB logger "src/logger/logger.cpp")
-file(GLOB pass "src/pass/deploy/deploy_pass.cpp")
+file(GLOB pass 
+    "src/pass/deploy_pass.cpp"
+    "src/pass/transform_pass.cpp")
 
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)

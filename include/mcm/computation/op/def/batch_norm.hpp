@@ -33,19 +33,19 @@ namespace mv
                 if (!validOutputDef_())
                     return Tensor();
 
-                auto input = getInput(0);
+                auto input = getInputTensor(0);
                 auto inputShape = input->getShape(); 
 
-                auto mean = getInput(1);
+                auto mean = getInputTensor(1);
                 auto meanShape = mean->getShape();
 
-                auto variance = getInput(2);
+                auto variance = getInputTensor(2);
                 auto varianceShape = variance->getShape();
 
-                auto offset = getInput(3);
+                auto offset = getInputTensor(3);
                 auto offsetShape = offset->getShape();
 
-                auto scale = getInput(4);
+                auto scale = getInputTensor(4);
                 auto scaleShape = scale->getShape();
 
                 if (!(inputShape == meanShape && inputShape == varianceShape && inputShape == offsetShape && inputShape == scaleShape))

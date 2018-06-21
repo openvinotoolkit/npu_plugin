@@ -24,6 +24,11 @@ namespace mv
 
             }
 
+            virtual ~ModelIterator()
+            {
+
+            }
+
             template <class OtherIteratorType>
             ModelIterator(const ModelIterator<OtherIteratorType> &other) :
             it_(other.it_)
@@ -37,7 +42,7 @@ namespace mv
 
             }
             
-            ModelIterator& operator++()
+            virtual ModelIterator& operator++()
             {
                 ++it_;
                 return *this;
@@ -73,6 +78,8 @@ namespace mv
         class ModelLinearIterator : public ModelIterator<IteratorType>
         {
 
+            allocator::access_ptr<ContentType> ptr_;
+
         public:
 
             ModelLinearIterator()
@@ -82,15 +89,24 @@ namespace mv
 
             template <class OtherIteratorType>
             ModelLinearIterator(const ModelLinearIterator<OtherIteratorType, ContentType> &other) :
-            ModelIterator<IteratorType>(other)
+            ModelIterator<IteratorType>(other),
+            ptr_(*other.it_)
             {
 
             }
 
             ModelLinearIterator(const IteratorType &it) :
-            ModelIterator<IteratorType>(it)
+            ModelIterator<IteratorType>(it),
+            ptr_(*it)
             {
 
+            }
+
+            ModelLinearIterator& operator++()
+            {
+                ++this->it_;
+                ptr_ = *this->it_;
+                return *this;
             }
 
             ContentType& operator*() const
@@ -106,6 +122,69 @@ namespace mv
             operator allocator::owner_ptr<ContentType>()
             {
                 return *this->it_;
+            }
+
+            operator bool() const
+            {
+                return (bool)ptr_;
+            }
+
+        };
+
+
+        template <class IteratorType, class ContentType>
+        class ModelValueIterator : public ModelIterator<IteratorType>
+        {
+            
+            allocator::access_ptr<ContentType> ptr_;
+
+        public:
+
+            ModelValueIterator()
+            {
+                
+            }
+
+            template <class OtherIteratorType>
+            ModelValueIterator(const ModelValueIterator<OtherIteratorType, ContentType> &other) :
+            ModelIterator<IteratorType>(other),
+            ptr_(other.it_->second)
+            {
+
+            }
+
+            ModelValueIterator(const IteratorType &it) :
+            ModelIterator<IteratorType>(it),
+            ptr_(it->second)
+            {
+
+            }
+
+            ModelValueIterator& operator++()
+            {
+                ++this->it_;
+                ptr_ = this->it_->second;
+                return *this;
+            }
+
+            ContentType& operator*() const
+            {
+                return *this->it_->second;
+            }
+
+            ContentType* operator->() const
+            {
+                return this->it_->second.operator->();
+            }
+
+            operator allocator::owner_ptr<ContentType>()
+            {
+                return this->it_->second;
+            }
+
+            operator bool() const
+            {
+                return (bool)ptr_;
             }
 
         };
@@ -150,6 +229,11 @@ namespace mv
             size_type parentsSize()
             {
                 return this->it_->parents_size();
+            }
+
+            operator bool() const
+            {
+                return (bool)this->it_;
             }
 
         };
@@ -213,6 +297,11 @@ namespace mv
                 return *this->it_;
             }
 
+            operator allocator::owner_ptr<NodeContentType>() const
+            {
+                return *this->it_;
+            }
+
             OpIterator<GraphType, typename GraphType::node_child_iterator, NodeContentType, EdgeContentType> leftmostChild();
             OpIterator<GraphType, typename GraphType::node_child_iterator, NodeContentType, EdgeContentType> rightmostChild();
             OpIterator<GraphType, typename GraphType::node_parent_iterator, NodeContentType, EdgeContentType> leftmostParent();
@@ -269,6 +358,11 @@ namespace mv
             }
 
             operator allocator::owner_ptr<EdgeContentType>&()
+            {
+                return *this->it_;
+            }
+
+            operator allocator::owner_ptr<EdgeContentType>() const
             {
                 return *this->it_;
             }

@@ -34,9 +34,9 @@ namespace mv
                 if (!validOutputDef_())
                     return Tensor();
 
-                auto input0 = getInput(0);
+                auto input0 = getInputTensor(0);
                 auto input0Shape = input0->getShape(); 
-                auto input1Shape = getInput(1)->getShape();
+                auto input1Shape = getInputTensor(1)->getShape();
 
                 if (input0Shape.ndims() != 2)
                 {

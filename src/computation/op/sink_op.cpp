@@ -12,7 +12,7 @@ mv::SinkOp::~SinkOp()
 
 }
 
-bool mv::SinkOp::setInput(Data::TensorIterator &tensor, byte_type idx)
+bool mv::SinkOp::setInputTensor(Data::TensorIterator &tensor, byte_type idx)
 {
     if (idx >= getAttr("inputs").getContent<byte_type>())
         return false;
@@ -23,7 +23,7 @@ bool mv::SinkOp::setInput(Data::TensorIterator &tensor, byte_type idx)
     return true;
 }
 
-mv::Data::TensorIterator mv::SinkOp::getInput(byte_type idx)
+mv::Data::TensorIterator mv::SinkOp::getInputTensor(byte_type idx)
 {
     if (idx >= getAttr("inputs").getContent<byte_type>())
         return Data::TensorIterator();

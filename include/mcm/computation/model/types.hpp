@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <vector>
+#include <map>
 #include <assert.h>
 #include "include/mcm/graph/stl_allocator.hpp"
 #include "include/mcm/graph/conjoined_graph.hpp"
@@ -33,10 +34,10 @@ namespace mv
     typedef stl_allocator allocator;
     
     template <class T>
-    using dynamic_vector = allocator::vector<T>;
+    using dynamic_vector = std::vector<T>;
     
     template <class T_key, class T_value>
-    using map = allocator::map<T_key, T_value>;
+    using map = std::map<T_key, T_value>;
 
     template <class T_value, class T_comparator>
     using set = allocator::set<T_value, T_comparator>;
