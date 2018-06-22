@@ -33,6 +33,11 @@ mv::Data::FlowSiblingIterator mv::DataModel::getOutputFlow()
     return output_.leftmostInput();
 }
 
+mv::Data::FlowListIterator mv::DataModel::flowBegin()
+{
+    return dataGraph_.edge_begin();
+}
+
 mv::Data::FlowListIterator mv::DataModel::flowEnd()
 {
     return dataFlowEnd_;

@@ -29,7 +29,8 @@ namespace mv
                 ExecOpModel,
                 ControlModel,
                 OpControlModel,
-                ExecOpControlModel
+                ExecOpControlModel,
+                DataModel
             };
 
         private:

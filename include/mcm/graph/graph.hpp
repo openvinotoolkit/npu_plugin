@@ -914,7 +914,7 @@ namespace mv
 
         public:
 
-            dfs_iterator(const list_iterator<T_iterable, T_content>& other,
+            dfs_iterator(const base_iterator<T_iterable, T_content>& other,
             search_direction dir = forward, search_side side = leftmost) :
             search_iterator<T_iterable, T_content>(other),
             dir_(dir),
@@ -1006,7 +1006,7 @@ namespace mv
 
         public:
 
-            bfs_iterator(const list_iterator<T_iterable, T_content>& other,
+            bfs_iterator(const base_iterator<T_iterable, T_content>& other,
             search_direction dir = forward, search_side side = leftmost) :
             search_iterator<T_iterable, T_content>(other),
             dir_(dir),

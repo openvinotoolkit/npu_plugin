@@ -19,6 +19,7 @@ namespace mv
 
         Data::FlowSiblingIterator getInputFlow();
         Data::FlowSiblingIterator getOutputFlow();
+        Data::FlowListIterator flowBegin();
         Data::FlowListIterator flowEnd();
 
         GroupContext::MemberIterator addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group);

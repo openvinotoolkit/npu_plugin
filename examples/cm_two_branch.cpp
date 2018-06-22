@@ -56,6 +56,12 @@ int main()
     if (dotResult)
         system("dot -Tsvg cm.dot -o cm.svg");
 
+    ostream.setFileName("dm.dot");
+    mv::pass::GenerateDot generateDot2(ostream, mv::pass::GenerateDot::OutputScope::DataModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    dotResult = generateDot2.run(cm);    
+    if (dotResult)
+        system("dot -Tsvg dm.dot -o dm.svg");
+
     return 0;
 
 }
