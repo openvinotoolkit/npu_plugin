@@ -100,7 +100,7 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(100, 4)
 
         in_ = ca.input(g, shape)
-        weightData = ca.getData(np.arange(3, 100).astype(np.float32))
+        weightData = ca.getData(np.arange(100 * 100).astype(np.float32))
         weights_ = ca.constant(g, weightData, ca.getShape(100, 100))
         mx_ = ca.fullyConnected(g, in_, weights_)
         ca.output(g, mx_)
@@ -113,16 +113,16 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(28, 28, 4)
 
         in_ = ca.input(g, shape)
-        meanData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        meanData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
         mean_ = ca.constant(g, meanData, ca.getShape(28, 28, 4))
 
-        varData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        varData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
         variance_ = ca.constant(g, varData, ca.getShape(28, 28, 4))
 
-        offsetData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        offsetData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
         offset_ = ca.constant(g, offsetData, ca.getShape(28, 28, 4))
 
-        scaleData = ca.getData(np.arange(28, 28, 4).astype(np.float32))
+        scaleData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
         scale_ = ca.constant(g, scaleData, ca.getShape(28, 28, 4))
 
 
@@ -138,7 +138,7 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(32, 32, 3)
 
         in_ = ca.input(g, shape)
-        weightData = ca.getData(np.arange(32, 32, 3).astype(np.float32))
+        weightData = ca.getData(np.arange(32 * 32 * 3).astype(np.float32))
 
         scaleMatrix_ = ca.constant(g, weightData, ca.getShape(32, 32, 3))
         mx_ = ca.scale(g, in_, scaleMatrix_)

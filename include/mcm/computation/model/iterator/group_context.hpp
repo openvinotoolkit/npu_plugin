@@ -2,8 +2,8 @@
 #define GROUP_CONTEXT_HPP_
 
 #include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/model/element.hpp"
-#include "include/mcm/computation/model/group.hpp"
+#include "include/mcm/computation/model/computation_element.hpp"
+#include "include/mcm/computation/model/computation_group.hpp"
 #include "include/mcm/computation/model/iterator/model_iterator.hpp"
 
 namespace mv

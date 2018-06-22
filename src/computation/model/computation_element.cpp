@@ -1,5 +1,5 @@
-#include "include/mcm/computation/model/element.hpp"
-#include "include/mcm/computation/model/model.hpp"
+#include "include/mcm/computation/model/computation_element.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
 
 mv::allocator mv::ComputationElement::allocator_;
 mv::Attribute mv::ComputationElement::unknownAttr_;

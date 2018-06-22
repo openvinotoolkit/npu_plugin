@@ -2,7 +2,7 @@
 #define GROUP_HPP_
 
 #include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/model/element.hpp"
+#include "include/mcm/computation/model/computation_element.hpp"
 
 namespace mv
 {
@@ -28,7 +28,7 @@ namespace mv
         virtual string toString() const;
         
         template <class ElementType>
-        MemberSet::iterator addElement(allocator::owner_ptr<ElementType> &newMember)
+        MemberSet::iterator addElement(allocator::owner_ptr<ElementType> newMember)
         {
             
             if (markMembmer_(*newMember))

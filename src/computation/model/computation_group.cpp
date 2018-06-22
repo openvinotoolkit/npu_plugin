@@ -1,4 +1,4 @@
-#include "include/mcm/computation/model/group.hpp"
+#include "include/mcm/computation/model/computation_group.hpp"
 
 bool mv::ComputationGroup::markMembmer_(ComputationElement &member)
 {

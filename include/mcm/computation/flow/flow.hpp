@@ -2,7 +2,7 @@
 #define COMPUTATION_FLOW_HPP_
 
 #include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/model/element.hpp"
+#include "include/mcm/computation/model/computation_element.hpp"
 
 namespace mv
 {

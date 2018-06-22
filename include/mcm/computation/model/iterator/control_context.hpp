@@ -3,7 +3,7 @@
 
 #include "include/mcm/graph/graph.hpp"
 #include "include/mcm/computation/model/iterator/model_iterator.hpp"
-#include "include/mcm/computation/resource/stage.hpp"
+#include "include/mcm/computation/resource/computation_stage.hpp"
 
 namespace mv
 {

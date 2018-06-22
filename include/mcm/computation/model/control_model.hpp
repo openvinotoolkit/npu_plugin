@@ -1,7 +1,7 @@
 #ifndef CONTROL_MODEL_HPP_
 #define CONTROL_MODEL_HPP_
 
-#include "include/mcm/computation/model/model.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/op/computation_op.hpp"

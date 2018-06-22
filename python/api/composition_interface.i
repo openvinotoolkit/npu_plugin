@@ -14,9 +14,7 @@ import_array();
 %{
     #include <include/mcm/computation/model/op_model.hpp>
     #include <include/mcm/computation/model/control_model.hpp>
-    #include <include/mcm/computation/model/iterator/data_context.hpp>
     #include <include/mcm/deployer/serializer.hpp>
-    #include <string>
 
     int serialize(mv::OpModel * test_cm){
         mv::ControlModel *cm = new mv::ControlModel(*test_cm);
@@ -182,22 +180,8 @@ import_array();
  %}
 
 #include <include/mcm/computation/model/op_model.hpp>
-#include <include/mcm/computation/model/model.hpp>
-#include <include/mcm/computation/model/iterator/model_iterator.hpp>
-#include <include/mcm/computation/model/iterator/data_context.hpp>
 #include <include/mcm/computation/model/control_model.hpp>
-#include <include/mcm/computation/tensor/shape.hpp>
-#include <include/mcm/computation/tensor/tensor.hpp>
-#include <include/mcm/computation/model/attribute.hpp>
-#include <include/mcm/api/compositional_model.hpp>
 #include <include/mcm/deployer/serializer.hpp>
-#include <include/mcm/computation/model/model.hpp>
-#include <include/mcm/computation/op/def/input.hpp>
-#include <include/mcm/computation/op/def/output.hpp>
-#include <include/mcm/computation/op/def/conv.hpp>
-#include <include/mcm/computation/op/def/maxpool.hpp>
-#include <include/mcm/computation/op/def/concat.hpp>
-#include <string>
 
 // The section below is exposing the functions within the included files,
 // or the ones defined above in the module.

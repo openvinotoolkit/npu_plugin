@@ -78,7 +78,7 @@ namespace mv
         class ModelLinearIterator : public ModelIterator<IteratorType>
         {
 
-            allocator::access_ptr<ContentType> ptr_;
+            //allocator::access_ptr<ContentType> ptr_;
 
         public:
 
@@ -89,15 +89,15 @@ namespace mv
 
             template <class OtherIteratorType>
             ModelLinearIterator(const ModelLinearIterator<OtherIteratorType, ContentType> &other) :
-            ModelIterator<IteratorType>(other),
-            ptr_(*other.it_)
+            ModelIterator<IteratorType>(other)
+            //ptr_(*other.it_)
             {
-
+                
             }
 
             ModelLinearIterator(const IteratorType &it) :
-            ModelIterator<IteratorType>(it),
-            ptr_(*it)
+            ModelIterator<IteratorType>(it)
+            //ptr_(*it)
             {
 
             }
@@ -105,7 +105,7 @@ namespace mv
             ModelLinearIterator& operator++()
             {
                 ++this->it_;
-                ptr_ = *this->it_;
+                //ptr_ = *this->it_;
                 return *this;
             }
 
@@ -126,7 +126,8 @@ namespace mv
 
             operator bool() const
             {
-                return (bool)ptr_;
+                //return (bool)ptr_;
+                return (bool)*this->it_;
             }
 
         };
@@ -136,7 +137,7 @@ namespace mv
         class ModelValueIterator : public ModelIterator<IteratorType>
         {
             
-            allocator::access_ptr<ContentType> ptr_;
+            //allocator::access_ptr<ContentType> ptr_;
 
         public:
 
@@ -147,15 +148,15 @@ namespace mv
 
             template <class OtherIteratorType>
             ModelValueIterator(const ModelValueIterator<OtherIteratorType, ContentType> &other) :
-            ModelIterator<IteratorType>(other),
-            ptr_(other.it_->second)
+            ModelIterator<IteratorType>(other)
+            //ptr_(other.it_->second)
             {
 
             }
 
             ModelValueIterator(const IteratorType &it) :
-            ModelIterator<IteratorType>(it),
-            ptr_(it->second)
+            ModelIterator<IteratorType>(it)
+            //ptr_(it->second)
             {
 
             }
@@ -163,7 +164,7 @@ namespace mv
             ModelValueIterator& operator++()
             {
                 ++this->it_;
-                ptr_ = this->it_->second;
+                //ptr_ = this->it_->second;
                 return *this;
             }
 
@@ -184,7 +185,7 @@ namespace mv
 
             operator bool() const
             {
-                return (bool)ptr_;
+                return (bool)this->it_->second;
             }
 
         };

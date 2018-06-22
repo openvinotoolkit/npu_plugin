@@ -2,7 +2,7 @@
 #define TENSOR_HPP_
 
 #include "include/mcm/computation/tensor/shape.hpp"
-#include "include/mcm/computation/model/element.hpp"
+#include "include/mcm/computation/model/computation_element.hpp"
 
 namespace mv
 {

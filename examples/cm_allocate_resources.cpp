@@ -51,6 +51,8 @@ int main()
     om.addGroupElement(conv1Op, group4It);
     om.addGroupElement(pool1Op, group4It);
 
+    mv::DataModel dm(om);
+
     for (auto it = om.groupBegin(); it != om.groupEnd(); ++it)
     {
 
@@ -99,7 +101,7 @@ int main()
 
     //cm.removeStage(stage5It);
 
-    mv::DataModel dm(cm);
+    //mv::DataModel dm(cm);
 
     auto stageIt = cm.stageBegin();
 

@@ -1,7 +1,7 @@
 #ifndef COMPUTATION_OP_HPP_
 #define COMPUTATION_OP_HPP_
 
-#include "include/mcm/computation/model/element.hpp"
+#include "include/mcm/computation/model/computation_element.hpp"
 #include "include/mcm/computation/tensor/shape.hpp"
 #include "include/mcm/computation/tensor/tensor.hpp"
 #include "include/mcm/computation/op/ops_register.hpp"

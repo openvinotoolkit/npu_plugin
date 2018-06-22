@@ -8,10 +8,10 @@
 #include "include/mcm/computation/model/iterator/group_context.hpp"
 #include "include/mcm/computation/tensor/shape.hpp"
 #include "include/mcm/computation/tensor/tensor.hpp"
-#include "include/mcm/computation/flow/data.hpp"
-#include "include/mcm/computation/flow/control.hpp"
-#include "include/mcm/computation/model/group.hpp"
-#include "include/mcm/computation/resource/stage.hpp"
+#include "include/mcm/computation/flow/data_flow.hpp"
+#include "include/mcm/computation/flow/control_flow.hpp"
+#include "include/mcm/computation/model/computation_group.hpp"
+#include "include/mcm/computation/resource/computation_stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/logger/stdout.hpp"
 
@@ -109,6 +109,7 @@ namespace mv
         GroupContext::GroupIterator groupEnd();
         GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);
         GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
+        Data::TensorIterator tensorBegin() const;
         Data::TensorIterator tensorEnd() const;
 
         void disableDefaultControlFlow();

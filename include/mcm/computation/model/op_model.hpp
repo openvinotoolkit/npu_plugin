@@ -2,7 +2,7 @@
 #define OP_MODEL_HPP_
 
 #include "include/mcm/api/compositional_model.hpp"
-#include "include/mcm/computation/model/model.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/op/ops_headers.hpp"
 
 namespace mv

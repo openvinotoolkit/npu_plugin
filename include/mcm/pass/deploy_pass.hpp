@@ -1,7 +1,7 @@
 #ifndef DEPLOY_PASS_HPP_
 #define DEPLOY_PASS_HPP_
 
-#include "include/mcm/computation/model/model.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/deployer/ostream.hpp"
 

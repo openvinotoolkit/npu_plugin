@@ -1,4 +1,4 @@
-#include "include/mcm/computation/flow/control.hpp"
+#include "include/mcm/computation/flow/control_flow.hpp"
 
 mv::ControlFlow::ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink) :
 ComputationFlow("cf_" + source->getName() + "_" + sink->getName())

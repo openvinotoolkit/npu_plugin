@@ -1,4 +1,4 @@
-#include "include/mcm/computation/model/model.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
 
 mv::allocator mv::ComputationModel::allocator_;
 mv::DefaultLogger mv::ComputationModel::defaultLogger_;
@@ -126,11 +126,11 @@ mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const string &nam
             logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
             return result.first;
         }
-        return groups_->end();
+        return groupEnd();
         
     }
 
-    return groups_->end();
+    return groupEnd();
 
 }
 
@@ -148,9 +148,10 @@ bool mv::ComputationModel::hasGroup(const string &name)
 
 mv::GroupContext::GroupIterator mv::ComputationModel::getGroup(const string &name)
 {
-
-    return groups_->find(name);
-
+    auto group = groups_->find(name);
+    if (group != groups_->end())
+        return group;
+    return groupEnd();
 }
 
 
@@ -301,6 +302,7 @@ mv::GroupContext::GroupIterator mv::ComputationModel::groupBegin()
 
 mv::GroupContext::GroupIterator mv::ComputationModel::groupEnd()
 {
+    //return GroupContext::GroupIterator();
     return groups_->end();
 }
 
@@ -312,25 +314,32 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberBegin(GroupContext:
         return group->begin();
     }
     
+    //return memberEnd(group);
     return GroupContext::MemberIterator();
 
 }
 
 mv::GroupContext::MemberIterator mv::ComputationModel::memberEnd(GroupContext::GroupIterator &group)
 {
-
+    
     if (group != groupEnd())
     {
         return group->end();
     }
-    
+
     return GroupContext::MemberIterator();
 
 }
 
+mv::Data::TensorIterator mv::ComputationModel::tensorBegin() const
+{
+    return flowTensors_->begin();
+}
+
 mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
 {
-    return Data::TensorIterator();
+    //return Data::TensorIterator();
+    return flowTensors_->end();
 }
 
 void mv::ComputationModel::disableDefaultControlFlow()

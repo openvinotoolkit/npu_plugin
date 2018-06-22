@@ -1,7 +1,7 @@
 #ifndef TRANSFORM_PASS_HPP_
 #define TRANSFORM_PASS_HPP_
 
-#include "include/mcm/computation/model/model.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/logger/logger.hpp"
 
 namespace mv
