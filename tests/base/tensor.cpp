@@ -8,43 +8,35 @@ TEST(tensor, populating)
 
     mv::Shape tShape(5, 5);
     mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::NWHC);
+    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::LastDimMajor);
     t.populate(data);
 
     for (unsigned j = 0; j < tShape[0]; ++j)
         for (unsigned i = 0; i < tShape[1]; ++i)
-            ASSERT_EQ(t(i, j), i * tShape[0] + j);
+            ASSERT_EQ(t(i, j), i + tShape[0] * j);
 
 }
 
-TEST(tensor, accessing)
+TEST(tensor, subToInd)
 {
 
     mv::Shape tShape(64, 64, 32, 32, 16);
-    mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::NWHC);
-    t.populate(data);
+    std::vector<unsigned> subs[] = {
+        {32, 16, 4, 8, 2},
+        {15, 62, 31, 31, 0},
+        {63, 61, 12, 26, 10},
+        {60, 12, 16, 17, 15},
+        {0, 15, 0, 5, 4}
+    };
 
-    unsigned idx[5][5] = {{32, 16, 4, 8, 2},
-                     {15, 62, 31, 31, 0},
-                     {63, 61, 12, 26, 10},
-                     {60, 12, 16, 17, 15},
-                     {0, 15, 0, 5, 4}};
-
-    auto idxFcn = [tShape](unsigned i0, unsigned i1, unsigned i2, unsigned i3, unsigned i4) {
-        return i4 + tShape[4] * (i3 + tShape[3] * (i2 + tShape[2] * (i1 + tShape[1] * i0)));
+    auto idxFcn = [tShape](std::vector<unsigned> s) {
+        return s[0] + tShape[0] * (s[1] + tShape[1] * (s[2] + tShape[2] * (s[3] + tShape[3] * s[4])));
     };
 
     for (unsigned i = 0; i < 5; ++i)
-    {
+        ASSERT_EQ(mv::Tensor::subToInd(tShape, subs[i]),
+            idxFcn(subs[i]));
 
-        ASSERT_EQ(t(idx[i][0], idx[i][1], idx[i][2], idx[i][3], idx[i][4]),
-            data[idxFcn(idx[i][0], idx[i][1], idx[i][2], idx[i][3], idx[i][4])]);
-
-        mv::dynamic_vector<unsigned> sub(idx[i], idx[i] + sizeof(idx[i]) / sizeof(idx[i][0]));
-        ASSERT_EQ(t(sub), data[idxFcn(idx[i][0], idx[i][1], idx[i][2], idx[i][3], idx[i][4])]);
-
-    }
 
 }
 
@@ -52,22 +44,16 @@ TEST(tensor, indToSub)
 {
 
     mv::Shape tShape(64, 64, 32, 32, 16);
-    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::NWHC);
+    mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize());
+    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::LastDimMajor);
+    t.populate(data);
 
-    int idx[5][5] = {{32, 16, 4, 8, 2},
-                     {15, 62, 31, 31, 0},
-                     {63, 61, 12, 26, 10},
-                     {60, 12, 16, 17, 15},
-                     {0, 15, 0, 5, 4}};
+    std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
 
     for (unsigned i = 0; i < 5; ++i)
     {
-        unsigned ind = t.subToInd(idx[i][0], idx[i][1], idx[i][2], idx[i][3], idx[i][4]);
-        auto sub = t.indToSub(ind);
-        ASSERT_EQ(sub.size(), tShape.ndims());
-
-        for (unsigned j = 0; j < tShape.ndims(); ++j)
-            ASSERT_EQ(sub[j], idx[i][j]);
+        mv::dynamic_vector<unsigned> sub = mv::Tensor::indToSub(tShape, idx[i]);
+        ASSERT_EQ(t(sub), idx[i]);
     }
 
 }
@@ -82,8 +68,8 @@ TEST(tensor, add)
     mv::dynamic_vector<mv::float_type> data1 = mv::utils::generateSequence<mv::float_type>(tShape.totalSize(), start, diff);
     mv::dynamic_vector<mv::float_type> data2 = mv::utils::generateSequence<mv::float_type>(tShape.totalSize(), -start, -diff);
 
-    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::NWHC, data1);
-    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::NWHC, data2);
+    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::LastDimMajor, data1);
+    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::LastDimMajor, data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -105,8 +91,8 @@ TEST(tensor, add_broadcast_vec)
     mv::dynamic_vector<mv::float_type> data1 = mv::utils::generateSequence<mv::float_type>(t1Shape.totalSize(), start, diff);
     mv::dynamic_vector<mv::float_type> data2 = mv::utils::generateSequence<mv::float_type>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DType::Float, mv::Order::NWHC, data1);
-    mv::Tensor t2("t2", t2Shape, mv::DType::Float, mv::Order::NWHC, data2);
+    mv::Tensor t1("t1", t1Shape, mv::DType::Float, mv::Order::LastDimMajor, data1);
+    mv::Tensor t2("t2", t2Shape, mv::DType::Float, mv::Order::LastDimMajor, data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -128,8 +114,8 @@ TEST(tensor, add_broadcast_mat)
     mv::dynamic_vector<mv::float_type> data1 = mv::utils::generateSequence<mv::float_type>(t1Shape.totalSize(), start, diff);
     mv::dynamic_vector<mv::float_type> data2 = mv::utils::generateSequence<mv::float_type>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DType::Float, mv::Order::NWHC, data1);
-    mv::Tensor t2("t2", t2Shape, mv::DType::Float, mv::Order::NWHC, data2);
+    mv::Tensor t1("t1", t1Shape, mv::DType::Float, mv::Order::LastDimMajor, data1);
+    mv::Tensor t2("t2", t2Shape, mv::DType::Float, mv::Order::LastDimMajor, data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -151,8 +137,8 @@ TEST(tensor, add_broadcast_eq)
     mv::dynamic_vector<mv::float_type> data1 = mv::utils::generateSequence<mv::float_type>(t1Shape.totalSize(), start, diff);
     mv::dynamic_vector<mv::float_type> data2 = mv::utils::generateSequence<mv::float_type>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DType::Float, mv::Order::NWHC, data1);
-    mv::Tensor t2("t2", t2Shape, mv::DType::Float, mv::Order::NWHC, data2);
+    mv::Tensor t1("t1", t1Shape, mv::DType::Float, mv::Order::LastDimMajor, data1);
+    mv::Tensor t2("t2", t2Shape, mv::DType::Float, mv::Order::LastDimMajor, data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -173,8 +159,8 @@ TEST(tensor, subtract)
     mv::Shape tShape(32, 32, 3);
     mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::NWHC, data);
-    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::NWHC, data);
+    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::LastDimMajor, data);
+    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::LastDimMajor, data);
 
     t1.subtract(t2);
 
@@ -198,8 +184,8 @@ TEST(tensor, multiply)
     for (unsigned i = 0; i < data2.size(); ++i)
         data2[i] = 1.0f / data1[i];
 
-    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::NWHC, data1);
-    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::NWHC, data2);
+    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::LastDimMajor, data1);
+    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::LastDimMajor, data2);
 
     t1.mulitply(t2);
 
@@ -219,8 +205,8 @@ TEST(tensor, divide)
     mv::Shape tShape(32, 32, 3);
     mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::NWHC, data);
-    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::NWHC, data);
+    mv::Tensor t1("t1", tShape, mv::DType::Float, mv::Order::LastDimMajor, data);
+    mv::Tensor t2("t2", tShape, mv::DType::Float, mv::Order::LastDimMajor, data);
 
     t1.divide(t2);
 

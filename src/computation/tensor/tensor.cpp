@@ -9,12 +9,14 @@ unsigned mv::Tensor::subToInd(const Shape& shape, const dynamic_vector<unsigned>
     assert(sub.size() == shape.ndims() && "Shape and subs size mismatch");
     assert(sub.size() != 0 && "Cannot compute index for an empty tensor");
 
+    unsigned currentMul = 1;
     unsigned currentResult = 0;
 
     for (unsigned i = 0; i < sub.size(); ++i)
     {
         assert(sub[i] < shape[i] && "Index exceeds dimension of tensor");
-        currentResult = sub[i] + shape[i] * currentResult;
+        currentResult += currentMul * sub[i];
+        currentMul *= shape[i];
     }
 
     return currentResult;
@@ -24,14 +26,15 @@ unsigned mv::Tensor::subToInd(const Shape& shape, const dynamic_vector<unsigned>
 mv::dynamic_vector<unsigned> mv::Tensor::indToSub(const Shape& s, unsigned idx)
 {
 
+    assert(s.ndims() > 0 && "Cannot compute subscripts for 0-dimensional shape");
     dynamic_vector<unsigned> sub(s.ndims());
-    sub[s.ndims() - 1] =  idx % s[s.ndims() - 1];
-    int offset = -sub[s.ndims() - 1];
-    int scale = s[s.ndims() - 1];
-    for (int i = s.ndims() - 2; i >= 0; --i)
+    sub[0] =  idx % s[0];
+    int offset = -sub[0];
+    int scale = s[0];
+    for (int i = 1; i < s.ndims(); ++i)
     {   
         sub[i] = (idx + offset) / scale % s[i];
-        offset -= sub[i] * s[i + 1];
+        offset -= sub[i] * s[i - 1];
         scale *= s[i];
     }
 

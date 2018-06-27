@@ -66,8 +66,8 @@ mv::string mv::Printable::toString(Order value)
 {
     switch (value)
     {
-        case Order::NWHC:
-            return "NWHC";
+        case Order::LastDimMajor:
+            return "LastDimMajor";
 
         default:
             return "unknown";

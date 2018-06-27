@@ -54,7 +54,7 @@ namespace mv
 
     enum class Order
     {
-        NWHC,
+        LastDimMajor,
         Unknown
     };
 
