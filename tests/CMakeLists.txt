@@ -21,7 +21,7 @@ file(GLOB pass_src
     "pass/*.cpp"
 )
 
-add_executable(mcm_unit_tests 
+#[[add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     graph_container_test.cpp
     graph_visualizer_test.cpp
@@ -33,7 +33,14 @@ add_executable(mcm_unit_tests
     model_serializer_test.cpp
 )
 target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
+target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})]]
+
+add_executable(mcm_unit_tests 
+    mcm_unit_tests.cpp 
+    base/json.cpp
+)
+target_link_libraries (mcm_unit_tests gtest m)
+target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor})
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")

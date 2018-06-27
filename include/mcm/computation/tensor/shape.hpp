@@ -2,7 +2,7 @@
 #define SHAPE_HPP_
 
 #include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/logger/printable.hpp"
+#include "include/mcm/base/printable.hpp"
 #include "include/mcm/graph/static_vector.hpp"
 
 namespace mv

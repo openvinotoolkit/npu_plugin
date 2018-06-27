@@ -1,4 +1,4 @@
-#include "include/mcm/logger/printable.hpp"
+#include "include/mcm/base/printable.hpp"
 
 mv::Printable::~Printable()
 {

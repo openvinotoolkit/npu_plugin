@@ -3,8 +3,6 @@
 
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
-#include "include/mcm/computation/tensor/shape.hpp"
-#include "include/mcm/computation/model/attribute.hpp"
 
 namespace mv
 {

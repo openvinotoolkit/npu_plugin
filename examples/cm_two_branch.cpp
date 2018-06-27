@@ -50,15 +50,21 @@ int main()
         ++i;
     }
 
-    mv::FStdOStream ostream("cm.dot");
-    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::OpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    bool dotResult = generateDot.run(cm);    
+    mv::FStdOStream ostream("om.dot");
+    mv::pass::GenerateDot generateOMDot(ostream, mv::pass::GenerateDot::OutputScope::OpModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    bool dotResult = generateOMDot.run(om);    
+    if (dotResult)
+        system("dot -Tsvg om.dot -o om.svg");
+
+    ostream.setFileName("cm.dot");
+    mv::pass::GenerateDot generateCMDot(ostream, mv::pass::GenerateDot::OutputScope::ControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    dotResult = generateCMDot.run(cm);    
     if (dotResult)
         system("dot -Tsvg cm.dot -o cm.svg");
 
     ostream.setFileName("dm.dot");
-    mv::pass::GenerateDot generateDot2(ostream, mv::pass::GenerateDot::OutputScope::DataModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    dotResult = generateDot2.run(cm);    
+    mv::pass::GenerateDot generateDMDot(ostream, mv::pass::GenerateDot::OutputScope::DataModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    dotResult = generateDMDot.run(dm);    
     if (dotResult)
         system("dot -Tsvg dm.dot -o dm.svg");
 
