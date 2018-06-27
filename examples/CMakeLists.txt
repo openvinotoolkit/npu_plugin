@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
 project(fathom VERSION 1.0.0)
 
-add_executable(graph_container graph_container.cpp)
+#[[add_executable(graph_container graph_container.cpp)
 target_sources(graph_container PUBLIC ${allocator})
 
 add_executable(computation_model computation_model.cpp)
@@ -28,4 +28,7 @@ target_sources(cm_bias_fuse PUBLIC ${allocator} ${computation_model} ${ops} ${lo
 target_link_libraries(cm_bias_fuse m)
 
 add_executable(conjoined_graph conjoined_graph.cpp)
-target_sources(conjoined_graph PUBLIC ${allocator})
+target_sources(conjoined_graph PUBLIC ${allocator})]]
+
+add_executable(attr attribute.cpp)
+target_sources(attr PUBLIC  ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor})

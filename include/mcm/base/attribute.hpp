@@ -1,9 +1,9 @@
-#ifndef ATTRIBUTE_HPP_
-#define ATTRIBUTE_HPP_
+#ifndef ATTRIBUTE_BACKUP_HPP_
+#define ATTRIBUTE_BACKUP_HPP_
 
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/tensor/shape.hpp"
-#include "include/mcm/logger/printable.hpp"
+#include "include/mcm/base/printable.hpp"
 
 template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value = false }; };
 #define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }
@@ -182,4 +182,4 @@ namespace mv
 
 }
 
-#endif // ATTRIBUTE_HPP_
+#endif // ATTRIBUTE_BACKUP_HPP_

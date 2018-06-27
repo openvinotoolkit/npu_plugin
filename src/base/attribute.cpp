@@ -1,4 +1,4 @@
-#include "include/mcm/computation/model/attribute.hpp"
+#include "include/mcm/base/attribute.hpp"
 
 mv::allocator mv::Attribute::allocator_;
 

@@ -11,6 +11,22 @@ file(GLOB allocator
     "src/graph/base_allocator.cpp"
 )
 
+file(GLOB base
+    "src/base/attribute.cpp"
+    "src/base/printable.cpp"
+    "src/base/stream/ostream.cpp"
+    "src/base/json/object.cpp"
+    "src/base/json/value.cpp"
+    "src/base/json/number_integer.cpp"
+    "src/base/json/number_float.cpp"
+)
+
+file(GLOB tensor
+    "src/computation/tensor/shape.cpp"
+    "src/computation/tensor/tensor.cpp"
+    "src/computation/tensor/math.cpp"
+)
+
 file(GLOB computation_model 
     "src/computation/model/computation_model.cpp"
     "src/api/compositional_model.cpp"
@@ -20,7 +36,6 @@ file(GLOB computation_model
     "src/computation/model/computation_element.cpp"
     "src/computation/op/computation_op.cpp"
     "src/computation/op/kernel_op.cpp"
-    "src/computation/model/attribute.cpp"
     "src/computation/model/computation_group.cpp"
     "src/computation/flow/flow.cpp"
     "src/computation/flow/control_flow.cpp"
@@ -32,11 +47,6 @@ file(GLOB computation_model
     "src/computation/op/pool2d_op.cpp"
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
-    "src/computation/tensor/shape.cpp"
-    "src/computation/tensor/tensor.cpp"
-    "src/computation/tensor/math.cpp"
-    "src/deployer/ostream.cpp"
-    "src/logger/printable.cpp"
 
 )
 
@@ -79,7 +89,7 @@ file(GLOB pass
 
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
-add_subdirectory(examples)
-add_subdirectory(python/api)
+#add_subdirectory(examples)
+#add_subdirectory(python/api)
 
-add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass})
+#add_library(cm SHARED ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass})

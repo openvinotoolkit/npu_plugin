@@ -3,7 +3,7 @@
 
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/logger/logger.hpp"
-#include "include/mcm/deployer/ostream.hpp"
+#include "include/mcm/base/stream/ostream.hpp"
 
 namespace mv
 {
