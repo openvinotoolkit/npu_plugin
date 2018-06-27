@@ -88,6 +88,9 @@ mv::string mv::Attribute::getContentStr() const
         case AttrType::UnsignedVec4DType:
             return Printable::toString(getContent<UnsignedVector4D>());
 
+        case AttrType::FloatVecType:
+            return Printable::toString(getContent<mv::dynamic_vector<float_type>>());
+
         default:
             return "unknown";
 

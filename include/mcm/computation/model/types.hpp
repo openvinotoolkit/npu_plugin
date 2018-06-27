@@ -86,7 +86,8 @@ namespace mv
         IntVec4DType,
         UnsignedVec2DType,
         UnsignedVec3DType,
-        UnsignedVec4DType
+        UnsignedVec4DType,
+        FloatVecType
 
     };
 

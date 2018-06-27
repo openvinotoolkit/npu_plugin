@@ -26,6 +26,7 @@ namespace mv
         static string toString(bool value);
         static string toString(DType value);
         static string toString(Order value);
+        static string toString(const mv::dynamic_vector<float> &value);
         static string toString(AttrType value);
         static string toString(OpType value);
 

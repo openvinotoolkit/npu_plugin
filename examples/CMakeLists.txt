@@ -20,5 +20,9 @@ add_executable(cm_batchnorm_fuse cm_batchnorm_fuse.cpp)
 target_sources(cm_batchnorm_fuse PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
 target_link_libraries(cm_batchnorm_fuse m)
 
+add_executable(cm_bias_fuse cm_bias_fuse.cpp)
+target_sources(cm_bias_fuse PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
+target_link_libraries(cm_bias_fuse m)
+
 add_executable(conjoined_graph conjoined_graph.cpp)
 target_sources(conjoined_graph PUBLIC ${allocator})

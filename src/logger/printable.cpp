@@ -74,6 +74,11 @@ mv::string mv::Printable::toString(Order value)
     }
 }
 
+mv::string mv::Printable::toString(const mv::dynamic_vector<float> &value)
+{
+    return "(" + toString((unsigned_type)value.size()) + ")";
+}
+
 mv::string mv::Printable::toString(AttrType value)
 {
 
@@ -136,6 +141,9 @@ mv::string mv::Printable::toString(AttrType value)
 
         case AttrType::UnsignedVec4DType:
             return "unsignedVec4D";
+
+        case AttrType::FloatVecType:
+            return "floatVec";
 
         default:
             return "unknown";
