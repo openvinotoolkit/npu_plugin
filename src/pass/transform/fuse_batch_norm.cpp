@@ -36,10 +36,20 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             Data::TensorIterator sourceTensor;
             ControlModel cm(om);
 
-            if (bnMean.getShape().ndims() == 1 &&  parentOpIt->getOpType() == OpType::Conv2D)
+            if (bnMean.getShape().ndims() == 1)
             {
-                parentOpIt->getInputTensor(1)->mulitply(scaleParam);
-                sourceTensor = opIt->getInputTensor(0);
+                if (parentOpIt->getOpType() == OpType::Conv2D)
+                {
+                    parentOpIt->getInputTensor(1)->mulitply(scaleParam);
+                    sourceTensor = parentOpIt->getOutputTensor(0);
+                }
+                else
+                {
+                    auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+                    sourceTensor = om.scale(opIt->getInputTensor(0), scale);
+                    cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
+                    parentOpIt = om.getSourceOp(sourceTensor);
+                }
             }
             else
             {
@@ -77,6 +87,7 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             }
             
             om.removeOp(opIt);
+            om.enableDefaultControlFlow(om.getSourceOp(sourceTensor));
 
         }
 

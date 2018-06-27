@@ -200,6 +200,9 @@ mv::string mv::Printable::toString(OpType value)
         case OpType::Reshape:
             return "reshape";
 
+        case OpType::Bias:
+            return "bias";
+
         default:
             return "unknown";
 
