@@ -11,6 +11,7 @@
 
 namespace mv
 {
+
 /// List of supported graph serialization formats
 enum serializer_mode
 {
@@ -48,6 +49,8 @@ class Blob_stage
         uint32_t InputLocation;
         uint32_t InputDataType;
         uint32_t InputOrder;
+        uint32_t Input1Offset;
+        uint32_t Input1Location;
 
         uint32_t OutputDimX;
         uint32_t OutputDimY;
@@ -159,11 +162,14 @@ struct blob_summary {
     uint32_t bias_region_size;
     uint32_t params_region_size;
     uint32_t weights_number_size;
+    uint32_t tensor_number_size;
     uint32_t stage_count;
     uint32_t conv_count;
     uint32_t input_size;
     uint32_t output_size;
     uint32_t blob_file_size;
+    std::vector<uint32_t> relocbuf_list = {  } ;
+    std::vector<uint32_t> relocadr_list = {  } ;
 };
 
 
@@ -189,6 +195,7 @@ class Blob_buffer : public WBuffer
             blob_stats.header_pad_size = align(headers_data_size,0x10)-headers_data_size;
             blob_stats.buffer_header_size = 0x10 ;
             blob_stats.weights_number_size = 2 ;          // TODO assume FP16 
+            blob_stats.tensor_number_size = 2 ;          // TODO assume FP16 
 
             // parse compute model to determine stage dependent sizes
             // initialize values that will increase during parse of graph
@@ -199,6 +206,7 @@ class Blob_buffer : public WBuffer
             blob_stats.bias_region_size = 0 ;  
             blob_stats.params_region_size = 0 ; 
 
+//            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
@@ -230,10 +238,15 @@ class Blob_buffer : public WBuffer
                     blob_stats.stage_section_size += (53*4) ;
                     blob_stats.bias_region_size += 64 ;                                
                     blob_stats.params_region_size += 64 ;    
-                } else if ( it->getOpType() == OpType::MaxPool2D )
+                } else if(( it->getOpType() == OpType::MaxPool2D ) || ( it->getOpType() == OpType::AvgPool2D ))
                 {
                     blob_stats.stage_count++ ;
                     blob_stats.stage_section_size += (3+7+20+2)*4 ;
+                } else if( it->getOpType() == OpType::Add )
+                {
+                    blob_stats.stage_count++ ;
+//                    blob_stats.stage_section_size += (3+30)*4 ;
+                    blob_stats.stage_section_size += (3+32)*4 ;
                 }
             }
 
@@ -338,53 +351,268 @@ class Blob_buffer : public WBuffer
             AddBytes(4, blob_stats.output_size);
        }
 
+//       void add_conv_pool_stage_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
+       void add_conv_pool_stage_info(mv::Control::OpListIterator it, mv::Blob_stage conv_pool_stage)
+       {
+           AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
+           AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
+           AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
+           AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
+           AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
+           AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
+           AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
+           AddBytes(4, conv_pool_stage.InputLocation);
+
+//           std::cout << "added input offset, location : " << conv_pool_stage.InputOffset << " " << conv_pool_stage.InputLocation << std::endl;
+           AddBytes(4, conv_pool_stage.InputDataType);
+           AddBytes(4, conv_pool_stage.InputOrder);
+           AddBytes(4, it->getOutputTensor(0)->getShape()[0]);  // output X-dimension size  (0xb0)
+           AddBytes(4, it->getOutputTensor(0)->getShape()[1]);  // output Y-dimension size
+           AddBytes(4, it->getOutputTensor(0)->getShape()[2]);  // output Z-dimension size
+           AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape()[2]);  // output stepX 
+           AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape()[0]*it->getOutputTensor(0)->getShape()[2]);   // 0xc0
+            AddBytes(4, conv_pool_stage.OutputStrideZ);
+            AddBytes(4, conv_pool_stage.OutputOffset);
+            AddBytes(4, conv_pool_stage.OutputLocation);
+//           std::cout << "      output offset, location : " << conv_pool_stage.OutputOffset << " " << conv_pool_stage.OutputLocation << std::endl;
+            AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
+            AddBytes(4, conv_pool_stage.OutputOrder);
+
+       }
+
        void write_stages(mv::ControlModel& cm)
        {
 
             Blob_stage conv_pool_stage ;
             uint32_t op_count = 0 ;
             uint32_t next_offset = 12 ;
-            uint32_t work_buffer_index = 3 ;
+            uint32_t work_buffer_index = 4 ;
+            std::vector<uint32_t> inbufnum_list = {  } ;
+            std::vector<string> sourcename_list = {  } ;
+            std::vector<uint32_t> outbufsiz_list = {  } ;
+            std::vector<uint32_t> outbufadr_list = {  } ;
+            std::vector<uint32_t> inbufadr_list = {  } ;
+            std::vector<uint32_t> outbufnum_list = {  } ;
+            mv::OpModel om(cm);
 
+            // traverse graph to determine input buffer number, size and source node for each node in the computation
+            // buffer numbers: 1=input 2=output 3=blob-buffersection 4+ = bss work buffer
+            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+//            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            {
+
+                if ((it->getOpType() == OpType::Conv2D)||(it->getOpType() == OpType::AvgPool2D)||(it->getOpType() == OpType::MaxPool2D))
+                {
+                    // determine source  
+                    auto parentIt = om.getSourceOp(it->getInputTensor(0));
+
+                    if (parentIt->getOpType() == OpType::Input)
+                    {
+                        inbufnum_list.push_back(1);
+                        sourcename_list.push_back("Input");
+//                        std::cout << "pushing inbuffer_list 1 Input" << std::endl;
+                    }
+                    else
+                    {
+                        inbufnum_list.push_back(work_buffer_index++);
+                        sourcename_list.push_back(parentIt->getName());
+//                        std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
+                    }
+                } // end single input operator case
+
+                else if (it->getOpType() == OpType::Add) 
+                {
+
+                    for ( int input_index = 0; input_index <2; input_index++ )
+                    {
+                        // determine source 0  
+                        auto parentIt = om.getSourceOp(it->getInputTensor(input_index));
+
+                        if (parentIt->getOpType() == OpType::Input)
+                        {
+                            inbufnum_list.push_back(1);
+                            sourcename_list.push_back("Input");
+//                            std::cout << "pushing inbuffer_list 1 Input 0" << std::endl;
+                        }
+                        else
+                        {
+                            inbufnum_list.push_back(work_buffer_index++);
+                            sourcename_list.push_back(parentIt->getName());
+//                            std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
+                        }
+
+                    }  // end for loop over inputs to ADD node
+                }   // end 2-input, no pad  case
+
+                else if (it->getOpType() == OpType::Output)
+                {
+                    // determine source  
+                    auto parentIt = om.getSourceOp(it->getInputTensor(0));
+
+                    if (parentIt->getOpType() == OpType::Input)
+                    {
+                        inbufnum_list.push_back(1);
+                        sourcename_list.push_back("Input");
+//                        std::cout << "pushing inbuffer_list 1 Input" << std::endl;
+                    }
+                    else
+                    {
+                        inbufnum_list.push_back(2);
+                        sourcename_list.push_back(parentIt->getName());
+//                        std::cout << "pushing inbuffer_list 2 "<< parentIt->getName() << std::endl;
+                    }
+                } // end output node case
+
+            }    // end input buffer calculation pass
+
+            // traverse graph to determine output buffer number and size for each node in the computation
+            // buffer numbers retreived from input buffer list with matching source name
+            // store size and buffer number for later 
             for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
+                int work_buffer_size = 0 ;
+                if (it->getOpType() != OpType::Output)
+                {
+                    int padX = 0;
+                    int padY = 0;
+//                    std::cout << "outbuf list traverse for  "<< it->getName() << std::endl;
+
+                    if (it->getOpType() == OpType::Conv2D)
+                    {
+//                        padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0 + (((it->getInputTensor(1)->getShape()[0])/2)*2) ;
+                        padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0 + 4 ;
+                        padY = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2 ;
+//                        std::cout << "----kernel size/2 *2  "<< (((it->getInputTensor(1)->getShape()[0])/2)*2) << std::endl;
+                    }
+                    else if ((it->getOpType() == OpType::AvgPool2D)||(it->getOpType() == OpType::MaxPool2D))
+                    {
+                        padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0 + 2 ;
+                        padY = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2 ;
+//                        padX = (((it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e0)/2)*1) ;
+//                        padY = (((it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1)/2)*1) ;
+                    } // end padded output operator case
+
+                    // determine size of work buffer including pad for alignment and number format size
+                    int X_size = it->getOutputTensor(0)->getShape()[0]+padX ; 
+                    int Y_size = it->getOutputTensor(0)->getShape()[1]+padY ; 
+                    int C_size = it->getOutputTensor(0)->getShape()[2] ; 
+                    if ((work_buffer_size % 64)== 0) 
+                    {
+                        work_buffer_size += 64 ;
+                    }
+                    work_buffer_size=align(((X_size)*(Y_size)*(C_size)*blob_stats.tensor_number_size),64) ;
+
+                    // find output buffer name in source_name list
+                    for ( uint32_t list_index = 0; list_index < inbufnum_list.size(); list_index++ )
+                    {
+                        if (sourcename_list[list_index] == it->getName())
+                        {
+                            outbufnum_list.push_back(inbufnum_list[list_index]);  
+                            outbufsiz_list.push_back(work_buffer_size);  
+//                            std::cout << "pushing outbuf list num size "<< inbufnum_list[list_index] << " " << work_buffer_size << std::endl;
+                        }
+                    }   // end search inbuflist for match
+                }   // end not-output case (no output tensor from output node)
+            }   // end pass to fill outbuf lists
+
+            // calculate address offset for each work buffer in inbufnum_list
+            int buf_offset = 0 ;
+
+            // find buffer size from outbufsiz_list
+            for ( uint32_t inbuf_index = 0; inbuf_index < inbufnum_list.size(); inbuf_index++ )
+            {
+                uint32_t bufr2size = inbufnum_list[inbuf_index];
+                if ( bufr2size == 1 )
+                {
+                    inbufadr_list.push_back(0);
+//                    std::cout << "pushing bufr adr(in) list inbuf_index off "<< inbuf_index << " 0" << std::endl;
+                }
+                else
+                {
+                    for ( uint32_t obuf_index = 0; obuf_index < outbufnum_list.size(); obuf_index++ )
+                    {
+                        if ( bufr2size == outbufnum_list[obuf_index])
+                        {
+                            inbufadr_list.push_back(buf_offset);
+//                            std::cout << "pushing bufr adr(in) list oindex num size off "<< obuf_index << " " << bufr2size << " " << outbufsiz_list[obuf_index] << " " << buf_offset << std::endl;
+                            buf_offset += outbufsiz_list[obuf_index] ;
+                        }  //  found bufr size
+                    }   // end if WORK buffer
+                }   // end search for inbuf in outnum_list
+            }   // end inbuflist loop
+
+            //  fill outbufadr_list
+            for ( uint32_t obuf_index = 0; obuf_index < outbufnum_list.size(); obuf_index++ )
+            {
+                uint32_t bufr2copy = outbufnum_list[obuf_index];
+                if (bufr2copy > 2)
+                {
+                    for ( uint32_t ibuf_index = 0; ibuf_index < inbufnum_list.size(); ibuf_index++ )
+                    {
+                        if ( bufr2copy == inbufnum_list[ibuf_index])
+                        {
+                            outbufadr_list.push_back(inbufadr_list[ibuf_index]);
+//                            std::cout << "pushing bufr adr (out) list iindex num off "<< ibuf_index << " " << bufr2copy << " " << inbufadr_list[ibuf_index] << std::endl;         
+                        }  //  found bufr size
+                    }   // end WORK buffer case
+                }   // end search inbufnum_list
+            }   // end outbuf list loop
+
+
+            // pass to output stage info -----------------------------------
+            int outlist_index = 0 ;
+            int reloc_index = 0 ;
+            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            {
+
+//                std::cout << "in write_stage_loop op_count = " << op_count << std::endl;
 
                 if ( it->getOpType() == OpType::Conv2D )
                 {
 
-                    // this stage header
                     op_count++;
+                    next_offset += 0xd4 ;
 
-                    // buffer counting
-                    if (op_count == 1)
-                    {
-                        conv_pool_stage.InputOffset = 0 ; 
-                        conv_pool_stage.InputLocation = 1 ;
-                        conv_pool_stage.OutputOffset =  0 ;
-                    }
-                    else
-                    {
-                        conv_pool_stage.InputOffset = 1+(op_count-2)*2 ; 
-                        conv_pool_stage.InputLocation = 4 + (op_count-2) ;
-                    }
+                    // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
+                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
 
-                    if (op_count == blob_stats.stage_count)
+                    // determine address offset to input buffer
+                    if (conv_pool_stage.InputLocation != 1)
                     {
-                        conv_pool_stage.OutputLocation = 0x00000002 ;
-                        conv_pool_stage.OutputOffset = 0x00 ;
-                        conv_pool_stage.next = 0x00 ;
-                    }
-                    else
-                    {
-                        work_buffer_index++ ;
-                        conv_pool_stage.OutputLocation = work_buffer_index ;
-                        next_offset += 0xd4 ;
-                        conv_pool_stage.next = next_offset ;
-                        if (op_count>1) 
+                        //  find input work buffer in output lists
+                        for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
                         {
-                            conv_pool_stage.OutputOffset = conv_pool_stage.InputOffset + 1 ;
-                        }
-                    }                    
+                            if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
+                            {
+                                blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);         
+                                blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
+//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                                conv_pool_stage.InputOffset = reloc_index++;
+                            }
+                        } // end search outbufnum list 
+                    }   // end node input is work buffer case 
+                    else
+                    {
+                        conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
+                    }
+
+                    // determine address offset to output buffer
+                    if (conv_pool_stage.OutputLocation != 2)
+                    {
+                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]); 
+                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]); 
+//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                        conv_pool_stage.OutputOffset = reloc_index++;
+                        conv_pool_stage.next = next_offset ;
+                    }
+                    else 
+                    {
+                        conv_pool_stage.OutputOffset = 0 ;              
+                        conv_pool_stage.next = 0 ;
+                    }
+
+                    outlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x00);                                // 0x60
@@ -398,96 +626,88 @@ class Blob_buffer : public WBuffer
                     // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
                     AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
                     AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
-            AddBytes(4, conv_pool_stage.padStyle);   // 0x80
-            AddBytes(4, conv_pool_stage.dilation);
+                    AddBytes(4, conv_pool_stage.padStyle);   // 0x80
+                    AddBytes(4, conv_pool_stage.dilation);
 
-                    // python helper push
-                    int number_size = 2 ;  // TODO assume FP16
-                    AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
-                    AddBytes(4, number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
-                    AddBytes(4, number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
-                    AddBytes(4, number_size); // InputStrideZ
-            AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
-            AddBytes(4, conv_pool_stage.InputLocation);
-            AddBytes(4, conv_pool_stage.InputDataType);
-            AddBytes(4, conv_pool_stage.InputOrder);
+                    add_conv_pool_stage_info(it, conv_pool_stage);
 
-                    AddBytes(4, it->getOutputTensor(0)->getShape()[0]);  // output X-dimension size  (0xb0)
-                    AddBytes(4, it->getOutputTensor(0)->getShape()[1]);  // output Y-dimension size
-                    AddBytes(4, it->getOutputTensor(0)->getShape()[2]);  // output Z-dimension size
-                    AddBytes(4, number_size*it->getOutputTensor(0)->getShape()[2]);  // output stepX 
-                    AddBytes(4, number_size*it->getOutputTensor(0)->getShape()[0]*it->getOutputTensor(0)->getShape()[2]);   // 0xc0
-            AddBytes(4, conv_pool_stage.OutputStrideZ);
-            AddBytes(4, conv_pool_stage.OutputOffset);
-            AddBytes(4, conv_pool_stage.OutputLocation);
-            AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
-            AddBytes(4, conv_pool_stage.OutputOrder);
+                    AddBytes(4, it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1]);
+                    AddBytes(4, it->getInputTensor(1)->getShape()[2]);
+                    AddBytes(4, it->getInputTensor(1)->getShape()[3]);     // 0xe0   TapsDImZ
 
-            AddBytes(4, it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1]);
-            AddBytes(4, it->getInputTensor(1)->getShape()[2]);
-            AddBytes(4, it->getInputTensor(1)->getShape()[3]);     // 0xe0   TapsDImZ
+                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3]);   // Taps step X
+                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[3]);   // Taps step Y
+                    AddBytes(4, conv_pool_stage.TapsStrideZ);
+                    AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
+                    AddBytes(4, conv_pool_stage.TapsLocation);
+                    AddBytes(4, conv_pool_stage.TapsDataType);
+                    AddBytes(4, conv_pool_stage.TapsOrder);
 
-            AddBytes(4, number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3]);   // Taps step X
-            AddBytes(4, number_size*it->getInputTensor(1)->getShape()[3]);   // Taps step Y
-            AddBytes(4, conv_pool_stage.TapsStrideZ);
-            AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
-            AddBytes(4, conv_pool_stage.TapsLocation);
-            AddBytes(4, conv_pool_stage.TapsDataType);
-            AddBytes(4, conv_pool_stage.TapsOrder);
+                    AddBytes(4, conv_pool_stage.BiasDimX);   // 0x100
+                    AddBytes(4, conv_pool_stage.BiasDimY);
+                    AddBytes(4, conv_pool_stage.BiasDimZ);
+                    AddBytes(4, conv_pool_stage.BiasStrideX);
+                    AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
+                    AddBytes(4, conv_pool_stage.BiasStrideZ);
+                    AddBytes(4, conv_pool_stage.BiasOffset);
+                    AddBytes(4, conv_pool_stage.BiasLocation);
+                    AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
+                    AddBytes(4, conv_pool_stage.BiasOrder);
 
-            AddBytes(4, conv_pool_stage.BiasDimX);   // 0x100
-            AddBytes(4, conv_pool_stage.BiasDimY);
-            AddBytes(4, conv_pool_stage.BiasDimZ);
-            AddBytes(4, conv_pool_stage.BiasStrideX);
-            AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
-            AddBytes(4, conv_pool_stage.BiasStrideZ);
-            AddBytes(4, conv_pool_stage.BiasOffset);
-            AddBytes(4, conv_pool_stage.BiasLocation);
-            AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
-            AddBytes(4, conv_pool_stage.BiasOrder);
+                    AddBytes(4, conv_pool_stage.preop_type);
+                    AddBytes(4, conv_pool_stage.postop_type);    // 0x12c
 
-            AddBytes(4, conv_pool_stage.preop_type);
-            AddBytes(4, conv_pool_stage.postop_type);    // 0x12c
-
-                conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
-                conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
+                    conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
+                    conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
                 }
                 else if ( it->getOpType() == OpType::MaxPool2D )
                 {
-                    // this stage header
                     op_count++;
+                    next_offset += 0x80 ;
 
-                    // buffer counting
-                    if (op_count == 1)
+                    // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
+                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
+
+                    // determine address offset to input buffer
+                    if (conv_pool_stage.InputLocation != 1)
                     {
-                        conv_pool_stage.InputOffset = 0 ;
-                        conv_pool_stage.InputLocation = 1 ;
-                    }
+                        //  find input work buffer in output lists
+                        for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
+                        {
+                            if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
+                            {
+                                blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
+                                blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
+//                    std::cout << "pushing reloc-table MPi "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                        conv_pool_stage.InputOffset = reloc_index++;
+                            }
+                        } // end search outbufnum list 
+                    }   // end node input is work buffer case 
                     else
                     {
-                        conv_pool_stage.InputOffset = 1+(op_count-2)*2 ;
-                        conv_pool_stage.InputLocation = 4 + (op_count-2) ;
+                        conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
                     }
-
-                    if (op_count == blob_stats.stage_count)
+                    // determine address offset to output buffer
+                    if (conv_pool_stage.OutputLocation != 2)
                     {
-                        conv_pool_stage.OutputLocation = 0x00000002 ;
-                        conv_pool_stage.OutputOffset = 0x00 ;
-                        conv_pool_stage.next = 0x00 ;
-                    }
-                    else
-                    {
-                        work_buffer_index++ ;
-                        conv_pool_stage.OutputLocation = work_buffer_index ;
-                        conv_pool_stage.OutputOffset = conv_pool_stage.InputOffset + 1 ;
-                        next_offset += 0x80 ;
+                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
+                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
+//                    std::cout << "pushing reloc-table "<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                        conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
+                    else
+                    {
+                        conv_pool_stage.OutputOffset = 0 ;
+                        conv_pool_stage.next = 0 ;
+                    }
+
+                    outlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
-                    AddBytes(4, 0x00000001);
+                    AddBytes(4, 1);             // opcode for maxpool is 1
+//                    std::cout << "writing opcode=1 for MP " << std::endl;
                     AddBytes(4, conv_pool_stage.implementation);
 
                     // operator specific info
@@ -495,45 +715,180 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1); // radix Y (0x140)
                     AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX 
                     AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
-                    // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
 // TODO temp TF pad                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
 // TODO temp TF pad                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
                     AddBytes(4, 0x00);   // padX
                     AddBytes(4, 0x00);   // padY 0x150
                     AddBytes(4, 0x03);   // padstyle
 
-                    // python helper push
-                    int number_size = 2 ;  // TODO assume FP16
-                    AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x160)
-                    AddBytes(4, number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
-                    AddBytes(4, number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
-                    AddBytes(4, number_size); // InputStrideZ
-            AddBytes(4, conv_pool_stage.InputOffset);     //  0x170
-            AddBytes(4, conv_pool_stage.InputLocation);
-            AddBytes(4, conv_pool_stage.InputDataType);
-            AddBytes(4, conv_pool_stage.InputOrder);
-                    AddBytes(4, it->getOutputTensor(0)->getShape()[0]);  // output X-dimension size  (0x180)
-                    AddBytes(4, it->getOutputTensor(0)->getShape()[1]);  // output Y-dimension size
-                    AddBytes(4, it->getOutputTensor(0)->getShape()[2]);  // output Z-dimension size
-                    AddBytes(4, number_size*it->getOutputTensor(0)->getShape()[2]);  // output stepX 
-                    AddBytes(4, number_size*it->getOutputTensor(0)->getShape()[0]*it->getOutputTensor(0)->getShape()[2]);   // 0x190
-            AddBytes(4, conv_pool_stage.OutputStrideZ);
-            AddBytes(4, conv_pool_stage.OutputOffset);
-            AddBytes(4, conv_pool_stage.OutputLocation);
-            AddBytes(4, conv_pool_stage.OutputDataType);   //0x1a0
-            AddBytes(4, conv_pool_stage.OutputOrder);
-
-            AddBytes(4, conv_pool_stage.preop_type);
+                    add_conv_pool_stage_info(it, conv_pool_stage);
+                    AddBytes(4, conv_pool_stage.preop_type);
                     AddBytes(4, 0x05);    // 0x1ac  postop type
 
                 }
+                else if ( it->getOpType() == OpType::AvgPool2D )
+                {
+                    op_count++;
+                    next_offset += 0x80 ;
+
+                    // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
+                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
+
+                    // determine address offset to input buffer
+                    if (conv_pool_stage.InputLocation != 1)
+                    {
+                        //  find input work buffer in output lists
+                        for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
+                        {
+                            if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
+                            {
+                                blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
+                                blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
+//                    std::cout << "pushing reloc-table "<< reloc_index << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                        conv_pool_stage.InputOffset = reloc_index++;
+                            }
+                        } // end search outbufnum list 
+                    }   // end node input is work buffer case 
+                    else
+                    {
+                        conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
+                    }
+
+                    // determine address offset to output buffer
+                    if (conv_pool_stage.OutputLocation != 2)
+                    {
+                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
+                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
+//                    std::cout << "pushing reloc-table "<< reloc_index << " "  << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                        conv_pool_stage.OutputOffset = reloc_index++;
+                        conv_pool_stage.next = next_offset ;
+                    }
+                    else
+                    {
+                        conv_pool_stage.OutputOffset = 0 ;
+                        conv_pool_stage.next = 0 ;
+                    }
+
+                    outlist_index++;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, 0x02);     // operation type for avgpool
+//                    std::cout << "writing opcode=2 for AP " << std::endl;
+                    AddBytes(4, conv_pool_stage.implementation);
+
+                    // operator specific info
+                    AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e0); // radix X
+                    AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1); // radix Y (0x140)
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX 
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
+// TODO temp TF pad                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
+// TODO temp TF pad                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
+                    AddBytes(4, 0x00);   // padX
+                    AddBytes(4, 0x00);   // padY 0x150
+                    AddBytes(4, 0x03);   // padstyle
+
+                    add_conv_pool_stage_info(it, conv_pool_stage);
+                    AddBytes(4, conv_pool_stage.preop_type);
+                    AddBytes(4, 0x05);    // 0x1ac  postop type
+                }
+                else if ( it->getOpType() == OpType::Add )
+                {
+                    op_count++;
+                    next_offset += 0x8c ;
+//                    next_offset += 0x84 ;
+
+                    // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
+                    conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
+                    uint32_t this_inputLocation ;
+                    uint32_t this_inputOffset ;
+
+                    //  write reloc table entry for 2 inputs
+                    for ( int input_index = 0; input_index < 2; input_index++ )
+                    {
+                        this_inputLocation = inbufnum_list[outlist_index+input_index];
+
+                        // determine address offset to input buffer
+                        if (this_inputLocation != 1)
+                        {
+                            //  find input work buffer in output lists
+                            for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
+                            {
+                                if (this_inputLocation == outbufnum_list[olist_index] )
+                                {
+                                    blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
+                                    blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
+//                                    std::cout << "pushing reloc-table (add) "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+//                                    std::cout << "        olistIndex outbufnum_list.size "<< olist_index << " " << outbufnum_list.size() << std::endl;
+                                    this_inputOffset = reloc_index++;
+                                }
+                            } // end search outbufnum list 
+                        }   // end node input is work buffer case 
+                        else
+                        {
+                            this_inputOffset = 0 ;   // input to node is input to graph
+                        }
+
+                        // 2nd input stage info is written as a TapsBuffer
+                        if (input_index == 0)
+                        {
+                            conv_pool_stage.InputLocation = this_inputLocation;
+                            conv_pool_stage.InputOffset = this_inputOffset;
+                        }
+                        else
+                        {
+                            conv_pool_stage.Input1Location = this_inputLocation;
+                            conv_pool_stage.Input1Offset = this_inputOffset;
+                        }
+
+                    }   // end 2 input loop
+
+                    // determine address offset to output buffer
+                    if (conv_pool_stage.OutputLocation != 2)
+                    {
+                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
+                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
+//                    std::cout << "pushing reloc-table "<< reloc_index << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                        conv_pool_stage.OutputOffset = reloc_index++;
+                        conv_pool_stage.next = next_offset ;
+                    }
+                    else
+                    {
+                        conv_pool_stage.OutputOffset = 0 ;
+                        conv_pool_stage.next = 0 ;
+                    }
+
+                    outlist_index++;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, 0x0c);     // operation type 
+                    AddBytes(4, conv_pool_stage.implementation);
+
+                    // operator specific info
+                    add_conv_pool_stage_info(it, conv_pool_stage);
+
+                    // 2nd input info , same as first except buffer offset and location
+                    AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
+                    AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
+                    AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
+                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
+                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
+                    AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
+
+                    AddBytes(4, conv_pool_stage.Input1Offset);      // 2nd input 
+                    AddBytes(4, conv_pool_stage.Input1Location);    // 2nd Inputr
+                    AddBytes(4, conv_pool_stage.OutputDataType); 
+                    AddBytes(4, conv_pool_stage.OutputOrder);
+                    AddBytes(4, 0x5);    //  preop
+                    AddBytes(4, 0x5);    //  postop
+
+                }
+
             }
 
-            uint32_t valid_stage_end = (0x50+(3*4)+((blob_stats.stage_count-blob_stats.conv_count)*(0x80))+(blob_stats.conv_count*(0xd4))) ;
-            uint32_t buffer_section_offset = align(valid_stage_end,0x10) ;
-            uint32_t stage_pad_size = buffer_section_offset - valid_stage_end  ;
+//            uint32_t valid_stage_end = (0x50+(3*4)+((blob_stats.stage_count-blob_stats.conv_count)*(0x80))+(blob_stats.conv_count*(0xd4))) ;
+            uint32_t buffer_section_offset = align(next_offset,0x10) ;
+            uint32_t stage_pad_size = buffer_section_offset - next_offset  ;
             AddBytes(stage_pad_size, 0x00000000);
         }
 
@@ -558,8 +913,6 @@ class Blob_buffer : public WBuffer
                 {
                     // buffer data section for convolution has 3 regions: taps, bias, and params
                     // size of TAP region = align((roundUp(8,#kernels)*kernelX*kernelY*kernelZ)*dataSize),0x40)
-                    //  TODO       BIAS region = align((#biases*dataSize),0x40) 
-                    //  TODO       PARAMS region = align((#params*dataSize),0x40) 
 
                     // TAPS region
                     // calculate buffer sizes etc related to weights
@@ -702,20 +1055,16 @@ class Blob_buffer : public WBuffer
 
            }  // end graph pass
  
-           // output work buffer relocation info  
-           running_offset=0;
-
-           for (unsigned j=1; j<(blob_stats.stage_count); j++)
+           // output work buffer relocation table 
+           for (unsigned j=0; j<blob_stats.relocbuf_list.size(); j++)
            {
                 // relocation section: work buffer relocation information
-                AddBytes(4, running_offset);          // offset from start of work section
-                AddBytes(4, 3+j);          // memory type =   
-                //  
-                AddBytes(4, running_offset);
-                AddBytes(4, 3+j);               // memory type = heap/bss
+                AddBytes(4, blob_stats.relocadr_list[j]);          // offset from start of work section
+                AddBytes(4, blob_stats.relocbuf_list[j]);          // memory type =   
 
-                running_offset += inworkbuffer_size[j];
-//                std::cout << "running offset, j  = " << running_offset << " " << j << std::endl;
+                cm.logger().log(mv::Logger::MessageType::MessageInfo, "writing reloc table j adr buf  = " + mv::Printable::toString(j) );
+
+//                std::cout << "writing reloc table j adr buf  = " << j << " " << blob_stats.relocadr_list[j] << " " << blob_stats.relocbuf_list[j] << std::endl;
             }    // end loop for work buffer output
 
         }     // end class blob_buffer::write_relocation_section
