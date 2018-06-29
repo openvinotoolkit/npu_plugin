@@ -5,50 +5,36 @@ mv::json::Object::Object()
     
 }
 
-/*bool mv::json::Object::emplace(const std::string& name, const Value& value)
+bool mv::json::Object::emplace(const std::string& key, float value)
 {
-    if (members_.find(name) == members_.end())
-    {
-        members_.emplace(name, std::make_unique);
-        return true;
-    }   
-
-    return false;
-
+    std::unique_ptr<NumberFloat> ptr(new NumberFloat(value));
+    members_.emplace(key, std::move(ptr));
+    return true;
 }
 
-bool mv::json::Object::removeMember(const std::string& name)
+bool mv::json::Object::emplace(const std::string& key, int value)
 {
-
-    if (members_.find(name) != members_.end())
-    {
-        members_.erase(name);
-        return true;
-    }   
-
-    return false;
-
-}*/
-
-/*mv::json::Value& mv::json::Object::getMember(const std::string& name)
-{
-
-    if (members_.find(name) == members_.end())
-        throw std::out_of_range("Object " + name_ + " does not have member " + name);
-    
-    return members_[name];
-
-}*/
-
-/*std::map<std::string, mv::json::Value>::iterator mv::json::Object::begin()
-{
-    return members_.begin();
+    std::unique_ptr<NumberInteger> ptr(new NumberInteger(value));
+    members_.emplace(key, std::move(ptr));
+    return true;
 }
 
-std::map<std::string, mv::json::Value>::iterator mv::json::Object::end()
+bool mv::json::Object::emplace(const std::string& key, const std::string& value)
 {
-    return members_.end();
-}*/
+    return true;
+}
+
+bool mv::json::Object::emplace(const std::string& key, bool value)
+{
+    return true;
+}
+
+bool mv::json::Object::emplace(const std::string& key)
+{
+    std::unique_ptr<Null> ptr(new Null());
+    members_.emplace(key, std::move(ptr));
+    return true;
+}
 
 unsigned mv::json::Object::size() const
 {

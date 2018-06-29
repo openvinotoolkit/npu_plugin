@@ -16,11 +16,30 @@ namespace mv
 
         public:
 
-            String(const std::string& value);
-            operator std::string() const;
-            
-        };  
+            String(const std::string& value) :
+            Value(JSONType::String),
+            value_(value)
+            {
 
+            }
+
+            operator std::string() const
+            {
+                return value_;
+            }
+            
+            std::string& get()
+            {
+                return value_;
+            }
+
+            void set(std::string value)
+            {
+                value_ = value;
+            }
+            
+        }; 
+        
     }
 
 }
