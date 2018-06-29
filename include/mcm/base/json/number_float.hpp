@@ -16,8 +16,32 @@ namespace mv
 
         public:
 
-            NumberFloat(float value);
-            operator float() const;
+            NumberFloat(float value) :
+            Value(JSONType::NumberFloat),
+            value_(value)
+            {
+
+            }
+
+            operator float() const
+            {
+                return value_;
+            }
+            
+            float& get()
+            {
+                return value_;
+            }
+
+            void set(float value)
+            {
+                value_ = value;
+            }
+
+            operator float&() override
+            {
+                return value_;
+            }
             
         };  
 

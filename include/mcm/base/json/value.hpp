@@ -1,5 +1,5 @@
-#ifndef JSON_VALUE_HPP_
-#define JSON_VALUE_HPP_
+#ifndef MV_JSON_VALUE_HPP_
+#define MV_JSON_VALUE_HPP_
 
 #include <string>
 #include <stdexcept>
@@ -25,53 +25,46 @@ namespace mv
             Bool,
             Null
         };
-
-        template <class T_value>
+    
         class Value
         {
 
-            //JSONType valueType_;
+            JSONType valueType_;
 
         public:
 
-            Value()
+            Value(JSONType valueType) :
+            valueType_(valueType)
             {
 
             }
 
-            //JSONType getType() const;
-
-            T_value get()
+            virtual ~Value()
             {
-            
-                return *static_cast<T_value*>(this);
+                
+            }
+
+            template <class T_value>
+            T_value& get()
+            {
+                
+                return static_cast<T_value&>(*this);
 
             }
 
-            template <class T_assign>
-            bool set(const T_assign& value)
+            virtual operator float&()
             {
-                switch(getType())
-                {
-                    
-                    case JSONType::NumberInteger:
-                    {
-                        if (std::is_integral<T_value>::value)
-                        auto ptr = static_cast<NumberInteger*>(this);
-                        ptr->
-                    }
+                throw std::logic_error("");
+            }
 
-                    case JSONType::NumberFloat:
-                        return *static_cast<NumberFloat*>(this);
+            virtual operator int&()
+            {
+                throw std::logic_error("");
+            }
 
-                    case JSONType::String:
-                        return *static_cast<String*>(this);
-
-                    default:
-                        throw std::logic_error("Unknown value type");
-
-                }
-
+            virtual operator std::string&()
+            {
+                throw std::logic_error("");
             }
 
         };  
@@ -80,4 +73,4 @@ namespace mv
 
 }
 
-#endif // JSON_VALUE_HPP_
+#endif // MV_JSON_VALUE_HPP_

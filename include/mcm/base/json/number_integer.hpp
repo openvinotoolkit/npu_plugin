@@ -16,8 +16,27 @@ namespace mv
 
         public:
 
-            NumberInteger(int value);
-            operator int() const;
+            NumberInteger(int value) :
+            Value(JSONType::NumberInteger),
+            value_(value)
+            {
+
+            }
+
+            operator int() const
+            {
+                return value_;
+            }
+            
+            int& get()
+            {
+                return value_;
+            }
+
+            void set(int value)
+            {
+                value_ = value;
+            }
             
         };  
 
