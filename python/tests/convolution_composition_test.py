@@ -97,7 +97,7 @@ class TestComposition(unittest.TestCase):
     def test_matMul(self):
 
         g = ca.getOM()
-        shape = ca.getShape(100, 4)
+        shape = ca.getShape(4, 100)
 
         in_ = ca.input(g, shape)
         weightData = ca.getData(np.arange(100 * 100).astype(np.float32))

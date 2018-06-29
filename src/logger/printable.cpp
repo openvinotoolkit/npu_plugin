@@ -211,6 +211,9 @@ mv::string mv::Printable::toString(OpType value)
         case OpType::Bias:
             return "bias";
 
+        case OpType::FullyConnected:
+            return "fullyConnected";
+
         default:
             return "unknown";
 

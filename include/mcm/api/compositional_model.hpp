@@ -20,7 +20,7 @@ namespace mv
         virtual Data::TensorIterator constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name = "") = 0;
         // padding [pad_left, pad_right, pad_top, pad_bottom]
         virtual Data::TensorIterator conv2D(Data::TensorIterator input, Data::TensorIterator filters, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "") = 0;
-        virtual Data::TensorIterator matMul(Data::TensorIterator input, Data::TensorIterator weights, const string& name = "") = 0;
+        virtual Data::TensorIterator matMul(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") = 0;
         virtual Data::TensorIterator maxpool2D(Data::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "") = 0;
         virtual Data::TensorIterator avgpool2D(Data::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "") = 0;
         virtual Data::TensorIterator concat(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") = 0;
@@ -34,6 +34,7 @@ namespace mv
         virtual Data::TensorIterator divide(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") = 0;
         virtual Data::TensorIterator reshape(Data::TensorIterator input, const Shape& shape, const string& name = "") = 0;
         virtual Data::TensorIterator bias(Data::TensorIterator input, Data::TensorIterator biases, const string& name = "") = 0;
+        virtual Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, const string& name = "") = 0;
 
         virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;
         virtual bool addAttr(Data::OpListIterator op, const string& name, const Attribute& attr) = 0;

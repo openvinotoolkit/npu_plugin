@@ -1,5 +1,5 @@
-#ifndef MAT_MUL_HPP_
-#define MAT_MUL_HPP_
+#ifndef FULLY_CONNECTED_HPP_
+#define FULLY_CONNECTED_HPP_
 
 #include "include/mcm/computation/op/sink_op.hpp"
 #include "include/mcm/computation/op/source_op.hpp"
@@ -12,12 +12,12 @@ namespace mv
     {
 
         /// \todo Add assertions (dimensions)   
-        class MatMul : public SinkOp, public SourceOp
+        class FullyConnected : public SinkOp, public SourceOp
         {
 
         public:
 
-            MatMul(const string &name);
+            FullyConnected(const string &name);
             Tensor getOutputDef(byte_type idx);
 
         };
@@ -26,4 +26,4 @@ namespace mv
 
 }
 
-#endif // MAT_MUL_HPP_
+#endif // FULLY_CONNECTED_HPP_

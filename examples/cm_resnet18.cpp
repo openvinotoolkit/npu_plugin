@@ -67,10 +67,9 @@ int main()
     auto res5a = residualConvBlock(om, res4b, 512, {2, 2});
     auto res5b = residualBlock(om, res5a);
     auto pool5 = om.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
-    pool5 = om.reshape(pool5, mv::Shape(pool5->getShape()[2], 1));
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
-    auto weights = om.constant(weightsData, mv::Shape(1000, pool5->getShape()[0]), mv::DType::Float, mv::Order::LastDimMajor);
-    auto fc1000 = om.matMul(pool5, weights);
+    auto weights = om.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::LastDimMajor);
+    auto fc1000 = om.fullyConnected(pool5, weights);
     auto softmax = om.softmax(fc1000);
 
     om.output(softmax);

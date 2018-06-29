@@ -35,7 +35,7 @@ namespace mv
         Data::TensorIterator output(Data::TensorIterator input, const string& name = "") override;
         Data::TensorIterator constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name = "") override;
         Data::TensorIterator conv2D(Data::TensorIterator input, Data::TensorIterator filters, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "") override;
-        Data::TensorIterator matMul(Data::TensorIterator input, Data::TensorIterator weights, const string& name = "") override;
+        Data::TensorIterator matMul(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") override;
         Data::TensorIterator maxpool2D(Data::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "") override;
         Data::TensorIterator avgpool2D(Data::TensorIterator input, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name = "") override;
         Data::TensorIterator concat(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") override;
@@ -49,6 +49,7 @@ namespace mv
         Data::TensorIterator divide(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") override;
         Data::TensorIterator reshape(Data::TensorIterator input, const Shape& shape, const string& name = "") override;
         Data::TensorIterator bias(Data::TensorIterator input, Data::TensorIterator biases, const string& name = "") override;
+        Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, const string& name = "") override;
 
         bool isValid() const override;
         bool isValid(const Data::TensorIterator& it) const override;

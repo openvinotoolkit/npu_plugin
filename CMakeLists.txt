@@ -59,6 +59,7 @@ file(GLOB ops
     "src/computation/op/def/scale.cpp"
     "src/computation/op/def/softmax.cpp"
     "src/computation/op/def/subtract.cpp"
+    "src/computation/op/def/fully_connected.cpp"
 )
 
 file(GLOB logger

@@ -14,8 +14,7 @@ TEST(ops, conv2D)
     auto convOp = om.getSourceOp(conv);
     auto output = om.output(conv);
 
-    ASSERT_EQ(output->getAttr("shape").getContent<mv::Shape>(), mv::Shape(8, 8, 3));
-
+    ASSERT_EQ(output->getShape(), mv::Shape(8, 8, 3));
     ASSERT_EQ(convOp->getOpType(), mv::OpType::Conv2D);
     ASSERT_EQ(convOp->attrsCount(), 10);
     ASSERT_EQ(convOp->getAttr("stride").getType(), mv::AttrType::UnsignedVec2DType);

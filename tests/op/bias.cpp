@@ -12,7 +12,7 @@ TEST(ops, bias)
     auto biasOp = om.getSourceOp(bias);
     auto output = om.output(bias);
 
-    ASSERT_EQ(output->getAttr("shape").getContent<mv::Shape>(), mv::Shape(32, 32, 16));
+    ASSERT_EQ(output->getShape(), mv::Shape(32, 32, 16));
     ASSERT_EQ(biasOp->getOpType(), mv::OpType::Bias);
     ASSERT_EQ(biasOp->attrsCount(), 8);
     ASSERT_EQ(biasOp->inputSlots(), 2);

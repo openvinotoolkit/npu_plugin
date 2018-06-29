@@ -222,16 +222,16 @@ mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, D
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
 {
     string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::MatMul);
-    auto fullyConnectedIt = dataGraph_.node_insert(allocator_.make_owner<op::MatMul>(opName));
-    Data::TensorIterator inputs[] = {inputTensor, weightsTensor};
-    auto result = defineOp_(fullyConnectedIt, inputs, 2);
+    auto matMulIt = dataGraph_.node_insert(allocator_.make_owner<op::MatMul>(opName));
+    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
+    auto result = defineOp_(matMulIt, inputs, 2);
     if (isValid(result))
         incrementOpsCounter_(OpType::MatMul);
     return result;
@@ -431,6 +431,23 @@ mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator inputTensor, Dat
     if (isValid(result))
         incrementOpsCounter_(OpType::Bias);
     return result;
+}
+
+mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const string& name)
+{
+    string opName;
+    if (name != "")
+        opName = name;
+    else
+        opName = getOpName_(OpType::FullyConnected);
+
+    Data::OpListIterator fullyConnectedIt = dataGraph_.node_insert(allocator_.make_owner<op::FullyConnected>(opName));
+    Data::TensorIterator inputs[] = {inputTensor, weightsTensor};
+    auto result = defineOp_(fullyConnectedIt, inputs, 2);
+    if (isValid(result))
+        incrementOpsCounter_(OpType::FullyConnected);
+    return result;
+    
 }
 
 mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)

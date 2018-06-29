@@ -24,7 +24,8 @@ namespace mv
         Multiply,
         Divide,
         Reshape,
-        Bias
+        Bias,
+        FullyConnected
 
     };
 
