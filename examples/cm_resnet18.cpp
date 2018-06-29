@@ -70,7 +70,7 @@ int main()
     pool5 = om.reshape(pool5, mv::Shape(pool5->getShape()[2], 1));
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
     auto weights = om.constant(weightsData, mv::Shape(1000, pool5->getShape()[0]), mv::DType::Float, mv::Order::LastDimMajor);
-    auto fc1000 = om.fullyConnected(pool5, weights);
+    auto fc1000 = om.matMul(pool5, weights);
     auto softmax = om.softmax(fc1000);
 
     om.output(softmax);

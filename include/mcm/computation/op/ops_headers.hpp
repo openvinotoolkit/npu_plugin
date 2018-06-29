@@ -8,7 +8,7 @@
 #include "include/mcm/computation/op/def/avgpool2d.hpp"
 #include "include/mcm/computation/op/def/concat.hpp"
 #include "include/mcm/computation/op/def/constant.hpp"
-#include "include/mcm/computation/op/def/fully_connected.hpp"
+#include "include/mcm/computation/op/def/matmul.hpp"
 #include "include/mcm/computation/op/def/batch_norm.hpp"
 #include "include/mcm/computation/op/def/scale.hpp"
 #include "include/mcm/computation/op/def/relu.hpp"

@@ -12,12 +12,12 @@ namespace mv
     {
 
         /// \todo Add assertions (dimensions)   
-        class FullyConnected : public SinkOp, public SourceOp
+        class MatMul : public SinkOp, public SourceOp
         {
 
         public:
 
-            FullyConnected(const string &name);
+            MatMul(const string &name);
             Tensor getOutputDef(byte_type idx);
 
         };

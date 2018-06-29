@@ -11,7 +11,7 @@ namespace mv
         Output,
         Constant,
         Conv2D,
-        FullyConnected,
+        MatMul,
         MaxPool2D,
         AvgPool2D,
         Concat,

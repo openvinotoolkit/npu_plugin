@@ -169,8 +169,8 @@ mv::string mv::Printable::toString(OpType value)
         case OpType::Conv2D:
             return "conv2D";
 
-        case OpType::FullyConnected:
-            return "fullyConnected";
+        case OpType::MatMul:
+            return "matMul";
 
         case OpType::MaxPool2D:
             return "maxpool2D";

@@ -49,7 +49,7 @@ file(GLOB ops
     "src/computation/op/def/constant.cpp"
     "src/computation/op/def/conv2d.cpp"
     "src/computation/op/def/divide.cpp"
-    "src/computation/op/def/fully_connected.cpp"
+    "src/computation/op/def/matmul.cpp"
     "src/computation/op/def/input.cpp"
     "src/computation/op/def/maxpool2d.cpp"
     "src/computation/op/def/multiply.cpp"

@@ -1,14 +1,14 @@
-#include "include/mcm/computation/op/def/fully_connected.hpp"
+#include "include/mcm/computation/op/def/matmul.hpp"
 
-mv::op::FullyConnected::FullyConnected(const string &name) :
-ComputationOp(OpType::FullyConnected, name),
-SinkOp(OpType::FullyConnected, 2, name),
-SourceOp(OpType::FullyConnected, 1, name)
+mv::op::MatMul::MatMul(const string &name) :
+ComputationOp(OpType::MatMul, name),
+SinkOp(OpType::MatMul, 2, name),
+SourceOp(OpType::MatMul, 1, name)
 {
     addAttr("executable", AttrType::BoolType, true);
 }
 
-mv::Tensor mv::op::FullyConnected::getOutputDef(byte_type idx)
+mv::Tensor mv::op::MatMul::getOutputDef(byte_type idx)
 {
     
     if (idx > 0)

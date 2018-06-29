@@ -222,18 +222,18 @@ mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, D
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const string& name)
 {
     string opName;
     if (name != "")
         opName = name;
     else
-        opName = getOpName_(OpType::FullyConnected);
-    auto fullyConnectedIt = dataGraph_.node_insert(allocator_.make_owner<op::FullyConnected>(opName));
+        opName = getOpName_(OpType::MatMul);
+    auto fullyConnectedIt = dataGraph_.node_insert(allocator_.make_owner<op::MatMul>(opName));
     Data::TensorIterator inputs[] = {inputTensor, weightsTensor};
     auto result = defineOp_(fullyConnectedIt, inputs, 2);
     if (isValid(result))
-        incrementOpsCounter_(OpType::FullyConnected);
+        incrementOpsCounter_(OpType::MatMul);
     return result;
 }
 

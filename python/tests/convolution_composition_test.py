@@ -94,7 +94,7 @@ class TestComposition(unittest.TestCase):
 
         self.assertTrue(g.isValid())
 
-    def test_fullyConnected(self):
+    def test_matMul(self):
 
         g = ca.getOM()
         shape = ca.getShape(100, 4)
@@ -102,7 +102,7 @@ class TestComposition(unittest.TestCase):
         in_ = ca.input(g, shape)
         weightData = ca.getData(np.arange(100 * 100).astype(np.float32))
         weights_ = ca.constant(g, weightData, ca.getShape(100, 100))
-        mx_ = ca.fullyConnected(g, in_, weights_)
+        mx_ = ca.matMul(g, in_, weights_)
         ca.output(g, mx_)
 
         self.assertTrue(g.isValid())

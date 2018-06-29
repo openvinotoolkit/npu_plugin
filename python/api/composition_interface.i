@@ -142,8 +142,8 @@ import_array();
         return o->getSourceOp(tensor);
     }
 
-    mv::Data::TensorIterator fullyConnected(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights){
-        return o->fullyConnected(input, weights);
+    mv::Data::TensorIterator matMul(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights){
+        return o->matMul(input, weights);
     }
 
     mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding){
@@ -235,7 +235,7 @@ mv::Data::TensorIterator maxpool2D(mv::OpModel * o, mv::Data::TensorIterator inp
 mv::Data::TensorIterator concat(mv::OpModel * o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor);
 
-mv::Data::TensorIterator fullyConnected(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
+mv::Data::TensorIterator matMul(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
 mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding);
 mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, float varianceEps);
 mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
