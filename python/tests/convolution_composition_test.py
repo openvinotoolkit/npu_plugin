@@ -125,7 +125,6 @@ class TestComposition(unittest.TestCase):
         scaleData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
         scale_ = ca.constant(g, scaleData, ca.getShape(28, 28, 4))
 
-
         eps_ = 2
 
         mx_ = ca.batchNorm(g, in_, mean_, variance_, offset_, scale_, eps_)
@@ -176,6 +175,19 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.maxpool2D(g, in_, 1, 1, 1, 1, 0, 0)
         ad_ = ca.add(g, in_, mx_)
         ca.output(g, ad_)
+
+        self.assertTrue(g.isValid())
+
+    def test_bias(self):
+        g = ca.getOM()
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(g, shape)
+
+        data = ca.getData(np.arange(3).astype(np.float32))
+        bias = ca.constant(g, data, ca.getShape(3))
+        bi_ = ca.bias(g, in_, bias)
+        ca.output(g, bi_)
 
         self.assertTrue(g.isValid())
 

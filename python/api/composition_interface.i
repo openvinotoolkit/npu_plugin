@@ -53,6 +53,11 @@ import_array();
         return a;
     }
 
+    mv::Shape * getShape(int x){
+        /// Create a c++ shape object from a passed in set of dimension sizes
+        mv::Shape* a = new mv::Shape(x);
+        return a;
+    }
 
     mv::Shape * getShape(int x, int y){
         /// Create a c++ shape object from a passed in set of dimension sizes
@@ -177,6 +182,9 @@ import_array();
     mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape){
         return o->reshape(input, shape);
     }
+    mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values){
+        return o->bias(input, bias_values);
+    }
  %}
 
 #include <include/mcm/computation/model/op_model.hpp>
@@ -214,6 +222,7 @@ namespace mv
 
 int testSWIG();
 mv::OpModel * getOM();
+mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
 mv::Shape * getShape(int b, int x, int y, int z);
@@ -246,6 +255,7 @@ mv::Data::TensorIterator subtract(mv::OpModel *o,mv::Data::TensorIterator input0
 mv::Data::TensorIterator multiply(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape);
+mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
 
 mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
 
