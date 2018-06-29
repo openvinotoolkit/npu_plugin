@@ -21,7 +21,7 @@ namespace mv
         BatchNorm,
         Add,
         Subtract,
-        Muliply,
+        Multiply,
         Divide,
         Reshape,
         Bias

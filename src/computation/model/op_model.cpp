@@ -378,12 +378,12 @@ mv::Data::TensorIterator mv::OpModel::multiply(Data::TensorIterator input0Tensor
     if (name != "")
         opName = name;
     else
-        opName = getOpName_(OpType::Muliply);
+        opName = getOpName_(OpType::Multiply);
     Data::OpListIterator multiplyIt = dataGraph_.node_insert(allocator_.make_owner<op::Multiply>(opName));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     auto result = defineOp_(multiplyIt, inputs, 2);
     if (isValid(result))
-        incrementOpsCounter_(OpType::Muliply);
+        incrementOpsCounter_(OpType::Multiply);
     return result;
 
 }

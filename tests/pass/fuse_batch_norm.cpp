@@ -59,7 +59,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     
     // Check replacament for batchnorm multiplicative component
     auto mulOp = convOp.leftmostChild();
-    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Muliply);
+    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Multiply);
     ASSERT_EQ(mulOp.childrenSize(), 1);
     ASSERT_TRUE(mulOp->getInputTensor(1)->isPopulated());
 
@@ -239,7 +239,7 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     
     // Check replacament for batchnorm multiplicative component
     auto mulOp = poolOp.leftmostChild();
-    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Muliply);
+    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Multiply);
     ASSERT_EQ(mulOp.childrenSize(), 1);
     ASSERT_TRUE(mulOp->getInputTensor(1)->isPopulated());
 

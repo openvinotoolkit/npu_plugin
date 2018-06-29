@@ -199,7 +199,7 @@ mv::string mv::Printable::toString(OpType value)
         case OpType::Subtract:
             return "subtract";
 
-        case OpType::Muliply:
+        case OpType::Multiply:
             return "multiply";
 
         case OpType::Divide:
