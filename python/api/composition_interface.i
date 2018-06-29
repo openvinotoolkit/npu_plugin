@@ -14,7 +14,11 @@ import_array();
 %{
     #include <include/mcm/computation/model/op_model.hpp>
     #include <include/mcm/computation/model/control_model.hpp>
+    #include <include/mcm/computation/model/computation_model.hpp>
     #include <include/mcm/deployer/serializer.hpp>
+    // For DOT Production
+    #include <include/mcm/deployer/fstd_ostream.hpp>
+    #include <include/mcm/pass/deploy/generate_dot.hpp>
 
     int serialize(mv::OpModel * test_cm){
         mv::ControlModel *cm = new mv::ControlModel(*test_cm);
@@ -185,6 +189,17 @@ import_array();
     mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values){
         return o->bias(input, bias_values);
     }
+
+    void produceDOT(mv::OpModel *o){
+        mv::FStdOStream ostream("pycm.dot");
+        mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+        // mv::ComputationModel *cm = new mv::ComputationModel(*o);
+        bool dotResult = generateDot.run(*o);
+        if (dotResult)
+            printf("Succesful Generation\n");
+            system("dot -Tsvg pycm.dot -o pycm.svg");
+    }
+
  %}
 
 #include <include/mcm/computation/model/op_model.hpp>
@@ -258,6 +273,8 @@ mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, 
 mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
 
 mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
+
+void produceDOT(mv::OpModel *o);
 
 
 int testConv(
