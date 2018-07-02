@@ -318,12 +318,12 @@ mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, con
     if (name != "")
         opName = name;
     else
-        opName = getOpName_(OpType::ReLu);
-    Data::OpListIterator reluIt = dataGraph_.node_insert(allocator_.make_owner<op::ReLu>(opName));
+        opName = getOpName_(OpType::ReLU);
+    Data::OpListIterator reluIt = dataGraph_.node_insert(allocator_.make_owner<op::ReLU>(opName));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(reluIt, inputs, 1);
     if (isValid(result))
-        incrementOpsCounter_(OpType::ReLu);
+        incrementOpsCounter_(OpType::ReLU);
     return result;
 }
 

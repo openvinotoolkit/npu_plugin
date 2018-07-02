@@ -181,7 +181,7 @@ mv::string mv::Printable::toString(OpType value)
         case OpType::Concat:
             return "concat";
         
-        case OpType::ReLu:
+        case OpType::ReLU:
             return "relu";
 
         case OpType::Softmax:

@@ -15,7 +15,7 @@ namespace mv
         MaxPool2D,
         AvgPool2D,
         Concat,
-        ReLu,
+        ReLU,
         Softmax,
         Scale,
         BatchNorm,

@@ -73,6 +73,7 @@ file(GLOB pass
     "src/pass/deploy/generate_dot.cpp"
     "src/pass/transform/fuse_batch_norm.cpp"
     "src/pass/transform/fuse_bias.cpp"
+    "src/pass/transform/fuse_relu.cpp"
 )
 
 add_subdirectory(contrib/googletest)

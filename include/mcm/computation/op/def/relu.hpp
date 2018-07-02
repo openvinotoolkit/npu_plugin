@@ -9,12 +9,12 @@ namespace mv
     namespace op
     {
 
-        class ReLu : public ActivationOp
+        class ReLU : public ActivationOp
         {
 
         public:
 
-            ReLu(const string &name);
+            ReLU(const string &name);
 
         };
 

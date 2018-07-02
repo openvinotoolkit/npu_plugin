@@ -1,8 +1,8 @@
 #include "include/mcm/computation/op/def/relu.hpp"
 
-mv::op::ReLu::ReLu(const string &name) :
-ComputationOp(OpType::ReLu, name),
-ActivationOp(OpType::ReLu, name)
+mv::op::ReLU::ReLU(const string &name) :
+ComputationOp(OpType::ReLU, name),
+ActivationOp(OpType::ReLU, name)
 {
     addAttr("executable", AttrType::BoolType, true);
 }
