@@ -15,10 +15,15 @@ file(GLOB base
     "src/base/attribute.cpp"
     "src/base/printable.cpp"
     "src/base/stream/ostream.cpp"
+    "src/base/json/json.cpp"
     "src/base/json/object.cpp"
     "src/base/json/value.cpp"
     "src/base/json/number_integer.cpp"
     "src/base/json/number_float.cpp"
+    "src/base/json/string.cpp"
+    "src/base/json/bool.cpp"
+    "src/base/json/null.cpp"
+    "src/base/json/exception/*.cpp"
 )
 
 file(GLOB tensor

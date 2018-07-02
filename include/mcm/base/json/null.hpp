@@ -14,12 +14,9 @@ namespace mv
 
         public:
 
-            Null() :
-            Value(JSONType::Null)
-            {
+            Null(Object& owner, const std::string& key);
+            std::string stringify() const override;
 
-            }
-            
         };  
 
     }

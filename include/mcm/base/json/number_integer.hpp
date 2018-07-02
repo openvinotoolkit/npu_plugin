@@ -1,6 +1,7 @@
 #ifndef MV_JSON_NUMBER_INTEGER_HPP_
 #define MV_JSON_NUMBER_INTEGER_HPP_
 
+#include <sstream>
 #include "include/mcm/base/json/value.hpp"
 
 namespace mv
@@ -16,28 +17,10 @@ namespace mv
 
         public:
 
-            NumberInteger(int value) :
-            Value(JSONType::NumberInteger),
-            value_(value)
-            {
+            NumberInteger(Object& owner, const std::string& key, int value);
+            explicit operator int&() override;
+            std::string stringify() const override;
 
-            }
-
-            operator int() const
-            {
-                return value_;
-            }
-            
-            int& get()
-            {
-                return value_;
-            }
-
-            void set(int value)
-            {
-                value_ = value;
-            }
-            
         };  
 
     }
