@@ -16,28 +16,10 @@ namespace mv
 
         public:
 
-            String(const std::string& value) :
-            Value(JSONType::String),
-            value_(value)
-            {
+            String(Object& owner, const std::string& key, const std::string& value);
+            explicit operator std::string&() override;
+            std::string stringify() const override;
 
-            }
-
-            operator std::string() const
-            {
-                return value_;
-            }
-            
-            std::string& get()
-            {
-                return value_;
-            }
-
-            void set(std::string value)
-            {
-                value_ = value;
-            }
-            
         }; 
         
     }

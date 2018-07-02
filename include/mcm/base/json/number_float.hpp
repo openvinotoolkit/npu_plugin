@@ -1,6 +1,7 @@
 #ifndef MV_JSON_NUMBER_FLOAT_HPP_
 #define MV_JSON_NUMBER_FLOAT_HPP_
 
+#include <sstream>
 #include "include/mcm/base/json/value.hpp"
 
 namespace mv
@@ -16,33 +17,10 @@ namespace mv
 
         public:
 
-            NumberFloat(float value) :
-            Value(JSONType::NumberFloat),
-            value_(value)
-            {
+            NumberFloat(Object& owner, const std::string& key, float value);
+            explicit operator float&() override;
+            std::string stringify() const override;
 
-            }
-
-            operator float() const
-            {
-                return value_;
-            }
-            
-            float& get()
-            {
-                return value_;
-            }
-
-            void set(float value)
-            {
-                value_ = value;
-            }
-
-            operator float&() override
-            {
-                return value_;
-            }
-            
         };  
 
     }
