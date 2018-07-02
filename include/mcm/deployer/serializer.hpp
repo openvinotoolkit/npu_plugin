@@ -238,22 +238,31 @@ class Blob_buffer : public WBuffer
                     blob_stats.stage_section_size += (53*4) ;
                     blob_stats.bias_region_size += 64 ;                                
                     blob_stats.params_region_size += 64 ;    
-                } else if(( it->getOpType() == OpType::MaxPool2D ) || ( it->getOpType() == OpType::AvgPool2D ))
+                } else if (( it->getOpType() == OpType::MaxPool2D ) || ( it->getOpType() == OpType::AvgPool2D ))
                 {
                     blob_stats.stage_count++ ;
                     blob_stats.stage_section_size += (3+7+20+2)*4 ;
-                } else if( it->getOpType() == OpType::Add )
+                } else if (( it->getOpType() == OpType::Add) || ( it->getOpType() == OpType::Multiply))
                 {
                     blob_stats.stage_count++ ;
-//                    blob_stats.stage_section_size += (3+30)*4 ;
                     blob_stats.stage_section_size += (3+32)*4 ;
                 }
+                else if (it->getOpType() == OpType::Softmax)
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += (3+21+2)*4 ;
+                }
+
             }
 
             blob_stats.output_size = cm.getLast()->getInputTensor(0)->getShape()[0] * cm.getLast()->getInputTensor(0)->getShape()[1] * cm.getLast()->getInputTensor(0)->getShape()[2];
             blob_stats.stage_section_size = align(blob_stats.stage_section_size, 16) ;
             blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size + blob_stats.params_region_size ;
 
+            if (blob_stats.relocation_section_size % 16 == 0)
+            {
+                blob_stats.relocation_section_size += 16;
+            }
             blob_stats.relocation_section_size = 20 + 16*blob_stats.conv_count + 16*(blob_stats.stage_count-1) ;
 //            std::cout << "headers_data_size = "<< headers_data_size << std::endl;
 //            std::cout << "blob_stats.header_pad_size = "<< blob_stats.header_pad_size << std::endl;
@@ -351,8 +360,8 @@ class Blob_buffer : public WBuffer
             AddBytes(4, blob_stats.output_size);
        }
 
-//       void add_conv_pool_stage_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
-       void add_conv_pool_stage_info(mv::Control::OpListIterator it, mv::Blob_stage conv_pool_stage)
+//       void add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
+       void add_stage_IO_info(mv::Control::OpListIterator it, mv::Blob_stage conv_pool_stage)
        {
            AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
            AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
@@ -401,7 +410,7 @@ class Blob_buffer : public WBuffer
 //            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
 
-                if ((it->getOpType() == OpType::Conv2D)||(it->getOpType() == OpType::AvgPool2D)||(it->getOpType() == OpType::MaxPool2D))
+                if ((it->getOpType() == OpType::Conv2D)||(it->getOpType() == OpType::AvgPool2D)||(it->getOpType() == OpType::MaxPool2D)||(it->getOpType() == OpType::Softmax))
                 {
                     // determine source  
                     auto parentIt = om.getSourceOp(it->getInputTensor(0));
@@ -420,8 +429,16 @@ class Blob_buffer : public WBuffer
                     }
                 } // end single input operator case
 
-                else if (it->getOpType() == OpType::Add) 
+                else if ((it->getOpType() == OpType::Add) || (it->getOpType() == OpType::Multiply)) 
                 {
+                    if (it->getOpType() == OpType::Add)
+                    {
+//                       std::cout << "detected optype ADD" << std::endl;
+                    }
+                    else
+                    {
+//                       std::cout << "detected optype Multiply" << std::endl;
+                    }
 
                     for ( int input_index = 0; input_index <2; input_index++ )
                     {
@@ -496,10 +513,6 @@ class Blob_buffer : public WBuffer
                     int X_size = it->getOutputTensor(0)->getShape()[0]+padX ; 
                     int Y_size = it->getOutputTensor(0)->getShape()[1]+padY ; 
                     int C_size = it->getOutputTensor(0)->getShape()[2] ; 
-                    if ((work_buffer_size % 64)== 0) 
-                    {
-                        work_buffer_size += 64 ;
-                    }
                     work_buffer_size=align(((X_size)*(Y_size)*(C_size)*blob_stats.tensor_number_size),64) ;
 
                     // find output buffer name in source_name list
@@ -629,7 +642,7 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.padStyle);   // 0x80
                     AddBytes(4, conv_pool_stage.dilation);
 
-                    add_conv_pool_stage_info(it, conv_pool_stage);
+                    add_stage_IO_info(it, conv_pool_stage);
 
                     AddBytes(4, it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1]);
                     AddBytes(4, it->getInputTensor(1)->getShape()[2]);
@@ -660,6 +673,66 @@ class Blob_buffer : public WBuffer
                     conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
                     conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
                 }
+                else if ( it->getOpType() == OpType::Softmax )
+                {
+
+                    op_count++;
+                    next_offset += 0x68 ;
+
+                    // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
+                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
+
+                    // determine address offset to input buffer
+                    if (conv_pool_stage.InputLocation != 1)
+                    {
+                        //  find input work buffer in output lists
+                        for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
+                        {
+                            if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
+                            {
+                                blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
+                                blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
+//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                                conv_pool_stage.InputOffset = reloc_index++;
+                            }
+                        } // end search outbufnum list 
+                    }   // end node input is work buffer case 
+                    else
+                    {
+                        conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
+                    }
+
+                    // determine address offset to output buffer
+                    if (conv_pool_stage.OutputLocation != 2)
+                    {
+                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
+                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]); 
+//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                        conv_pool_stage.OutputOffset = reloc_index++;
+                        conv_pool_stage.next = next_offset ;
+                    }
+                    else
+                    {
+                        conv_pool_stage.OutputOffset = 0 ;
+                        conv_pool_stage.next = 0 ;
+                    }
+
+                    outlist_index++;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, 0x03);   // opcode for softmax  
+                    AddBytes(4, conv_pool_stage.implementation);
+
+                    // operator specific info
+                    AddBytes(4, 0x00); // softmax axis
+
+                    add_stage_IO_info(it, conv_pool_stage);
+
+                    AddBytes(4, conv_pool_stage.preop_type);
+                    AddBytes(4, conv_pool_stage.postop_type);  
+
+                }    // end softmax case
                 else if ( it->getOpType() == OpType::MaxPool2D )
                 {
                     op_count++;
@@ -721,7 +794,7 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, 0x00);   // padY 0x150
                     AddBytes(4, 0x03);   // padstyle
 
-                    add_conv_pool_stage_info(it, conv_pool_stage);
+                    add_stage_IO_info(it, conv_pool_stage);
                     AddBytes(4, conv_pool_stage.preop_type);
                     AddBytes(4, 0x05);    // 0x1ac  postop type
 
@@ -788,11 +861,11 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, 0x00);   // padY 0x150
                     AddBytes(4, 0x03);   // padstyle
 
-                    add_conv_pool_stage_info(it, conv_pool_stage);
+                    add_stage_IO_info(it, conv_pool_stage);
                     AddBytes(4, conv_pool_stage.preop_type);
                     AddBytes(4, 0x05);    // 0x1ac  postop type
                 }
-                else if ( it->getOpType() == OpType::Add )
+                else if (( it->getOpType() == OpType::Add ) || ( it->getOpType() == OpType::Multiply ))
                 {
                     op_count++;
                     next_offset += 0x8c ;
@@ -861,11 +934,20 @@ class Blob_buffer : public WBuffer
                     outlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
-                    AddBytes(4, 0x0c);     // operation type 
+
+                    if (it->getOpType() == OpType::Add)
+                    {
+                        AddBytes(4, 0x0c);     // operation type Add
+                    }
+                    else
+                    {
+                        AddBytes(4, 0x2e);     // operation type Multiply
+                    }
+
                     AddBytes(4, conv_pool_stage.implementation);
 
                     // operator specific info
-                    add_conv_pool_stage_info(it, conv_pool_stage);
+                    add_stage_IO_info(it, conv_pool_stage);
 
                     // 2nd input info , same as first except buffer offset and location
                     AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
@@ -932,7 +1014,7 @@ class Blob_buffer : public WBuffer
                     // write weights and pad to file
                     for (unsigned i=0; i< buffer_taps_weights_len; i++)
                     {
-                        uint16_t cur_weight = f32Tof16(it->getInputTensor(1)->getData()[i]) ; 
+                        uint16_t cur_weight = f32Tof16(it->getInputTensor(1)->getData()[i]) ;  // TODO assume fp16
                         AddBytes(weights_number_size, cur_weight) ; 
                     }
 
@@ -993,10 +1075,7 @@ class Blob_buffer : public WBuffer
 
             // write buffer data relocation info
             uint32_t running_offset = 0 ;
-            uint32_t prev_out_X_size = 0 ;
-            uint32_t prev_out_Y_size = 0 ;
             uint32_t node_index = 0 ;
-            mv::dynamic_vector<uint32_t> inworkbuffer_size ;
 
             for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
@@ -1021,36 +1100,12 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, 0x00000003);          // memory type = heap/b
                     running_offset += bias_region_size + params_region_size ;
 
-                    // calculate input size including pad (work buffer size for intermediete tensor)
-                    if (node_index>0)
-                    {
-                        inworkbuffer_size.push_back(align(((prev_out_X_size+0)*(prev_out_Y_size+0)*2),64)+64);
-                        prev_out_X_size = 30 ;
-                        prev_out_Y_size = 30 ;
-                    }
-
                 }   // end convolution case
 
-                if ( it->getOpType() == OpType::MaxPool2D )
+                if ( it->getOpType() == OpType::Softmax )
                 {
-                   // calculate input size including pad (work buffer size for intermediete tensor)
-                   if (node_index>0)
-                   {
-                       uint32_t buf_size = ((prev_out_X_size+2)*(prev_out_Y_size+2)*2);
-                       if ((buf_size % 64)==0)
-                       {
-                           inworkbuffer_size.push_back(((prev_out_X_size+2)*(prev_out_Y_size+2)*2));
-                       }
-                       else 
-                       {
-                           inworkbuffer_size.push_back(align(((prev_out_X_size+2)*(prev_out_Y_size+2)*2),64));
-                       }
 
-                       prev_out_X_size = 10 ;
-                       prev_out_Y_size = 10 ;
-                   }
-
-                }     // end maxpool case
+                }     // end softmaxcase
                 node_index++;
 
            }  // end graph pass
