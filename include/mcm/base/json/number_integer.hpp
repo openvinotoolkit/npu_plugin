@@ -2,7 +2,7 @@
 #define MV_JSON_NUMBER_INTEGER_HPP_
 
 #include <sstream>
-#include "include/mcm/base/json/value.hpp"
+#include "include/mcm/base/json/value_content.hpp"
 
 namespace mv
 {
@@ -10,15 +10,15 @@ namespace mv
     namespace json
     {
 
-        class NumberInteger : public Value
+        class NumberInteger : public ValueContent
         {
 
             int value_;
 
         public:
 
-            NumberInteger(Object& owner, const std::string& key, int value);
-            explicit operator int&() override;
+            NumberInteger(int value);
+            explicit operator int&();
             std::string stringify() const override;
 
         };  

@@ -1,7 +1,6 @@
 #include "include/mcm/base/json/number_integer.hpp"
 
-mv::json::NumberInteger::NumberInteger(Object& owner, const std::string& key, int value) :
-Value(owner, key, JSONType::NumberInteger),
+mv::json::NumberInteger::NumberInteger(int value) :
 value_(value)
 {
 

@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include "include/mcm/base/json/object.hpp"
 #include "include/mcm/base/json/value.hpp"
+#include "include/mcm/base/json/array.hpp"
+#include "include/mcm/base/json/number_float.hpp"
 
 TEST(json, root)
 {
@@ -73,6 +75,19 @@ TEST(json, object_value)
 
 }
 
+TEST(json, array_value)
+{
+
+    float floatVal1 = 1.0f;
+    float floatVal2 = 2.0f;
+    mv::json::Array array({floatVal1, floatVal2});
+    mv::json::Object root;
+    root["arrayValue"] = array;
+    ASSERT_EQ(root["arrayValue"][0].get<float>(), floatVal1);
+    ASSERT_EQ(root["arrayValue"][1].get<float>(), floatVal2);
+
+}
+
 TEST(json, reassign_value_type)
 {
 
@@ -100,26 +115,100 @@ TEST(json, reassign_value_type)
 
 }
 
-TEST(json, stringify)
+TEST(json, copy_assign_object)
 {
 
-    float floatVal = 1.0f;
-    std::string floatStr = "1.0";
-    int intVal = 1;
-    std::string intStr = "1";
-    std::string strVal = "str";
-    std::string strStr =  "\"" + strVal + "\"";
-    bool boolVal = true;
-    std::string boolStr = "true";
-    mv::json::Object root;
+    int val1 = 1;
+    float val1mod = 5.0f;
 
+    mv::json::Object obj1;
+    obj1["val1"] = val1;
+    mv::json::Object obj2;
+    obj2["val2"] = obj1;
+    obj1["val1"] = val1mod;
+
+    ASSERT_EQ(obj2["val2"]["val1"].get<int>(), val1);
+    ASSERT_EQ(obj1["val1"].get<float>(), val1mod);
+
+}
+
+TEST(json, stringify_values)
+{
+
+    int intVal = 1;
+    float floatVal = 1.0f;
+    std::string strVal = "str";
+    bool boolVal = true;
+    mv::json::Value nullVal;
+    mv::json::Object objVal;
+    mv::json::Array arrVal;
+
+    std::string intStr = "1";
+    std::string floatStr = "1.0";
+    std::string strStr =  "\"" + strVal + "\"";
+    std::string boolStr = "true";
+    std::string nullStr = "null";
+    std::string objStr = "{}";
+    std::string arrStr = "[]";
+
+    mv::json::Object root;
     root["floatValue"] = floatVal;
-    ASSERT_EQ(root["floatValue"].stringify(), floatStr);
     root["intValue"] = intVal;
-    ASSERT_EQ(root["intValue"].stringify(), intStr);
     root["strValue"] = strVal;
-    ASSERT_EQ(root["strValue"].stringify(), strStr);
     root["boolValue"] = boolVal;
+    root["nullValue"] = nullVal;
+    root["objValue"] = objVal;
+    root["arrValue"] = arrVal;
+
+    ASSERT_EQ(root["floatValue"].stringify(), floatStr);
+    ASSERT_EQ(root["intValue"].stringify(), intStr);
+    ASSERT_EQ(root["strValue"].stringify(), strStr);
     ASSERT_EQ(root["boolValue"].stringify(), boolStr);
+    ASSERT_EQ(root["nullValue"].stringify(), nullStr);
+    ASSERT_EQ(root["objValue"].stringify(), objStr);
+    ASSERT_EQ(root["arrValue"].stringify(), arrStr);
+
+}
+
+TEST(json, stringify_array)
+{
+
+    int intVal = 1;
+    float floatVal = 1.0f;
+    std::string strVal = "str";
+    bool boolVal = true;
+    mv::json::Value nullVal;
+    mv::json::Object objVal;
+    mv::json::Array arrVal(
+        {intVal, floatVal, strVal, boolVal, nullVal, objVal}
+    );
+
+    mv::json::Object root;
+    root["arrayValue"] = arrVal;
+    std::string arrStr = "[1,1.0,\"str\",true,null,{}]";
+    ASSERT_EQ(root["arrayValue"].stringify(), arrStr);
+
+}
+
+TEST(json, stringify_object)
+{
+
+    int intVal = 1;
+    float floatVal = 1.0f;
+    std::string strVal = "str";
+    bool boolVal = true;
+    mv::json::Value nullVal;
+    mv::json::Array arrVal;
+    
+    mv::json::Object root = {
+        {"intValue", intVal},
+        {"floatValue", floatVal},
+        {"strValue", strVal},
+        {"boolValue", boolVal},
+        {"nullValue", nullVal},
+        {"arrValue", arrVal}
+    };
+    std::string objStr = "{\"arrValue\":[],\"nullValue\":null,\"boolValue\":true,\"strValue\":\"str\",\"floatValue\":1.0,\"intValue\":1}";
+    ASSERT_EQ(root.stringify(), objStr);
 
 }

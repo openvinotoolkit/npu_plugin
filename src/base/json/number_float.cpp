@@ -1,7 +1,6 @@
 #include "include/mcm/base/json/number_float.hpp"
 
-mv::json::NumberFloat::NumberFloat(Object& owner, const std::string& key, float value) :
-Value(owner, key, JSONType::NumberFloat),
+mv::json::NumberFloat::NumberFloat(float value) :
 value_(value)
 {
 

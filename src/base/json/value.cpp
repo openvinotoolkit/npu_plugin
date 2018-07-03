@@ -4,6 +4,8 @@
 #include "include/mcm/base/json/string.hpp"
 #include "include/mcm/base/json/bool.hpp"
 #include "include/mcm/base/json/object.hpp"
+#include "include/mcm/base/json/array.hpp"
+#include "include/mcm/base/json/null.hpp"
 
 const std::map<mv::json::JSONType, std::string> mv::json::Value::typeString_ =
 {
@@ -13,142 +15,121 @@ const std::map<mv::json::JSONType, std::string> mv::json::Value::typeString_ =
     {mv::json::JSONType::NumberFloat, "number (float)"},
     {mv::json::JSONType::NumberInteger, "number (integer)"},
     {mv::json::JSONType::Object, "object"},
-    {mv::json::JSONType::String, "string"},
-    {mv::json::JSONType::Unknown, "unknown"}
+    {mv::json::JSONType::String, "string"}
 
 };
 
-mv::json::Value::Value(Object& owner, const std::string& key, JSONType valueType) :
-valueType_(valueType),
-owner_(&owner),
-key_(key)
-{
-
-}
-
 mv::json::Value::Value() :
+valueType_(JSONType::Null),
+content_(std::unique_ptr<Null>(new Null()))
+{
+
+}
+
+mv::json::Value::Value(float value) :
+valueType_(JSONType::NumberFloat),
+content_(std::unique_ptr<NumberFloat>(new NumberFloat(value)))
+{
+
+}
+
+mv::json::Value::Value(int value) :
+valueType_(JSONType::NumberInteger),
+content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
+{
+
+}
+
+mv::json::Value::Value(const std::string& value) :
+valueType_(JSONType::String),
+content_(std::unique_ptr<String>(new String(value)))
+{
+
+}
+
+mv::json::Value::Value(bool value) :
+valueType_(JSONType::Bool),
+content_(std::unique_ptr<Bool>(new Bool(value)))
+{
+
+}
+
+mv::json::Value::Value(const Object& value) :
 valueType_(JSONType::Object),
-owner_(nullptr),
-key_("")
+content_(std::unique_ptr<Object>(new Object(value)))
 {
 
 }
 
-mv::json::Value::Value(const Value& other) :
-valueType_(other.valueType_),
-owner_(other.owner_),
-key_(other.key_)
+mv::json::Value::Value(const Array& value) :
+valueType_(JSONType::Array),
+content_(std::unique_ptr<Array>(new Array(value)))
 {
 
 }
 
-mv::json::Value::~Value()
+mv::json::Value::Value(const Value& other)
 {
-    
-}
-
-mv::json::Value::operator float&()
-{
-    throw ValueError("Unable to obtain a float content from a JSON value of type " + typeString_.at(valueType_));
-}
-
-mv::json::Value::operator int&()
-{
-    throw ValueError("Unable to obtain an int content from a JSON value of type " + typeString_.at(valueType_));
-}
-
-mv::json::Value::operator std::string&()
-{
-    throw ValueError("Unable to obtain a string content from a JSON value of type " + typeString_.at(valueType_));
-}
-
-mv::json::Value::operator bool&()
-{
-    throw ValueError("Unable to obtain a bool content from a JSON value of type " + typeString_.at(valueType_));
-}
-
-mv::json::Value::operator Object&()
-{
-    throw ValueError("Unable to obtain a JSON object content from a JSON value of type " + typeString_.at(valueType_));
+    operator=(other);
 }
 
 mv::json::Value& mv::json::Value::operator=(float value)
 {
-    
-    if (owner_ == nullptr)
-    {
-        throw ValueError("Unable to assign a value with undefined owner object");
-    }
 
-    // Postpone the deletion of this object until the end of the current scope
-    auto ptr = std::move(owner_->members_[key_]);
-    owner_->erase(key_);
-    owner_->emplace(key_, value);
-    return (*owner_)[key_];
+    content_.reset();
+    content_ = std::unique_ptr<NumberFloat>(new NumberFloat(value));
+    valueType_ = JSONType::NumberFloat;
+    return *this;
 
 }
 
 mv::json::Value& mv::json::Value::operator=(int value)
 {
 
-    if (owner_ == nullptr)
-    {
-        throw ValueError("Unable to assign a value with undefined owner object");
-    }
-
-    // Postpone the deletion of this object until the end of the current scope
-    auto ptr = std::move(owner_->members_[key_]);
-    owner_->erase(key_);
-    owner_->emplace(key_, value);
-    return (*owner_)[key_];
+    content_.reset();
+    content_ = std::unique_ptr<NumberInteger>(new NumberInteger(value));
+    valueType_ = JSONType::NumberInteger;
+    return *this;
 
 }
 
 mv::json::Value& mv::json::Value::operator=(const std::string& value)
 {
 
-    if (owner_ == nullptr)
-    {
-        throw ValueError("Unable to assign a value with undefined owner object");
-    }
-
-    // Postpone the deletion of this object until the end of the current scope
-    auto ptr = std::move(owner_->members_[key_]);
-    owner_->erase(key_);
-    owner_->emplace(key_, value);
-    return (*owner_)[key_];
+    content_.reset();
+    content_ = std::unique_ptr<String>(new String(value));
+    valueType_ = JSONType::String;
+    return *this;
 
 }
 
 mv::json::Value& mv::json::Value::operator=(bool value)
 {
 
-    if (owner_ == nullptr)
-    {
-        throw ValueError("Unable to assign a value with undefined owner object");
-    }
-
-    // Postpone the deletion of this object until the end of the current scope
-    auto ptr = std::move(owner_->members_[key_]);
-    owner_->erase(key_);
-    owner_->emplace(key_, value);
-    return (*owner_)[key_];
+    content_.reset();
+    content_ = std::unique_ptr<Bool>(new Bool(value));
+    valueType_ = JSONType::Bool;
+    return *this;
 
 }
 
 mv::json::Value& mv::json::Value::operator=(const Object& value)
 {
 
-    if (owner_ == nullptr)
-    {
-        throw ValueError("Unable to assign a value with undefined owner object");
-    }
+    content_.reset();
+    content_ = std::unique_ptr<Object>(new Object(value));
+    valueType_ = JSONType::Object;
+    return *this;
 
-    // Postpone the deletion of this object until the end of the current scope
-    auto ptr = std::move(owner_->members_[key_]);
-    owner_->erase(key_);
-    owner_->emplace(key_, value);
-    return (*owner_)[key_];
+}
+
+mv::json::Value& mv::json::Value::operator=(const Array& value)
+{
+
+    content_.reset();
+    content_ = std::unique_ptr<Array>(new Array(value));
+    valueType_ = JSONType::Array;
+    return *this;
 
 }
 
@@ -157,13 +138,24 @@ mv::json::Value& mv::json::Value::operator[](const std::string& key)
 
     if (valueType_ == JSONType::Object)
     {
-        auto objPtr = static_cast<Object*>(this);
+        auto objPtr = static_cast<Object*>(content_.get());
         return (*objPtr)[key];
     }
 
-    Value& objValue = operator=(Object(*owner_, key));
+    Value& objValue = operator=(Object());
     return objValue[key];
 
+}
+
+mv::json::Value& mv::json::Value::operator[](unsigned idx)
+{
+
+    if (valueType_ != JSONType::Array)
+        throw ValueError("Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON array");
+
+    auto arrPtr = static_cast<Array*>(content_.get());
+    return (*arrPtr)[idx];
+    
 }
 
 mv::json::JSONType mv::json::Value::valueType() const
@@ -171,10 +163,47 @@ mv::json::JSONType mv::json::Value::valueType() const
     return valueType_;
 }
 
+std::string mv::json::Value::stringify() const
+{
+    return content_->stringify();
+}
+
 mv::json::Value& mv::json::Value::operator=(const Value& other)
 {
     valueType_ = other.valueType_;
-    owner_ = other.owner_;
-    key_ = other.key_;
+    content_.reset();
+    switch (valueType_)
+    {
+
+        case mv::json::JSONType::Array:
+            content_ = std::unique_ptr<Array>(new Array(*(Array*)other.content_.get()));
+            break;
+
+        case mv::json::JSONType::Bool:
+            content_ = std::unique_ptr<Bool>(new Bool((bool)*other.content_.get()));
+            break;
+
+        case mv::json::JSONType::Null:
+            content_ = std::unique_ptr<Null>(new Null());
+            break;
+
+        case mv::json::JSONType::NumberFloat:
+            content_ = std::unique_ptr<NumberFloat>(new NumberFloat((float)*other.content_.get()));
+            break;
+
+        case mv::json::JSONType::NumberInteger:
+            content_ = std::unique_ptr<NumberInteger>(new NumberInteger((int)*other.content_.get()));
+            break;
+        
+        case mv::json::JSONType::Object:
+            content_ = std::unique_ptr<Object>(new Object(*(Object*)other.content_.get()));
+            break;
+
+        case mv::json::JSONType::String:
+            content_ = std::unique_ptr<String>(new String((std::string)*other.content_.get()));
+            break;
+
+    }
+    
     return *this;
 }

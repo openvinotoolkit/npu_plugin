@@ -1,7 +1,6 @@
 #include "include/mcm/base/json/string.hpp"
 
-mv::json::String::String(Object& owner, const std::string& key, const std::string& value) :
-Value(owner, key, JSONType::String),
+mv::json::String::String(const std::string& value) :
 value_(value)
 {
 
