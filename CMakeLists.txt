@@ -97,4 +97,4 @@ add_subdirectory(tests)
 add_subdirectory(examples)
 add_subdirectory(python/api)
 
-add_library(cm SHARED ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass})
+add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor})

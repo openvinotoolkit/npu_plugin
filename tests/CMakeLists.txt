@@ -32,8 +32,6 @@ add_executable(mcm_unit_tests
     ${pass_src}
     model_serializer_test.cpp
 )
-target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
 
 target_link_libraries (mcm_unit_tests gtest m)
 target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor})

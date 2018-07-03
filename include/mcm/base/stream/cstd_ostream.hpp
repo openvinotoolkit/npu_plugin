@@ -2,7 +2,7 @@
 #define CSTD_OSTREAM_HPP_
 
 #include <iostream>
-#include "include/mcm/deployer/ostream.hpp"
+#include "include/mcm/base/stream/ostream.hpp"
 
 namespace mv
 {
