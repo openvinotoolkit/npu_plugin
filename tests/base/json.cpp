@@ -64,8 +64,12 @@ TEST(json, bool_value)
 TEST(json, object_value)
 {
 
+    float floatVal1 = 1.0f;
+    float floatVal2 = 2.0f;
     mv::json::Object root;
-    root["objectValue"]["floatValue"] = 1.0f;
+    root["objectValue"]["floatValue1"] = floatVal1;
+    root["floatValue2"] = floatVal2;
+    ASSERT_EQ(root["objectValue"]["floatValue1"].get<float>(), floatVal1);
 
 }
 
@@ -107,7 +111,7 @@ TEST(json, stringify)
     std::string strStr =  "\"" + strVal + "\"";
     bool boolVal = true;
     std::string boolStr = "true";
-    mv::json::JSON root;
+    mv::json::Object root;
 
     root["floatValue"] = floatVal;
     ASSERT_EQ(root["floatValue"].stringify(), floatStr);

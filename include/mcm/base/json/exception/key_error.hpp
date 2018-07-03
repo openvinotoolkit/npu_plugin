@@ -1,3 +1,6 @@
+#ifndef MV_JSON_KEY_ERROR_HPP_
+#define MV_JSON_KEY_ERROR_HPP_
+
 #include <stdexcept>
 
 namespace mv
@@ -17,3 +20,5 @@ namespace mv
     }
 
 }
+
+#endif // MV_JSON_KEY_ERROR_HPP_

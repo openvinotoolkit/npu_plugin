@@ -34,6 +34,14 @@ key_("")
 
 }
 
+mv::json::Value::Value(const Value& other) :
+valueType_(other.valueType_),
+owner_(other.owner_),
+key_(other.key_)
+{
+
+}
+
 mv::json::Value::~Value()
 {
     
@@ -57,6 +65,11 @@ mv::json::Value::operator std::string&()
 mv::json::Value::operator bool&()
 {
     throw ValueError("Unable to obtain a bool content from a JSON value of type " + typeString_.at(valueType_));
+}
+
+mv::json::Value::operator Object&()
+{
+    throw ValueError("Unable to obtain a JSON object content from a JSON value of type " + typeString_.at(valueType_));
 }
 
 mv::json::Value& mv::json::Value::operator=(float value)
@@ -123,12 +136,45 @@ mv::json::Value& mv::json::Value::operator=(bool value)
 
 }
 
+mv::json::Value& mv::json::Value::operator=(const Object& value)
+{
+
+    if (owner_ == nullptr)
+    {
+        throw ValueError("Unable to assign a value with undefined owner object");
+    }
+
+    // Postpone the deletion of this object until the end of the current scope
+    auto ptr = std::move(owner_->members_[key_]);
+    owner_->erase(key_);
+    owner_->emplace(key_, value);
+    return (*owner_)[key_];
+
+}
+
 mv::json::Value& mv::json::Value::operator[](const std::string& key)
 {
+
     if (valueType_ == JSONType::Object)
     {
         auto objPtr = static_cast<Object*>(this);
-
+        return (*objPtr)[key];
     }
 
+    Value& objValue = operator=(Object(*owner_, key));
+    return objValue[key];
+
+}
+
+mv::json::JSONType mv::json::Value::valueType() const
+{
+    return valueType_;
+}
+
+mv::json::Value& mv::json::Value::operator=(const Value& other)
+{
+    valueType_ = other.valueType_;
+    owner_ = other.owner_;
+    key_ = other.key_;
+    return *this;
 }
