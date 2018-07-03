@@ -82,7 +82,13 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     #net.inputTensor = net.inputTensor.astype(dtype=np.float16)
     #input_image = net.inputTensor
 
-    if image_path is None or image_path == "Debug":
+    if ".npy" in image_path:
+        print("NUMPY")
+        input_image = np.load("test.npy")
+        input_data_layout = StorageOrder.orderZYX
+
+
+    elif image_path is None or image_path == "Debug":
         input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.float16)
         if (hw):
             # assume data in ZYX
@@ -230,6 +236,9 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
         print("*           THERMAL THROTTLING LEVEL 2 REACHED          *")
         print("*********************************************************")
 
+    print("Myriad Output: \n", myriad_output);
+    print("Myriad Output: \n", myriad_output.shape);
+    print("Output: ", outputTensorShape)
     myriad_output = myriad_output.reshape(outputTensorShape)
 
     if arguments.mode in [OperationMode.temperature_profile]:
