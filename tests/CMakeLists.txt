@@ -34,9 +34,6 @@ add_executable(mcm_unit_tests
 )
 
 target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
-
-target_link_libraries (mcm_unit_tests gtest m)
 target_sources(mcm_unit_tests PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor})
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)

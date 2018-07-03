@@ -2,7 +2,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/deployer/cstd_ostream.hpp"
+#include "include/mcm/base/stream/cstd_ostream.hpp"
 
 int main()
 {
