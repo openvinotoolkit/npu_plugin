@@ -1,7 +1,7 @@
 #ifndef MV_JSON_NULL_HPP_
 #define MV_JSON_NULL_HPP_
 
-#include "include/mcm/base/json/value.hpp"
+#include "include/mcm/base/json/value_content.hpp"
 
 namespace mv
 {
@@ -9,12 +9,12 @@ namespace mv
     namespace json
     {
 
-        class Null : public Value
+        class Null : public ValueContent
         {
 
         public:
 
-            Null(Object& owner, const std::string& key);
+            Null();
             std::string stringify() const override;
 
         };  

@@ -1,7 +1,6 @@
 #include "include/mcm/base/json/null.hpp"
 
-mv::json::Null::Null(Object& owner, const std::string& key) :
-Value(owner, key, JSONType::Null)
+mv::json::Null::Null()
 {
 
 }

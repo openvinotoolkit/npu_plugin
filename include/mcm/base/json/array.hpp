@@ -12,19 +12,17 @@ namespace mv
     namespace json
     {
 
-        class Array : public Value
+        class Array : public ValueContent
         {
 
-            friend class Value;
-            std::vector<std::unique_ptr<Value>> elements_;
-
-            void deepCopyMembers_(const std::vector<std::unique_ptr<Value>>& input);
+            std::vector<Value> elements_;
 
         public:
 
             Array();
             Array(const Array& other);
-            Array(Object& owner, const std::string& key);
+            Array(std::initializer_list<Value> l);
+            void push_back(const Value& value);
             void erase(unsigned idx);
             unsigned size() const;
             Value& operator[](unsigned idx);

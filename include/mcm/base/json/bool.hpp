@@ -1,7 +1,7 @@
 #ifndef MV_JSON_BOOL_HPP_
 #define MV_JSON_BOOL_HPP_
 
-#include "include/mcm/base/json/value.hpp"
+#include "include/mcm/base/json/value_content.hpp"
 
 namespace mv
 {
@@ -9,15 +9,15 @@ namespace mv
     namespace json
     {
 
-        class Bool : public Value
+        class Bool : public ValueContent
         {
 
             bool value_;
 
         public:
 
-            Bool(Object& owner, const std::string& key, bool value);
-            explicit operator bool&() override;
+            Bool(bool value);
+            explicit operator bool&();
             std::string stringify() const override;
 
         }; 

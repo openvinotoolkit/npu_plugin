@@ -1,7 +1,6 @@
 #include "include/mcm/base/json/bool.hpp"
 
-mv::json::Bool::Bool(Object& owner, const std::string& key, bool value) :
-Value(owner, key, JSONType::Bool),
+mv::json::Bool::Bool(bool value) :
 value_(value)
 {
 

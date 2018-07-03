@@ -1,7 +1,7 @@
 #ifndef MV_JSON_STRING_HPP_
 #define MV_JSON_STRING_HPP_
 
-#include "include/mcm/base/json/value.hpp"
+#include "include/mcm/base/json/value_content.hpp"
 
 namespace mv
 {
@@ -9,15 +9,15 @@ namespace mv
     namespace json
     {
 
-        class String : public Value
+        class String : public ValueContent
         {
 
             std::string value_;
 
         public:
 
-            String(Object& owner, const std::string& key, const std::string& value);
-            explicit operator std::string&() override;
+            String(const std::string& value);
+            explicit operator std::string&();
             std::string stringify() const override;
 
         }; 

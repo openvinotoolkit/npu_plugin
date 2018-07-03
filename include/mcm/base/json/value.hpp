@@ -3,6 +3,8 @@
 
 #include <string>
 #include <map>
+#include <memory>
+#include "include/mcm/base/json/value_content.hpp"
 #include "include/mcm/base/json/exception/value_error.hpp"
 
 namespace mv
@@ -11,15 +13,10 @@ namespace mv
     namespace json
     {
 
-        class NumberInteger;
-        class NumberFloat;
-        class String;
         class Object;
-        class JSON;
 
         enum class JSONType
         {
-            Unknown,
             Object,
             Array,
             String,
@@ -34,34 +31,34 @@ namespace mv
 
             static const std::map<JSONType, std::string> typeString_;
             JSONType valueType_;
-            Object* owner_;
-            std::string key_;
+            std::unique_ptr<ValueContent> content_;
 
         public:
 
-            Value(Object& owner, const std::string& key, JSONType valueType);
-            Value(const Value& other);
             Value();
-            virtual ~Value() = 0;
-            virtual explicit operator float&();
-            virtual explicit operator int&();
-            virtual explicit operator std::string&();
-            virtual explicit operator bool&();
-            virtual explicit operator Object&();
-            virtual Value& operator=(float value);
-            virtual Value& operator=(int value);
-            virtual Value& operator=(const std::string& value);
-            virtual Value& operator=(bool value);
-            virtual Value& operator=(const Object& value);
-            virtual Value& operator[](const std::string& key);
-            virtual std::string stringify() const = 0;
-            JSONType valueType() const;
+            Value(float value);
+            Value(int value);
+            Value(const std::string& value);
+            Value(bool value);
+            Value(const Object& value);
+            Value(const Array& value);
+            Value(const Value& other);
+            Value& operator=(float value);
+            Value& operator=(int value);
+            Value& operator=(const std::string& value);
+            Value& operator=(bool value);
+            Value& operator=(const Object& value);
+            Value& operator=(const Array& value);
             Value& operator=(const Value& other);
+            Value& operator[](const std::string& key);
+            Value& operator[](unsigned idx);
+            std::string stringify() const;
+            JSONType valueType() const;
             template <class T_value>
             T_value& get()
             {
                 
-                return (T_value&)(*this);
+                return (T_value&)(*content_);
 
             }
 
