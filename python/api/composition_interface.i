@@ -180,6 +180,10 @@ import_array();
     mv::Data::TensorIterator multiply(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o->multiply(input0, input1);
     }
+    mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o->fullyConnected(input0, input1);
+    }
+
     mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o->divide(input0, input1);
     }
@@ -271,7 +275,7 @@ mv::Data::TensorIterator multiply(mv::OpModel *o,mv::Data::TensorIterator input0
 mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape);
 mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
-
+mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
 
 void produceDOT(mv::OpModel *o);
