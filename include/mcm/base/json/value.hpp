@@ -40,19 +40,23 @@ namespace mv
         public:
 
             Value(Object& owner, const std::string& key, JSONType valueType);
+            Value(const Value& other);
             Value();
             virtual ~Value() = 0;
             virtual explicit operator float&();
             virtual explicit operator int&();
             virtual explicit operator std::string&();
             virtual explicit operator bool&();
+            virtual explicit operator Object&();
             virtual Value& operator=(float value);
             virtual Value& operator=(int value);
             virtual Value& operator=(const std::string& value);
             virtual Value& operator=(bool value);
+            virtual Value& operator=(const Object& value);
             virtual Value& operator[](const std::string& key);
             virtual std::string stringify() const = 0;
-
+            JSONType valueType() const;
+            Value& operator=(const Value& other);
             template <class T_value>
             T_value& get()
             {
