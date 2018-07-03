@@ -8,6 +8,9 @@
 #include "include/mcm/deployer/mv_types.h"
 #include "include/mcm/deployer/Fp16Convert.h"
 #include "include/mcm/deployer/file_buffer.h"
+#include "include/mcm/pass/transform/fuse_relu.hpp"
+#include "include/mcm/pass/transform/fuse_bias.hpp"
+#include "include/mcm/pass/transform/fuse_batch_norm.hpp"
 
 namespace mv
 {
@@ -206,8 +209,7 @@ class Blob_buffer : public WBuffer
             blob_stats.bias_region_size = 0 ;  
             blob_stats.params_region_size = 0 ; 
 
-//            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
-            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
                 {
@@ -233,11 +235,30 @@ class Blob_buffer : public WBuffer
                     blob_stats.weights_region_size += weights_region_size ;
                     blob_stats.weights_region_pad_size = blob_stats.weights_region_size - buffer_taps_weights_size ;
 
+                    // calculate buffer size related to bias
+                    if (it->hasAttr("bias"))
+                    {
+                        uint32_t buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
+                        buffer_bias_values_len = buffer_bias_values_len*blob_stats.weights_number_size;
+                        blob_stats.bias_region_size = align(buffer_bias_values_len,64) ;
+
+                    }
+                    else
+                    {
+                        blob_stats.bias_region_size += 64 ;                                
+                    }
+
                     blob_stats.stage_count++ ;
                     blob_stats.conv_count++ ;
                     blob_stats.stage_section_size += (53*4) ;
-                    blob_stats.bias_region_size += 64 ;                                
-                    blob_stats.params_region_size += 64 ;    
+                    blob_stats.params_region_size += 64 ;
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                        {
+                            blob_stats.stage_section_size += (3*4) ;
+                        }
+                    }
                 } else if (( it->getOpType() == OpType::MaxPool2D ) || ( it->getOpType() == OpType::AvgPool2D ))
                 {
                     blob_stats.stage_count++ ;
@@ -360,8 +381,7 @@ class Blob_buffer : public WBuffer
             AddBytes(4, blob_stats.output_size);
        }
 
-//       void add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
-       void add_stage_IO_info(mv::Control::OpListIterator it, mv::Blob_stage conv_pool_stage)
+       void add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
        {
            AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
            AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
@@ -406,8 +426,7 @@ class Blob_buffer : public WBuffer
 
             // traverse graph to determine input buffer number, size and source node for each node in the computation
             // buffer numbers: 1=input 2=output 3=blob-buffersection 4+ = bss work buffer
-            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
-//            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
 
                 if ((it->getOpType() == OpType::Conv2D)||(it->getOpType() == OpType::AvgPool2D)||(it->getOpType() == OpType::MaxPool2D)||(it->getOpType() == OpType::Softmax))
@@ -431,14 +450,6 @@ class Blob_buffer : public WBuffer
 
                 else if ((it->getOpType() == OpType::Add) || (it->getOpType() == OpType::Multiply)) 
                 {
-                    if (it->getOpType() == OpType::Add)
-                    {
-//                       std::cout << "detected optype ADD" << std::endl;
-                    }
-                    else
-                    {
-//                       std::cout << "detected optype Multiply" << std::endl;
-                    }
 
                     for ( int input_index = 0; input_index <2; input_index++ )
                     {
@@ -485,7 +496,7 @@ class Blob_buffer : public WBuffer
             // traverse graph to determine output buffer number and size for each node in the computation
             // buffer numbers retreived from input buffer list with matching source name
             // store size and buffer number for later 
-            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 int work_buffer_size = 0 ;
                 if (it->getOpType() != OpType::Output)
@@ -575,7 +586,7 @@ class Blob_buffer : public WBuffer
             // pass to output stage info -----------------------------------
             int outlist_index = 0 ;
             int reloc_index = 0 ;
-            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
 
 //                std::cout << "in write_stage_loop op_count = " << op_count << std::endl;
@@ -584,7 +595,17 @@ class Blob_buffer : public WBuffer
                 {
 
                     op_count++;
-                    next_offset += 0xd4 ;
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                        {
+                            next_offset += 0xd4 + (3*4) ;
+                        }
+                    }   
+                    else
+                    {
+                        next_offset += 0xd4 ;
+                    }
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
                     conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
@@ -612,7 +633,7 @@ class Blob_buffer : public WBuffer
 
                     // determine address offset to output buffer
                     if (conv_pool_stage.OutputLocation != 2)
-                    {
+                   {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]); 
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]); 
 //                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
@@ -668,7 +689,20 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.BiasOrder);
 
                     AddBytes(4, conv_pool_stage.preop_type);
-                    AddBytes(4, conv_pool_stage.postop_type);    // 0x12c
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                        {
+                            AddBytes(4, 0x06);    // 0x12c , postop relu
+                            AddBytes(4, 0x00); 
+                            AddBytes(4, 0x00); 
+                            AddBytes(4, 0x00);
+                        }
+                    }
+                    else
+                    {
+                        AddBytes(4, 0x09);    // 0x12c , no postop
+                    }
 
                     conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
                     conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
@@ -989,7 +1023,7 @@ class Blob_buffer : public WBuffer
                 AddBytes(4, buffer_header_pad_val);
             }
 
-            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
                 {
@@ -1027,13 +1061,28 @@ class Blob_buffer : public WBuffer
                     uint32_t bias_number_size = 2 ;             // TODO assume FP16 
                     uint16_t buffer_bias_val = f32Tof16(0.0f);  // TODO bias = 0 hardcoded 
                     uint32_t buffer_bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
-                    uint32_t buffer_bias_values_size = buffer_bias_values_len*bias_number_size;   
+
+                    if (it->hasAttr("bias"))
+                    {
+                        buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
+                        for (unsigned i = 0; i < buffer_bias_values_len; ++i)
+                        {
+                            buffer_bias_val = f32Tof16( it->getAttr("bias").getContent<mv::dynamic_vector<float>>()[i] );
+                            AddBytes(bias_number_size, buffer_bias_val);
+                        }
+                    }
+                    else
+                    {
+                        for (unsigned i=0; i< buffer_bias_values_len; i++)
+                        {
+                            AddBytes(bias_number_size, buffer_bias_val);
+                        }
+                    }
+
+                    uint32_t buffer_bias_values_size = buffer_bias_values_len*bias_number_size;
                     uint32_t buffer_bias_region_size = align(buffer_bias_values_size,64) ;
                     uint32_t buffer_bias_pad_size = buffer_bias_region_size - (buffer_bias_values_size);
-                    for (unsigned i=0; i< buffer_bias_values_len; i++)
-                    {
-                        AddBytes(bias_number_size, buffer_bias_val);
-                    }
+
                     for (unsigned i=0; i< buffer_bias_pad_size; i++)
                     {
                         AddBytes(1, buffer_pad_val);
@@ -1077,7 +1126,7 @@ class Blob_buffer : public WBuffer
             uint32_t running_offset = 0 ;
             uint32_t node_index = 0 ;
 
-            for (mv::Control::OpListIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+            for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 if ( it->getOpType() == OpType::Conv2D )
                 {
@@ -1152,10 +1201,19 @@ class Blob_buffer : public WBuffer
 */
         uint64_t serialize(mv::ControlModel& graph_2_deploy, const char* ofilename )
         {
+
+        mv::pass::FuseReLU fuseRelu;
+        mv::pass::FuseBias fuseBias;
+        mv::pass::FuseBatchNorm fuseBatchNorm;
+
             uint64_t fsize = 0 ;
             switch( output_format )
             {
                 case mvblob_mode:
+                    // fuse relu, bias and batchnorm as required by blob
+                    fuseRelu.run(graph_2_deploy);
+                    fuseBias.run(graph_2_deploy);
+                    fuseBatchNorm.run(graph_2_deploy);
                     // 4 passes of graph: calculate, stages, buffer, reloc
                     // calculate sizes and offsets for headers
                     odata.calc(graph_2_deploy);
