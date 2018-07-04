@@ -16,6 +16,9 @@ target_sources(cm_allocate_resources PUBLIC ${allocator} ${computation_model} ${
 add_executable(cm_resnet18 cm_resnet18.cpp)
 target_sources(cm_resnet18 PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
 
+add_executable(cm_resnet18_blob cm_resnet18_blob.cpp)
+target_sources(cm_resnet18_blob PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
+
 add_executable(cm_batchnorm_fuse cm_batchnorm_fuse.cpp)
 target_sources(cm_batchnorm_fuse PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
 target_link_libraries(cm_batchnorm_fuse m)
