@@ -24,7 +24,7 @@ elements_(other.elements_)
 
 }
 
-void mv::json::Array::push_back(const Value& value)
+void mv::json::Array::append(const Value& value)
 {
     elements_.push_back(value);
 }
@@ -37,6 +37,11 @@ void mv::json::Array::erase(unsigned idx)
 unsigned mv::json::Array::size() const
 {
     return elements_.size();
+}
+
+void mv::json::Array::clear()
+{
+    elements_.clear();
 }
 
 std::string mv::json::Array::stringify() const

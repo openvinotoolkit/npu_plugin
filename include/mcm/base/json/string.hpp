@@ -9,7 +9,7 @@ namespace mv
     namespace json
     {
 
-        class String : public ValueContent
+        class String : public detail::ValueContent
         {
 
             std::string value_;

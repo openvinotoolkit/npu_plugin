@@ -23,10 +23,9 @@ members_(l)
 
 }
 
-bool mv::json::Object::emplace(const std::string& key, const Value& value)
+void mv::json::Object::emplace(const std::string& key, const Value& value)
 {
     members_.emplace(key, value);
-    return true;
 }
 
 void mv::json::Object::erase(const std::string& key)
@@ -37,6 +36,11 @@ void mv::json::Object::erase(const std::string& key)
 unsigned mv::json::Object::size() const
 {
     return members_.size();
+}
+
+void mv::json::Object::clear()
+{
+    members_.clear();
 }
 
 std::string mv::json::Object::stringify() const

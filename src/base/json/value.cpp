@@ -73,6 +73,11 @@ mv::json::Value::Value(const Value& other)
     operator=(other);
 }
 
+mv::json::Value::~Value()
+{
+    
+}
+
 mv::json::Value& mv::json::Value::operator=(float value)
 {
 
@@ -158,9 +163,32 @@ mv::json::Value& mv::json::Value::operator[](unsigned idx)
     
 }
 
+void mv::json::Value::append(const std::pair<std::string, Value>& member)
+{
+    if (valueType_ != JSONType::Object)
+        throw ValueError("Attempt of appending a memeber content to the value of type " + typeString_.at(valueType_));
+
+    auto objPtr = static_cast<Object*>(content_.get());
+    (*objPtr)[member.first] = member.second;
+}
+
+void mv::json::Value::append(const Value& element)
+{
+    if (valueType_ != JSONType::Array)
+        throw ValueError("Attempt of appending an element content to the value of type " + typeString_.at(valueType_));
+
+    auto arrPtr = static_cast<Array*>(content_.get());
+    arrPtr->append(element);
+}
+
 mv::json::JSONType mv::json::Value::valueType() const
 {
     return valueType_;
+}
+
+unsigned mv::json::Value::size() const
+{
+    return 1;
 }
 
 std::string mv::json::Value::stringify() const

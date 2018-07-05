@@ -25,6 +25,8 @@ file(GLOB base
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
     "src/base/json/exception/*.cpp"
+    "src/utils/parser/json_text.cpp"
+    "src/utils/parser/exception/*.cpp"
 )
 
 file(GLOB tensor

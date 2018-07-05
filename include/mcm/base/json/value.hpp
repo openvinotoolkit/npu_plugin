@@ -14,6 +14,7 @@ namespace mv
     {
 
         class Object;
+        class Array;
 
         enum class JSONType
         {
@@ -31,7 +32,7 @@ namespace mv
 
             static const std::map<JSONType, std::string> typeString_;
             JSONType valueType_;
-            std::unique_ptr<ValueContent> content_;
+            std::unique_ptr<detail::ValueContent> content_;
 
         public:
 
@@ -43,6 +44,7 @@ namespace mv
             Value(const Object& value);
             Value(const Array& value);
             Value(const Value& other);
+            virtual ~Value();
             Value& operator=(float value);
             Value& operator=(int value);
             Value& operator=(const std::string& value);
@@ -52,6 +54,9 @@ namespace mv
             Value& operator=(const Value& other);
             Value& operator[](const std::string& key);
             Value& operator[](unsigned idx);
+            void append(const std::pair<std::string, Value>& member);
+            void append(const Value& element);
+            virtual unsigned size() const;
             std::string stringify() const;
             JSONType valueType() const;
             template <class T_value>

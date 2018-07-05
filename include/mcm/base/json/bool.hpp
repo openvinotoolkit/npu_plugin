@@ -9,7 +9,7 @@ namespace mv
     namespace json
     {
 
-        class Bool : public ValueContent
+        class Bool : public detail::ValueContent
         {
 
             bool value_;
