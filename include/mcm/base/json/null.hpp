@@ -9,7 +9,7 @@ namespace mv
     namespace json
     {
 
-        class Null : public ValueContent
+        class Null : public detail::ValueContent
         {
 
         public:

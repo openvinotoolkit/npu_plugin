@@ -10,7 +10,7 @@ namespace mv
     namespace json
     {
 
-        class NumberInteger : public ValueContent
+        class NumberInteger : public detail::ValueContent
         {
 
             int value_;

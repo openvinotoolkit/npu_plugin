@@ -1,8 +1,5 @@
 #include "gtest/gtest.h"
-#include "include/mcm/base/json/object.hpp"
-#include "include/mcm/base/json/value.hpp"
-#include "include/mcm/base/json/array.hpp"
-#include "include/mcm/base/json/number_float.hpp"
+#include "include/mcm/base/json/json.hpp"
 
 TEST(json, root)
 {
@@ -210,5 +207,19 @@ TEST(json, stringify_object)
     };
     std::string objStr = "{\"arrValue\":[],\"nullValue\":null,\"boolValue\":true,\"strValue\":\"str\",\"floatValue\":1.0,\"intValue\":1}";
     ASSERT_EQ(root.stringify(), objStr);
+
+}
+
+#include "include/mcm/utils/parser/json_text.hpp"
+
+TEST(json, parser_text)
+{
+
+    std::string fileName = "./test.txt";
+    mv::JSONTextParser parser(8);
+    mv::json::Value obj;
+    parser.parseFile(fileName, obj);
+
+    std::cout << obj.stringify() << std::endl;
 
 }

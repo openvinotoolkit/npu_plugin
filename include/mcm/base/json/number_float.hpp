@@ -10,7 +10,7 @@ namespace mv
     namespace json
     {
 
-        class NumberFloat : public ValueContent
+        class NumberFloat : public detail::ValueContent
         {
 
             float value_;

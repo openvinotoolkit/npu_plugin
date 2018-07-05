@@ -12,7 +12,7 @@ namespace mv
     namespace json
     {
 
-        class Array : public ValueContent
+        class Array : public detail::ValueContent
         {
 
             std::vector<Value> elements_;
@@ -22,9 +22,10 @@ namespace mv
             Array();
             Array(const Array& other);
             Array(std::initializer_list<Value> l);
-            void push_back(const Value& value);
+            void append(const Value& value);
             void erase(unsigned idx);
             unsigned size() const;
+            void clear();
             Value& operator[](unsigned idx);
             std::string stringify() const override;
             Array& operator=(const Array& other);
