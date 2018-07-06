@@ -5,6 +5,8 @@
 #include "include/mcm/deployer/fstd_ostream.hpp"
 #include "include/mcm/pass/deploy/generate_dot.hpp"
 #include "include/mcm/pass/transform/fuse_batch_norm.hpp"
+#include "include/mcm/pass/transform/fuse_bias.hpp"
+#include "include/mcm/pass/transform/fuse_relu.hpp"
 
 mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
 {
@@ -82,6 +84,12 @@ int main()
 
     mv::pass::FuseBatchNorm fuseBatchNorm;
     fuseBatchNorm.run(om);
+
+    mv::pass::FuseBias fuseBias;
+    fuseBias.run(om);
+
+    mv::pass::FuseReLU fuseReLU;
+    fuseReLU.run(om);
     
     ostream.setFileName("cm2.dot");
     dotResult = generateDot.run(om);    

@@ -28,7 +28,7 @@ bool mv::pass::FuseBias::run_(ComputationModel &model)
                 om.addAttr(parentOpIt, "bias", biasAttr);
                 ControlModel cm(om);
                 auto nextOp = cm.switchContext(opIt).leftmostChild();
-                
+
                 cm.defineFlow(parentOpIt, om.switchContext(nextOp));
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 

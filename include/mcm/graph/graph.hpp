@@ -310,6 +310,32 @@ namespace mv
                 if (child)
                 {
 
+                    for (auto sibling : *child->siblings_)
+                    {
+                        if (sibling)
+                        {
+
+                            unsigned common_parents = 0;
+
+                            for (auto child_parent : *parents_)
+                            {
+
+                                if (sibling->parents_->find(child_parent) != sibling->parents_->end())
+                                    ++common_parents;
+
+                            }
+
+                            if (common_parents <= 1)
+                            {
+
+                                sibling->siblings_->erase(child);
+                                child->siblings_->erase(sibling);
+
+                            }
+                            
+                        }
+                    }
+
                     children_->erase(child);
 
                 }
@@ -341,7 +367,7 @@ namespace mv
                             {
 
                                 sibling->siblings_->erase(child);
-                                siblings_->erase(sibling);
+                                child->siblings_->erase(sibling);
 
                             }
                             
@@ -1464,7 +1490,7 @@ namespace mv
 
                 // Remove relations with parents of the node and edges being deleted by iterating
                 // over node's input edges
-                for (auto ec_it = del_node->inputs_->begin(); ec_it != del_node->inputs_->end(); ++ec_it)
+                /*for (auto ec_it = del_node->inputs_->begin(); ec_it != del_node->inputs_->end(); ++ec_it)
                 {
                     auto e_ptr = (*ec_it).lock();
                     auto parent_ptr = e_ptr->source_.lock();
@@ -1485,11 +1511,25 @@ namespace mv
 
                     // Remove egde from set of graph's edges (delete edge)
                     edges_->erase(e_ptr);
+                }*/
+
+                for (auto in_it = del_node->leftmost_input(); in_it != edge_end();)
+                {
+                    auto del_it = in_it;
+                    ++in_it;
+                    edge_erase(del_it);
+                }
+
+                for (auto out_it = del_node->leftmost_output(); out_it != edge_end();)
+                {
+                    auto del_it = out_it;
+                    ++out_it;
+                    edge_erase(del_it);
                 }
 
                 // Remove relations with children of the node and edges being deleted by iterating
                 // over node's output edges
-                for (auto ec_it = del_node->outputs_->begin(); ec_it != del_node->outputs_->end(); ++ec_it)
+                /*for (auto ec_it = del_node->outputs_->begin(); ec_it != del_node->outputs_->end(); ++ec_it)
                 {
                     auto e_ptr = (*ec_it).lock();
                     auto child_ptr = e_ptr->sink_.lock();
@@ -1510,7 +1550,7 @@ namespace mv
 
                     // Remove egde from set of graph's edges (delete edge)
                     edges_->erase(e_ptr);
-                }
+                }*/
 
                 nodes_->erase(del_node);
 
