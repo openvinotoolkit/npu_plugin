@@ -4,7 +4,9 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/deployer/fstd_ostream.hpp"
 #include "include/mcm/pass/deploy/generate_dot.hpp"
-
+#include "include/mcm/pass/transform/fuse_batch_norm.hpp"
+#include "include/mcm/pass/transform/fuse_bias.hpp"
+#include "include/mcm/pass/transform/fuse_relu.hpp"
 
 mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
 {
@@ -12,14 +14,14 @@ mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::Tensor
     auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::LastDimMajor);
     auto conv = model.conv2D(input, weights, stride, padding);
 
-    mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
-    mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
-    mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
-    mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
-    auto bnmean = model.constant(meanData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor);
-    auto bnvariance = model.constant(varianceData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor);
-    auto bnoffset = model.constant(offsetData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor);
-    auto bnscale = model.constant(scaleData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor);
+    mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
+    mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
+    mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
+    mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
+    auto bnmean = model.constant(meanData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
+    auto bnvariance = model.constant(varianceData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
+    auto bnoffset = model.constant(offsetData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
+    auto bnscale = model.constant(scaleData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
     return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
@@ -74,11 +76,25 @@ int main()
 
     om.output(softmax);
 
-    mv::FStdOStream ostream("cm.dot");
-    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ExecOpModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    mv::FStdOStream ostream("cm1.dot");
+    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ExecOpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
     bool dotResult = generateDot.run(om);    
     if (dotResult)
-        system("dot -Tsvg cm.dot -o cm.svg");
+        (void)system("dot -Tsvg cm1.dot -o cm1.svg");
+
+    mv::pass::FuseBatchNorm fuseBatchNorm;
+    fuseBatchNorm.run(om);
+
+    mv::pass::FuseBias fuseBias;
+    fuseBias.run(om);
+
+    mv::pass::FuseReLU fuseReLU;
+    fuseReLU.run(om);
+    
+    ostream.setFileName("cm2.dot");
+    dotResult = generateDot.run(om);    
+    if (dotResult)
+        (void)system("dot -Tsvg cm2.dot -o cm2.svg");
 
     return 0;
 

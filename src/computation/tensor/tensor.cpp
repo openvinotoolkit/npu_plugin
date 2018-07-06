@@ -44,7 +44,9 @@ mv::dynamic_vector<unsigned> mv::Tensor::indToSub(const Shape& s, unsigned idx)
 
 mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order) :
 ComputationElement(name),
-errValue(0.0f)
+errValue(0.0f),
+shape_(shape),
+populated_(false)
 {
     addAttr("dType", AttrType::DTypeType, dType);
     addAttr("order", AttrType::OrderType, order);
@@ -53,23 +55,7 @@ errValue(0.0f)
     logger_.log(Logger::MessageType::MessageDebug, "Defined tensor " + toString());
 }
 
-mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order, allocator::owner_ptr<dynamic_vector<float_type>> data) :
-Tensor(name, shape, dType, order)
-{   
-    if (data->size() == shape.totalSize())
-    {
-        data_ = data;
-        getAttr("populated").setContent<bool>(true);
-    }
-    else
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to populate tensor - mismatch between input array size (" + 
-            Printable::toString((unsigned)data->size()) + ") and declared shape " + Printable::toString(shape));
-    }
-
-}
-
-mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order, dynamic_vector<float_type>& data) :
+mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data) :
 Tensor(name, shape, dType, order)
 {
     if (populate(data))
@@ -78,7 +64,9 @@ Tensor(name, shape, dType, order)
 
 mv::Tensor::Tensor(const Tensor &other) :
 ComputationElement(other),
-data_(other.data_)
+data_(other.data_),
+shape_(other.shape_),
+populated_(other.populated_)
 {
     logger_.log(Logger::MessageType::MessageDebug, "Copied tensor " + toString());
 }
@@ -93,7 +81,7 @@ ComputationElement("unknown_tensor")
     addAttr("populated", AttrType::BoolType, false);
 }
 
-bool mv::Tensor::populate(dynamic_vector<float_type>& data)
+bool mv::Tensor::populate(const dynamic_vector<float_type>& data)
 {
 
     if (data.size() != getShape().totalSize())
@@ -103,16 +91,10 @@ bool mv::Tensor::populate(dynamic_vector<float_type>& data)
         return false;
     }
 
-    data_ = allocator_.make_owner<dynamic_vector<float_type>>(data);
-
-    if (data_)
-    {
-        getAttr("populated").setContent<bool>(true);
-        return true;
-    }
-    
-    logger_.log(Logger::MessageType::MessageError, "Unable to populate tensor - allocation failed");
-    return false;
+    data_ = data;
+    getAttr("populated").setContent<bool>(true);
+    populated_ = true;
+    return true;
 
 }
 
@@ -121,15 +103,11 @@ bool mv::Tensor::unpopulate()
     if (!getAttr("populated").getContent<bool>())
         return false;
     
-    data_->clear();
+    data_.clear();
     getAttr("populated").setContent<bool>(false);
+    populated_ = false;
     return true;
 
-}
-
-bool mv::Tensor::isPopulated() const
-{
-    return getAttr("populated").getContent<bool>();
 }
 
 // TODO - Handle the case when tensor got deleted, by the reference is still in use
@@ -137,12 +115,7 @@ mv::dynamic_vector<mv::float_type>& mv::Tensor::getData()
 {
     if (!isPopulated())
         logger_.log(Logger::MessageType::MessageWarning, "Attempt of restoring data from an unpopulated tensor '" + name_ + "'");
-    return *data_;
-}
-
-mv::Shape mv::Tensor::getShape() const
-{
-    return getAttr("shape").getContent<Shape>();
+    return data_;
 }
 
 mv::DType mv::Tensor::getDType() const
@@ -163,10 +136,11 @@ mv::string mv::Tensor::toString() const
 bool mv::Tensor::add(const Tensor& other)
 {
 
-    auto newShape = math::elementWise(*this, other, math::elementAdd, *data_);
+    auto newShape = math::elementWise(*this, other, math::elementAdd, data_);
     if (newShape.ndims() > 0)
     {
         getAttr("shape").setContent<Shape>(newShape);
+        shape_ = newShape;
         return true;
     }
 
@@ -176,10 +150,11 @@ bool mv::Tensor::add(const Tensor& other)
 
 bool mv::Tensor::subtract(const Tensor& other)
 {
-    auto newShape = math::elementWise(*this, other, math::elementSubtract, *data_);
+    auto newShape = math::elementWise(*this, other, math::elementSubtract, data_);
     if (newShape.ndims() > 0)
     {
         getAttr("shape").setContent<Shape>(newShape);
+        shape_ = newShape;
         return true;
     }
 
@@ -188,10 +163,11 @@ bool mv::Tensor::subtract(const Tensor& other)
 
 bool mv::Tensor::mulitply(const Tensor& other)
 {
-    auto newShape = math::elementWise(*this, other, math::elementMulitply, *data_);
+    auto newShape = math::elementWise(*this, other, math::elementMulitply, data_);
     if (newShape.ndims() > 0)
     {
         getAttr("shape").setContent<Shape>(newShape);
+        shape_ = newShape;
         return true;
     }
 
@@ -200,10 +176,11 @@ bool mv::Tensor::mulitply(const Tensor& other)
 
 bool mv::Tensor::divide(const Tensor& other)
 {
-    auto newShape = math::elementWise(*this, other, math::elementDivide, *data_);
+    auto newShape = math::elementWise(*this, other, math::elementDivide, data_);
     if (newShape.ndims() > 0)
     {
         getAttr("shape").setContent<Shape>(newShape);
+        shape_ = newShape;
         return true;
     }
 
@@ -235,10 +212,10 @@ mv::float_type& mv::Tensor::at(const dynamic_vector<unsigned>& sub)
         return errValue;
     }
 
-    return (*data_)[subToInd(sub)];
+    return data_[subToInd(sub)];
 }
 
-mv::float_type mv::Tensor::at(const dynamic_vector<unsigned>& sub) const
+const mv::float_type& mv::Tensor::at(const dynamic_vector<unsigned>& sub) const
 {
     if (!isPopulated())
     {
@@ -246,7 +223,7 @@ mv::float_type mv::Tensor::at(const dynamic_vector<unsigned>& sub) const
         return errValue;
     }
 
-    return (*data_)[subToInd(sub)];
+    return data_[subToInd(sub)];
 }
 
 mv::float_type& mv::Tensor::at(unsigned idx)
@@ -258,11 +235,11 @@ mv::float_type& mv::Tensor::at(unsigned idx)
         return errValue;
     }
 
-    return (*data_)[idx];
+    return data_[idx];
 
 }
 
-mv::float_type mv::Tensor::at(unsigned idx) const
+const mv::float_type& mv::Tensor::at(unsigned idx) const
 {
 
     if (!isPopulated())
@@ -271,7 +248,7 @@ mv::float_type mv::Tensor::at(unsigned idx) const
         return errValue;
     }
 
-    return (*data_)[idx];
+    return data_[idx];
 
 }
 
@@ -280,7 +257,7 @@ mv::float_type& mv::Tensor::operator()(unsigned idx)
     return at(idx);
 }
 
-mv::float_type mv::Tensor::operator()(unsigned idx) const
+const mv::float_type& mv::Tensor::operator()(unsigned idx) const
 {
     return at(idx);
 }
@@ -290,7 +267,7 @@ mv::float_type& mv::Tensor::operator()(const dynamic_vector<unsigned>& sub)
     return at(sub);
 }
 
-mv::float_type mv::Tensor::operator()(const dynamic_vector<unsigned>& sub) const
+const mv::float_type& mv::Tensor::operator()(const dynamic_vector<unsigned>& sub) const
 {
     return at(sub);
 }

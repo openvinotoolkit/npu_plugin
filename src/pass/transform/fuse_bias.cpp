@@ -26,9 +26,10 @@ bool mv::pass::FuseBias::run_(ComputationModel &model)
                 auto bias = *opIt->getInputTensor(1);
                 Attribute biasAttr(AttrType::FloatVecType, bias.getData());
                 om.addAttr(parentOpIt, "bias", biasAttr);
-
                 ControlModel cm(om);
-                cm.defineFlow(parentOpIt,  opIt.leftmostChild());
+                auto nextOp = cm.switchContext(opIt).leftmostChild();
+
+                cm.defineFlow(parentOpIt, om.switchContext(nextOp));
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -46,7 +47,7 @@ bool mv::pass::FuseBias::run_(ComputationModel &model)
                 }
                 
                 om.removeOp(opIt);
-                om.enableDefaultControlFlow(om.getSourceOp(sourceTensor));
+                opIt = parentOpIt;
 
             }
 

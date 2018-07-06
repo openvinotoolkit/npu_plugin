@@ -282,7 +282,7 @@ namespace mv
                 ModelGraphIterator<IteratorType>::operator=(other);
                 return *this;
             }
-            
+
             size_type inputsSize()
             {
                 return this->it_->inputs_size();

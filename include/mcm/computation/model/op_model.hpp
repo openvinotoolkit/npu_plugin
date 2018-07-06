@@ -24,12 +24,12 @@ namespace mv
         OpModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
         OpModel(const ComputationModel& model);
 
-        Data::OpListIterator switchContext(Control::OpListIterator& other);
+        Data::OpListIterator switchContext(Control::OpListIterator other);
 
         Data::OpListIterator getInput();
         Data::OpListIterator getOutput();
-        Data::OpListIterator opEnd();
-        Data::FlowListIterator flowEnd();
+        Data::OpListIterator opEnd() const;
+        Data::FlowListIterator flowEnd() const;
 
         Data::TensorIterator input(const Shape& shape, DType dType, Order order, const string& name = "") override;
         Data::TensorIterator output(Data::TensorIterator input, const string& name = "") override;
@@ -73,6 +73,8 @@ namespace mv
 
         unsigned opsCount() const;
         unsigned opsCount(OpType opType) const;
+
+        unsigned parametersCount() const;
        
     };
 

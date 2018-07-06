@@ -6,7 +6,7 @@ ComputationModel(other)
 
 }
 
-mv::Control::OpListIterator mv::ControlModel::switchContext(Data::OpListIterator &other)
+mv::Control::OpListIterator mv::ControlModel::switchContext(Data::OpListIterator other)
 {
     return opsGraph_->get_second_iterator(other);
 }

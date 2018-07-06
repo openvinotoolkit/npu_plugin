@@ -89,6 +89,13 @@ int main()
 
     g2.node_erase(g2g1n2It);
 
+    auto g1n6It = g1.node_insert(g1n4It, "g1_n6", "g1_e8");
+
+    std::cout << g1.node_size() << std::endl;
+    std::cout << g1.edge_size() << std::endl;
+    std::cout << g2.node_size() << std::endl;
+    std::cout << g2.edge_size() << std::endl;
+
     gv.print_dot(g1);
 
     gv.print_dot(g2);

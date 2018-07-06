@@ -16,7 +16,7 @@ namespace mv
 
         ControlModel(const ComputationModel &ComputationModel);
 
-        Control::OpListIterator switchContext(Data::OpListIterator &other);
+        Control::OpListIterator switchContext(Data::OpListIterator other);
 
         Control::OpListIterator getFirst();
         Control::OpListIterator getLast();
