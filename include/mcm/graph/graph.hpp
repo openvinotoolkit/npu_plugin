@@ -1488,31 +1488,6 @@ namespace mv
             if (del_node)
             {
 
-                // Remove relations with parents of the node and edges being deleted by iterating
-                // over node's input edges
-                /*for (auto ec_it = del_node->inputs_->begin(); ec_it != del_node->inputs_->end(); ++ec_it)
-                {
-                    auto e_ptr = (*ec_it).lock();
-                    auto parent_ptr = e_ptr->source_.lock();
-
-                    // Remove the deleted node from the set of children of the parent node
-                    parent_ptr->remove_child_(del_node);
-
-                    // Remove input edges of the node being deleted from sets of children
-                    // of inputs edges of the parent node
-                    for (auto parent_ref : *parent_ptr->inputs_)
-                    {
-                        parent_ref->remove_child_(e_ptr);
-                    }
-
-                    // Remove input edge of the node being deleted from set of output edges
-                    // of the parent node
-                    parent_ptr->outputs_->erase(e_ptr);
-
-                    // Remove egde from set of graph's edges (delete edge)
-                    edges_->erase(e_ptr);
-                }*/
-
                 for (auto in_it = del_node->leftmost_input(); in_it != edge_end();)
                 {
                     auto del_it = in_it;
@@ -1526,31 +1501,6 @@ namespace mv
                     ++out_it;
                     edge_erase(del_it);
                 }
-
-                // Remove relations with children of the node and edges being deleted by iterating
-                // over node's output edges
-                /*for (auto ec_it = del_node->outputs_->begin(); ec_it != del_node->outputs_->end(); ++ec_it)
-                {
-                    auto e_ptr = (*ec_it).lock();
-                    auto child_ptr = e_ptr->sink_.lock();
-
-                    // Remove deleted node from the set of parents of the child node
-                    child_ptr->remove_parent_(del_node, child_ptr);
-
-                    // Remove output edges of the node being deleted from sets of children
-                    // of output edges of the child node
-                    for (auto child_ref : *child_ptr->outputs_)
-                    {
-                        child_ref->remove_parent_(e_ptr, child_ref);
-                    }
-
-                    // Remove output edge of the node being deleted from set of input edges
-                    // of the child node
-                    child_ptr->inputs_->erase(e_ptr);
-
-                    // Remove egde from set of graph's edges (delete edge)
-                    edges_->erase(e_ptr);
-                }*/
 
                 nodes_->erase(del_node);
 
