@@ -54,6 +54,7 @@ class Blob_stage
         uint32_t InputOrder;
         uint32_t Input1Offset;
         uint32_t Input1Location;
+        uint32_t TBOffset;
 
         uint32_t OutputDimX;
         uint32_t OutputDimY;
@@ -132,6 +133,7 @@ class Blob_stage
             TapsStrideY = 2 ;
             TapsStrideZ = 2 ;
             TapsOffset = 0 ;
+            TBOffset = 0 ;
             TapsLocation = 3 ;
             TapsDataType = 0 ;
             TapsOrder = 3 ;
@@ -201,7 +203,7 @@ class Blob_buffer : public WBuffer
             blob_stats.tensor_number_size = 2 ;          // TODO assume FP16
 
             // parse compute model to determine stage dependent sizes
-            // initialize values that ill increase during parse of graph
+            // initialize values that will increase during parse of graph
             blob_stats.stage_count = 0 ;
             blob_stats.conv_count = 0 ;
             blob_stats.stage_section_size = 4*3 ;    // start count including 12 byte header
@@ -258,8 +260,7 @@ class Blob_buffer : public WBuffer
                     {
                         uint32_t buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
                         buffer_bias_values_len = buffer_bias_values_len*blob_stats.weights_number_size;
-                        blob_stats.bias_region_size = align(buffer_bias_values_len,64) ;
-
+                        blob_stats.bias_region_size += align(buffer_bias_values_len,64) ;
                     }
                     else
                     {
@@ -267,7 +268,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     blob_stats.stage_count++ ;
-                    blob_stats.conv_count++ ;
+                    blob_stats.conv_count+=2 ;
                     blob_stats.params_region_size += 64 ;
                     if (it->hasAttr("postOpType"))
                     {
@@ -276,11 +277,13 @@ class Blob_buffer : public WBuffer
                             blob_stats.stage_section_size += (3*4) ;
                         }
                     }
-                } else if (( it->getOpType() == OpType::MaxPool2D ) || ( it->getOpType() == OpType::AvgPool2D ))
+                }
+                else if (( it->getOpType() == OpType::MaxPool2D ) || ( it->getOpType() == OpType::AvgPool2D ))
                 {
                     blob_stats.stage_count++ ;
                     blob_stats.stage_section_size += (3+7+20+2)*4 ;
-                } else if (( it->getOpType() == OpType::Add) || ( it->getOpType() == OpType::Multiply))
+                }
+                else if (( it->getOpType() == OpType::Add) || ( it->getOpType() == OpType::Multiply))
                 {
                     blob_stats.stage_count++ ;
                     blob_stats.stage_section_size += (3+32)*4 ;
@@ -289,6 +292,14 @@ class Blob_buffer : public WBuffer
                 {
                     blob_stats.stage_count++ ;
                     blob_stats.stage_section_size += (3+21+2)*4 ;
+                }
+                else if (it->getOpType() == OpType::Scale)
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += (3+32+10)*4 ;
+                    blob_stats.conv_count++ ;
+                    uint32_t buffer_bias_values_len = ( it->getInputTensor(1)->getShape().totalSize() ) *blob_stats.weights_number_size;
+                    blob_stats.bias_region_size += align(buffer_bias_values_len,64) ;
                 }
 
             }    // end traverse of graph
@@ -302,12 +313,15 @@ class Blob_buffer : public WBuffer
             {
                 blob_stats.relocation_section_size += 16;
             }
-            blob_stats.relocation_section_size = 20 + 16*blob_stats.conv_count + 16*(blob_stats.stage_count-1) ;
+            blob_stats.relocation_section_size = 20 + 8*blob_stats.conv_count + 16*(blob_stats.stage_count-1) ;
 //            std::cout << "headers_data_size = "<< headers_data_size << std::endl;
 //            std::cout << "blob_stats.header_pad_size = "<< blob_stats.header_pad_size << std::endl;
 //            std::cout << "blob_stats.stage_section_size = "<< blob_stats.stage_section_size << std::endl;
 //            std::cout << "blob_stats.buffer_header_size = "<< blob_stats.buffer_header_size << std::endl;
 //            std::cout << "blob_stats.buffer_data_size = "<< blob_stats.buffer_data_size << std::endl;
+//            std::cout << "    weights region = "<< blob_stats.weights_region_size << std::endl;
+//            std::cout << "    bias region = "<< blob_stats.bias_region_size << std::endl;
+//            std::cout << "    params region = "<< blob_stats.params_region_size << std::endl;
 //            std::cout << "blob_stats.relocation_section_size = "<< blob_stats.relocation_section_size << std::endl;
             blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
 //            std::cout << "blob_stats.blob_file_size = "<< blob_stats.blob_file_size << std::endl;
@@ -469,7 +483,7 @@ class Blob_buffer : public WBuffer
                     }
                 } // end single input operator case
 
-                else if ((it->getOpType() == OpType::Add) || (it->getOpType() == OpType::Multiply))
+                else if ((it->getOpType() == OpType::Add) || (it->getOpType() == OpType::Multiply) || (it->getOpType() == OpType::Scale))
                 {
 
                     for ( int input_index = 0; input_index <2; input_index++ )
@@ -705,7 +719,9 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3]);   // Taps step X
                     AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[3]);   // Taps step Y
                     AddBytes(4, conv_pool_stage.TapsStrideZ);
-                    AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
+//                    AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
+                    AddBytes(4, conv_pool_stage.TBOffset);   // 0xf0
+                    conv_pool_stage.TBOffset++ ; 
                     AddBytes(4, conv_pool_stage.TapsLocation);
                     AddBytes(4, conv_pool_stage.TapsDataType);
                     AddBytes(4, conv_pool_stage.TapsOrder);
@@ -716,7 +732,9 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.BiasStrideX);
                     AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
                     AddBytes(4, conv_pool_stage.BiasStrideZ);
-                    AddBytes(4, conv_pool_stage.BiasOffset);
+//                    AddBytes(4, conv_pool_stage.BiasOffset);
+                    AddBytes(4, conv_pool_stage.TBOffset);
+                    conv_pool_stage.TBOffset++ ;
                     AddBytes(4, conv_pool_stage.BiasLocation);
                     AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
                     AddBytes(4, conv_pool_stage.BiasOrder);
@@ -737,8 +755,8 @@ class Blob_buffer : public WBuffer
                         AddBytes(4, 0x09);    // 0x12c , no postop
                     }
 
-                    conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
-                    conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
+//                    conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
+//                    conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
                 }   // end Conv case
 
                 else if ( it->getOpType() == OpType::FullyConnected )
@@ -838,7 +856,9 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape().totalSize());   // Taps step X
                     AddBytes(4, blob_stats.tensor_number_size);   // Taps step Y
                     AddBytes(4, conv_pool_stage.TapsStrideZ);
-                    AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
+//                    AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
+                    AddBytes(4, conv_pool_stage.TBOffset);   // 0xf0
+                    conv_pool_stage.TBOffset++ ;
                     AddBytes(4, conv_pool_stage.TapsLocation);
                     AddBytes(4, conv_pool_stage.TapsDataType);
                     AddBytes(4, conv_pool_stage.TapsOrder);
@@ -849,7 +869,9 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.BiasStrideX);
                     AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
                     AddBytes(4, conv_pool_stage.BiasStrideZ);
-                    AddBytes(4, conv_pool_stage.BiasOffset);
+//                    AddBytes(4, conv_pool_stage.BiasOffset);
+                    AddBytes(4, conv_pool_stage.TBOffset);
+                    conv_pool_stage.TBOffset++ ;
                     AddBytes(4, conv_pool_stage.BiasLocation);
                     AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
                     AddBytes(4, conv_pool_stage.BiasOrder);
@@ -870,8 +892,8 @@ class Blob_buffer : public WBuffer
                         AddBytes(4, 0x09);    // 0x12c , no postop
                     }
 
-                    conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
-                    conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
+//                    conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
+//                    conv_pool_stage.BiasOffset= conv_pool_stage.BiasOffset+2 ;
 
 //                    std::cout << "finished writing _stage for FC" << std::endl;
                 }   // end fully connected case
@@ -912,7 +934,8 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                            std::cout << "conv_pool_stage.OutputLocation= "<< conv_pool_stage.OutputLocation << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -1094,11 +1117,10 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.preop_type);
                     AddBytes(4, 0x05);    // 0x1ac  postop type
                 }
-                else if (( it->getOpType() == OpType::Add ) || ( it->getOpType() == OpType::Multiply ))
+                else if (( it->getOpType() == OpType::Add ) || ( it->getOpType() == OpType::Multiply ) || ( it->getOpType() == OpType::Scale ))
                 {
                     op_count++;
                     next_offset += 0x8c ;
-//                    next_offset += 0x84 ;
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
                     conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
@@ -1108,10 +1130,16 @@ class Blob_buffer : public WBuffer
                     //  write reloc table entry for 2 inputs
                     for ( int input_index = 0; input_index < 2; input_index++ )
                     {
-                        this_inputLocation = inbufnum_list[outlist_index+input_index];
-
+                        if (( it->getOpType() == OpType::Scale )&&(input_index==1))
+                        {
+                            this_inputLocation = 3;  // second input to scale is located in the blob buff (wts-bias) 
+                        }
+                        else
+                        {
+                            this_inputLocation = inbufnum_list[outlist_index+input_index];   // input located in work buffer or input
+                        }
                         // determine address offset to input buffer
-                        if (this_inputLocation != 1)
+                        if (this_inputLocation >= 4)
                         {
                             //  find input work buffer in output lists
                             for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
@@ -1166,11 +1194,16 @@ class Blob_buffer : public WBuffer
 
                     if (it->getOpType() == OpType::Add)
                     {
-                        AddBytes(4, 0x0c);     // operation type Add
+                        AddBytes(4, 0x0c);     // operation type element-wise Add
+                    }
+                    else if (it->getOpType() == OpType::Multiply)
+                    {
+                        AddBytes(4, 0x0d);     // operation type element-wise Multiply
                     }
                     else
                     {
-                        AddBytes(4, 0x2e);     // operation type Multiply
+                        AddBytes(4, 0x0f);     // operation type vector Scale
+                        next_offset += 0x28 ;
                     }
 
                     AddBytes(4, conv_pool_stage.implementation);
@@ -1178,18 +1211,51 @@ class Blob_buffer : public WBuffer
                     // operator specific info
                     add_stage_IO_info(it, conv_pool_stage);
 
-                    // 2nd input info , same as first except buffer offset and location
-                    AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
-                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
-                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
-                    AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
+                    if (it->getOpType() == OpType::Scale)
+                    {
+                        // 2nd input info 
+//                        AddBytes(4, it->getInputTensor(1)->getShape().totalSize());  // input X-dimension size
+                        AddBytes(4, 0x00);  // input X-dimension size
+                        AddBytes(4, 1);  // input Y-dimension size
+                        AddBytes(4, 1);  // input Z-dimension size   (0x90)
+                        AddBytes(4, blob_stats.tensor_number_size);    // InputStrideX
+                        AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape().totalSize());  // InputStrideY
+                        AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
 
-                    AddBytes(4, conv_pool_stage.Input1Offset);      // 2nd input
-                    AddBytes(4, conv_pool_stage.Input1Location);    // 2nd Inputr
-                    AddBytes(4, conv_pool_stage.OutputDataType);
-                    AddBytes(4, conv_pool_stage.OutputOrder);
+                        AddBytes(4, conv_pool_stage.TBOffset);      // 2nd input
+                        conv_pool_stage.TBOffset++; 
+                        AddBytes(4, 3);    // 2nd location is bias region of blob buffer
+                        AddBytes(4, conv_pool_stage.OutputDataType);
+                        AddBytes(4, 3);   // output order
+
+                        AddBytes(4, conv_pool_stage.BiasDimX);   // 0x100
+                        AddBytes(4, conv_pool_stage.BiasDimY);
+                        AddBytes(4, conv_pool_stage.BiasDimZ);
+                        AddBytes(4, conv_pool_stage.BiasStrideX);
+                        AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
+                        AddBytes(4, conv_pool_stage.BiasStrideZ);
+                        AddBytes(4, 0);   // input offset
+                        AddBytes(4, 0);   // input location
+                        AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
+                        AddBytes(4, conv_pool_stage.BiasOrder);
+
+                    }
+                    else   // add or mult
+                    {
+                        // 2nd input info , same as first except buffer offset and location
+                        AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
+                        AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
+                        AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
+                        AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
+                        AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
+                        AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
+ 
+                        AddBytes(4, conv_pool_stage.Input1Offset);      // 2nd input
+                        AddBytes(4, conv_pool_stage.Input1Location);    // 2nd Inputr
+                        AddBytes(4, conv_pool_stage.OutputDataType);
+                        AddBytes(4, conv_pool_stage.OutputOrder);
+                    }
+
                     AddBytes(4, 0x5);    //  preop
                     AddBytes(4, 0x5);    //  postop
 
@@ -1197,7 +1263,6 @@ class Blob_buffer : public WBuffer
 
             }
 
-//            uint32_t valid_stage_end = (0x50+(3*4)+((blob_stats.stage_count-blob_stats.conv_count)*(0x80))+(blob_stats.conv_count*(0xd4))) ;
             uint32_t buffer_section_offset = align(next_offset,0x10) ;
             uint32_t stage_pad_size = buffer_section_offset - next_offset  ;
             AddBytes(stage_pad_size, 0x00000000);
@@ -1312,14 +1377,37 @@ class Blob_buffer : public WBuffer
                     {
                         AddBytes(1, buffer_pad_val);
                     }
-                }
+                }  //  end conv or FC  case
+                else if ( it->getOpType() == OpType::Scale ) // scale vector 
+                {
+                    // BIAS region
+                    uint32_t bias_number_size = 2 ;             // TODO assume FP16
+                    uint16_t buffer_bias_val = f32Tof16(0.0f);  // TODO bias = 0 hardcoded
+                    uint32_t buffer_bias_values_len = it->getInputTensor(1)->getShape().totalSize();
+
+                    for (unsigned i = 0; i < buffer_bias_values_len; ++i)
+                    {
+                        buffer_bias_val = f32Tof16(it->getInputTensor(1)->getData()[i]);
+                        AddBytes(bias_number_size, buffer_bias_val);
+//                        std::cout << "scale index value " << i << " " << buffer_bias_val << std::endl;
+                    }
+
+                    uint32_t buffer_bias_values_size = buffer_bias_values_len*bias_number_size;
+                    uint32_t buffer_bias_region_size = align(buffer_bias_values_size,64) ;
+                    uint32_t buffer_bias_pad_size = buffer_bias_region_size - (buffer_bias_values_size);
+
+                    for (unsigned i=0; i< buffer_bias_pad_size; i++)
+                    {
+                        AddBytes(1, buffer_pad_val);
+                    }
+                }   // end scale case
             }
        }
 
        void write_relocation_section(mv::ControlModel& cm)
        {
             uint32_t relocation_section_header_size = 20 ;
-            uint32_t blob_buffer_reloc_size = 16*blob_stats.conv_count ;
+            uint32_t blob_buffer_reloc_size = 8*blob_stats.conv_count ;
             uint32_t work_buffer_reloc_size = 0x10 * (blob_stats.stage_count-1);
             uint32_t blob_buffer_reloc_offset = blob_stats.blob_file_size - blob_stats.relocation_section_size + relocation_section_header_size ;
             uint32_t work_buffer_reloc_offset = blob_buffer_reloc_offset + blob_buffer_reloc_size ;
@@ -1363,22 +1451,25 @@ class Blob_buffer : public WBuffer
                     // relocation section: blob buffer relocation information
                     // weights region
                     AddBytes(4, running_offset);  // offset from start of buffer section
-                    AddBytes(4, 0x00000003);          // memory type = heap/bss
+                    AddBytes(4, 0x00000003);          // memory type = blob-buffer
                     running_offset += weights_region_size ;
                     // bias region offset
                     AddBytes(4, running_offset);
-                    AddBytes(4, 0x00000003);          // memory type = heap/b
+                    AddBytes(4, 0x00000003);          // memory type = blob-buffer
                     running_offset += bias_region_size + params_region_size ;
 
                 }   // end convolution case
 
-                if ( it->getOpType() == OpType::Softmax )
+                if ( it->getOpType() == OpType::Scale )
                 {
-
-                }     // end softmaxcase
+                    // bias region offset
+                    AddBytes(4, running_offset);
+                    AddBytes(4, 0x00000003);          // memory type = blob-buffer
+                    running_offset += 64 ;  
+                } 
                 node_index++;
 
-           }  // end graph pass
+           }  // end graph pass to output wts,bias buffer info
 
            // output work buffer relocation table
            for (unsigned j=0; j<blob_stats.relocbuf_list.size(); j++)
@@ -1434,7 +1525,7 @@ class Blob_buffer : public WBuffer
                     // fuse relu, bias and batchnorm as required by blob
                     fuseRelu.run(graph_2_deploy);
                     fuseBias.run(graph_2_deploy);
-                    fuseBatchNorm.run(graph_2_deploy);
+//                    fuseBatchNorm.run(graph_2_deploy);
                     // 4 passes of graph: calculate, stages, buffer, reloc
                     // calculate sizes and offsets for headers
                     odata.calc(graph_2_deploy);
