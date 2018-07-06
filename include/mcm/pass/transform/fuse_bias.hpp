@@ -1,5 +1,5 @@
-#ifndef FUSE_BATCH_NORM_HPP_
-#define FUSE_BATCH_NORM_HPP_
+#ifndef FUSE_BIAS_HPP_
+#define FUSE_BIAS_HPP_
 
 #include "include/mcm/pass/transform_pass.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
@@ -27,4 +27,4 @@ namespace mv
 
 }
 
-#endif // DEPLOY_PASS_HPP_
+#endif // FUSE_BIAS_HPP_

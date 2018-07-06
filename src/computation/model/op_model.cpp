@@ -122,7 +122,7 @@ mv::string mv::OpModel::getOpName_(OpType opType)
     return Printable::toString(opType) + "_" + Printable::toString(opsCount(opType));
 }
 
-mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator& other)
+mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator other)
 {
     return opsGraph_->get_first_iterator(other);
 }
@@ -566,12 +566,12 @@ mv::Data::OpListIterator mv::OpModel::getOutput()
     return output_;
 }
 
-mv::Data::OpListIterator mv::OpModel::opEnd()
+mv::Data::OpListIterator mv::OpModel::opEnd() const
 {
     return dataOpEnd_;
 }
 
-mv::Data::FlowListIterator mv::OpModel::flowEnd()
+mv::Data::FlowListIterator mv::OpModel::flowEnd() const
 {
     return dataFlowEnd_;
 }
@@ -628,4 +628,21 @@ unsigned mv::OpModel::opsCount(OpType opType) const
     if (opsCounter_->find(opType) != opsCounter_->end())
         return opsCounter_->at(opType);
     return 0;
+}
+
+unsigned mv::OpModel::parametersCount() const
+{
+
+    unsigned result = 0;
+
+    for (auto it = input_; it != opEnd(); ++it)
+    {
+        if (it->getOpType() == OpType::Constant)
+        {
+            result += it->getOutputTensor(0)->getShape().totalSize();
+        }
+    }
+
+    return result;
+
 }

@@ -41,7 +41,8 @@ bool mv::pass::FuseReLU::run_(ComputationModel &model)
             }
             
             om.removeOp(opIt);
-            om.enableDefaultControlFlow(om.getSourceOp(sourceTensor));
+            om.enableDefaultControlFlow(parentOpIt);
+            opIt = parentOpIt;
 
         }
 

@@ -3,7 +3,7 @@
 mv::op::Constant::Constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name) :
 ComputationOp(OpType::Constant, name),
 SourceOp(OpType::Constant, 1, name),
-data_(allocator_.make_owner<dynamic_vector<float_type>>(data))
+data_(data)
 {
     addAttr("shape", AttrType::ShapeType, shape);
     addAttr("dType", AttrType::DTypeType, dType);

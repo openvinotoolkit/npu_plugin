@@ -10,6 +10,7 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
 {
     
     OpModel om(model);
+
     bool result = true;
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -20,6 +21,8 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             
             auto batchNormName = opIt->getName();
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            ControlModel cm(om);
+            auto nextOp = cm.switchContext(opIt).leftmostChild();
             
             auto bnMean = *opIt->getInputTensor(1);
             auto bnVar = *opIt->getInputTensor(2);
@@ -34,7 +37,6 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             om.disableDefaultControlFlow();
 
             Data::TensorIterator sourceTensor;
-            ControlModel cm(om);
 
             if (bnMean.getShape().ndims() == 1)
             {
@@ -70,7 +72,7 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             }
 
             cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
-            cm.defineFlow(om.getSourceOp(sourceTensor), opIt.leftmostChild());
+            cm.defineFlow(om.getSourceOp(sourceTensor), om.switchContext(nextOp));
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
@@ -87,8 +89,8 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             }
             
             om.removeOp(opIt);
-            om.enableDefaultControlFlow(om.getSourceOp(sourceTensor));
-
+            om.enableDefaultControlFlow(cm.getLast());
+            opIt = parentOpIt;
         }
 
     }

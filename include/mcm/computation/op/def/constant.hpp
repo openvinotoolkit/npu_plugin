@@ -13,7 +13,7 @@ namespace mv
         class Constant : public SourceOp
         {
 
-            allocator::owner_ptr<dynamic_vector<float_type>> data_;
+            dynamic_vector<float_type> data_;
 
         public:
 

@@ -11,8 +11,10 @@ namespace mv
     {
 
         static allocator allocator_;
-        allocator::owner_ptr<dynamic_vector<float_type>> data_;
+        dynamic_vector<float_type> data_;
         float_type errValue;
+        Shape shape_;
+        bool populated_;
 
         static inline void unfoldSubs_(dynamic_vector<unsigned> &output, byte_type &dim, unsigned_type sub)
         {
@@ -32,15 +34,12 @@ namespace mv
         static dynamic_vector<unsigned> indToSub(const Shape& s, unsigned idx);
 
         Tensor(const string &name, const Shape &shape, DType dType, Order order);
-        Tensor(const string &name, const Shape &shape, DType dType, Order order, allocator::owner_ptr<dynamic_vector<float_type>> data);
-        Tensor(const string &name, const Shape &shape, DType dType, Order order, dynamic_vector<float_type>& data);
+        Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data);
         Tensor(const Tensor &other);
         Tensor();
-        bool populate(dynamic_vector<float_type>& data);
+        bool populate(const dynamic_vector<float_type>& data);
         bool unpopulate();
-        bool isPopulated() const;
         dynamic_vector<float_type> &getData();
-        Shape getShape() const;
         DType getDType() const;
         Order getOrder() const;
         string toString() const;
@@ -54,14 +53,24 @@ namespace mv
         unsigned subToInd(const dynamic_vector<unsigned>& sub) const;
         dynamic_vector<unsigned> indToSub(unsigned idx) const;
         float_type& at(const dynamic_vector<unsigned>& sub);
-        float_type at(const dynamic_vector<unsigned>& sub) const;
+        const float_type& at(const dynamic_vector<unsigned>& sub) const;
         float_type& at(unsigned idx);
-        float_type at(unsigned idx) const;
+        const float_type& at(unsigned idx) const;
         float_type& operator()(unsigned idx);
-        float_type operator()(unsigned idx) const;
+        const float_type& operator()(unsigned idx) const;
         float_type& operator()(const dynamic_vector<unsigned>& sub);
-        float_type operator()(const dynamic_vector<unsigned>& sub) const;
+        const float_type& operator()(const dynamic_vector<unsigned>& sub) const;
         
+        inline bool isPopulated() const
+        {
+            return populated_;
+        }
+
+        inline Shape getShape() const
+        {
+            return shape_;
+        }
+
         template<typename... Idx>
         unsigned subToInd(Idx... indices) const
         {
@@ -84,7 +93,7 @@ namespace mv
                 return errValue;
             }
 
-            return (*data_)[subToInd(indices...)];
+            return data_[subToInd(indices...)];
 
         }
 
@@ -98,7 +107,7 @@ namespace mv
                 return errValue;
             }
 
-            return (*data_)[subToInd(indices...)];
+            return data_[subToInd(indices...)];
 
         }
 
