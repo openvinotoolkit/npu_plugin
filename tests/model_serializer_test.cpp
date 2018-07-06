@@ -1,9 +1,10 @@
 #include "gtest/gtest.h"
 #include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/deployer/serializer.hpp"
 #include "include/mcm/deployer/Fp16Convert.h"
-#include "include/mcm/utils/data_generator.hpp"
 
 static mv::Logger::VerboseLevel logger_level = mv::Logger::VerboseLevel::VerboseSilent;
 
@@ -303,7 +304,7 @@ TEST (model_serializer, blob_4_ops)
                          \-conva->avgpoola->convb->avgpoolb-/
 */
 
-TEST (model_serializer, blob_eltwise)
+TEST (model_serializer, blob_eltwise_add)
 {
     mv::OpModel test_cm7(logger_level) ;
 
@@ -471,7 +472,7 @@ TEST (model_serializer, blob_eltwise_multiply)
     EXPECT_EQ(inIt7->getShape()[2], 3);      // Z dim
 
     EXPECT_EQ(convIt71->getShape()[0], 30);  // X dim  conv 1
-   EXPECT_EQ(convIt71->getShape()[1], 30);  // X dim
+    EXPECT_EQ(convIt71->getShape()[1], 30);  // X dim
     EXPECT_EQ(convIt71->getShape()[2], 1);   // Z dim
 
     EXPECT_EQ(avgpoolIt71->getShape()[0], 10);  // X dim  maxpool 1
@@ -580,7 +581,7 @@ TEST (model_serializer, blob_softmax)
     EXPECT_EQ(inIt7->getShape()[2], 3);      // Z dim
 
     EXPECT_EQ(convIt71->getShape()[0], 30);  // X dim  conv 1
-   EXPECT_EQ(convIt71->getShape()[1], 30);  // X dim
+    EXPECT_EQ(convIt71->getShape()[1], 30);  // X dim
     EXPECT_EQ(convIt71->getShape()[2], 1);   // Z dim
 
     EXPECT_EQ(avgpoolIt71->getShape()[0], 10);  // X dim  maxpool 1
@@ -604,7 +605,7 @@ TEST (model_serializer, blob_softmax)
 
 // TODO temp miscompare: each softmax adds a params section to wts, bias buffer region.
     // serialize compute model to file
-//    uint64_t filesize7 = gs7.serialize(cm7, "test_conv_07b.blob");
+    uint64_t filesize7 = gs7.serialize(cm7, "test_conv_07b.blob");
 
     // compare filesize written to expected
 //    EXPECT_EQ (5348, filesize7) << "ERROR: wrong blob size";
@@ -617,3 +618,172 @@ TEST (model_serializer, blob_softmax)
 
 }
 
+// test 08 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2
+TEST (model_serializer, blob_convbias_convrelu)
+{
+    mv::OpModel test_cm6(logger_level) ;
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm6.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::LastDimMajor);
+
+    // define first convolution  3D conv 
+
+    mv::dynamic_vector<mv::float_type> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
+    auto weightsIt61 = test_cm6.constant(weightsData61, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::LastDimMajor);   // kh, kw, ins, outs
+    EXPECT_EQ(weightsIt61->getShape()[0], 5);
+    EXPECT_EQ(weightsIt61->getShape()[1], 5);
+    EXPECT_EQ(weightsIt61->getShape()[2], 3);
+    EXPECT_EQ(weightsIt61->getShape()[3], 1);
+    auto convIt61 = test_cm6.conv2D(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+
+    mv::dynamic_vector<mv::float_type> biasesData = { 64444.0 };
+    auto biases = test_cm6.constant(biasesData, mv::Shape(1), mv::DType::Float, mv::Order::LastDimMajor, "biases");
+    auto bias1 = test_cm6.bias(convIt61, biases);
+
+    // define first maxpool
+    auto maxpoolIt61 = test_cm6.maxpool2D(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
+
+    // define second convolution
+    mv::dynamic_vector<mv::float_type> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0f, 0.000f);
+    auto weightsIt62 = test_cm6.constant(weightsData62, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::LastDimMajor);   // kh, kw, ins, outs
+    auto convIt62 = test_cm6.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
+    auto reluIt62 = test_cm6.relu(convIt62);
+
+    // define second maxpool
+    auto maxpoolIt62 = test_cm6.maxpool2D(reluIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
+
+    // define output
+    auto outIt6 = test_cm6.output(maxpoolIt62);
+
+    // Check if model is valid 
+    EXPECT_TRUE(test_cm6.isValid());
+
+    // Check output shapes of each layer
+    EXPECT_EQ(inIt6->getShape()[0], 64);     // X dim  input
+    EXPECT_EQ(inIt6->getShape()[1], 64);     // X dim
+    EXPECT_EQ(inIt6->getShape()[2], 3);      // Z dim
+
+    EXPECT_EQ(convIt61->getShape()[0], 30);  // X dim  conv 1
+    EXPECT_EQ(convIt61->getShape()[1], 30);  // X dim
+    EXPECT_EQ(convIt61->getShape()[2], 1);   // Z dim
+
+    EXPECT_EQ(maxpoolIt61->getShape()[0], 10);  // X dim  maxpool 1
+    EXPECT_EQ(maxpoolIt61->getShape()[1], 10);  // X dim
+    EXPECT_EQ(maxpoolIt61->getShape()[2], 1);   // Z dim
+
+    EXPECT_EQ(convIt62->getShape()[0], 8);      // X dim  conv 2
+    EXPECT_EQ(convIt62->getShape()[1], 8);      // X dim
+    EXPECT_EQ(convIt62->getShape()[2], 1);      // Z dim
+
+    EXPECT_EQ(maxpoolIt62->getShape()[0], 4);   // X dim  maxpool 1
+    EXPECT_EQ(maxpoolIt62->getShape()[1], 4);   // X dim
+    EXPECT_EQ(maxpoolIt62->getShape()[2], 1);   // Z dim
+
+    EXPECT_EQ(outIt6->getShape()[0], 4);   // X dim  output
+
+    mv::ControlModel cm6(test_cm6);
+
+    // declare serializer as blob
+    mv::Serializer gs6(mv::mvblob_mode);
+
+    // serialize compute model to file
+    uint64_t filesize6 = gs6.serialize(cm6, "test_bias_08.blob");
+
+    // compare filesize written to expected
+    EXPECT_EQ (2580, filesize6) << "ERROR: wrong blob size";
+
+    // compare blob file contents to blob previously generated with mvNCCheck
+
+    const char *command1 = "cp ../../tests/data/gold_08.blob .";
+    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_08.blob to current folder";
+    const char *command2 = "diff test_bias_08.blob gold_08.blob";
+    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+
+}
+
+// test 09 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2->scale
+TEST (model_serializer, blob_scale)
+{
+    mv::OpModel test_cm6(logger_level) ;
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm6.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::LastDimMajor);
+
+    // define first convolution  3D conv 
+
+    mv::dynamic_vector<mv::float_type> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
+    auto weightsIt61 = test_cm6.constant(weightsData61, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::LastDimMajor);   // kh, kw, ins, outs
+    EXPECT_EQ(weightsIt61->getShape()[0], 5);
+    EXPECT_EQ(weightsIt61->getShape()[1], 5);
+    EXPECT_EQ(weightsIt61->getShape()[2], 3);
+    EXPECT_EQ(weightsIt61->getShape()[3], 1);
+    auto convIt61 = test_cm6.conv2D(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+
+    mv::dynamic_vector<mv::float_type> biasesData = { 64444.0 };
+    auto biases = test_cm6.constant(biasesData, mv::Shape(1), mv::DType::Float, mv::Order::LastDimMajor, "biases");
+    auto bias1 = test_cm6.bias(convIt61, biases);
+
+    // define first maxpool
+    auto maxpoolIt61 = test_cm6.maxpool2D(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
+
+    // define second convolution
+    mv::dynamic_vector<mv::float_type> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0f, 0.000f);
+    auto weightsIt62 = test_cm6.constant(weightsData62, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::LastDimMajor);   // kh, kw, ins, outs
+    auto convIt62 = test_cm6.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
+    auto reluIt62 = test_cm6.relu(convIt62);
+
+    // define second maxpool
+    auto maxpoolIt62 = test_cm6.maxpool2D(reluIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
+
+    // define scale
+    mv::dynamic_vector<mv::float_type> scalesData = { 6550.0f };
+    auto scales = test_cm6.constant(scalesData, mv::Shape(1), mv::DType::Float, mv::Order::LastDimMajor, "scales");
+    auto scaleIt62 = test_cm6.scale(maxpoolIt62, scales);
+
+    // define output
+    auto outIt6 = test_cm6.output(scaleIt62);
+
+    // Check if model is valid 
+    EXPECT_TRUE(test_cm6.isValid());
+
+    // Check output shapes of each layer
+    EXPECT_EQ(inIt6->getShape()[0], 64);     // X dim  input
+    EXPECT_EQ(inIt6->getShape()[1], 64);     // X dim
+    EXPECT_EQ(inIt6->getShape()[2], 3);      // Z dim
+
+    EXPECT_EQ(convIt61->getShape()[0], 30);  // X dim  conv 1
+    EXPECT_EQ(convIt61->getShape()[1], 30);  // X dim
+    EXPECT_EQ(convIt61->getShape()[2], 1);   // Z dim
+
+    EXPECT_EQ(maxpoolIt61->getShape()[0], 10);  // X dim  maxpool 1
+    EXPECT_EQ(maxpoolIt61->getShape()[1], 10);  // X dim
+    EXPECT_EQ(maxpoolIt61->getShape()[2], 1);   // Z dim
+
+    EXPECT_EQ(convIt62->getShape()[0], 8);      // X dim  conv 2
+    EXPECT_EQ(convIt62->getShape()[1], 8);      // X dim
+    EXPECT_EQ(convIt62->getShape()[2], 1);      // Z dim
+
+    EXPECT_EQ(maxpoolIt62->getShape()[0], 4);   // X dim  maxpool 2
+    EXPECT_EQ(maxpoolIt62->getShape()[1], 4);   // X dim
+    EXPECT_EQ(maxpoolIt62->getShape()[2], 1);   // Z dim
+
+    EXPECT_EQ(outIt6->getShape()[0], 4);   // X dim  output
+
+    mv::ControlModel cm6(test_cm6);
+
+    // declare serializer as blob
+    mv::Serializer gs6(mv::mvblob_mode);
+
+    // serialize compute model to file
+    uint64_t filesize6 = gs6.serialize(cm6, "test_scale_09.blob");
+
+    // compare filesize written to expected
+    EXPECT_EQ (2844, filesize6) << "ERROR: wrong blob size";
+
+    // compare blob file contents to blob previously generated with mvNCCheck
+
+    const char *command1 = "cp ../../tests/data/gold_09.blob .";
+    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_09.blob to current folder";
+    const char *command2 = "diff test_scale_09.blob gold_09.blob";
+    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+}

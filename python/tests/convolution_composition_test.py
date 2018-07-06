@@ -108,6 +108,19 @@ class TestComposition(unittest.TestCase):
 
         self.assertTrue(g.isValid())
 
+    def test_fullyConnected(self):
+
+        g = ca.getOM()
+        shape = ca.getShape(1, 1, 100)
+
+        in_ = ca.input(g, shape)
+        weightData = ca.getData(np.arange(100 * 100).astype(np.float32))
+        weights_ = ca.constant(g, weightData, ca.getShape(100, 100))
+        mx_ = ca.fullyConnected(g, in_, weights_)
+        ca.output(g, mx_)
+
+        self.assertTrue(g.isValid())
+
     def test_batchNorm(self):
 
         g = ca.getOM()
@@ -294,7 +307,6 @@ class TestComposition(unittest.TestCase):
         self.assertEqual(ca.testConv(cOp_, 4, 4, 0, 0), 0)
 
         fs = ca.serialize(g)
-        print(fs)
 
         self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_01.blob"))
 
@@ -325,8 +337,6 @@ class TestComposition(unittest.TestCase):
         self.assertEqual(ca.testConv(cOp_, 4, 4, 0, 0), 0)
 
         fs = ca.serialize(g)
-        print(fs)
-
         self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_02.blob"))
 
 
@@ -357,7 +367,6 @@ class TestComposition(unittest.TestCase):
         self.assertEqual(ca.testConv(cOp_, 2, 2, 0, 0), 0)
 
         fs = ca.serialize(g)
-        print(fs)
 
         self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_03.blob"))
 
@@ -388,7 +397,6 @@ class TestComposition(unittest.TestCase):
         self.assertEqual(ca.testConv(cOp_, 2, 2, 0, 0), 0)
 
         fs = ca.serialize(g)
-        print(fs)
 
         self.assertTrue(filecmp.cmp("cpp.blob", "../../tests/data/gold_04.blob"))
 
