@@ -141,6 +141,32 @@ import_array();
         return o->conv2D(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
     }
 
+    mv::Data::TensorIterator conv2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+        unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+        /// This differs from the above because caffe calculates output sizes differently.
+        /// To compensate, we add values to pad.
+        int adj_X = 0, adj_Y = 0;
+
+        mv::Shape i = input->getShape();
+        mv::Shape k = filters->getShape();
+
+        float y_calc = float(i[1] + padY + padY - k[1]) / strideY;
+        float x_calc = float(i[0] + padX + padX - k[0]) / strideX;
+
+        printf("Y %f X %f\n", y_calc, x_calc);
+
+        printf("In: %i %i %i\n", i[0], i[1], i[2]);
+        printf("T: %i %i %i %i\n", k[0], k[1], k[2], k[3]);
+
+        if (y_calc - (int)y_calc > 0) adj_Y = 1;  // If not a whole number
+        if (x_calc - (int)x_calc > 0) adj_X = 1;  // If not a whole number
+
+        if (padX < 1) adj_X  = 0;   // No minus padding..
+        if (padY < 1) adj_Y  = 0;   // No minus padding..
+
+        return o->conv2D(input, filters, {strideX, strideY}, {padX , padX- adj_X, padY, padY - adj_Y});
+    }
+
     mv::Data::TensorIterator constant(mv::OpModel *o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the OpModel and return the relevant iterator
         return o->constant(data, shape, mv::DType::Float, mv::Order::LastDimMajor);
@@ -257,6 +283,8 @@ mv::dynamic_vector<mv::float_type> * getData(float * d, int len);
 mv::Data::TensorIterator input(mv::OpModel * o, const mv::Shape &shape);
 mv::Data::TensorIterator output(mv::OpModel * o, mv::Data::TensorIterator input);
 mv::Data::TensorIterator conv2D(mv::OpModel * o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+    unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
+mv::Data::TensorIterator conv2D_caffe(mv::OpModel * o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
 mv::Data::TensorIterator maxpool2D(mv::OpModel * o, mv::Data::TensorIterator input, unsigned kernelSizeX,
     unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
