@@ -101,8 +101,8 @@ class Blob_stage
             radixStrideY = 2 ;
             padX = 0 ;
             padY = 0 ;
-//            padStyle = 2 ;
-            padStyle = 1 ;
+            padStyle = 2 ;
+//            padStyle = 1 ;
             dilation = 1 ;
 
             InputDimX = 32 ;
@@ -550,9 +550,10 @@ class Blob_buffer : public WBuffer
 
                     if (it->getOpType() == OpType::Conv2D)
                     {
-//                        padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0 + (((it->getInputTensor(1)->getShape()[0])/2)*2) ;
-                        padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0 + 4 ;
-                        padY = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2 ;
+                        padX = ((((it->getInputTensor(1)->getShape()[0])/2)+1)*2) ;   // compatibility pad allowing conv output overrun
+                        padY = 0;
+//                        padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0 + 4 ;
+//                        padY = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2 ;
 //                        std::cout << "----kernel size/2 *2  "<< (((it->getInputTensor(1)->getShape()[0])/2)*2) << std::endl;
                     // determine size of work buffer including pad for alignment and number format size
                         int X_size = it->getOutputTensor(0)->getShape()[0]+padX ;
@@ -759,8 +760,8 @@ class Blob_buffer : public WBuffer
                     }
                     else
                     {
-                        AddBytes(4, 0x09);    // 0x12c , no postop
-//                        AddBytes(4, 0x05);    // 0x12c , no postop
+//                        AddBytes(4, 0x09);    // 0x12c , no postop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
                     }
 
 //                    conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
@@ -897,8 +898,8 @@ class Blob_buffer : public WBuffer
                     }
                     else
                     {
-                        AddBytes(4, 0x09);    // 0x12c , no postop
-//                        AddBytes(4, 0x05);    // 0x12c , no postop
+//                        AddBytes(4, 0x09);    // 0x12c , no postop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
                     }
 
 //                    conv_pool_stage.TapsOffset= conv_pool_stage.TapsOffset+2 ;
@@ -1596,7 +1597,7 @@ class Blob_buffer : public WBuffer
                 case mvblob_mode:
                     // fuse relu, bias and batchnorm as required by blob
                     fuseBatchNorm.run(graph_2_deploy);
-                    fuseRelu.run(graph_2_deploy);
+//                    fuseRelu.run(graph_2_deploy);
                     fuseBias.run(graph_2_deploy);
                     // 4 passes of graph: calculate, stages, buffer, reloc
                     // calculate sizes and offsets for headers
