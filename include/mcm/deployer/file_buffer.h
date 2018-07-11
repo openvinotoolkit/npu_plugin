@@ -20,6 +20,18 @@ class WBuffer
             FileSize = 0 ;
         }
 
+        template <typename number_T> 
+        number_T align8(number_T number_2_round) 
+        { 
+            number_T align_size = 8 ; 
+            number_T retval = (number_2_round/align_size)*align_size ; 
+            if ((number_2_round % align_size) != 0) 
+            { 
+                retval += align_size ; 
+            } 
+            return retval ; 
+        } 
+
         template <typename number_T, typename size_T>
         number_T align(number_T number_2_round, size_T align_size)
         {
