@@ -224,9 +224,9 @@ class Blob_buffer : public WBuffer
                     if ( it->getOpType() == OpType::FullyConnected )
                     {
 //                        std::cout << "calculating buffer sizes for fully connected"<< std::endl;
-                        kernel_sizeX = it->getInputTensor(1)->getShape().totalSize() ;
+                        kernel_sizeX = 1 ;
                         kernel_sizeY = 1 ;
-                        kernel_sizeZ = 1 ;
+                        kernel_sizeZ = it->getInputTensor(1)->getShape().totalSize() ;
                         kernel_sizeN = 1 ;
                         blob_stats.stage_section_size += (45*4) ;
                     }
@@ -689,8 +689,8 @@ class Blob_buffer : public WBuffer
                     if (conv_pool_stage.OutputLocation != 2)
 
                     {
-                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]); 
-                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]); 
+                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
+                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
 //                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
@@ -729,7 +729,7 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.TapsStrideZ);
 //                    AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
                     AddBytes(4, conv_pool_stage.TBOffset);   // 0xf0
-                    conv_pool_stage.TBOffset++ ; 
+                    conv_pool_stage.TBOffset++ ;
                     AddBytes(4, conv_pool_stage.TapsLocation);
                     AddBytes(4, conv_pool_stage.TapsDataType);
                     AddBytes(4, conv_pool_stage.TapsOrder);
@@ -802,8 +802,8 @@ class Blob_buffer : public WBuffer
 //                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
                                 conv_pool_stage.InputOffset = reloc_index++;
                             }
-                        } // end search outbufnum list 
-                    }   // end node input is work buffer case 
+                        } // end search outbufnum list
+                    }   // end node input is work buffer case
                     else
                     {
                         conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
@@ -846,10 +846,10 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.InputDataType);
                     AddBytes(4, conv_pool_stage.InputOrder);
 
-                    AddBytes(4, it->getOutputTensor(0)->getShape().totalSize());  // output X-dimension size  (0xb0)
-                    AddBytes(4, 0x01);  // output Y-dimension size
-                    AddBytes(4, 0x01);  // output Z-dimension size
-                    AddBytes(4, blob_stats.tensor_number_size);  // output stepX 
+                    AddBytes(4, 0x01);                                            // output X-dimension size  (0xb0)
+                    AddBytes(4, 0x01);                                            // output Y-dimension size
+                    AddBytes(4, it->getOutputTensor(0)->getShape().totalSize());  // output Z-dimension size
+                    AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());  // output stepX
                     AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // 0xc0
                     AddBytes(4, conv_pool_stage.OutputStrideZ);
                     AddBytes(4, conv_pool_stage.OutputOffset);
@@ -858,12 +858,12 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
                     AddBytes(4, conv_pool_stage.OutputOrder);
 
-                    AddBytes(4, it->getInputTensor(1)->getShape().totalSize());   // TAPS dim X
-                    AddBytes(4, 0x01);
-                    AddBytes(4, 0x01 );     // 0xe0   TapsDImZ
+                    AddBytes(4, 0x01);   // TAPS dim X
+                    AddBytes(4, it->getInputTensor(1)->getShape()[0]);
+                    AddBytes(4, it->getInputTensor(1)->getShape()[1] );     // 0xe0   TapsDImZ
 
                     AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape().totalSize());   // Taps step X
-                    AddBytes(4, blob_stats.tensor_number_size);   // Taps step Y
+                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[1]);   // Taps step Y
                     AddBytes(4, conv_pool_stage.TapsStrideZ);
 //                    AddBytes(4, conv_pool_stage.TapsOffset);   // 0xf0
                     AddBytes(4, conv_pool_stage.TBOffset);   // 0xf0
@@ -978,7 +978,7 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, it->getOutputTensor(0)->getShape().totalSize());  // output X-dimension size  (0xb0)
                     AddBytes(4, 1);  // output Y-dimension size
                     AddBytes(4, 1);  // output Z-dimension size
-                    AddBytes(4, blob_stats.tensor_number_size);  // output stepX 
+                    AddBytes(4, blob_stats.tensor_number_size);  // output stepX
                     AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // 0xc0
                     AddBytes(4, conv_pool_stage.OutputStrideZ);
                     AddBytes(4, conv_pool_stage.OutputOffset);
@@ -1204,7 +1204,7 @@ class Blob_buffer : public WBuffer
                     {
                         if (( it->getOpType() == OpType::Scale )&&(input_index==1))
                         {
-                            this_inputLocation = 3;  // second input to scale is located in the blob buff (wts-bias) 
+                            this_inputLocation = 3;  // second input to scale is located in the blob buff (wts-bias)
                         }
                         else
                         {
@@ -1286,7 +1286,7 @@ class Blob_buffer : public WBuffer
 
                     if (it->getOpType() == OpType::Scale)
                     {
-                        // 2nd input info 
+                        // 2nd input info
 //                        AddBytes(4, it->getInputTensor(1)->getShape().totalSize());  // input X-dimension size
                         AddBytes(4, 0x00);  // input X-dimension size
                         AddBytes(4, 1);  // input Y-dimension size
@@ -1296,7 +1296,7 @@ class Blob_buffer : public WBuffer
                         AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
 
                         AddBytes(4, conv_pool_stage.TBOffset);      // 2nd input
-                        conv_pool_stage.TBOffset++; 
+                        conv_pool_stage.TBOffset++;
                         AddBytes(4, 3);    // 2nd location is bias region of blob buffer
                         AddBytes(4, conv_pool_stage.OutputDataType);
                         AddBytes(4, 3);   // output order
@@ -1322,7 +1322,7 @@ class Blob_buffer : public WBuffer
                         AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
                         AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
                         AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
- 
+
                         AddBytes(4, conv_pool_stage.Input1Offset);      // 2nd input
                         AddBytes(4, conv_pool_stage.Input1Location);    // 2nd Inputr
                         AddBytes(4, conv_pool_stage.OutputDataType);
@@ -1451,7 +1451,7 @@ class Blob_buffer : public WBuffer
                         AddBytes(1, buffer_pad_val);
                     }
                 }  //  end conv or FC  case
-                else if ( it->getOpType() == OpType::Scale ) // scale vector 
+                else if ( it->getOpType() == OpType::Scale ) // scale vector
                 {
                     // BIAS region
                     uint32_t bias_number_size = 2 ;             // TODO assume FP16
@@ -1538,8 +1538,8 @@ class Blob_buffer : public WBuffer
                     // bias region offset
                     AddBytes(4, running_offset);
                     AddBytes(4, 0x00000003);          // memory type = blob-buffer
-                    running_offset += 64 ;  
-                } 
+                    running_offset += 64 ;
+                }
                 node_index++;
 
            }  // end graph pass to output wts,bias buffer info
