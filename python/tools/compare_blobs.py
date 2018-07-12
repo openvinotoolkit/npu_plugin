@@ -37,11 +37,6 @@ out_x = a["Layers..."][-1]["Op..."]["Buffers..."][1]["x"]
 out_y = a["Layers..."][-1]["Op..."]["Buffers..."][1]["y"]
 out_z = a["Layers..."][-1]["Op..."]["Buffers..."][1]["z"]
 
-# out_x = 1
-# out_y = 1
-# out_z = 1000
-
-
 gen_data(in_y, in_x, in_z)
 
 in_x = str(in_x)
