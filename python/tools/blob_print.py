@@ -135,7 +135,6 @@ blob_format = Struct(
                 ),
                 # fully_connected_layer
                 4: Struct(
-                    "axis" / Int32ul,
                     "Buffers..." / Struct(
                         "x" / Int32ul,
                         "y" / Int32ul,
