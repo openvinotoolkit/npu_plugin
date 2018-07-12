@@ -129,6 +129,33 @@ import_array();
             {padX, padX, padY, padY});
     }
 
+    mv::Data::TensorIterator maxpool2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+
+        /// This differs from the above because caffe calculates output sizes differently.
+        /// To compensate, we add values to pad.
+        /// See: https://github.com/BVLC/caffe/issues/1318
+
+        int adj_X = 0, adj_Y = 0;
+
+        mv::Shape i = input->getShape();
+
+        float y_calc = float(i[1] + padY + padY - kernelSizeY) / strideY;
+        float x_calc = float(i[0] + padX + padX - kernelSizeX) / strideX;
+
+        if (y_calc - (int)y_calc > 0) y_calc = (int)y_calc + 1;     // Ceil
+        if (x_calc - (int)x_calc > 0) x_calc = (int)x_calc + 1;     // Ceil
+
+        adj_X++;    // + 1
+        adj_Y++;    // + 1
+
+        if (padX < 1) adj_X  = 0;
+        if (padY < 1) adj_Y  = 0;
+
+        return o->maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+            {padX, padX+ adj_X, padY, padY+ adj_Y});
+    }
+
     mv::Data::TensorIterator concat(mv::OpModel *o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         /// Add a Concat Layer to the OpModel and return the relevant iterator.
         /// Allows only two inputs at a time. More must cascade
@@ -152,11 +179,6 @@ import_array();
 
         float y_calc = float(i[1] + padY + padY - k[1]) / strideY;
         float x_calc = float(i[0] + padX + padX - k[0]) / strideX;
-
-        printf("Y %f X %f\n", y_calc, x_calc);
-
-        printf("In: %i %i %i\n", i[0], i[1], i[2]);
-        printf("T: %i %i %i %i\n", k[0], k[1], k[2], k[3]);
 
         if (y_calc - (int)y_calc > 0) adj_Y = 1;  // If not a whole number
         if (x_calc - (int)x_calc > 0) adj_X = 1;  // If not a whole number
@@ -183,6 +205,33 @@ import_array();
 
     mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding){
         return o->avgpool2D(input, kernelSize, stride, padding);
+    }
+
+    mv::Data::TensorIterator avgpool2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+
+        /// This differs from the above because caffe calculates output sizes differently.
+        /// To compensate, we add values to pad.
+        /// See: https://github.com/BVLC/caffe/issues/1318
+
+        int adj_X = 0, adj_Y = 0;
+
+        mv::Shape i = input->getShape();
+
+        float y_calc = float(i[1] + padY + padY - kernelSizeY) / strideY;
+        float x_calc = float(i[0] + padX + padX - kernelSizeX) / strideX;
+
+        if (y_calc - (int)y_calc > 0) y_calc = (int)y_calc + 1;     // Ceil
+        if (x_calc - (int)x_calc > 0) x_calc = (int)x_calc + 1;     // Ceil
+
+        adj_X++;
+        adj_Y++;
+
+        if (padX < 1) adj_X  = 0;
+        if (padY < 1) adj_Y  = 0;
+
+        return o->avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+            {padX, padX+ adj_X, padY, padY+ adj_Y});
     }
 
     mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, mv::float_type varianceEps){
@@ -288,6 +337,10 @@ mv::Data::TensorIterator conv2D_caffe(mv::OpModel * o, mv::Data::TensorIterator 
     unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
 mv::Data::TensorIterator maxpool2D(mv::OpModel * o, mv::Data::TensorIterator input, unsigned kernelSizeX,
     unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
+mv::Data::TensorIterator maxpool2D_caffe(mv::OpModel * o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+    unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
+mv::Data::TensorIterator avgpool2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
 mv::Data::TensorIterator concat(mv::OpModel * o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor);
 
