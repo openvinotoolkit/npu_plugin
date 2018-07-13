@@ -28,14 +28,14 @@ bool mv::pass::FuseScale::run_(ComputationModel &model)
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasData = parentOpIt->getAttr("bias").getContent<dynamic_vector<float_type>>();
+                    auto biasData = parentOpIt->getAttr("bias").getContent<dynamic_vector<float>>();
                     if (biasData.size() != scale.getData().size())
                         return false;
 
                     for (unsigned i = 0; i < biasData.size(); ++i)
                         biasData[i] *= scale.getData()[i];
                     
-                    parentOpIt->getAttr("bias").setContent<dynamic_vector<float_type>>(biasData);
+                    parentOpIt->getAttr("bias").setContent<dynamic_vector<float>>(biasData);
 
                 }
 
