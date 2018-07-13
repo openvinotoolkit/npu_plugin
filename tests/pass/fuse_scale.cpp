@@ -22,17 +22,10 @@ TEST(fuse_scale, case_conv)
     om.output(scale);
     
     auto outputOp = scaleOp.leftmostChild();
-    mv::FStdOStream ostream("cm1.dot");
-    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ExecOpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    bool dotResult = generateDot.run(om);    
-    if (dotResult)
-        (void)system("dot -Tsvg cm1.dot -o cm1.svg");
+    
     mv::pass::FuseScale fuseScale;
     fuseScale.run(om);
-    ostream.setFileName("cm2.dot");
-    dotResult = generateDot.run(om);    
-    if (dotResult)
-        (void)system("dot -Tsvg cm2.dot -o cm2.svg");
+
     // Check if bias components were invalidated
     /*ASSERT_FALSE(om.isValid(biases));
     ASSERT_FALSE(om.isValid(bias));
