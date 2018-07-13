@@ -11,17 +11,17 @@
 mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
 {
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::LastDimMajor);
+    auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::ColumnMajor);
     auto conv = model.conv2D(input, weights, stride, padding);
 
     mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
     mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
     mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
     mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
-    auto bnmean = model.constant(meanData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
-    auto bnvariance = model.constant(varianceData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
-    auto bnoffset = model.constant(offsetData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
-    auto bnscale = model.constant(scaleData, conv->getShape()[-1], mv::DType::Float, mv::Order::LastDimMajor);
+    auto bnmean = model.constant(meanData, conv->getShape()[-1], mv::DType::Float, mv::Order::ColumnMajor);
+    auto bnvariance = model.constant(varianceData, conv->getShape()[-1], mv::DType::Float, mv::Order::ColumnMajor);
+    auto bnoffset = model.constant(offsetData, conv->getShape()[-1], mv::DType::Float, mv::Order::ColumnMajor);
+    auto bnscale = model.constant(scaleData, conv->getShape()[-1], mv::DType::Float, mv::Order::ColumnMajor);
     return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
@@ -55,7 +55,7 @@ mv::Data::TensorIterator residualConvBlock(mv::OpModel& model, mv::Data::TensorI
 int main()
 {
     mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
-    auto input = om.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::LastDimMajor);
+    auto input = om.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::ColumnMajor);
 
     auto conv1 = convBatchNormBlock(om, input, mv::Shape(7, 7, 3, 64), {2, 2}, {3, 3, 3, 3});
     conv1 = om.relu(conv1);
@@ -70,7 +70,7 @@ int main()
     auto res5b = residualBlock(om, res5a);
     auto pool5 = om.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
-    auto weights = om.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::LastDimMajor);
+    auto weights = om.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::ColumnMajor);
     auto fc1000 = om.fullyConnected(pool5, weights);
     auto softmax = om.softmax(fc1000);
 

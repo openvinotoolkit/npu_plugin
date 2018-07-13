@@ -24,14 +24,16 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             ControlModel cm(om);
             auto nextOp = cm.switchContext(opIt).leftmostChild();
             
-            auto bnMean = *opIt->getInputTensor(1);
-            auto bnVar = *opIt->getInputTensor(2);
-            auto bnOffset = *opIt->getInputTensor(3);
-            auto bnScale = *opIt->getInputTensor(4);
+            Tensor& bnMean = *opIt->getInputTensor(1);
+            Tensor& bnVar = *opIt->getInputTensor(2);
+            Tensor& bnOffset = *opIt->getInputTensor(3);
+            Tensor& bnScale = *opIt->getInputTensor(4);
             float bnEps = opIt->getAttr("varianceEps").getContent<float>();
-
-            auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
-            auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
+            bnVar.add(bnEps);
+            bnVar.sqrt();
+            auto scaleParam = math::divide(bnScale, bnVar);
+            bnMean.multiply(scaleParam);
+            auto offsetParam = math::subtract(bnOffset, bnMean);
             auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), offsetParam.getOrder());
 
             om.disableDefaultControlFlow();
@@ -42,7 +44,7 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             {
                 if (parentOpIt->getOpType() == OpType::Conv2D)
                 {
-                    parentOpIt->getInputTensor(1)->mulitply(scaleParam);
+                    parentOpIt->getInputTensor(1)->multiply(scaleParam);
                     sourceTensor = parentOpIt->getOutputTensor(0);
                 }
                 else
@@ -91,6 +93,7 @@ bool mv::pass::FuseBatchNorm::run_(ComputationModel &model)
             om.removeOp(opIt);
             om.enableDefaultControlFlow(cm.getLast());
             opIt = parentOpIt;
+
         }
 
     }

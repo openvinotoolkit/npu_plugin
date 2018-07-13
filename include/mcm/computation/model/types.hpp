@@ -54,7 +54,9 @@ namespace mv
 
     enum class Order
     {
-        LastDimMajor,
+        ColumnMajor,
+        RowMajor,
+        Planar,
         Unknown
     };
 

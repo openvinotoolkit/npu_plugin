@@ -114,7 +114,7 @@ import_array();
 
     mv::Data::TensorIterator input(mv::OpModel *o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o->input(shape, mv::DType::Float, mv::Order::LastDimMajor);
+        return o->input(shape, mv::DType::Float, mv::Order::ColumnMajor);
     }
 
     mv::Data::TensorIterator output(mv::OpModel *o, mv::Data::TensorIterator input){
@@ -169,7 +169,7 @@ import_array();
 
     mv::Data::TensorIterator constant(mv::OpModel *o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the OpModel and return the relevant iterator
-        return o->constant(data, shape, mv::DType::Float, mv::Order::LastDimMajor);
+        return o->constant(data, shape, mv::DType::Float, mv::Order::ColumnMajor);
     }
 
     mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor){
