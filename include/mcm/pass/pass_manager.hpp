@@ -4,6 +4,22 @@
 namespace mv
 {
 
+    namespace pass
+    {
+
+        enum class PassGenre
+        {
+
+            Adaptation,
+            Optimization,
+            Finalization,
+            Serialization,
+            Validation
+
+        };
+
+    }
+
     class PassManager
     {
 

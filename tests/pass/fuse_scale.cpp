@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/transform/fuse_scale.hpp"
-#include "include/mcm/deployer/fstd_ostream.hpp"
+#include "include/mcm/base/stream/fstd_ostream.hpp"
 #include "include/mcm/pass/deploy/generate_dot.hpp"
 #include "include/mcm/pass/transform/fuse_bias.hpp"
 

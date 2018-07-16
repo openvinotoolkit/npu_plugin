@@ -87,7 +87,7 @@ mv::JSONTextParser::JSONTextParser(unsigned bufferLength) :
 bufferLength_(bufferLength)
 {
     if (bufferLength_ == 0)
-        throw ArgumentError("JSONTextParser buffer length defined as 0");
+        throw ArgumentError("bufferLength", std::to_string(bufferLength_), "JSONTextParser buffer length defined as 0");
 
     buffer_ = new char[bufferLength_];
 }
@@ -269,7 +269,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
     inputStream_.open(fileName);
 
     if (!inputStream_)
-        throw ArgumentError("Unable to read from file " + fileName);
+        return false;
 
     bufferStr_.clear();
 

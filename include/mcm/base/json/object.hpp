@@ -26,6 +26,7 @@ namespace mv
             void erase(const std::string& key);
             unsigned size() const;
             void clear();
+            bool hasKey(const std::string& key);
             Value& operator[](const std::string& key);
             Object& operator=(const Object& other);
             std::string stringify() const override;

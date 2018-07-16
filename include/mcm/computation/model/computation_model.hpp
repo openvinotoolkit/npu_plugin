@@ -13,7 +13,7 @@
 #include "include/mcm/computation/model/computation_group.hpp"
 #include "include/mcm/computation/resource/computation_stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
-#include "include/mcm/logger/stdout.hpp"
+#include "include/mcm/logger/stdout_logger.hpp"
 
 namespace mv
 {

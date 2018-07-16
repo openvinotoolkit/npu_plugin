@@ -1,4 +1,4 @@
-#include "include/mcm/logger/stdout.hpp"
+#include "include/mcm/logger/stdout_logger.hpp"
 
 mv::StdOutLogger::StdOutLogger(VerboseLevel verboseLevel, bool outputTime) :
 Logger(verboseLevel, outputTime)

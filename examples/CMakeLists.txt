@@ -17,7 +17,7 @@ add_executable(cm_resnet18 cm_resnet18.cpp)
 target_sources(cm_resnet18 PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor})
 
 add_executable(cm_resnet18_blob cm_resnet18_blob.cpp)
-target_sources(cm_resnet18_blob PUBLIC ${allocator} ${computation_model} ${ops} ${logger} ${pass})
+target_sources(cm_resnet18_blob PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor})
 
 add_executable(cm_batchnorm_fuse cm_batchnorm_fuse.cpp)
 target_sources(cm_batchnorm_fuse PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor})

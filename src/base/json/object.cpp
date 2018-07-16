@@ -43,6 +43,14 @@ void mv::json::Object::clear()
     members_.clear();
 }
 
+bool mv::json::Object::hasKey(const std::string& key)
+{
+    if (members_.find(key) != members_.end())
+        return true;
+
+    return false;
+}
+
 std::string mv::json::Object::stringify() const
 {
 

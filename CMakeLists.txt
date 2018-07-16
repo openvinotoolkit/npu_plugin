@@ -27,6 +27,7 @@ file(GLOB base
     "src/base/json/exception/*.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/parser/exception/*.cpp"
+    "src/base/singleton.cpp"
 )
 
 file(GLOB tensor
@@ -82,10 +83,13 @@ file(GLOB ops
 
 file(GLOB logger
     "src/logger/logger.cpp"
-    "src/logger/stdout.cpp"
+    "src/logger/stdout_logger.cpp"
 )
 
 file(GLOB pass 
+    "src/pass/pass.cpp"
+    "src/pass/pass_registry.cpp"
+    "src/pass/pass_manager.cpp"
     "src/pass/deploy_pass.cpp"
     "src/pass/transform_pass.cpp"
     "src/pass/deploy/generate_dot.cpp"
@@ -93,11 +97,12 @@ file(GLOB pass
     "src/pass/transform/fuse_bias.cpp"
     "src/pass/transform/fuse_relu.cpp"
     "src/pass/transform/fuse_scale.cpp"
+    "src/target/target_descriptor.cpp"
 )
 
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
 add_subdirectory(examples)
-add_subdirectory(python/api)
+#add_subdirectory(python/api)
 
 add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor})
