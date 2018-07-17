@@ -230,6 +230,14 @@ blob_format = Struct(
         ),
         "preop_type" / Int32ul,
         "postop_type" / Int32ul,
+        "PostOp...." / Switch(this.postop_type,{
+            # ReLU
+            6: Struct(
+                "opX" / Int32ul,
+                "postStrideX" / Int32ul,
+                "postStrideY" / Int32ul
+            )
+        })
     )[this.stage_count],
 
     "paduntil" / RepeatUntil(lambda x, lst, ctx: x > 0, Int32ul),
