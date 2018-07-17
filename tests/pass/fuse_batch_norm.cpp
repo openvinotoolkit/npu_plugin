@@ -4,7 +4,8 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/transform/fuse_batch_norm.hpp"
-
+#include "include/mcm/base/stream/fstd_ostream.hpp"
+#include "include/mcm/pass/deploy/generate_dot.hpp"
 TEST(fuse_batch_norm_pass, case_ndim_conv)
 {
 
@@ -97,7 +98,11 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     ASSERT_EQ(*addOp, *cIt);
     ++cIt;
     ASSERT_EQ(*(outputOp), *cIt);
-
+    mv::FStdOStream ostream("cm1.dot");
+    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::OpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
+    bool dotResult = generateDot.run(om);    
+    if (dotResult)
+        system("dot -Tsvg cm1.dot -o cm1.svg");
 }
 
 TEST(fuse_batch_norm_pass, case_1dim_conv)

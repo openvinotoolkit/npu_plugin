@@ -231,7 +231,7 @@ namespace mv
             return ptr_.lock() != other.ptr_.lock();
         }
         
-        // Will cause asSTL_SMART_PTR_HPP_sertion failure on attempt of dereferencing a null pointer (expired weak_ptr)
+        // Will cause assertion failure on attempt of dereferencing a null pointer (expired weak_ptr)
         T& operator*() const noexcept
         {
 

@@ -2,8 +2,8 @@
 #define MV_BASE_REGISTRY_HPP_
 
 #include <unordered_map>
-#include <memory>
 #include <string>
+#include <vector>
 
 namespace mv
 {
@@ -15,7 +15,7 @@ namespace mv
         class Registry
         {
 
-            static std::unordered_map<std::string, EntryType*> reg_;
+            std::unordered_map<std::string, EntryType*> reg_;
 
             Registry()
             {
@@ -33,11 +33,38 @@ namespace mv
         public:
 
             static Registry& instance();
-            inline EntryType& enter(const std::string name)
+            inline EntryType& enter(const std::string& name)
             {
+                assert(find(name) == nullptr && ("Duplicated registry entry " + name).c_str());
                 EntryType *e = new EntryType(name);
-                reg_[name] = e;
+                reg_.emplace(name, e);
                 return *e;
+            }
+
+            inline bool hasEntry(const std::string& name)
+            {
+                return find(name) != nullptr;
+            }
+            
+            inline EntryType* find(const std::string& name)
+            {
+                auto it = reg_.find(name);
+                if (it != reg_.end())
+                    return &(*it->second);
+                return nullptr; 
+            }
+
+            inline std::vector<std::string> list()
+            {
+                std::vector<std::string> result;
+                for (auto entry : reg_)
+                    result.push_back(entry.first);
+                return result;
+            }
+
+            inline std::size_t size()
+            {
+                return reg_.size();
             }
 
         };
@@ -53,15 +80,11 @@ namespace mv
             }                                                                           
 
         #define MV_REGISTER_ENTRY(EntryType, Name)                                      \
-            static ATTRIBUTE_UNUSED EntryType& Name =                                   \
-                mv::base::Registry<EntryType>::instance().enter(#Name)                  
+            static ATTRIBUTE_UNUSED EntryType& __ ## EntryType ## Name ## __ =          \
+                mv::base::Registry<EntryType>::instance().enter(#Name)                 
 
     }
 
 }
-
-template <class EntryType>
-std::unordered_map<std::string, EntryType*> mv::base::Registry<EntryType>::reg_;
-
 
 #endif // MV_BASE_REGISTRY_HPP_

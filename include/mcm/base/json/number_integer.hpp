@@ -18,7 +18,7 @@ namespace mv
         public:
 
             NumberInteger(int value);
-            explicit operator int&();
+            explicit operator int&() override;
             std::string stringify() const override;
 
         };  

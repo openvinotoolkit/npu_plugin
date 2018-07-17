@@ -22,12 +22,21 @@ public:
         return *this;
     }
 
+    const int& getAttr1() const
+    {
+        return attr1;
+    }
+
     StringEntry& setAttr2(int value)
     {
         attr2 = value;
         return *this;
     }
-    
+
+    const int& getAttr2() const
+    {
+        return attr2;
+    }
 
 };
 
@@ -40,6 +49,17 @@ TEST(registry, add_element)
     .setAttr1(0)
     .setAttr2(1);
 
+    MV_REGISTER_ENTRY(StringEntry, String2)
+    .setAttr1(2)
+    .setAttr2(3);
 
+    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().size(), 2);
+    ASSERT_FALSE(mv::base::Registry<StringEntry>::instance().find("String1") == nullptr);
+    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String1")->getAttr1(), 0);
+    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String1")->getAttr2(), 1);
+    ASSERT_FALSE(mv::base::Registry<StringEntry>::instance().find("String2") == nullptr);
+    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String2")->getAttr1(), 2);
+    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String2")->getAttr2(), 3);
+    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String3"), nullptr);
 
 }

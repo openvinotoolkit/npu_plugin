@@ -1,28 +1,42 @@
 #ifndef MV_PASS_PASS_REGISTRY_HPP_
 #define MV_PASS_PASS_REGISTRY_HPP_
 
-#include <array>
-#include <functional>
-#include <string>
-#include "include/mcm/pass/pass.hpp"
+#include "include/mcm/base/registry.hpp"
+#include "include/mcm/pass/pass_entry.hpp"
 
 namespace mv
 {
 
-    namespace pass
+    MV_DEFINE_REGISTRY(PassEntry)
+
+    class ComputationModel;
+    class TargetDescriptor;
+
+    namespace base
     {
 
-        class PassRegistry
+        class PassRegistry : public base::Registry<PassEntry>
         {
             
 
         public:
 
-            static PassRegistry *instance();
+            static PassRegistry& instance();
 
+            inline void run(std::string name, ComputationModel& model, TargetDescriptor& descriptor)
+            {   
+                PassEntry* const passPtr = find(name);
+                if (passPtr)
+                {
+                    passPtr->run(model, descriptor);
+                }
+            }
 
         };
 
+        #define MV_REGISTER_PASS(Name)          \
+            MV_REGISTER_ENTRY(PassEntry, Name)  
+                              
     }
 
 }

@@ -50,16 +50,16 @@ namespace mv
         static DefaultLogger defaultLogger_;
         static Logger &logger_;
 
-        Data::OpListIterator dataOpEnd_;
-        Data::FlowListIterator dataFlowEnd_;
-        Control::OpListIterator controlOpEnd_;
-        Control::FlowListIterator controlFlowEnd_;
+        Data::OpListIterator *dataOpEnd_;
+        Data::FlowListIterator *dataFlowEnd_;
+        Control::OpListIterator *controlOpEnd_;
+        Control::FlowListIterator *controlFlowEnd_;
 
-        Data::OpListIterator input_;
-        Data::OpListIterator output_;
-        Control::OpListIterator lastOp_;
+        Data::OpListIterator *input_;
+        Data::OpListIterator *output_;
+        Control::OpListIterator *lastOp_;
 
-        bool defaultControlFlow_;
+        bool *defaultControlFlow_;
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
@@ -111,6 +111,8 @@ namespace mv
         GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
         Data::TensorIterator tensorBegin() const;
         Data::TensorIterator tensorEnd() const;
+
+        void clear();
 
         void disableDefaultControlFlow();
         bool enableDefaultControlFlow(Control::OpListIterator lastOp);

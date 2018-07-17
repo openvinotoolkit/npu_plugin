@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 #include <memory>
 #include "include/mcm/base/json/value.hpp"
 
@@ -27,6 +28,7 @@ namespace mv
             unsigned size() const;
             void clear();
             bool hasKey(const std::string& key);
+            std::vector<std::string> getKeys() const;
             Value& operator[](const std::string& key);
             Object& operator=(const Object& other);
             std::string stringify() const override;

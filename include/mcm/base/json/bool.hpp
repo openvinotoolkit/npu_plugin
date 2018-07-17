@@ -17,7 +17,7 @@ namespace mv
         public:
 
             Bool(bool value);
-            explicit operator bool&();
+            explicit operator bool&() override;
             std::string stringify() const override;
 
         }; 

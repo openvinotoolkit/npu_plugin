@@ -18,7 +18,7 @@ namespace mv
         public:
 
             NumberFloat(float value);
-            explicit operator float&();
+            explicit operator float&() override;
             std::string stringify() const override;
 
         };  

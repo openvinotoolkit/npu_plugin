@@ -21,8 +21,6 @@ namespace mv
     {
 
         static std::string toString(Target target);
-        static std::string toString(DType dType);
-        static std::string toString(Order order);
         
         static Target toTarget(const std::string& str);
         static DType toDType(const std::string& str);
@@ -42,19 +40,36 @@ namespace mv
 
     public:
 
-        TargetDescriptor();
+        TargetDescriptor(const std::string& filePath = "");
         bool load(const std::string& filePath);
         bool save(const std::string& filePath);
+        void reset();
 
-        const std::vector<std::string>& adaptationPasses() const;
-        const std::vector<std::string>& optimizationPasses() const;
-        const std::vector<std::string>& finalizationPasses() const;
-        const std::vector<std::string>& serializationPasses() const;
-        const std::vector<std::string>& validationPasses() const;
+        void setTarget(Target target);
+        void setDType(DType dType);
+        void setOrder(Order order);
 
+        bool appendAdaptPass(const std::string& pass, int pos = -1);
+        bool appendOptPass(const std::string& pass, int pos = -1);
+        bool appendFinalPass(const std::string& pass, int pos = -1);
+        bool appendSerialPass(const std::string& pass, int pos = -1);
+        bool appendValidPass(const std::string& pass, int pos = -1);
+
+        std::size_t adaptPassesCount() const;
+        std::size_t optPassesCount() const;
+        std::size_t finalPassesCount() const;
+        std::size_t serialPassesCount() const;
+        std::size_t validPassesCount() const;
+
+        const std::vector<std::string>& adaptPasses() const;
+        const std::vector<std::string>& optPasses() const;
+        const std::vector<std::string>& finalPasses() const;
+        const std::vector<std::string>& serialPasses() const;
+        const std::vector<std::string>& validPasses() const;
+
+        Target getTarget() const;
         Order getOrder() const;
         DType getDType() const;
-
 
     };
 

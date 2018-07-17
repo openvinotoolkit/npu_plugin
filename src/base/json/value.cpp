@@ -73,11 +73,6 @@ mv::json::Value::Value(const Value& other)
     operator=(other);
 }
 
-mv::json::Value::~Value()
-{
-    
-}
-
 mv::json::Value& mv::json::Value::operator=(float value)
 {
 
@@ -163,6 +158,24 @@ mv::json::Value& mv::json::Value::operator[](unsigned idx)
     
 }
 
+bool mv::json::Value::hasKey(const std::string& key)
+{
+    if (valueType_ != JSONType::Object)
+        throw ValueError("Attempt of checking key for a value of type " + typeString_.at(valueType_));
+    
+    auto objPtr = static_cast<Object*>(content_.get());
+    return objPtr->hasKey(key);
+}
+
+std::vector<std::string> mv::json::Value::getKeys() const
+{
+    if (valueType_ != JSONType::Object)
+        throw ValueError("Attempt of obtaining the keys list from a value of type " + typeString_.at(valueType_));
+    
+    auto objPtr = static_cast<Object*>(content_.get());
+    return objPtr->getKeys();
+}
+
 void mv::json::Value::append(const std::pair<std::string, Value>& member)
 {
     if (valueType_ != JSONType::Object)
@@ -188,7 +201,19 @@ mv::json::JSONType mv::json::Value::valueType() const
 
 unsigned mv::json::Value::size() const
 {
-    return 1;
+    if (valueType_ == JSONType::Array)
+    {
+        auto arrPtr = static_cast<Array*>(content_.get());
+        return arrPtr->size();
+    }
+
+    if (valueType_ == JSONType::Object)
+    {
+        auto objPtr = static_cast<Object*>(content_.get());
+        return objPtr->size();
+    }
+
+    return 0;
 }
 
 std::string mv::json::Value::stringify() const

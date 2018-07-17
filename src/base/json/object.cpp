@@ -51,6 +51,16 @@ bool mv::json::Object::hasKey(const std::string& key)
     return false;
 }
 
+std::vector<std::string> mv::json::Object::getKeys() const
+{
+    std::vector<std::string> keys;
+
+    for (auto it = members_.begin(); it != members_.end(); ++it)
+        keys.push_back(it->first);
+
+    return keys;
+}
+
 std::string mv::json::Object::stringify() const
 {
 

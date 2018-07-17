@@ -7,6 +7,12 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic")
 include_directories(${PROJECT_SOURCE_DIR})
 
+set(MCM_HOME "$ENV{MCM_HOME}")
+if(NOT MCM_HOME)
+    message(STATUS "MCM_HOME at ${MCM_HOME}")
+    message(FATAL_ERROR "Undefined MCM_HOME env variable")
+endif()
+
 file(GLOB allocator
     "src/graph/base_allocator.cpp"
 )

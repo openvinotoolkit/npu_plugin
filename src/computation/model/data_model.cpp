@@ -25,12 +25,12 @@ mv::Data::OpListIterator mv::DataModel::switchContext(Control::OpListIterator ot
 
 mv::Data::FlowSiblingIterator mv::DataModel::getInputFlow()
 {
-    return input_.leftmostOutput();
+    return input_->leftmostOutput();
 }
 
 mv::Data::FlowSiblingIterator mv::DataModel::getOutputFlow()
 {
-    return output_.leftmostInput();
+    return output_->leftmostInput();
 }
 
 mv::Data::FlowListIterator mv::DataModel::flowBegin()
@@ -40,7 +40,7 @@ mv::Data::FlowListIterator mv::DataModel::flowBegin()
 
 mv::Data::FlowListIterator mv::DataModel::flowEnd()
 {
-    return dataFlowEnd_;
+    return *dataFlowEnd_;
 }
 
 mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group)

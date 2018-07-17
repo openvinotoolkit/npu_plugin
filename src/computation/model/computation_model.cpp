@@ -15,13 +15,14 @@ groups_(allocator_.make_owner<map<string, allocator::owner_ptr<ComputationGroup>
 stages_(allocator_.make_owner<map<unsigned_type, allocator::owner_ptr<ComputationStage>>>(map<unsigned_type, allocator::owner_ptr<ComputationStage>>())),
 memoryAllocators_(allocator_.make_owner<map<string, allocator::owner_ptr<MemoryAllocator>>>(map<string, allocator::owner_ptr<MemoryAllocator>>())),
 opsCounter_(allocator_.make_owner<map<OpType, unsigned>>(map<OpType, unsigned>())),
-dataOpEnd_(dataGraph_.node_end()),
-dataFlowEnd_(dataGraph_.edge_end()),
-controlOpEnd_(controlGraph_.node_end()),
-controlFlowEnd_(controlGraph_.edge_end()),
-input_(dataOpEnd_),
-output_(dataOpEnd_),
-defaultControlFlow_(defaultControlFlow)
+dataOpEnd_(new Data::OpListIterator(dataGraph_.node_end())),
+dataFlowEnd_(new Data::FlowListIterator(dataGraph_.edge_end())),
+controlOpEnd_(new Control::OpListIterator(controlGraph_.node_end())),
+controlFlowEnd_(new Control::FlowListIterator(controlGraph_.edge_end())),
+input_(new Data::OpListIterator(*dataOpEnd_)),
+output_(new Data::OpListIterator(*dataOpEnd_)),
+lastOp_(new Control::OpListIterator()),
+defaultControlFlow_(new bool(defaultControlFlow))
 {
     logger_.setVerboseLevel(verboseLevel);
     logger_.setLogTime(logTime);
@@ -57,7 +58,7 @@ mv::ComputationModel::~ComputationModel()
 
 bool mv::ComputationModel::isValid() const
 {
-    return !dataGraph_.disjoint() && input_ != dataOpEnd_ && output_ != dataOpEnd_ && checkOpsStages_();
+    return !dataGraph_.disjoint() && *input_ != *dataOpEnd_ && *output_ != *dataOpEnd_ && checkOpsStages_();
 }
 
 bool mv::ComputationModel::isValid(const Data::TensorIterator &it) const
@@ -193,10 +194,10 @@ bool mv::ComputationModel::removeGroupElement_(allocator::owner_ptr<ComputationE
 bool mv::ComputationModel::checkOpsStages_() const
 {
 
-    if (input_ == dataOpEnd_)
+    if (*input_ == *dataOpEnd_)
         return false;
     
-    for (auto opIt = input_; opIt != dataOpEnd_; ++opIt)
+    for (auto opIt = *input_; opIt != *dataOpEnd_; ++opIt)
     {
         if (!opIt->hasAttr("stage") && opIt->getAttr("executable").getContent<bool>())
             return false;
@@ -342,9 +343,28 @@ mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
     return flowTensors_->end();
 }
 
+void mv::ComputationModel::clear()
+{
+    flowTensors_->clear();
+    tensorsSources_->clear();
+    groups_->clear();
+    stages_->clear();
+    memoryAllocators_->clear();
+    opsCounter_->clear();
+    *dataOpEnd_ = dataGraph_.node_end();
+    *dataFlowEnd_ = dataGraph_.edge_end();
+    *controlOpEnd_ = controlGraph_.node_end();
+    *controlFlowEnd_ = controlGraph_.edge_end();
+    *input_ = *dataOpEnd_;
+    *output_ = *dataOpEnd_;
+    *lastOp_ = controlGraph_.node_end();
+    dataGraph_.clear();
+    controlGraph_.clear();
+}
+
 void mv::ComputationModel::disableDefaultControlFlow()
 {
-    defaultControlFlow_ = false;
+    *defaultControlFlow_ = false;
 }
 
 bool mv::ComputationModel::enableDefaultControlFlow(Control::OpListIterator lastOp)
@@ -353,8 +373,8 @@ bool mv::ComputationModel::enableDefaultControlFlow(Control::OpListIterator last
     if (!isValid(lastOp))
         return false;
 
-    lastOp_ = lastOp;
-    defaultControlFlow_ = true;
+    *lastOp_ = lastOp;
+    *defaultControlFlow_ = true;
 
     return true;
 

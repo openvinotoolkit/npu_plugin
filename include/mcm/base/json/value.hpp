@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include <memory>
 #include "include/mcm/base/json/value_content.hpp"
 #include "include/mcm/base/json/exception/value_error.hpp"
@@ -44,7 +45,6 @@ namespace mv
             Value(const Object& value);
             Value(const Array& value);
             Value(const Value& other);
-            virtual ~Value();
             Value& operator=(float value);
             Value& operator=(int value);
             Value& operator=(const std::string& value);
@@ -54,9 +54,11 @@ namespace mv
             Value& operator=(const Value& other);
             Value& operator[](const std::string& key);
             Value& operator[](unsigned idx);
+            bool hasKey(const std::string& key);
+            std::vector<std::string> getKeys() const;
             void append(const std::pair<std::string, Value>& member);
             void append(const Value& element);
-            virtual unsigned size() const;
+            unsigned size() const;
             std::string stringify() const;
             JSONType valueType() const;
             template <class T_value>

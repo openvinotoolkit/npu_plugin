@@ -17,7 +17,7 @@ namespace mv
         public:
 
             String(const std::string& value);
-            explicit operator std::string&();
+            explicit operator std::string&() override;
             std::string stringify() const override;
 
         }; 
