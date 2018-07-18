@@ -1,9 +1,9 @@
 #include "include/mcm/pass/pass_registry.hpp"
 
 
-mv::base::PassRegistry& mv::base::PassRegistry::instance()
+mv::pass::PassRegistry& mv::pass::PassRegistry::instance()
 {
     
-    return static_cast<PassRegistry&>(base::Registry<PassEntry>::instance());
+    return static_cast<PassRegistry&>(Registry<PassEntry>::instance());
 
 }

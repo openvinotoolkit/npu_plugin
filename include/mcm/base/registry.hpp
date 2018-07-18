@@ -8,8 +8,8 @@
 namespace mv
 {
 
-    namespace base
-    {
+    //namespace base
+    //{
 
         template <class EntryType>
         class Registry
@@ -73,7 +73,7 @@ namespace mv
 
         #define MV_DEFINE_REGISTRY(EntryType)                                           \
             template <class EntryType>                                                  \
-            mv::base::Registry<EntryType >& mv::base::Registry<EntryType >::instance()  \
+            mv::Registry<EntryType >& mv::Registry<EntryType >::instance()  \
             {                                                                           \
                 static Registry instance_;                                              \
                 return instance_;                                                       \
@@ -81,9 +81,9 @@ namespace mv
 
         #define MV_REGISTER_ENTRY(EntryType, Name)                                      \
             static ATTRIBUTE_UNUSED EntryType& __ ## EntryType ## Name ## __ =          \
-                mv::base::Registry<EntryType>::instance().enter(#Name)                 
+                mv::Registry<EntryType>::instance().enter(#Name)                 
 
-    }
+    //}
 
 }
 

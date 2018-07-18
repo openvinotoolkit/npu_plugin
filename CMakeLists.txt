@@ -93,7 +93,6 @@ file(GLOB logger
 )
 
 file(GLOB pass 
-    "src/pass/pass.cpp"
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
     "src/pass/deploy_pass.cpp"

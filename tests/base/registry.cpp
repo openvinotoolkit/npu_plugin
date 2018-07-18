@@ -53,13 +53,13 @@ TEST(registry, add_element)
     .setAttr1(2)
     .setAttr2(3);
 
-    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().size(), 2);
-    ASSERT_FALSE(mv::base::Registry<StringEntry>::instance().find("String1") == nullptr);
-    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String1")->getAttr1(), 0);
-    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String1")->getAttr2(), 1);
-    ASSERT_FALSE(mv::base::Registry<StringEntry>::instance().find("String2") == nullptr);
-    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String2")->getAttr1(), 2);
-    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String2")->getAttr2(), 3);
-    ASSERT_EQ(mv::base::Registry<StringEntry>::instance().find("String3"), nullptr);
+    ASSERT_EQ(mv::Registry<StringEntry>::instance().size(), 2);
+    ASSERT_FALSE(mv::Registry<StringEntry>::instance().find("String1") == nullptr);
+    ASSERT_EQ(mv::Registry<StringEntry>::instance().find("String1")->getAttr1(), 0);
+    ASSERT_EQ(mv::Registry<StringEntry>::instance().find("String1")->getAttr2(), 1);
+    ASSERT_FALSE(mv::Registry<StringEntry>::instance().find("String2") == nullptr);
+    ASSERT_EQ(mv::Registry<StringEntry>::instance().find("String2")->getAttr1(), 2);
+    ASSERT_EQ(mv::Registry<StringEntry>::instance().find("String2")->getAttr2(), 3);
+    ASSERT_EQ(mv::Registry<StringEntry>::instance().find("String3"), nullptr);
 
 }

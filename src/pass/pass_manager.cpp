@@ -1,10 +1,12 @@
 #include "include/mcm/pass/pass_manager.hpp"
 
+
+
 mv::PassManager::PassManager() :
-model_(nullptr),
 ready_(false),
-currentStage_(PassGenre::Adaptation),
-previousStage_(PassGenre::Adaptation),
+completed_(false),
+model_(nullptr),
+currentStage_(passFlow_.cend()),
 currentPass_(adaptPassQueue_.end())
 {
 
@@ -25,7 +27,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
         for (std::size_t i = 0; i < queue.size(); ++i)
         {
 
-            base::PassEntry *passPtr = base::PassRegistry::instance().find(queue[i]);
+            pass::PassEntry *passPtr = pass::PassRegistry::instance().find(queue[i]);
             if (passPtr == nullptr)
             {
                 reset();
@@ -68,8 +70,8 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
 
     model_ = &model;
     ready_ = true;
-    currentStage_ = PassGenre::Adaptation;
-    previousStage_ = PassGenre::Adaptation;
+    completed_ = false;
+    currentStage_ = passFlow_.cbegin();
     currentPass_ = adaptPassQueue_.begin();
     return true;
 
@@ -80,116 +82,58 @@ void mv::PassManager::reset()
 
     model_ = nullptr;
     ready_ = false;
+    completed_ = false;
     adaptPassQueue_.clear();
     optPassQueue_.clear();
     finalPassQueue_.clear();
     serialPassQueue_.clear();
     validPassQueue_.clear();
-    currentStage_ = PassGenre::Adaptation;
-    previousStage_ = PassGenre::Adaptation;
+    currentStage_ = passFlow_.cbegin();
     currentPass_ = adaptPassQueue_.end();
 
 }
 
-bool mv::PassManager::ready()
+bool mv::PassManager::ready() const
 {
     return model_ && ready_;
+}
+
+bool mv::PassManager::completed() const
+{
+    return ready() && completed_;
 }
 
 std::pair<std::string, mv::PassGenre> mv::PassManager::step()
 {
 
-    auto execAndNext = [this](const std::vector<string>& queue, PassGenre nextStage, std::vector<string>& nextQueue)
+    while (!completed_ && currentStage_ != passFlow_.cend())
     {
 
-        if (currentPass_ == queue.end())
+        if (currentPass_ == currentStage_->second.cend())
         {
-            currentStage_ = nextStage;
-            currentPass_ = nextQueue.begin();
-            return std::pair<std::string, mv::PassGenre>("", currentStage_);
+            
+            ++currentStage_;
+            if (currentStage_ == passFlow_.end())
+            {
+                completed_ = true;
+                return std::pair<std::string, mv::PassGenre>("", PassGenre::Serialization);
+            }
+
+            currentPass_ = currentStage_->second.begin();
+            
         }
         else
         {
-            base::PassRegistry::instance().find(*currentPass_)->run(*model_, targetDescriptor_);
-            std::pair<std::string, mv::PassGenre> result({*currentPass_, currentStage_});
+
+            pass::PassRegistry::instance().find(*currentPass_)->run(*model_, targetDescriptor_);
+            std::pair<std::string, mv::PassGenre> result({*currentPass_, currentStage_->first});
             currentPass_++;
             return result;
+
         }
 
-    };
-
-    switch (currentStage_)
-    {
-
-        case PassGenre::Adaptation:
-            if (currentPass_ == adaptPassQueue_.end())
-            {
-                currentStage_ = PassGenre::Optimization;
-                currentPass_ = optPassQueue_.begin();
-            }
-            else
-            {
-                base::PassRegistry::instance().find(*currentPass_)->run(*model_, targetDescriptor_);
-                std::pair<std::string, mv::PassGenre> result({*currentPass_, PassGenre::Adaptation});
-                currentPass_++;
-                return result;
-            }
-        
-        case PassGenre::Optimization:
-            if (currentPass_ == optPassQueue_.end())
-            {
-                currentStage_ = PassGenre::Finalization;
-                currentPass_ = finalPassQueue_.begin();
-            }
-            else
-            {
-                base::PassRegistry::instance().find(*currentPass_)->run(*model_, targetDescriptor_);
-                std::pair<std::string, mv::PassGenre> result({*currentPass_, PassGenre::Optimization});
-                currentPass_++;
-                return result;
-            }
-        
-        case PassGenre::Finalization:
-            if (currentPass_ == finalPassQueue_.end())
-            {
-                currentStage_ = PassGenre::Serialization;
-                currentPass_ = serialPassQueue_.begin();
-            }
-            else
-            {
-                base::PassRegistry::instance().find(*currentPass_)->run(*model_, targetDescriptor_);
-                std::pair<std::string, mv::PassGenre> result({*currentPass_, PassGenre::Finalization});
-                currentPass_++;
-                return result;
-            }
-
-        case PassGenre::Serialization:
-            if (currentPass_ == serialPassQueue_.end())
-            {
-                return {"", PassGenre::Serialization};
-            }
-            else
-            {
-                base::PassRegistry::instance().find(*currentPass_)->run(*model_, targetDescriptor_);
-                std::pair<std::string, mv::PassGenre> result({*currentPass_, PassGenre::Serialization});
-                currentPass_++;
-                return result;
-            }
-
-        case PassGenre::Validation:
-            if (currentPass_ == validPassQueue_.end())
-            {
-                switch (previousStage_)
-                {
-                    case PassGenre::Adaptation:
-                        currentStage_ = PassGenre::Optimization;
-                        currentPass_ = optPassQueue_.begin();
-
-
-                }
-            }
-        
-
     }
+
+    return std::pair<std::string, mv::PassGenre>("", PassGenre::Adaptation);
 
 }

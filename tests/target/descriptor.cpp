@@ -29,6 +29,8 @@ TEST(target_descriptor, compose)
     desc.appendSerialPass("serialPass1");
     desc.appendValidPass("validPass1");
 
+    desc.defineOp(mv::OpType::Conv2D);
+
     ASSERT_EQ(desc.getTarget(), mv::Target::ma2480);
     ASSERT_EQ(desc.getDType(), mv::DType::Float);
     ASSERT_EQ(desc.getOrder(), mv::Order::LastDimMajor);
@@ -41,6 +43,8 @@ TEST(target_descriptor, compose)
 
     ASSERT_EQ(desc.adaptPasses()[0], "adaptPass2");
     ASSERT_EQ(desc.adaptPasses()[1], "adaptPass1");
+    ASSERT_TRUE(desc.opSupported(mv::OpType::Conv2D));
+    ASSERT_FALSE(desc.opSupported(mv::OpType::MaxPool2D));
 
 }
 

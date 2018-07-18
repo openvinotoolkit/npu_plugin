@@ -16,7 +16,7 @@ std::function<void(mv::ComputationModel&, mv::TargetDescriptor&)> foo = [](mv::C
 
 namespace mv
 {
-    namespace base
+    namespace pass
     {
         MV_REGISTER_PASS(pass1)
         .setGenre(mv::PassGenre::Adaptation)
@@ -33,9 +33,9 @@ TEST(pass_registry, initialization)
     mv::OpModel model;
     
     mv::TargetDescriptor desc;
-    ASSERT_THROW(mv::base::PassRegistry::instance().run("pass1", model, desc), mv::ArgumentError);
+    ASSERT_THROW(mv::pass::PassRegistry::instance().run("pass1", model, desc), mv::ArgumentError);
     desc.setTarget(mv::Target::ma2480);
-    mv::base::PassRegistry::instance().run("pass1", model, desc);
+    mv::pass::PassRegistry::instance().run("pass1", model, desc);
     ASSERT_TRUE(model.getInput()->getAttr("test").getContent<bool>());
 
 }

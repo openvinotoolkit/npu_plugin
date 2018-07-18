@@ -12,6 +12,7 @@ namespace mv
     {
 
         bool ready_;
+        bool completed_;
 
         TargetDescriptor targetDescriptor_;
         ComputationModel *model_;
@@ -22,8 +23,18 @@ namespace mv
         std::vector<std::string> serialPassQueue_;
         std::vector<std::string> validPassQueue_;
 
-        PassGenre currentStage_;
-        PassGenre previousStage_;
+        const std::vector<std::pair<PassGenre, std::vector<std::string>&>> passFlow_ =
+        {
+            {PassGenre::Adaptation, adaptPassQueue_},
+            {PassGenre::Validation, validPassQueue_},
+            {PassGenre::Optimization, optPassQueue_},
+            {PassGenre::Validation, validPassQueue_},
+            {PassGenre::Finalization, finalPassQueue_},
+            {PassGenre::Validation, validPassQueue_},
+            {PassGenre::Serialization, serialPassQueue_}
+        };
+
+        std::vector<std::pair<PassGenre, std::vector<std::string>&>>::const_iterator currentStage_;
         std::vector<std::string>::iterator currentPass_;
 
     public:
@@ -31,7 +42,8 @@ namespace mv
         PassManager();
         bool initialize(ComputationModel &model, const TargetDescriptor& targetDescriptor);
         void reset();
-        bool ready();
+        bool ready() const;
+        bool completed() const;
         std::pair<std::string, PassGenre> step();
     
 

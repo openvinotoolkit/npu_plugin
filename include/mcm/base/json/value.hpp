@@ -69,6 +69,14 @@ namespace mv
 
             }
 
+            template <class T_value>
+            const T_value& get() const
+            {
+                
+                return (T_value&)(*content_);
+
+            }
+
             
         };  
 

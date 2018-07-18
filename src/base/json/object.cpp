@@ -85,6 +85,48 @@ std::string mv::json::Object::stringify() const
     
 }
 
+std::string mv::json::Object::stringifyPretty() const
+{
+
+    std::string output = "{\n";
+
+    auto it = members_.begin();
+
+    if (it != members_.end())
+    {
+
+        auto str = [&it]()
+        { 
+            std::string s = "\"" + it->first + "\": ";
+            if (it->second.valueType() == JSONType::Array)
+                s += "\n" + it->second.get<Array>().stringifyPretty();
+            else if (it->second.valueType() == JSONType::Object)
+                s += "\n" + it->second.get<Object>().stringifyPretty();
+            else
+                s += it->second.stringify();
+
+            for (std::size_t i = 0; i < s.size(); ++i)
+            {
+                if (s[i] == '\n')
+                    s.insert(i + 1, "\t");
+            }
+
+            return s;
+        };
+
+        output += "\t" + str();
+        ++it;
+
+        for (; it != members_.end(); ++it)
+            output += ",\n\t" + str();
+
+    }
+
+    output += "\n}";
+    return output;
+
+}
+
 mv::json::Value& mv::json::Object::operator[](const std::string& key)
 {
 

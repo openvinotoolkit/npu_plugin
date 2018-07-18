@@ -12,10 +12,10 @@ namespace mv
     class ComputationModel;
     class TargetDescriptor;
 
-    namespace base
+    namespace pass
     {
 
-        class PassRegistry : public base::Registry<PassEntry>
+        class PassRegistry : public Registry<PassEntry>
         {
             
 

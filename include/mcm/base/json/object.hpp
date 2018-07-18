@@ -32,6 +32,7 @@ namespace mv
             Value& operator[](const std::string& key);
             Object& operator=(const Object& other);
             std::string stringify() const override;
+            std::string stringifyPretty() const;
 
         };  
 

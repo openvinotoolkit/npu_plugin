@@ -22,7 +22,7 @@ namespace mv
 
     };
 
-    namespace base
+    namespace pass
     {
 
         class PassEntry

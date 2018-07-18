@@ -27,15 +27,15 @@ file(GLOB target_src
 
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
-    #[[graph_container_test.cpp
+    graph_container_test.cpp
     graph_visualizer_test.cpp
     op_model_test.cpp
-    data_model_test.cpp]]
+    data_model_test.cpp
     ${base_src}
-    #${op_src}
+    ${op_src}
     ${pass_src}
     ${target_src}
-    #model_serializer_test.cpp
+    model_serializer_test.cpp
 )
 
 target_link_libraries (mcm_unit_tests gtest m)

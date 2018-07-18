@@ -206,13 +206,88 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
     }
 
+    if (jsonDescriptor["ops"].valueType() != json::JSONType::Array)
+    {
+        reset();
+        return false;
+    }
+    else
+    {
+
+        for (unsigned i = 0; i < jsonDescriptor["ops"].size(); ++i)
+        {
+
+            if (jsonDescriptor["pass"]["ops"][i].valueType() != json::JSONType::String)
+            {
+                reset();
+                return false;
+            }
+
+            std::string opStr = jsonDescriptor["pass"]["ops"][i].get<std::string>();
+            auto it = opsStrings.begin();
+            for (; it != opsStrings.end(); ++it)
+                if (it->second == opStr)
+                    ops_.insert(it->first);
+            
+            if (it == opsStrings.end())
+            {
+                reset();
+                return false;
+            }
+
+        }
+        
+    }
+
     return true;
 
 }
 
 bool mv::TargetDescriptor::save(const std::string& filePath)
 {
-    return false;
+
+    // open a file in read mode.
+    std::ofstream descFile; 
+    descFile.open(filePath, std::ios::out | std::ios::trunc);
+
+    if (!descFile.is_open())
+        return false;
+
+    json::Object root;
+    root["target"] = toString(target_);
+    root["order"] = Printable::toString(globalOrder_);
+    root["dtype"] = Printable::toString(globalDType_);
+    root["ops"] = json::Array();
+
+    for (auto it = ops_.begin(); it != ops_.end(); ++it)
+        root["ops"].append(opsStrings.at(*it));
+
+    root["pass"]["adapt"] = json::Array();
+    root["pass"]["optimize"] = json::Array();
+    root["pass"]["finalize"] = json::Array();
+    root["pass"]["serialize"] = json::Array();
+    root["pass"]["validate"] = json::Array();
+
+    for (auto it = adaptationPasses_.begin(); it != adaptationPasses_.end(); ++it)
+        root["pass"]["adapt"].append(*it);
+
+    for (auto it = optimizationPasses_.begin(); it != optimizationPasses_.end(); ++it)
+        root["pass"]["optimize"].append(*it);
+
+    for (auto it = finalizationPasses_.begin(); it != finalizationPasses_.end(); ++it)
+        root["pass"]["finalize"].append(*it);
+
+    for (auto it = serializationPasses_.begin(); it != serializationPasses_.end(); ++it)
+        root["pass"]["serialize"].append(*it);
+
+    for (auto it = validationPasses_.begin(); it != validationPasses_.end(); ++it)
+        root["pass"]["validate"].append(*it);
+
+    descFile << root.stringifyPretty();
+    descFile.close();
+
+    return true;
+
 }
 
 void mv::TargetDescriptor::setTarget(Target target)
@@ -328,6 +403,89 @@ bool mv::TargetDescriptor::appendValidPass(const std::string& pass, int pos)
     if (result != validationPasses_.end())
         return true;
 
+    return false;
+}
+
+bool mv::TargetDescriptor::removeAdaptPass(const std::string& pass)
+{
+    auto passIt = std::find(adaptationPasses_.begin(), adaptationPasses_.end(), pass);
+    if (passIt != adaptationPasses_.end())
+    {
+        adaptationPasses_.erase(passIt);
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::removeOptPass(const std::string& pass)
+{
+    auto passIt = std::find(optimizationPasses_.begin(), optimizationPasses_.end(), pass);
+    if (passIt != optimizationPasses_.end())
+    {
+        optimizationPasses_.erase(passIt);
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::removeFinalPass(const std::string& pass)
+{
+    auto passIt = std::find(finalizationPasses_.begin(), finalizationPasses_.end(), pass);
+    if (passIt != finalizationPasses_.end())
+    {
+        finalizationPasses_.erase(passIt);
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::removeSerialPass(const std::string& pass)
+{
+    auto passIt = std::find(serializationPasses_.begin(), serializationPasses_.end(), pass);
+    if (passIt != serializationPasses_.end())
+    {
+        serializationPasses_.erase(passIt);
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::removeValidPass(const std::string& pass)
+{
+    auto passIt = std::find(validationPasses_.begin(), validationPasses_.end(), pass);
+    if (passIt != validationPasses_.end())
+    {
+        validationPasses_.erase(passIt);
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::defineOp(OpType op)
+{
+    if (ops_.find(op) == ops_.end())
+    {
+        ops_.insert(op);
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::undefineOp(OpType op)
+{
+    auto opIt = ops_.find(op);
+    if (opIt != ops_.end())
+    {
+        ops_.erase(op);
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::opSupported(OpType op) const
+{
+    if (ops_.find(op) != ops_.end())
+        return true;
     return false;
 }
 
