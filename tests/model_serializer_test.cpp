@@ -310,6 +310,7 @@ TEST (model_serializer, blob_eltwise_add)
 
     // Define input as 1 64x64x3 image
     auto inIt7 = test_cm7.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::LastDimMajor);
+    auto maxpoolIt11= test_cm7.maxpool2D(inIt7,{1,1}, {1, 1}, {0,0,0,0});
 
     // define first convolution 
     mv::dynamic_vector<mv::float_type> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100f, 0.010f);
@@ -318,7 +319,7 @@ TEST (model_serializer, blob_eltwise_add)
     EXPECT_EQ(weightsIt71->getShape()[1], 5);
     EXPECT_EQ(weightsIt71->getShape()[2], 3);
     EXPECT_EQ(weightsIt71->getShape()[3], 1);
-    auto convIt71 = test_cm7.conv2D(inIt7, weightsIt71, {2, 2}, {0, 0, 0, 0});
+    auto convIt71 = test_cm7.conv2D(maxpoolIt11, weightsIt71, {2, 2}, {0, 0, 0, 0});
 
     // define first avgpool
     auto avgpoolIt71 = test_cm7.avgpool2D(convIt71,{5,5}, {3, 3}, {1, 1, 1, 1});
@@ -389,22 +390,22 @@ TEST (model_serializer, blob_eltwise_add)
     mv::Serializer gs7(mv::mvblob_mode);
 
     // serialize compute model to file
-    uint64_t filesize7 = gs7.serialize(cm7, "test_conv_07.blob");
+    uint64_t filesize7 = gs7.serialize(cm7, "test_add_07.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (5156, filesize7) << "ERROR: wrong blob size";
+    EXPECT_EQ (5292, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     const char *command1 = "cp ../../tests/data/gold_07.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_06.blob to current folder";
-    const char *command2 = "diff test_conv_07.blob gold_07.blob";
+    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_07.blob to current folder";
+    const char *command2 = "diff test_add_07.blob gold_07.blob";
     EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 
 }
 
 
 /*
- test 07a :              /-conv1->maxpool1->conv2->maxpool2-\
+ test 08 :              /-conv1->maxpool1->conv2->maxpool2-\
                   input-<                                    >-elementwise_multiply->output
                          \-conva->avgpoola->convb->avgpoolb-/
 */
@@ -415,6 +416,7 @@ TEST (model_serializer, blob_eltwise_multiply)
 
     // Define input as 1 64x64x3 image
     auto inIt7 = test_cm7.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::LastDimMajor);
+    auto maxpoolIt11= test_cm7.maxpool2D(inIt7,{1,1}, {1, 1}, {0,0,0,0});
 
     // define first convolution 
     mv::dynamic_vector<mv::float_type> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100f, 0.010f);
@@ -423,7 +425,7 @@ TEST (model_serializer, blob_eltwise_multiply)
     EXPECT_EQ(weightsIt71->getShape()[1], 5);
     EXPECT_EQ(weightsIt71->getShape()[2], 3);
     EXPECT_EQ(weightsIt71->getShape()[3], 1);
-    auto convIt71 = test_cm7.conv2D(inIt7, weightsIt71, {2, 2}, {0, 0, 0, 0});
+    auto convIt71 = test_cm7.conv2D(maxpoolIt11, weightsIt71, {2, 2}, {0, 0, 0, 0});
 
     // define first avgpool
     auto avgpoolIt71 = test_cm7.avgpool2D(convIt71,{5,5}, {3, 3}, {1, 1, 1, 1});
@@ -495,22 +497,21 @@ TEST (model_serializer, blob_eltwise_multiply)
     mv::Serializer gs7(mv::mvblob_mode);
 
     // serialize compute model to file
-    uint64_t filesize7 = gs7.serialize(cm7, "test_conv_07a.blob");
+    uint64_t filesize7 = gs7.serialize(cm7, "test_multiply_08.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (5156, filesize7) << "ERROR: wrong blob size";
+    EXPECT_EQ (5292, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-// TODO (temp miscompare on 2nd input shape)
-//    const char *command1 = "cp ../../tests/data/gold_07a.blob .";
-//    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_06.blob to current folder";
-//    const char *command2 = "diff test_conv_07a.blob gold_07a.blob";
-//    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    const char *command1 = "cp ../../tests/data/gold_08.blob .";
+    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_08.blob to current folder";
+    const char *command2 = "diff test_multiply_08.blob gold_08.blob";
+    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 
 }
 
 /*
- test 07b :              /-conv1->maxpool1->conv2->maxpool2-\
+ test 09 :              /-conv1->maxpool1->conv2->maxpool2-\
                   input-<                                    >-elementwise_add->softmax->output
                          \-conva->avgpoola->convb->avgpoolb-/
 */
@@ -603,22 +604,21 @@ TEST (model_serializer, blob_softmax)
     // declare serializer as blob
     mv::Serializer gs7(mv::mvblob_mode);
 
-// TODO temp miscompare: each softmax adds a params section to wts, bias buffer region.
     // serialize compute model to file
-//    uint64_t filesize7 = gs7.serialize(cm7, "test_conv_07b.blob");
+    uint64_t filesize7 = gs7.serialize(cm7, "test_softmax_09.blob");
 
     // compare filesize written to expected
-//    EXPECT_EQ (5348, filesize7) << "ERROR: wrong blob size";
+    EXPECT_EQ (5276, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-//    const char *command1 = "cp ../../tests/data/gold_07b.blob .";
-//    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_07b.blob to current folder";
-//    const char *command2 = "diff test_conv_07b.blob gold_07a.blob";
-//    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    const char *command1 = "cp ../../tests/data/gold_09.blob .";
+    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_09.blob to current folder";
+    const char *command2 = "diff test_softmax_09.blob gold_09.blob";
+    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 
 }
 
-// test 08 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2
+// test 10 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2
 TEST (model_serializer, blob_convbias_convrelu)
 {
     mv::OpModel test_cm6(logger_level) ;
@@ -698,16 +698,16 @@ TEST (model_serializer, blob_convbias_convrelu)
     mv::Serializer gs6(mv::mvblob_mode);
 
     // serialize compute model to file
-    uint64_t filesize6 = gs6.serialize(cm6, "test_bias_08.blob");
+    uint64_t filesize6 = gs6.serialize(cm6, "test_relu_10.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (2580, filesize6) << "ERROR: wrong blob size";
+    EXPECT_EQ (2868, filesize6) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
 
-    const char *command1 = "cp ../../tests/data/gold_08.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_08.blob to current folder";
-    const char *command2 = "diff test_bias_08.blob gold_08.blob";
+    const char *command1 = "cp ../../tests/data/gold_10.blob .";
+    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_10.blob to current folder";
+    const char *command2 = "diff test_relu_10.blob gold_10.blob";
     EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -774,11 +774,7 @@ TEST (model_serializer, blob_scale)
     EXPECT_EQ(convIt62->getShape()[1], 8);      // X dim
     EXPECT_EQ(convIt62->getShape()[2], 1);      // Z dim
 
-//    EXPECT_EQ(maxpoolIt62->getShape()[0], 4);   // X dim  maxpool 2
-//    EXPECT_EQ(maxpoolIt62->getShape()[1], 4);   // X dim
-//    EXPECT_EQ(maxpoolIt62->getShape()[2], 1);   // Z dim
-
-    EXPECT_EQ(outIt6->getShape()[0], 4);   // X dim  output
+    EXPECT_EQ(outIt6->getShape()[0], 8);   // X dim  output
 
     mv::ControlModel cm6(test_cm6);
 
@@ -786,15 +782,15 @@ TEST (model_serializer, blob_scale)
     mv::Serializer gs6(mv::mvblob_mode);
 
     // serialize compute model to file
-    uint64_t filesize6 = gs6.serialize(cm6, "test_scale_09.blob");
+    uint64_t filesize6 = gs6.serialize(cm6, "test_scale_11.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (2844, filesize6) << "ERROR: wrong blob size";
+    EXPECT_EQ (2420, filesize6) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
 
-    const char *command1 = "cp ../../tests/data/gold_09.blob .";
+    const char *command1 = "cp ../../tests/data/gold_11.blob .";
     EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_09.blob to current folder";
-    const char *command2 = "diff test_scale_09.blob gold_09.blob";
+    const char *command2 = "diff test_scale_11.blob gold_11.blob";
     EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
 }
