@@ -603,15 +603,21 @@ class Blob_buffer : public WBuffer
                     {
                         if (sourcename_list[list_index] == it->getName())
                         {
-                            outbufnum_list.push_back(inbufnum_list[list_index]);
-                            outbufsiz_list.push_back(work_buffer_size);
-                            std::cout << "pushing outbuf list num size "<< inbufnum_list[list_index] << " " << work_buffer_size << std::endl;
                             if ((workbuffer_offsets.size() <= (inbufnum_list[list_index]-4))&&(inbufnum_list[list_index]>=4))
                             {
-                            std::cout << "   new  workbuffer_offsets[ "<< inbufnum_list[list_index]-4 << "]= " << running_offset << std::endl;
+                                outbufnum_list.push_back(inbufnum_list[list_index]);
+                                outbufsiz_list.push_back(work_buffer_size);
+                                std::cout << "pushing outbuf list num size "<< inbufnum_list[list_index] << " " << work_buffer_size << std::endl;
+                                std::cout << "   new  workbuffer_offsets[ "<< inbufnum_list[list_index]-4 << "]= " << running_offset << std::endl;
                                 workbuffer_offsets.push_back(running_offset);
                                 running_offset += work_buffer_size; 
                             }
+                            else if (inbufnum_list[list_index]==2)
+                            {
+                                outbufnum_list.push_back(2);
+                                outbufsiz_list.push_back(0);
+                                std::cout << "pushing outbuf list num size 2 0"<< std::endl;
+                           }
                         }
                     }   // end search inbuflist for match
                 }   // end not-output case (no output tensor from output node)
@@ -625,7 +631,6 @@ class Blob_buffer : public WBuffer
             // find buffer size from outbufsiz_list
             for ( uint32_t inbuf_index = 0; inbuf_index < inbufnum_list.size(); inbuf_index++ )
             {
-            std::cout << "DEBUG: next inbuf " << std::endl;
                 uint32_t bufr2size = inbufnum_list[inbuf_index];
                 if ( bufr2size >= 4 )
                 {
@@ -658,6 +663,7 @@ class Blob_buffer : public WBuffer
 
             // pass to output stage info -----------------------------------
             int outlist_index = 0 ;
+            int inlist_index = 0 ;
             int reloc_index = 0 ;
             for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
@@ -681,7 +687,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
                     conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
 
                     // determine address offset to input buffer
@@ -721,6 +727,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     outlist_index++;
+                    inlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x00);                                // 0x60
@@ -808,7 +815,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
                     conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
 
                     // determine address offset to input buffer
@@ -848,6 +855,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     outlist_index++;
+                    inlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x04);                                // 0x60  opcode for FC
@@ -937,7 +945,7 @@ class Blob_buffer : public WBuffer
                     next_offset += 0x68 ;
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
                     conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
 
                     // determine address offset to input buffer
@@ -976,6 +984,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     outlist_index++;
+                    inlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x03);   // opcode for softmax
@@ -1023,7 +1032,7 @@ class Blob_buffer : public WBuffer
                     next_offset += 0x70 ;
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
                     conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
 
                     // determine address offset to input buffer
@@ -1063,6 +1072,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     outlist_index++;
+                    inlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x06);   // opcode for ReLU
@@ -1085,7 +1095,7 @@ class Blob_buffer : public WBuffer
                     next_offset += 0x80 ;
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
                     conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
 
                     // determine address offset to input buffer
@@ -1113,7 +1123,8 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                    std::cout << "pushing reloc-table MPout"<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                    std::cout << "pushing reloc-table MPout "<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                    std::cout << "   outputlocation outlist_index "<< conv_pool_stage.OutputLocation << ' ' << outlist_index << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -1124,6 +1135,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     outlist_index++;
+                    inlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 1);             // opcode for maxpool is 1
@@ -1139,7 +1151,7 @@ class Blob_buffer : public WBuffer
 // TODO temp TF pad                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
                     AddBytes(4, 0x00);   // padX
                     AddBytes(4, 0x00);   // padY 0x150
-                    AddBytes(4, 0x03);   // padstyle
+                    AddBytes(4, 0x02);   // padstyle
 
                     add_stage_IO_info(it, conv_pool_stage);
                     AddBytes(4, conv_pool_stage.preop_type);
@@ -1152,7 +1164,7 @@ class Blob_buffer : public WBuffer
                     next_offset += 0x80 ;
 
                     // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                    conv_pool_stage.InputLocation = inbufnum_list[outlist_index];
+                    conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
                     conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
 
                     // determine address offset to input buffer
@@ -1191,6 +1203,7 @@ class Blob_buffer : public WBuffer
                     }
 
                     outlist_index++;
+                    inlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x02);     // operation type for avgpool
@@ -1231,7 +1244,7 @@ class Blob_buffer : public WBuffer
                         }
                         else
                         {
-                            this_inputLocation = inbufnum_list[outlist_index+input_index];   // input located in work buffer or input
+                            this_inputLocation = inbufnum_list[inlist_index+input_index];   // input located in work buffer or input
                         }
                         // determine address offset to input buffer
                         if (this_inputLocation >= 4)
@@ -1273,7 +1286,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                    std::cout << "pushing reloc-table "<< reloc_index << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                    std::cout << "pushing reloc-table "<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -1284,7 +1297,8 @@ class Blob_buffer : public WBuffer
                     }
 
                     outlist_index++;
-                    outlist_index++;
+                    inlist_index++;
+                    inlist_index++;
 
                     AddBytes(4, conv_pool_stage.next);
 
