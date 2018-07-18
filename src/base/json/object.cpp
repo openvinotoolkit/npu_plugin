@@ -43,7 +43,7 @@ void mv::json::Object::clear()
     members_.clear();
 }
 
-bool mv::json::Object::hasKey(const std::string& key)
+bool mv::json::Object::hasKey(const std::string& key) const
 {
     if (members_.find(key) != members_.end())
         return true;
@@ -137,6 +137,13 @@ mv::json::Value& mv::json::Object::operator[](const std::string& key)
 
     return members_[key];
 
+}
+
+const mv::json::Value& mv::json::Object::operator[](const std::string& key) const
+{
+    if (members_.find(key) == members_.end())
+        throw ValueError("Undefined value for key" + key);
+    return members_.at(key);
 }
 
 mv::json::Object& mv::json::Object::operator=(const Object& other)

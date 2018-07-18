@@ -69,7 +69,6 @@ namespace mv
 
         bool defineOp(OpType op);
         bool undefineOp(OpType op);
-
         bool opSupported(OpType op) const;
 
         std::size_t adaptPassesCount() const;

@@ -41,6 +41,13 @@ namespace mv
                 return *e;
             }
 
+            inline void remove(const std::string& name)
+            {
+                assert(find(name) != nullptr && ("Attempt of removal of non-existing entry  " + name).c_str());
+                delete reg_[name];
+                reg_.erase(name);
+            }
+
             inline bool hasEntry(const std::string& name)
             {
                 return find(name) != nullptr;
@@ -65,6 +72,11 @@ namespace mv
             inline std::size_t size()
             {
                 return reg_.size();
+            }
+
+            inline void clear()
+            {
+                reg_.clear();
             }
 
         };

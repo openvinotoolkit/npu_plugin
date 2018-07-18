@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include <set>
+#include <map>
 #include "include/mcm/target/target_descriptor.hpp"
 
 namespace mv
@@ -31,7 +32,8 @@ namespace mv
             std::string name_;
             std::set<PassGenre> passGenre_;
             std::string description_;
-            std::function<void(ComputationModel&, TargetDescriptor&)> passFunc_;
+            std::map<std::string, json::JSONType> requiredArgs_;
+            std::function<void(ComputationModel&, TargetDescriptor&, json::Object&)> passFunc_;
 
         public:
 
@@ -43,12 +45,15 @@ namespace mv
 
             inline PassEntry& setGenre(PassGenre passGenre)
             {
+                assert(passGenre_.find(passGenre) == passGenre_.end() && "Duplicated pass genre definition");
                 passGenre_.insert(passGenre);
                 return *this;
             }
 
             inline PassEntry& setGenre(const std::initializer_list<PassGenre> &passGenres)
             {
+                for (auto it = passGenres.begin(); it != passGenres.end(); ++it)
+                    assert(passGenre_.find(*it) == passGenre_.end() && "Duplicated pass genre definition");
                 passGenre_.insert(passGenres);
                 return *this;
             }
@@ -59,7 +64,7 @@ namespace mv
                 return *this;
             }
 
-            inline PassEntry& setFunc(const std::function<void(ComputationModel&, TargetDescriptor&)>& passFunc)
+            inline PassEntry& setFunc(const std::function<void(ComputationModel&, TargetDescriptor&, json::Object&)>& passFunc)
             {
                 passFunc_ = passFunc;
                 return *this;
@@ -80,9 +85,26 @@ namespace mv
                 return description_;
             }
 
-            inline void run(ComputationModel& model, TargetDescriptor& descriptor) const
+            inline PassEntry& defineArg(json::JSONType argType, std::string argName)
             {
-                passFunc_(model, descriptor);
+                assert(requiredArgs_.find(argName) == requiredArgs_.end() && "Duplicated pass argument definition");
+                requiredArgs_.emplace(argName, argType);
+                return *this;
+            }
+
+            inline const std::map<std::string, json::JSONType>& getArgs() const
+            {
+                return requiredArgs_;
+            }
+            
+            inline std::size_t argsCount() const
+            {
+                return requiredArgs_.size();
+            }
+
+            inline void run(ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor) const
+            {
+                passFunc_(model, targetDescriptor, compDescriptor);
             }
 
 

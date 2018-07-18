@@ -2,19 +2,34 @@
 #define PASS_MANAGER_HPP_
 
 #include <vector>
+#include <algorithm>
+#include <stdexcept>
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
+#include "include/mcm/base/json/json.hpp"
 
 namespace mv
 {
+
+    class ExecutionError : public std::runtime_error
+    {
+
+    public:
+
+        explicit ExecutionError(const std::string& whatArg);
+
+    };
 
     class PassManager
     {
 
         bool ready_;
         bool completed_;
+        bool running_;
 
         TargetDescriptor targetDescriptor_;
+        json::Object compDescriptor_;
         ComputationModel *model_;
 
         std::vector<std::string> adaptPassQueue_;
@@ -40,13 +55,17 @@ namespace mv
     public:
 
         PassManager();
-        bool initialize(ComputationModel &model, const TargetDescriptor& targetDescriptor);
+        bool initialize(ComputationModel &model, const TargetDescriptor& targetDescriptor, const mv::json::Object& compDescriptor);
+        bool enablePass(PassGenre stage, const std::string& pass, int pos = -1);
+        bool disablePass(PassGenre stage, const std::string& pass);
+        std::size_t scheduledPassesCount(PassGenre stage) const;
+        const std::vector<std::string>& scheduledPasses(PassGenre stage) const;
         void reset();
+        bool validDescriptors() const;
         bool ready() const;
         bool completed() const;
         std::pair<std::string, PassGenre> step();
-    
-
+        
     };
 
 }

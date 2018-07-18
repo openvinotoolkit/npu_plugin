@@ -27,9 +27,10 @@ namespace mv
             void erase(const std::string& key);
             unsigned size() const;
             void clear();
-            bool hasKey(const std::string& key);
+            bool hasKey(const std::string& key) const;
             std::vector<std::string> getKeys() const;
             Value& operator[](const std::string& key);
+            const Value& operator[](const std::string& key) const;
             Object& operator=(const Object& other);
             std::string stringify() const override;
             std::string stringifyPretty() const;

@@ -23,12 +23,12 @@ namespace mv
 
             static PassRegistry& instance();
 
-            inline void run(std::string name, ComputationModel& model, TargetDescriptor& descriptor)
+            inline void run(std::string name, ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor)
             {   
                 PassEntry* const passPtr = find(name);
                 if (passPtr)
                 {
-                    passPtr->run(model, descriptor);
+                    passPtr->run(model, targetDescriptor, compDescriptor);
                 }
             }
 

@@ -473,6 +473,15 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
         flowTensors_->erase(op->getOutputTensor(j));
     }
 
+    auto opCounterIt = opsCounter_->find(op->getOpType());
+    if (opCounterIt != opsCounter_->end())
+    {
+        --opCounterIt->second;
+        if (opCounterIt->second == 0)
+            opsCounter_->erase(opCounterIt);
+            
+    }
+
     dataGraph_.node_erase(op);
     
     return true;

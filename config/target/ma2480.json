@@ -6,8 +6,8 @@
 	[
 		"conv2d",
 		"matmul",
-		"maxpool",
-		"avgpool",
+		"maxpool2d",
+		"avgpool2d",
 		"relu",
 		"softmax",
 		"add",

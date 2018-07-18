@@ -62,6 +62,7 @@ void mv::TargetDescriptor::reset()
     finalizationPasses_.clear();
     serializationPasses_.clear();
     validationPasses_.clear();
+    ops_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -217,18 +218,23 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         for (unsigned i = 0; i < jsonDescriptor["ops"].size(); ++i)
         {
 
-            if (jsonDescriptor["pass"]["ops"][i].valueType() != json::JSONType::String)
+            if (jsonDescriptor["ops"][i].valueType() != json::JSONType::String)
             {
                 reset();
                 return false;
             }
 
-            std::string opStr = jsonDescriptor["pass"]["ops"][i].get<std::string>();
+            std::string opStr = jsonDescriptor["ops"][i].get<std::string>();
             auto it = opsStrings.begin();
-            for (; it != opsStrings.end(); ++it)
+            while (it != opsStrings.end())
+            {
                 if (it->second == opStr)
+                {
                     ops_.insert(it->first);
-            
+                    break;
+                }
+                ++it;
+            }
             if (it == opsStrings.end())
             {
                 reset();
