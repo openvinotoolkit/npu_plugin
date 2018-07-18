@@ -647,7 +647,18 @@ TEST (model_serializer, blob_convbias_convrelu)
     mv::dynamic_vector<mv::float_type> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0f, 0.000f);
     auto weightsIt62 = test_cm6.constant(weightsData62, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::LastDimMajor);   // kh, kw, ins, outs
     auto convIt62 = test_cm6.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
-    auto reluIt62 = test_cm6.relu(convIt62);
+
+    mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(convIt62->getShape().totalSize());
+    mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(convIt62->getShape().totalSize());
+    mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(convIt62->getShape().totalSize());
+    mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(convIt62->getShape().totalSize());
+
+    auto bnmean = test_cm6.constant(meanData, convIt62->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "mean");
+    auto bnvariance = test_cm6.constant(varianceData, convIt62->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "variance");
+    auto bnoffset = test_cm6.constant(offsetData, convIt62->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "offset");
+    auto bnscale = test_cm6.constant(scaleData, convIt62->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "scale");
+    auto batchnorm = test_cm6.batchNorm(convIt62, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
+    auto reluIt62 = test_cm6.relu(batchnorm);
 
     // define second maxpool
     auto maxpoolIt62 = test_cm6.maxpool2D(reluIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
@@ -730,15 +741,15 @@ TEST (model_serializer, blob_scale)
     mv::dynamic_vector<mv::float_type> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0f, 0.000f);
     auto weightsIt62 = test_cm6.constant(weightsData62, mv::Shape(3, 3, 1, 1), mv::DType::Float, mv::Order::LastDimMajor);   // kh, kw, ins, outs
     auto convIt62 = test_cm6.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
-    auto reluIt62 = test_cm6.relu(convIt62);
+//    auto reluIt62 = test_cm6.relu(convIt62);
 
     // define second maxpool
-    auto maxpoolIt62 = test_cm6.maxpool2D(reluIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
+//    auto maxpoolIt62 = test_cm6.maxpool2D(reluIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
 
     // define scale
     mv::dynamic_vector<mv::float_type> scalesData = { 6550.0f };
     auto scales = test_cm6.constant(scalesData, mv::Shape(1), mv::DType::Float, mv::Order::LastDimMajor, "scales");
-    auto scaleIt62 = test_cm6.scale(maxpoolIt62, scales);
+    auto scaleIt62 = test_cm6.scale(convIt62, scales);
 
     // define output
     auto outIt6 = test_cm6.output(scaleIt62);
@@ -763,9 +774,9 @@ TEST (model_serializer, blob_scale)
     EXPECT_EQ(convIt62->getShape()[1], 8);      // X dim
     EXPECT_EQ(convIt62->getShape()[2], 1);      // Z dim
 
-    EXPECT_EQ(maxpoolIt62->getShape()[0], 4);   // X dim  maxpool 2
-    EXPECT_EQ(maxpoolIt62->getShape()[1], 4);   // X dim
-    EXPECT_EQ(maxpoolIt62->getShape()[2], 1);   // Z dim
+//    EXPECT_EQ(maxpoolIt62->getShape()[0], 4);   // X dim  maxpool 2
+//    EXPECT_EQ(maxpoolIt62->getShape()[1], 4);   // X dim
+//    EXPECT_EQ(maxpoolIt62->getShape()[2], 1);   // Z dim
 
     EXPECT_EQ(outIt6->getShape()[0], 4);   // X dim  output
 

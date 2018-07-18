@@ -10,6 +10,7 @@
 #include "include/mcm/deployer/file_buffer.h"
 #include "include/mcm/pass/transform/fuse_relu.hpp"
 #include "include/mcm/pass/transform/fuse_bias.hpp"
+#include "include/mcm/pass/transform/fuse_scale.hpp"
 #include "include/mcm/pass/transform/fuse_batch_norm.hpp"
 
 namespace mv
@@ -463,6 +464,7 @@ class Blob_buffer : public WBuffer
             std::vector<uint32_t> outbufadr_list = {  } ;
             std::vector<uint32_t> inbufadr_list = {  } ;
             std::vector<uint32_t> outbufnum_list = {  } ;
+            std::vector<uint32_t> workbuffer_offsets = {  } ;
             mv::OpModel om(cm);
 
             // traverse graph to determine input buffer number, size and source node for each node in the computation
@@ -470,7 +472,7 @@ class Blob_buffer : public WBuffer
             for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
 
-//                std::cout << "processing " << mv::Printable::toString(it->getOpType()) << std::endl;
+                std::cout << "processing " << mv::Printable::toString(it->getOpType()) << std::endl;
                 if ((it->getOpType() == OpType::Conv2D)||(it->getOpType() == OpType::FullyConnected)||(it->getOpType() == OpType::AvgPool2D)||(it->getOpType() == OpType::MaxPool2D)||(it->getOpType() == OpType::Softmax)||(it->getOpType() == OpType::ReLU))
                 {
                     // determine source
@@ -480,13 +482,30 @@ class Blob_buffer : public WBuffer
                     {
                         inbufnum_list.push_back(1);
                         sourcename_list.push_back("Input");
-//                        std::cout << "pushing inbuffer_list 1 Input" << std::endl;
+                        std::cout << "pushing inbuffer_list 1 Input" << std::endl;
                     }
                     else
                     {
-                        inbufnum_list.push_back(work_buffer_index++);
-                        sourcename_list.push_back(parentIt->getName());
-//                        std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
+                        // determine if source buffer is already defined
+                        bool branch_input = false ;
+                        uint32_t source_list_size = sourcename_list.size() ; 
+                        for ( uint32_t source_index = 0; source_index < source_list_size; source_index++ )
+                        {
+                            if (parentIt->getName() == sourcename_list[source_index])
+                            {
+                                branch_input = true ;
+                                uint32_t common_node = inbufnum_list[source_index];
+                                inbufnum_list.push_back(common_node);
+                                sourcename_list.push_back(parentIt->getName());
+                                std::cout << "pushing inbuffer_list (branch input) "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
+                            }
+                        }
+                        if (!branch_input)    // new buffer needed
+                        {
+                            inbufnum_list.push_back(work_buffer_index++);
+                            sourcename_list.push_back(parentIt->getName());
+                            std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
+                        }
                     }
                 } // end single input operator case
 
@@ -502,13 +521,13 @@ class Blob_buffer : public WBuffer
                         {
                             inbufnum_list.push_back(1);
                             sourcename_list.push_back("Input");
-//                            std::cout << "pushing inbuffer_list 1 Input 0" << std::endl;
+                            std::cout << "pushing inbuffer_list 1 Input 0" << std::endl;
                         }
                         else
                         {
                             inbufnum_list.push_back(work_buffer_index++);
                             sourcename_list.push_back(parentIt->getName());
-//                            std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
+                            std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
                         }
 
                     }  // end for loop over inputs to ADD node
@@ -523,13 +542,13 @@ class Blob_buffer : public WBuffer
                     {
                         inbufnum_list.push_back(1);
                         sourcename_list.push_back("Input");
-//                        std::cout << "pushing inbuffer_list 1 Input" << std::endl;
+                        std::cout << "pushing inbuffer_list 1 Input" << std::endl;
                     }
                     else
                     {
                         inbufnum_list.push_back(2);
                         sourcename_list.push_back(parentIt->getName());
-//                        std::cout << "pushing inbuffer_list 2 "<< parentIt->getName() << std::endl;
+                        std::cout << "pushing inbuffer_list 2 "<< parentIt->getName() << std::endl;
                     }
                 } // end output node case
 
@@ -539,6 +558,7 @@ class Blob_buffer : public WBuffer
             // traverse graph to determine output buffer number and size for each node in the computation
             // buffer numbers retreived from input buffer list with matching source name
             // store size and buffer number for later
+            uint32_t running_offset = 0 ;
             for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
             {
                 int work_buffer_size = 0 ;
@@ -585,7 +605,13 @@ class Blob_buffer : public WBuffer
                         {
                             outbufnum_list.push_back(inbufnum_list[list_index]);
                             outbufsiz_list.push_back(work_buffer_size);
-//                            std::cout << "pushing outbuf list num size "<< inbufnum_list[list_index] << " " << work_buffer_size << std::endl;
+                            std::cout << "pushing outbuf list num size "<< inbufnum_list[list_index] << " " << work_buffer_size << std::endl;
+                            if ((workbuffer_offsets.size() <= (inbufnum_list[list_index]-4))&&(inbufnum_list[list_index]>=4))
+                            {
+                            std::cout << "   new  workbuffer_offsets[ "<< inbufnum_list[list_index]-4 << "]= " << running_offset << std::endl;
+                                workbuffer_offsets.push_back(running_offset);
+                                running_offset += work_buffer_size; 
+                            }
                         }
                     }   // end search inbuflist for match
                 }   // end not-output case (no output tensor from output node)
@@ -599,43 +625,36 @@ class Blob_buffer : public WBuffer
             // find buffer size from outbufsiz_list
             for ( uint32_t inbuf_index = 0; inbuf_index < inbufnum_list.size(); inbuf_index++ )
             {
+            std::cout << "DEBUG: next inbuf " << std::endl;
                 uint32_t bufr2size = inbufnum_list[inbuf_index];
-                if ( bufr2size == 1 )
+                if ( bufr2size >= 4 )
                 {
-                    inbufadr_list.push_back(0);
-//                    std::cout << "pushing bufr adr(in) list inbuf_index off "<< inbuf_index << " 0" << std::endl;
-                }
+                    inbufadr_list.push_back(workbuffer_offsets[bufr2size-4]);
+                    std::cout << "pushing bufr adr(in) list: in_index bufnum off "<< inbuf_index << " " << bufr2size << " " << workbuffer_offsets[bufr2size-4] << std::endl;
+                }     // end if WORK buffer
                 else
                 {
-                    for ( uint32_t obuf_index = 0; obuf_index < outbufnum_list.size(); obuf_index++ )
-                    {
-                        if ( bufr2size == outbufnum_list[obuf_index])
-                        {
-                            inbufadr_list.push_back(buf_offset);
-//                            std::cout << "pushing bufr adr(in) list oindex num size off "<< obuf_index << " " << bufr2size << " " << outbufsiz_list[obuf_index] << " " << buf_offset << std::endl;
-                            buf_offset += outbufsiz_list[obuf_index] ;
-                        }  //  found bufr size
-                    }   // end if WORK buffer
-                }   // end search for inbuf in outnum_list
+                    inbufadr_list.push_back(0);
+                    std::cout << "pushing bufr adr(in) list: in_index bufnum off "<< inbuf_index << " " << bufr2size << " 0" << std::endl;   
+                }
             }   // end inbuflist loop
 
+            std::cout << "DEBUG: finished inbufadrlist " << std::endl;
             //  fill outbufadr_list
             for ( uint32_t obuf_index = 0; obuf_index < outbufnum_list.size(); obuf_index++ )
             {
                 uint32_t bufr2copy = outbufnum_list[obuf_index];
-                if (bufr2copy > 2)
+                if (bufr2copy >= 4)
+                {   
+                    outbufadr_list.push_back(workbuffer_offsets[bufr2copy-4]);
+                    std::cout << "pushing bufr adr(out) list: out_index bufnum off "<< obuf_index << " " << bufr2copy << " " << workbuffer_offsets[bufr2copy-4] << std::endl;   
+                }     // end if WORK buffer
+                else
                 {
-                    for ( uint32_t ibuf_index = 0; ibuf_index < inbufnum_list.size(); ibuf_index++ )
-                    {
-                        if ( bufr2copy == inbufnum_list[ibuf_index])
-                        {
-                            outbufadr_list.push_back(inbufadr_list[ibuf_index]);
-//                            std::cout << "pushing bufr adr (out) list iindex num off "<< ibuf_index << " " << bufr2copy << " " << inbufadr_list[ibuf_index] << std::endl;
-                        }  //  found bufr size
-                    }   // end WORK buffer case
-                }   // end search inbufnum_list
+                    outbufadr_list.push_back(0);
+                    std::cout << "pushing bufr adr(=out) list: out_index bufnum off "<< obuf_index << " " << bufr2copy << " 0" << std::endl;       
+                }
             }   // end outbuf list loop
-
 
             // pass to output stage info -----------------------------------
             int outlist_index = 0 ;
@@ -675,7 +694,7 @@ class Blob_buffer : public WBuffer
                             {
                                 blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                 blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
                                 conv_pool_stage.InputOffset = reloc_index++;
                             }
                         } // end search outbufnum list
@@ -691,7 +710,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]); 
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]); 
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -748,10 +767,13 @@ class Blob_buffer : public WBuffer
                     AddBytes(4, conv_pool_stage.BiasOrder);
 
                     AddBytes(4, conv_pool_stage.preop_type);
+                    std::cout << "debug 1" << std::endl;
                     if (it->hasAttr("postOpType"))
                     {
+                    std::cout << "debug 2" << std::endl;
                         if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
                         {
+                    std::cout << "debug 3" << std::endl;
                             AddBytes(4, 0x06);    // 0x12c , postop relu
                             AddBytes(4, 0x00);
                             AddBytes(4, 0x00);
@@ -799,7 +821,7 @@ class Blob_buffer : public WBuffer
                             {
                                 blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                 blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
                                 conv_pool_stage.InputOffset = reloc_index++;
                             }
                         } // end search outbufnum list 
@@ -815,7 +837,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -928,7 +950,7 @@ class Blob_buffer : public WBuffer
                             {
                                 blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                 blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
                                 conv_pool_stage.InputOffset = reloc_index++;
                             }
                         } // end search outbufnum list
@@ -943,7 +965,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -1014,7 +1036,7 @@ class Blob_buffer : public WBuffer
                             {
                                 blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                 blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
                                 conv_pool_stage.InputOffset = reloc_index++;
                             }
                         } // end search outbufnum list
@@ -1029,7 +1051,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-//                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                            std::cout << "pushing reloc-table relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
 //                            std::cout << "conv_pool_stage.OutputLocation= "<< conv_pool_stage.OutputLocation << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
@@ -1076,7 +1098,7 @@ class Blob_buffer : public WBuffer
                             {
                                 blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                 blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-//                    std::cout << "pushing reloc-table MPi "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                    std::cout << "pushing reloc-table MPi "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
                         conv_pool_stage.InputOffset = reloc_index++;
                             }
                         } // end search outbufnum list
@@ -1090,7 +1112,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-//                    std::cout << "pushing reloc-table "<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                    std::cout << "pushing reloc-table "<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -1142,7 +1164,7 @@ class Blob_buffer : public WBuffer
                             {
                                 blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                 blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-//                    std::cout << "pushing reloc-table "<< reloc_index << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                    std::cout << "pushing reloc-table "<< reloc_index << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
                         conv_pool_stage.InputOffset = reloc_index++;
                             }
                         } // end search outbufnum list
@@ -1157,7 +1179,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-//                    std::cout << "pushing reloc-table "<< reloc_index << " "  << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                    std::cout << "pushing reloc-table "<< reloc_index << " "  << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -1220,8 +1242,8 @@ class Blob_buffer : public WBuffer
                                 {
                                     blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                     blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-//                                    std::cout << "pushing reloc-table (add) "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
-//                                    std::cout << "        olistIndex outbufnum_list.size "<< olist_index << " " << outbufnum_list.size() << std::endl;
+                                    std::cout << "pushing reloc-table (add) "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                                    std::cout << "        olistIndex outbufnum_list.size "<< olist_index << " " << outbufnum_list.size() << std::endl;
                                     this_inputOffset = reloc_index++;
                                 }
                             } // end search outbufnum list
@@ -1250,7 +1272,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-//                    std::cout << "pushing reloc-table "<< reloc_index << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                    std::cout << "pushing reloc-table "<< reloc_index << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
@@ -1588,6 +1610,7 @@ class Blob_buffer : public WBuffer
         {
 
         mv::pass::FuseReLU fuseRelu;
+        mv::pass::FuseScale fuseScale;
         mv::pass::FuseBias fuseBias;
         mv::pass::FuseBatchNorm fuseBatchNorm;
 
@@ -1597,8 +1620,10 @@ class Blob_buffer : public WBuffer
                 case mvblob_mode:
                     // fuse relu, bias and batchnorm as required by blob
                     fuseBatchNorm.run(graph_2_deploy);
-//                    fuseRelu.run(graph_2_deploy);
                     fuseBias.run(graph_2_deploy);
+                    fuseScale.run(graph_2_deploy);
+                    fuseBias.run(graph_2_deploy);
+                    fuseRelu.run(graph_2_deploy);
                     // 4 passes of graph: calculate, stages, buffer, reloc
                     // calculate sizes and offsets for headers
                     odata.calc(graph_2_deploy);

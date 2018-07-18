@@ -149,8 +149,8 @@ import_array();
         adj_X++;    // + 1
         adj_Y++;    // + 1
 
-        if (padX < 1) adj_X  = 0;
-        if (padY < 1) adj_Y  = 0;
+        if (padX + adj_X < 1 ) adj_X  = 0;
+        if (padY + adj_Y < 1 ) adj_Y  = 0;
 
         return o->maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, padX+ adj_X, padY, padY+ adj_Y});
@@ -227,8 +227,8 @@ import_array();
         adj_X++;
         adj_Y++;
 
-        if (padX < 1) adj_X  = 0;
-        if (padY < 1) adj_Y  = 0;
+        if (padX + adj_X < 1) adj_X  = 0;
+        if (padY + adj_X < 1) adj_Y  = 0;
 
         return o->avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, padX+ adj_X, padY, padY+ adj_Y});
