@@ -1098,8 +1098,9 @@ class Blob_buffer : public WBuffer
                             {
                                 blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
                                 blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                    std::cout << "pushing reloc-table MPi "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
-                        conv_pool_stage.InputOffset = reloc_index++;
+                                std::cout << "pushing reloc-table MPin "<< reloc_index << " " << outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
+                                conv_pool_stage.InputOffset = reloc_index++;
+                                break;
                             }
                         } // end search outbufnum list
                     }   // end node input is work buffer case
@@ -1112,7 +1113,7 @@ class Blob_buffer : public WBuffer
                     {
                         blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
                         blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                    std::cout << "pushing reloc-table "<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
+                    std::cout << "pushing reloc-table MPout"<< reloc_index << " " << outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
                         conv_pool_stage.OutputOffset = reloc_index++;
                         conv_pool_stage.next = next_offset ;
                     }
