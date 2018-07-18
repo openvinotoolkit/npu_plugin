@@ -19,6 +19,7 @@ import_array();
     // For DOT Production
     #include <include/mcm/deployer/fstd_ostream.hpp>
     #include <include/mcm/pass/deploy/generate_dot.hpp>
+    #include <math.h>
 
     int serialize(mv::OpModel * test_cm){
         mv::ControlModel *cm = new mv::ControlModel(*test_cm);
@@ -140,20 +141,20 @@ import_array();
 
         mv::Shape i = input->getShape();
 
-        float y_calc = float(i[1] + padY + padY - kernelSizeY) / strideY;
-        float x_calc = float(i[0] + padX + padX - kernelSizeX) / strideX;
+        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
+        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
 
-        if (y_calc - (int)y_calc > 0) y_calc = (int)y_calc + 1;     // Ceil
-        if (x_calc - (int)x_calc > 0) x_calc = (int)x_calc + 1;     // Ceil
+        float caffe_x = ceil(inner_x_calc / strideX) + 1;
+        float caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        adj_X++;    // + 1
-        adj_Y++;    // + 1
+        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
-        if (padX + adj_X < 1 ) adj_X  = 0;
-        if (padY + adj_Y < 1 ) adj_Y  = 0;
+        adj_X = caffe_x - tensorflow_x;
+        adj_Y = caffe_y - tensorflow_y;
 
         return o->maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, padX+ adj_X, padY, padY+ adj_Y});
+            {padX, padX+ adj_X, padY, padY + adj_Y});
     }
 
     mv::Data::TensorIterator concat(mv::OpModel *o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
@@ -172,19 +173,26 @@ import_array();
         unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
+
         int adj_X = 0, adj_Y = 0;
 
         mv::Shape i = input->getShape();
         mv::Shape k = filters->getShape();
 
-        float y_calc = float(i[1] + padY + padY - k[1]) / strideY;
-        float x_calc = float(i[0] + padX + padX - k[0]) / strideX;
+        int kernelSizeX =  k[0];
+        int kernelSizeY =  k[1];
 
-        if (y_calc - (int)y_calc > 0) adj_Y = 1;  // If not a whole number
-        if (x_calc - (int)x_calc > 0) adj_X = 1;  // If not a whole number
+        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
+        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
 
-        if (padX < 1) adj_X  = 0;   // No minus padding..
-        if (padY < 1) adj_Y  = 0;   // No minus padding..
+        float caffe_x = ceil(inner_x_calc / strideX) + 1;
+        float caffe_y = ceil(inner_y_calc / strideX) + 1;
+
+        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
+
+        adj_X = caffe_x - tensorflow_x;
+        adj_Y = caffe_y - tensorflow_y;
 
         return o->conv2D(input, filters, {strideX, strideY}, {padX , padX- adj_X, padY, padY - adj_Y});
     }
@@ -218,17 +226,17 @@ import_array();
 
         mv::Shape i = input->getShape();
 
-        float y_calc = float(i[1] + padY + padY - kernelSizeY) / strideY;
-        float x_calc = float(i[0] + padX + padX - kernelSizeX) / strideX;
+        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
+        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
 
-        if (y_calc - (int)y_calc > 0) y_calc = (int)y_calc + 1;     // Ceil
-        if (x_calc - (int)x_calc > 0) x_calc = (int)x_calc + 1;     // Ceil
+        float caffe_x = ceil(inner_x_calc / strideX) + 1;
+        float caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        adj_X++;
-        adj_Y++;
+        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
-        if (padX + adj_X < 1) adj_X  = 0;
-        if (padY + adj_X < 1) adj_Y  = 0;
+        adj_X = caffe_x - tensorflow_x;
+        adj_Y = caffe_y - tensorflow_y;
 
         return o->avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, padX+ adj_X, padY, padY+ adj_Y});
