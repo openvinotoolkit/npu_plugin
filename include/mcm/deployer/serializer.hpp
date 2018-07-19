@@ -504,7 +504,7 @@ class Blob_buffer : public WBuffer
                         {
                             inbufnum_list.push_back(work_buffer_index++);
                             sourcename_list.push_back(parentIt->getName());
-                            workbuffer_offsets.push_back(0);   // create unsized buffer position at index=num-4
+                            workbuffer_offsets.push_back(1);   // create unsized buffer position at index=num-4
                             std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
                             std::cout << "   WBO_list size = "<<  workbuffer_offsets.size() << std::endl;
                         }
@@ -529,7 +529,7 @@ class Blob_buffer : public WBuffer
                         {
                             inbufnum_list.push_back(work_buffer_index++);
                             sourcename_list.push_back(parentIt->getName());
-                            workbuffer_offsets.push_back(0);   // create unsized buffer position at index=num-4
+                            workbuffer_offsets.push_back(1);   // create unsized buffer position at index=num-4
                             std::cout << "pushing inbuffer_list "<< work_buffer_index-1 << " " << parentIt->getName() << std::endl;
                             std::cout << "   WBO_list size = "<<  workbuffer_offsets.size() << std::endl;
                         }
@@ -552,7 +552,7 @@ class Blob_buffer : public WBuffer
                     {
                         inbufnum_list.push_back(2);
                         sourcename_list.push_back(parentIt->getName());
-                        workbuffer_offsets.push_back(0);   // create unsized buffer position at index=num-4
+                        workbuffer_offsets.push_back(1);   // create unsized buffer position at index=num-4
                         std::cout << "pushing inbuffer_list 2 "<< parentIt->getName() << std::endl;
                             std::cout << "   WBO_list size = "<<  workbuffer_offsets.size() << std::endl;
                     }
@@ -612,7 +612,7 @@ class Blob_buffer : public WBuffer
             std::cout << "    obuf calc for " << inbufnum_list[list_index] << std::endl;
                             if (inbufnum_list[list_index]>=4)
                             {
-                                if (workbuffer_offsets[inbufnum_list[list_index]-4] == 0)
+                                if (workbuffer_offsets[inbufnum_list[list_index]-4] == 1)
                                 {
                 std::cout << "        wbo_list[" << inbufnum_list[list_index]-4 << "]= " << workbuffer_offsets[inbufnum_list[list_index]-4] << std::endl;
                                     outbufnum_list.push_back(inbufnum_list[list_index]);
