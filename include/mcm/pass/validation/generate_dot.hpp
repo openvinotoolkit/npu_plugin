@@ -1,5 +1,5 @@
-#ifndef GENERATE_DOT_HPP_
-#define GENERATE_DOT_HPP_
+#ifndef MV_PASS_GENERATE_DOT_HPP_
+#define MV_PASS_GENERATE_DOT_HPP_
 
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
@@ -25,4 +25,4 @@ namespace mv
 
 }
 
-#endif // DOT_PASS_HPP_
+#endif // MV_PASS_GENERATE_DOT_HPP_
