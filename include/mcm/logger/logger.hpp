@@ -3,7 +3,7 @@
 
 #include <time.h>
 #include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/logger/printable.hpp"
+#include "include/mcm/base/printable.hpp"
 
 namespace mv
 {

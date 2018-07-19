@@ -2,8 +2,6 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/deployer/fstd_ostream.hpp"
-#include "include/mcm/pass/deploy/generate_dot.hpp"
 
 int main()
 {
@@ -49,19 +47,7 @@ int main()
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
-
-    mv::FStdOStream ostream("cm.dot");
-    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::OpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    bool dotResult = generateDot.run(cm);    
-    if (dotResult)
-        system("dot -Tsvg cm.dot -o cm.svg");
-
-    ostream.setFileName("dm.dot");
-    mv::pass::GenerateDot generateDot2(ostream, mv::pass::GenerateDot::OutputScope::DataModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    dotResult = generateDot2.run(cm);    
-    if (dotResult)
-        system("dot -Tsvg dm.dot -o dm.svg");
-
+    
     return 0;
 
 }

@@ -1,0 +1,294 @@
+#include "include/mcm/pass/adaptation/fuse_passes.hpp"
+
+namespace mv
+{
+
+    namespace pass
+    {
+
+        MV_REGISTER_PASS(FuseBatchNorm)
+        .setFunc(__fuse_pass_detail_::fuseBatchNormFcn)
+        .setGenre(PassGenre::Adaptation)
+        .setDescription(
+            "Replaces a batchnorm op with eltwise ops or their 1d equivalents. "
+            "Following cases are handled:\n"
+            " - batchnorm parameters tensors are n-dimensional - the replacement is a chain of multiply and add (eltwise)\n"
+            " - batchnorm parameters tensors are 1-dimensional and parent op is not of type conv2d - the replacement is chain of scale and bias\n"
+            " - batchnorm parameters tensors are 1-dimensional and parent op is of type conv2d - the replacement is a bias and weights of conv2d are modified]\n"
+        );
+
+        MV_REGISTER_PASS(FuseBias)
+        .setFunc(__fuse_pass_detail_::fuseBiasFcn)
+        .setGenre(PassGenre::Adaptation)
+        .setDescription(
+            "Fuses a bias op to the parent op if this op is of type conv2d. "
+            "Bias op is removed from the model, the biases tensor "
+            " (second input of bias op) is appended to parent op as an attribute "
+            " of type float vector of name 'bias'."
+        );
+
+        MV_REGISTER_PASS(FuseRelu)
+        .setFunc(__fuse_pass_detail_::fuseReluFcn)
+        .setGenre(PassGenre::Adaptation)
+        .setDescription(
+            "Fuses a relu op to the parent op."
+            "Relu op is removed from the model, and a new attribute of type OpType and value relu is defined for parent Op."
+        );
+
+        MV_REGISTER_PASS(FuseScale)
+        .setFunc(__fuse_pass_detail_::fuseScaleFcn)
+        .setGenre(PassGenre::Adaptation)
+        .setDescription(
+            "Fuses a scale op to the parent op is this op is of type conv2d. Scale op is removed from the model and conv2d weights are rescaled. "
+            "If the conv2d has a 'bias' attribute of type float vector it is rescaled as well. In this case the length of scale op parameters tensor and 'bias' attribute "
+            "has to match."
+        );
+
+    }
+
+}
+
+void mv::pass::__fuse_pass_detail_::fuseBiasFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+{
+
+    OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {   
+
+        if (opIt->getOpType() == OpType::Bias)
+        {
+            
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            
+            if (parentOpIt->getOpType() == OpType::Conv2D)
+            {
+
+                auto bias = *opIt->getInputTensor(1);
+                Attribute biasAttr(AttrType::FloatVecType, bias.getData());
+                om.addAttr(parentOpIt, "bias", biasAttr);
+                ControlModel cm(om);
+                auto nextOp = cm.switchContext(opIt).leftmostChild();
+
+                cm.defineFlow(parentOpIt, om.switchContext(nextOp));
+                auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+                for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                    sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                }
+
+                while(opIt.parentsSize() > 1)
+                {
+                    auto paramOp = opIt.leftmostParent();
+                    ++paramOp;
+                    om.removeOp(paramOp);
+                }
+                
+                om.removeOp(opIt);
+                opIt = parentOpIt;
+
+            }
+
+        }
+
+    }
+
+}
+
+void mv::pass::__fuse_pass_detail_::fuseScaleFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+{
+    
+    OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {   
+
+        if (opIt->getOpType() == OpType::Scale)
+        {
+            
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            
+            if (parentOpIt->getOpType() == OpType::Conv2D)
+            {
+
+                auto scale = *opIt->getInputTensor(1);
+                parentOpIt->getInputTensor(1)->mulitply(scale);
+
+                if (parentOpIt->hasAttr("bias"))
+                {
+                    auto biasData = parentOpIt->getAttr("bias").getContent<dynamic_vector<float>>();
+                    if (biasData.size() != scale.getData().size())
+                        return;
+
+                    for (unsigned i = 0; i < biasData.size(); ++i)
+                        biasData[i] *= scale.getData()[i];
+                    
+                    parentOpIt->getAttr("bias").setContent<dynamic_vector<float>>(biasData);
+
+                }
+
+                ControlModel cm(om);
+                auto nextOp = cm.switchContext(opIt).leftmostChild();
+
+                cm.defineFlow(parentOpIt, om.switchContext(nextOp));
+                auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+                for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                    sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                }
+
+                while(opIt.parentsSize() > 1)
+                {
+                    auto paramOp = opIt.leftmostParent();
+                    ++paramOp;
+                    om.removeOp(paramOp);
+                }
+                
+                om.removeOp(opIt);
+                opIt = parentOpIt;
+
+            }
+
+        }
+
+    }
+
+}
+
+void mv::pass::__fuse_pass_detail_::fuseReluFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+{
+    
+    OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {   
+
+        if (opIt->getOpType() == OpType::ReLU)
+        {
+
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            Attribute reluAttr(AttrType::OpTypeType, OpType::ReLU);
+            om.addAttr(parentOpIt, "postOpType", reluAttr);
+
+            ControlModel cm(om);
+            cm.defineFlow(parentOpIt,  opIt.leftmostChild());
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+            {
+                byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+            }
+
+            while(opIt.parentsSize() > 1)
+            {
+                auto paramOp = opIt.leftmostParent();
+                ++paramOp;
+                om.removeOp(paramOp);
+            }
+            
+            om.removeOp(opIt);
+            om.enableDefaultControlFlow(parentOpIt);
+            opIt = parentOpIt;
+
+        }
+
+    }
+
+}
+
+void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+{
+    
+    OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {   
+
+        if (opIt->getOpType() == OpType::BatchNorm)
+        {
+            
+            auto batchNormName = opIt->getName();
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            ControlModel cm(om);
+            auto nextOp = cm.switchContext(opIt).leftmostChild();
+            
+            auto bnMean = *opIt->getInputTensor(1);
+            auto bnVar = *opIt->getInputTensor(2);
+            auto bnOffset = *opIt->getInputTensor(3);
+            auto bnScale = *opIt->getInputTensor(4);
+            float bnEps = opIt->getAttr("varianceEps").getContent<float>();
+
+            auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
+            auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
+            auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), offsetParam.getOrder(), batchNormName + "_offset");
+
+            om.disableDefaultControlFlow();
+
+            Data::TensorIterator sourceTensor;
+
+            if (bnMean.getShape().ndims() == 1)
+            {
+                if (parentOpIt->getOpType() == OpType::Conv2D)
+                {
+                    parentOpIt->getInputTensor(1)->mulitply(scaleParam);
+                    sourceTensor = parentOpIt->getOutputTensor(0);
+                }
+                else
+                {
+                    auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+                    sourceTensor = om.scale(opIt->getInputTensor(0), scale);
+                    cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
+                    parentOpIt = om.getSourceOp(sourceTensor);
+                }
+            }
+            else
+            {
+                auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+                sourceTensor = om.multiply(opIt->getInputTensor(0), scale);
+                cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
+                parentOpIt = om.getSourceOp(sourceTensor);
+
+            }
+
+            if (offsetParam.getShape().ndims() == 1)
+            {
+                sourceTensor = om.bias(sourceTensor, offset); 
+            }   
+            else
+            {
+                sourceTensor = om.add(sourceTensor, offset);
+            }
+
+            cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
+            cm.defineFlow(om.getSourceOp(sourceTensor), om.switchContext(nextOp));
+
+            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+            {
+                byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+            }
+
+            while(opIt.parentsSize() > 1)
+            {
+                auto paramOp = opIt.leftmostParent();
+                ++paramOp;
+                om.removeOp(paramOp);
+            }
+            
+            om.removeOp(opIt);
+            om.enableDefaultControlFlow(cm.getLast());
+            opIt = parentOpIt;
+        }
+
+    }
+
+}

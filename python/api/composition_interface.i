@@ -17,7 +17,7 @@ import_array();
     #include <include/mcm/computation/model/computation_model.hpp>
     #include <include/mcm/deployer/serializer.hpp>
     // For DOT Production
-    #include <include/mcm/deployer/fstd_ostream.hpp>
+    #include <include/mcm/base/stream/fstd_ostream.hpp>
     #include <include/mcm/pass/deploy/generate_dot.hpp>
     #include <math.h>
 

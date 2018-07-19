@@ -1,0 +1,49 @@
+{
+
+	"target": "ma2480",
+
+	"ops":
+	[
+		"conv2d",
+		"matmul",
+		"maxpool2d",
+		"avgpool2d",
+		"relu",
+		"softmax",
+		"add",
+		"subtract",
+		"multiply",
+		"divide",
+		"fullyconnected"
+	],
+	
+	"order":
+	{
+		"global": "planar"
+	},
+
+	"dtype":
+	{
+		"global": "fp16"
+	},
+
+	"pass":
+	{
+	
+		"adapt":
+		[
+			"FuseBatchNorm", 
+			"FuseBias", 
+			"FuseScale",
+			"FuseRelu"		
+		],
+
+		
+		"validate":
+		[
+			"GenerateDot"
+		]
+
+	}
+
+}

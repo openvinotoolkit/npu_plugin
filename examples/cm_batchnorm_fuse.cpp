@@ -1,43 +1,42 @@
-#include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/deployer/fstd_ostream.hpp"
-#include "include/mcm/pass/deploy/generate_dot.hpp"
-#include "include/mcm/pass/transform/fuse_batch_norm.hpp"
+#include "include/mcm/compiler/compilation_unit.hpp"
 
 int main()
 {
 
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
-    auto input = om.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::LastDimMajor);
+    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::CompositionalModel& cm = unit.model();
+
+    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::LastDimMajor);
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 3 * 3);
-    auto weights = om.constant(weightsData, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::LastDimMajor, "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto weights = cm.constant(weightsData, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::LastDimMajor, "weights");
+    auto conv = cm.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
-    auto bnmean = om.constant(meanData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "mean");
-    auto bnvariance = om.constant(varianceData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "variance");
-    auto bnoffset = om.constant(offsetData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "offset");
-    auto bnscale = om.constant(scaleData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "scale");
-    auto batchnorm = om.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
-    om.output(batchnorm);
+    auto bnmean = cm.constant(meanData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "mean");
+    auto bnvariance = cm.constant(varianceData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "variance");
+    auto bnoffset = cm.constant(offsetData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "offset");
+    auto bnscale = cm.constant(scaleData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "scale");
+    auto batchnorm = cm.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
+    cm.output(batchnorm);
 
-    mv::FStdOStream ostream("cm1.dot");
-    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    bool dotResult = generateDot.run(om);    
-    if (dotResult)
-        system("dot -Tsvg cm1.dot -o cm1.svg");
-
-    mv::pass::FuseBatchNorm fuseBatchNorm;
-    fuseBatchNorm.run(om);
+    std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+    unit.targetDescriptor().load(targetDescPath);
+    unit.passManager().disablePass();
+    unit.passManager().enablePass(mv::PassGenre::Adaptation, "FuseBatchNorm");
+    unit.passManager().enablePass(mv::PassGenre::Validation, "GenerateDot");
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_batchnorm_fuse.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     
-    ostream.setFileName("cm2.dot");
-    dotResult = generateDot.run(om);    
-    if (dotResult)
-        system("dot -Tsvg cm2.dot -o cm2.svg");
+    unit.initialize();
+    unit.run();
+
+    system("dot -Tsvg cm_batchnorm_fuse.dot -o cm_batchnorm_fuse.svg");
+    system("dot -Tsvg cm_batchnorm_fuse_adapt.dot -o cm_batchnorm_fuse_adapt.svg");
 
     return 0;
 

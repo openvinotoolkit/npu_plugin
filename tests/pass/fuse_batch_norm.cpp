@@ -1,9 +1,10 @@
 #include "gtest/gtest.h"
-#include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/pass/transform/fuse_batch_norm.hpp"
+#include "include/mcm/pass/adaptation/fuse_passes.hpp"
 
 TEST(fuse_batch_norm_pass, case_ndim_conv)
 {
@@ -34,20 +35,10 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::pass::FuseBatchNorm fuseBatchNorm;
-    fuseBatchNorm.run(om);
+    mv::json::Object dummyCompDesc;
+    mv::TargetDescriptor dummyTargDesc;
 
-    // Check if batchnorm components were invalidated
-    /*ASSERT_FALSE(om.isValid(batchnormOp));
-    ASSERT_FALSE(om.isValid(batchnorm));
-    ASSERT_FALSE(om.isValid(bnmeanOp));
-    ASSERT_FALSE(om.isValid(bnmean));
-    ASSERT_FALSE(om.isValid(bnvarianceOp));
-    ASSERT_FALSE(om.isValid(bnvariance));
-    ASSERT_FALSE(om.isValid(bnoffsetOp));
-    ASSERT_FALSE(om.isValid(bnoffset));
-    ASSERT_FALSE(om.isValid(bnscaleOp));
-    ASSERT_FALSE(om.isValid(bnscale));*/
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -97,13 +88,14 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     ASSERT_EQ(*addOp, *cIt);
     ++cIt;
     ASSERT_EQ(*(outputOp), *cIt);
-
+   
 }
 
 TEST(fuse_batch_norm_pass, case_1dim_conv)
 {
 
     mv::OpModel om;
+
     auto input = om.input(mv::Shape(64, 64, 16), mv::DType::Float, mv::Order::LastDimMajor);
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, mv::Shape(3, 3, 16, 32), mv::DType::Float, mv::Order::LastDimMajor, "weights");
@@ -129,20 +121,10 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::pass::FuseBatchNorm fuseBatchNorm;
-    fuseBatchNorm.run(om);
+    mv::json::Object dummyCompDesc;
+    mv::TargetDescriptor dummyTargDesc;
 
-    // Check if batchnorm components were invalidated
-    ASSERT_FALSE(om.isValid(batchnormOp));
-    ASSERT_FALSE(om.isValid(batchnorm));
-    ASSERT_FALSE(om.isValid(bnmeanOp));
-    ASSERT_FALSE(om.isValid(bnmean));
-    ASSERT_FALSE(om.isValid(bnvarianceOp));
-    ASSERT_FALSE(om.isValid(bnvariance));
-    ASSERT_FALSE(om.isValid(bnoffsetOp));
-    ASSERT_FALSE(om.isValid(bnoffset));
-    ASSERT_FALSE(om.isValid(bnscaleOp));
-    ASSERT_FALSE(om.isValid(bnscale));
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -191,6 +173,7 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 {
 
     mv::OpModel om;
+    
     auto input = om.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::LastDimMajor);
     auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
@@ -214,20 +197,10 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::pass::FuseBatchNorm fuseBatchNorm;
-    fuseBatchNorm.run(om);
+    mv::json::Object dummyCompDesc;
+    mv::TargetDescriptor dummyTargDesc;
 
-    // Check if batchnorm components were invalidated
-    ASSERT_FALSE(om.isValid(batchnormOp));
-    ASSERT_FALSE(om.isValid(batchnorm));
-    ASSERT_FALSE(om.isValid(bnmeanOp));
-    ASSERT_FALSE(om.isValid(bnmean));
-    ASSERT_FALSE(om.isValid(bnvarianceOp));
-    ASSERT_FALSE(om.isValid(bnvariance));
-    ASSERT_FALSE(om.isValid(bnoffsetOp));
-    ASSERT_FALSE(om.isValid(bnoffset));
-    ASSERT_FALSE(om.isValid(bnscaleOp));
-    ASSERT_FALSE(om.isValid(bnscale));
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -284,6 +257,7 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 {
 
     mv::OpModel om;
+    
     auto input = om.input(mv::Shape(64, 64, 16), mv::DType::Float, mv::Order::LastDimMajor);
     auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
@@ -307,20 +281,10 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::pass::FuseBatchNorm fuseBatchNorm;
-    fuseBatchNorm.run(om);
+    mv::json::Object dummyCompDesc;
+    mv::TargetDescriptor dummyTargDesc;
 
-    // Check if batchnorm components were invalidated
-    ASSERT_FALSE(om.isValid(batchnormOp));
-    ASSERT_FALSE(om.isValid(batchnorm));
-    ASSERT_FALSE(om.isValid(bnmeanOp));
-    ASSERT_FALSE(om.isValid(bnmean));
-    ASSERT_FALSE(om.isValid(bnvarianceOp));
-    ASSERT_FALSE(om.isValid(bnvariance));
-    ASSERT_FALSE(om.isValid(bnoffsetOp));
-    ASSERT_FALSE(om.isValid(bnoffset));
-    ASSERT_FALSE(om.isValid(bnscaleOp));
-    ASSERT_FALSE(om.isValid(bnscale));
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
 
     // Check general model properties
     mv::DataModel dm(om);

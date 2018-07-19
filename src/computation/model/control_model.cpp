@@ -13,34 +13,34 @@ mv::Control::OpListIterator mv::ControlModel::switchContext(Data::OpListIterator
 
 mv::Control::OpListIterator mv::ControlModel::getFirst()
 {
-   computation_graph::first_graph::node_list_iterator it = input_;
+   computation_graph::first_graph::node_list_iterator it = *input_;
    return opsGraph_->get_second_iterator(it);
 }
 
 
 mv::Control::OpListIterator mv::ControlModel::getLast()
 {
-    return lastOp_;
+    return *lastOp_;
 }
 
 mv::Control::OpListIterator mv::ControlModel::opEnd()
 {
-    return controlOpEnd_;
+    return *controlOpEnd_;
 }
 
 mv::Control::FlowListIterator mv::ControlModel::getInput()
 {
-    return switchContext(input_).leftmostOutput();
+    return switchContext(*input_).leftmostOutput();
 }
 
 mv::Control::FlowListIterator mv::ControlModel::getOutput()
 {
-    return switchContext(output_).leftmostInput();
+    return switchContext(*output_).leftmostInput();
 }
 
 mv::Control::FlowListIterator mv::ControlModel::flowEnd()
 {
-    return controlFlowEnd_;
+    return *controlFlowEnd_;
 }
 
 mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
@@ -201,7 +201,7 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
 
     Control::FlowListIterator flow = controlGraph_.edge_insert(sourceOp, sinkOp, allocator_.make_owner<ControlFlow>(sourceOp, sinkOp));
 
-    if (flow != controlFlowEnd_)
+    if (flow != *controlFlowEnd_)
     {
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + flow->toString());
         return flow;

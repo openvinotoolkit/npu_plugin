@@ -2,7 +2,7 @@
 #define COMPUTATION_ELEMENT_HPP_
 
 #include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/model/attribute.hpp"
+#include "include/mcm/base/attribute.hpp"
 #include "include/mcm/logger/logger.hpp"
 
 namespace mv

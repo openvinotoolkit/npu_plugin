@@ -23,6 +23,7 @@ namespace mv
 
         OpModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
         OpModel(const ComputationModel& model);
+        OpModel(const CompositionalModel& model);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
 

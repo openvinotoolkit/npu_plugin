@@ -12,20 +12,26 @@ ComputationModel(other)
 
 }
 
+mv::OpModel::OpModel(const CompositionalModel& model) :
+ComputationModel(static_cast<const OpModel&>(model))
+{
+
+}
+
 bool mv::OpModel::defineDefaultControlFlow_(Data::OpListIterator op)
 {
 
-    if (!defaultControlFlow_)
+    if (!*defaultControlFlow_)
         return true;
 
     Control::OpListIterator currentOp = opsGraph_->get_second_iterator(op);
-    Control::FlowListIterator newFlow = controlGraph_.edge_insert(lastOp_, currentOp, allocator_.make_owner<ControlFlow>(lastOp_, currentOp));
+    Control::FlowListIterator newFlow = controlGraph_.edge_insert(*lastOp_, currentOp, allocator_.make_owner<ControlFlow>(*lastOp_, currentOp));
 
-    if (newFlow == controlFlowEnd_)
+    if (newFlow == *controlFlowEnd_)
         return false;
 
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
-    lastOp_ = currentOp;
+    *lastOp_ =  currentOp;
 
     return true;
 
@@ -130,7 +136,7 @@ mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator othe
 mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const string& name)
 {
 
-    if (input_ != opEnd())
+    if (*input_ != opEnd())
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to define input - already defined (multi-input models currently not supported");
         return tensorEnd();
@@ -142,19 +148,19 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
     else
         opName = getOpName_(OpType::Input);
 
-    input_ = dataGraph_.node_insert(allocator_.make_owner<op::Input>(shape, dType, order, opName));
+    *input_ = dataGraph_.node_insert(allocator_.make_owner<op::Input>(shape, dType, order, opName));
     
-    if (input_ == opEnd())
+    if (*input_ == opEnd())
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to allocate a new input op");
         return tensorEnd();
     }
 
-    auto outputTensor = defineOutputTensor_(input_, 0);
-    input_->setOutputTensor(outputTensor, 0);
+    auto outputTensor = defineOutputTensor_(*input_, 0);
+    (*input_)->setOutputTensor(outputTensor, 0);
     incrementOpsCounter_(OpType::Input);
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + input_->toString());
-    lastOp_ = opsGraph_->get_second_iterator(input_);
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*input_)->toString());
+    *lastOp_ = opsGraph_->get_second_iterator(*input_);
     return outputTensor;
 
 }
@@ -184,9 +190,9 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
     }
 
     incrementOpsCounter_(OpType::Output);
-    output_ = outputIt;
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + output_->toString());
-    defineDefaultControlFlow_(output_);
+    *output_ = outputIt;
+    logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*output_)->toString());
+    defineDefaultControlFlow_(*output_);
 
     return inputTensor;
 
@@ -473,6 +479,15 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
         flowTensors_->erase(op->getOutputTensor(j));
     }
 
+    auto opCounterIt = opsCounter_->find(op->getOpType());
+    if (opCounterIt != opsCounter_->end())
+    {
+        --opCounterIt->second;
+        if (opCounterIt->second == 0)
+            opsCounter_->erase(opCounterIt);
+            
+    }
+
     dataGraph_.node_erase(op);
     
     return true;
@@ -508,7 +523,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
 
     Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, allocator_.make_owner<DataFlow>(sourceOp, 0, sinkOp, inputIdx, sourceTensor));
     
-    if (inputFlow != dataFlowEnd_)
+    if (inputFlow != *dataFlowEnd_)
     {
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
         return inputFlow;
@@ -558,22 +573,22 @@ bool mv::OpModel::isValid(const Data::OpListIterator &it) const
 
 mv::Data::OpListIterator mv::OpModel::getInput()
 {
-    return input_;
+    return *input_;
 }
 
 mv::Data::OpListIterator mv::OpModel::getOutput()
 {
-    return output_;
+    return *output_;
 }
 
 mv::Data::OpListIterator mv::OpModel::opEnd() const
 {
-    return dataOpEnd_;
+    return *dataOpEnd_;
 }
 
 mv::Data::FlowListIterator mv::OpModel::flowEnd() const
 {
-    return dataFlowEnd_;
+    return *dataFlowEnd_;
 }
 
 mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
@@ -595,7 +610,7 @@ mv::dynamic_vector<mv::Shape> mv::OpModel::getInputShapes(Data::OpListIterator& 
 
     dynamic_vector<Shape> shapes;
 
-    for (auto it = op.leftmostInput(); it != dataFlowEnd_; ++it)
+    for (auto it = op.leftmostInput(); it != *dataFlowEnd_; ++it)
     {
         shapes.push_back(it->getTensor()->getShape());
     }
@@ -609,7 +624,7 @@ mv::dynamic_vector<mv::Shape> mv::OpModel::getOutputShapes(Data::OpListIterator&
 
     dynamic_vector<Shape> shapes;
 
-    for (auto it = op.leftmostOutput(); it != dataFlowEnd_; ++it)
+    for (auto it = op.leftmostOutput(); it != *dataFlowEnd_; ++it)
     {
         shapes.push_back(it->getTensor()->getShape());
     }
@@ -635,7 +650,7 @@ unsigned mv::OpModel::parametersCount() const
 
     unsigned result = 0;
 
-    for (auto it = input_; it != opEnd(); ++it)
+    for (auto it = *input_; it != opEnd(); ++it)
     {
         if (it->getOpType() == OpType::Constant)
         {
