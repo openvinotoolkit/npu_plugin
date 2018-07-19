@@ -392,7 +392,7 @@ TEST (model_serializer, blob_eltwise_add)
     mv::ControlModel cm7(test_cm7);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_07.blob");
+    compDesc["GenerateBlob"]["output"] = std::string("test_add_07.blob");
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
@@ -504,7 +504,7 @@ TEST (model_serializer, blob_eltwise_multiply)
     mv::ControlModel cm7(test_cm7);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_08.blob");
+    compDesc["GenerateBlob"]["output"] = std::string("test_multiply_08.blob");
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
@@ -617,7 +617,7 @@ TEST (model_serializer, blob_softmax)
     mv::ControlModel cm7(test_cm7);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_09.blob");
+    compDesc["GenerateBlob"]["output"] = std::string("test_softmax_09.blob");
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
