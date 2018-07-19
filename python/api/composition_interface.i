@@ -15,17 +15,24 @@ import_array();
     #include <include/mcm/computation/model/op_model.hpp>
     #include <include/mcm/computation/model/control_model.hpp>
     #include <include/mcm/computation/model/computation_model.hpp>
-    #include <include/mcm/deployer/serializer.hpp>
-    // For DOT Production
-    #include <include/mcm/base/stream/fstd_ostream.hpp>
-    #include <include/mcm/pass/deploy/generate_dot.hpp>
+    #include <include/mcm/pass/adaptation/fuse_passes.hpp>
+    #include <include/mcm/pass/serialization/generate_blob.hpp>
+    #include <include/mcm/pass/validation/generate_dot.hpp>
     #include <math.h>
 
     int serialize(mv::OpModel * test_cm){
-        mv::ControlModel *cm = new mv::ControlModel(*test_cm);
-        mv::Serializer *gs = new mv::Serializer(mv::mvblob_mode);
-        uint64_t filesize = gs->serialize(*cm, "cpp.blob");
 
+        mv::json::Object compDesc;
+        compDesc["GenerateBlob"]["output"] = std::string("cpp.blob");
+        mv::TargetDescriptor dummyTargDesc;
+
+        mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(*test_cm, dummyTargDesc, compDesc);
+        mv::pass::__fuse_pass_detail_::fuseBiasFcn(*test_cm, dummyTargDesc, compDesc);
+        mv::pass::__fuse_pass_detail_::fuseScaleFcn(*test_cm, dummyTargDesc, compDesc);
+        mv::pass::__fuse_pass_detail_::fuseReluFcn(*test_cm, dummyTargDesc, compDesc);
+
+        // serialize compute model to file
+        uint64_t filesize = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(*test_cm, dummyTargDesc, compDesc);
         return filesize;   // Success, return filesize
     }
 
@@ -278,13 +285,18 @@ import_array();
     }
 
     void produceDOT(mv::OpModel *o){
-        mv::FStdOStream ostream("pycm.dot");
-        mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-        // mv::ComputationModel *cm = new mv::ComputationModel(*o);
-        bool dotResult = generateDot.run(*o);
-        if (dotResult)
-            printf("Succesful Generation\n");
-            system("dot -Tsvg pycm.dot -o pycm.svg");
+        mv::TargetDescriptor dummyTargetDesc;
+        mv::json::Object compDesc;
+        compDesc["GenerateDot"]["output"] = std::string("pycm.dot");
+        compDesc["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+        compDesc["GenerateDot"]["content"] = std::string("full");
+        compDesc["GenerateDot"]["html"] = true;
+        mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(*o, dummyTargetDesc, compDesc);
+        mv::pass::__fuse_pass_detail_::fuseBiasFcn(*o, dummyTargetDesc, compDesc);
+        mv::pass::__fuse_pass_detail_::fuseScaleFcn(*o, dummyTargetDesc, compDesc);
+        mv::pass::__fuse_pass_detail_::fuseReluFcn(*o, dummyTargetDesc, compDesc);
+        mv::pass::__generate_dot_detail_::generateDotFcn(*o, dummyTargetDesc, compDesc);
+        system("dot -Tsvg pycm.dot -o pycm.svg");
     }
 
  %}

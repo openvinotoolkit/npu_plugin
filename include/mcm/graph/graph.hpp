@@ -1378,7 +1378,9 @@ namespace mv
 
     protected:
 
-        typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<detail::base_node_class<T_node, T_size>>, id_comparator<detail::base_node_class<T_node, T_size>>>> base_nodes_;
+        typename T_allocator::template owner_ptr<typename T_allocator::template 
+            set<typename T_allocator::template owner_ptr<detail::base_node_class<T_node, T_size>>, 
+            id_comparator<detail::base_node_class<T_node, T_size>>>> base_nodes_;
         
     private:
         

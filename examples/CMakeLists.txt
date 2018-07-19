@@ -23,5 +23,8 @@ target_sources(cm_resnet18 PUBLIC ${base} ${allocator} ${computation_model} ${op
 add_executable(cm_resnet18_blob cm_resnet18_blob.cpp)
 target_sources(cm_resnet18_blob PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
 
+add_executable(cm_l8b cm_l8b.cpp)
+target_sources(cm_l8b PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
+
 add_executable(cm_allocate_resources cm_allocate_resources.cpp)
 target_sources(cm_allocate_resources PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor})
