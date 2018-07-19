@@ -53,8 +53,9 @@ namespace mv
             Value& operator=(const Array& value);
             Value& operator=(const Value& other);
             Value& operator[](const std::string& key);
+            const Value& operator[](const std::string& key) const;
             Value& operator[](unsigned idx);
-            bool hasKey(const std::string& key);
+            bool hasKey(const std::string& key) const;
             std::vector<std::string> getKeys() const;
             void append(const std::pair<std::string, Value>& member);
             void append(const Value& element);

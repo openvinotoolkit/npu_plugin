@@ -83,7 +83,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
     completed_ = false;
     running_ = false;
     currentStage_ = passFlow_.cbegin();
-    currentPass_ = adaptPassQueue_.begin();
+    currentPass_ = currentStage_->second.begin();
     compDescriptor_ = compDescriptor;
     return true;
 
@@ -195,6 +195,61 @@ bool mv::PassManager::disablePass(PassGenre stage, const std::string& pass)
 
 }
 
+bool mv::PassManager::disablePass(PassGenre stage)
+{
+
+    if (!ready() || running_)
+        return false;
+
+    std::vector<std::string>* queuePtr = nullptr;
+
+    switch (stage)
+    {
+
+        case PassGenre::Adaptation:
+            queuePtr = &adaptPassQueue_;
+            break;
+
+        case PassGenre::Optimization:
+            queuePtr = &optPassQueue_;
+            break;
+
+        case PassGenre::Finalization:
+            queuePtr = &finalPassQueue_;
+            break;
+        
+        case PassGenre::Serialization:
+            queuePtr = &serialPassQueue_;
+            break;
+
+        case PassGenre::Validation:
+            queuePtr = &validPassQueue_;
+            break;
+        
+    }
+
+    queuePtr->clear();
+
+    return true;
+
+}
+
+bool mv::PassManager::disablePass()
+{
+
+    if (!ready() || running_)
+        return false;
+
+    adaptPassQueue_.clear();
+    optPassQueue_.clear();
+    finalPassQueue_.clear();
+    serialPassQueue_.clear();
+    validPassQueue_.clear();
+
+    return true;
+
+}
+
 void mv::PassManager::reset()
 {
 
@@ -208,7 +263,7 @@ void mv::PassManager::reset()
     serialPassQueue_.clear();
     validPassQueue_.clear();
     currentStage_ = passFlow_.cbegin();
-    currentPass_ = adaptPassQueue_.end();
+    currentPass_ = currentStage_->second.end();
     targetDescriptor_ = TargetDescriptor();
     compDescriptor_ = json::Object();
 
@@ -233,16 +288,23 @@ std::pair<std::string, mv::PassGenre> mv::PassManager::step()
             throw ExecutionError("Invalid descriptor");
         running_ = true;
         currentStage_ = passFlow_.cbegin();
-        currentPass_ = adaptPassQueue_.begin();
+        currentPass_ = currentStage_->second.begin();
+        buffer_.clear();
     }
 
-    while (!completed_ && currentStage_ != passFlow_.cend())
+    if (!completed_ && currentStage_ != passFlow_.end())
     {
 
-        if (currentPass_ == currentStage_->second.cend())
+        while (currentPass_ == currentStage_->second.end())
         {
-            
             ++currentStage_;
+
+            if (currentStage_->first == PassGenre::Validation)
+            {
+                while (currentStage_ != passFlow_.begin() && (currentStage_ - 1)->second.size() == 0 && currentStage_ != passFlow_.end())
+                    ++currentStage_;
+            }
+
             if (currentStage_ == passFlow_.end())
             {
                 completed_ = true;
@@ -251,17 +313,51 @@ std::pair<std::string, mv::PassGenre> mv::PassManager::step()
             }
 
             currentPass_ = currentStage_->second.begin();
+        }
             
-        }
-        else
+        auto passPtr = pass::PassRegistry::instance().find(*currentPass_);
+
+        if (passPtr->getName() == "GenerateDot")
         {
+            if (buffer_.empty())
+            {
+                buffer_ = compDescriptor_["GenerateDot"]["output"].get<std::string>();
+                buffer_ = buffer_.substr(0, buffer_.find("."));
+            }
 
-            pass::PassRegistry::instance().find(*currentPass_)->run(*model_, targetDescriptor_, compDescriptor_);
-            std::pair<std::string, mv::PassGenre> result({*currentPass_, currentStage_->first});
-            currentPass_++;
-            return result;
+            std::string postFix = "";
+
+            if (currentStage_ != passFlow_.begin())
+            {
+                auto previousStage = currentStage_ - 1;
+                switch (previousStage->first)
+                {
+                    case PassGenre::Adaptation:
+                        postFix = "_adapt";
+                        break;
+
+                    case PassGenre::Optimization:
+                        postFix = "_opt";
+                        break;
+
+                    case PassGenre::Finalization:
+                        postFix = "_final";
+                        break;
+
+                    default:
+                        postFix = "_unknown";
+
+                }
+            }
+
+            compDescriptor_["GenerateDot"]["output"] = buffer_ + postFix + ".dot";
 
         }
+
+        passPtr->run(*model_, targetDescriptor_, compDescriptor_);
+        std::pair<std::string, mv::PassGenre> result({*currentPass_, currentStage_->first});
+        currentPass_++;
+        return result;
 
     }
 
@@ -322,12 +418,20 @@ bool mv::PassManager::validDescriptors() const
             if (passPtr->argsCount() > 0)
             {
                 
+                if (compDescriptor_.hasKey(passPtr->getName()))
+                {
+                    if (compDescriptor_[passPtr->getName()].valueType() != json::JSONType::Object)
+                        return false;
+                }
+                else
+                    return false;
+
                 auto passArgs = passPtr->getArgs();
                 for (auto argIt = passArgs.begin(); argIt != passArgs.end(); ++argIt)
                 {
-                    if (compDescriptor_.hasKey(argIt->first))
+                    if (compDescriptor_[passPtr->getName()].hasKey(argIt->first))
                     {
-                        if (compDescriptor_[argIt->first].valueType() != argIt->second)
+                        if (compDescriptor_[passPtr->getName()][argIt->first].valueType() != argIt->second)
                             return false;
                     }
                     else

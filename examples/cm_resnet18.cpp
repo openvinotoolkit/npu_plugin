@@ -1,14 +1,7 @@
-#include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/base/stream/fstd_ostream.hpp"
-#include "include/mcm/pass/deploy/generate_dot.hpp"
-#include "include/mcm/pass/transform/fuse_batch_norm.hpp"
-#include "include/mcm/pass/transform/fuse_bias.hpp"
-#include "include/mcm/pass/transform/fuse_relu.hpp"
 
-mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
+mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
 {
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(kernelShape.totalSize());
     auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::LastDimMajor);
@@ -25,7 +18,7 @@ mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::Tensor
     return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
-mv::Data::TensorIterator residualBlock(mv::OpModel& model, mv::Data::TensorIterator input)
+mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input)
 {
 
     auto inputShape = input->getShape();
@@ -38,7 +31,7 @@ mv::Data::TensorIterator residualBlock(mv::OpModel& model, mv::Data::TensorItera
 
 }
 
-mv::Data::TensorIterator residualConvBlock(mv::OpModel& model, mv::Data::TensorIterator input, mv::unsigned_type outputDepth, mv::UnsignedVector2D stride)
+mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, mv::unsigned_type outputDepth, mv::UnsignedVector2D stride)
 {
 
     auto inputShape = input->getShape();
@@ -54,47 +47,42 @@ mv::Data::TensorIterator residualConvBlock(mv::OpModel& model, mv::Data::TensorI
 
 int main()
 {
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
-    auto input = om.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::LastDimMajor);
 
-    auto conv1 = convBatchNormBlock(om, input, mv::Shape(7, 7, 3, 64), {2, 2}, {3, 3, 3, 3});
-    conv1 = om.relu(conv1);
-    auto pool1 = om.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto res2a = residualConvBlock(om, pool1, 64, {1, 1});
-    auto res2b = residualBlock(om, res2a);
-    auto res3a = residualConvBlock(om, res2b, 128, {2, 2});
-    auto res3b = residualBlock(om, res3a);
-    auto res4a = residualConvBlock(om, res3b, 256, {2, 2});
-    auto res4b = residualBlock(om, res4a);
-    auto res5a = residualConvBlock(om, res4b, 512, {2, 2});
-    auto res5b = residualBlock(om, res5a);
-    auto pool5 = om.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
+    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::CompositionalModel& cm = unit.model();
+    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::LastDimMajor);
+
+    auto conv1 = convBatchNormBlock(cm, input, mv::Shape(7, 7, 3, 64), {2, 2}, {3, 3, 3, 3});
+    conv1 = cm.relu(conv1);
+    auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto res2a = residualConvBlock(cm, pool1, 64, {1, 1});
+    auto res2b = residualBlock(cm, res2a);
+    auto res3a = residualConvBlock(cm, res2b, 128, {2, 2});
+    auto res3b = residualBlock(cm, res3a);
+    auto res4a = residualConvBlock(cm, res3b, 256, {2, 2});
+    auto res4b = residualBlock(cm, res4a);
+    auto res5a = residualConvBlock(cm, res4b, 512, {2, 2});
+    auto res5b = residualBlock(cm, res5a);
+    auto pool5 = cm.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
-    auto weights = om.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::LastDimMajor);
-    auto fc1000 = om.fullyConnected(pool5, weights);
-    auto softmax = om.softmax(fc1000);
+    auto weights = cm.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::LastDimMajor);
+    auto fc1000 = cm.fullyConnected(pool5, weights);
+    auto softmax = cm.softmax(fc1000);
 
-    om.output(softmax);
+    cm.output(softmax);
 
-    mv::FStdOStream ostream("cm1.dot");
-    mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ExecOpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    bool dotResult = generateDot.run(om);    
-    if (dotResult)
-        (void)system("dot -Tsvg cm1.dot -o cm1.svg");
-
-    mv::pass::FuseBatchNorm fuseBatchNorm;
-    fuseBatchNorm.run(om);
-
-    mv::pass::FuseBias fuseBias;
-    fuseBias.run(om);
-
-    mv::pass::FuseReLU fuseReLU;
-    fuseReLU.run(om);
+    std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+    unit.targetDescriptor().load(targetDescPath);
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     
-    ostream.setFileName("cm2.dot");
-    dotResult = generateDot.run(om);    
-    if (dotResult)
-        (void)system("dot -Tsvg cm2.dot -o cm2.svg");
+    unit.initialize();
+    unit.run();
+
+    system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+    system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
 
     return 0;
 

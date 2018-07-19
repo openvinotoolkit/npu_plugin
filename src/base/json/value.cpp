@@ -147,6 +147,18 @@ mv::json::Value& mv::json::Value::operator[](const std::string& key)
 
 }
 
+const mv::json::Value& mv::json::Value::operator[](const std::string& key) const
+{
+
+    if (valueType_ != JSONType::Object)
+    {
+         throw ValueError("Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON object");
+    }
+    auto objPtr = static_cast<Object*>(content_.get());
+    return (*objPtr)[key];
+
+}
+
 mv::json::Value& mv::json::Value::operator[](unsigned idx)
 {
 
@@ -158,7 +170,7 @@ mv::json::Value& mv::json::Value::operator[](unsigned idx)
     
 }
 
-bool mv::json::Value::hasKey(const std::string& key)
+bool mv::json::Value::hasKey(const std::string& key) const
 {
     if (valueType_ != JSONType::Object)
         throw ValueError("Attempt of checking key for a value of type " + typeString_.at(valueType_));

@@ -54,12 +54,19 @@ namespace mv
         Data::FlowListIterator *dataFlowEnd_;
         Control::OpListIterator *controlOpEnd_;
         Control::FlowListIterator *controlFlowEnd_;
-
         Data::OpListIterator *input_;
         Data::OpListIterator *output_;
         Control::OpListIterator *lastOp_;
-
         bool *defaultControlFlow_;
+
+        /*std::shared_ptr<Data::OpListIterator> dataOpEnd_;
+        std::shared_ptr<Data::FlowListIterator> dataFlowEnd_;
+        std::shared_ptr<Control::OpListIterator> controlOpEnd_;
+        std::shared_ptr<Control::FlowListIterator> controlFlowEnd_;
+        std::shared_ptr<Data::OpListIterator> input_;
+        std::shared_ptr<Data::OpListIterator> output_;
+        std::shared_ptr<Control::OpListIterator> lastOp_;
+        std::shared_ptr<bool> defaultControlFlow_;*/
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
         GroupContext::MemberIterator addGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);

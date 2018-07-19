@@ -2,8 +2,6 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/base/stream/fstd_ostream.hpp"
-#include "include/mcm/pass/deploy/generate_dot.hpp"
 
 int main()
 {
@@ -49,25 +47,7 @@ int main()
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
-
-    mv::FStdOStream ostream("om.dot");
-    mv::pass::GenerateDot generateOMDot(ostream, mv::pass::GenerateDot::OutputScope::OpModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    bool dotResult = generateOMDot.run(om);    
-    if (dotResult)
-        system("dot -Tsvg om.dot -o om.svg");
-
-    ostream.setFileName("cm.dot");
-    mv::pass::GenerateDot generateCMDot(ostream, mv::pass::GenerateDot::OutputScope::ControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    dotResult = generateCMDot.run(cm);    
-    if (dotResult)
-        system("dot -Tsvg cm.dot -o cm.svg");
-
-    ostream.setFileName("dm.dot");
-    mv::pass::GenerateDot generateDMDot(ostream, mv::pass::GenerateDot::OutputScope::DataModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
-    dotResult = generateDMDot.run(dm);    
-    if (dotResult)
-        system("dot -Tsvg dm.dot -o dm.svg");
-
+    
     return 0;
 
 }

@@ -38,8 +38,11 @@ namespace mv
         std::vector<std::string> serialPassQueue_;
         std::vector<std::string> validPassQueue_;
 
+        std::string buffer_;
+
         const std::vector<std::pair<PassGenre, std::vector<std::string>&>> passFlow_ =
         {
+            {PassGenre::Validation, validPassQueue_},
             {PassGenre::Adaptation, adaptPassQueue_},
             {PassGenre::Validation, validPassQueue_},
             {PassGenre::Optimization, optPassQueue_},
@@ -58,6 +61,8 @@ namespace mv
         bool initialize(ComputationModel &model, const TargetDescriptor& targetDescriptor, const mv::json::Object& compDescriptor);
         bool enablePass(PassGenre stage, const std::string& pass, int pos = -1);
         bool disablePass(PassGenre stage, const std::string& pass);
+        bool disablePass(PassGenre stage);
+        bool disablePass();
         std::size_t scheduledPassesCount(PassGenre stage) const;
         const std::vector<std::string>& scheduledPasses(PassGenre stage) const;
         void reset();

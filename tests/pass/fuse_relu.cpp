@@ -1,14 +1,15 @@
 #include "gtest/gtest.h"
-#include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/pass/transform/fuse_relu.hpp"
+#include "include/mcm/pass/adaptation/fuse_passes.hpp"
 
 TEST(fuse_relu, case_conv)
 {
 
     mv::OpModel om;
+    
     auto input = om.input(mv::Shape(64, 64, 16), mv::DType::Float, mv::Order::LastDimMajor);
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, mv::Shape(3, 3, 16, 32), mv::DType::Float, mv::Order::LastDimMajor, "weights");
@@ -20,12 +21,10 @@ TEST(fuse_relu, case_conv)
     
     auto outputOp = reluOp.leftmostChild();
 
-    mv::pass::FuseReLU fuseRelu;
-    fuseRelu.run(om);
+    mv::json::Object dummyCompDesc;
+    mv::TargetDescriptor dummyTargDesc;
 
-    // Check if relu components were invalidated
-    /*ASSERT_FALSE(om.isValid(relu));
-    ASSERT_FALSE(om.isValid(reluOp));*/
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(om, dummyTargDesc, dummyCompDesc);
 
     // Check general model properties
     mv::DataModel dm(om);

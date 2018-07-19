@@ -1,20 +1,51 @@
-#include "include/mcm/pass/deploy/generate_dot.hpp"
+#include "include/mcm/pass/validation/generate_dot.hpp"
 
-mv::pass::GenerateDot::GenerateDot(OStream &ostream, OutputScope outputScope, ContentLevel contentLevel, bool htmlLike) :
-DeployPass(ostream),
-outputScope_(outputScope),
-contentLevel_(contentLevel),
-htmlLike_(htmlLike)
+namespace mv
 {
+
+    namespace pass
+    {
+
+        MV_REGISTER_PASS(GenerateDot)
+        .setFunc(__generate_dot_detail_::generateDotFcn)
+        .setGenre({PassGenre::Validation, PassGenre::Serialization})
+        .defineArg(json::JSONType::String, "output")
+        .defineArg(json::JSONType::String, "scope")
+        .defineArg(json::JSONType::String, "content")
+        .defineArg(json::JSONType::Bool, "html")
+        .setDescription(
+            "Generates the DOT representation of computation model"
+        );
+
+    }
 
 }
 
-bool mv::pass::GenerateDot::run_(ComputationModel &model)
+void mv::pass::__generate_dot_detail_::generateDotFcn(ComputationModel& model, TargetDescriptor&, json::Object& compDesc)
 {
 
-    ostream_ << "digraph G {\n\tgraph [splines=spline]\n";
+    if (compDesc["GenerateDot"]["output"].get<std::string>().empty())
+        throw ArgumentError("output", "", "Unspecified output name for generate dot pass");
 
-    if (outputScope_ != OutputScope::DataModel)
+    std::string outputScope = compDesc["GenerateDot"]["scope"].get<std::string>();
+    if (outputScope != "OpModel" && outputScope != "ExecOpModel" && outputScope != "ControlModel" &&
+        outputScope != "OpControlModel" && outputScope != "ExecOpControlModel" && outputScope != "DataModel")
+        throw ArgumentError("scope", outputScope, "Invalid model scope");
+
+    std::string contentLevel = compDesc["GenerateDot"]["content"].get<std::string>();
+    if (contentLevel != "full" && outputScope != "name")
+        throw ArgumentError("content", contentLevel, "Invalid content scope");
+
+    bool htmlLike = compDesc["GenerateDot"]["html"].get<bool>();
+
+    std::ofstream ostream;
+    ostream.open(compDesc["GenerateDot"]["output"].get<std::string>(), std::ios::trunc | std::ios::out);
+    if (!ostream.is_open())
+        throw ArgumentError("output", compDesc["GenerateDot"]["output"].get<std::string>(), "Unable to open output file");
+
+    ostream << "digraph G {\n\tgraph [splines=spline]\n";
+
+    if (outputScope != "DataModel")
     {
         
         OpModel opModel(model);
@@ -22,14 +53,14 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
         for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
         {
             
-            if (!(outputScope_ == OutputScope::ControlModel || outputScope_ == OutputScope::ExecOpModel || outputScope_ == OutputScope::ExecOpControlModel) || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output))
+            if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output))
             {
                 string nodeDef = "\t\"" + opIt->getName() + "\" [shape=box,"; 
                 
-                if (htmlLike_)
+                if (htmlLike)
                 {
                     nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + opIt->getName() + "</B></FONT></TD></TR>";
-                    if (contentLevel_ == ContentLevel::ContentFull)
+                    if (contentLevel == "full")
                     {   
                         allocator::vector<string> attrKeys(opIt->getAttrKeys());
                         for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -44,7 +75,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
                 else
                 {
                     nodeDef += " label=\"" + opIt->getName() + "\\n";
-                    if (contentLevel_ == ContentLevel::ContentFull)
+                    if (contentLevel == "full")
                     {   
                         allocator::vector<string> attrKeys(opIt->getAttrKeys());
                         for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -53,29 +84,29 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
                     nodeDef += "\"";
                 }
                 
-                ostream_ << nodeDef << "];\n";
+                ostream << nodeDef << "];\n";
 
             }
 
         }
 
-        if (outputScope_ == OutputScope::OpModel || outputScope_ == OutputScope::ExecOpModel || outputScope_ == OutputScope::OpControlModel || outputScope_ == OutputScope::ExecOpControlModel)
+        if (outputScope == "OpModel" || outputScope == "ExecOpModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
             
             DataModel dataModel(model);
 
             for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
             {
-                if (!(outputScope_ == OutputScope::ExecOpModel || outputScope_ == OutputScope::ExecOpControlModel) || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output))
+                if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output))
                 {
                     for (auto dataIt = opIt.leftmostOutput(); dataIt != dataModel.flowEnd(); ++dataIt)
                     {
 
                         string edgeDef = "\t\"" + opIt->getName() + "\" -> \"" + dataIt.sink()->getName() + "\"";
-                        if (htmlLike_)
+                        if (htmlLike)
                         {
                             edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + dataIt->getTensor()->getName() + "</B></FONT></TD></TR>";
-                            if (contentLevel_ == ContentLevel::ContentFull)
+                            if (contentLevel == "full")
                             {   
                                 allocator::vector<string> attrKeys(dataIt->getTensor()->getAttrKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -90,7 +121,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
                         else
                         {
                             edgeDef += " [label=\"" + dataIt->getTensor()->getName() + "\\n";
-                            if (contentLevel_ == ContentLevel::ContentFull)
+                            if (contentLevel == "full")
                             {   
                                 allocator::vector<string> attrKeys(dataIt->getTensor()->getAttrKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -99,7 +130,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
                             edgeDef += "\"];";
                         }
 
-                        ostream_ << edgeDef << "\n";
+                        ostream << edgeDef << "\n";
 
                     }
 
@@ -109,7 +140,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
 
         }
 
-        if (outputScope_ == OutputScope::ControlModel || outputScope_ == OutputScope::OpControlModel || outputScope_ == OutputScope::ExecOpControlModel)
+        if (outputScope == "ControlModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
 
             ControlModel controlModel(model);
@@ -121,7 +152,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
                 {
 
                     string edgeDef = "\t" + opIt->getName() + " -> " + controlIt.sink()->getName() + " [penwidth=2.0, style=dashed]";
-                    ostream_ << edgeDef << "\n";
+                    ostream << edgeDef << "\n";
 
                 }
 
@@ -140,10 +171,10 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
 
             string nodeDef = "\t\"" + tIt->getName() + "\" [shape=box,"; 
                 
-            if (htmlLike_)
+            if (htmlLike)
             {
                 nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + tIt->getName() + "</B></FONT></TD></TR>";
-                if (contentLevel_ == ContentLevel::ContentFull)
+                if (contentLevel == "full")
                 {   
                     allocator::vector<string> attrKeys(tIt->getAttrKeys());
                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -158,7 +189,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
             else
             {
                 nodeDef += " label=\"" + tIt->getName() + "\\n";
-                if (contentLevel_ == ContentLevel::ContentFull)
+                if (contentLevel == "full")
                 {   
                     allocator::vector<string> attrKeys(tIt->getAttrKeys());
                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -167,7 +198,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
                 nodeDef += "\"";
             }
             
-            ostream_ << nodeDef << "];\n";
+            ostream << nodeDef << "];\n";
         
         }
 
@@ -177,10 +208,10 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
             if (flowIt.childrenSize() > 0)
             {
             string edgeDef = "\t\"" + flowIt->getTensor()->getName() + "\" -> \"" + flowIt.leftmostChild()->getTensor()->getName() + "\"";
-            if (htmlLike_)
+            if (htmlLike)
             {
                 edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + flowIt.sink()->getName() + "</B></FONT></TD></TR>";
-                if (contentLevel_ == ContentLevel::ContentFull)
+                if (contentLevel == "full")
                 {   
                     allocator::vector<string> attrKeys(flowIt.sink()->getAttrKeys());
                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -196,7 +227,7 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
             else
             {
                 edgeDef += " [label=\"" + flowIt.sink()->getName() + "\\n";
-                if (contentLevel_ == ContentLevel::ContentFull)
+                if (contentLevel == "full")
                 {   
                     allocator::vector<string> attrKeys(flowIt.sink()->getAttrKeys());
                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
@@ -205,15 +236,14 @@ bool mv::pass::GenerateDot::run_(ComputationModel &model)
                 edgeDef += "\"];";
             }
 
-            ostream_ << edgeDef << "\n";
+            ostream << edgeDef << "\n";
             }
 
         }
 
     }
 
-    ostream_ << "}\n";
-
-    return true;
+    ostream << "}\n";
+    ostream.close();
 
 }

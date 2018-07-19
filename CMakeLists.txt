@@ -95,14 +95,13 @@ file(GLOB logger
 file(GLOB pass 
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
-    "src/pass/deploy_pass.cpp"
-    "src/pass/transform_pass.cpp"
-    "src/pass/deploy/generate_dot.cpp"
-    "src/pass/transform/fuse_batch_norm.cpp"
-    "src/pass/transform/fuse_bias.cpp"
-    "src/pass/transform/fuse_relu.cpp"
-    "src/pass/transform/fuse_scale.cpp"
     "src/target/target_descriptor.cpp"
+    "src/pass/adaptation/*.cpp"
+    "src/pass/validation/*.cpp"
+)
+
+file(GLOB compiler
+    "src/compiler/*"
 )
 
 add_subdirectory(contrib/googletest)
@@ -110,4 +109,4 @@ add_subdirectory(tests)
 add_subdirectory(examples)
 #add_subdirectory(python/api)
 
-add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor})
+add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})

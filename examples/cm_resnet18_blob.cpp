@@ -2,11 +2,6 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/base/stream/fstd_ostream.hpp"
-#include "include/mcm/pass/deploy/generate_dot.hpp"
-#include "include/mcm/pass/transform/fuse_batch_norm.hpp"
-#include "include/mcm/pass/transform/fuse_bias.hpp"
-#include "include/mcm/pass/transform/fuse_relu.hpp"
 #include "include/mcm/deployer/serializer.hpp"
 
 mv::Data::TensorIterator convBatchNormBlock(mv::OpModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
@@ -84,11 +79,11 @@ int main()
     uint64_t filesizeBlob = resnet_blob.serialize(cmresnet, "eg_resnet.blob");
     std::cout << "BLOB filesize =  "<< filesizeBlob << std::endl;
 
-    mv::FStdOStream ostream("cm1.dot");
+    /*mv::FStdOStream ostream("cm1.dot");
     mv::pass::GenerateDot generateDot(ostream, mv::pass::GenerateDot::OutputScope::ExecOpControlModel, mv::pass::GenerateDot::ContentLevel::ContentFull);
     bool dotResult = generateDot.run(om);    
     if (dotResult)
-        (void)system("dot -Tsvg cm1.dot -o cm1.svg");
+        (void)system("dot -Tsvg cm1.dot -o cm1.svg");*/
 
 //    mv::pass::FuseBatchNorm fuseBatchNorm;
 //    fuseBatchNorm.run(om);
@@ -99,10 +94,10 @@ int main()
 //    mv::pass::FuseReLU fuseReLU;
 //    fuseReLU.run(om);
     
-    ostream.setFileName("cm2.dot");
+    /*ostream.setFileName("cm2.dot");
     dotResult = generateDot.run(om);    
     if (dotResult)
-        (void)system("dot -Tsvg cm2.dot -o cm2.svg");
+        (void)system("dot -Tsvg cm2.dot -o cm2.svg");*/
 
     return 0;
 

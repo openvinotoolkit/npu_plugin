@@ -38,11 +38,6 @@
 			"FuseRelu"		
 		],
 
-		"finalize":
-		[
-			"RefineDataOrder",
-			"RefineDataType"
-		],
 		
 		"validate":
 		[

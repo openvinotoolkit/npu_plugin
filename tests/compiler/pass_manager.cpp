@@ -194,7 +194,7 @@ TEST(pass_manager, execution)
     ASSERT_TRUE(model.getInput()->getAttr("opt1").getContent<bool>());
     ASSERT_TRUE(model.getInput()->getAttr("final1").getContent<bool>());
     ASSERT_TRUE(model.getInput()->getAttr("serial1").getContent<bool>());
-    ASSERT_EQ(model.getInput()->getAttr("valid").getContent<unsigned>(), 3);
+    ASSERT_EQ(model.getInput()->getAttr("valid").getContent<unsigned>(), 4);
     __pass_manager_test::resetPassReg();
 
 }

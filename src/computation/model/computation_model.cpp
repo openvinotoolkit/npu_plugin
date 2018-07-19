@@ -23,6 +23,14 @@ input_(new Data::OpListIterator(*dataOpEnd_)),
 output_(new Data::OpListIterator(*dataOpEnd_)),
 lastOp_(new Control::OpListIterator()),
 defaultControlFlow_(new bool(defaultControlFlow))
+/*dataOpEnd_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
+controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
+controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
+input_(std::make_shared<Data::OpListIterator>(dataOpEnd_)),
+output_(std::make_shared<Data::OpListIterator>(dataOpEnd_)),
+lastOp_(std::make_shared<Control::OpListIterator>()),
+defaultControlFlow_(std::make_shared<bool>(defaultControlFlow))*/
 {
     logger_.setVerboseLevel(verboseLevel);
     logger_.setLogTime(logTime);
@@ -53,7 +61,15 @@ defaultControlFlow_(other.defaultControlFlow_)
 
 mv::ComputationModel::~ComputationModel()
 {
-
+    /*
+    delete dataOpEnd_;
+    delete dataFlowEnd_;
+    delete controlOpEnd_;
+    delete controlFlowEnd_;
+    delete input_;
+    delete output_;
+    delete lastOp_;
+    delete defaultControlFlow_;*/
 }
 
 bool mv::ComputationModel::isValid() const

@@ -12,6 +12,12 @@ ComputationModel(other)
 
 }
 
+mv::OpModel::OpModel(const CompositionalModel& model) :
+ComputationModel(static_cast<const OpModel&>(model))
+{
+
+}
+
 bool mv::OpModel::defineDefaultControlFlow_(Data::OpListIterator op)
 {
 
@@ -25,7 +31,7 @@ bool mv::OpModel::defineDefaultControlFlow_(Data::OpListIterator op)
         return false;
 
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
-    *lastOp_ = currentOp;
+    *lastOp_ =  currentOp;
 
     return true;
 
