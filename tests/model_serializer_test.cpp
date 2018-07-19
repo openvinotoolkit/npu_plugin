@@ -393,7 +393,7 @@ TEST (model_serializer, blob_eltwise_add)
     uint64_t filesize7 = gs7.serialize(cm7, "test_add_07.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (5292, filesize7) << "ERROR: wrong blob size";
+    EXPECT_EQ (5300, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     const char *command1 = "cp ../../tests/data/gold_07.blob .";
@@ -500,7 +500,7 @@ TEST (model_serializer, blob_eltwise_multiply)
     uint64_t filesize7 = gs7.serialize(cm7, "test_multiply_08.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (5292, filesize7) << "ERROR: wrong blob size";
+    EXPECT_EQ (5300, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     const char *command1 = "cp ../../tests/data/gold_08.blob .";
@@ -608,7 +608,7 @@ TEST (model_serializer, blob_softmax)
     uint64_t filesize7 = gs7.serialize(cm7, "test_softmax_09.blob");
 
     // compare filesize written to expected
-    EXPECT_EQ (5276, filesize7) << "ERROR: wrong blob size";
+    EXPECT_EQ (5284, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     const char *command1 = "cp ../../tests/data/gold_09.blob .";
