@@ -1,5 +1,11 @@
 /**
  * @brief Example presenting composition of the ResNet18 network and its compilation
+ * 
+ * In this example ResNet18 model is composed using MCMCompiler's Composition API. Then
+ * the compilation is for target MA2480 is initialized and compilation passes scheduled by 
+ * target descriptor are executed. Included GenerateDot pass will generate *.dot files
+ * that visualize the computation model at the end of each accomplished compilation phase.
+ * 
  * @file cm_resnet18.cpp
  * @author Stanislaw Maciag
  * @date 2018-07-19

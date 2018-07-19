@@ -3,45 +3,15 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/deployer/serializer.hpp"
-#include "include/mcm/deployer/Fp16Convert.h"
+#include "include/mcm/pass/adaptation/fuse_passes.hpp"
+#include "include/mcm/pass/serialization/generate_blob.hpp"
 
 static mv::Logger::VerboseLevel logger_level = mv::Logger::VerboseLevel::VerboseSilent;
-
-/*
-// return full path of this executable 
-char* get_exe_path()
-{ 
-    const int PATH_MAX = 250 ;
-    char path_arr[PATH_MAX];
-    ssize_t path_len = ::readlink("/proc/self/exe", path_arr, sizeof(path_arr));
-    char *exe_path = new char[path_len];
-    memcpy(exe_path, path_arr, path_len);
-    return exe_path;
-    //std::cout << "Running tests from " << exe_path << std::endl;
-    //std::cout << "copied " << path_len << " chars" << std::endl;
-}
-*/
-
-TEST (model_serializer, convert_fp32_to_fp16)
-{
-   EXPECT_EQ(f32Tof16(1.0f),0x3c00 );
-   EXPECT_EQ(f32Tof16(1.0009765625f),0x3c01 );
-   EXPECT_EQ(f32Tof16(-2.0f),0xc000 );
-   EXPECT_EQ(f32Tof16(65504.0f),0x7bff );
-   EXPECT_EQ(f32Tof16(0.0000610352f),0x0400 );
-//  these 2 subnormal cases return zero in Movidius implementation
-   EXPECT_EQ(f32Tof16(0.0000609756f),0x0000 );
-   EXPECT_EQ(f32Tof16(0.0000000596046f),0x0000 );
-//   EXPECT_EQ(f32Tof16(0.0000609756f),0x03ff );
-//   EXPECT_EQ(f32Tof16(0.0000000596046f),0x0001 );
-   EXPECT_EQ(f32Tof16(0.0f),0x0000 );
-   EXPECT_EQ(f32Tof16(0.333251953125f),0x3555 );
-}
 
 // test 01 : 1 2d convolution
 TEST (model_serializer, blob_output_conv_01) 
 {
+
     // define test compute model: 1 convolution 
     mv::OpModel test_cm(logger_level) ;
 
@@ -57,11 +27,17 @@ TEST (model_serializer, blob_output_conv_01)
 
     mv::ControlModel cm(test_cm);
 
-    // declare serializer as blob
-    mv::Serializer gs(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_01.blob");
+    mv::TargetDescriptor dummyTargDesc;
+
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm, dummyTargDesc, compDesc);
 
     // serialize compute model to file
-    uint64_t filesize = gs.serialize(cm, "test_conv_01.blob");
+    uint64_t filesize = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (692, filesize) << "ERROR: wrong blob size";
@@ -93,11 +69,17 @@ TEST (model_serializer, blob_output_conv_02)
 
     mv::ControlModel cm2(test_cm2);
 
-    // declare serializer as blob
-    mv::Serializer gs2(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_02.blob");
+    mv::TargetDescriptor dummyTargDesc;
+
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm2, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm2, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm2, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm2, dummyTargDesc, compDesc);
 
     // serialize compute model to file
-    uint64_t filesize2 = gs2.serialize(cm2, "test_conv_02.blob");
+    uint64_t filesize2 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm2, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (948, filesize2) << "ERROR: wrong blob size";
@@ -128,12 +110,18 @@ TEST (model_serializer, blob_output_conv_03)
     // Check output shape
     EXPECT_EQ(output3->getShape(), mv::Shape(127, 127, 3));   // x, y, c
 
-    // declare serializer as blob
-    mv::Serializer gs3(mv::mvblob_mode);
-    
-    // serialize compute model to file
     mv::ControlModel cm3(test_cm3);
-    uint64_t filesize3 = gs3.serialize(cm3, "test_conv_03.blob");
+
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_03.blob");
+    mv::TargetDescriptor dummyTargDesc;
+
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm3, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm3, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm3, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm3, dummyTargDesc, compDesc);
+
+    uint64_t filesize3 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm3, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (948, filesize3) << "ERROR: wrong blob size";
@@ -163,12 +151,19 @@ TEST (model_serializer, blob_output_conv_04)
     // Check output shape
     EXPECT_EQ(output4->getShape(), mv::Shape(126, 126, 3));   // x, y, c
 
-    // declare serializer as blob
-    mv::Serializer gs4(mv::mvblob_mode);
+    mv::ControlModel cm4(test_cm4);
 
     // serialize compute model to file
-    mv::ControlModel cm4(test_cm4);
-    uint64_t filesize4 = gs4.serialize(cm4, "test_conv_04.blob");
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_04.blob");
+    mv::TargetDescriptor dummyTargDesc;
+
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm4, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm4, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm4, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm4, dummyTargDesc, compDesc);
+
+    uint64_t filesize4 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm4, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (1716, filesize4) << "ERROR: wrong blob size";
@@ -204,11 +199,16 @@ TEST (model_serializer, blob_blur_edge_05)
 
     mv::ControlModel cm5(test_cm5);
 
-    // declare serializer as blob
-    mv::Serializer gs5(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_05.blob");
+    mv::TargetDescriptor dummyTargDesc;
 
-    // serialize compute model to file
-    uint64_t filesize5 = gs5.serialize(cm5, "test_conv_05.blob");
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm5, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm5, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm5, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm5, dummyTargDesc, compDesc);
+
+    uint64_t filesize5 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm5, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (1252, filesize5) << "ERROR: wrong blob size";
@@ -281,11 +281,16 @@ TEST (model_serializer, blob_4_ops)
 
     mv::ControlModel cm6(test_cm6);
 
-    // declare serializer as blob
-    mv::Serializer gs6(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_06.blob");
+    mv::TargetDescriptor dummyTargDesc;
 
-    // serialize compute model to file
-    uint64_t filesize6 = gs6.serialize(cm6, "test_conv_06.blob");
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm6, dummyTargDesc, compDesc);
+
+    uint64_t filesize6 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm6, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (2564, filesize6) << "ERROR: wrong blob size";
@@ -386,11 +391,16 @@ TEST (model_serializer, blob_eltwise_add)
 
     mv::ControlModel cm7(test_cm7);
 
-    // declare serializer as blob
-    mv::Serializer gs7(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_07.blob");
+    mv::TargetDescriptor dummyTargDesc;
 
-    // serialize compute model to file
-    uint64_t filesize7 = gs7.serialize(cm7, "test_add_07.blob");
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm7, dummyTargDesc, compDesc);
+
+    uint64_t filesize7 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm7, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (5300, filesize7) << "ERROR: wrong blob size";
@@ -493,11 +503,16 @@ TEST (model_serializer, blob_eltwise_multiply)
 
     mv::ControlModel cm7(test_cm7);
 
-    // declare serializer as blob
-    mv::Serializer gs7(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_08.blob");
+    mv::TargetDescriptor dummyTargDesc;
 
-    // serialize compute model to file
-    uint64_t filesize7 = gs7.serialize(cm7, "test_multiply_08.blob");
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm7, dummyTargDesc, compDesc);
+
+    uint64_t filesize7 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm7, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (5300, filesize7) << "ERROR: wrong blob size";
@@ -601,11 +616,16 @@ TEST (model_serializer, blob_softmax)
 
     mv::ControlModel cm7(test_cm7);
 
-    // declare serializer as blob
-    mv::Serializer gs7(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_conv_09.blob");
+    mv::TargetDescriptor dummyTargDesc;
 
-    // serialize compute model to file
-    uint64_t filesize7 = gs7.serialize(cm7, "test_softmax_09.blob");
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm7, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm7, dummyTargDesc, compDesc);
+
+    uint64_t filesize7 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm7, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (5284, filesize7) << "ERROR: wrong blob size";
@@ -694,11 +714,17 @@ TEST (model_serializer, blob_convbias_convrelu)
 
     mv::ControlModel cm6(test_cm6);
 
-    // declare serializer as blob
-    mv::Serializer gs6(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_relu_10.blob");
+    mv::TargetDescriptor dummyTargDesc;
 
-    // serialize compute model to file
-    uint64_t filesize6 = gs6.serialize(cm6, "test_relu_10.blob");
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm6, dummyTargDesc, compDesc);
+
+    uint64_t filesize6 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm6, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (2868, filesize6) << "ERROR: wrong blob size";
@@ -778,11 +804,16 @@ TEST (model_serializer, blob_scale)
 
     mv::ControlModel cm6(test_cm6);
 
-    // declare serializer as blob
-    mv::Serializer gs6(mv::mvblob_mode);
+    mv::json::Object compDesc;
+    compDesc["GenerateBlob"]["output"] = std::string("test_scale_11.blob");
+    mv::TargetDescriptor dummyTargDesc;
 
-    // serialize compute model to file
-    uint64_t filesize6 = gs6.serialize(cm6, "test_scale_11.blob");
+    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm6, dummyTargDesc, compDesc);
+    mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm6, dummyTargDesc, compDesc);
+
+    uint64_t filesize6 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm6, dummyTargDesc, compDesc);
 
     // compare filesize written to expected
     EXPECT_EQ (2420, filesize6) << "ERROR: wrong blob size";

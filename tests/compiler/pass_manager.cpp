@@ -5,7 +5,7 @@
 namespace __pass_manager_test
 {
 
-    void setPassReg()
+    static void setPassReg()
     {
 
         std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&)> adaptPass1 = 
@@ -106,7 +106,7 @@ namespace __pass_manager_test
 
     }
 
-    void resetPassReg()
+    static void resetPassReg()
     {
         mv::pass::PassRegistry::instance().remove("__TEST_AdaptPass1");
         mv::pass::PassRegistry::instance().remove("__TEST_AdaptPass2");

@@ -98,6 +98,7 @@ file(GLOB pass
     "src/target/target_descriptor.cpp"
     "src/pass/adaptation/*.cpp"
     "src/pass/validation/*.cpp"
+    "src/pass/serialization/*.cpp"
 )
 
 file(GLOB compiler

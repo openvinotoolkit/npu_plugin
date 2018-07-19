@@ -6,7 +6,7 @@
 namespace __pass_registry_test
 {
 
-    void setPassReg()
+    static void setPassReg()
     {
 
         std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&)> foo = 
@@ -29,7 +29,7 @@ namespace __pass_registry_test
 
     }
 
-    void resetPassReg()
+    static void resetPassReg()
     {
         mv::pass::PassRegistry::instance().remove("__TEST_pass1");
     }

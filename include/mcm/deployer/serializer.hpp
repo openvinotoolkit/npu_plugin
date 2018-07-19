@@ -1,3 +1,6 @@
+#ifndef MV_BLOB_SERIALIZER_HPP_
+#define MV_BLOB_SERIALIZER_HPP_
+
 /**
 * serializer.hpp contains classes that output to file compute graph representations in various formats.
 *
@@ -8,9 +11,6 @@
 #include "include/mcm/deployer/mv_types.h"
 #include "include/mcm/deployer/Fp16Convert.h"
 #include "include/mcm/deployer/file_buffer.h"
-//#include "include/mcm/pass/transform/fuse_relu.hpp"
-//#include "include/mcm/pass/transform/fuse_bias.hpp"
-//#include "include/mcm/pass/transform/fuse_batch_norm.hpp"
 
 namespace mv
 {
@@ -1633,18 +1633,11 @@ class Blob_buffer : public WBuffer
         uint64_t serialize(mv::ControlModel& graph_2_deploy, const char* ofilename )
         {
 
-        ///+mv::pass::FuseReLU fuseRelu;
-        ///+mv::pass::FuseBias fuseBias;
-        ///+mv::pass::FuseBatchNorm fuseBatchNorm;
-
             uint64_t fsize = 0 ;
             switch( output_format )
             {
                 case mvblob_mode:
                     // fuse relu, bias and batchnorm as required by blob
-                    ///+fuseBatchNorm.run(graph_2_deploy);
-                    ///+fuseRelu.run(graph_2_deploy);
-                    ///+fuseBias.run(graph_2_deploy);
                     // 4 passes of graph: calculate, stages, buffer, reloc
                     // calculate sizes and offsets for headers
                     odata.calc(graph_2_deploy);
@@ -1672,3 +1665,5 @@ class Blob_buffer : public WBuffer
 };
 
 }
+
+#endif // MV_BLOB_SERIALIZER_HPP_

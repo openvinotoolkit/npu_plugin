@@ -1,4 +1,7 @@
 
+#ifndef WBUFFER_HPP_
+#define WBUFFER_HPP_
+
 // Generic 4KB output buffer supporting bit-level output to file.
 // Buffer empties at 3800 level. Assumes add size < 296 to prevent
 // excessive size checking during adds.
@@ -135,3 +138,5 @@ class WBuffer
 
 };
 // end WBuffer class
+
+#endif // WBUFFER_HPP_
