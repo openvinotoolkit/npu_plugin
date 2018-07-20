@@ -35,8 +35,8 @@ int main()
     unit.initialize();
     unit.run();
 
-    system("dot -Tsvg cm_batchnorm_fuse.dot -o cm_batchnorm_fuse.svg");
-    system("dot -Tsvg cm_batchnorm_fuse_adapt.dot -o cm_batchnorm_fuse_adapt.svg");
+    //system("dot -Tsvg cm_batchnorm_fuse.dot -o cm_batchnorm_fuse.svg");
+    //system("dot -Tsvg cm_batchnorm_fuse_adapt.dot -o cm_batchnorm_fuse_adapt.svg");
 
     return 0;
 

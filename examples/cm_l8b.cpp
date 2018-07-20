@@ -1,6 +1,6 @@
 /**
- * @brief Example presenting composition of l8b network and its compilation
- * 
+ * @brief Example presenting composition of l8b network and its compilation.
+ * Outputs a dot files that visualize the model before and during the compilation.
  * @file cm_l8b.cpp
  * @author Stanislaw Maciag
  * @date 2018-07-19
@@ -17,7 +17,7 @@
  * @param kernelShape Shape of conv2D kernel
  * @param stride Stride of conv2D
  * @param padding Padding of conv2D
- * @return mv::Data::TensorIterator Iterator referencing the created batchnorm output 
+ * @return mv::Data::TensorIterator Iterator referencing the created scale output 
  */
 mv::Data::TensorIterator convBatchNormScaleBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape,mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
 {
@@ -88,8 +88,8 @@ int main()
     // Run all passes
     unit.run();
 
-    system("dot -Tsvg cm_l8b.dot -o cm_l8b.svg");
-    system("dot -Tsvg cm_l8b_adapt.dot -o cm_l8b_adapt.svg");
+    //system("dot -Tsvg cm_l8b.dot -o cm_l8b.svg");
+    //system("dot -Tsvg cm_l8b_adapt.dot -o cm_l8b_adapt.svg");
 
     return 0;
 

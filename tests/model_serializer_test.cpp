@@ -28,7 +28,8 @@ TEST (model_serializer, blob_output_conv_01)
     mv::ControlModel cm(test_cm);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_01.blob");
+    std::string blobName = "test_conv_01.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm, dummyTargDesc, compDesc);
@@ -44,10 +45,9 @@ TEST (model_serializer, blob_output_conv_01)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     
-    const char *command1 = "cp ../../tests/data/gold_01.blob .";
-    system(command1);
-    const char *command2 = "diff test_conv_01.blob gold_01.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_01.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -70,7 +70,8 @@ TEST (model_serializer, blob_output_conv_02)
     mv::ControlModel cm2(test_cm2);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_02.blob");
+    std::string blobName = "test_conv_02.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm2, dummyTargDesc, compDesc);
@@ -85,11 +86,9 @@ TEST (model_serializer, blob_output_conv_02)
     EXPECT_EQ (948, filesize2) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_02.blob .";
-    system(command1);
-
-    const char *command2 = "diff test_conv_02.blob gold_02.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_02.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -113,7 +112,8 @@ TEST (model_serializer, blob_output_conv_03)
     mv::ControlModel cm3(test_cm3);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_03.blob");
+    std::string blobName = "test_conv_03.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm3, dummyTargDesc, compDesc);
@@ -127,11 +127,9 @@ TEST (model_serializer, blob_output_conv_03)
     EXPECT_EQ (948, filesize3) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_03.blob .";
-    system(command1);
-
-    const char *command2 = "diff test_conv_03.blob gold_03.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_03.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -155,7 +153,8 @@ TEST (model_serializer, blob_output_conv_04)
 
     // serialize compute model to file
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_04.blob");
+    std::string blobName = "test_conv_04.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm4, dummyTargDesc, compDesc);
@@ -169,11 +168,9 @@ TEST (model_serializer, blob_output_conv_04)
     EXPECT_EQ (1716, filesize4) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_04.blob .";
-    system(command1);
-
-    const char *command2 = "diff test_conv_04.blob gold_04.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_04.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -200,7 +197,8 @@ TEST (model_serializer, blob_blur_edge_05)
     mv::ControlModel cm5(test_cm5);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_05.blob");
+    std::string blobName = "test_conv_05.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm5, dummyTargDesc, compDesc);
@@ -214,10 +212,9 @@ TEST (model_serializer, blob_blur_edge_05)
     EXPECT_EQ (1252, filesize5) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_05.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_05.blob to current folder";
-    const char *command2 = "diff test_conv_05.blob gold_05.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_05.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -282,7 +279,8 @@ TEST (model_serializer, blob_4_ops)
     mv::ControlModel cm6(test_cm6);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_conv_06.blob");
+    std::string blobName = "test_conv_06.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm6, dummyTargDesc, compDesc);
@@ -296,10 +294,9 @@ TEST (model_serializer, blob_4_ops)
     EXPECT_EQ (2564, filesize6) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_06.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_06.blob to current folder";
-    const char *command2 = "diff test_conv_06.blob gold_06.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_06.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -392,7 +389,8 @@ TEST (model_serializer, blob_eltwise_add)
     mv::ControlModel cm7(test_cm7);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_add_07.blob");
+    std::string blobName = "test_add_07.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
@@ -406,10 +404,9 @@ TEST (model_serializer, blob_eltwise_add)
     EXPECT_EQ (5300, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_07.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_07.blob to current folder";
-    const char *command2 = "diff test_add_07.blob gold_07.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_07.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -504,7 +501,8 @@ TEST (model_serializer, blob_eltwise_multiply)
     mv::ControlModel cm7(test_cm7);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_multiply_08.blob");
+    std::string blobName = "test_multiply_08.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
@@ -518,10 +516,9 @@ TEST (model_serializer, blob_eltwise_multiply)
     EXPECT_EQ (5300, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_08.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_08.blob to current folder";
-    const char *command2 = "diff test_multiply_08.blob gold_08.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_08.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -617,7 +614,8 @@ TEST (model_serializer, blob_softmax)
     mv::ControlModel cm7(test_cm7);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_softmax_09.blob");
+    std::string blobName = "test_softmax_09.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm7, dummyTargDesc, compDesc);
@@ -631,10 +629,9 @@ TEST (model_serializer, blob_softmax)
     EXPECT_EQ (5284, filesize7) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    const char *command1 = "cp ../../tests/data/gold_09.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_09.blob to current folder";
-    const char *command2 = "diff test_softmax_09.blob gold_09.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_09.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -715,13 +712,13 @@ TEST (model_serializer, blob_convbias_convrelu)
     mv::ControlModel cm6(test_cm6);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_relu_10.blob");
+    std::string blobName = "test_relu_10.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm6, dummyTargDesc, compDesc);
     mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm6, dummyTargDesc, compDesc);
     mv::pass::__fuse_pass_detail_::fuseScaleFcn(test_cm6, dummyTargDesc, compDesc);
-    mv::pass::__fuse_pass_detail_::fuseBiasFcn(test_cm6, dummyTargDesc, compDesc);
     mv::pass::__fuse_pass_detail_::fuseReluFcn(test_cm6, dummyTargDesc, compDesc);
 
     uint64_t filesize6 = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(cm6, dummyTargDesc, compDesc);
@@ -730,11 +727,9 @@ TEST (model_serializer, blob_convbias_convrelu)
     EXPECT_EQ (2868, filesize6) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-
-    const char *command1 = "cp ../../tests/data/gold_10.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_10.blob to current folder";
-    //const char *command2 = "diff test_relu_10.blob gold_10.blob";
-    //EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_10.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    //EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
 
@@ -805,7 +800,8 @@ TEST (model_serializer, blob_scale)
     mv::ControlModel cm6(test_cm6);
 
     mv::json::Object compDesc;
-    compDesc["GenerateBlob"]["output"] = std::string("test_scale_11.blob");
+    std::string blobName = "test_scale_11.blob";
+    compDesc["GenerateBlob"]["output"] = blobName;
     mv::TargetDescriptor dummyTargDesc;
 
     mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(test_cm6, dummyTargDesc, compDesc);
@@ -819,9 +815,7 @@ TEST (model_serializer, blob_scale)
     EXPECT_EQ (2420, filesize6) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-
-    const char *command1 = "cp ../../tests/data/gold_11.blob .";
-    EXPECT_EQ (0, system(command1)) << "ERROR: unable to copy file gold_09.blob to current folder";
-    const char *command2 = "diff test_scale_11.blob gold_11.blob";
-    EXPECT_EQ (0, system(command2)) << "ERROR: generated blob file contents do not match expected";
+    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_11.blob");
+    std::string command = "diff " + blobName + " " + goldBlobPath;
+    EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 }
