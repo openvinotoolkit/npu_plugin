@@ -46,7 +46,7 @@ TEST (model_serializer, blob_output_conv_01)
     // compare blob file contents to blob previously generated with mvNCCheck
     
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_01.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -87,7 +87,7 @@ TEST (model_serializer, blob_output_conv_02)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_02.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -128,7 +128,7 @@ TEST (model_serializer, blob_output_conv_03)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_03.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -169,7 +169,7 @@ TEST (model_serializer, blob_output_conv_04)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_04.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -213,7 +213,7 @@ TEST (model_serializer, blob_blur_edge_05)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_05.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -295,7 +295,7 @@ TEST (model_serializer, blob_4_ops)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_06.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -405,7 +405,7 @@ TEST (model_serializer, blob_eltwise_add)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_07.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -517,7 +517,7 @@ TEST (model_serializer, blob_eltwise_multiply)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_08.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -630,7 +630,7 @@ TEST (model_serializer, blob_softmax)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_09.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -728,7 +728,7 @@ TEST (model_serializer, blob_convbias_convrelu)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_10.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     //EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
 }
@@ -816,6 +816,6 @@ TEST (model_serializer, blob_scale)
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_11.blob");
-    std::string command = "diff " + blobName + " " + goldBlobPath;
+    std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 }
