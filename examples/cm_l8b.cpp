@@ -1,5 +1,5 @@
 /**
- * @brief Example presenting composition of the ResNet18 network and its compilation
+ * @brief Example presenting composition of l8b network and its compilation
  * 
  * @file cm_l8b.cpp
  * @author Stanislaw Maciag
@@ -10,7 +10,7 @@
 #include "include/mcm/utils/data_generator.hpp"
 
 /**
- * @brief Helper function creates a chain of conv2D and batchnorm attached to the selected input tensor
+ * @brief Helper function creates a chain of conv2D, batchnorm and scale attached to the selected input tensor
  * 
  * @param model Master compositional model
  * @param input Tensor that is an input data for the conv2D
@@ -63,7 +63,8 @@ int main()
     auto relu2a = cm.relu(convBlock2a);
     auto convBlock2b = convBatchNormScaleBlock(cm, relu2a, mv::Shape(3, 3, 64, 64), {1, 1}, {1, 1, 1, 1});
     auto add = cm.add(convBlock1, convBlock2b);
-    cm.output(add);
+    auto maxpool2 = cm.maxpool2D(add, {1, 1}, {1, 1}, {0, 0, 0, 0});
+    cm.output(maxpool2);
 
     // Load target descriptor for the selected target to the compilation unit
     std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
