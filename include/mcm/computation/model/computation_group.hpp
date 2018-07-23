@@ -26,7 +26,8 @@ namespace mv
         MemberSet::iterator begin();
         MemberSet::iterator end();
         virtual string toString() const;
-        
+        mv::json::Value toJsonValue() const;
+
         template <class ElementType>
         MemberSet::iterator addElement(allocator::owner_ptr<ElementType> newMember)
         {

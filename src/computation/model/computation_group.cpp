@@ -112,3 +112,17 @@ mv::string mv::ComputationGroup::toString() const
     return result + ComputationElement::toString();
 
 }
+
+mv::json::Value mv::ComputationGroup::toJsonValue() const
+{
+
+    mv::json::Value toReturn = mv::ComputationElement::toJsonValue();
+    mv::json::Array members;
+
+    for (auto it = members_.begin(); it != members_.end(); ++it)
+        members.append(mv::Jsonable::toJsonValue((*it)->getName()));
+
+    toReturn["members"] = members;
+    return toReturn;
+
+}
