@@ -76,8 +76,22 @@ std::string mv::json::Array::stringifyPretty() const
 
     if (it != elements_.end())
     {
+        //First element of array needs to be treated differently (unfortunately)
+        std::string a;
+        if (it->valueType() == JSONType::Array)
+            a += it->get<Array>().stringifyPretty();
+        else if (it->valueType() == JSONType::Object)
+            a += it->get<Object>().stringifyPretty();
+        else
+            a += it->stringify();
 
-        output += it->stringify();
+        for (std::size_t i = 0; i < a.size(); ++i)
+        {
+            if (a[i] == '\n')
+                a.insert(i + 1, "\t");
+        }
+
+        output += a;
         ++it;
 
         for (; it != elements_.end(); ++it)
