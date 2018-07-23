@@ -97,6 +97,25 @@ mv::string mv::Shape::toString() const
 
 }
 
+mv::json::Value mv::Shape::toJsonValue() const
+{
+
+    mv::json::Object obj;
+    mv::json::Array arr;
+
+    for (byte_type i = 0; i < dims_.length(); ++i)
+    {
+        arr.append(mv::Jsonable::toJsonValue(dims_[i]));
+    }
+
+    obj["rank"] = mv::Jsonable::toJsonValue(dims_.length());
+    obj["dimensions"] = arr;
+
+    return mv::json::Value(obj);
+
+}
+
+
 mv::Shape mv::Shape::broadcast(const Shape& s1, const Shape& s2)
 {
 
