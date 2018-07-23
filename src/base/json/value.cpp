@@ -40,6 +40,20 @@ content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
 
 }
 
+mv::json::Value::Value(unsigned int value) :
+valueType_(JSONType::NumberInteger),
+content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
+{
+
+}
+
+mv::json::Value::Value(const char * value) :
+valueType_(JSONType::String),
+content_(std::unique_ptr<String>(new String(value)))
+{
+
+}
+
 mv::json::Value::Value(const std::string& value) :
 valueType_(JSONType::String),
 content_(std::unique_ptr<String>(new String(value)))

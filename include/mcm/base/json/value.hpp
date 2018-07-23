@@ -40,6 +40,8 @@ namespace mv
             Value();
             Value(float value);
             Value(int value);
+            Value(unsigned int value);
+            Value(const char * value);
             Value(const std::string& value);
             Value(bool value);
             Value(const Object& value);
