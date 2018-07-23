@@ -284,19 +284,17 @@ import_array();
         return o->bias(input, bias_values);
     }
 
-    void produceDOT(mv::OpModel *o){
+    void produceDOT(mv::OpModel *o, const char* fileName){
         mv::TargetDescriptor dummyTargetDesc;
         mv::json::Object compDesc;
-        compDesc["GenerateDot"]["output"] = std::string("pycm.dot");
+        std::string fileNameStr(fileName);
+        compDesc["GenerateDot"]["output"] = fileNameStr + ".dot";
         compDesc["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
         compDesc["GenerateDot"]["content"] = std::string("full");
         compDesc["GenerateDot"]["html"] = true;
-        mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(*o, dummyTargetDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseBiasFcn(*o, dummyTargetDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseScaleFcn(*o, dummyTargetDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseReluFcn(*o, dummyTargetDesc, compDesc);
         mv::pass::__generate_dot_detail_::generateDotFcn(*o, dummyTargetDesc, compDesc);
-        system("dot -Tsvg pycm.dot -o pycm.svg");
+        std::string cmd = "dot -Tsvg " + fileNameStr + ".dot -o " + fileNameStr + ".svg";
+        system(cmd.c_str());
     }
 
  %}
@@ -379,7 +377,7 @@ mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv
 mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
 
-void produceDOT(mv::OpModel *o);
+void produceDOT(mv::OpModel *o, const char* fileName);
 
 
 int testConv(
