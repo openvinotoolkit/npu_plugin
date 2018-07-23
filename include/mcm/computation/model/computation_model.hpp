@@ -124,6 +124,7 @@ namespace mv
         void disableDefaultControlFlow();
         bool enableDefaultControlFlow(Control::OpListIterator lastOp);
         bool enableDefaultControlFlow(Data::OpListIterator lastOp);
+        bool getDefaultControlFlow() const;
 
         static Logger& logger();
         static void setLogger(Logger &logger);

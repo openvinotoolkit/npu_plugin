@@ -408,6 +408,12 @@ mv::Logger &mv::ComputationModel::logger()
 
 }
 
+bool mv::ComputationModel::getDefaultControlFlow() const
+{
+    return defaultControlFlow_;
+}
+
+
 void mv::ComputationModel::setLogger(Logger &logger)
 {
     logger_ = logger;
