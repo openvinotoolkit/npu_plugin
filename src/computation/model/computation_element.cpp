@@ -137,6 +137,18 @@ mv::string mv::ComputationElement::toString() const
 
 }
 
+mv::json::Value mv::ComputationElement::toJsonValue() const
+{
+    mv::json::Object obj;
+
+    obj["name"] = mv::Jsonable::toJsonValue(name_);
+    for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
+        obj[it->first] = mv::Jsonable::toJsonValue(it->second);
+
+    return mv::json::Value(obj);
+
+}
+
 bool mv::ComputationElement::operator<(ComputationElement &other)
 {
     return name_ < other.name_;
