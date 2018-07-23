@@ -4,6 +4,7 @@
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/tensor/shape.hpp"
 #include "include/mcm/base/printable.hpp"
+#include "include/mcm/base/jsonable.hpp"
 
 template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value = false }; };
 #define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }
@@ -42,7 +43,7 @@ struct is_same<T, T> {
 namespace mv
 {
 
-    class Attribute : public Printable
+    class Attribute : public Printable, public Jsonable
     {
 
     private:
@@ -134,7 +135,7 @@ namespace mv
 
         public:
 
-            AttributeContent(const T &content) : GenericAttributeContent(getTypeId<T>()), content_(content) {};
+            AttributeContent(const T &content) : GenericAttributeContent(getTypeId<T>()), content_(content) {}
             T& getContent() { return content_; }
             void setContent(const T &content) { content_ = content;}
 
@@ -150,6 +151,8 @@ namespace mv
         ~Attribute();
         AttrType getType() const;
         string toString() const;
+        mv::json::Value toJsonValue() const;
+        mv::json::Value getContentJson() const;
         string getContentStr() const;
 
         template <class T>

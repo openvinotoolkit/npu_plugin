@@ -25,6 +25,79 @@ mv::AttrType mv::Attribute::getType() const
     return attrType_;
 }
 
+mv::json::Value mv::Attribute::getContentJson() const
+{
+
+    switch (attrType_)
+    {
+
+        case AttrType::ByteType:
+            return Jsonable::toJsonValue(getContent<byte_type>());
+
+        case AttrType::UnsingedType:
+            return Jsonable::toJsonValue(getContent<unsigned_type>());
+
+        case AttrType::IntegerType:
+            return Jsonable::toJsonValue(getContent<int_type>());
+
+        case AttrType::FloatType:
+            return Jsonable::toJsonValue(getContent<float_type>());
+
+        case AttrType::DTypeType:
+            return Jsonable::toJsonValue(getContent<DType>());
+
+        case AttrType::OrderType:
+            return Jsonable::toJsonValue(getContent<Order>());
+
+        case AttrType::ShapeType:
+            return Jsonable::toJsonValue(getContent<Shape>());
+
+        case AttrType::StringType:
+            return Jsonable::toJsonValue(getContent<string>());
+
+        case AttrType::BoolType:
+            return Jsonable::toJsonValue(getContent<bool>());
+
+        case AttrType::OpTypeType:
+            return Jsonable::toJsonValue(getContent<OpType>());
+
+        case AttrType::FloatVec2DType:
+            return Jsonable::toJsonValue(getContent<FloatVector2D>());
+
+        case AttrType::FloatVec3DType:
+            return Jsonable::toJsonValue(getContent<FloatVector3D>());
+
+        case AttrType::FloatVec4DType:
+            return Jsonable::toJsonValue(getContent<FloatVector4D>());
+
+        case AttrType::IntVec2DType:
+            return Jsonable::toJsonValue(getContent<IntVector2D>());
+
+        case AttrType::IntVec3DType:
+            return Jsonable::toJsonValue(getContent<IntVector3D>());
+
+        case AttrType::IntVec4DType:
+            return Jsonable::toJsonValue(getContent<IntVector4D>());
+
+        case AttrType::UnsignedVec2DType:
+            return Jsonable::toJsonValue(getContent<UnsignedVector2D>());
+
+        case AttrType::UnsignedVec3DType:
+            return Jsonable::toJsonValue(getContent<UnsignedVector3D>());
+
+        case AttrType::UnsignedVec4DType:
+            return Jsonable::toJsonValue(getContent<UnsignedVector4D>());
+
+        case AttrType::FloatVecType:
+            return Jsonable::toJsonValue(getContent<mv::dynamic_vector<float_type>>());
+
+        default:
+            return "unknown";
+
+    }
+
+}
+
 mv::string mv::Attribute::getContentStr() const
 {
 
@@ -100,7 +173,10 @@ mv::string mv::Attribute::getContentStr() const
 
 mv::string mv::Attribute::toString() const
 {
-    
     return "(" + Printable::toString(attrType_) + "): " + getContentStr();
+}
 
+mv::json::Value mv::Attribute::toJsonValue() const
+{
+    return mv::json::Value(getContentJson());
 }
