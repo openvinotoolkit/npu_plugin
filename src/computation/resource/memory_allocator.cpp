@@ -122,3 +122,45 @@ mv::string mv::MemoryAllocator::toString() const
     return result;
 
 }
+
+mv::json::Value mv::MemoryAllocator::toJsonValue() const
+{
+    mv::json::Object obj;
+
+    obj["name"] = name_;
+    obj["max_size"] = mv::Jsonable::toJsonValue(maxSize_);
+    mv::json::Array states;
+
+    for (auto it = states_.cbegin(); it != states_.cend(); ++it)
+    {
+        mv::json::Object state;
+        state["stage"] = mv::Jsonable::toJsonValue(it->first);
+        state["free_space"] = mv::Jsonable::toJsonValue(freeSpace(it->first));
+
+        mv::json::Array memoryBuffers;
+        for (auto itEntry = it->second.cbegin(); itEntry != it->second.cend(); ++itEntry)
+        {
+             mv::json::Object memoryBuffer;
+             memoryBuffer["name"] = mv::Jsonable::toJsonValue(itEntry->first);
+             memoryBuffer["offset"] =  mv::Jsonable::toJsonValue(itEntry->second.offset);
+             memoryBuffer["lenght"] =  mv::Jsonable::toJsonValue(itEntry->second.lenght);
+             switch(itEntry->second.memoryLayout)
+             {
+                 case MemoryLayout::LayoutPlain:
+                     memoryBuffer["layout"] = mv::Jsonable::toJsonValue("plain");
+                     break;
+
+                 default:
+                     memoryBuffer["layout"] = mv::Jsonable::toJsonValue("unknown");
+                     break;
+
+             }
+             memoryBuffers.append(memoryBuffer);
+        }
+        state["buffers"] = mv::json::Value(mv::json::Value(memoryBuffers));
+        states.append(mv::json::Value(state));
+    }
+
+    obj["states"] = mv::json::Value(states);
+    return mv::json::Value(obj);
+}
