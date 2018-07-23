@@ -20,3 +20,11 @@ mv::string mv::DataFlow::toString() const
 {
     return "data flow '" + name_ + "'\n'tensor': " + data_->getName() + ComputationElement::toString();
 }
+
+mv::json::Value mv::DataFlow::toJsonValue() const
+{
+    mv::json::Value toReturn = mv::ComputationElement::toJsonValue();
+    toReturn["tensor"] = data_->getName();
+    toReturn["type"] = mv::Jsonable::toJsonValue("data_flow");
+    return mv::json::Value(toReturn);
+}

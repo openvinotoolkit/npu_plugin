@@ -15,6 +15,7 @@ namespace mv
 
         ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink);
         string toString() const;
+        mv::json::Value toJsonValue() const;
     };
 
 }

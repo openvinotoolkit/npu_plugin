@@ -20,6 +20,7 @@ namespace mv
             byte_type inputIdx, const Data::TensorIterator& data);
         Data::TensorIterator& getTensor();
         string toString() const;
+        mv::json::Value toJsonValue() const;
 
     };
 
