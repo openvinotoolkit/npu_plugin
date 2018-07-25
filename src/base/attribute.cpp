@@ -34,7 +34,7 @@ mv::json::Value mv::Attribute::getContentJson() const
         case AttrType::ByteType:
             return Jsonable::toJsonValue(getContent<byte_type>());
 
-        case AttrType::UnsingedType:
+        case AttrType::UnsignedType:
             return Jsonable::toJsonValue(getContent<unsigned_type>());
 
         case AttrType::IntegerType:
@@ -107,7 +107,7 @@ mv::string mv::Attribute::getContentStr() const
         case AttrType::ByteType:
             return Printable::toString(getContent<byte_type>());
 
-        case AttrType::UnsingedType:
+        case AttrType::UnsignedType:
             return Printable::toString(getContent<unsigned_type>());
 
         case AttrType::IntegerType:

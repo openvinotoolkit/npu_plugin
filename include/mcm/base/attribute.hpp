@@ -10,7 +10,7 @@ template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value =
 #define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }
 
 DEFINE_ENUMERATED_TYPE(mv::int_type, mv::AttrType::IntegerType);
-DEFINE_ENUMERATED_TYPE(mv::unsigned_type, mv::AttrType::UnsingedType);
+DEFINE_ENUMERATED_TYPE(mv::unsigned_type, mv::AttrType::UnsignedType);
 DEFINE_ENUMERATED_TYPE(mv::float_type, mv::AttrType::FloatType);
 DEFINE_ENUMERATED_TYPE(mv::Shape, mv::AttrType::ShapeType);
 DEFINE_ENUMERATED_TYPE(mv::byte_type, mv::AttrType::ByteType);
@@ -70,8 +70,8 @@ namespace mv
             if (AttrTypeToType<AttrType::ShapeType>::value  && is_same<T, AttrTypeToType<AttrType::ShapeType>::type>::value)
                 return AttrType::ShapeType;
 
-            if (AttrTypeToType<AttrType::UnsingedType>::value  && is_same<T, AttrTypeToType<AttrType::UnsingedType>::type>::value)
-                return AttrType::UnsingedType;
+            if (AttrTypeToType<AttrType::UnsignedType>::value  && is_same<T, AttrTypeToType<AttrType::UnsignedType>::type>::value)
+                return AttrType::UnsignedType;
             
             if (AttrTypeToType<AttrType::StringType>::value  && is_same<T, AttrTypeToType<AttrType::StringType>::type>::value)
                 return AttrType::StringType;

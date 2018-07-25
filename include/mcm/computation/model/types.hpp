@@ -69,7 +69,7 @@ namespace mv
         
         UnknownType,
         ByteType,
-        UnsingedType,
+        UnsignedType,
         IntegerType,
         FloatType,
         DTypeType,

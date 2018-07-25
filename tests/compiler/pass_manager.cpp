@@ -29,7 +29,7 @@ namespace __pass_manager_test
         {   
             mv::OpModel om(model);
             if (!om.getInput()->hasAttr("valid"))
-                om.addAttr(om.getInput(), "valid", mv::Attribute(mv::AttrType::UnsingedType, 1U));
+                om.addAttr(om.getInput(), "valid", mv::Attribute(mv::AttrType::UnsignedType, 1U));
             else
             {
                 auto attr = om.getInput()->getAttr("valid");
