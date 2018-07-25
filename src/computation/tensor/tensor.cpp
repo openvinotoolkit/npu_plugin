@@ -55,6 +55,15 @@ populated_(false)
     logger_.log(Logger::MessageType::MessageDebug, "Defined tensor " + toString());
 }
 
+mv::Tensor::Tensor(mv::json::Value& v):
+ComputationElement(v),
+errValue(mv::Jsonable::constructFloatTypeFromJson(v["errValue"])),
+shape_(attributes_.at("shape").getContent<Shape>()),
+populated_(attributes_.at("populated").getContent<bool>())
+{
+
+}
+
 mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data) :
 Tensor(name, shape, dType, order)
 {
@@ -132,6 +141,15 @@ mv::string mv::Tensor::toString() const
 {
     return "tensor '" + name_ + "' " + ComputationElement::toString();
 }
+
+mv::json::Value mv::Tensor::toJsonValue() const
+{
+    mv::json::Value v = ComputationElement::toJsonValue();
+    v["errValue"] = mv::Jsonable::toJsonValue(errValue);
+    //TODO:handle populated tensors
+    return v;
+}
+
 
 bool mv::Tensor::add(const Tensor& other)
 {

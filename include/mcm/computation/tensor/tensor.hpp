@@ -37,12 +37,14 @@ namespace mv
         Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data);
         Tensor(const Tensor &other);
         Tensor();
+        Tensor(json::Value &v);
         bool populate(const dynamic_vector<float_type>& data);
         bool unpopulate();
         dynamic_vector<float_type> &getData();
         DType getDType() const;
         Order getOrder() const;
         string toString() const;
+        mv::json::Value toJsonValue() const;
         static Logger& logger();
         
         bool add(const Tensor& other);
