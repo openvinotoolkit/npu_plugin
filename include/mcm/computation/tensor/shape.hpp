@@ -31,6 +31,7 @@ namespace mv
             addDim(dims...);
         }
 
+        Shape(json::Value &o);
         Shape(const Shape& other);
         Shape(byte_type n);
         Shape();

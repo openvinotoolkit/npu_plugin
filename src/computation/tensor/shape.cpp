@@ -11,6 +11,12 @@ dims_(other.dims_)
 
 }
 
+mv::Shape::Shape(mv::json::Value& o)
+{
+    for(unsigned i = 0; i < o.size(); ++i)
+        addDim(constructDimTypeFromJson(o[i]));
+}
+
 mv::Shape::Shape(byte_type n)
 {
     for (unsigned i = 0; i < n; ++i)
@@ -100,7 +106,6 @@ mv::string mv::Shape::toString() const
 mv::json::Value mv::Shape::toJsonValue() const
 {
 
-    mv::json::Object obj;
     mv::json::Array arr;
 
     for (byte_type i = 0; i < dims_.length(); ++i)
@@ -108,10 +113,7 @@ mv::json::Value mv::Shape::toJsonValue() const
         arr.append(mv::Jsonable::toJsonValue(dims_[i]));
     }
 
-    obj["rank"] = mv::Jsonable::toJsonValue(dims_.length());
-    obj["dimensions"] = arr;
-
-    return mv::json::Value(obj);
+    return mv::json::Value(arr);
 
 }
 
