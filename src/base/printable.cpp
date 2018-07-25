@@ -52,26 +52,12 @@ mv::string mv::Printable::toString(bool value)
 
 mv::string mv::Printable::toString(DType value)
 {
-    switch (value)
-    {
-        case DType::Float:
-            return "float";
-
-        default:
-            return "unknown";
-    }
+    return mv::dtypeStrings.at(value);
 }
 
 mv::string mv::Printable::toString(Order value)
 {
-    switch (value)
-    {
-        case Order::LastDimMajor:
-            return "LastDimMajor";
-
-        default:
-            return "unknown";
-    }
+    return mv::orderStrings.at(value);
 }
 
 mv::string mv::Printable::toString(const mv::dynamic_vector<float> &value)
@@ -81,142 +67,10 @@ mv::string mv::Printable::toString(const mv::dynamic_vector<float> &value)
 
 mv::string mv::Printable::toString(AttrType value)
 {
-
-    switch (value)
-    {
-
-        case AttrType::ByteType:
-            return "byte";
-
-        case AttrType::UnsingedType:
-            return "unsigned";
-
-        case AttrType::IntegerType:
-            return "int";
-
-        case AttrType::FloatType:
-            return "float";
-        
-        case AttrType::DTypeType:
-            return "dType";
-
-        case AttrType::OrderType:
-            return "order";
-
-        case AttrType::ShapeType:
-            return "shape";
-
-        case AttrType::StringType:
-            return "string";
-
-        case AttrType::BoolType:
-            return "bool";
-
-        case AttrType::OpTypeType:
-            return "opType";
-
-        case AttrType::FloatVec2DType:
-            return "floatVec2D";
-
-        case AttrType::FloatVec3DType:
-            return "floatVec3D";
-
-        case AttrType::FloatVec4DType:
-            return "floatVec4D";
-
-        case AttrType::IntVec2DType:
-            return "intVec2D";
-
-        case AttrType::IntVec3DType:
-            return "intVec3D";
-
-        case AttrType::IntVec4DType:
-            return "intVec4D";
-
-        case AttrType::UnsignedVec2DType:
-            return "unsignedVec2D";
-
-        case AttrType::UnsignedVec3DType:
-            return "unsignedVec3D";
-
-        case AttrType::UnsignedVec4DType:
-            return "unsignedVec4D";
-
-        case AttrType::FloatVecType:
-            return "floatVec";
-
-        default:
-            return "unknown";
-
-    }
-    
+    return mv::attrTypeStrings.at(value);
 }
 
 mv::string mv::Printable::toString(OpType value)
 {
-
-    switch (value)
-    {
-        case OpType::Input:
-            return "input";
-
-        case OpType::Output:
-            return "output";
-
-        case OpType::Constant:
-            return "constant";
-
-        case OpType::Conv2D:
-            return "conv2D";
-
-        case OpType::MatMul:
-            return "matMul";
-
-        case OpType::MaxPool2D:
-            return "maxpool2D";
-
-        case OpType::AvgPool2D:
-            return "avgpool2D";
-
-        case OpType::Concat:
-            return "concat";
-        
-        case OpType::ReLU:
-            return "relu";
-
-        case OpType::Softmax:
-            return "softmax";
-
-        case OpType::Scale:
-            return "scale";
-
-        case OpType::BatchNorm:
-            return "batchnorm";
-
-        case OpType::Add:
-            return "add";
-
-        case OpType::Subtract:
-            return "subtract";
-
-        case OpType::Multiply:
-            return "multiply";
-
-        case OpType::Divide:
-            return "divide";
-
-        case OpType::Reshape:
-            return "reshape";
-
-        case OpType::Bias:
-            return "bias";
-
-        case OpType::FullyConnected:
-            return "fullyConnected";
-
-        default:
-            return "unknown";
-
-    }
-
+    return mv::opsStrings.at(value);
 }
