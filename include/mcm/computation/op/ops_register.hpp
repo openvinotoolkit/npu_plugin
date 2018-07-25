@@ -55,6 +55,29 @@ namespace mv
         {OpType::FullyConnected, "fullyconnected"}
     };
 
+    const std::map<std::string, OpType> opsStringsReversed
+    {
+        {"input", OpType::Input},
+        {"output", OpType::Output},
+        {"const", OpType::Constant},
+        {"conv2d", OpType::Conv2D},
+        {"matmul", OpType::MatMul},
+        {"maxpool2d", OpType::MaxPool2D},
+        {"avgpool2d", OpType::AvgPool2D},
+        {"concat", OpType::Concat},
+        {"relu", OpType::ReLU},
+        {"softmax", OpType::Softmax},
+        {"scale", OpType::Scale},
+        {"batchnorm", OpType::BatchNorm},
+        {"add", OpType::Add},
+        {"subtract", OpType::Subtract},
+        {"multiply", OpType::Multiply},
+        {"divide", OpType::Divide},
+        {"reshape", OpType::Reshape},
+        {"bias", OpType::Bias},
+        {"fullyconnected", OpType::FullyConnected}
+    };
+
 }
 
 #endif // OPS_REGISTER_

@@ -58,10 +58,34 @@ namespace mv
         Unknown
     };
 
+    const std::map<Order, string> orderStrings
+    {
+        {Order::LastDimMajor, "LastDimMajor"},
+        {Order::Unknown, "Unknown"}
+    };
+
+    const std::map<string, Order> orderStringsReversed
+    {
+        {"LastDimMajor", Order::LastDimMajor},
+        {"Unknown", Order::Unknown}
+    };
+
     enum class DType
     {
         Float,
         Unknown
+    };
+
+    const std::map<DType, string> dtypeStrings
+    {
+        {DType::Float, "Float"},
+        {DType::Unknown, "Unknown"}
+    };
+
+    const std::map<string, DType> dtypeStringsReversed
+    {
+        {"Float", DType::Float},
+        {"Unknown", DType::Unknown}
     };
 
     enum class AttrType
@@ -89,6 +113,58 @@ namespace mv
         UnsignedVec4DType,
         FloatVecType
 
+    };
+
+    const std::map<AttrType, string> attrTypeStrings
+    {
+        {AttrType::UnknownType, "unknown"},
+        {AttrType::ByteType, "byte"},
+        {AttrType::UnsignedType, "unsigned"},
+        {AttrType::IntegerType, "int"},
+        {AttrType::FloatType, "float"},
+        {AttrType::DTypeType, "dtype"},
+        {AttrType::OrderType, "order"},
+        {AttrType::ShapeType, "shape"},
+        {AttrType::StringType, "string"},
+        {AttrType::BoolType, "bool"},
+        {AttrType::OpTypeType, "operation"},
+        {AttrType::FloatVec2DType, "floatVec2D"},
+        {AttrType::FloatVec3DType, "floatVec3D"},
+        {AttrType::FloatVec4DType, "floatVec4D"},
+        {AttrType::IntVec2DType, "intVec2D"},
+        {AttrType::IntVec3DType, "intVec3D"},
+        {AttrType::IntVec4DType, "intVec4D"},
+        {AttrType::UnsignedVec2DType, "unsignedVec2D"},
+        {AttrType::UnsignedVec3DType, "unsignedVec3D"},
+        {AttrType::UnsignedVec4DType, "unsignedVec4D"},
+        {AttrType::FloatVecType, "floatVec"}
+    };
+
+
+    //Reverse maps couldn't be construced on the fly due to non-constness
+    const std::map<string, AttrType> attrTypeStringsReversed
+    {
+        {"unknown", AttrType::UnknownType},
+        {"byte", AttrType::ByteType},
+        {"unsigned", AttrType::UnsignedType},
+        {"int", AttrType::IntegerType},
+        {"float", AttrType::FloatType},
+        {"dtype", AttrType::DTypeType},
+        {"order", AttrType::OrderType},
+        {"shape", AttrType::ShapeType},
+        {"string", AttrType::ShapeType},
+        {"bool", AttrType::BoolType},
+        {"operation", AttrType::OpTypeType},
+        {"floatVec2D", AttrType::FloatVec2DType},
+        {"floatVec3D", AttrType::FloatVec3DType},
+        {"floatVec4D", AttrType::FloatVec4DType},
+        {"intVec2D", AttrType::IntVec2DType},
+        {"intVec3D", AttrType::IntVec3DType},
+        {"intVec4D", AttrType::IntVec4DType},
+        {"unsignedVec2D", AttrType::UnsignedVec2DType},
+        {"unsignedVec3D", AttrType::UnsignedVec3DType},
+        {"unsignedVec4D", AttrType::UnsignedVec4DType},
+        {"floatVec", AttrType::FloatVecType}
     };
 
     template <class T>
