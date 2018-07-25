@@ -57,7 +57,7 @@ populated_(false)
 
 mv::Tensor::Tensor(mv::json::Value& v):
 ComputationElement(v),
-errValue(mv::Jsonable::constructFloatTypeFromJson(v["errValue"])),
+errValue(0.0f),
 shape_(attributes_.at("shape").getContent<Shape>()),
 populated_(attributes_.at("populated").getContent<bool>())
 {
@@ -145,8 +145,7 @@ mv::string mv::Tensor::toString() const
 mv::json::Value mv::Tensor::toJsonValue() const
 {
     mv::json::Value v = ComputationElement::toJsonValue();
-    v["errValue"] = mv::Jsonable::toJsonValue(errValue);
-    //TODO:handle populated tensors
+    //TODO - handle populated tensors
     return v;
 }
 

@@ -122,7 +122,7 @@ TEST(jsonable, tensor)
     mv::json::Value v = mv::Jsonable::toJsonValue(t);
     std::string result(v.stringify());
     //std::cout << result << std::endl;
-    ASSERT_EQ(result, "{\"attributes\":[{\"attrType\":\"dtype\",\"content\":\"Float\",\"name\":\"dType\"},{\"attrType\":\"order\",\"content\":\"LastDimMajor\",\"name\":\"order\"},{\"attrType\":\"bool\",\"content\":false,\"name\":\"populated\"},{\"attrType\":\"shape\",\"content\":[3,3,64],\"name\":\"shape\"}],\"errValue\":0.0,\"name\":\"test_tensor\"}");
+    ASSERT_EQ(result, "{\"attributes\":[{\"attrType\":\"dtype\",\"content\":\"Float\",\"name\":\"dType\"},{\"attrType\":\"order\",\"content\":\"LastDimMajor\",\"name\":\"order\"},{\"attrType\":\"bool\",\"content\":false,\"name\":\"populated\"},{\"attrType\":\"shape\",\"content\":[3,3,64],\"name\":\"shape\"}],\"name\":\"test_tensor\"}");
     mv::Tensor t1(v);
     mv::json::Value v1 = mv::Jsonable::toJsonValue(t1);
     std::string result1(v1.stringify());
