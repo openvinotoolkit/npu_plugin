@@ -15,9 +15,10 @@ mv::ComputationElement::ComputationElement(mv::json::Value& value)
 {
 
     name_ = mv::Jsonable::constructStringFromJson(value["name"]);
-    mv::json::Value arr = value["attributes"];
-    for(unsigned i = 0; i < arr.size(); ++i)
-        addAttr(mv::Jsonable::constructStringFromJson(arr[i]["name"]),  mv::Attribute(arr[i]));
+    mv::json::Value attributes = value["attributes"];
+    std::vector<std::string> keys(attributes.getKeys());
+    for(unsigned_type i = 0; i < keys.size(); ++i)
+        addAttr(keys[i], mv::Attribute(attributes[keys[i]]));
 
 }
 
@@ -150,17 +151,13 @@ mv::string mv::ComputationElement::toString() const
 mv::json::Value mv::ComputationElement::toJsonValue() const
 {
     mv::json::Object obj;
-    mv::json::Array arr;
+    mv::json::Object attr;
 
     obj["name"] = mv::Jsonable::toJsonValue(name_);
     for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
-    {
-        mv::json::Value toAdd = mv::Jsonable::toJsonValue(it->second);
-        toAdd["name"] = mv::Jsonable::toJsonValue(it->first);
-        arr.append(toAdd);
-    }
+        attr[it->first] = mv::Jsonable::toJsonValue(it->second);
 
-    obj["attributes"] = arr;
+    obj["attributes"] = attr;
     return mv::json::Value(obj);
 
 }
