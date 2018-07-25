@@ -11,6 +11,16 @@ name_(name)
 
 }
 
+mv::ComputationElement::ComputationElement(mv::json::Value& value)
+{
+
+    name_ = mv::Jsonable::constructStringFromJson(value["name"]);
+    mv::json::Value arr = value["attributes"];
+    for(unsigned i = 0; i < arr.size(); ++i)
+        addAttr(mv::Jsonable::constructStringFromJson(arr[i]["name"]),  mv::Attribute(arr[i]));
+
+}
+
 mv::ComputationElement::ComputationElement(const ComputationElement &other) :
 name_(other.name_)
 {
@@ -140,11 +150,17 @@ mv::string mv::ComputationElement::toString() const
 mv::json::Value mv::ComputationElement::toJsonValue() const
 {
     mv::json::Object obj;
+    mv::json::Array arr;
 
     obj["name"] = mv::Jsonable::toJsonValue(name_);
     for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
-        obj[it->first] = mv::Jsonable::toJsonValue(it->second);
+    {
+        mv::json::Value toAdd = mv::Jsonable::toJsonValue(it->second);
+        toAdd["name"] = mv::Jsonable::toJsonValue(it->first);
+        arr.append(toAdd);
+    }
 
+    obj["attributes"] = arr;
     return mv::json::Value(obj);
 
 }

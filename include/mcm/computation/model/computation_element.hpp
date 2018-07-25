@@ -55,6 +55,7 @@ namespace mv
 
     public:
 
+        ComputationElement(json::Value &value);
         ComputationElement(const string &name);
         ComputationElement(const ComputationElement &other);
         ComputationElement& operator=(const ComputationElement &other);
