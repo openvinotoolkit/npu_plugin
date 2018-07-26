@@ -70,12 +70,24 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
             
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             
-            if (parentOpIt->getOpType() == OpType::Conv2D)
+            if (parentOpIt->getOpType() == OpType::Conv2D || parentOpIt->getOpType() == OpType::FullyConnected)
             {
 
                 auto bias = *opIt->getInputTensor(1);
-                Attribute biasAttr(AttrType::FloatVecType, bias.getData());
-                om.addAttr(parentOpIt, "bias", biasAttr);
+
+                if (parentOpIt->hasAttr("bias"))
+                {
+                    auto biasData = parentOpIt->getAttr("bias").getContent<dynamic_vector<float>>();
+                    for (std::size_t i = 0; i < biasData.size(); ++i)
+                        biasData[i] += bias.getData()[i];
+                    parentOpIt->getAttr("bias").setContent<dynamic_vector<float>>(biasData);
+                }
+                else
+                {
+                    Attribute biasAttr(AttrType::FloatVecType, bias.getData());
+                    om.addAttr(parentOpIt, "bias", biasAttr);
+                }
+                
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -127,7 +139,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
                 {
                     auto biasData = parentOpIt->getAttr("bias").getContent<dynamic_vector<float>>();
                     if (biasData.size() != scale.getData().size())
-                        return;
+                        throw pass::RutimeError("Mismatch between bias length and scale length");
 
                     for (unsigned i = 0; i < biasData.size(); ++i)
                         biasData[i] *= scale.getData()[i];

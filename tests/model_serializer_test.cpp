@@ -764,4 +764,5 @@ TEST (model_serializer, blob_scale)
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_11.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
+    
 }

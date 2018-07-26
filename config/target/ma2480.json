@@ -34,8 +34,7 @@
 		[
 			"FuseBatchNorm", 
 			"FuseBias", 
-			"FuseScale",
-			"FuseRelu"		
+			"FuseScale"
 		],
 		
 		"finalize":
