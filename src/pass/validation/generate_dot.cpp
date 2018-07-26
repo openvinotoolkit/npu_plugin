@@ -1,4 +1,9 @@
-#include "include/mcm/pass/validation/generate_dot.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
+
+void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -7,7 +12,7 @@ namespace mv
     {
 
         MV_REGISTER_PASS(GenerateDot)
-        .setFunc(__generate_dot_detail_::generateDotFcn)
+        .setFunc(generateDotFcn)
         .setGenre({PassGenre::Validation, PassGenre::Serialization})
         .defineArg(json::JSONType::String, "output")
         .defineArg(json::JSONType::String, "scope")
@@ -21,8 +26,10 @@ namespace mv
 
 }
 
-void mv::pass::__generate_dot_detail_::generateDotFcn(ComputationModel& model, TargetDescriptor&, json::Object& compDesc)
+void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
+
+    using namespace mv;
 
     if (compDesc["GenerateDot"]["output"].get<std::string>().empty())
         throw ArgumentError("output", "", "Unspecified output name for generate dot pass");

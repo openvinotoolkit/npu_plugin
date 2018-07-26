@@ -97,6 +97,7 @@ file(GLOB pass
     "src/pass/pass_manager.cpp"
     "src/target/target_descriptor.cpp"
     "src/pass/adaptation/*.cpp"
+    "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
 )

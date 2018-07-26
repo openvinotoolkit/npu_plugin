@@ -1,4 +1,11 @@
-#include "include/mcm/pass/adaptation/fuse_passes.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/tensor/math.hpp"
+
+static void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -7,7 +14,7 @@ namespace mv
     {
 
         MV_REGISTER_PASS(FuseBatchNorm)
-        .setFunc(__fuse_pass_detail_::fuseBatchNormFcn)
+        .setFunc(fuseBatchNormFcn)
         .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Replaces a batchnorm op with eltwise ops or their 1d equivalents. "
@@ -18,7 +25,7 @@ namespace mv
         );
 
         MV_REGISTER_PASS(FuseBias)
-        .setFunc(__fuse_pass_detail_::fuseBiasFcn)
+        .setFunc(fuseBiasFcn)
         .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Fuses a bias op to the parent op if this op is of type conv2d. "
@@ -28,7 +35,7 @@ namespace mv
         );
 
         MV_REGISTER_PASS(FuseRelu)
-        .setFunc(__fuse_pass_detail_::fuseReluFcn)
+        .setFunc(fuseReluFcn)
         .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Fuses a relu op to the parent op."
@@ -36,7 +43,7 @@ namespace mv
         );
 
         MV_REGISTER_PASS(FuseScale)
-        .setFunc(__fuse_pass_detail_::fuseScaleFcn)
+        .setFunc(fuseScaleFcn)
         .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Fuses a scale op to the parent op is this op is of type conv2d. Scale op is removed from the model and conv2d weights are rescaled. "
@@ -48,8 +55,10 @@ namespace mv
 
 }
 
-void mv::pass::__fuse_pass_detail_::fuseBiasFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
+
+    using namespace mv;
 
     OpModel om(model);
 
@@ -67,10 +76,6 @@ void mv::pass::__fuse_pass_detail_::fuseBiasFcn(ComputationModel& model, TargetD
                 auto bias = *opIt->getInputTensor(1);
                 Attribute biasAttr(AttrType::FloatVecType, bias.getData());
                 om.addAttr(parentOpIt, "bias", biasAttr);
-                ControlModel cm(om);
-                auto nextOp = cm.switchContext(opIt).leftmostChild();
-
-                cm.defineFlow(parentOpIt, om.switchContext(nextOp));
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -98,9 +103,10 @@ void mv::pass::__fuse_pass_detail_::fuseBiasFcn(ComputationModel& model, TargetD
 
 }
 
-void mv::pass::__fuse_pass_detail_::fuseScaleFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     
+    using namespace mv;
     OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -130,10 +136,6 @@ void mv::pass::__fuse_pass_detail_::fuseScaleFcn(ComputationModel& model, Target
 
                 }
 
-                ControlModel cm(om);
-                auto nextOp = cm.switchContext(opIt).leftmostChild();
-
-                cm.defineFlow(parentOpIt, om.switchContext(nextOp));
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -161,9 +163,10 @@ void mv::pass::__fuse_pass_detail_::fuseScaleFcn(ComputationModel& model, Target
 
 }
 
-void mv::pass::__fuse_pass_detail_::fuseReluFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     
+    using namespace mv;
     OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -176,8 +179,6 @@ void mv::pass::__fuse_pass_detail_::fuseReluFcn(ComputationModel& model, TargetD
             Attribute reluAttr(AttrType::OpTypeType, OpType::ReLU);
             om.addAttr(parentOpIt, "postOpType", reluAttr);
 
-            ControlModel cm(om);
-            cm.defineFlow(parentOpIt,  opIt.leftmostChild());
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -195,7 +196,6 @@ void mv::pass::__fuse_pass_detail_::fuseReluFcn(ComputationModel& model, TargetD
             }
             
             om.removeOp(opIt);
-            om.enableDefaultControlFlow(parentOpIt);
             opIt = parentOpIt;
 
         }
@@ -204,9 +204,10 @@ void mv::pass::__fuse_pass_detail_::fuseReluFcn(ComputationModel& model, TargetD
 
 }
 
-void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, TargetDescriptor&, json::Object&)
+void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    
+
+    using namespace mv;   
     OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -217,8 +218,6 @@ void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, Ta
             
             auto batchNormName = opIt->getName();
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            ControlModel cm(om);
-            auto nextOp = cm.switchContext(opIt).leftmostChild();
             
             auto bnMean = *opIt->getInputTensor(1);
             auto bnVar = *opIt->getInputTensor(2);
@@ -229,8 +228,6 @@ void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, Ta
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
             auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), offsetParam.getOrder(), batchNormName + "_offset");
-
-            om.disableDefaultControlFlow();
 
             Data::TensorIterator sourceTensor;
 
@@ -245,7 +242,6 @@ void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, Ta
                 {
                     auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
                     sourceTensor = om.scale(opIt->getInputTensor(0), scale);
-                    cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
                     parentOpIt = om.getSourceOp(sourceTensor);
                 }
             }
@@ -253,7 +249,6 @@ void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, Ta
             {
                 auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
                 sourceTensor = om.multiply(opIt->getInputTensor(0), scale);
-                cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
                 parentOpIt = om.getSourceOp(sourceTensor);
 
             }
@@ -266,9 +261,6 @@ void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, Ta
             {
                 sourceTensor = om.add(sourceTensor, offset);
             }
-
-            cm.defineFlow(parentOpIt, om.getSourceOp(sourceTensor));
-            cm.defineFlow(om.getSourceOp(sourceTensor), om.switchContext(nextOp));
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
@@ -285,8 +277,8 @@ void mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(ComputationModel& model, Ta
             }
             
             om.removeOp(opIt);
-            om.enableDefaultControlFlow(cm.getLast());
             opIt = parentOpIt;
+
         }
 
     }

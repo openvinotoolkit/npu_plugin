@@ -30,8 +30,8 @@ namespace mv
         CompositionalModel& model();
 
         bool initialize();
-        std::pair<std::string, mv::PassGenre> runStep();
-        void run();
+        json::Object runStep();
+        json::Object run();
         bool completed() const;
 
     };

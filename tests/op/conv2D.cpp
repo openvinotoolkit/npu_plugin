@@ -16,7 +16,7 @@ TEST(ops, conv2D)
 
     ASSERT_EQ(output->getShape(), mv::Shape(8, 8, 3));
     ASSERT_EQ(convOp->getOpType(), mv::OpType::Conv2D);
-    ASSERT_EQ(convOp->attrsCount(), 10);
+    ASSERT_EQ(convOp->attrsCount(), 9);
     ASSERT_EQ(convOp->getAttr("stride").getType(), mv::AttrType::UnsignedVec2DType);
     ASSERT_EQ(convOp->getAttr("padding").getType(), mv::AttrType::UnsignedVec4DType);
     ASSERT_EQ(convOp->getAttr("stride").getContent<mv::UnsignedVector2D>().e0, 4);

@@ -116,9 +116,6 @@ int main()
     // Load target descriptor for the selected target to the compilation unit
     std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
     unit.targetDescriptor().load(targetDescPath);
-
-    // Schedule pass for blob generation
-    unit.targetDescriptor().appendSerialPass("GenerateBlob");
     
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");

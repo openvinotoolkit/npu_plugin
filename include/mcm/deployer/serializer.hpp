@@ -8,6 +8,7 @@
 * @date 4/27/2018
 */
 #include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/deployer/mv_types.h"
 #include "include/mcm/deployer/Fp16Convert.h"
 #include "include/mcm/deployer/file_buffer.h"
@@ -310,7 +311,7 @@ class Blob_buffer : public WBuffer
 
             }    // end traverse of graph
 
-            blob_stats.output_size = cm.getLast()->getInputTensor(0)->getShape().totalSize();
+            ///+++blob_stats.output_size = cm.getLast()->getInputTensor(0)->getShape().totalSize();
 //            std::cout << "output size = "<< blob_stats.output_size << std::endl;
             blob_stats.stage_section_size = align(blob_stats.stage_section_size, 16) ;
             blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size + blob_stats.params_region_size ;

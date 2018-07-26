@@ -15,7 +15,7 @@ TEST(ops, fullyConnected)
 
     ASSERT_EQ(output->getShape(), mv::Shape(1, 100));
     ASSERT_EQ(fullyConnectedOp->getOpType(), mv::OpType::FullyConnected);
-    ASSERT_EQ(fullyConnectedOp->attrsCount(), 8);
+    ASSERT_EQ(fullyConnectedOp->attrsCount(), 7);
     ASSERT_EQ(fullyConnectedOp->inputSlots(), 2);
     ASSERT_EQ(fullyConnectedOp->outputSlots(), 1);
     ASSERT_TRUE(fullyConnectedOp->isExecutable());

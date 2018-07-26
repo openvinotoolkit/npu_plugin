@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/pass/adaptation/fuse_passes.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
 
 TEST(fuse_bias, case_conv)
 {
@@ -25,8 +25,9 @@ TEST(fuse_bias, case_conv)
 
     mv::json::Object dummyCompDesc;
     mv::TargetDescriptor dummyTargDesc;
+    mv::json::Object compOutput;
 
-    mv::pass::__fuse_pass_detail_::fuseBiasFcn(om, dummyTargDesc, dummyCompDesc);
+    mv::pass::PassRegistry::instance().find("FuseBias")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -38,11 +39,5 @@ TEST(fuse_bias, case_conv)
 
     for (unsigned i = 0; i < convOp->getAttr("bias").getContent<mv::dynamic_vector<float>>().size(); ++i)
         ASSERT_FLOAT_EQ(convOp->getAttr("bias").getContent<mv::dynamic_vector<float>>()[i], biasesData[i]);
-
-    mv::ControlModel cm(om);
-    mv::Control::OpDFSIterator cIt = cm.switchContext(convOp);
-
-    ++cIt;
-    ASSERT_EQ(*(outputOp), *cIt);
 
 }

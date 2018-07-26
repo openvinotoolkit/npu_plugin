@@ -1,12 +1,12 @@
 #include "include/mcm/base/json/number_integer.hpp"
 
-mv::json::NumberInteger::NumberInteger(int value) :
+mv::json::NumberInteger::NumberInteger(long long value) :
 value_(value)
 {
 
 }
 
-mv::json::NumberInteger::operator int&()
+mv::json::NumberInteger::operator long long&()
 {
     return value_;
 }

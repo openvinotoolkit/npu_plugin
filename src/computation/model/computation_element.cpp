@@ -141,3 +141,7 @@ bool mv::ComputationElement::operator<(ComputationElement &other)
 {
     return name_ < other.name_;
 }
+bool mv::ComputationElement::operator ==(const ComputationElement& other)
+{
+    return name_ == other.name_;
+}

@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/pass/adaptation/fuse_passes.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
 
 TEST(fuse_batch_norm_pass, case_ndim_conv)
 {
@@ -37,8 +37,9 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
 
     mv::json::Object dummyCompDesc;
     mv::TargetDescriptor dummyTargDesc;
+    mv::json::Object compOutput;
 
-    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -78,16 +79,6 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
 
     for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
         ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
-
-    mv::ControlModel cm(om);
-    mv::Control::OpDFSIterator cIt = cm.switchContext(convOp);
-
-    ++cIt;
-    ASSERT_EQ(*mulOp, *cIt);
-    ++cIt;
-    ASSERT_EQ(*addOp, *cIt);
-    ++cIt;
-    ASSERT_EQ(*(outputOp), *cIt);
    
 }
 
@@ -123,8 +114,9 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 
     mv::json::Object dummyCompDesc;
     mv::TargetDescriptor dummyTargDesc;
+    mv::json::Object compOutput;
 
-    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -159,14 +151,6 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
         ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
 
-    mv::ControlModel cm(om);
-    mv::Control::OpDFSIterator cIt = cm.switchContext(convOp);
-
-    ++cIt;
-    ASSERT_EQ(*addOp, *cIt);
-    ++cIt;
-    ASSERT_EQ(*(outputOp), *cIt);
-
 }
 
 TEST(fuse_batch_norm_pass, case_ndim_nonconv)
@@ -199,8 +183,9 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 
     mv::json::Object dummyCompDesc;
     mv::TargetDescriptor dummyTargDesc;
+    mv::json::Object compOutput;
 
-    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -241,16 +226,6 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
         ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
 
-    mv::ControlModel cm(om);
-    mv::Control::OpDFSIterator cIt = cm.switchContext(poolOp);
-
-    ++cIt;
-    ASSERT_EQ(*mulOp, *cIt);
-    ++cIt;
-    ASSERT_EQ(*addOp, *cIt);
-    ++cIt;
-    ASSERT_EQ(*(outputOp), *cIt);
-
 }
 
 TEST(fuse_batch_norm_pass, case_1dim_nonconv)
@@ -283,8 +258,9 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 
     mv::json::Object dummyCompDesc;
     mv::TargetDescriptor dummyTargDesc;
+    mv::json::Object compOutput;
 
-    mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(om, dummyTargDesc, dummyCompDesc);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -324,15 +300,5 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 
     for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
         ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
-
-    mv::ControlModel cm(om);
-    mv::Control::OpDFSIterator cIt = cm.switchContext(poolOp);
-
-    ++cIt;
-    ASSERT_EQ(*mulOp, *cIt);
-    ++cIt;
-    ASSERT_EQ(*addOp, *cIt);
-    ++cIt;
-    ASSERT_EQ(*(outputOp), *cIt);
 
 }

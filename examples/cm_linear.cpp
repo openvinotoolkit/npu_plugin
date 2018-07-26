@@ -44,9 +44,6 @@ int main()
 
     mv::ControlModel cm(om);
 
-    cm.logger().log(msgType, "First op: " + cm.getFirst()->getName());
-    cm.logger().log(msgType, "Last op: " + cm.getLast()->getName());
-
     mv::size_type i = 0;
     for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
     {

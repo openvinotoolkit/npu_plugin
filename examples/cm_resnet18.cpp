@@ -122,16 +122,18 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("cm_resnet18.blob");
     
     // Initialize compilation 
     unit.initialize();
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
 
     // Run all passes
     unit.run();
 
-    //system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
-    //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
-
+    system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+    system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
+    system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
     return 0;
 
 }

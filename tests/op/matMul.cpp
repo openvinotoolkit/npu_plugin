@@ -15,7 +15,7 @@ TEST(ops, matMul)
 
     ASSERT_EQ(output->getShape(), mv::Shape(256, 100));
     ASSERT_EQ(matMulOp->getOpType(), mv::OpType::MatMul);
-    ASSERT_EQ(matMulOp->attrsCount(), 8);
+    ASSERT_EQ(matMulOp->attrsCount(), 7);
     ASSERT_EQ(matMulOp->inputSlots(), 2);
     ASSERT_EQ(matMulOp->outputSlots(), 1);
     ASSERT_TRUE(matMulOp->isExecutable());

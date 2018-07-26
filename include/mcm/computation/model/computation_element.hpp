@@ -68,6 +68,7 @@ namespace mv
         bool removeAttr(const string &name);
         string toString() const;
         virtual bool operator <(ComputationElement &other);
+        virtual bool operator ==(const ComputationElement& other);
 
     };
 

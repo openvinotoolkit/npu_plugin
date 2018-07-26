@@ -17,12 +17,6 @@ mv::Control::OpListIterator mv::ControlModel::getFirst()
    return opsGraph_->get_second_iterator(it);
 }
 
-
-mv::Control::OpListIterator mv::ControlModel::getLast()
-{
-    return *lastOp_;
-}
-
 mv::Control::OpListIterator mv::ControlModel::opEnd()
 {
     return *controlOpEnd_;
@@ -87,7 +81,7 @@ bool mv::ControlModel::removeStage(Control::StageIterator &stage)
 {
     if (stage != stageEnd())
     {
-        stage->removeAllElements();
+        stage->clear();
         stages_->erase(stage->getAttr("idx").getContent<unsigned_type>());
         stage = stageEnd();
         return true;
@@ -133,11 +127,11 @@ bool mv::ControlModel::removeFromStage(Control::OpListIterator &op)
 
         if (stage != stageEnd())
         {
-            allocator::owner_ptr<ComputationOp> ptr = op;
-            auto it = stage->find(ptr);
+            //allocator::owner_ptr<ComputationOp> ptr = op;
+            auto it = stage->find(*op);
             if (it != stage->end())
             {
-                stage->removeElement(it);
+                stage->erase(it);
                 return true;
             }
         }

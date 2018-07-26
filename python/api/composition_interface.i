@@ -15,9 +15,7 @@ import_array();
     #include <include/mcm/computation/model/op_model.hpp>
     #include <include/mcm/computation/model/control_model.hpp>
     #include <include/mcm/computation/model/computation_model.hpp>
-    #include <include/mcm/pass/adaptation/fuse_passes.hpp>
-    #include <include/mcm/pass/serialization/generate_blob.hpp>
-    #include <include/mcm/pass/validation/generate_dot.hpp>
+    #include <include/mcm/pass/pass_registry.hpp>
     #include <math.h>
 
     int serialize(mv::OpModel * test_cm){
@@ -25,14 +23,16 @@ import_array();
         mv::json::Object compDesc;
         compDesc["GenerateBlob"]["output"] = std::string("cpp.blob");
         mv::TargetDescriptor dummyTargDesc;
+        mv::json::Object compOutput;
 
-        mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(*test_cm, dummyTargDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseBiasFcn(*test_cm, dummyTargDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseScaleFcn(*test_cm, dummyTargDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseReluFcn(*test_cm, dummyTargDesc, compDesc);
+        mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
+        mv::pass::PassRegistry::instance().find("FuseBias")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
+        mv::pass::PassRegistry::instance().find("FuseScale")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
+        mv::pass::PassRegistry::instance().find("FuseRelu")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
 
         // serialize compute model to file
-        uint64_t filesize = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(*test_cm, dummyTargDesc, compDesc);
+        mv::pass::PassRegistry::instance().find("GenerateBlob")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
+        auto filesize = compDesc["GenerateBlob"]["blobSize"].get<long long>();
         return filesize;   // Success, return filesize
     }
 
@@ -287,12 +287,13 @@ import_array();
     void produceDOT(mv::OpModel *o, const char* fileName){
         mv::TargetDescriptor dummyTargetDesc;
         mv::json::Object compDesc;
+        mv::json::Object compOutput;
         std::string fileNameStr(fileName);
         compDesc["GenerateDot"]["output"] = fileNameStr + ".dot";
         compDesc["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
         compDesc["GenerateDot"]["content"] = std::string("full");
         compDesc["GenerateDot"]["html"] = true;
-        mv::pass::__generate_dot_detail_::generateDotFcn(*o, dummyTargetDesc, compDesc);
+        mv::pass::PassRegistry::instance().find("GenerateDot")->run(*o, dummyTargetDesc, compDesc, compOutput);
         std::string cmd = "dot -Tsvg " + fileNameStr + ".dot -o " + fileNameStr + ".svg";
         system(cmd.c_str());
     }

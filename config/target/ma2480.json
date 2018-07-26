@@ -37,11 +37,20 @@
 			"FuseScale",
 			"FuseRelu"		
 		],
-
 		
+		"finalize":
+		[
+			"ArrangeLinearExecution"
+		],
+
 		"validate":
 		[
 			"GenerateDot"
+		],
+
+		"serialize":
+		[
+			"GenerateBlob"
 		]
 
 	}

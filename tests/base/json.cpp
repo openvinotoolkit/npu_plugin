@@ -16,7 +16,7 @@ TEST(json, float_value)
     mv::json::Object root;
     root["floatValue"] = floatVal;
     ASSERT_FLOAT_EQ(root["floatValue"].get<float>(), floatVal);
-    ASSERT_ANY_THROW(root["floatValue"].get<int>());
+    ASSERT_ANY_THROW(root["floatValue"].get<long long>());
     ASSERT_ANY_THROW(root["floatValue"].get<std::string>());
     ASSERT_ANY_THROW(root["floatValue"].get<bool>());
 
@@ -25,10 +25,10 @@ TEST(json, float_value)
 TEST(json, int_value)
 {
 
-    int intVal = 1;
+    long long intVal = 1;
     mv::json::Object root;
     root["intValue"] = intVal;
-    ASSERT_FLOAT_EQ(root["intValue"].get<int>(), intVal);
+    ASSERT_EQ(root["intValue"].get<long long>(), intVal);
     ASSERT_ANY_THROW(root["intValue"].get<float>());
     ASSERT_ANY_THROW(root["intValue"].get<std::string>());
     ASSERT_ANY_THROW(root["intValue"].get<bool>());
@@ -43,7 +43,7 @@ TEST(json, string_value)
     root["strValue"] = strVal;
     ASSERT_EQ(root["strValue"].get<std::string>(), strVal);
     ASSERT_ANY_THROW(root["strValue"].get<float>());
-    ASSERT_ANY_THROW(root["strValue"].get<int>());
+    ASSERT_ANY_THROW(root["strValue"].get<long long>());
     ASSERT_ANY_THROW(root["strValue"].get<bool>());
 
 }
@@ -56,7 +56,7 @@ TEST(json, bool_value)
     root["boolValue"] = boolVal;
     ASSERT_EQ(root["boolValue"].get<bool>(), boolVal);
     ASSERT_ANY_THROW(root["boolValue"].get<float>());
-    ASSERT_ANY_THROW(root["boolValue"].get<int>());
+    ASSERT_ANY_THROW(root["boolValue"].get<long long>());
     ASSERT_ANY_THROW(root["boolValue"].get<std::string>());
 
 }
@@ -90,7 +90,7 @@ TEST(json, reassign_value_type)
 {
 
     float floatVal = 1.0f;
-    int intVal = 1;
+    long long intVal = 1;
     std::string strVal = "str";
     bool boolVal = true;
     mv::json::Object root;
@@ -100,7 +100,7 @@ TEST(json, reassign_value_type)
     ASSERT_EQ(root.size(), 1);
 
     root["value"] = intVal;
-    ASSERT_EQ(root["value"].get<int>(), intVal);
+    ASSERT_EQ(root["value"].get<long long>(), intVal);
     ASSERT_EQ(root.size(), 1);
 
     root["value"] = strVal;
@@ -116,7 +116,7 @@ TEST(json, reassign_value_type)
 TEST(json, copy_assign_object)
 {
 
-    int val1 = 1;
+    long long val1 = 1;
     float val1mod = 5.0f;
 
     mv::json::Object obj1;
@@ -125,7 +125,7 @@ TEST(json, copy_assign_object)
     obj2["val2"] = obj1;
     obj1["val1"] = val1mod;
 
-    ASSERT_EQ(obj2["val2"]["val1"].get<int>(), val1);
+    ASSERT_EQ(obj2["val2"]["val1"].get<long long>(), val1);
     ASSERT_EQ(obj1["val1"].get<float>(), val1mod);
 
 }
@@ -133,7 +133,7 @@ TEST(json, copy_assign_object)
 TEST(json, stringify_values)
 {
 
-    int intVal = 1;
+    long long intVal = 1;
     float floatVal = 1.0f;
     std::string strVal = "str";
     bool boolVal = true;
@@ -171,7 +171,7 @@ TEST(json, stringify_values)
 TEST(json, stringify_array)
 {
 
-    int intVal = 1;
+    long long intVal = 1;
     float floatVal = 1.0f;
     std::string strVal = "str";
     bool boolVal = true;
@@ -191,7 +191,7 @@ TEST(json, stringify_array)
 TEST(json, stringify_object)
 {
 
-    int intVal = 1;
+    long long intVal = 1;
     float floatVal = 1.0f;
     std::string strVal = "str";
     bool boolVal = true;

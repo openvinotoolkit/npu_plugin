@@ -40,20 +40,23 @@ namespace mv
 
         std::string buffer_;
 
-        const std::vector<std::pair<PassGenre, std::vector<std::string>&>> passFlow_ =
+        const std::vector<std::pair<PassGenre, std::vector<std::string>*>> passFlow_ =
         {
-            {PassGenre::Validation, validPassQueue_},
-            {PassGenre::Adaptation, adaptPassQueue_},
-            {PassGenre::Validation, validPassQueue_},
-            {PassGenre::Optimization, optPassQueue_},
-            {PassGenre::Validation, validPassQueue_},
-            {PassGenre::Finalization, finalPassQueue_},
-            {PassGenre::Validation, validPassQueue_},
-            {PassGenre::Serialization, serialPassQueue_}
+            {PassGenre::Validation, &validPassQueue_},
+            {PassGenre::Adaptation, &adaptPassQueue_},
+            {PassGenre::Validation, &validPassQueue_},
+            {PassGenre::Optimization, &optPassQueue_},
+            {PassGenre::Validation, &validPassQueue_},
+            {PassGenre::Finalization, &finalPassQueue_},
+            {PassGenre::Validation, &validPassQueue_},
+            {PassGenre::Serialization, &serialPassQueue_}
         };
 
-        std::vector<std::pair<PassGenre, std::vector<std::string>&>>::const_iterator currentStage_;
+        std::vector<std::pair<PassGenre, std::vector<std::string>*>>::const_iterator currentStage_;
         std::vector<std::string>::iterator currentPass_;
+        json::Object compOutput_;
+
+        static std::string toString(PassGenre passGenre);
 
     public:
 
@@ -69,7 +72,7 @@ namespace mv
         bool validDescriptors() const;
         bool ready() const;
         bool completed() const;
-        std::pair<std::string, PassGenre> step();
+        json::Object& step();
         
     };
 

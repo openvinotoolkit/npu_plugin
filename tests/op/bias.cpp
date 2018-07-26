@@ -14,7 +14,7 @@ TEST(ops, bias)
 
     ASSERT_EQ(output->getShape(), mv::Shape(32, 32, 16));
     ASSERT_EQ(biasOp->getOpType(), mv::OpType::Bias);
-    ASSERT_EQ(biasOp->attrsCount(), 8);
+    ASSERT_EQ(biasOp->attrsCount(), 7);
     ASSERT_EQ(biasOp->inputSlots(), 2);
     ASSERT_EQ(biasOp->outputSlots(), 1);
     ASSERT_TRUE(biasOp->isExecutable());

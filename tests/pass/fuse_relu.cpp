@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/pass/adaptation/fuse_passes.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
 
 TEST(fuse_relu, case_conv)
 {
@@ -23,8 +23,9 @@ TEST(fuse_relu, case_conv)
 
     mv::json::Object dummyCompDesc;
     mv::TargetDescriptor dummyTargDesc;
+    mv::json::Object compOutput;
 
-    mv::pass::__fuse_pass_detail_::fuseReluFcn(om, dummyTargDesc, dummyCompDesc);
+    mv::pass::PassRegistry::instance().find("FuseRelu")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -35,11 +36,5 @@ TEST(fuse_relu, case_conv)
     ASSERT_EQ(convOp.childrenSize(), 1);
     ASSERT_TRUE(convOp->hasAttr("postOpType"));
     ASSERT_EQ(convOp->getAttr("postOpType").getContent<mv::OpType>(), mv::OpType::ReLU);
-
-    mv::ControlModel cm(om);
-    mv::Control::OpDFSIterator cIt = cm.switchContext(convOp);
-
-    ++cIt;
-    ASSERT_EQ(*(outputOp), *cIt);
 
 }
