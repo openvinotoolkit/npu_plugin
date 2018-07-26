@@ -20,7 +20,9 @@ namespace mv
 
     class ComputationModel
     {
-    
+    private:
+        void addOutputTensorsJson(Data::OpListIterator insertedOp);
+        void addInputTensorsJson(Data::OpListIterator insertedOp);
     protected:
 
         static allocator allocator_;

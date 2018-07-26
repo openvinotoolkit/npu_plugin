@@ -36,6 +36,27 @@ defaultControlFlow_(std::make_shared<bool>(defaultControlFlow))*/
     logger_.setLogTime(logTime);
 }
 
+void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
+{
+    unsigned numOutputs = insertedOp->outputSlots();
+    for(unsigned j = 0; j < numOutputs; j++)
+    {
+        string output_string("output"+std::to_string(j));
+        auto output_tensor = findTensor_(insertedOp->getAttr(output_string).getContent<string>());
+        insertedOp->setOutputTensor(output_tensor, j);
+    }
+}
+
+void mv::ComputationModel::addInputTensorsJson(Data::OpListIterator insertedOp)
+{
+    unsigned numInputs = insertedOp->inputSlots();
+    for(unsigned j = 0; j < numInputs; j++)
+    {
+        string input_string("input"+std::to_string(j));
+        auto input_tensor = findTensor_(insertedOp->getAttr(input_string).getContent<string>());
+        insertedOp->setInputTensor(input_tensor, j);
+    }
+}
 
 mv::ComputationModel::ComputationModel(const ComputationModel &other) :
 opsGraph_(other.opsGraph_),
