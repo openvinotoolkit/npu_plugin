@@ -50,10 +50,12 @@ mv::json::Value mv::Jsonable::toJsonValue(Order value)
     return mv::json::Value(mv::orderStrings.at(value));
 }
 
-//NOTE/TODO: maybe it should save more than just the size?
 mv::json::Value mv::Jsonable::toJsonValue(const mv::dynamic_vector<float> &value)
 {
-    return toJsonValue((unsigned_type)value.size());
+    mv::json::Array a;
+    for(auto x = value.begin(); x != value.end(); ++x)
+        a.append(mv::Jsonable::toJsonValue(*x));
+    return mv::json::Value(a);
 }
 
 mv::json::Value mv::Jsonable::toJsonValue(AttrType value)
@@ -116,10 +118,7 @@ mv::DType mv::Jsonable::constructDTypeFromJson(mv::json::Value& v)
 
 mv::Order mv::Jsonable::constructOrderTypeFromJson(mv::json::Value& v)
 {
-    string toSearch(v.get<string>());
-    mv::Order toReturn = mv::orderStringsReversed.at(toSearch);
-    //return mv::orderStringsReversed.at(v.get<mv::string>());
-    return toReturn;
+    return mv::orderStringsReversed.at(v.get<mv::string>());
 }
 
 mv::AttrType mv::Jsonable::constructAttrTypeFromJson(mv::json::Value& v)
