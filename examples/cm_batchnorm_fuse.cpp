@@ -7,18 +7,18 @@ int main()
     mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
     mv::CompositionalModel& cm = unit.model();
 
-    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::LastDimMajor);
+    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::ColumnMajor);
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 3 * 3);
-    auto weights = cm.constant(weightsData, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::LastDimMajor, "weights");
+    auto weights = cm.constant(weightsData, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::ColumnMajor, "weights");
     auto conv = cm.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
     mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(conv->getShape().totalSize());
-    auto bnmean = cm.constant(meanData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "mean");
-    auto bnvariance = cm.constant(varianceData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "variance");
-    auto bnoffset = cm.constant(offsetData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "offset");
-    auto bnscale = cm.constant(scaleData, conv->getShape(), mv::DType::Float, mv::Order::LastDimMajor, "scale");
+    auto bnmean = cm.constant(meanData, conv->getShape(), mv::DType::Float, mv::Order::ColumnMajor, "mean");
+    auto bnvariance = cm.constant(varianceData, conv->getShape(), mv::DType::Float, mv::Order::ColumnMajor, "variance");
+    auto bnoffset = cm.constant(offsetData, conv->getShape(), mv::DType::Float, mv::Order::ColumnMajor, "offset");
+    auto bnscale = cm.constant(scaleData, conv->getShape(), mv::DType::Float, mv::Order::ColumnMajor, "scale");
     auto batchnorm = cm.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
     cm.output(batchnorm);
 

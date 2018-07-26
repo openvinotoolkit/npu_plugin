@@ -46,6 +46,11 @@ const mv::string &mv::ComputationElement::getName() const
     return name_;
 }
 
+void mv::ComputationElement::setName(const std::string& name)
+{
+    name_ = name;
+}
+
 bool mv::ComputationElement::addAttr(const string &name, const Attribute &attr)
 {
 

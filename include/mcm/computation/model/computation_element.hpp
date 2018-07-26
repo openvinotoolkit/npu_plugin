@@ -59,6 +59,7 @@ namespace mv
         ComputationElement& operator=(const ComputationElement &other);
         virtual ~ComputationElement() = 0;
         const string &getName() const;
+        void setName(const std::string& name);
         bool hasAttr(const string &name) const;
         Attribute& getAttr(const string &name);
         const Attribute& getAttr(const string &name) const;
