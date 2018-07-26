@@ -15,6 +15,7 @@ namespace mv
         public:
 
             Multiply(const string &name);
+            Multiply(mv::json::Value &obj);
 
         };
 

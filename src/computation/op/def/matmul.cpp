@@ -8,6 +8,14 @@ SourceOp(OpType::MatMul, 1, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::MatMul::MatMul(mv::json::Value& obj) :
+ComputationOp(obj),
+SinkOp(obj),
+SourceOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::MatMul::getOutputDef(byte_type idx)
 {
     

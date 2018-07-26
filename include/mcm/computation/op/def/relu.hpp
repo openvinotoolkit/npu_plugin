@@ -15,6 +15,7 @@ namespace mv
         public:
 
             ReLU(const string &name);
+            ReLU(mv::json::Value &obj);
 
         };
 

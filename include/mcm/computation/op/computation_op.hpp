@@ -20,6 +20,7 @@ namespace mv
     public:
 
         ComputationOp(OpType opType, const string& name);
+        ComputationOp(mv::json::Value& value);
         virtual ~ComputationOp() = 0;
 
         OpType getOpType() const;

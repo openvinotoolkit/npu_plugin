@@ -8,6 +8,14 @@ SinkOp(eltwiseType, 2, name)
 
 }
 
+mv::EltwiseOp::EltwiseOp(mv::json::Value& value) :
+ComputationOp(value),
+SourceOp(value),
+SinkOp(value)
+{
+
+}
+
 mv::EltwiseOp::~EltwiseOp()
 {
 

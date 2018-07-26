@@ -17,6 +17,8 @@ namespace mv
         public:
 
             Reshape(Shape outputShape, const string& name);
+            Reshape(mv::json::Value &obj);
+
             Tensor getOutputDef(byte_type idx);
 
         };

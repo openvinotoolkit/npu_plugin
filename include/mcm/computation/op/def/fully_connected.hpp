@@ -18,6 +18,8 @@ namespace mv
         public:
 
             FullyConnected(const string &name);
+            FullyConnected(mv::json::Value &obj);
+
             Tensor getOutputDef(byte_type idx);
 
         };

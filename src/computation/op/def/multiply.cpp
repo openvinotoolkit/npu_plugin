@@ -6,3 +6,10 @@ EltwiseOp(OpType::Multiply, name)
 {
     addAttr("executable", AttrType::BoolType, true);
 }
+
+mv::op::Multiply::Multiply(mv::json::Value& obj) :
+ComputationOp(obj),
+EltwiseOp(obj)
+{
+
+}

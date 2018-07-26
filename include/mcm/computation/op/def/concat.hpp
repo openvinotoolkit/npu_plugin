@@ -18,6 +18,8 @@ namespace mv
         public:
 
             Concat(const string &name);
+            Concat(mv::json::Value &obj);
+
             Tensor getOutputDef(byte_type idx);
 
         };

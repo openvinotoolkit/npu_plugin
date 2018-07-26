@@ -7,6 +7,13 @@ SinkOp(OpType::Output, 1, name)
     addAttr("executable", AttrType::BoolType, false);
 }
 
+mv::op::Output::Output(mv::json::Value& obj) :
+ComputationOp(obj),
+SinkOp(obj)
+{
+
+}
+
 bool mv::op::Output::setInputTensor(Data::TensorIterator &tensor, byte_type idx)
 {
 

@@ -9,6 +9,14 @@ SinkOp(OpType::Reshape, 1, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::Reshape::Reshape(mv::json::Value& obj) :
+ComputationOp(obj),
+SourceOp(obj),
+SinkOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::Reshape::getOutputDef(byte_type idx)
 {
     

@@ -12,6 +12,13 @@ SourceOp(OpType::Input, 1, name)
 
 }
 
+mv::op::Input::Input(mv::json::Value& obj) :
+ComputationOp(obj),
+SourceOp(obj)
+{
+
+}
+
 bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, byte_type idx)
 {
 

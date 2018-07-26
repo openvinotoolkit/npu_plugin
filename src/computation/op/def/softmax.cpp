@@ -6,3 +6,10 @@ ActivationOp(OpType::Softmax, name)
 {
     addAttr("executable", AttrType::BoolType, true);
 }
+
+mv::op::Softmax::Softmax(mv::json::Value& obj) :
+ComputationOp(obj),
+ActivationOp(obj)
+{
+
+}

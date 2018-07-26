@@ -61,7 +61,10 @@ errValue(0.0f),
 shape_(attributes_.at("shape").getContent<Shape>()),
 populated_(attributes_.at("populated").getContent<bool>())
 {
-
+    /*
+    if(populated_)
+        data_ = constructFloatVectorFromJson(v["data"]);
+    */
 }
 
 mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data) :
@@ -145,7 +148,11 @@ mv::string mv::Tensor::toString() const
 mv::json::Value mv::Tensor::toJsonValue() const
 {
     mv::json::Value v = ComputationElement::toJsonValue();
-    //TODO - handle populated tensors
+    //TODO - handle populated tensors better
+    /*
+    if(isPopulated())
+        v["data"] = mv::Jsonable::toJsonValue(data_);
+    */
     return v;
 }
 

@@ -17,6 +17,8 @@ namespace mv
         public:
 
             Bias(const string& name);
+            Bias(mv::json::Value &obj);
+
             Tensor getOutputDef(byte_type idx);
 
         };

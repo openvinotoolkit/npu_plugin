@@ -8,6 +8,14 @@ SinkOp(OpType::Conv2D, 2, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::Conv2D::Conv2D(mv::json::Value& obj) :
+ComputationOp(obj),
+KernelOp(obj),
+SinkOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::Conv2D::getOutputDef(byte_type idx)
 {
 

@@ -8,6 +8,14 @@ SinkOp(OpType::Bias, 2, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::Bias::Bias(mv::json::Value& obj) :
+ComputationOp(obj),
+SourceOp(obj),
+SinkOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::Bias::getOutputDef(byte_type idx)
 {
 

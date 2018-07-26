@@ -11,6 +11,21 @@ data_(data)
     addAttr("executable", AttrType::BoolType, false);
 }
 
+mv::json::Value mv::op::Constant::toJsonValue() const
+{
+    mv::json::Value toReturn = mv::ComputationOp::toJsonValue();
+    //toReturn["data"] = mv::Jsonable::toJsonValue(data_);
+    return toReturn;
+}
+
+mv::op::Constant::Constant(mv::json::Value& obj) :
+ComputationOp(obj),
+SourceOp(obj),
+data_(mv::Jsonable::constructFloatVectorFromJson(obj["data"]))
+{
+
+}
+
 mv::Tensor mv::op::Constant::getOutputDef(byte_type idx)
 {
     

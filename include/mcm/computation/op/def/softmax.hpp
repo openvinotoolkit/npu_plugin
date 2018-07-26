@@ -15,7 +15,8 @@ namespace mv
         public:
 
             Softmax(const string &name);
-            
+            Softmax(mv::json::Value &obj);
+
         };
 
     }

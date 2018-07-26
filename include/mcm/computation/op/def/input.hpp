@@ -15,6 +15,8 @@ namespace mv
         public:
 
             Input(Shape outputShape, DType dType, Order order, const string &name);
+            Input(mv::json::Value &obj);
+
             bool setOutputTensor(Data::TensorIterator &tensor, byte_type idx);
             Tensor getOutputDef(byte_type idx);
 

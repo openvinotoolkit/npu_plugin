@@ -15,9 +15,11 @@ namespace mv
         public:
 
             Output(const string &name);
+            Output(mv::json::Value &obj);
+
             bool setInputTensor(Data::TensorIterator &tensor, byte_type idx);
             Tensor getOutputDef(byte_type);
-            
+
         };
 
     }

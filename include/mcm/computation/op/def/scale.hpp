@@ -17,6 +17,8 @@ namespace mv
         public:
 
             Scale(const string &name);
+            Scale(mv::json::Value &obj);
+
             Tensor getOutputDef(byte_type idx);
 
         };

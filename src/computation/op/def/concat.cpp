@@ -8,6 +8,14 @@ SourceOp(OpType::Concat, 1, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::Concat::Concat(mv::json::Value& obj) :
+ComputationOp(obj),
+SinkOp(obj),
+SourceOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::Concat::getOutputDef(byte_type idx)
 {
     

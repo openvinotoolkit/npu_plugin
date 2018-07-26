@@ -8,6 +8,14 @@ SinkOp(OpType::Scale, 2, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::Scale::Scale(mv::json::Value& obj) :
+ComputationOp(obj),
+SourceOp(obj),
+SinkOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::Scale::getOutputDef(byte_type idx)
 {
     
