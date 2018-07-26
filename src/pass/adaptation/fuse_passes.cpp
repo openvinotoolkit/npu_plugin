@@ -133,7 +133,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
             {
 
                 auto scale = *opIt->getInputTensor(1);
-                parentOpIt->getInputTensor(1)->mulitply(scale);
+                parentOpIt->getInputTensor(1)->multiply(scale);
 
                 if (parentOpIt->hasAttr("bias"))
                 {
@@ -247,7 +247,7 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             {
                 if (parentOpIt->getOpType() == OpType::Conv2D)
                 {
-                    parentOpIt->getInputTensor(1)->mulitply(scaleParam);
+                    parentOpIt->getInputTensor(1)->multiply(scaleParam);
                     sourceTensor = parentOpIt->getOutputTensor(0);
                 }
                 else

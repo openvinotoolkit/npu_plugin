@@ -66,8 +66,12 @@ mv::string mv::Printable::toString(Order value)
 {
     switch (value)
     {
+        case Order::Planar:
+            return "Planar";
         case Order::ColumnMajor:
             return "ColumnMajor";
+        case Order::RowMajor:
+            return "RowMajor";
 
         default:
             return "unknown";

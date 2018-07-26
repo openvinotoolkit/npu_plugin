@@ -14,7 +14,7 @@ static void setPassReg()
                 " with undefined target");
         mv::OpModel om(model);
         om.clear();
-        om.input(mv::Shape(1), mv::DType::Unknown, mv::Order::LastDimMajor, "customInput");
+        om.input(mv::Shape(1), mv::DType::Unknown, mv::Order::ColumnMajor, "customInput");
         om.addAttr(om.getInput(), "test", mv::Attribute(mv::AttrType::BoolType, true));
 
     };
