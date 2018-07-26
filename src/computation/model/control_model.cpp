@@ -17,6 +17,13 @@ mv::Control::OpListIterator mv::ControlModel::getFirst()
    return opsGraph_->get_second_iterator(it);
 }
 
+mv::Control::OpListIterator mv::ControlModel::getLast()
+{
+   computation_graph::first_graph::node_list_iterator it = *output_;
+   return opsGraph_->get_second_iterator(it);
+}
+
+
 mv::Control::OpListIterator mv::ControlModel::opEnd()
 {
     return *controlOpEnd_;

@@ -12,29 +12,9 @@ import_array();
 
 %module composition_api
 %{
+    #include <include/mcm/compiler/compilation_unit.hpp>
     #include <include/mcm/computation/model/op_model.hpp>
-    #include <include/mcm/computation/model/control_model.hpp>
-    #include <include/mcm/computation/model/computation_model.hpp>
-    #include <include/mcm/pass/pass_registry.hpp>
     #include <math.h>
-
-    int serialize(mv::OpModel * test_cm){
-
-        mv::json::Object compDesc;
-        compDesc["GenerateBlob"]["output"] = std::string("cpp.blob");
-        mv::TargetDescriptor dummyTargDesc;
-        mv::json::Object compOutput;
-
-        mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
-        mv::pass::PassRegistry::instance().find("FuseBias")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
-        mv::pass::PassRegistry::instance().find("FuseScale")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
-        mv::pass::PassRegistry::instance().find("FuseRelu")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
-
-        // serialize compute model to file
-        mv::pass::PassRegistry::instance().find("GenerateBlob")->run(*test_cm, dummyTargDesc, compDesc, compOutput);
-        auto filesize = compDesc["GenerateBlob"]["blobSize"].get<long long>();
-        return filesize;   // Success, return filesize
-    }
 
     int testSWIG(){
         /// A simple test to ensure the connection between Python and C++ is working
@@ -42,10 +22,33 @@ import_array();
         return test;
     }
 
-    mv::OpModel * getOM(){
-        /// Get a blank OpModel
-        mv::OpModel *om = new mv::OpModel();
-        return om;
+    mv::CompilationUnit* getCompilationUnit()
+    {   
+
+        auto unit = new mv::CompilationUnit();
+        std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+        unit->targetDescriptor().load(targetDescPath);
+        
+        // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
+        unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
+        unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+        unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+        unit->compilationDescriptor()["GenerateDot"]["html"] = true;
+        unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
+        return unit;
+        
+    }
+
+    mv::OpModel* getModel(mv::CompilationUnit *unit)
+    {
+        return new mv::OpModel(unit->model());
+    }
+
+    int compile(mv::CompilationUnit *unit)
+    {
+        unit->initialize();
+        auto compOutput = unit->run();
+        return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
 
     mv::UnsignedVector2D * get2DVector(int x, int y){
@@ -284,7 +287,7 @@ import_array();
         return o->bias(input, bias_values);
     }
 
-    void produceDOT(mv::OpModel *o, const char* fileName){
+    /*void produceDOT(mv::OpModel *o, const char *fileName){
         mv::TargetDescriptor dummyTargetDesc;
         mv::json::Object compDesc;
         mv::json::Object compOutput;
@@ -296,7 +299,7 @@ import_array();
         mv::pass::PassRegistry::instance().find("GenerateDot")->run(*o, dummyTargetDesc, compDesc, compOutput);
         std::string cmd = "dot -Tsvg " + fileNameStr + ".dot -o " + fileNameStr + ".svg";
         system(cmd.c_str());
-    }
+    }*/
 
  %}
 
@@ -334,7 +337,9 @@ namespace mv
 }
 
 int testSWIG();
-mv::OpModel * getOM();
+mv::CompilationUnit* getCompilationUnit();
+mv::OpModel* getModel(mv::CompilationUnit *unit);
+int compile(mv::CompilationUnit *unit);
 mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
@@ -378,9 +383,6 @@ mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv
 mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
 
-void produceDOT(mv::OpModel *o, const char* fileName);
-
-
 int testConv(
     mv::Data::OpListIterator &target,
     int exp_strideX,
@@ -388,5 +390,3 @@ int testConv(
     int exp_padX,
     int exp_padY
 );
-
-int serialize(mv::OpModel * test_cm);
