@@ -37,7 +37,8 @@
 			"FuseScale",
 			"FuseBias",
 			"FuseScale",
-			"FuseBias"
+			"FuseBias",
+			"FullyConnectedAsConv2D"
 		],
 		
 		"finalize":
