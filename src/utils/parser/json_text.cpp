@@ -279,9 +279,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
     std::stack<json::Value*> jsonHierarchy;
     std::string lastKey;
 
-    auto currentSymbol = lexer_();
-
-    while(currentSymbol.first != JSONSymbol::EOFSymbol && currentSymbol.first != JSONSymbol::Invalid)
+    for(auto currentSymbol = lexer_(); currentSymbol.first != JSONSymbol::EOFSymbol && currentSymbol.first != JSONSymbol::Invalid; currentSymbol = lexer_())
     {
 
         if (currentSymbol.first == JSONSymbol::Invalid)
@@ -428,9 +426,6 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
             else
                 throw ParsingError("Incorrect right bracket");
         }
-
-        currentSymbol = lexer_();
-
     }
 
     if (!symbolStack.empty())
