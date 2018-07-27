@@ -34,12 +34,21 @@ void mv::pass::__generate_json_detail_::generateJsonFcn(ComputationModel& model,
     mv::json::Array tensors;
     mv::json::Array groups;
     //mv::json::Array stages;
-    mv::json::Array sourceOps;
+    mv::json::Object sourceOps;
     mv::json::Object opsCounters;
 
-    //Deploying graph object
+    //DEPLOYMENT
+    //Graph object
     OpModel opModel(model);
 
+    //Tensors and source operations
+    for (auto tensorIt = opModel.tensorBegin(); tensorIt != opModel.tensorEnd(); ++tensorIt)
+    {
+        tensors.append(mv::Jsonable::toJsonValue(*tensorIt));
+        sourceOps[tensorIt->getName()] = mv::Jsonable::toJsonValue(opModel.getSourceOp(tensorIt)->getName());
+    }
+
+    //Nodes and operation counters
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {
         nodes.append(mv::Jsonable::toJsonValue(*opIt));
@@ -58,14 +67,8 @@ void mv::pass::__generate_json_detail_::generateJsonFcn(ComputationModel& model,
         for (auto controlIt = opIt.leftmostOutput(); controlIt != controlModel.flowEnd(); ++controlIt)
             control_flows.append(mv::Jsonable::toJsonValue(*controlIt));
 
-    //Deploying tensors
-    for (auto tensorIt = opModel.tensorBegin(); tensorIt != opModel.tensorEnd(); ++tensorIt)
-    {
-        tensors.append(mv::Jsonable::toJsonValue(*tensorIt));
-        sourceOps.append(mv::Jsonable::toJsonValue(opModel.getSourceOp(tensorIt)->getName()));
-    }
 
-    //Deploying groups
+    //Groups
     for (auto groupIt = model.groupBegin(); groupIt != model.groupEnd(); ++groupIt)
         groups.append(mv::Jsonable::toJsonValue(*groupIt));
 
