@@ -7,6 +7,12 @@ ComputationFlow("cf_" + source->getName() + "_" + sink->getName())
     addAttr("sinkOp", AttrType::StringType, sink->getName());
 }
 
+mv::ControlFlow::ControlFlow(mv::json::Value &value):
+ComputationFlow(value)
+{
+
+}
+
 mv::string mv::ControlFlow::toString() const
 {
     return "control flow '" + name_ + "' " + ComputationElement::toString();

@@ -11,6 +11,12 @@ data_(data)
     addAttr("sinkInput", AttrType::ByteType, inputIdx);
 }
 
+mv::DataFlow::DataFlow(mv::json::Value &value):
+ComputationFlow(value)
+{
+
+}
+
 mv::Data::TensorIterator& mv::DataFlow::getTensor()
 {
     return data_;

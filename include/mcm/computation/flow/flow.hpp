@@ -13,6 +13,7 @@ namespace mv
     public:
 
         ComputationFlow(const string &name);
+        ComputationFlow(mv::json::Value& value);
         virtual ~ComputationFlow() = 0;
         virtual string toString() const;
 
