@@ -674,7 +674,7 @@ TEST (model_serializer, blob_convbias_convrelu)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2868LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2996LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_10.blob");
