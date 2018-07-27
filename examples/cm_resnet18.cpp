@@ -93,7 +93,7 @@ int main()
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet18
-    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::ColumnMajor);
+    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::Planar);
     auto conv1 = convBatchNormBlock(cm, input, mv::Shape(7, 7, 3, 64), {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -107,7 +107,7 @@ int main()
     auto res5b = residualBlock(cm, res5a);
     auto pool5 = cm.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::ColumnMajor);
+    auto weights = cm.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::Planar);
     auto fc1000 = cm.fullyConnected(pool5, weights);
     auto softmax = cm.softmax(fc1000);
     cm.output(softmax);
@@ -130,9 +130,9 @@ int main()
     // Run all passes
     unit.run();
 
-    system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
-    system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
-    system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
+    //system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+    //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
+    //system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
     return 0;
 
 }
