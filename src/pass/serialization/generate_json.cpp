@@ -29,7 +29,8 @@ void mv::pass::__generate_json_detail_::generateJsonFcn(ComputationModel& model,
     mv::json::Object computationModel; //The final object to stringify to ostream
     mv::json::Object graph;
     mv::json::Array nodes;
-    mv::json::Array edges;
+    mv::json::Array data_flows;
+    mv::json::Array control_flows;
     mv::json::Array tensors;
     mv::json::Array groups;
     //mv::json::Array stages;
@@ -49,13 +50,13 @@ void mv::pass::__generate_json_detail_::generateJsonFcn(ComputationModel& model,
     DataModel dataModel(model);
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
         for (auto dataIt = opIt.leftmostOutput(); dataIt != dataModel.flowEnd(); ++dataIt)
-            edges.append(mv::Jsonable::toJsonValue(*dataIt));
+            data_flows.append(mv::Jsonable::toJsonValue(*dataIt));
 
     //Control flows
     ControlModel controlModel(model);
     for (auto opIt = controlModel.getFirst(); opIt != controlModel.opEnd(); ++opIt)
         for (auto controlIt = opIt.leftmostOutput(); controlIt != controlModel.flowEnd(); ++controlIt)
-            edges.append(mv::Jsonable::toJsonValue(*controlIt));
+            control_flows.append(mv::Jsonable::toJsonValue(*controlIt));
 
     //Deploying tensors
     for (auto tensorIt = opModel.tensorBegin(); tensorIt != opModel.tensorEnd(); ++tensorIt)
@@ -75,7 +76,8 @@ void mv::pass::__generate_json_detail_::generateJsonFcn(ComputationModel& model,
     //TODO: Add jsonization for Memory Allocators (currently there is no iterator);
 
     graph["nodes"] = mv::json::Value(nodes);
-    graph["edges"] = mv::json::Value(edges);
+    graph["data_flows"] = mv::json::Value(data_flows);
+    graph["control_flows"] = mv::json::Value(data_flows);
     computationModel["graph"] = graph;
     computationModel["tensors"] = tensors;
     computationModel["groups"] = groups;
