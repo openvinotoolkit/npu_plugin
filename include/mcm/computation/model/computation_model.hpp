@@ -23,6 +23,10 @@ namespace mv
     private:
         void addOutputTensorsJson(Data::OpListIterator insertedOp);
         void addInputTensorsJson(Data::OpListIterator insertedOp);
+        mv::Data::OpListIterator addNodeFromJson(mv::json::Value& node);
+        void addControlFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
+        void addDataFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
+        void addGroupFromJson(mv::json::Value& group);
     protected:
 
         static allocator allocator_;
@@ -87,6 +91,7 @@ namespace mv
         ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, 
             bool logTime = false, bool defaultControlFlow = true);
 
+        ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime, mv::json::Object& model);
         /**
          * @brief Copy constructor performing shallow copy
          * 
