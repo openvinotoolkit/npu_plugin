@@ -1,5 +1,8 @@
-#include "include/mcm/pass/serialization/generate_json.hpp"
 #include "include/mcm/base/json/json.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
+
+void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -8,23 +11,23 @@ namespace mv
     {
 
         MV_REGISTER_PASS(GenerateJson)
-        .setFunc(__generate_json_detail_::generateJsonFcn)
+        .setFunc(generateJsonFcn)
         .setGenre({PassGenre::Validation, PassGenre::Serialization})
         .defineArg(json::JSONType::String, "output")
         .setDescription(
-            "Generates the json representation of computation model"
+            "Generates the JSON representation of computation model"
         );
 
     }
 
 }
 
-void mv::pass::__generate_json_detail_::generateJsonFcn(ComputationModel& model, TargetDescriptor&, json::Object& compDesc)
+void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
     std::ofstream ostream;
     ostream.open(compDesc["GenerateJson"]["output"].get<std::string>(), std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
-        throw ArgumentError("output", compDesc["GenerateJson"]["output"].get<std::string>(), "Unable to open output file");
+        throw mv::ArgumentError("output", compDesc["GenerateJson"]["output"].get<std::string>(), "Unable to open output file");
 
     mv::json::Value computationModel = model.toJsonValue();
     //NOTE: must become stringifypretty somehow

@@ -128,8 +128,8 @@ TEST(jsonable, memory_allocator)
 {
     mv::MemoryAllocator m("test_allocator", 2048);
     mv::Shape s(3, 3, 64);
-    mv::Tensor t("test_tensor", s, mv::DType::Float, mv::Order::LastDimMajor);
-    mv::Tensor t1("test_tensor1", s, mv::DType::Float, mv::Order::LastDimMajor);
+    mv::Tensor t("test_tensor", s, mv::DType::Float, mv::Order::ColumnMajor);
+    mv::Tensor t1("test_tensor1", s, mv::DType::Float, mv::Order::ColumnMajor);
 
     m.allocate(t, 0);
     m.allocate(t1, 0);
@@ -207,7 +207,7 @@ TEST(jsonable, computation_group)
 TEST(jsonable, tensor)
 {
     mv::Shape s(3, 3, 64);
-    mv::Tensor t("test_tensor", s, mv::DType::Float, mv::Order::LastDimMajor);
+    mv::Tensor t("test_tensor", s, mv::DType::Float, mv::Order::ColumnMajor);
     mv::json::Value v = mv::Jsonable::toJsonValue(t);
     std::string result(v.stringify());
     std::cout << result << std::endl;
