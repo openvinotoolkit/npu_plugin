@@ -26,7 +26,6 @@ namespace mv
         mv::Data::OpListIterator addNodeFromJson(mv::json::Value& node);
         void addControlFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
         void addDataFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
-        void addGroupFromJson(mv::json::Value& group);
     protected:
 
         static allocator allocator_;

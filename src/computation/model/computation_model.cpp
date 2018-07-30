@@ -172,11 +172,6 @@ void mv::ComputationModel::addDataFlowFromJson(mv::json::Value& data_flow, std::
     dataGraph_.edge_insert(addedOperations[source], addedOperations[target], d);
 }
 
-void mv::ComputationModel::addGroupFromJson(mv::json::Value& group)
-{
-
-}
-
 void mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
 {
     mv::ControlFlow d(control_flow);
@@ -229,13 +224,6 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     for(unsigned i = 0; i < control_flows.size(); ++i)
     {
         addControlFlowFromJson(control_flows[i], addedOperations);
-    }
-
-    // GROUPS
-    mv::json::Value groups = model["groups"];
-    for(unsigned i = 0; i < groups.size(); ++i)
-    {
-        addGroupFromJson(groups[i]);
     }
 
     // OPS COUNTERS
