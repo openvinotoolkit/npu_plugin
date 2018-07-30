@@ -50,14 +50,6 @@ mv::json::Value mv::Jsonable::toJsonValue(Order value)
     return mv::json::Value(mv::orderStrings.at(value));
 }
 
-mv::json::Value mv::Jsonable::toJsonValue(const mv::dynamic_vector<float> &value)
-{
-    mv::json::Array a;
-    for(auto x = value.begin(); x != value.end(); ++x)
-        a.append(mv::Jsonable::toJsonValue(*x));
-    return mv::json::Value(a);
-}
-
 mv::json::Value mv::Jsonable::toJsonValue(AttrType value)
 {
     return mv::json::Value(mv::attrTypeStrings.at(value));

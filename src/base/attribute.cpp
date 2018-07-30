@@ -145,11 +145,14 @@ mv::json::Value mv::Attribute::getContentJson() const
         case AttrType::FloatVecType:
             return Jsonable::toJsonValue(getContent<mv::dynamic_vector<float_type>>());
 
-        default:
-            return "unknown";
+        case AttrType::StringVecType:
+            return Jsonable::toJsonValue(getContent<mv::dynamic_vector<string>>());
 
+        case AttrType::UnknownType:
+            return Jsonable::toJsonValue(false);
     }
 
+    return Jsonable::toJsonValue(false);
 }
 
 mv::string mv::Attribute::getContentStr() const

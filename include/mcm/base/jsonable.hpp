@@ -28,7 +28,6 @@ namespace mv
         static json::Value toJsonValue(bool value);
         static json::Value toJsonValue(DType value);
         static json::Value toJsonValue(Order value);
-        static json::Value toJsonValue(const mv::dynamic_vector<float> &value);
         static json::Value toJsonValue(AttrType value);
         static json::Value toJsonValue(OpType value);
         static json::Value toJsonValue(const string &value);
@@ -87,6 +86,15 @@ namespace mv
             arr.append(Jsonable::toJsonValue(value.e3));
 
             return json::Value(arr);
+        }
+
+        template <class T>
+        static json::Value toJsonValue(mv::dynamic_vector<T> value)
+        {
+            mv::json::Array a;
+            for(auto x = value.begin(); x != value.end(); ++x)
+                a.append(mv::Jsonable::toJsonValue(*x));
+            return mv::json::Value(a);
         }
 
     };
