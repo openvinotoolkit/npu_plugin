@@ -149,7 +149,7 @@ namespace mv
 
         Attribute();
         ~Attribute();
-        Attribute(mv::json::Value& value);
+        static Attribute JsonAttributeFactory(mv::json::Value& value);
         AttrType getType() const;
         string toString() const;
         mv::json::Value toJsonValue() const;

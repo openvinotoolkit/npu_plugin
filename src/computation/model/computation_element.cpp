@@ -18,7 +18,7 @@ mv::ComputationElement::ComputationElement(mv::json::Value& value)
     mv::json::Value attributes = value["attributes"];
     std::vector<std::string> keys(attributes.getKeys());
     for(unsigned_type i = 0; i < keys.size(); ++i)
-        addAttr(keys[i], mv::Attribute(attributes[keys[i]]));
+        addAttr(keys[i], mv::Attribute::JsonAttributeFactory(attributes[keys[i]]));
 
 }
 

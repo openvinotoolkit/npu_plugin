@@ -15,96 +15,56 @@ attrType_(AttrType::UnknownType)
 
 }
 
-mv::Attribute::Attribute(mv::json::Value& value)
+mv::Attribute mv::Attribute::JsonAttributeFactory(mv::json::Value& value)
 {
     string attributeType = constructStringFromJson(value["attrType"]);
     mv::AttrType attr = mv::attrTypeStringsReversed.at(attributeType);
-    switch (attr) {
-    case mv::AttrType::ByteType:
-        attrType_ = mv::AttrType::ByteType;
-        content_ = allocator_.make_owner<AttributeContent<byte_type>>(constructByteTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::BoolType:
-        attrType_ = mv::AttrType::BoolType;
-        content_ = allocator_.make_owner<AttributeContent<bool>>(constructBoolTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::UnsignedType:
-        attrType_ = mv::AttrType::UnsignedType;
-        content_ = allocator_.make_owner<AttributeContent<unsigned_type>>(constructUnsignedTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::IntegerType:
-        attrType_ = mv::AttrType::IntegerType;
-        content_ = allocator_.make_owner<AttributeContent<int_type>>(constructIntTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::FloatType:
-        attrType_ = mv::AttrType::FloatType;
-        content_ = allocator_.make_owner<AttributeContent<float_type>>(constructFloatTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::DTypeType:
-        attrType_ = mv::AttrType::DTypeType;
-        content_ = allocator_.make_owner<AttributeContent<DType>>(constructDTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::OrderType:
-        attrType_ = mv::AttrType::OrderType;
-        content_ = allocator_.make_owner<AttributeContent<Order>>(constructOrderTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::ShapeType:
-        attrType_ = mv::AttrType::ShapeType;
-        content_ = allocator_.make_owner<AttributeContent<Shape>>(Shape(value["content"]));
-        break;
-    case mv::AttrType::StringType:
-        attrType_ = mv::AttrType::StringType;
-        content_ = allocator_.make_owner<AttributeContent<string>>(constructStringFromJson(value["content"]));
-        break;
-    case mv::AttrType::OpTypeType:
-        attrType_ = mv::AttrType::OpTypeType;
-        content_ = allocator_.make_owner<AttributeContent<OpType>>(constructOpTypeFromJson(value["content"]));
-        break;
-    case mv::AttrType::FloatVec2DType:
-        attrType_ = mv::AttrType::FloatVec2DType;
-        content_ = allocator_.make_owner<AttributeContent<FloatVector2D>>(constructFloatVector2DFromJson(value["content"]));
-        break;
-    case mv::AttrType::FloatVec3DType:
-        attrType_ = mv::AttrType::FloatVec3DType;
-        content_ = allocator_.make_owner<AttributeContent<FloatVector3D>>(constructFloatVector3DFromJson(value["content"]));
-        break;
-    case mv::AttrType::FloatVec4DType:
-        attrType_ = mv::AttrType::FloatVec4DType;
-        content_ = allocator_.make_owner<AttributeContent<FloatVector4D>>(constructFloatVector4DFromJson(value["content"]));
-        break;
-    case mv::AttrType::IntVec2DType:
-        attrType_ = mv::AttrType::IntVec2DType;
-        content_ = allocator_.make_owner<AttributeContent<IntVector2D>>(constructIntVector2DFromJson(value["content"]));
-        break;
-    case mv::AttrType::IntVec3DType:
-        attrType_ = mv::AttrType::IntVec3DType;
-        content_ = allocator_.make_owner<AttributeContent<IntVector3D>>(constructIntVector3DFromJson(value["content"]));
-        break;
-    case mv::AttrType::IntVec4DType:
-        attrType_ = mv::AttrType::IntVec4DType;
-        content_ = allocator_.make_owner<AttributeContent<IntVector4D>>(constructIntVector4DFromJson(value["content"]));
-        break;
-    case mv::AttrType::UnsignedVec2DType:
-        attrType_ = mv::AttrType::UnsignedVec2DType;
-        content_ = allocator_.make_owner<AttributeContent<UnsignedVector2D>>(constructUnsignedVector2DFromJson(value["content"]));
-        break;
-    case mv::AttrType::UnsignedVec3DType:
-        attrType_ = mv::AttrType::UnsignedVec3DType;
-        content_ = allocator_.make_owner<AttributeContent<UnsignedVector3D>>(constructUnsignedVector3DFromJson(value["content"]));
-        break;
-    case mv::AttrType::UnsignedVec4DType:
-        attrType_ = mv::AttrType::UnsignedVec4DType;
-        content_ = allocator_.make_owner<AttributeContent<UnsignedVector4D>>(constructUnsignedVector4DFromJson(value["content"]));
-        break;
-        /*
-    case mv::AttrType::FloatVecType:
-        attrType_ = mv::AttrType::FloatVecType;
-        content_ = allocator_.make_owner<AttributeContent<mv::dynamic_vector<float_type>>(constructFloatVectorFromJson(value["content"]));
-        break;
-        */
-    default:
-        break;
+    switch (attr)
+    {
+        case mv::AttrType::ByteType:
+            return Attribute(mv::AttrType::ByteType, constructByteTypeFromJson(value["content"]));
+        case mv::AttrType::BoolType:
+            return Attribute(mv::AttrType::BoolType, constructBoolTypeFromJson(value["content"]));
+        case mv::AttrType::UnsignedType:
+            return Attribute(mv::AttrType::UnsignedType, constructUnsignedTypeFromJson(value["content"]));
+        case mv::AttrType::IntegerType:
+            return Attribute(mv::AttrType::IntegerType, constructIntTypeFromJson(value["content"]));
+        case mv::AttrType::FloatType:
+            return Attribute(mv::AttrType::FloatType, constructFloatTypeFromJson(value["content"]));
+        case mv::AttrType::DTypeType:
+            return Attribute(mv::AttrType::DTypeType, constructDTypeFromJson(value["content"]));
+        case mv::AttrType::OrderType:
+            return Attribute(mv::AttrType::OrderType, constructOrderTypeFromJson(value["content"]));
+        case mv::AttrType::ShapeType:
+            return Attribute(mv::AttrType::ShapeType, Shape(value["content"]));
+        case mv::AttrType::StringType:
+            return Attribute(mv::AttrType::StringType, constructStringFromJson(value["content"]));
+        case mv::AttrType::OpTypeType:
+            return Attribute(mv::AttrType::OpTypeType, constructOpTypeFromJson(value["content"]));
+        case mv::AttrType::FloatVec2DType:
+            return Attribute(mv::AttrType::FloatVec2DType, constructFloatVector2DFromJson(value["content"]));
+        case mv::AttrType::FloatVec3DType:
+            return Attribute(mv::AttrType::FloatVec3DType, constructFloatVector3DFromJson(value["content"]));
+        case mv::AttrType::FloatVec4DType:
+            return Attribute(mv::AttrType::FloatVec4DType, constructFloatVector4DFromJson(value["content"]));
+        case mv::AttrType::IntVec2DType:
+            return Attribute(mv::AttrType::IntVec2DType, constructIntVector2DFromJson(value["content"]));
+        case mv::AttrType::IntVec3DType:
+            return Attribute(mv::AttrType::IntVec3DType, constructIntVector3DFromJson(value["content"]));
+        case mv::AttrType::IntVec4DType:
+            return Attribute(mv::AttrType::IntVec4DType, constructIntVector4DFromJson(value["content"]));
+        case mv::AttrType::UnsignedVec2DType:
+            return Attribute(mv::AttrType::UnsignedVec2DType, constructUnsignedVector2DFromJson(value["content"]));
+        case mv::AttrType::UnsignedVec3DType:
+            return Attribute(mv::AttrType::UnsignedVec3DType, constructUnsignedVector3DFromJson(value["content"]));
+        case mv::AttrType::UnsignedVec4DType:
+            return Attribute(mv::AttrType::UnsignedVec4DType, constructUnsignedVector4DFromJson(value["content"]));
+        case mv::AttrType::FloatVecType:
+            return Attribute(mv::AttrType::FloatVecType, constructFloatVectorFromJson(value["content"]));
+        case mv::AttrType::UnknownType:
+            return Attribute(mv::AttrType::UnknownType, nullptr);
     }
+    return Attribute(mv::AttrType::UnknownType, nullptr);
 }
 
 mv::Attribute::~Attribute()

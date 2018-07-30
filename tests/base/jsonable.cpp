@@ -64,10 +64,10 @@ TEST(jsonable, attribute1)
     mv::json::Value v = mv::Jsonable::toJsonValue(att);
     std::string result(v.stringify());
     ASSERT_EQ(result, "{\"attrType\":\"dtype\",\"content\":\"Float\"}");
-    mv::Attribute att2(v);
+    mv::Attribute att2 = mv::Attribute::JsonAttributeFactory(v);
     mv::json::Value v2 = mv::Jsonable::toJsonValue(att2);
     std::string result2(v2.stringify());
-    std::cout << result2 << std::endl;
+    //std::cout << result2 << std::endl;
     ASSERT_EQ(result, result2);
 }
 
@@ -82,10 +82,10 @@ TEST(jsonable, attribute2)
     mv::json::Value v = mv::Jsonable::toJsonValue(att);
     std::string result(v.stringify());
     std::cout << result << std::endl;
-    mv::Attribute att2(v);
+    mv::Attribute att2 = mv::Attribute::JsonAttributeFactory(v);
     mv::json::Value v2 = mv::Jsonable::toJsonValue(att2);
     std::string result2(v2.stringify());
-    std::cout << result2 << std::endl;
+    //std::cout << result2 << std::endl;
     ASSERT_EQ(result, result2);
 }
 
@@ -94,11 +94,11 @@ TEST(jsonable, attribute_bool)
     mv::Attribute att(mv::AttrType::BoolType, true);
     mv::json::Value v = mv::Jsonable::toJsonValue(att);
     std::string result(v.stringify());
-    std::cout << result << std::endl;
-    mv::Attribute att2(v);
+    //std::cout << result << std::endl;
+    mv::Attribute att2 = mv::Attribute::JsonAttributeFactory(v);
     mv::json::Value v2 = mv::Jsonable::toJsonValue(att2);
     std::string result2(v2.stringify());
-    std::cout << result2 << std::endl;
+    //std::cout << result2 << std::endl;
     ASSERT_EQ(result, result2);
 }
 

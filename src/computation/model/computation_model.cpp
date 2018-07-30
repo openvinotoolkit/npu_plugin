@@ -61,7 +61,7 @@ void mv::ComputationModel::addInputTensorsJson(Data::OpListIterator insertedOp)
 
 mv::Data::OpListIterator mv::ComputationModel::addNodeFromJson(mv::json::Value& node)
 {
-    Attribute opTypeAttr(node["attributes"]["opType"]);
+    Attribute opTypeAttr = mv::Attribute::JsonAttributeFactory(node["attributes"]["opType"]);
     OpType opType = opTypeAttr.getContent<OpType>();
     mv::Data::OpListIterator toReturn;
 
