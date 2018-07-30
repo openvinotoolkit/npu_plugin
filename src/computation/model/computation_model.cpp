@@ -188,7 +188,7 @@ void mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow,
     controlGraph_.edge_insert(opsGraph_->get_second_iterator(addedOperations[source]), opsGraph_->get_second_iterator(addedOperations[target]), d);
 }
 
-mv::ComputationModel::ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime, mv::json::Object &model):
+mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLevel verboseLevel, bool logTime):
     ComputationModel(verboseLevel, logTime)
 {
     defaultControlFlow_ = new bool(mv::Jsonable::constructBoolTypeFromJson(model["default_control_flow"]));
@@ -633,4 +633,67 @@ bool mv::ComputationModel::getDefaultControlFlow() const
 void mv::ComputationModel::setLogger(Logger &logger)
 {
     logger_ = logger;
+}
+mv::json::Value mv::ComputationModel::toJsonValue() const
+{
+    mv::json::Object computationModel;
+    mv::json::Object graph;
+    mv::json::Array nodes;
+    mv::json::Array data_flows;
+    mv::json::Array control_flows;
+    mv::json::Array tensors;
+    mv::json::Array groups;
+    mv::json::Array stages;
+    mv::json::Object memory_allocators;
+    mv::json::Object sourceOps;
+    mv::json::Object opsCounters;
+
+    //Tensors and source operations
+    for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
+        tensors.append(mv::Jsonable::toJsonValue(*(tensorIt->second)));
+
+    //Nodes and operation counters
+    for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
+        nodes.append(mv::Jsonable::toJsonValue(**opIt));
+
+    //Data flows
+    for (auto dataIt = dataGraph_.edge_begin(); dataIt != dataGraph_.edge_end(); ++dataIt)
+        data_flows.append(mv::Jsonable::toJsonValue(**dataIt));
+
+    //Control flows
+    for (auto controlIt = controlGraph_.edge_begin(); controlIt != controlGraph_.edge_end(); ++controlIt)
+        control_flows.append(mv::Jsonable::toJsonValue(**controlIt));
+
+    //Groups
+    for (auto groupIt = groups_->begin(); groupIt != groups_->end(); ++groupIt)
+        groups.append(mv::Jsonable::toJsonValue(*groupIt->second));
+
+    //Deploying stages (Waiting for Stanislaw proper implementation)
+    //for (auto stagesIt = stages_->begin(); stagesIt != stages_->end(); ++stagesIt)
+        //stages.append(mv::Jsonable::toJsonValue(*stagesIt->second));
+
+    //Operations counters
+    for (auto opsCounterIt = opsCounter_->begin(); opsCounterIt != opsCounter_->end(); ++opsCounterIt)
+        opsCounters[opsStrings.at(opsCounterIt->first)] = mv::Jsonable::toJsonValue(opsCounterIt->second);
+
+    //Source ops counters: NOTE: why there are some null pointers?
+    for (auto sourceOpsIt = tensorsSources_->begin(); sourceOpsIt != tensorsSources_->end(); ++sourceOpsIt)
+        sourceOps[sourceOpsIt->first] = mv::Jsonable::toJsonValue(sourceOpsIt->second);
+
+    //Memory Allocators
+    for (auto memoryAllocatorIt = memoryAllocators_->begin(); memoryAllocatorIt != memoryAllocators_->end(); ++memoryAllocatorIt)
+        memory_allocators[memoryAllocatorIt->first] = mv::Jsonable::toJsonValue(*memoryAllocatorIt->second);
+
+    graph["nodes"] = mv::json::Value(nodes);
+    graph["data_flows"] = mv::json::Value(data_flows);
+    graph["control_flows"] = mv::json::Value(control_flows);
+    computationModel["graph"] = graph;
+    computationModel["tensors"] = tensors;
+    computationModel["groups"] = groups;
+    computationModel["stages"] = stages;
+    computationModel["source_ops"] = sourceOps;
+    computationModel["memory_allocators"] = memory_allocators;
+    computationModel["default_control_flow"] = mv::Jsonable::toJsonValue(getDefaultControlFlow());
+    computationModel["operations_counters"] = opsCounters;
+    return mv::json::Value(computationModel);
 }

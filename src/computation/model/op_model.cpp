@@ -6,6 +6,12 @@ ComputationModel(verboseLevel, logTime)
 
 }
 
+mv::OpModel::OpModel(mv::json::Value& value, Logger::VerboseLevel verboseLevel, bool logTime) :
+ComputationModel(value, verboseLevel, logTime)
+{
+
+}
+
 mv::OpModel::OpModel(const ComputationModel& other) :
 ComputationModel(other)
 {

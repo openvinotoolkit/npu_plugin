@@ -18,7 +18,7 @@
 namespace mv
 {
 
-    class ComputationModel
+    class ComputationModel : public Jsonable
     {
     private:
         void addOutputTensorsJson(Data::OpListIterator insertedOp);
@@ -91,7 +91,8 @@ namespace mv
         ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, 
             bool logTime = false, bool defaultControlFlow = true);
 
-        ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime, mv::json::Object& model);
+        ComputationModel(mv::json::Value& model, Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
+
         /**
          * @brief Copy constructor performing shallow copy
          * 
@@ -135,7 +136,7 @@ namespace mv
 
         static Logger& logger();
         static void setLogger(Logger &logger);
-
+        json::Value toJsonValue() const;
     };
 
 }
