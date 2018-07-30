@@ -21,5 +21,5 @@ make -j8
 ```
 cd mcmCompiler
 cd build/examples
-./cm_resnet18
+./cm_resnet50
 ```

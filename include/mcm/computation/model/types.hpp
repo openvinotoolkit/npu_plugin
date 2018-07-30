@@ -54,19 +54,25 @@ namespace mv
 
     enum class Order
     {
-        LastDimMajor,
+        ColumnMajor,
+        RowMajor,
+        Planar,
         Unknown
     };
 
     const std::map<Order, string> orderStrings
     {
-        {Order::LastDimMajor, "LastDimMajor"},
+        {Order::ColumnMajor, "ColumnMajor"},
+        {Order::RowMajor, "RowMajor"},
+        {Order::Planar, "Planar"},
         {Order::Unknown, "Unknown"}
     };
 
     const std::map<string, Order> orderStringsReversed
     {
-        {"LastDimMajor", Order::LastDimMajor},
+        {"ColumnMajor", Order::ColumnMajor},
+        {"RowMajor", Order::RowMajor},
+        {"Planar", Order::Planar},
         {"Unknown", Order::Unknown}
     };
 
@@ -111,7 +117,8 @@ namespace mv
         UnsignedVec2DType,
         UnsignedVec3DType,
         UnsignedVec4DType,
-        FloatVecType
+        FloatVecType,
+        StringVecType
 
     };
 

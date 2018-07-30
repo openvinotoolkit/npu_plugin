@@ -6,7 +6,7 @@ mv::DefaultLogger mv::ComputationModel::defaultLogger_;
 mv::Logger &mv::ComputationModel::logger_ = mv::ComputationModel::defaultLogger_;
 
 
-mv::ComputationModel::ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime, bool defaultControlFlow) :
+mv::ComputationModel::ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime) :
 opsGraph_(allocator_.make_owner<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
@@ -21,9 +21,7 @@ dataFlowEnd_(new Data::FlowListIterator(dataGraph_.edge_end())),
 controlOpEnd_(new Control::OpListIterator(controlGraph_.node_end())),
 controlFlowEnd_(new Control::FlowListIterator(controlGraph_.edge_end())),
 input_(new Data::OpListIterator(*dataOpEnd_)),
-output_(new Data::OpListIterator(*dataOpEnd_)),
-lastOp_(new Control::OpListIterator()),
-defaultControlFlow_(new bool(defaultControlFlow))
+output_(new Data::OpListIterator(*dataOpEnd_))
 /*dataOpEnd_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
 controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
@@ -191,8 +189,6 @@ void mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow,
 mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLevel verboseLevel, bool logTime):
     ComputationModel(verboseLevel, logTime)
 {
-    defaultControlFlow_ = new bool(mv::Jsonable::constructBoolTypeFromJson(model["default_control_flow"]));
-
     //Utility structure to store Name -> Operation iterator mapping
     std::map<string, Data::OpListIterator> addedOperations;
 
@@ -268,9 +264,7 @@ dataFlowEnd_(other.dataFlowEnd_),
 controlOpEnd_(other.controlOpEnd_),
 controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
-output_(other.output_),
-lastOp_(other.lastOp_),
-defaultControlFlow_(other.defaultControlFlow_)
+output_(other.output_)
 {
 
 }
@@ -290,7 +284,7 @@ mv::ComputationModel::~ComputationModel()
 
 bool mv::ComputationModel::isValid() const
 {
-    return !dataGraph_.disjoint() && *input_ != *dataOpEnd_ && *output_ != *dataOpEnd_ && checkOpsStages_();
+    return !dataGraph_.disjoint() && *input_ != *dataOpEnd_ && *output_ != *dataOpEnd_;
 }
 
 bool mv::ComputationModel::isValid(const Data::TensorIterator &it) const
@@ -392,7 +386,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(allocato
 {
     if (group != groupEnd())
     {
-        auto result = group->addElement(element);
+        auto result = group->insert(element);
         if (result != group->end())
         {
             logger_.log(Logger::MessageType::MessageInfo, "Appended new member '" + (*result)->getName() + "' to group '" + group->getName() + "'");
@@ -404,17 +398,17 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(allocato
     
 }
 
-bool mv::ComputationModel::removeGroupElement_(allocator::owner_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group)
+bool mv::ComputationModel::removeGroupElement_(allocator::access_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group)
 {
 
     if (group != groupEnd())
     {
 
-        GroupContext::MemberIterator it = group->find(element);
+        GroupContext::MemberIterator it = group->find(*element);
 
         if (it != memberEnd(group))
         {
-            return group->removeElement(it);
+            return group->erase(it);
         }
 
     }
@@ -453,7 +447,7 @@ bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpLi
     if (stage)
     {
         allocator::owner_ptr<ComputationOp> ptr = op;
-        auto result = stage->addElement(ptr);
+        auto result = stage->insert(ptr);
 
         if (result != stage->end())
         {
@@ -589,46 +583,14 @@ void mv::ComputationModel::clear()
     *controlFlowEnd_ = controlGraph_.edge_end();
     *input_ = *dataOpEnd_;
     *output_ = *dataOpEnd_;
-    *lastOp_ = controlGraph_.node_end();
     dataGraph_.clear();
     controlGraph_.clear();
 }
 
-void mv::ComputationModel::disableDefaultControlFlow()
-{
-    *defaultControlFlow_ = false;
-}
-
-bool mv::ComputationModel::enableDefaultControlFlow(Control::OpListIterator lastOp)
-{
-    
-    if (!isValid(lastOp))
-        return false;
-
-    *lastOp_ = lastOp;
-    *defaultControlFlow_ = true;
-
-    return true;
-
-}
-
-bool mv::ComputationModel::enableDefaultControlFlow(Data::OpListIterator lastOp)
-{
-    return enableDefaultControlFlow(opsGraph_->get_second_iterator(lastOp));
-}
-
 mv::Logger &mv::ComputationModel::logger()
 {
-
     return logger_;
-
 }
-
-bool mv::ComputationModel::getDefaultControlFlow() const
-{
-    return defaultControlFlow_;
-}
-
 
 void mv::ComputationModel::setLogger(Logger &logger)
 {
@@ -693,7 +655,6 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     computationModel["stages"] = stages;
     computationModel["source_ops"] = sourceOps;
     computationModel["memory_allocators"] = memory_allocators;
-    computationModel["default_control_flow"] = mv::Jsonable::toJsonValue(getDefaultControlFlow());
     computationModel["operations_counters"] = opsCounters;
     return mv::json::Value(computationModel);
 }

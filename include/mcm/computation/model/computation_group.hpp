@@ -1,6 +1,7 @@
 #ifndef GROUP_HPP_
 #define GROUP_HPP_
 
+#include <algorithm>
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/model/computation_element.hpp"
 
@@ -21,15 +22,16 @@ namespace mv
     public:
 
         ComputationGroup(const string &name);
-        bool removeElement(MemberSet::iterator &member);
-        void removeAllElements();
+        bool erase(MemberSet::iterator &member);
+        void clear();
         MemberSet::iterator begin();
         MemberSet::iterator end();
+        std::size_t size() const;
         virtual string toString() const;
         mv::json::Value toJsonValue() const;
 
         template <class ElementType>
-        MemberSet::iterator addElement(allocator::owner_ptr<ElementType> newMember)
+        MemberSet::iterator insert(allocator::owner_ptr<ElementType> newMember)
         {
             
             if (markMembmer_(*newMember))
@@ -49,9 +51,12 @@ namespace mv
         }
 
         template <class ElementType>
-        MemberSet::iterator find(allocator::owner_ptr<ElementType> &member)
-        {
-            return members_.find(member);
+        MemberSet::iterator find(ElementType& member)
+        {   
+            for (auto it = members_.begin(); it != members_.end(); ++it)
+                if (**it == member)
+                    return it;
+            return members_.end();
         }
         
     };

@@ -13,12 +13,12 @@ namespace mv
         class NumberInteger : public detail::ValueContent
         {
 
-            int value_;
+            long long value_;
 
         public:
 
-            NumberInteger(int value);
-            explicit operator int&() override;
+            NumberInteger(long long value);
+            explicit operator long long&() override;
             std::string stringify() const override;
 
         };  

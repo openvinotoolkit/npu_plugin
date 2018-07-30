@@ -56,6 +56,7 @@ namespace mv
         static UnsignedVector3D constructUnsignedVector3DFromJson(mv::json::Value &v);
         static UnsignedVector4D constructUnsignedVector4DFromJson(mv::json::Value &v);
         static mv::dynamic_vector<float_type> constructFloatVectorFromJson(mv::json::Value &v);
+        static mv::dynamic_vector<mv::string> constructStringVectorFromJson(mv::json::Value &v);
 
         template <class T>
         static json::Value toJsonValue(Vector2D<T> value)

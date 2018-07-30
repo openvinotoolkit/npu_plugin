@@ -36,15 +36,17 @@ bool mv::CompilationUnit::initialize()
     return passManager_.initialize(*model_, targetDescriptor_, compilationDescriptor_);
 }
 
-std::pair<std::string, mv::PassGenre> mv::CompilationUnit::runStep()
+mv::json::Object mv::CompilationUnit::runStep()
 {
     return passManager_.step();
 }
 
-void mv::CompilationUnit::run()
+mv::json::Object mv::CompilationUnit::run()
 {
+    json::Object output;
     while (!passManager_.completed())
-        passManager_.step();
+        output = passManager_.step();
+    return output;
 }
 
 bool mv::CompilationUnit::completed() const

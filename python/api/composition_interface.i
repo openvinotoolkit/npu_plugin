@@ -12,29 +12,9 @@ import_array();
 
 %module composition_api
 %{
+    #include <include/mcm/compiler/compilation_unit.hpp>
     #include <include/mcm/computation/model/op_model.hpp>
-    #include <include/mcm/computation/model/control_model.hpp>
-    #include <include/mcm/computation/model/computation_model.hpp>
-    #include <include/mcm/pass/adaptation/fuse_passes.hpp>
-    #include <include/mcm/pass/serialization/generate_blob.hpp>
-    #include <include/mcm/pass/validation/generate_dot.hpp>
     #include <math.h>
-
-    int serialize(mv::OpModel * test_cm){
-
-        mv::json::Object compDesc;
-        compDesc["GenerateBlob"]["output"] = std::string("cpp.blob");
-        mv::TargetDescriptor dummyTargDesc;
-
-        mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(*test_cm, dummyTargDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseBiasFcn(*test_cm, dummyTargDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseScaleFcn(*test_cm, dummyTargDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseReluFcn(*test_cm, dummyTargDesc, compDesc);
-
-        // serialize compute model to file
-        uint64_t filesize = mv::pass::__generate_blob_detail_::__debug_generateBlobFcn_(*test_cm, dummyTargDesc, compDesc);
-        return filesize;   // Success, return filesize
-    }
 
     int testSWIG(){
         /// A simple test to ensure the connection between Python and C++ is working
@@ -42,10 +22,33 @@ import_array();
         return test;
     }
 
-    mv::OpModel * getOM(){
-        /// Get a blank OpModel
-        mv::OpModel *om = new mv::OpModel();
-        return om;
+    mv::CompilationUnit* getCompilationUnit()
+    {   
+
+        auto unit = new mv::CompilationUnit();
+        std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+        unit->targetDescriptor().load(targetDescPath);
+        
+        // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
+        unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
+        unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+        unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+        unit->compilationDescriptor()["GenerateDot"]["html"] = true;
+        unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
+        return unit;
+        
+    }
+
+    mv::OpModel* getModel(mv::CompilationUnit *unit)
+    {
+        return new mv::OpModel(unit->model());
+    }
+
+    int compile(mv::CompilationUnit *unit)
+    {
+        unit->initialize();
+        auto compOutput = unit->run();
+        return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
 
     mv::UnsignedVector2D * get2DVector(int x, int y){
@@ -122,7 +125,7 @@ import_array();
 
     mv::Data::TensorIterator input(mv::OpModel *o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o->input(shape, mv::DType::Float, mv::Order::LastDimMajor);
+        return o->input(shape, mv::DType::Float, mv::Order::Planar);
     }
 
     mv::Data::TensorIterator output(mv::OpModel *o, mv::Data::TensorIterator input){
@@ -206,7 +209,7 @@ import_array();
 
     mv::Data::TensorIterator constant(mv::OpModel *o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the OpModel and return the relevant iterator
-        return o->constant(data, shape, mv::DType::Float, mv::Order::LastDimMajor);
+        return o->constant(data, shape, mv::DType::Float, mv::Order::Planar);
     }
 
     mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor){
@@ -284,20 +287,19 @@ import_array();
         return o->bias(input, bias_values);
     }
 
-    void produceDOT(mv::OpModel *o){
+    /*void produceDOT(mv::OpModel *o, const char *fileName){
         mv::TargetDescriptor dummyTargetDesc;
         mv::json::Object compDesc;
-        compDesc["GenerateDot"]["output"] = std::string("pycm.dot");
+        mv::json::Object compOutput;
+        std::string fileNameStr(fileName);
+        compDesc["GenerateDot"]["output"] = fileNameStr + ".dot";
         compDesc["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
         compDesc["GenerateDot"]["content"] = std::string("full");
         compDesc["GenerateDot"]["html"] = true;
-        mv::pass::__fuse_pass_detail_::fuseBatchNormFcn(*o, dummyTargetDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseBiasFcn(*o, dummyTargetDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseScaleFcn(*o, dummyTargetDesc, compDesc);
-        mv::pass::__fuse_pass_detail_::fuseReluFcn(*o, dummyTargetDesc, compDesc);
-        mv::pass::__generate_dot_detail_::generateDotFcn(*o, dummyTargetDesc, compDesc);
-        system("dot -Tsvg pycm.dot -o pycm.svg");
-    }
+        mv::pass::PassRegistry::instance().find("GenerateDot")->run(*o, dummyTargetDesc, compDesc, compOutput);
+        std::string cmd = "dot -Tsvg " + fileNameStr + ".dot -o " + fileNameStr + ".svg";
+        system(cmd.c_str());
+    }*/
 
  %}
 
@@ -335,7 +337,9 @@ namespace mv
 }
 
 int testSWIG();
-mv::OpModel * getOM();
+mv::CompilationUnit* getCompilationUnit();
+mv::OpModel* getModel(mv::CompilationUnit *unit);
+int compile(mv::CompilationUnit *unit);
 mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
@@ -379,9 +383,6 @@ mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv
 mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
 
-void produceDOT(mv::OpModel *o);
-
-
 int testConv(
     mv::Data::OpListIterator &target,
     int exp_strideX,
@@ -389,5 +390,3 @@ int testConv(
     int exp_padX,
     int exp_padY
 );
-
-int serialize(mv::OpModel * test_cm);

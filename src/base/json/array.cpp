@@ -132,6 +132,18 @@ mv::json::Value& mv::json::Array::operator[](unsigned idx)
 
 }
 
+mv::json::Value& mv::json::Array::last()
+{
+
+    if (size() == 0)
+    {
+        throw IndexError("Index out of range");
+    }
+
+    return elements_[size() - 1];
+
+}
+
 mv::json::Array& mv::json::Array::operator=(const Array& other)
 {
     elements_ = other.elements_;

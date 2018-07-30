@@ -33,16 +33,6 @@ mv::byte_type mv::Shape::ndims() const
     return dims_.length();
 }
 
-mv::dim_type& mv::Shape::dim(byte_type ndim)
-{
-    return dims_.at(ndim);
-}
-
-mv::dim_type mv::Shape::dim(byte_type ndim) const
-{
-    return dims_.at(ndim);
-}
-
 mv::unsigned_type mv::Shape::totalSize() const
 {
 
@@ -58,15 +48,15 @@ mv::unsigned_type mv::Shape::totalSize() const
 mv::dim_type& mv::Shape::operator[](int_type ndim)
 {
     if (ndim < 0)
-        return dim(dims_.length() + ndim);
-    return dim(ndim);
+        return dims_.at(dims_.length() + ndim);
+    return dims_.at(ndim);
 }
 
-mv::dim_type mv::Shape::operator[](int_type ndim) const
+const mv::dim_type& mv::Shape::operator[](int_type ndim) const
 {
     if (ndim < 0)
-        return dim(dims_.length() + ndim);
-    return dim(ndim);
+        return dims_.at(dims_.length() + ndim);
+    return dims_.at(ndim);
 }
 
 mv::Shape& mv::Shape::operator=(const Shape& other)

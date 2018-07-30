@@ -225,3 +225,11 @@ mv::dynamic_vector<mv::float_type> mv::Jsonable::constructFloatVectorFromJson(mv
     return vec;
 }
 
+mv::dynamic_vector<mv::string> mv::Jsonable::constructStringVectorFromJson(mv::json::Value &v)
+{
+    mv::dynamic_vector<mv::string> vec;
+    for(unsigned i = 0; i < v.size(); ++i)
+        vec.push_back(constructStringFromJson(v[i]));
+    return vec;
+}
+

@@ -320,7 +320,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                     try
                     {
                         std::size_t intPos, floatPos;
-                        int intVal = std::stoi(currentSymbol.second, &intPos);
+                        long long intVal = std::stoll(currentSymbol.second, &intPos);
                         float floatVal = std::stof(currentSymbol.second, &floatPos);
 
                         if (floatPos > intPos)

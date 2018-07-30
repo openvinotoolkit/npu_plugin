@@ -24,37 +24,6 @@ ComputationModel(static_cast<const OpModel&>(model))
 
 }
 
-bool mv::OpModel::defineDefaultControlFlow_(Data::OpListIterator op)
-{
-
-    if (!*defaultControlFlow_)
-        return true;
-
-    Control::OpListIterator currentOp = opsGraph_->get_second_iterator(op);
-    Control::FlowListIterator newFlow = controlGraph_.edge_insert(*lastOp_, currentOp, allocator_.make_owner<ControlFlow>(*lastOp_, currentOp));
-
-    if (newFlow == *controlFlowEnd_)
-        return false;
-
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + newFlow->toString());
-    *lastOp_ =  currentOp;
-
-    return true;
-
-}
-
-bool mv::OpModel::defaultStage_(Data::OpListIterator op)
-{
-
-    auto stageIt = addStage_();
-    
-    if (!addToStage_(stageIt, op))
-        return false;
-
-    return true;
-
-}
-
 mv::Data::OpListIterator mv::OpModel::checkInputTensor_(Data::TensorIterator inputTensor)
 {
 
@@ -101,9 +70,6 @@ mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::
     auto outputTensor = defineOutputTensor_(opNode, 0);
     (*opNode)->setOutputTensor(outputTensor, 0);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*opNode)->toString());
-
-    defineDefaultControlFlow_(opNode);
-    defaultStage_(opNode);
 
     return outputTensor;
 
@@ -166,7 +132,6 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
     (*input_)->setOutputTensor(outputTensor, 0);
     incrementOpsCounter_(OpType::Input);
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*input_)->toString());
-    *lastOp_ = opsGraph_->get_second_iterator(*input_);
     return outputTensor;
 
 }
@@ -198,7 +163,6 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
     incrementOpsCounter_(OpType::Output);
     *output_ = outputIt;
     logger_.log(Logger::MessageType::MessageInfo, "Defined " + (*output_)->toString());
-    defineDefaultControlFlow_(*output_);
 
     return inputTensor;
 

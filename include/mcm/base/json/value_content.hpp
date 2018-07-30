@@ -23,7 +23,7 @@ namespace mv
                 virtual ~ValueContent() = 0;
                 virtual std::string stringify() const = 0;
                 virtual explicit operator float&();
-                virtual explicit operator int&();
+                virtual explicit operator long long&();
                 virtual explicit operator std::string&();
                 virtual explicit operator bool&();
                 virtual explicit operator Object&();

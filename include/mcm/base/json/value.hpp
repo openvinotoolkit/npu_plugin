@@ -42,13 +42,14 @@ namespace mv
             Value(int value);
             Value(unsigned int value);
             Value(const char * value);
+            Value(long long value);
             Value(const std::string& value);
             Value(bool value);
             Value(const Object& value);
             Value(const Array& value);
             Value(const Value& other);
             Value& operator=(float value);
-            Value& operator=(int value);
+            Value& operator=(long long value);
             Value& operator=(const std::string& value);
             Value& operator=(bool value);
             Value& operator=(const Object& value);
@@ -57,6 +58,7 @@ namespace mv
             Value& operator[](const std::string& key);
             const Value& operator[](const std::string& key) const;
             Value& operator[](unsigned idx);
+            Value& last();
             bool hasKey(const std::string& key) const;
             std::vector<std::string> getKeys() const;
             void append(const std::pair<std::string, Value>& member);

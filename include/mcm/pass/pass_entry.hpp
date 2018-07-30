@@ -33,7 +33,7 @@ namespace mv
             std::set<PassGenre> passGenre_;
             std::string description_;
             std::map<std::string, json::JSONType> requiredArgs_;
-            std::function<void(ComputationModel&, TargetDescriptor&, json::Object&)> passFunc_;
+            std::function<void(ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)> passFunc_;
 
         public:
 
@@ -64,7 +64,7 @@ namespace mv
                 return *this;
             }
 
-            inline PassEntry& setFunc(const std::function<void(ComputationModel&, TargetDescriptor&, json::Object&)>& passFunc)
+            inline PassEntry& setFunc(const std::function<void(ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)>& passFunc)
             {
                 passFunc_ = passFunc;
                 return *this;
@@ -102,9 +102,9 @@ namespace mv
                 return requiredArgs_.size();
             }
 
-            inline void run(ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor) const
+            inline void run(ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor, json::Object& output) const
             {
-                passFunc_(model, targetDescriptor, compDescriptor);
+                passFunc_(model, targetDescriptor, compDescriptor, output);
             }
 
 

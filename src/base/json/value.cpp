@@ -33,6 +33,13 @@ content_(std::unique_ptr<NumberFloat>(new NumberFloat(value)))
 
 }
 
+mv::json::Value::Value(long long value) :
+valueType_(JSONType::NumberInteger),
+content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
+{
+
+}
+
 mv::json::Value::Value(int value) :
 valueType_(JSONType::NumberInteger),
 content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
@@ -97,7 +104,7 @@ mv::json::Value& mv::json::Value::operator=(float value)
 
 }
 
-mv::json::Value& mv::json::Value::operator=(int value)
+mv::json::Value& mv::json::Value::operator=(long long value)
 {
 
     content_.reset();
@@ -182,6 +189,15 @@ mv::json::Value& mv::json::Value::operator[](unsigned idx)
     auto arrPtr = static_cast<Array*>(content_.get());
     return (*arrPtr)[idx];
     
+}
+
+mv::json::Value& mv::json::Value::last()
+{
+    if (valueType_ != JSONType::Array)
+        throw ValueError("Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON array");
+
+    auto arrPtr = static_cast<Array*>(content_.get());
+    return arrPtr->last();
 }
 
 bool mv::json::Value::hasKey(const std::string& key) const
@@ -271,7 +287,7 @@ mv::json::Value& mv::json::Value::operator=(const Value& other)
             break;
 
         case mv::json::JSONType::NumberInteger:
-            content_ = std::unique_ptr<NumberInteger>(new NumberInteger((int)*other.content_.get()));
+            content_ = std::unique_ptr<NumberInteger>(new NumberInteger((long long)*other.content_.get()));
             break;
         
         case mv::json::JSONType::Object:

@@ -27,6 +27,7 @@ namespace mv
             unsigned size() const;
             void clear();
             Value& operator[](unsigned idx);
+            Value& last();
             std::string stringify() const override;
             std::string stringifyPretty() const;
             Array& operator=(const Array& other);

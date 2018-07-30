@@ -29,6 +29,7 @@ DEFINE_ENUMERATED_TYPE(mv::UnsignedVector2D, mv::AttrType::UnsignedVec2DType);
 DEFINE_ENUMERATED_TYPE(mv::UnsignedVector3D, mv::AttrType::UnsignedVec3DType);
 DEFINE_ENUMERATED_TYPE(mv::UnsignedVector4D, mv::AttrType::UnsignedVec4DType);
 DEFINE_ENUMERATED_TYPE(mv::dynamic_vector<mv::float_type>, mv::AttrType::FloatVecType);
+DEFINE_ENUMERATED_TYPE(mv::dynamic_vector<std::string>, mv::AttrType::StringVecType);
 
 template<class T, class U>
 struct is_same {
@@ -111,6 +112,9 @@ namespace mv
 
             if (AttrTypeToType<AttrType::FloatVecType>::value  && is_same<T, AttrTypeToType<AttrType::FloatVecType>::type>::value)
                 return AttrType::FloatVecType;
+
+            if (AttrTypeToType<AttrType::StringVecType>::value  && is_same<T, AttrTypeToType<AttrType::StringVecType>::type>::value)
+                return AttrType::StringVecType;
 
             return AttrType::UnknownType;
 

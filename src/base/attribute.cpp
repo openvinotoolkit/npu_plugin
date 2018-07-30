@@ -61,6 +61,8 @@ mv::Attribute mv::Attribute::JsonAttributeFactory(mv::json::Value& value)
             return Attribute(mv::AttrType::UnsignedVec4DType, constructUnsignedVector4DFromJson(value["content"]));
         case mv::AttrType::FloatVecType:
             return Attribute(mv::AttrType::FloatVecType, constructFloatVectorFromJson(value["content"]));
+        case mv::AttrType::StringVecType:
+            return Attribute(mv::AttrType::StringVecType, constructStringVectorFromJson(value["content"]));
         case mv::AttrType::UnknownType:
             return Attribute(mv::AttrType::UnknownType, nullptr);
     }
@@ -215,6 +217,9 @@ mv::string mv::Attribute::getContentStr() const
 
         case AttrType::FloatVecType:
             return Printable::toString(getContent<mv::dynamic_vector<float_type>>());
+
+        case AttrType::StringVecType:
+            return Printable::toString(getContent<mv::dynamic_vector<std::string>>());
 
         default:
             return "unknown";

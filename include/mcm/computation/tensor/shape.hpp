@@ -36,11 +36,10 @@ namespace mv
         Shape(byte_type n);
         Shape();
         byte_type ndims() const;
-        dim_type& dim(byte_type ndim);
-        dim_type dim(byte_type ndim) const;
+        
         unsigned_type totalSize() const;
         dim_type& operator[](int_type ndim);
-        dim_type operator[](int_type ndim) const;
+        const dim_type& operator[](int_type ndim) const;
         Shape& operator=(const Shape& other);
         bool operator==(const Shape& other) const;
         bool operator!=(const Shape& other) const;

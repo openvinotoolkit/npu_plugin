@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
-project(fathom VERSION 0.0.1)
+project(mcmComplier VERSION 0.0.1)
+
+set(default_build_type "Release")
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -11,6 +13,12 @@ set(MCM_HOME "$ENV{MCM_HOME}")
 if(NOT MCM_HOME)
     message(STATUS "MCM_HOME at ${MCM_HOME}")
     message(FATAL_ERROR "Undefined MCM_HOME env variable")
+endif()
+
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
+    if (NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+    endif()
 endif()
 
 file(GLOB allocator
@@ -98,6 +106,7 @@ file(GLOB pass
     "src/pass/pass_manager.cpp"
     "src/target/target_descriptor.cpp"
     "src/pass/adaptation/*.cpp"
+    "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
 )
