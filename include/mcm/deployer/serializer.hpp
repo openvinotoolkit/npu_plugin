@@ -8,8 +8,8 @@
 */
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/deployer/Fp16Convert.h"
-#include "include/mcm/deployer/file_buffer.h"
+#include "include/mcm/utils/serializer/Fp16Convert.h"
+#include "include/mcm/utils/serializer/file_buffer.h"
 #include "include/mcm/deployer/blob_serializer.hpp"
 
 namespace mv

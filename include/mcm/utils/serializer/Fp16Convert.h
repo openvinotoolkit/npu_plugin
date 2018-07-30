@@ -13,7 +13,7 @@
 #ifndef __FP16_CONVERT_H__
 #define __FP16_CONVERT_H__
 
-#include "include/mcm/deployer/mv_types.h"
+#include "include/mcm/utils/serializer/mv_types.h"
 
 #ifdef __cplusplus
 extern "C" {
