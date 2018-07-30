@@ -152,7 +152,7 @@ namespace mv
         {"dtype", AttrType::DTypeType},
         {"order", AttrType::OrderType},
         {"shape", AttrType::ShapeType},
-        {"string", AttrType::ShapeType},
+        {"string", AttrType::StringType},
         {"bool", AttrType::BoolType},
         {"operation", AttrType::OpTypeType},
         {"floatVec2D", AttrType::FloatVec2DType},
