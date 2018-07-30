@@ -42,7 +42,7 @@ file(GLOB tensor
     "src/computation/tensor/math.cpp"
 )
 
-file(GLOB computation_model 
+file(GLOB computation_model
     "src/computation/model/computation_model.cpp"
     "src/api/compositional_model.cpp"
     "src/computation/model/op_model.cpp"
@@ -62,6 +62,9 @@ file(GLOB computation_model
     "src/computation/op/pool2d_op.cpp"
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
+    "src/computation/deployer/Fp16Convert.cpp"
+    "src/computation/deployer/serializer.cpp"
+    "src/computation/deployer/blob_serializer.cpp"
 
 )
 
@@ -92,13 +95,14 @@ file(GLOB logger
     "src/logger/stdout_logger.cpp"
 )
 
-file(GLOB pass 
+file(GLOB pass
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
     "src/target/target_descriptor.cpp"
     "src/pass/adaptation/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
+    "src/deployer/*.cpp"
 )
 
 file(GLOB compiler
