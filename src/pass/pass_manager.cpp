@@ -6,6 +6,28 @@ std::runtime_error(whatArg)
 
 }
 
+std::string mv::PassManager::toString(PassGenre passGenre)
+{
+    switch(passGenre)
+    {
+
+        case PassGenre::Adaptation:
+            return "adapt";
+        case PassGenre::Optimization:
+            return "optimize";
+        case PassGenre::Finalization:
+            return "finalize";
+        case PassGenre::Serialization:
+            return "serialize";
+        case PassGenre::Validation:
+            return "validate";
+
+    }
+
+    return "";
+
+}
+
 mv::PassManager::PassManager() :
 ready_(false),
 completed_(false),
@@ -83,8 +105,9 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
     completed_ = false;
     running_ = false;
     currentStage_ = passFlow_.cbegin();
-    currentPass_ = currentStage_->second.begin();
+    currentPass_ = currentStage_->second->begin();
     compDescriptor_ = compDescriptor;
+    compOutput_ = mv::json::Object();
     return true;
 
 }
@@ -263,9 +286,10 @@ void mv::PassManager::reset()
     serialPassQueue_.clear();
     validPassQueue_.clear();
     currentStage_ = passFlow_.cbegin();
-    currentPass_ = currentStage_->second.end();
+    currentPass_ = currentStage_->second->end();
     targetDescriptor_ = TargetDescriptor();
     compDescriptor_ = json::Object();
+    compOutput_ = json::Object();
 
 }
 
@@ -279,7 +303,7 @@ bool mv::PassManager::completed() const
     return ready() && !running_ && completed_;
 }
 
-std::pair<std::string, mv::PassGenre> mv::PassManager::step()
+mv::json::Object& mv::PassManager::step()
 {
 
     if (!running_)
@@ -288,31 +312,46 @@ std::pair<std::string, mv::PassGenre> mv::PassManager::step()
             throw ExecutionError("Invalid descriptor");
         running_ = true;
         currentStage_ = passFlow_.cbegin();
-        currentPass_ = currentStage_->second.begin();
+        while (currentStage_->second->begin() == currentStage_->second->end())
+        {
+            ++currentStage_;
+            if (currentStage_ == passFlow_.cend())
+            {
+                completed_ = true;
+                running_ = false;
+                return compOutput_;
+            }
+        }
+        currentPass_ = currentStage_->second->begin();
         buffer_.clear();
+        compOutput_ = json::Object();
+        compOutput_["finished"] = false;
+        compOutput_["passes"] = json::Array();
     }
 
     if (!completed_ && currentStage_ != passFlow_.end())
     {
 
-        while (currentPass_ == currentStage_->second.end())
+        while (currentPass_ == currentStage_->second->end())
         {
             ++currentStage_;
 
             if (currentStage_->first == PassGenre::Validation)
             {
-                while (currentStage_ != passFlow_.begin() && (currentStage_ - 1)->second.size() == 0 && currentStage_ != passFlow_.end())
-                    ++currentStage_;
+                if (currentStage_ != passFlow_.begin())
+                    if ((currentStage_ - 1)->second->size() == 0)
+                        ++currentStage_;
             }
 
             if (currentStage_ == passFlow_.end())
             {
                 completed_ = true;
                 running_ = false;
-                return std::pair<std::string, mv::PassGenre>("", PassGenre::Serialization);
+                compOutput_["finished"] = true;
+                return compOutput_;
             }
 
-            currentPass_ = currentStage_->second.begin();
+            currentPass_ = currentStage_->second->begin();
         }
             
         auto passPtr = pass::PassRegistry::instance().find(*currentPass_);
@@ -354,14 +393,18 @@ std::pair<std::string, mv::PassGenre> mv::PassManager::step()
 
         }
 
-        passPtr->run(*model_, targetDescriptor_, compDescriptor_);
-        std::pair<std::string, mv::PassGenre> result({*currentPass_, currentStage_->first});
+        compOutput_["passes"].append(json::Object());
+        json::Object& lastPassOutput = compOutput_["passes"].last().get<json::Object>();
+        lastPassOutput["name"] = passPtr->getName();
+        lastPassOutput["genre"] = toString(currentStage_->first);
+        passPtr->run(*model_, targetDescriptor_, compDescriptor_, lastPassOutput);
         currentPass_++;
-        return result;
+
+        return compOutput_;
 
     }
 
-    return std::pair<std::string, mv::PassGenre>("", PassGenre::Adaptation);
+    return compOutput_;
 
 }
 

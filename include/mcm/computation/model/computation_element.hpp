@@ -59,6 +59,7 @@ namespace mv
         ComputationElement& operator=(const ComputationElement &other);
         virtual ~ComputationElement() = 0;
         const string &getName() const;
+        void setName(const std::string& name);
         bool hasAttr(const string &name) const;
         Attribute& getAttr(const string &name);
         const Attribute& getAttr(const string &name) const;
@@ -68,6 +69,7 @@ namespace mv
         bool removeAttr(const string &name);
         string toString() const;
         virtual bool operator <(ComputationElement &other);
+        virtual bool operator ==(const ComputationElement& other);
 
     };
 

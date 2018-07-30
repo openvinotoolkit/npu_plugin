@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.5.0)
-project(fathom VERSION 0.0.1)
+project(mcmComplier VERSION 0.0.1)
+
+set(default_build_type "Release")
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -11,6 +13,12 @@ set(MCM_HOME "$ENV{MCM_HOME}")
 if(NOT MCM_HOME)
     message(STATUS "MCM_HOME at ${MCM_HOME}")
     message(FATAL_ERROR "Undefined MCM_HOME env variable")
+endif()
+
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
+    if (NOT CMAKE_BUILD_TYPE)
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+    endif()
 endif()
 
 file(GLOB allocator
@@ -42,7 +50,7 @@ file(GLOB tensor
     "src/computation/tensor/math.cpp"
 )
 
-file(GLOB computation_model 
+file(GLOB computation_model
     "src/computation/model/computation_model.cpp"
     "src/api/compositional_model.cpp"
     "src/computation/model/op_model.cpp"
@@ -62,6 +70,9 @@ file(GLOB computation_model
     "src/computation/op/pool2d_op.cpp"
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
+    "src/computation/deployer/Fp16Convert.cpp"
+    "src/computation/deployer/serializer.cpp"
+    "src/computation/deployer/blob_serializer.cpp"
 
 )
 
@@ -92,13 +103,15 @@ file(GLOB logger
     "src/logger/stdout_logger.cpp"
 )
 
-file(GLOB pass 
+file(GLOB pass
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
     "src/target/target_descriptor.cpp"
     "src/pass/adaptation/*.cpp"
+    "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
+    "src/deployer/*.cpp"
 )
 
 file(GLOB compiler

@@ -10,7 +10,7 @@ mv::json::detail::ValueContent::operator float&()
     throw ValueError("Unable to obtain a float content from a JSON value");
 }
 
-mv::json::detail::ValueContent::operator int&()
+mv::json::detail::ValueContent::operator long long&()
 {
     throw ValueError("Unable to obtain an int content from a JSON value");
 }

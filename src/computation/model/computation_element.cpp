@@ -46,6 +46,11 @@ const mv::string &mv::ComputationElement::getName() const
     return name_;
 }
 
+void mv::ComputationElement::setName(const std::string& name)
+{
+    name_ = name;
+}
+
 bool mv::ComputationElement::addAttr(const string &name, const Attribute &attr)
 {
 
@@ -140,4 +145,8 @@ mv::string mv::ComputationElement::toString() const
 bool mv::ComputationElement::operator<(ComputationElement &other)
 {
     return name_ < other.name_;
+}
+bool mv::ComputationElement::operator ==(const ComputationElement& other)
+{
+    return name_ == other.name_;
 }

@@ -54,7 +54,9 @@ namespace mv
 
     enum class Order
     {
-        LastDimMajor,
+        ColumnMajor,
+        RowMajor,
+        Planar,
         Unknown
     };
 
@@ -87,7 +89,8 @@ namespace mv
         UnsignedVec2DType,
         UnsignedVec3DType,
         UnsignedVec4DType,
-        FloatVecType
+        FloatVecType,
+        StringVecType
 
     };
 

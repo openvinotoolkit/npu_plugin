@@ -2,7 +2,9 @@
 #define STATIC_VECTOR_HPP_
 
 #include <cstdint>
-#include <iostream>
+#include <assert.h>
+#include <vector>
+
 namespace mv
 {
 
@@ -35,6 +37,20 @@ namespace mv
             assign_(length_, values...);
         }
 
+        static_vector(const std::vector<T>& other) :
+        length_(other.size())
+        {
+            assert(length_ < max_length && "Length of a static vector exceeds the maximal value");
+            for (unsigned i = 0; i < length_; ++i)
+                values_[i] = other[i];
+        }
+
+        static_vector(T_size length) :
+        length_(length)
+        {
+            assert(length <= max_length && "Length of a static vector exceeds the maximal value");
+        }
+
         static_vector() :
         length_(0)
         {
@@ -59,7 +75,7 @@ namespace mv
             return values_[idx];
         }
 
-        T at(T_size idx) const
+        const T& at(T_size idx) const
         {
             assert(idx < length_ && "Index of value exceeds the number of elements of a static vector");
             return values_[idx];
@@ -74,6 +90,11 @@ namespace mv
             values_[length_++] = value;
             return true;
 
+        }
+
+        void clear()
+        {
+            length_ = 0;
         }
 
         bool erase(T_size idx)
@@ -95,7 +116,7 @@ namespace mv
             return at(idx);
         }
 
-        T operator[](T_size idx) const
+        const T& operator[](T_size idx) const
         {
             return at(idx);
         }

@@ -5,16 +5,18 @@ bool mv::ComputationGroup::markMembmer_(ComputationElement &member)
 
     if (!member.hasAttr("groups"))
     {
-        member.addAttr("groups", AttrType::ByteType, (byte_type)1);
-        member.addAttr("group_0", AttrType::StringType, name_);
+        member.addAttr("groups", AttrType::StringVecType, mv::dynamic_vector<std::string>({name_}));
     }
     else
     {
-        byte_type groups = member.getAttr("groups").template getContent<byte_type>();
-        member.addAttr("group_" + Printable::toString(groups), AttrType::StringType, name_);
-        member.getAttr("groups").template setContent<byte_type>(groups + 1);
+        mv::dynamic_vector<std::string> groups = member.getAttr("groups").template getContent<mv::dynamic_vector<std::string>>();
+        groups.push_back(name_);
+        member.getAttr("groups").template setContent<mv::dynamic_vector<std::string>>(groups);
     }
 
+    dynamic_vector<std::string> membersAttr = getAttr("members").getContent<dynamic_vector<std::string>>();
+    membersAttr.push_back(member.getName());
+    getAttr("members").setContent<dynamic_vector<std::string>>(membersAttr);
     return true; 
 
 }
@@ -24,22 +26,26 @@ bool mv::ComputationGroup::unmarkMembmer_(ComputationElement &member)
 
     if (member.hasAttr("groups"))
     {
-        byte_type groups = member.getAttr("groups").template getContent<byte_type>();
+        mv::dynamic_vector<std::string> groups = member.getAttr("groups").template getContent<mv::dynamic_vector<std::string>>();
 
-        for (byte_type i = 0; i < groups; ++i)
+        for (auto it = groups.begin(); it != groups.end(); ++it)
         {
-            string group = member.getAttr("group_" + Printable::toString(i)).template getContent<string>();
-            if (group == name_)
-            {
-                member.removeAttr("group_" + Printable::toString(i));
 
-                if (groups - 1 == 0)
+            if (*it == name_)
+            {
+
+                if (groups.size() == 1)
                 {
                     member.removeAttr("groups");
                 }
                 else
                 {
-                    member.getAttr("groups").template setContent<byte_type>(groups - 1);
+                    groups.erase(it);
+                    member.getAttr("groups").template setContent<mv::dynamic_vector<std::string>>(groups);
+                    dynamic_vector<std::string> membersAttr = getAttr("members").getContent<dynamic_vector<std::string>>();
+                    auto attrIt = std::find(membersAttr.begin(), membersAttr.end(), *it);
+                    membersAttr.erase(attrIt);
+                    getAttr("members").setContent<dynamic_vector<std::string>>(membersAttr);
                 }
 
                 return true;
@@ -60,11 +66,11 @@ mv::ComputationGroup::ComputationGroup(const string &name) :
 ComputationElement(name),
 members_()
 {
-
+    addAttr("members", Attribute(AttrType::StringVecType, dynamic_vector<std::string>()));
 }
 
 
-bool mv::ComputationGroup::removeElement(MemberSet::iterator &member)
+bool mv::ComputationGroup::erase(MemberSet::iterator &member)
 {
 
     if (member != members_.end())
@@ -78,7 +84,7 @@ bool mv::ComputationGroup::removeElement(MemberSet::iterator &member)
 
 }
 
-void mv::ComputationGroup::removeAllElements()
+void mv::ComputationGroup::clear()
 {
 
     for (auto it = members_.begin(); it != members_.end(); ++it)
@@ -100,15 +106,12 @@ mv::ComputationGroup::MemberSet::iterator mv::ComputationGroup::end()
     return members_.end();
 }
 
+std::size_t mv::ComputationGroup::size() const
+{
+    return members_.size();
+}
+
 mv::string mv::ComputationGroup::toString() const
 {
-
-    string result = "group '" + name_ + "'";
-
-    unsigned_type idx = 0;
-    for (auto it = members_.begin(); it != members_.end(); ++it)
-        result += "\n'member_" + Printable::toString(idx++) + "': " + (*it)->getName();
-
-    return result + ComputationElement::toString();
-
+    return "group " + ComputationElement::toString();
 }

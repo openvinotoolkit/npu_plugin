@@ -14,14 +14,14 @@ int main()
     mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
 
     // Compose model - use Composition API to create ops and obtain tensors 
-    auto input = om.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::LastDimMajor);
-    auto weights1 = om.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::LastDimMajor);
+    auto input = om.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::ColumnMajor);
+    auto weights1 = om.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::ColumnMajor);
     auto conv1 = om.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
     auto pool1 = om.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto weights2 = om.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::LastDimMajor);
+    auto weights2 = om.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::ColumnMajor);
     auto conv2 = om.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
     auto pool2 = om.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
-    auto weights3 = om.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::LastDimMajor);
+    auto weights3 = om.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::ColumnMajor);
     auto conv3 = om.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
     om.output(conv3); 
 
@@ -72,7 +72,7 @@ int main()
 
     std::cout << group1It->toString() << std::endl;
 
-    mv::ControlModel cm(om);
+    //mv::ControlModel cm(om);
 
     /*auto stage0It = cm.addStage();
     auto stage1It = cm.addStage();
@@ -90,19 +90,19 @@ int main()
     cm.addToStage(stage5It, conv3);
     cm.addToStage(stage6It, outIt);*/
 
-    for (auto itStage = cm.stageBegin(); itStage != cm.stageEnd(); ++itStage)
+    /*for (auto itStage = cm.stageBegin(); itStage != cm.stageEnd(); ++itStage)
     {
         std::cout << itStage->getName() << ":";
         for (auto it = cm.stageMemberBegin(itStage); it != cm.stageMemberEnd(itStage); ++it)
             std::cout << " " << it->getName();
         std::cout << std::endl;
-    }
+    }*/
 
     //cm.removeStage(stage5It);
 
     //mv::DataModel dm(cm);
 
-    auto stageIt = cm.stageBegin();
+    /*auto stageIt = cm.stageBegin();
 
     dm.addAllocator("BSS", 1048576);
     dm.allocateTensor("BSS", stageIt, om.getSourceOp(conv1).leftmostInput()->getTensor());
@@ -110,7 +110,7 @@ int main()
 
     ++stageIt;
 
-    dm.allocateTensor("BSS", stageIt, om.getSourceOp(pool1).leftmostInput()->getTensor());
+    dm.allocateTensor("BSS", stageIt, om.getSourceOp(pool1).leftmostInput()->getTensor());*/
 
     return 0;
 

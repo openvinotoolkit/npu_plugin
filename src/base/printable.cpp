@@ -66,8 +66,12 @@ mv::string mv::Printable::toString(Order value)
 {
     switch (value)
     {
-        case Order::LastDimMajor:
-            return "LastDimMajor";
+        case Order::Planar:
+            return "Planar";
+        case Order::ColumnMajor:
+            return "ColumnMajor";
+        case Order::RowMajor:
+            return "RowMajor";
 
         default:
             return "unknown";
@@ -77,6 +81,26 @@ mv::string mv::Printable::toString(Order value)
 mv::string mv::Printable::toString(const mv::dynamic_vector<float> &value)
 {
     return "(" + toString((unsigned_type)value.size()) + ")";
+}
+
+mv::string mv::Printable::toString(const mv::dynamic_vector<std::string> &value)
+{
+
+    std::string output = "(";
+
+    if (value.size() > 0)
+    {
+        output += value[0];
+
+        for (std::size_t i = 1; i < value.size(); ++i)
+        {
+            output += ", " + value[i];
+        }
+
+    }
+
+    return output + ")";
+
 }
 
 mv::string mv::Printable::toString(AttrType value)
@@ -144,6 +168,9 @@ mv::string mv::Printable::toString(AttrType value)
 
         case AttrType::FloatVecType:
             return "floatVec";
+
+        case AttrType::StringVecType:
+            return "stringVec";
 
         default:
             return "unknown";

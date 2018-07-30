@@ -25,6 +25,10 @@ file(GLOB compiler_src
     "compiler/*.cpp"
 )
 
+file(GLOB model_src
+    "model/*.cpp"
+)
+
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     graph_container_test.cpp
@@ -35,6 +39,7 @@ add_executable(mcm_unit_tests
     ${op_src}
     ${pass_src}
     ${compiler_src}
+    ${model_src}
     model_serializer_test.cpp
 )
 
