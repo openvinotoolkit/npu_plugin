@@ -144,7 +144,9 @@ namespace mv
         {AttrType::UnsignedVec2DType, "unsignedVec2D"},
         {AttrType::UnsignedVec3DType, "unsignedVec3D"},
         {AttrType::UnsignedVec4DType, "unsignedVec4D"},
-        {AttrType::FloatVecType, "floatVec"}
+        {AttrType::FloatVecType, "floatVec"},
+        {AttrType::StringVecType, "stringVec"}
+
     };
 
 
@@ -171,7 +173,8 @@ namespace mv
         {"unsignedVec2D", AttrType::UnsignedVec2DType},
         {"unsignedVec3D", AttrType::UnsignedVec3DType},
         {"unsignedVec4D", AttrType::UnsignedVec4DType},
-        {"floatVec", AttrType::FloatVecType}
+        {"floatVec", AttrType::FloatVecType},
+        {"stringVec", AttrType::StringVecType}
     };
 
     template <class T>
