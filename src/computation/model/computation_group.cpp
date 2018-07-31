@@ -69,6 +69,12 @@ members_()
     addAttr("members", Attribute(AttrType::StringVecType, dynamic_vector<std::string>()));
 }
 
+mv::ComputationGroup::ComputationGroup(mv::json::Value& value):
+ComputationElement(value),
+members_()
+{
+
+}
 
 bool mv::ComputationGroup::erase(MemberSet::iterator &member)
 {
@@ -114,18 +120,4 @@ std::size_t mv::ComputationGroup::size() const
 mv::string mv::ComputationGroup::toString() const
 {
     return "group " + ComputationElement::toString();
-}
-
-mv::json::Value mv::ComputationGroup::toJsonValue() const
-{
-
-    mv::json::Value toReturn = mv::ComputationElement::toJsonValue();
-    mv::json::Array members;
-
-    for (auto it = members_.begin(); it != members_.end(); ++it)
-        members.append(mv::Jsonable::toJsonValue((*it)->getName()));
-
-    toReturn["members"] = members;
-    return toReturn;
-
 }

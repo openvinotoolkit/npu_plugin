@@ -22,13 +22,13 @@ namespace mv
     public:
 
         ComputationGroup(const string &name);
+        ComputationGroup(mv::json::Value& value);
         bool erase(MemberSet::iterator &member);
         void clear();
         MemberSet::iterator begin();
         MemberSet::iterator end();
         std::size_t size() const;
         virtual string toString() const;
-        mv::json::Value toJsonValue() const;
 
         template <class ElementType>
         MemberSet::iterator insert(allocator::owner_ptr<ElementType> newMember)
