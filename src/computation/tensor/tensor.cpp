@@ -234,10 +234,8 @@ errValue(0.0f),
 shape_(attributes_.at("shape").getContent<Shape>()),
 populated_(attributes_.at("populated").getContent<bool>())
 {
-    /*
     if(populated_)
-        data_ = constructFloatVectorFromJson(v["data"]);
-    */
+        data_ = std::make_shared<dynamic_vector<float_type>>(dynamic_vector<float_type>(shape_.totalSize()));
 }
 
 mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data) :
