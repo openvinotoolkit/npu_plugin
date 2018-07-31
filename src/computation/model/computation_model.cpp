@@ -165,7 +165,8 @@ mv::Data::OpListIterator mv::ComputationModel::addNodeFromJson(mv::json::Value& 
 
 void mv::ComputationModel::addDataFlowFromJson(mv::json::Value& data_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
 {
-    mv::DataFlow d(data_flow);
+
+    mv::DataFlow d(data_flow, findTensor_(constructStringFromJson(data_flow["tensor"])));
     string source = d.getAttr("sourceOp").getContent<string>();
     string target = d.getAttr("sinkOp").getContent<string>();
 

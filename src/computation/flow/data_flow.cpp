@@ -17,6 +17,13 @@ ComputationFlow(value)
 
 }
 
+mv::DataFlow::DataFlow(mv::json::Value &value, const Data::TensorIterator& data):
+ComputationFlow(value),
+data_(data)
+{
+
+}
+
 mv::Data::TensorIterator& mv::DataFlow::getTensor()
 {
     return data_;

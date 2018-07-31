@@ -19,6 +19,7 @@ namespace mv
         DataFlow(const Data::OpListIterator& source, byte_type outputIdx, const Data::OpListIterator& sink, 
             byte_type inputIdx, const Data::TensorIterator& data);
         DataFlow(mv::json::Value& value);
+        DataFlow(mv::json::Value& value, const Data::TensorIterator& data);
         Data::TensorIterator& getTensor();
         string toString() const;
         mv::json::Value toJsonValue() const;
