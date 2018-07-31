@@ -25,11 +25,29 @@ namespace mv
 void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
     std::ofstream ostream;
-    ostream.open(compDesc["GenerateJson"]["output"].get<std::string>(), std::ios::trunc | std::ios::out);
+    std::string outputPath(compDesc["GenerateJson"]["output"].get<std::string>());
+    size_t lastindex = outputPath.find_last_of(".");
+    std::string outputPathNoExt(outputPath.substr(0, lastindex));
+
+    ostream.open(outputPath, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
-        throw mv::ArgumentError("output", compDesc["GenerateJson"]["output"].get<std::string>(), "Unable to open output file");
+        throw mv::ArgumentError("output", outputPath, "Unable to open output file");
 
     mv::json::Value computationModel = model.toJsonValue();
-    //NOTE: must become stringifypretty somehow
+    //NOTE: should become stringifypretty somehow
     ostream << computationModel.stringify();
+    ostream.close();
+
+    //Populated tensors must be serialized in different files
+    if(mv::Jsonable::constructBoolTypeFromJson(computationModel["has_populated_tensors"]))
+    {
+        for(auto tensorIt = model.tensorBegin(); tensorIt != model.tensorEnd(); ++tensorIt)
+        {
+            std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
+            std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out);
+            mv::json::Value toDump = mv::Jsonable::toJsonValue(tensorIt->getData());
+            currentTensorOutputStream << toDump.stringify();
+            currentTensorOutputStream.close();
+        }
+    }
 }

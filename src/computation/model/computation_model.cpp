@@ -171,6 +171,7 @@ mv::Data::FlowListIterator mv::ComputationModel::addDataFlowFromJson(mv::json::V
     string target = d.getAttr("sinkOp").getContent<string>();
 
     return dataGraph_.edge_insert(addedOperations[source], addedOperations[target], d);
+
 }
 
 mv::Control::FlowListIterator mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
