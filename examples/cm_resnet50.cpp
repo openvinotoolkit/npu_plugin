@@ -160,18 +160,18 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     // Output BLOB - file name of the output binary
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet50.blob");
-
     unit.compilationDescriptor()["GenerateJson"]["output"] = std::string("resnet50.json");
-
 
     // Initialize compilation 
     unit.initialize();
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
 
     // Run all passes
     auto result = unit.run();
 
     // Obtain generated binary size from the compilation output
-    std::cout << "BLOB size: " << result["passes"].last()["blobSize"].get<long long>() << std::endl;
+    //std::cout << "BLOB size: " << result["passes"].last()["blobSize"].get<long long>() << std::endl;
+    std::cout << result.stringifyPretty() << std::endl;
 
     // Uncomment for an easy generation of SVG images for DOT output files (requires dot package)
     //system("dot -Tsvg resnet50.dot -o resnet50.svg");

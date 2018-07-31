@@ -446,8 +446,8 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
 
     for (byte_type j = 0; j < op->outputSlots(); ++j)
     {
-        flowTensors_->erase(op->getOutputTensor(j));
         tensorsSources_->erase(op->getOutputTensor(j)->getName());
+        flowTensors_->erase(op->getOutputTensor(j));
     }
 
     auto opCounterIt = opsCounter_->find(op->getOpType());
@@ -550,6 +550,11 @@ mv::Data::OpListIterator mv::OpModel::getInput()
 mv::Data::OpListIterator mv::OpModel::getOutput()
 {
     return *output_;
+}
+
+mv::Data::OpListIterator mv::OpModel::opBegin() const
+{
+    return dataGraph_.node_begin();
 }
 
 mv::Data::OpListIterator mv::OpModel::opEnd() const

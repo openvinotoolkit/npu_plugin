@@ -27,6 +27,8 @@ TEST (model_serializer, blob_output_conv_01)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -63,6 +65,8 @@ TEST (model_serializer, blob_output_conv_02)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -100,6 +104,8 @@ TEST (model_serializer, blob_output_conv_03)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -136,6 +142,8 @@ TEST (model_serializer, blob_output_conv_04)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -175,6 +183,8 @@ TEST (model_serializer, blob_blur_edge_05)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -253,6 +263,8 @@ TEST (model_serializer, blob_4_ops)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -359,6 +371,8 @@ TEST (model_serializer, blob_eltwise_add)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -467,6 +481,8 @@ TEST (model_serializer, blob_eltwise_multiply)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -576,6 +592,8 @@ TEST (model_serializer, blob_softmax)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -670,6 +688,8 @@ TEST (model_serializer, blob_convbias_convrelu)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -754,6 +774,8 @@ TEST (model_serializer, blob_scale)
     unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 

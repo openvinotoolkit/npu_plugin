@@ -31,6 +31,7 @@ namespace mv
 
         Data::OpListIterator getInput();
         Data::OpListIterator getOutput();
+        Data::OpListIterator opBegin() const;
         Data::OpListIterator opEnd() const;
         Data::FlowListIterator flowEnd() const;
 

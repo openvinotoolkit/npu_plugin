@@ -48,7 +48,8 @@
 
 		"validate":
 		[
-			"GenerateDot"
+			"GenerateDot",
+			"CheckTensors"
 		],
 
 		"serialize":
