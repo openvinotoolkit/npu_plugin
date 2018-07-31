@@ -243,7 +243,9 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     std::vector<string> tensorKeys(tensorSources.getKeys());
     for(unsigned i = 0; i < tensorKeys.size(); ++i)
     {
-        tensorsSources_->emplace(tensorKeys[i], addedOperations[tensorKeys[i]]);
+        string sourceOpName(mv::Jsonable::constructStringFromJson(tensorSources[tensorKeys[i]]));
+        mv::Data::OpListIterator sourceOp = addedOperations[sourceOpName];
+        tensorsSources_->emplace(tensorKeys[i], sourceOp);
     }
 
     // DATA FLOWS
@@ -662,7 +664,7 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
 
     //Source ops counters: NOTE: why there are some null pointers?
     for (auto sourceOpsIt = tensorsSources_->begin(); sourceOpsIt != tensorsSources_->end(); ++sourceOpsIt)
-        sourceOps[sourceOpsIt->first] = mv::Jsonable::toJsonValue(sourceOpsIt->second);
+        sourceOps[sourceOpsIt->first] = mv::Jsonable::toJsonValue(sourceOpsIt->second->getName());
 
     //Memory Allocators
     for (auto memoryAllocatorIt = memoryAllocators_->begin(); memoryAllocatorIt != memoryAllocators_->end(); ++memoryAllocatorIt)
