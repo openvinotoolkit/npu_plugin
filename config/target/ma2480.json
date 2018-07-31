@@ -53,7 +53,8 @@
 
 		"serialize":
 		[
-			"GenerateBlob"
+			"GenerateBlob",
+			"GenerateJson"
 		]
 
 	}
