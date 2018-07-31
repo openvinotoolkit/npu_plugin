@@ -10,13 +10,21 @@ bool mv::ComputationGroup::markMembmer_(ComputationElement &member)
     else
     {
         mv::dynamic_vector<std::string> groups = member.getAttr("groups").template getContent<mv::dynamic_vector<std::string>>();
-        groups.push_back(name_);
-        member.getAttr("groups").template setContent<mv::dynamic_vector<std::string>>(groups);
+        auto isPresent = std::find(groups.begin(), groups.end(), name_);
+        if(isPresent == groups.end())
+        {
+            groups.push_back(name_);
+            member.getAttr("groups").template setContent<mv::dynamic_vector<std::string>>(groups);
+        }
     }
 
     dynamic_vector<std::string> membersAttr = getAttr("members").getContent<dynamic_vector<std::string>>();
-    membersAttr.push_back(member.getName());
-    getAttr("members").setContent<dynamic_vector<std::string>>(membersAttr);
+    auto isPresent = std::find(membersAttr.begin(), membersAttr.end(), member.getName());
+    if(isPresent == membersAttr.end())
+    {
+        membersAttr.push_back(member.getName());
+        getAttr("members").setContent<dynamic_vector<std::string>>(membersAttr);
+    }
     return true; 
 
 }
