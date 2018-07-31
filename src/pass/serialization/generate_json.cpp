@@ -43,6 +43,8 @@ void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     {
         for(auto tensorIt = model.tensorBegin(); tensorIt != model.tensorEnd(); ++tensorIt)
         {
+            if(!tensorIt->isPopulated())
+                continue;
             std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
             std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out);
             mv::json::Value toDump = mv::Jsonable::toJsonValue(tensorIt->getData());
