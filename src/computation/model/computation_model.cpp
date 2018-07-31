@@ -653,6 +653,8 @@ void mv::ComputationModel::setLogger(Logger &logger)
 {
     logger_ = logger;
 }
+
+//NOTE: Populated tensors dumping are handled in json pass.
 mv::json::Value mv::ComputationModel::toJsonValue() const
 {
     mv::json::Object computationModel;
@@ -667,6 +669,8 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     mv::json::Object sourceOps;
     mv::json::Object opsCounters;
 
+    bool hasPopulatedTensors = false;
+
     //Groups
     for (auto groupIt = groups_->begin(); groupIt != groups_->end(); ++groupIt)
         groups.append(mv::Jsonable::toJsonValue(*groupIt->second));
@@ -674,6 +678,15 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     //Tensors and source operations
     for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
         tensors.append(mv::Jsonable::toJsonValue(*(tensorIt->second)));
+
+    for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
+    {
+        if(tensorIt->second->isPopulated())
+        {
+            hasPopulatedTensors = true;
+            break;
+        }
+    }
 
     //Nodes and operation counters
     for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
@@ -713,5 +726,6 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     computationModel["source_ops"] = sourceOps;
     computationModel["memory_allocators"] = memory_allocators;
     computationModel["operations_counters"] = opsCounters;
+    computationModel["has_populated_tensors"] = mv::Jsonable::toJsonValue(hasPopulatedTensors);
     return mv::json::Value(computationModel);
 }
