@@ -185,10 +185,25 @@ void mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow,
 mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLevel verboseLevel, bool logTime):
     ComputationModel(verboseLevel, logTime)
 {
-    //Utility structure to store Name -> Operation iterator mapping
-    std::map<string, Data::OpListIterator> addedOperations;
 
-    // All the structures have been initialized by the traditional constructor, time to fill them.
+    //COMPUTATIONAL GROUPS
+    mv::json::Value groups = model["computation_groups"];
+    for(unsigned i = 0; i < groups.size(); ++i)
+    {
+        ComputationGroup currentGroup(groups[i]);
+        groups_->emplace(currentGroup.getName(), currentGroup);
+    }
+
+    for(auto currentGroupIt = groups_->begin(); currentGroupIt != groups_->end(); ++currentGroupIt)
+    {
+        if (!currentGroupIt->second->hasAttr("groups"))
+            continue;
+        Attribute groupsAttr = currentGroupIt->second->getAttr("groups");
+        mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
+        for(unsigned i = 0; i < groupsVec.size(); ++i)
+            groups_->find(groupsVec[i])->second->insert(currentGroupIt->second);
+    }
+
     // TENSORS
     mv::json::Value tensors = model["tensors"];
     for(unsigned i = 0; i < tensors.size(); ++i)
@@ -197,12 +212,30 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
         flowTensors_->emplace(currentTensor.getName(), currentTensor);
     }
 
-    // OPERATIONS/NODES
+    // OPERATIONS/NODES and OPS COUNTERS
+    //Utility structure to store Name -> Operation iterator mapping
+    std::map<string, Data::OpListIterator> addedOperations;
+
     mv::json::Value nodes = model["graph"]["nodes"];
     for(unsigned i = 0; i < nodes.size(); ++i)
     {
         auto addedOp = addNodeFromJson(nodes[i]);
         addedOperations[addedOp->getName()] = addedOp;
+
+        if(opsCounter_->find(addedOp->getOpType()) == opsCounter_->end())
+            opsCounter_->emplace(addedOp->getOpType(), 0);
+        else
+            ++(opsCounter_->at(addedOp->getOpType()));
+
+        /*
+        if(addedOp->hasAttr("groups"))
+        {
+            Attribute groupsAttr = addedOp->getAttr("groups");
+            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
+            for(unsigned j = 0; j < groupsVec.size(); ++j)
+                addGroupElement(addedOp, groups_->find(groupsVec[j])->second);
+        }
+        */
     }
 
     // TENSOR SOURCES
@@ -640,7 +673,7 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     graph["control_flows"] = mv::json::Value(control_flows);
     computationModel["graph"] = graph;
     computationModel["tensors"] = tensors;
-    computationModel["groups"] = groups;
+    computationModel["computation_groups"] = groups;
     computationModel["stages"] = stages;
     computationModel["source_ops"] = sourceOps;
     computationModel["memory_allocators"] = memory_allocators;
