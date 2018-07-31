@@ -163,23 +163,23 @@ mv::Data::OpListIterator mv::ComputationModel::addNodeFromJson(mv::json::Value& 
 
 }
 
-void mv::ComputationModel::addDataFlowFromJson(mv::json::Value& data_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
+mv::Data::FlowListIterator mv::ComputationModel::addDataFlowFromJson(mv::json::Value& data_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
 {
 
     mv::DataFlow d(data_flow, findTensor_(constructStringFromJson(data_flow["tensor"])));
     string source = d.getAttr("sourceOp").getContent<string>();
     string target = d.getAttr("sinkOp").getContent<string>();
 
-    dataGraph_.edge_insert(addedOperations[source], addedOperations[target], d);
+    return dataGraph_.edge_insert(addedOperations[source], addedOperations[target], d);
 }
 
-void mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
+mv::Control::FlowListIterator mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
 {
     mv::ControlFlow d(control_flow);
     string source = d.getAttr("sourceOp").getContent<string>();
     string target = d.getAttr("sinkOp").getContent<string>();
 
-    controlGraph_.edge_insert(opsGraph_->get_second_iterator(addedOperations[source]), opsGraph_->get_second_iterator(addedOperations[target]), d);
+    return controlGraph_.edge_insert(opsGraph_->get_second_iterator(addedOperations[source]), opsGraph_->get_second_iterator(addedOperations[target]), d);
 }
 
 mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLevel verboseLevel, bool logTime):
@@ -209,17 +209,29 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     for(unsigned i = 0; i < tensors.size(); ++i)
     {
         Tensor currentTensor(tensors[i]);
+
+        if(currentTensor.hasAttr("groups"))
+        {
+            Attribute groupsAttr = currentTensor.getAttr("groups");
+            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
+            for(unsigned j = 0; j < groupsVec.size(); ++j)
+            {
+                allocator::owner_ptr<Tensor> ptr = currentTensor;
+                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
+                addGroupElement_(ptr, group);
+            }
+        }
         flowTensors_->emplace(currentTensor.getName(), currentTensor);
     }
 
     // OPERATIONS/NODES and OPS COUNTERS
-    //Utility structure to store Name -> Operation iterator mapping
+    // Utility structure to store Name -> Operation iterator mapping
     std::map<string, Data::OpListIterator> addedOperations;
 
     mv::json::Value nodes = model["graph"]["nodes"];
     for(unsigned i = 0; i < nodes.size(); ++i)
     {
-        auto addedOp = addNodeFromJson(nodes[i]);
+        mv::Data::OpListIterator addedOp = addNodeFromJson(nodes[i]);
         addedOperations[addedOp->getName()] = addedOp;
 
         if(opsCounter_->find(addedOp->getOpType()) == opsCounter_->end())
@@ -227,15 +239,17 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
         else
             ++(opsCounter_->at(addedOp->getOpType()));
 
-        /*
         if(addedOp->hasAttr("groups"))
         {
             Attribute groupsAttr = addedOp->getAttr("groups");
             mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
             for(unsigned j = 0; j < groupsVec.size(); ++j)
-                addGroupElement(addedOp, groups_->find(groupsVec[j])->second);
+            {
+                allocator::owner_ptr<ComputationOp> ptr = addedOp;
+                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
+                addGroupElement_(ptr, group);
+            }
         }
-        */
     }
 
     // TENSOR SOURCES
@@ -252,24 +266,43 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     mv::json::Value data_flows = model["graph"]["data_flows"];
     for(unsigned i = 0; i < data_flows.size(); ++i)
     {
-        addDataFlowFromJson(data_flows[i], addedOperations);
+        auto addedDataFlow = addDataFlowFromJson(data_flows[i], addedOperations);
+
+        if(addedDataFlow->hasAttr("groups"))
+        {
+            Attribute groupsAttr = addedDataFlow->getAttr("groups");
+            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
+            for(unsigned j = 0; j < groupsVec.size(); ++j)
+            {
+                allocator::owner_ptr<DataFlow> ptr = addedDataFlow;
+                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
+                addGroupElement_(ptr, group);
+            }
+        }
     }
 
     // CONTROL FLOWS
     mv::json::Value control_flows = model["graph"]["control_flows"];
     for(unsigned i = 0; i < control_flows.size(); ++i)
     {
-        addControlFlowFromJson(control_flows[i], addedOperations);
+        auto addedControlFlow = addControlFlowFromJson(control_flows[i], addedOperations);
+
+        if(addedControlFlow->hasAttr("groups"))
+        {
+            Attribute groupsAttr = addedControlFlow->getAttr("groups");
+            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
+            for(unsigned j = 0; j < groupsVec.size(); ++j)
+            {
+                allocator::owner_ptr<ControlFlow> ptr = addedControlFlow;
+                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
+                addGroupElement_(ptr, group);
+            }
+        }
     }
 
-    // OPS COUNTERS
-    mv::json::Value counters = model["operations_counters"];
-    std::vector<string> counterKeys(counters.getKeys());
-    for(unsigned i = 0; i < counterKeys.size(); ++i)
-    {
-        mv::json::Value v(counterKeys[i]);
-        opsCounter_->emplace(mv::Jsonable::constructOpTypeFromJson(v), mv::Jsonable::constructUnsignedTypeFromJson(counters[counterKeys[i]]));
-    }
+    // MEMORY ALLOCATORS
+
+    // STAGES
 }
 
 
@@ -662,7 +695,7 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     for (auto opsCounterIt = opsCounter_->begin(); opsCounterIt != opsCounter_->end(); ++opsCounterIt)
         opsCounters[opsStrings.at(opsCounterIt->first)] = mv::Jsonable::toJsonValue(opsCounterIt->second);
 
-    //Source ops counters: NOTE: why there are some null pointers?
+    //Source ops counters.
     for (auto sourceOpsIt = tensorsSources_->begin(); sourceOpsIt != tensorsSources_->end(); ++sourceOpsIt)
         sourceOps[sourceOpsIt->first] = mv::Jsonable::toJsonValue(sourceOpsIt->second->getName());
 

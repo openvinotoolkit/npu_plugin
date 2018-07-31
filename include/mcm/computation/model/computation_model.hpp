@@ -24,8 +24,8 @@ namespace mv
         void addOutputTensorsJson(Data::OpListIterator insertedOp);
         void addInputTensorsJson(Data::OpListIterator insertedOp);
         mv::Data::OpListIterator addNodeFromJson(mv::json::Value& node);
-        void addControlFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
-        void addDataFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
+        Control::FlowListIterator addControlFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
+        Data::FlowListIterator addDataFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
     protected:
 
         static allocator allocator_;
