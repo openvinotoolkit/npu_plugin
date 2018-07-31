@@ -223,7 +223,7 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
         addedOperations[addedOp->getName()] = addedOp;
 
         if(opsCounter_->find(addedOp->getOpType()) == opsCounter_->end())
-            opsCounter_->emplace(addedOp->getOpType(), 0);
+            opsCounter_->emplace(addedOp->getOpType(), 1);
         else
             ++(opsCounter_->at(addedOp->getOpType()));
 
