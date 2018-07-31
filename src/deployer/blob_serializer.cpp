@@ -6,8 +6,10 @@ namespace mv
 
     void Blob_buffer::calc(mv::ControlModel& cm)
     {
-        // calculate blob statistics
-        // set input size from compute model
+        /*
+            Does a soft run through to calculate all offsets for use in blob.
+        */
+
         blob_stats.input_size = cm.getFirst()->getOutputTensor(0)->getShape().totalSize();
 
         // set fixed header sizes for blob
@@ -134,6 +136,14 @@ namespace mv
 
     void Blob_buffer::write_elf_header()
     {
+        /*
+            Somewhat following the ELF Header standard, but effort was dropped.
+            This section remains until properly depreciated.
+
+            @param write_or_query - 0 to return size of section, 1 to write section.
+
+        */
+
         AddBytes(2, 0x0000);  // 0x00
         AddBytes(2, 0x0001);
         AddBytes(2, 0x0002);
@@ -155,9 +165,9 @@ namespace mv
 
     void Blob_buffer::write_mv_header()
     {
-        uint32_t mv_magic_number = 8708 ;
-        uint32_t mv_version_major = 2 ;
-        uint32_t mv_version_minor = 3 ;
+        uint32_t mv_magic_number = BLOB_MAGIC_NUMBER ;
+        uint32_t mv_version_major = BLOB_VERSION_MAJOR ;
+        uint32_t mv_version_minor = BLOB_VERSION_MINOR ;
         uint32_t mv_num_shaves = 1 ;
 
         uint32_t mv_stage_section_offset = blob_stats.elf_header_size+blob_stats.mv_header_size+blob_stats.header_pad_size ;

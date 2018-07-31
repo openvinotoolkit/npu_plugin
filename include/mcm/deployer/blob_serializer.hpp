@@ -11,7 +11,12 @@
 #include "include/mcm/utils/serializer/mv_types.h"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/serializer/file_buffer.h"
+#include "include/mcm/deployer/myriadX_hardware_descriptors.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+
+#define BLOB_VERSION_MAJOR 2
+#define BLOB_VERSION_MINOR 3
+#define BLOB_MAGIC_NUMBER 8708
 
 namespace mv
 {
