@@ -75,12 +75,12 @@ mv::json::Value mv::Jsonable::toJsonValue(const char *value)
 
 mv::int_type mv::Jsonable::constructIntTypeFromJson(mv::json::Value& v)
 {
-    return v.get<mv::int_type>();
+    return v.get<long long>();
 }
 
 mv::unsigned_type mv::Jsonable::constructUnsignedTypeFromJson(mv::json::Value& v)
 {
-    return v.get<mv::int_type>();
+    return v.get<long long>();
 }
 
 mv::float_type mv::Jsonable::constructFloatTypeFromJson(mv::json::Value& v)
@@ -90,12 +90,12 @@ mv::float_type mv::Jsonable::constructFloatTypeFromJson(mv::json::Value& v)
 
 mv::byte_type mv::Jsonable::constructByteTypeFromJson(mv::json::Value& v)
 {
-    return v.get<mv::int_type>();
+    return v.get<long long>();
 }
 
 mv::dim_type mv::Jsonable::constructDimTypeFromJson(mv::json::Value& v)
 {
-    return v.get<mv::int_type>();
+    return v.get<long long>();
 }
 
 bool mv::Jsonable::constructBoolTypeFromJson(mv::json::Value& v)
