@@ -447,6 +447,7 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
     for (byte_type j = 0; j < op->outputSlots(); ++j)
     {
         flowTensors_->erase(op->getOutputTensor(j));
+        tensorsSources_->erase(op->getOutputTensor(j)->getName());
     }
 
     auto opCounterIt = opsCounter_->find(op->getOpType());
