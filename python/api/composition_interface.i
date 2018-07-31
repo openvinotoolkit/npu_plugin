@@ -23,12 +23,12 @@ import_array();
     }
 
     mv::CompilationUnit* getCompilationUnit()
-    {   
+    {
 
         auto unit = new mv::CompilationUnit();
         std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
         unit->targetDescriptor().load(targetDescPath);
-        
+
         // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
         unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
         unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
@@ -36,7 +36,7 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
         return unit;
-        
+
     }
 
     mv::OpModel* getModel(mv::CompilationUnit *unit)

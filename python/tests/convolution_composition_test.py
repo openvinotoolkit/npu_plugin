@@ -300,6 +300,7 @@ class TestComposition(unittest.TestCase):
         # ca.produceDOT(om)
         ca.compile(cm)
         self.assertTrue(os.path.isfile("pycm.dot"))
+        os.system("dot -Tsvg pycm.dot -o pycm.svg")
         self.assertTrue(os.path.isfile("pycm.svg"))
 
     def test_compile_convolution_01(self):
