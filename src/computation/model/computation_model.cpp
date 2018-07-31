@@ -634,6 +634,10 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     mv::json::Object sourceOps;
     mv::json::Object opsCounters;
 
+    //Groups
+    for (auto groupIt = groups_->begin(); groupIt != groups_->end(); ++groupIt)
+        groups.append(mv::Jsonable::toJsonValue(*groupIt->second));
+
     //Tensors and source operations
     for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
         tensors.append(mv::Jsonable::toJsonValue(*(tensorIt->second)));
@@ -649,10 +653,6 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     //Control flows
     for (auto controlIt = controlGraph_.edge_begin(); controlIt != controlGraph_.edge_end(); ++controlIt)
         control_flows.append(mv::Jsonable::toJsonValue(**controlIt));
-
-    //Groups
-    for (auto groupIt = groups_->begin(); groupIt != groups_->end(); ++groupIt)
-        groups.append(mv::Jsonable::toJsonValue(*groupIt->second));
 
     //Deploying stages (Waiting for Stanislaw proper implementation)
     //for (auto stagesIt = stages_->begin(); stagesIt != stages_->end(); ++stagesIt)
