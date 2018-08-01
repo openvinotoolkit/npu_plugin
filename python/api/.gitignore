@@ -1,0 +1,4 @@
+#Generated files
+composition_api.py
+*.so
+__pycache__/

@@ -67,6 +67,7 @@ void mv::TargetDescriptor::reset()
     serializationPasses_.clear();
     validationPasses_.clear();
     ops_.clear();
+    memoryDefs_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
@@ -158,16 +159,16 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
     }
 
-    if (jsonDescriptor.hasKey("pass"))
+    if (jsonDescriptor.hasKey("passes"))
     {
 
-        if (jsonDescriptor["pass"].valueType() != json::JSONType::Object)
+        if (jsonDescriptor["passes"].valueType() != json::JSONType::Object)
         {
             reset();
             return false;
         }
 
-        std::vector<std::string> keys = jsonDescriptor["pass"].getKeys();
+        std::vector<std::string> keys = jsonDescriptor["passes"].getKeys();
 
         for (unsigned i = 0; i < keys.size(); ++i)
         {
@@ -188,22 +189,22 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 return false;
             }
 
-            if (jsonDescriptor["pass"][keys[i]].valueType() != json::JSONType::Array)
+            if (jsonDescriptor["passes"][keys[i]].valueType() != json::JSONType::Array)
             {
                 reset();
                 return false;
             }
 
-            for (unsigned j = 0; j < jsonDescriptor["pass"][keys[i]].size(); ++j)
+            for (unsigned j = 0; j < jsonDescriptor["passes"][keys[i]].size(); ++j)
             {
 
-                if (jsonDescriptor["pass"][keys[i]][j].valueType() != json::JSONType::String)
+                if (jsonDescriptor["passes"][keys[i]][j].valueType() != json::JSONType::String)
                 {
                     reset();
                     return false;
                 }
 
-                passCollection->push_back(jsonDescriptor["pass"][keys[i]][j].get<std::string>());
+                passCollection->push_back(jsonDescriptor["passes"][keys[i]][j].get<std::string>());
 
             }
 
@@ -249,6 +250,60 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         
     }
 
+    if (jsonDescriptor["resources"].valueType() != json::JSONType::Object)
+    {
+        reset();
+        return false;
+    }
+    else
+    {
+        if (jsonDescriptor["resources"]["memory"].valueType() != json::JSONType::Array)
+        {
+            reset();
+            return false;
+        }
+        else
+        {
+
+            for (std::size_t i = 0; i < jsonDescriptor["resources"]["memory"].size(); ++i)
+            {
+                
+                std::string name;
+                long long size;
+
+                if (!jsonDescriptor["resources"]["memory"][i].hasKey("name") || 
+                    !jsonDescriptor["resources"]["memory"][i].hasKey("size"))
+                {
+                    reset();
+                    return false;
+                }
+
+                if (jsonDescriptor["resources"]["memory"][i]["name"].valueType() != json::JSONType::String || 
+                    jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger)
+                {
+                    reset();
+                    return false;
+                }
+                
+
+
+                name = jsonDescriptor["resources"]["memory"][i]["name"].get<std::string>();
+                size = jsonDescriptor["resources"]["memory"][i]["size"].get<long long>();
+
+                if (size < 0)
+                {
+                    reset();
+                    return false;
+                }
+                
+                memoryDefs_[name] = {size};
+
+            }
+
+        }
+
+    }
+
     return true;
 
 }
@@ -272,26 +327,26 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
     for (auto it = ops_.begin(); it != ops_.end(); ++it)
         root["ops"].append(opsStrings.at(*it));
 
-    root["pass"]["adapt"] = json::Array();
-    root["pass"]["optimize"] = json::Array();
-    root["pass"]["finalize"] = json::Array();
-    root["pass"]["serialize"] = json::Array();
-    root["pass"]["validate"] = json::Array();
+    root["passes"]["adapt"] = json::Array();
+    root["passes"]["optimize"] = json::Array();
+    root["passes"]["finalize"] = json::Array();
+    root["passes"]["serialize"] = json::Array();
+    root["passes"]["validate"] = json::Array();
 
     for (auto it = adaptationPasses_.begin(); it != adaptationPasses_.end(); ++it)
-        root["pass"]["adapt"].append(*it);
+        root["passes"]["adapt"].append(*it);
 
     for (auto it = optimizationPasses_.begin(); it != optimizationPasses_.end(); ++it)
-        root["pass"]["optimize"].append(*it);
+        root["passes"]["optimize"].append(*it);
 
     for (auto it = finalizationPasses_.begin(); it != finalizationPasses_.end(); ++it)
-        root["pass"]["finalize"].append(*it);
+        root["passes"]["finalize"].append(*it);
 
     for (auto it = serializationPasses_.begin(); it != serializationPasses_.end(); ++it)
-        root["pass"]["serialize"].append(*it);
+        root["passes"]["serialize"].append(*it);
 
     for (auto it = validationPasses_.begin(); it != validationPasses_.end(); ++it)
-        root["pass"]["validate"].append(*it);
+        root["passes"]["validate"].append(*it);
 
     descFile << root.stringifyPretty();
     descFile.close();
@@ -499,6 +554,30 @@ bool mv::TargetDescriptor::opSupported(OpType op) const
     return false;
 }
 
+bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size)
+{
+    if (size < 0)
+        return false;
+
+    if (memoryDefs_.find(name) == memoryDefs_.end())
+    {
+        memoryDefs_[name] = {size};
+        return true;
+    }
+    return false;
+}
+
+bool mv::TargetDescriptor::undefineMemory(const std::string& name)
+{
+    auto defIt = memoryDefs_.find(name);
+    if (defIt != memoryDefs_.end())
+    {
+        memoryDefs_.erase(defIt);
+        return true;
+    }
+    return false;
+}
+
 std::size_t mv::TargetDescriptor::adaptPassesCount() const
 {
     return adaptationPasses_.size();
@@ -564,3 +643,7 @@ mv::Order mv::TargetDescriptor::getOrder() const
     return globalOrder_;
 }
 
+const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const
+{
+    return memoryDefs_;
+}
