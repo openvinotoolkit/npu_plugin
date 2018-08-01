@@ -945,7 +945,7 @@ namespace mv
                 AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
                 AddBytes(4, 0x00);   // padX
                 AddBytes(4, 0x00);   // padY 0x150
-                AddBytes(4, 0x02);   // padstyle
+                AddBytes(4, conv_pool_stage.padStyle);
 
                 add_stage_IO_info(it, conv_pool_stage);
 
@@ -1009,7 +1009,7 @@ namespace mv
                 AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
                 AddBytes(4, 0x00);   // padX
                 AddBytes(4, 0x00);   // padY 0x150
-                AddBytes(4, 0x03);   // padstyle
+                AddBytes(4, conv_pool_stage.padStyle);
 
                 add_stage_IO_info(it, conv_pool_stage);
 
