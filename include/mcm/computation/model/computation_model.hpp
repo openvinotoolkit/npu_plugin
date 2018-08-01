@@ -26,6 +26,23 @@ namespace mv
         mv::Data::OpListIterator addNodeFromJson(mv::json::Value& node);
         Control::FlowListIterator addControlFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
         Data::FlowListIterator addDataFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
+
+        template <typename T, typename TIterator>
+        void handleGroupsForAddedElement(TIterator addedElement)
+        {
+            if(addedElement->hasAttr("groups"))
+            {
+                Attribute groupsAttr = addedElement->getAttr("groups");
+                mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
+                for(unsigned j = 0; j < groupsVec.size(); ++j)
+                {
+                    allocator::owner_ptr<T> ptr = addedElement;
+                    mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
+                    addGroupElement_(ptr, group);
+                }
+            }
+        }
+
     protected:
 
         static allocator allocator_;

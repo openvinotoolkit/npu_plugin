@@ -196,43 +196,27 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     }
 
     for(auto currentGroupIt = groups_->begin(); currentGroupIt != groups_->end(); ++currentGroupIt)
-    {
-        if (!currentGroupIt->second->hasAttr("groups"))
-            continue;
-        Attribute groupsAttr = currentGroupIt->second->getAttr("groups");
-        mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
-        for(unsigned i = 0; i < groupsVec.size(); ++i)
-            groups_->find(groupsVec[i])->second->insert(currentGroupIt->second);
-    }
+        handleGroupsForAddedElement<ComputationGroup, mv::GroupContext::GroupIterator>(currentGroupIt);
 
     // TENSORS
     mv::json::Value tensors = model["tensors"];
     for(unsigned i = 0; i < tensors.size(); ++i)
     {
         Tensor currentTensor(tensors[i]);
+        auto addedTensor = flowTensors_->emplace(currentTensor.getName(), currentTensor);
 
-        if(currentTensor.hasAttr("groups"))
-        {
-            Attribute groupsAttr = currentTensor.getAttr("groups");
-            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
-            for(unsigned j = 0; j < groupsVec.size(); ++j)
-            {
-                allocator::owner_ptr<Tensor> ptr = currentTensor;
-                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
-                addGroupElement_(ptr, group);
-            }
-        }
-        flowTensors_->emplace(currentTensor.getName(), currentTensor);
+        handleGroupsForAddedElement<Tensor, mv::Data::TensorIterator>(addedTensor.first);
     }
 
     // OPERATIONS/NODES and OPS COUNTERS
+
     // Utility structure to store Name -> Operation iterator mapping
     std::map<string, Data::OpListIterator> addedOperations;
 
     mv::json::Value nodes = model["graph"]["nodes"];
     for(unsigned i = 0; i < nodes.size(); ++i)
     {
-        mv::Data::OpListIterator addedOp = addNodeFromJson(nodes[i]);
+        auto addedOp = addNodeFromJson(nodes[i]);
         addedOperations[addedOp->getName()] = addedOp;
 
         if(opsCounter_->find(addedOp->getOpType()) == opsCounter_->end())
@@ -240,17 +224,7 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
         else
             ++(opsCounter_->at(addedOp->getOpType()));
 
-        if(addedOp->hasAttr("groups"))
-        {
-            Attribute groupsAttr = addedOp->getAttr("groups");
-            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
-            for(unsigned j = 0; j < groupsVec.size(); ++j)
-            {
-                allocator::owner_ptr<ComputationOp> ptr = addedOp;
-                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
-                addGroupElement_(ptr, group);
-            }
-        }
+        handleGroupsForAddedElement<ComputationOp, mv::Data::OpListIterator>(addedOp);
     }
 
     // TENSOR SOURCES
@@ -268,18 +242,7 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     for(unsigned i = 0; i < data_flows.size(); ++i)
     {
         auto addedDataFlow = addDataFlowFromJson(data_flows[i], addedOperations);
-
-        if(addedDataFlow->hasAttr("groups"))
-        {
-            Attribute groupsAttr = addedDataFlow->getAttr("groups");
-            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
-            for(unsigned j = 0; j < groupsVec.size(); ++j)
-            {
-                allocator::owner_ptr<DataFlow> ptr = addedDataFlow;
-                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
-                addGroupElement_(ptr, group);
-            }
-        }
+        handleGroupsForAddedElement<DataFlow, mv::Data::FlowListIterator>(addedDataFlow);
     }
 
     // CONTROL FLOWS
@@ -287,18 +250,7 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     for(unsigned i = 0; i < control_flows.size(); ++i)
     {
         auto addedControlFlow = addControlFlowFromJson(control_flows[i], addedOperations);
-
-        if(addedControlFlow->hasAttr("groups"))
-        {
-            Attribute groupsAttr = addedControlFlow->getAttr("groups");
-            mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
-            for(unsigned j = 0; j < groupsVec.size(); ++j)
-            {
-                allocator::owner_ptr<ControlFlow> ptr = addedControlFlow;
-                mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
-                addGroupElement_(ptr, group);
-            }
-        }
+        handleGroupsForAddedElement<ControlFlow, mv::Control::FlowListIterator>(addedControlFlow);
     }
 
     // MEMORY ALLOCATORS
