@@ -45,9 +45,9 @@ void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             if(!tensorIt->isPopulated())
                 continue;
             std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
-            std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out);
-            mv::json::Value toDump = mv::Jsonable::toJsonValue(tensorIt->getData());
-            currentTensorOutputStream << toDump.stringifyPretty();
+            std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out | std::ios::binary);
+            mv::dynamic_vector<float> tensorData(tensorIt->getData());
+            currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
             currentTensorOutputStream.close();
         }
     }
