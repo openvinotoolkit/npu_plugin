@@ -27,9 +27,8 @@
 		"global": "fp16"
 	},
 
-	"pass":
+	"passes":
 	{
-	
 		"adapt":
 		[
 			"FuseBatchNorm", 
@@ -46,18 +45,32 @@
 			"ArrangeLinearExecution"
 		],
 
-		"validate":
-		[
-			"GenerateDot",
-			"CheckTensors"
-		],
-
 		"serialize":
 		[
 			"GenerateJSON",
 			"GenerateBlob"
+		],
+	
+		"validate":
+		[
+			"GenerateDot",
+			"CheckTensors"
 		]
 
+	},
+
+	"resources":
+	{
+		"memory":
+		[
+
+			{
+				"name": "BlobBufferSection",
+				"size": 1024000000
+			}
+
+		]
+		
 	}
 
 }

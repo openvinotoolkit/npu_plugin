@@ -1,12 +1,13 @@
-#include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
 int main()
 {
-    // Define blank computation model (op view)
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
+    // Define the primary compilation unit
+    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
+
+    // Obtain compositional model from the compilation unit
+    mv::CompositionalModel& cm = unit.model();
     
     // Initialize weights data
     mv::dynamic_vector<mv::float_type> weights1Data = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
@@ -14,21 +15,44 @@ int main()
     mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
 
     // Compose model - use Composition API to create ops and obtain tensors 
-    auto input = om.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::ColumnMajor);
-    auto weights1 = om.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::ColumnMajor);
-    auto conv1 = om.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
-    auto pool1 = om.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto weights2 = om.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::ColumnMajor);
-    auto conv2 = om.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
-    auto pool2 = om.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
-    auto weights3 = om.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::ColumnMajor);
-    auto conv3 = om.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
-    om.output(conv3); 
+    auto input = cm.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::ColumnMajor);
+    auto weights1 = cm.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::ColumnMajor);
+    auto conv1 = cm.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
+    auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto weights2 = cm.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::ColumnMajor);
+    auto conv2 = cm.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
+    auto pool2 = cm.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
+    auto weights3 = cm.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::ColumnMajor);
+    auto conv3 = cm.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
+    cm.output(conv3); 
+
+    // Load target descriptor for the selected target to the compilation unit
+    std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+    unit.targetDescriptor().load(targetDescPath);
+
+    // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
+    // Output DOT - file name (base)
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("allocate_resouces.dot");
+    // Output DOT - scope of visualization - executable operations, data flow, control flow
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+    // Output DOT - content included in the visualization - full content
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    // Output DOT - HTML-like flag - enable HTML-like formatting
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    // Output BLOB - file name of the output binary
+    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("allocate_resouces.blob");
+
+    // Initialize compilation 
+    unit.initialize();
+
+    // Run all passes
+    auto result = unit.run();
 
     // Obtain ops from tensors and add them to groups
-    auto pool1Op = om.getSourceOp(pool1);
-    auto pool2Op = om.getSourceOp(pool2);
-    auto group1It = om.addGroup("pools");
+    //auto pool1Op = cm.getSourceOp(pool1);
+    //auto pool2Op = cm.getSourceOp(pool2);
+
+    /*auto group1It = om.addGroup("pools");
     om.addGroupElement(pool1Op, group1It);
     om.addGroupElement(pool2Op, group1It);
 
@@ -64,13 +88,13 @@ int main()
 
     }
 
-    std::cout << conv1->toString() << std::endl;
+    std::cout << conv1->toString() << std::endl;*/
 
     /*mv::CStdOStream ostream;
     mv::pass::DotPass dotPass(om.logger(), ostream, mv::pass::DotPass::OutputScope::OpControlModel, mv::pass::DotPass::ContentLevel::ContentFull);
     dotPass.run(om);*/
 
-    std::cout << group1It->toString() << std::endl;
+    //std::cout << group1It->toString() << std::endl;
 
     //mv::ControlModel cm(om);
 
