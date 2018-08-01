@@ -2,7 +2,6 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-
 static mv::Logger::VerboseLevel logger_level = mv::Logger::VerboseLevel::VerboseSilent;
 
 // test 01 : 1 2d convolution
@@ -24,7 +23,7 @@ TEST (model_serializer, blob_output_conv_01)
 
     std::string blobName = "test_conv_01.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -36,7 +35,7 @@ TEST (model_serializer, blob_output_conv_01)
     EXPECT_EQ (452LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_01.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -62,7 +61,7 @@ TEST (model_serializer, blob_output_conv_02)
 
     std::string blobName = "test_conv_02.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -74,7 +73,7 @@ TEST (model_serializer, blob_output_conv_02)
     EXPECT_EQ (580LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_02.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_02.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -101,7 +100,7 @@ TEST (model_serializer, blob_output_conv_03)
 
     std::string blobName = "test_conv_03.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -113,7 +112,7 @@ TEST (model_serializer, blob_output_conv_03)
     EXPECT_EQ (580LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_03.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_03.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -139,7 +138,7 @@ TEST (model_serializer, blob_output_conv_04)
 
     std::string blobName = "test_conv_04.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -151,7 +150,7 @@ TEST (model_serializer, blob_output_conv_04)
     EXPECT_EQ (900LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_04.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_04.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -180,7 +179,7 @@ TEST (model_serializer, blob_blur_edge_05)
 
     std::string blobName = "test_conv_05.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -192,7 +191,7 @@ TEST (model_serializer, blob_blur_edge_05)
     EXPECT_EQ (692LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_05.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_05.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -260,7 +259,7 @@ TEST (model_serializer, blob_4_ops)
 
     std::string blobName = "test_conv_06.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -272,7 +271,7 @@ TEST (model_serializer, blob_4_ops)
     EXPECT_EQ (1108LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_06.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_06.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -368,7 +367,7 @@ TEST (model_serializer, blob_eltwise_add)
 
     std::string blobName = "test_add_07.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -380,7 +379,7 @@ TEST (model_serializer, blob_eltwise_add)
     EXPECT_EQ (2372LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_07.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_07.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -478,7 +477,7 @@ TEST (model_serializer, blob_eltwise_multiply)
 
     std::string blobName = "test_multiply_08.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -490,7 +489,7 @@ TEST (model_serializer, blob_eltwise_multiply)
     EXPECT_EQ (2372LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_08.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_08.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -589,7 +588,7 @@ TEST (model_serializer, blob_softmax)
 
     std::string blobName = "test_softmax_09.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -601,7 +600,7 @@ TEST (model_serializer, blob_softmax)
     EXPECT_EQ (2356LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_09.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_09.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -685,7 +684,7 @@ TEST (model_serializer, blob_convbias_convrelu)
 
     std::string blobName = "test_relu_10.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -697,7 +696,7 @@ TEST (model_serializer, blob_convbias_convrelu)
     EXPECT_EQ (1556LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_10.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_10.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     //EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
 
@@ -771,7 +770,7 @@ TEST (model_serializer, blob_scale)
 
     std::string blobName = "test_scale_11.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.targetDescriptor().load(std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json"));
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
@@ -783,7 +782,7 @@ TEST (model_serializer, blob_scale)
     EXPECT_EQ (964LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
-    std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_11.blob");
+    std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
     

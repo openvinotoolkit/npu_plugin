@@ -6,13 +6,15 @@
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
-
+#include "include/mcm/utils/env_loader.hpp"
 
 namespace mv
 {
 
     class CompilationUnit
     {
+
+        static const std::string ma2480DefDescPath_;
 
         OpModel* model_;
         PassManager passManager_;
@@ -24,8 +26,10 @@ namespace mv
         CompilationUnit(mv::Logger::VerboseLevel verboseLevel = mv::Logger::VerboseLevel::VerboseSilent, bool logTime = false);
         ~CompilationUnit();
         
+        bool loadTargetDescriptor(const std::string& path);
+        bool loadTargetDescriptor(Target target);
+
         PassManager& passManager();
-        TargetDescriptor& targetDescriptor();
         json::Object& compilationDescriptor();
         CompositionalModel& model();
 

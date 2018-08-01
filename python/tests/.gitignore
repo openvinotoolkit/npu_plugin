@@ -1,0 +1,6 @@
+*.blob
+*.json
+*.dot
+*.svg
+*:*
+python_unittests_xml/

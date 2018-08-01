@@ -42,6 +42,7 @@ file(GLOB base
     "src/base/json/exception/*.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/parser/exception/*.cpp"
+    "src/utils/*.cpp"
     "src/base/singleton.cpp"
 )
 

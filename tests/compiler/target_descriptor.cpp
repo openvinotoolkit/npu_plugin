@@ -1,11 +1,12 @@
 #include "gtest/gtest.h"
 #include "include/mcm/target/target_descriptor.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 #include <cstdlib>
 
 TEST(target_descriptor, load_from_file)
 {
 
-    std::string descPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+    std::string descPath = mv::utils::projectRootPath() + std::string("/config/target/ma2480.json");
     mv::TargetDescriptor desc;
     ASSERT_TRUE(desc.load(descPath));
     ASSERT_EQ(desc.getTarget(), mv::Target::ma2480);

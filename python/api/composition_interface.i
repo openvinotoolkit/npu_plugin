@@ -26,8 +26,7 @@ import_array();
     {
 
         auto unit = new mv::CompilationUnit();
-        std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
-        unit->targetDescriptor().load(targetDescPath);
+        unit->loadTargetDescriptor(mv::Target::ma2480);
 
         // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
         unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
