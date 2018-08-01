@@ -16,7 +16,7 @@
 		"divide",
 		"fullyconnected"
 	],
-	
+
 	"order":
 	{
 		"global": "planar"
@@ -27,20 +27,19 @@
 		"global": "fp16"
 	},
 
-	"pass":
+	"passes":
 	{
-	
 		"adapt":
 		[
-			"FuseBatchNorm", 
-			"FuseBias", 
+			"FuseBatchNorm",
+			"FuseBias",
 			"FuseScale",
 			"FuseBias",
 			"FuseScale",
 			"FuseBias",
 			"FullyConnectedAsConv2D"
 		],
-		
+
 		"finalize":
 		[
 			"MarkHardwareConvolution",
@@ -48,17 +47,27 @@
 			"ArrangeLinearExecution"
 		],
 
+		"serialize":
+		[
+			"GenerateBlob"
+		],
+
 		"validate":
 		[
 			"GenerateDot",
 			"CheckTensors"
-		],
-
-		"serialize":
-		[
-			"GenerateBlob"
 		]
+	},
 
+	"resources":
+	{
+		"memory":
+		[
+			{
+				"name": "BlobBufferSection",
+				"size": 1024000000
+			}
+		]
 	}
 
 }

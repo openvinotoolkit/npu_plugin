@@ -96,7 +96,18 @@ mv::CompositionalModel& mv::CompilationUnit::model()
 
 bool mv::CompilationUnit::initialize()
 {
-    return passManager_.initialize(*model_, targetDescriptor_, compilationDescriptor_);
+
+    if (!passManager_.initialize(*model_, targetDescriptor_, compilationDescriptor_))
+        return false;
+    // Initialize resouces
+    for (auto it = targetDescriptor_.memoryDefs().begin(); it != targetDescriptor_.memoryDefs().end(); ++it)
+    {
+        mv::DataModel dm(*model_);
+        dm.addAllocator(it->first, it->second.size);
+    }
+
+    return true;
+
 }
 
 mv::json::Object mv::CompilationUnit::runStep()

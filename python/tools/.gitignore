@@ -1,0 +1,5 @@
+*.npy
+NA
+__pycache__/
+graph
+*.png
