@@ -16,6 +16,7 @@ namespace mv
 
             Null();
             std::string stringify() const override;
+            std::string stringifyPretty() const override;
 
         };  
 

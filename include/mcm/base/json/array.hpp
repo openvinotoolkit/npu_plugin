@@ -29,7 +29,7 @@ namespace mv
             Value& operator[](unsigned idx);
             Value& last();
             std::string stringify() const override;
-            std::string stringifyPretty() const;
+            std::string stringifyPretty() const override;
             Array& operator=(const Array& other);
 
         };  

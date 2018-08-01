@@ -34,8 +34,7 @@ void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         throw mv::ArgumentError("output", outputPath, "Unable to open output file");
 
     mv::json::Value computationModel = model.toJsonValue();
-    //NOTE: should become stringifypretty somehow
-    ostream << computationModel.stringify();
+    ostream << computationModel.stringifyPretty();
     ostream.close();
 
     //Populated tensors must be serialized in different files
@@ -48,7 +47,7 @@ void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
             std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out);
             mv::json::Value toDump = mv::Jsonable::toJsonValue(tensorIt->getData());
-            currentTensorOutputStream << toDump.stringify();
+            currentTensorOutputStream << toDump.stringifyPretty();
             currentTensorOutputStream.close();
         }
     }

@@ -263,6 +263,11 @@ std::string mv::json::Value::stringify() const
     return content_->stringify();
 }
 
+std::string mv::json::Value::stringifyPretty() const
+{
+    return content_->stringifyPretty();
+}
+
 mv::json::Value& mv::json::Value::operator=(const Value& other)
 {
     valueType_ = other.valueType_;

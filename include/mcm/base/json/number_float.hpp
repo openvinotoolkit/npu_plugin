@@ -20,6 +20,7 @@ namespace mv
             NumberFloat(float value);
             explicit operator float&() override;
             std::string stringify() const override;
+            std::string stringifyPretty() const override;
 
         };  
 

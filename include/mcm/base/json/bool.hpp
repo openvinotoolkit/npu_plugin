@@ -19,6 +19,7 @@ namespace mv
             Bool(bool value);
             explicit operator bool&() override;
             std::string stringify() const override;
+            std::string stringifyPretty() const override;
 
         }; 
         

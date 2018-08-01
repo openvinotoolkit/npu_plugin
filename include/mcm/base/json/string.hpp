@@ -19,6 +19,7 @@ namespace mv
             String(const std::string& value);
             explicit operator std::string&() override;
             std::string stringify() const override;
+            std::string stringifyPretty() const override;
 
         }; 
         

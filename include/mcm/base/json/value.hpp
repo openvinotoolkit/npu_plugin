@@ -65,6 +65,7 @@ namespace mv
             void append(const Value& element);
             unsigned size() const;
             std::string stringify() const;
+            std::string stringifyPretty() const;
             JSONType valueType() const;
             template <class T_value>
             T_value& get()

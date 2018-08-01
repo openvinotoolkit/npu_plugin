@@ -20,6 +20,7 @@ namespace mv
             NumberInteger(long long value);
             explicit operator long long&() override;
             std::string stringify() const override;
+            std::string stringifyPretty() const override;
 
         };  
 

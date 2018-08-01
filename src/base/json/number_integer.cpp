@@ -17,3 +17,8 @@ std::string mv::json::NumberInteger::stringify() const
     ss << value_;
     return ss.str();
 }
+
+std::string mv::json::NumberInteger::stringifyPretty() const
+{
+    return stringify();
+}
