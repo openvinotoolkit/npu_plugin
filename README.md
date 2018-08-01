@@ -13,6 +13,7 @@ export MCM_HOME=~/mcmCompiler
 ## Building
 ```
 cd mcmCompiler
+git submodule update --init
 mkdir build && cd build && cmake ..
 make -j8
 ```
