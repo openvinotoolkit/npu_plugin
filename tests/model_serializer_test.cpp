@@ -33,7 +33,7 @@ TEST (model_serializer, blob_output_conv_01)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (692LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (452LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_01.blob");
@@ -71,7 +71,7 @@ TEST (model_serializer, blob_output_conv_02)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (948LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (580LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_02.blob");
@@ -110,7 +110,7 @@ TEST (model_serializer, blob_output_conv_03)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (948LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (580LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_03.blob");
@@ -148,7 +148,7 @@ TEST (model_serializer, blob_output_conv_04)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1716LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (900LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_04.blob");
@@ -189,7 +189,7 @@ TEST (model_serializer, blob_blur_edge_05)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1252LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (692LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_05.blob");
@@ -269,7 +269,7 @@ TEST (model_serializer, blob_4_ops)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2564LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1108LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_06.blob");
@@ -377,7 +377,7 @@ TEST (model_serializer, blob_eltwise_add)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (5300LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2372LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_07.blob");
@@ -487,7 +487,7 @@ TEST (model_serializer, blob_eltwise_multiply)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (5300LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2372LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_08.blob");
@@ -598,7 +598,7 @@ TEST (model_serializer, blob_softmax)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (5284LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2356LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_09.blob");
@@ -694,7 +694,7 @@ TEST (model_serializer, blob_convbias_convrelu)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2996LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1556LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_10.blob");
@@ -780,7 +780,7 @@ TEST (model_serializer, blob_scale)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2420LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (964LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = std::getenv("MCM_HOME") + std::string("/tests/data/gold_11.blob");

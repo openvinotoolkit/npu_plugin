@@ -121,7 +121,7 @@ namespace mv
         uint32_t aligned_buffer_data_size = align(blob_stats.buffer_data_size, 64) ;
         blob_stats.buffer_data_pad_size = aligned_buffer_data_size - blob_stats.buffer_data_size ;
         blob_stats.buffer_data_size = aligned_buffer_data_size ;
-        blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-1) + (8*blob_stats.elt_count) ;
+        blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) ;
         blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
     }
 
@@ -204,8 +204,14 @@ namespace mv
         AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
         AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
         AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
-        AddBytes(4, conv_pool_stage.InputLocation);
-
+        if (conv_pool_stage.InputLocation > 4)
+        {
+            AddBytes(4, 0x04);
+        }
+        else
+        {
+            AddBytes(4, conv_pool_stage.InputLocation);
+        }
         AddBytes(4, conv_pool_stage.InputDataType);
         AddBytes(4, conv_pool_stage.InputOrder);
         AddBytes(4, it->getOutputTensor(0)->getShape()[0]);  // output X-dimension size  (0xb0)
@@ -215,8 +221,14 @@ namespace mv
         AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape()[0]*it->getOutputTensor(0)->getShape()[2]);   // 0xc0
         AddBytes(4, conv_pool_stage.OutputStrideZ);
         AddBytes(4, conv_pool_stage.OutputOffset);
-        AddBytes(4, conv_pool_stage.OutputLocation);
-
+        if (conv_pool_stage.OutputLocation > 4)
+        {
+            AddBytes(4, 0x04);
+        }
+        else
+        {
+            AddBytes(4, conv_pool_stage.OutputLocation);
+        }
         AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
         AddBytes(4, conv_pool_stage.OutputOrder);
     }
@@ -544,7 +556,7 @@ namespace mv
                     conv_pool_stage.TBOffset++ ;
                     AddBytes(4, conv_pool_stage.BiasLocation);
                     AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
-                    AddBytes(4, 3);
+                    AddBytes(4, 1);
                 }
                 else
                 {
@@ -782,8 +794,14 @@ namespace mv
                 AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize()); // Input Stride Y
                 AddBytes(4, blob_stats.tensor_number_size);    // InputStride Z
                 AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
-                AddBytes(4, conv_pool_stage.InputLocation);
-
+                if (conv_pool_stage.InputLocation > 4)
+                {
+                    AddBytes(4, 0x04);
+                }
+                else
+                {
+                    AddBytes(4, conv_pool_stage.InputLocation);
+                }
                 AddBytes(4, conv_pool_stage.InputDataType);
                 AddBytes(4, conv_pool_stage.InputOrder);
 
@@ -794,7 +812,14 @@ namespace mv
                 AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // output step y
                 AddBytes(4, blob_stats.tensor_number_size);  // output step z
                 AddBytes(4, conv_pool_stage.OutputOffset);
-                AddBytes(4, conv_pool_stage.OutputLocation);
+                if (conv_pool_stage.OutputLocation > 4)
+                {
+                    AddBytes(4, 0x04);
+                }
+                else
+                {
+                    AddBytes(4, conv_pool_stage.OutputLocation);
+                }
                 AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
                 AddBytes(4, conv_pool_stage.OutputOrder);
 
@@ -857,6 +882,7 @@ namespace mv
                 AddBytes(4, 0x00); // OpX
 
                 add_stage_IO_info(it, conv_pool_stage);
+
                 AddBytes(4, 0x00); // post stride x
                 AddBytes(4, 0x00); // post stride y
 
@@ -922,6 +948,7 @@ namespace mv
                 AddBytes(4, 0x02);   // padstyle
 
                 add_stage_IO_info(it, conv_pool_stage);
+
                 AddBytes(4, conv_pool_stage.preop_type);
                 AddBytes(4, 0x05);    // 0x1ac  postop type
 
@@ -985,6 +1012,7 @@ namespace mv
                 AddBytes(4, 0x03);   // padstyle
 
                 add_stage_IO_info(it, conv_pool_stage);
+
                 AddBytes(4, conv_pool_stage.preop_type);
                 AddBytes(4, 0x05);    // 0x1ac  postop type
             }
@@ -1120,7 +1148,14 @@ namespace mv
                     AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
 
                     AddBytes(4, conv_pool_stage.Input1Offset);      // 2nd input
-                    AddBytes(4, conv_pool_stage.Input1Location);    // 2nd Inputr
+                    if (conv_pool_stage.Input1Location > 4)
+                    {
+                        AddBytes(4, 0x04);
+                    }
+                    else
+                    {
+                        AddBytes(4, conv_pool_stage.Input1Location);
+                    }
                     AddBytes(4, conv_pool_stage.OutputDataType);
                     AddBytes(4, conv_pool_stage.OutputOrder);
                 }
@@ -1242,7 +1277,7 @@ namespace mv
     {
         uint32_t relocation_section_header_size = 20 ;
         uint32_t blob_buffer_reloc_size = 8*blob_stats.data_buffer_count ;
-        uint32_t work_buffer_reloc_size = 0x10 * (blob_stats.stage_count-1) + 8*blob_stats.elt_count ;
+        uint32_t work_buffer_reloc_size = 0x10 * (blob_stats.stage_count-2) + 8*blob_stats.elt_count ;
         uint32_t blob_buffer_reloc_offset = blob_stats.blob_file_size - blob_stats.relocation_section_size + relocation_section_header_size ;
         uint32_t work_buffer_reloc_offset = blob_buffer_reloc_offset + blob_buffer_reloc_size ;
 
@@ -1330,6 +1365,10 @@ namespace mv
         {
             // relocation section: work buffer relocation information
             AddBytes(4, blob_stats.relocadr_list[j]);          // offset from start of work section
+            if (blob_stats.relocbuf_list[j]>4)
+            {
+                blob_stats.relocbuf_list[j] = 4 ;
+            }
             AddBytes(4, blob_stats.relocbuf_list[j]);          // memory type =
         }    // end loop for work buffer output
     }
