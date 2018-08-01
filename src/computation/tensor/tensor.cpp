@@ -417,17 +417,6 @@ mv::string mv::Tensor::toString() const
     return "tensor '" + name_ + "' " + ComputationElement::toString();
 }
 
-mv::json::Value mv::Tensor::toJsonValue() const
-{
-    mv::json::Value v = ComputationElement::toJsonValue();
-    //TODO - handle populated tensors better
-    /*
-    if(isPopulated())
-        v["data"] = mv::Jsonable::toJsonValue(data_);
-    */
-    return v;
-}
-
 bool mv::Tensor::elementWise_(const Tensor& other, const std::function<float(float, float)>& opFunc)
 {
 
