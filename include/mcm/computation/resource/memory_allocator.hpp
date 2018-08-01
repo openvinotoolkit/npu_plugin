@@ -7,7 +7,7 @@
 namespace mv
 {
 
-    class MemoryAllocator : public Printable
+    class MemoryAllocator : public Printable, public Jsonable
     {
 
     public:
@@ -50,6 +50,7 @@ namespace mv
         bool deallocateAll(unsigned_type stageIdx);
         size_type freeSpace(unsigned_type stageIdx) const;
         string toString() const;
+        mv::json::Value toJsonValue() const;
 
     };
 

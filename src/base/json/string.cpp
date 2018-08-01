@@ -15,3 +15,8 @@ std::string mv::json::String::stringify() const
 {
     return "\"" + value_ + "\"";
 }
+
+std::string mv::json::String::stringifyPretty() const
+{
+    return stringify();
+}

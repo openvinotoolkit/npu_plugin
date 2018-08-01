@@ -9,6 +9,14 @@ SinkOp(OpType::BatchNorm, 5, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::BatchNorm::BatchNorm(mv::json::Value& obj) :
+ComputationOp(obj),
+SourceOp(obj),
+SinkOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::BatchNorm::getOutputDef(byte_type idx)
 {
     

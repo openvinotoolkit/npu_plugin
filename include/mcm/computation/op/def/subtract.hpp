@@ -15,7 +15,8 @@ namespace mv
         public:
 
             Subtract(const string &name);
-            
+            Subtract(mv::json::Value &obj);
+
         };
 
     }

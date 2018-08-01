@@ -20,3 +20,8 @@ std::string mv::json::NumberFloat::stringify() const
         output += ".0";
     return output;
 }
+
+std::string mv::json::NumberFloat::stringifyPretty() const
+{
+    return stringify();
+}

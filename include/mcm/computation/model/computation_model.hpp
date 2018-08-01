@@ -18,9 +18,31 @@
 namespace mv
 {
 
-    class ComputationModel
+    class ComputationModel : public Jsonable
     {
-    
+    private:
+        void addOutputTensorsJson(Data::OpListIterator insertedOp);
+        void addInputTensorsJson(Data::OpListIterator insertedOp);
+        mv::Data::OpListIterator addNodeFromJson(mv::json::Value& node);
+        Control::FlowListIterator addControlFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
+        Data::FlowListIterator addDataFlowFromJson(mv::json::Value& edge, std::map<string, Data::OpListIterator> &addedOperations);
+
+        template <typename T, typename TIterator>
+        void handleGroupsForAddedElement(TIterator addedElement)
+        {
+            if(addedElement->hasAttr("groups"))
+            {
+                Attribute groupsAttr = addedElement->getAttr("groups");
+                mv::dynamic_vector<string> groupsVec = groupsAttr.getContent<mv::dynamic_vector<string>>();
+                for(unsigned j = 0; j < groupsVec.size(); ++j)
+                {
+                    allocator::owner_ptr<T> ptr = addedElement;
+                    mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
+                    addGroupElement_(ptr, group);
+                }
+            }
+        }
+
     protected:
 
         static allocator allocator_;
@@ -82,6 +104,8 @@ namespace mv
 
         ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
 
+        ComputationModel(mv::json::Value& model, Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
+
         /**
          * @brief Copy constructor performing shallow copy
          * 
@@ -120,7 +144,7 @@ namespace mv
 
         static Logger& logger();
         static void setLogger(Logger &logger);
-
+        json::Value toJsonValue() const;
     };
 
 }

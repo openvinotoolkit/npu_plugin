@@ -14,6 +14,7 @@ namespace mv
     public:
 
         SinkOp(OpType opType, byte_type inputsCount, const string &name);
+        SinkOp(mv::json::Value& value);
         virtual ~SinkOp() = 0;
         virtual bool setInputTensor(Data::TensorIterator &tensor, byte_type idx);
         virtual Data::TensorIterator getInputTensor(byte_type idx);

@@ -15,6 +15,7 @@ namespace mv
         public:
 
             Divide(const string &name);
+            Divide(mv::json::Value &obj);
 
         };
 

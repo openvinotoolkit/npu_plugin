@@ -18,6 +18,8 @@ namespace mv
         public:
 
             MatMul(const string &name);
+            MatMul(mv::json::Value &obj);
+
             Tensor getOutputDef(byte_type idx);
 
         };

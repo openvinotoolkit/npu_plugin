@@ -48,12 +48,14 @@
 
 		"validate":
 		[
-			"GenerateDot"
+			"GenerateDot",
+			"CheckTensors"
 		],
 
 		"serialize":
 		[
-			"GenerateBlob"
+			"GenerateBlob",
+			"GenerateJson"
 		]
 
 	}

@@ -9,3 +9,8 @@ std::string mv::json::Null::stringify() const
 {
     return "null";
 }
+
+std::string mv::json::Null::stringifyPretty() const
+{
+    return stringify();
+}

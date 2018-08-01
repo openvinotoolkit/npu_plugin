@@ -29,7 +29,7 @@ int main()
     om.logger().log(msgType, "Tensor '" + output->getName() + "' attribute 'shape' type: " +  mv::Printable::toString(output->getAttrType("shape")));
 
     om.addAttr(om.getSourceOp(conv1), "customAttr", mv::Attribute(mv::AttrType::IntegerType, 10));
-    om.addAttr(om.getSourceOp(input), "customAttr", mv::Attribute(mv::AttrType::UnsingedType, 1U));
+    om.addAttr(om.getSourceOp(input), "customAttr", mv::Attribute(mv::AttrType::UnsignedType, 1U));
 
     om.logger().log(msgType, "Tensor '" + input->getName() + "' - number of attributes: " + mv::Printable::toString(input->attrsCount()));
     om.logger().log(msgType, "Tensor '" + conv1->getName() + "' - number of attributes: " + mv::Printable::toString(conv1->attrsCount()));

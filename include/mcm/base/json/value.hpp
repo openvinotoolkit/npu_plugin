@@ -39,6 +39,9 @@ namespace mv
 
             Value();
             Value(float value);
+            Value(int value);
+            Value(unsigned int value);
+            Value(const char * value);
             Value(long long value);
             Value(const std::string& value);
             Value(bool value);
@@ -62,6 +65,7 @@ namespace mv
             void append(const Value& element);
             unsigned size() const;
             std::string stringify() const;
+            std::string stringifyPretty() const;
             JSONType valueType() const;
             template <class T_value>
             T_value& get()

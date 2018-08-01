@@ -7,6 +7,13 @@ outputs_(outputsCount, Data::TensorIterator())
     addAttr("outputs", AttrType::ByteType, outputsCount);
 }
 
+mv::SourceOp::SourceOp(mv::json::Value& value) :
+ComputationOp(value),
+outputs_(getAttr("outputs").getContent<byte_type>(), Data::TensorIterator())
+{
+    //Tensors cannot be filled here
+}
+
 mv::SourceOp::~SourceOp()
 {
 

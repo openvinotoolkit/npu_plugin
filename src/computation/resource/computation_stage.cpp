@@ -8,7 +8,7 @@ bool mv::ComputationStage::markMembmer_(ComputationElement &member)
         {
             if (!member.hasAttr("stage"))
             {
-                member.addAttr("stage", AttrType::UnsingedType, getAttr("idx").getContent<unsigned_type>());
+                member.addAttr("stage", AttrType::UnsignedType, getAttr("idx").getContent<unsigned_type>());
                 return true;
             }
             else
@@ -48,7 +48,7 @@ bool mv::ComputationStage::unmarkMembmer_(ComputationElement &member)
 mv::ComputationStage::ComputationStage(unsigned_type idx) :
 ComputationGroup("stage_" + Printable::toString(idx))
 {
-    addAttr("idx", AttrType::UnsingedType, idx);
+    addAttr("idx", AttrType::UnsignedType, idx);
 }
 
 mv::string mv::ComputationStage::toString() const

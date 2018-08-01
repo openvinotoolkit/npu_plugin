@@ -28,6 +28,7 @@ file(GLOB allocator
 file(GLOB base
     "src/base/attribute.cpp"
     "src/base/printable.cpp"
+    "src/base/jsonable.cpp"
     "src/base/stream/ostream.cpp"
     "src/base/json/object.cpp"
     "src/base/json/array.cpp"

@@ -8,6 +8,14 @@ SinkOp(activationType, 1, name)
 
 }
 
+mv::ActivationOp::ActivationOp(mv::json::Value& value):
+ComputationOp(value),
+SourceOp(value),
+SinkOp(value)
+{
+
+}
+
 mv::ActivationOp::~ActivationOp()
 {
 

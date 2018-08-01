@@ -40,6 +40,27 @@ content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
 
 }
 
+mv::json::Value::Value(int value) :
+valueType_(JSONType::NumberInteger),
+content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
+{
+
+}
+
+mv::json::Value::Value(unsigned int value) :
+valueType_(JSONType::NumberInteger),
+content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
+{
+
+}
+
+mv::json::Value::Value(const char * value) :
+valueType_(JSONType::String),
+content_(std::unique_ptr<String>(new String(value)))
+{
+
+}
+
 mv::json::Value::Value(const std::string& value) :
 valueType_(JSONType::String),
 content_(std::unique_ptr<String>(new String(value)))
@@ -240,6 +261,11 @@ unsigned mv::json::Value::size() const
 std::string mv::json::Value::stringify() const
 {
     return content_->stringify();
+}
+
+std::string mv::json::Value::stringifyPretty() const
+{
+    return content_->stringifyPretty();
 }
 
 mv::json::Value& mv::json::Value::operator=(const Value& other)

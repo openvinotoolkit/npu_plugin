@@ -16,8 +16,10 @@ namespace mv
         public:
 
             BatchNorm(float_type varianceEps, const string &name);
+            BatchNorm(mv::json::Value& obj);
+
             Tensor getOutputDef(byte_type idx);
-            
+
         };
 
     }

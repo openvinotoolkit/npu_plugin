@@ -4,12 +4,13 @@
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/tensor/shape.hpp"
 #include "include/mcm/base/printable.hpp"
+#include "include/mcm/base/jsonable.hpp"
 
 template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value = false }; };
 #define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }
 
 DEFINE_ENUMERATED_TYPE(mv::int_type, mv::AttrType::IntegerType);
-DEFINE_ENUMERATED_TYPE(mv::unsigned_type, mv::AttrType::UnsingedType);
+DEFINE_ENUMERATED_TYPE(mv::unsigned_type, mv::AttrType::UnsignedType);
 DEFINE_ENUMERATED_TYPE(mv::float_type, mv::AttrType::FloatType);
 DEFINE_ENUMERATED_TYPE(mv::Shape, mv::AttrType::ShapeType);
 DEFINE_ENUMERATED_TYPE(mv::byte_type, mv::AttrType::ByteType);
@@ -43,7 +44,7 @@ struct is_same<T, T> {
 namespace mv
 {
 
-    class Attribute : public Printable
+    class Attribute : public Printable, public Jsonable
     {
 
     private:
@@ -70,8 +71,8 @@ namespace mv
             if (AttrTypeToType<AttrType::ShapeType>::value  && is_same<T, AttrTypeToType<AttrType::ShapeType>::type>::value)
                 return AttrType::ShapeType;
 
-            if (AttrTypeToType<AttrType::UnsingedType>::value  && is_same<T, AttrTypeToType<AttrType::UnsingedType>::type>::value)
-                return AttrType::UnsingedType;
+            if (AttrTypeToType<AttrType::UnsignedType>::value  && is_same<T, AttrTypeToType<AttrType::UnsignedType>::type>::value)
+                return AttrType::UnsignedType;
             
             if (AttrTypeToType<AttrType::StringType>::value  && is_same<T, AttrTypeToType<AttrType::StringType>::type>::value)
                 return AttrType::StringType;
@@ -138,7 +139,7 @@ namespace mv
 
         public:
 
-            AttributeContent(const T &content) : GenericAttributeContent(getTypeId<T>()), content_(content) {};
+            AttributeContent(const T &content) : GenericAttributeContent(getTypeId<T>()), content_(content) {}
             T& getContent() { return content_; }
             void setContent(const T &content) { content_ = content;}
 
@@ -152,8 +153,11 @@ namespace mv
 
         Attribute();
         ~Attribute();
+        static Attribute JsonAttributeFactory(mv::json::Value& value);
         AttrType getType() const;
         string toString() const;
+        mv::json::Value toJsonValue() const;
+        mv::json::Value getContentJson() const;
         string getContentStr() const;
 
         template <class T>

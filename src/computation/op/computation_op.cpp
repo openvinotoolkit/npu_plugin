@@ -7,6 +7,13 @@ ComputationElement(name)
     addAttr("opType", AttrType::OpTypeType, opType);
 }
 
+mv::ComputationOp::ComputationOp(mv::json::Value& value) :
+ComputationElement(value)
+{
+
+}
+
+
 mv::ComputationOp::~ComputationOp()
 {
 

@@ -228,6 +228,16 @@ indToSubFcn_(selectIndToSub_(order))
     logger_.log(Logger::MessageType::MessageDebug, "Defined tensor " + toString());
 }
 
+mv::Tensor::Tensor(mv::json::Value& v):
+ComputationElement(v),
+errValue(0.0f),
+shape_(attributes_.at("shape").getContent<Shape>()),
+populated_(attributes_.at("populated").getContent<bool>())
+{
+    if(populated_)
+        data_ = std::make_shared<dynamic_vector<float_type>>(dynamic_vector<float_type>(shape_.totalSize()));
+}
+
 mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data) :
 Tensor(name, shape, dType, order)
 {
@@ -405,6 +415,17 @@ mv::Order mv::Tensor::getOrder() const
 mv::string mv::Tensor::toString() const
 {
     return "tensor '" + name_ + "' " + ComputationElement::toString();
+}
+
+mv::json::Value mv::Tensor::toJsonValue() const
+{
+    mv::json::Value v = ComputationElement::toJsonValue();
+    //TODO - handle populated tensors better
+    /*
+    if(isPopulated())
+        v["data"] = mv::Jsonable::toJsonValue(data_);
+    */
+    return v;
 }
 
 bool mv::Tensor::elementWise_(const Tensor& other, const std::function<float(float, float)>& opFunc)

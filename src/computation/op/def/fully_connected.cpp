@@ -8,6 +8,14 @@ SourceOp(OpType::FullyConnected, 1, name)
     addAttr("executable", AttrType::BoolType, true);
 }
 
+mv::op::FullyConnected::FullyConnected(mv::json::Value& obj) :
+ComputationOp(obj),
+SinkOp(obj),
+SourceOp(obj)
+{
+
+}
+
 mv::Tensor mv::op::FullyConnected::getOutputDef(byte_type idx)
 {
     

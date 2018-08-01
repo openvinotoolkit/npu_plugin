@@ -14,7 +14,8 @@ namespace mv
 
         public:
 
-            Add(const string &name);
+            Add(const string& name);
+            Add(mv::json::Value& obj);
             
         };
         

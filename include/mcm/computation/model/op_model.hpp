@@ -22,6 +22,8 @@ namespace mv
     public:
 
         OpModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
+        OpModel(mv::json::Value& value, Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
+
         OpModel(const ComputationModel& model);
         OpModel(const CompositionalModel& model);
 
@@ -29,6 +31,7 @@ namespace mv
 
         Data::OpListIterator getInput();
         Data::OpListIterator getOutput();
+        Data::OpListIterator opBegin() const;
         Data::OpListIterator opEnd() const;
         Data::FlowListIterator flowEnd() const;
 

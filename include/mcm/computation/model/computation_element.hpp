@@ -4,11 +4,12 @@
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/logger/logger.hpp"
+#include "include/mcm/base/jsonable.hpp"
 
 namespace mv
 {
 
-    class ComputationElement : public Printable
+    class ComputationElement : public Printable, public Jsonable
     {
 
     public:
@@ -54,6 +55,7 @@ namespace mv
 
     public:
 
+        ComputationElement(json::Value &value);
         ComputationElement(const string &name);
         ComputationElement(const ComputationElement &other);
         ComputationElement& operator=(const ComputationElement &other);
@@ -68,6 +70,7 @@ namespace mv
         unsigned_type attrsCount() const;
         bool removeAttr(const string &name);
         string toString() const;
+        mv::json::Value virtual toJsonValue() const;
         virtual bool operator <(ComputationElement &other);
         virtual bool operator ==(const ComputationElement& other);
 

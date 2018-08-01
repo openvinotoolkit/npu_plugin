@@ -8,10 +8,19 @@ SinkOp(poolType, 1, name)
     addAttr("kSize", AttrType::UnsignedVec2DType, kernelSize);
 }
 
+mv::Pool2DOp::Pool2DOp(mv::json::Value& value) :
+ComputationOp(value),
+KernelOp(value),
+SinkOp(value)
+{
+
+}
+
 mv::Pool2DOp::~Pool2DOp()
 {
 
 }
+
 
 mv::Tensor mv::Pool2DOp::getOutputDef(byte_type idx)
 {

@@ -6,6 +6,12 @@ ComputationElement(name)
 
 }
 
+mv::ComputationFlow::ComputationFlow(mv::json::Value &value):
+ComputationElement(value)
+{
+
+}
+
 mv::ComputationFlow::~ComputationFlow()
 {
     

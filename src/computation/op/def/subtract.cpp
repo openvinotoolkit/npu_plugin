@@ -6,3 +6,10 @@ EltwiseOp(OpType::Subtract, name)
 {
     addAttr("executable", AttrType::BoolType, true);
 }
+
+mv::op::Subtract::Subtract(mv::json::Value& obj) :
+ComputationOp(obj),
+EltwiseOp(obj)
+{
+
+}

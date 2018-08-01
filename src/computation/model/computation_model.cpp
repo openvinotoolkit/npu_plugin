@@ -1,4 +1,5 @@
 #include "include/mcm/computation/model/computation_model.hpp"
+#include "include/mcm/computation/op/ops_headers.hpp"
 
 mv::allocator mv::ComputationModel::allocator_;
 mv::DefaultLogger mv::ComputationModel::defaultLogger_;
@@ -32,6 +33,229 @@ defaultControlFlow_(std::make_shared<bool>(defaultControlFlow))*/
 {
     logger_.setVerboseLevel(verboseLevel);
     logger_.setLogTime(logTime);
+}
+
+void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
+{
+    unsigned numOutputs = insertedOp->outputSlots();
+    for(unsigned j = 0; j < numOutputs; j++)
+    {
+        string output_string("output"+std::to_string(j));
+        auto output_tensor = findTensor_(insertedOp->getAttr(output_string).getContent<string>());
+        insertedOp->setOutputTensor(output_tensor, j);
+    }
+}
+
+void mv::ComputationModel::addInputTensorsJson(Data::OpListIterator insertedOp)
+{
+    unsigned numInputs = insertedOp->inputSlots();
+    for(unsigned j = 0; j < numInputs; j++)
+    {
+        string input_string("input"+std::to_string(j));
+        auto input_tensor = findTensor_(insertedOp->getAttr(input_string).getContent<string>());
+        insertedOp->setInputTensor(input_tensor, j);
+    }
+}
+
+mv::Data::OpListIterator mv::ComputationModel::addNodeFromJson(mv::json::Value& node)
+{
+    Attribute opTypeAttr = mv::Attribute::JsonAttributeFactory(node["attributes"]["opType"]);
+    OpType opType = opTypeAttr.getContent<OpType>();
+    mv::Data::OpListIterator toReturn;
+
+    //Parenthesis are necessary because a scope has to be created
+    switch (opType)
+    {
+        case OpType::Input:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Input>(node));
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Output:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Output>(node));
+            addInputTensorsJson(toReturn);
+            break;
+        case OpType::Constant:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Constant>(node));
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Conv2D:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Conv2D>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::MatMul:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::MatMul>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::MaxPool2D:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::MaxPool2D>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::AvgPool2D:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::AvgPool2D>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Concat:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Concat>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::ReLU:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::ReLU>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Softmax:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Softmax>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Scale:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Scale>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::BatchNorm:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::BatchNorm>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Add:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Add>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Subtract:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Subtract>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Multiply:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Multiply>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Divide:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Divide>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::FullyConnected:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::FullyConnected>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Reshape:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Reshape>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+        case OpType::Bias:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Bias>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
+    }
+    return toReturn;
+
+}
+
+mv::Data::FlowListIterator mv::ComputationModel::addDataFlowFromJson(mv::json::Value& data_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
+{
+
+    mv::DataFlow d(data_flow, findTensor_(constructStringFromJson(data_flow["tensor"])));
+    string source = d.getAttr("sourceOp").getContent<string>();
+    string target = d.getAttr("sinkOp").getContent<string>();
+
+    return dataGraph_.edge_insert(addedOperations[source], addedOperations[target], d);
+
+}
+
+mv::Control::FlowListIterator mv::ComputationModel::addControlFlowFromJson(mv::json::Value& control_flow, std::map<string, mv::Data::OpListIterator>& addedOperations)
+{
+    mv::ControlFlow d(control_flow);
+    string source = d.getAttr("sourceOp").getContent<string>();
+    string target = d.getAttr("sinkOp").getContent<string>();
+
+    return controlGraph_.edge_insert(opsGraph_->get_second_iterator(addedOperations[source]), opsGraph_->get_second_iterator(addedOperations[target]), d);
+}
+
+mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLevel verboseLevel, bool logTime):
+    ComputationModel(verboseLevel, logTime)
+{
+
+    //COMPUTATIONAL GROUPS
+    mv::json::Value groups = model["computation_groups"];
+    for(unsigned i = 0; i < groups.size(); ++i)
+    {
+        ComputationGroup currentGroup(groups[i]);
+        groups_->emplace(currentGroup.getName(), currentGroup);
+    }
+
+    for(auto currentGroupIt = groups_->begin(); currentGroupIt != groups_->end(); ++currentGroupIt)
+        handleGroupsForAddedElement<ComputationGroup, mv::GroupContext::GroupIterator>(currentGroupIt);
+
+    // TENSORS
+    mv::json::Value tensors = model["tensors"];
+    for(unsigned i = 0; i < tensors.size(); ++i)
+    {
+        Tensor currentTensor(tensors[i]);
+        auto addedTensor = flowTensors_->emplace(currentTensor.getName(), currentTensor);
+
+        handleGroupsForAddedElement<Tensor, mv::Data::TensorIterator>(addedTensor.first);
+    }
+
+    // OPERATIONS/NODES and OPS COUNTERS
+
+    // Utility structure to store Name -> Operation iterator mapping
+    std::map<string, Data::OpListIterator> addedOperations;
+
+    mv::json::Value nodes = model["graph"]["nodes"];
+    for(unsigned i = 0; i < nodes.size(); ++i)
+    {
+        auto addedOp = addNodeFromJson(nodes[i]);
+        addedOperations[addedOp->getName()] = addedOp;
+
+        if(opsCounter_->find(addedOp->getOpType()) == opsCounter_->end())
+            opsCounter_->emplace(addedOp->getOpType(), 1);
+        else
+            ++(opsCounter_->at(addedOp->getOpType()));
+
+        handleGroupsForAddedElement<ComputationOp, mv::Data::OpListIterator>(addedOp);
+    }
+
+    // TENSOR SOURCES
+    mv::json::Value tensorSources = model["source_ops"];
+    std::vector<string> tensorKeys(tensorSources.getKeys());
+    for(unsigned i = 0; i < tensorKeys.size(); ++i)
+    {
+        string sourceOpName(mv::Jsonable::constructStringFromJson(tensorSources[tensorKeys[i]]));
+        mv::Data::OpListIterator sourceOp = addedOperations[sourceOpName];
+        tensorsSources_->emplace(tensorKeys[i], sourceOp);
+    }
+
+    // DATA FLOWS
+    mv::json::Value data_flows = model["graph"]["data_flows"];
+    for(unsigned i = 0; i < data_flows.size(); ++i)
+    {
+        auto addedDataFlow = addDataFlowFromJson(data_flows[i], addedOperations);
+        handleGroupsForAddedElement<DataFlow, mv::Data::FlowListIterator>(addedDataFlow);
+    }
+
+    // CONTROL FLOWS
+    mv::json::Value control_flows = model["graph"]["control_flows"];
+    for(unsigned i = 0; i < control_flows.size(); ++i)
+    {
+        auto addedControlFlow = addControlFlowFromJson(control_flows[i], addedOperations);
+        handleGroupsForAddedElement<ControlFlow, mv::Control::FlowListIterator>(addedControlFlow);
+    }
+
+    // MEMORY ALLOCATORS
+
+    // STAGES
 }
 
 
@@ -381,4 +605,80 @@ mv::Logger &mv::ComputationModel::logger()
 void mv::ComputationModel::setLogger(Logger &logger)
 {
     logger_ = logger;
+}
+
+//NOTE: Populated tensors dumping are handled in json pass.
+mv::json::Value mv::ComputationModel::toJsonValue() const
+{
+    mv::json::Object computationModel;
+    mv::json::Object graph;
+    mv::json::Array nodes;
+    mv::json::Array data_flows;
+    mv::json::Array control_flows;
+    mv::json::Array tensors;
+    mv::json::Array groups;
+    mv::json::Array stages;
+    mv::json::Object memory_allocators;
+    mv::json::Object sourceOps;
+    mv::json::Object opsCounters;
+
+    bool hasPopulatedTensors = false;
+
+    //Groups
+    for (auto groupIt = groups_->begin(); groupIt != groups_->end(); ++groupIt)
+        groups.append(mv::Jsonable::toJsonValue(*groupIt->second));
+
+    //Tensors and source operations
+    for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
+        tensors.append(mv::Jsonable::toJsonValue(*(tensorIt->second)));
+
+    for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
+    {
+        if(tensorIt->second->isPopulated())
+        {
+            hasPopulatedTensors = true;
+            break;
+        }
+    }
+
+    //Nodes and operation counters
+    for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
+        nodes.append(mv::Jsonable::toJsonValue(**opIt));
+
+    //Data flows
+    for (auto dataIt = dataGraph_.edge_begin(); dataIt != dataGraph_.edge_end(); ++dataIt)
+        data_flows.append(mv::Jsonable::toJsonValue(**dataIt));
+
+    //Control flows
+    for (auto controlIt = controlGraph_.edge_begin(); controlIt != controlGraph_.edge_end(); ++controlIt)
+        control_flows.append(mv::Jsonable::toJsonValue(**controlIt));
+
+    //Deploying stages (Waiting for Stanislaw proper implementation)
+    //for (auto stagesIt = stages_->begin(); stagesIt != stages_->end(); ++stagesIt)
+        //stages.append(mv::Jsonable::toJsonValue(*stagesIt->second));
+
+    //Operations counters
+    for (auto opsCounterIt = opsCounter_->begin(); opsCounterIt != opsCounter_->end(); ++opsCounterIt)
+        opsCounters[opsStrings.at(opsCounterIt->first)] = mv::Jsonable::toJsonValue(opsCounterIt->second);
+
+    //Source ops counters.
+    for (auto sourceOpsIt = tensorsSources_->begin(); sourceOpsIt != tensorsSources_->end(); ++sourceOpsIt)
+        sourceOps[sourceOpsIt->first] = mv::Jsonable::toJsonValue(sourceOpsIt->second->getName());
+
+    //Memory Allocators
+    for (auto memoryAllocatorIt = memoryAllocators_->begin(); memoryAllocatorIt != memoryAllocators_->end(); ++memoryAllocatorIt)
+        memory_allocators[memoryAllocatorIt->first] = mv::Jsonable::toJsonValue(*memoryAllocatorIt->second);
+
+    graph["nodes"] = mv::json::Value(nodes);
+    graph["data_flows"] = mv::json::Value(data_flows);
+    graph["control_flows"] = mv::json::Value(control_flows);
+    computationModel["graph"] = graph;
+    computationModel["tensors"] = tensors;
+    computationModel["computation_groups"] = groups;
+    computationModel["stages"] = stages;
+    computationModel["source_ops"] = sourceOps;
+    computationModel["memory_allocators"] = memory_allocators;
+    computationModel["operations_counters"] = opsCounters;
+    computationModel["has_populated_tensors"] = mv::Jsonable::toJsonValue(hasPopulatedTensors);
+    return mv::json::Value(computationModel);
 }

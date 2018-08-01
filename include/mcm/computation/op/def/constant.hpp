@@ -18,7 +18,9 @@ namespace mv
         public:
 
             Constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name);
+            Constant(mv::json::Value &obj);
             Tensor getOutputDef(byte_type idx);
+            mv::json::Value toJsonValue() const;
 
         };
 

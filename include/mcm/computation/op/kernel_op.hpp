@@ -21,6 +21,7 @@ namespace mv
     public:
 
         KernelOp(OpType opType, UnsignedVector2D stride, UnsignedVector4D padding, const string &name);
+        KernelOp(mv::json::Value& value);
         virtual ~KernelOp() = 0;
 
     };

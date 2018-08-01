@@ -6,6 +6,12 @@ ComputationModel(verboseLevel, logTime)
 
 }
 
+mv::OpModel::OpModel(mv::json::Value& value, Logger::VerboseLevel verboseLevel, bool logTime) :
+ComputationModel(value, verboseLevel, logTime)
+{
+
+}
+
 mv::OpModel::OpModel(const ComputationModel& other) :
 ComputationModel(other)
 {
@@ -440,6 +446,7 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
 
     for (byte_type j = 0; j < op->outputSlots(); ++j)
     {
+        tensorsSources_->erase(op->getOutputTensor(j)->getName());
         flowTensors_->erase(op->getOutputTensor(j));
     }
 
@@ -543,6 +550,11 @@ mv::Data::OpListIterator mv::OpModel::getInput()
 mv::Data::OpListIterator mv::OpModel::getOutput()
 {
     return *output_;
+}
+
+mv::Data::OpListIterator mv::OpModel::opBegin() const
+{
+    return dataGraph_.node_begin();
 }
 
 mv::Data::OpListIterator mv::OpModel::opEnd() const

@@ -6,3 +6,10 @@ EltwiseOp(OpType::Divide, name)
 {
     addAttr("executable", AttrType::BoolType, true);
 }
+
+mv::op::Divide::Divide(mv::json::Value& obj) :
+ComputationOp(obj),
+EltwiseOp(obj)
+{
+
+}

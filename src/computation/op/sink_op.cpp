@@ -7,6 +7,14 @@ inputs_(inputsCount, Data::TensorIterator())
     addAttr("inputs", AttrType::ByteType, inputsCount);
 }
 
+mv::SinkOp::SinkOp(mv::json::Value& value) :
+ComputationOp(value),
+inputs_(getAttr("inputs").getContent<byte_type>(), Data::TensorIterator())
+{
+    //Tensors cannot be filled here
+}
+
+
 mv::SinkOp::~SinkOp()
 {
 

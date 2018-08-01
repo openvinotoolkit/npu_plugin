@@ -18,3 +18,8 @@ std::string mv::json::Bool::stringify() const
     
     return "false";
 }
+
+std::string mv::json::Bool::stringifyPretty() const
+{
+    return stringify();
+}
