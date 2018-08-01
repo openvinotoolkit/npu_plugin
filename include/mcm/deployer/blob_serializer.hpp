@@ -158,15 +158,14 @@ namespace mv
         uint32_t stage_section_size;
         uint32_t buffer_header_size;
         uint32_t buffer_data_size;
+        uint32_t buffer_data_pad_size;
         uint32_t relocation_section_size;
         uint32_t weights_region_size;
-        uint32_t weights_region_pad_size;
         uint32_t bias_region_size;
-        uint32_t params_region_size;
         uint32_t weights_number_size;
         uint32_t tensor_number_size;
         uint32_t stage_count;
-        uint32_t conv_count;
+        uint32_t data_buffer_count;
         uint32_t elt_count;
         uint32_t input_size;
         uint32_t output_size;
