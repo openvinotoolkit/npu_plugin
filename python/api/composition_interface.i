@@ -33,7 +33,7 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
         unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
-        unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
+        unit->compilationDescriptor()["GenerateJSON"]["output"] = std::string("cpp.json");
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
         return unit;
 
