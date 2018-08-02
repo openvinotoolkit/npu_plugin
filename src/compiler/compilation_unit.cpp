@@ -40,10 +40,12 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
             return loadTargetDescriptor(descPath);
         }
 
-        case Target::Unknown:
+        default:
             return false;
 
     }
+
+    return false;
 
 }
 

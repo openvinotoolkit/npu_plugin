@@ -31,6 +31,7 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         json::Object compDescriptor_;
         ComputationModel *model_;
+        static Logger& logger_;
 
         std::vector<std::string> adaptPassQueue_;
         std::vector<std::string> optPassQueue_;

@@ -28,6 +28,8 @@ std::string mv::PassManager::toString(PassGenre passGenre)
 
 }
 
+mv::Logger& mv::PassManager::logger_ = mv::ComputationModel::logger();
+
 mv::PassManager::PassManager() :
 ready_(false),
 completed_(false),
@@ -440,16 +442,28 @@ bool mv::PassManager::validDescriptors() const
 {
 
     if (!ready())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Pass manager not initialized");
         return false;
+    }
 
     if (targetDescriptor_.getTarget() == Target::Unknown)
+    {
+        logger_.log(Logger::MessageType::MessageError, "Target descriptor has an undefined target");
         return false;
+    }
 
     if (targetDescriptor_.getDType() == DType::Unknown)
+    {
+        logger_.log(Logger::MessageType::MessageError, "Target descriptor has an undefined global data type");
         return false;
-        
+    }
+
     if (targetDescriptor_.getOrder() == Order::Unknown)
+    {
+        logger_.log(Logger::MessageType::MessageError, "Target descriptor has an undefined global data order");
         return false;
+    }
 
     auto checkStage = [this](const std::vector<std::string>& queue)
     {
@@ -464,10 +478,18 @@ bool mv::PassManager::validDescriptors() const
                 if (compDescriptor_.hasKey(passPtr->getName()))
                 {
                     if (compDescriptor_[passPtr->getName()].valueType() != json::JSONType::Object)
+                    {
+                        logger_.log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid "
+                            "arguments definition for the pass " + passPtr->getName());
                         return false;
+                    }
                 }
                 else
+                {
+                    logger_.log(Logger::MessageType::MessageError, "Compilation descriptor misses "
+                            "arguments definition for the pass " + passPtr->getName());
                     return false;
+                }
 
                 auto passArgs = passPtr->getArgs();
                 for (auto argIt = passArgs.begin(); argIt != passArgs.end(); ++argIt)
@@ -475,10 +497,18 @@ bool mv::PassManager::validDescriptors() const
                     if (compDescriptor_[passPtr->getName()].hasKey(argIt->first))
                     {
                         if (compDescriptor_[passPtr->getName()][argIt->first].valueType() != argIt->second)
+                        {
+                            logger_.log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid value "
+                                "for the argument " + argIt->first + " from the pass " + passPtr->getName());
                             return false;
+                        }
                     }
                     else
+                    {
+                        logger_.log(Logger::MessageType::MessageError, "Compilation descriptor misses a value "
+                            "for the argument " + argIt->first + " from the pass " + passPtr->getName());
                         return false;
+                    }
                 }
 
             }
