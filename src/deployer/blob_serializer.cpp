@@ -1,8 +1,41 @@
 #include "include/mcm/deployer/serializer.hpp"
-
+#include <assert.h>
+#include <stdio.h>
 
 namespace mv
 {
+
+    Blob_Op_Definition::Blob_Op_Definition(OpType o){
+
+        // Number of Inputs
+
+        this->number_of_inputs = -1;
+        switch(o){
+            case OpType::Add:
+            case OpType::Multiply:
+            case OpType::Scale:
+                this->number_of_inputs = 2;
+                break;
+            case OpType::Conv2D:
+            case OpType::FullyConnected:
+            case OpType::AvgPool2D:
+            case OpType::MaxPool2D:
+            case OpType::Softmax:
+            case OpType::ReLU:
+                this->number_of_inputs = 1;
+                break;
+            case OpType::Output:
+            case OpType::Input:
+                this->number_of_inputs = 0;
+                break;
+            default:
+                printf("No Entry in 'numberOfInputs' for OpType #%i\n", (int)o);
+                assert(0);
+        }
+    }
+
+
+
 
     void Blob_buffer::calc(mv::ControlModel& cm)
     {
@@ -187,7 +220,6 @@ namespace mv
         AddBytes(4, blob_stats.stage_count);   // 0x50
         AddBytes(4, blob_stats.stage_section_size);
         AddBytes(4, blob_stats.output_size);
-
         AddBytes(4, 0x20);     // include input NoOp stage for compatibility with python compiler
         AddBytes(4, 0x05);
         AddBytes(4, 0x80000000);
@@ -195,42 +227,85 @@ namespace mv
         AddBytes(4, 0x05);
     }
 
+    void Blob_Tensor::write(WBuffer* b)
+    {
+        b->AddBytes(4, this->dimX);
+        b->AddBytes(4, this->dimY);
+        b->AddBytes(4, this->dimZ);
+        b->AddBytes(4, this->strideX);
+        b->AddBytes(4, this->strideY);
+        b->AddBytes(4, this->strideZ);
+        b->AddBytes(4, this->offset);
+        b->AddBytes(4, this->location);
+        b->AddBytes(4, this->dataType);
+        b->AddBytes(4, this->order);
+    }
+
+    Blob_Tensor::Blob_Tensor(int x, int y, int z,
+        int sx, int sy, int sz,
+        int offset, int location,
+        int dtype, int order)
+    {
+            this->dimX = x;
+            this->dimY = y;
+            this->dimZ = z;
+            this->strideX = sx;
+            this->strideY = sy;
+            this->strideZ = sz;
+            this->offset = offset;
+            this->location = location;
+            this->dataType = dtype;
+            this->order = order;
+    }
+
     void Blob_buffer::add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
     {
-        AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
-        AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
-        AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
-        AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
-        AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
-        AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
-        AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
+        /*
+            Write Input and Output to the blob.
+
+            - Op to pull details from
+            - Blob Stage to pull details from
+
+        */
+
+        int inputLocation = conv_pool_stage.InputLocation;
         if (conv_pool_stage.InputLocation > 4)
         {
-            AddBytes(4, 0x04);
+            inputLocation = 0x04;
         }
-        else
-        {
-            AddBytes(4, conv_pool_stage.InputLocation);
-        }
-        AddBytes(4, conv_pool_stage.InputDataType);
-        AddBytes(4, conv_pool_stage.InputOrder);
-        AddBytes(4, it->getOutputTensor(0)->getShape()[0]);  // output X-dimension size  (0xb0)
-        AddBytes(4, it->getOutputTensor(0)->getShape()[1]);  // output Y-dimension size
-        AddBytes(4, it->getOutputTensor(0)->getShape()[2]);  // output Z-dimension size
-        AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape()[2]);  // output stepX
-        AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape()[0]*it->getOutputTensor(0)->getShape()[2]);   // 0xc0
-        AddBytes(4, conv_pool_stage.OutputStrideZ);
-        AddBytes(4, conv_pool_stage.OutputOffset);
+        int outputLocation = conv_pool_stage.OutputLocation;
         if (conv_pool_stage.OutputLocation > 4)
         {
-            AddBytes(4, 0x04);
+            outputLocation = 0x04;
         }
-        else
-        {
-            AddBytes(4, conv_pool_stage.OutputLocation);
-        }
-        AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
-        AddBytes(4, conv_pool_stage.OutputOrder);
+
+        Blob_Tensor input = Blob_Tensor(
+            it->getInputTensor(0)->getShape()[0],   // X
+            it->getInputTensor(0)->getShape()[1],   // Y
+            it->getInputTensor(0)->getShape()[2],   // Z
+            blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2],     // X Stride
+            blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0],    // Y Stride
+            blob_stats.tensor_number_size,   // Z Stride
+            conv_pool_stage.InputOffset,
+            inputLocation,
+            conv_pool_stage.InputDataType,
+            conv_pool_stage.InputOrder
+        );
+        Blob_Tensor output = Blob_Tensor(
+            it->getOutputTensor(0)->getShape()[0],   // X
+            it->getOutputTensor(0)->getShape()[1],   // Y
+            it->getOutputTensor(0)->getShape()[2],   // Z
+            blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape()[2],     // X Stride
+            blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape()[2]*it->getOutputTensor(0)->getShape()[0],    // Y Stride
+            conv_pool_stage.OutputStrideZ,   // Z Stride
+            conv_pool_stage.OutputOffset,
+            outputLocation,
+            conv_pool_stage.OutputDataType,
+            conv_pool_stage.OutputOrder
+        );
+
+        input.write(this);
+        output.write(this);
     }
 
     void Blob_buffer::write_stages(mv::ControlModel& cm){
@@ -255,7 +330,9 @@ namespace mv
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
 
-            if ((it->getOpType() == OpType::Conv2D)||(it->getOpType() == OpType::FullyConnected)||(it->getOpType() == OpType::AvgPool2D)||(it->getOpType() == OpType::MaxPool2D)||(it->getOpType() == OpType::Softmax)||(it->getOpType() == OpType::ReLU))
+            Blob_Op_Definition op_spec = Blob_Op_Definition(it->getOpType());
+
+            if (op_spec.number_of_inputs == 1)
             {
                 // determine source
                 auto parentIt = om.getSourceOp(it->getInputTensor(0));
@@ -292,7 +369,7 @@ namespace mv
                 }
             } // end single input operator case
 
-            else if ((it->getOpType() == OpType::Add) || (it->getOpType() == OpType::Multiply) || (it->getOpType() == OpType::Scale))
+            else if (op_spec.number_of_inputs == 2)
             {
 
                 for ( int input_index = 0; input_index <2; input_index++ )
@@ -351,6 +428,12 @@ namespace mv
                     workbuffer_offsets.push_back(1);   // create unsized buffer position at index=num-4
                 }
             } // end output node case
+            else if (it->getOpType() == OpType::Input)
+            {
+            }
+            else{
+                printf("Warning: No buffers associated with Layer.\n");
+            }
 
         }    // end input buffer calculation pass
 
@@ -360,6 +443,10 @@ namespace mv
         uint32_t running_offset = 0 ;
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
+
+
+            Blob_Op_Definition op_spec = Blob_Op_Definition(it->getOpType());
+
             int work_buffer_size = 0 ;
             if (it->getOpType() != OpType::Output)
             {
@@ -525,46 +612,50 @@ namespace mv
 
                 add_stage_IO_info(it, conv_pool_stage);
 
-                AddBytes(4, it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1]);
-                AddBytes(4, it->getInputTensor(1)->getShape()[2]);
-                AddBytes(4, it->getInputTensor(1)->getShape()[3]);     // 0xe0   TapsDImZ
-
-                AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3]);   // Taps step X
-                AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[3]);   // Taps step Y
-                AddBytes(4, conv_pool_stage.TapsStrideZ);
-                AddBytes(4, conv_pool_stage.TBOffset);   // 0xf0
+                Blob_Tensor taps = Blob_Tensor(
+                    it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1],  // X
+                    it->getInputTensor(1)->getShape()[2],   // y
+                    it->getInputTensor(1)->getShape()[3],   // z
+                    blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3],
+                    blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[3], // Taps Sy
+                    conv_pool_stage.TapsStrideZ, // SZ
+                    conv_pool_stage.TBOffset,
+                    conv_pool_stage.TapsLocation,
+                    conv_pool_stage.TapsDataType,
+                    conv_pool_stage.TapsOrder
+                );
                 conv_pool_stage.TBOffset++ ;
-                AddBytes(4, conv_pool_stage.TapsLocation);
-                AddBytes(4, conv_pool_stage.TapsDataType);
-                AddBytes(4, conv_pool_stage.TapsOrder);
+                taps.write(this);
+
+
+                int biasOffset = 0, biasLocation = 0, biasDataType = 0, biasOrder = 0;
 
                 if (it->hasAttr("bias"))
                 {
                     conv_pool_stage.BiasDimX = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
                     conv_pool_stage.BiasStrideY = conv_pool_stage.BiasStrideX*conv_pool_stage.BiasDimX;
                     conv_pool_stage.BiasStrideZ = conv_pool_stage.BiasStrideY;
-                }
-                AddBytes(4, conv_pool_stage.BiasDimX);   // 0x100
-                AddBytes(4, conv_pool_stage.BiasDimY);
-                AddBytes(4, conv_pool_stage.BiasDimZ);
-                AddBytes(4, conv_pool_stage.BiasStrideX);
-                AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
-                AddBytes(4, conv_pool_stage.BiasStrideZ);
-                if (it->hasAttr("bias"))
-                {
-                    AddBytes(4, conv_pool_stage.TBOffset);
+                    biasOffset = conv_pool_stage.TBOffset;
                     conv_pool_stage.TBOffset++ ;
-                    AddBytes(4, conv_pool_stage.BiasLocation);
-                    AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
-                    AddBytes(4, 1);
+                    biasLocation = conv_pool_stage.BiasLocation;
+                    biasDataType = conv_pool_stage.BiasDataType;
+                    biasOrder = 1;  // TODO: should not be hardcoded
                 }
-                else
-                {
-                    AddBytes(4, 0);
-                    AddBytes(4, 0);
-                    AddBytes(4, 0);   // 0x120
-                    AddBytes(4, 0);
-                }
+
+                Blob_Tensor bias = Blob_Tensor(
+                    conv_pool_stage.BiasDimX,  // X
+                    conv_pool_stage.BiasDimY,   // y
+                    conv_pool_stage.BiasDimZ,   // z
+                    conv_pool_stage.BiasStrideX,
+                    conv_pool_stage.BiasStrideY,
+                    conv_pool_stage.BiasStrideZ,
+                    biasOffset,
+                    biasLocation,
+                    biasDataType,
+                    biasOrder   // Order
+                );
+                bias.write(this);
+
                 AddBytes(4, conv_pool_stage.preop_type);
                 if (it->hasAttr("postOpType"))
                 {
@@ -655,52 +746,49 @@ namespace mv
                 AddBytes(4, 0x04);                                // 0x60  opcode for FC
                 AddBytes(4, conv_pool_stage.implementation);
 
-                AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
-                AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
-                AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
-                AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
-                AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
-                AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
-                AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
-                AddBytes(4, conv_pool_stage.InputLocation);
+                Blob_Tensor input = Blob_Tensor(
+                    it->getInputTensor(0)->getShape()[0],   // X
+                    it->getInputTensor(0)->getShape()[1],   // Y
+                    it->getInputTensor(0)->getShape()[2],   // Z
+                    blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2],     // X Stride
+                    blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0],    // Y Stride
+                    blob_stats.tensor_number_size,   // Z Stride
+                    conv_pool_stage.InputOffset,
+                    conv_pool_stage.InputLocation,
+                    conv_pool_stage.InputDataType,
+                    conv_pool_stage.InputOrder
+                );
 
-                AddBytes(4, conv_pool_stage.InputDataType);
-                AddBytes(4, conv_pool_stage.InputOrder);
-
-                AddBytes(4, 0x01);  // output X-dimension size
-                AddBytes(4, 0x01);  // output Y-dimension size
-                AddBytes(4, it->getOutputTensor(0)->getShape().totalSize());  // output Z-dimension size
-                AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // output step x
-                AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // output step y
-                AddBytes(4, blob_stats.tensor_number_size);   // output step z
-                AddBytes(4, conv_pool_stage.OutputOffset);
-                AddBytes(4, conv_pool_stage.OutputLocation);
-                AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
-                AddBytes(4, conv_pool_stage.OutputOrder);
-
-                AddBytes(4, 0x01);   // TAPS dim X
-                AddBytes(4, it->getInputTensor(0)->getShape().totalSize());   // TAPS dim Y
-                AddBytes(4, it->getOutputTensor(0)->getShape().totalSize());   // TAPS dim Z
-                AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize()*it->getOutputTensor(0)->getShape().totalSize());   // Taps step X
-                AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // Taps step Y
-                AddBytes(4, blob_stats.tensor_number_size);
-                AddBytes(4, conv_pool_stage.TBOffset);   // 0xf0
+                Blob_Tensor output = Blob_Tensor(
+                    0x01,   // X
+                    0x01,   // Y
+                    it->getOutputTensor(0)->getShape().totalSize(),   // Z
+                    blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),     // X Stride
+                    blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),    // Y Stride
+                    blob_stats.tensor_number_size,
+                    conv_pool_stage.OutputOffset,
+                    conv_pool_stage.OutputLocation,
+                    conv_pool_stage.OutputDataType,
+                    conv_pool_stage.OutputOrder
+                );
+                Blob_Tensor bias = Blob_Tensor(
+                    it->getOutputTensor(0)->getShape().totalSize(),   // X
+                    0x01,   // Y
+                    0x01,   // Z
+                    blob_stats.tensor_number_size,     // X Stride
+                    blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),    // Y Stride
+                    blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),    // z Stride
+                    conv_pool_stage.TBOffset,
+                    conv_pool_stage.BiasLocation,
+                    conv_pool_stage.BiasDataType,
+                    conv_pool_stage.BiasOrder
+                );
                 conv_pool_stage.TBOffset++ ;
-                AddBytes(4, conv_pool_stage.TapsLocation);
-                AddBytes(4, conv_pool_stage.TapsDataType);
-                AddBytes(4, conv_pool_stage.TapsOrder);
 
-                AddBytes(4, it->getOutputTensor(0)->getShape().totalSize());   // bias dim x
-                AddBytes(4, 0x01);       // bias dim y
-                AddBytes(4, 0x01);       // bias dim z
-                AddBytes(4, blob_stats.tensor_number_size);    // bias step x
-                AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // bias step y
-                AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // bias step z
-                AddBytes(4, conv_pool_stage.TBOffset);
-                conv_pool_stage.TBOffset++ ;
-                AddBytes(4, conv_pool_stage.BiasLocation);
-                AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
-                AddBytes(4, conv_pool_stage.BiasOrder);
+
+                input.write(this);
+                output.write(this);
+                bias.write(this);
 
                 AddBytes(4, conv_pool_stage.preop_type);
                 if (it->hasAttr("postOpType"))
@@ -787,41 +875,44 @@ namespace mv
                 // operator specific info
                 AddBytes(4, 0x01); // softmax axis
 
-                AddBytes(4, 1);  // input X-dimension size
-                AddBytes(4, 1);  // input Y-dimension size
-                AddBytes(4, it->getInputTensor(0)->getShape().totalSize());  // input Z-dimension size
-                AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize());  // InputStride X
-                AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize()); // Input Stride Y
-                AddBytes(4, blob_stats.tensor_number_size);    // InputStride Z
-                AddBytes(4, conv_pool_stage.InputOffset);     //  0xa0
+
+                int inputLocation = conv_pool_stage.InputLocation;
                 if (conv_pool_stage.InputLocation > 4)
                 {
-                    AddBytes(4, 0x04);
+                    inputLocation = 0x04;
                 }
-                else
-                {
-                    AddBytes(4, conv_pool_stage.InputLocation);
-                }
-                AddBytes(4, conv_pool_stage.InputDataType);
-                AddBytes(4, conv_pool_stage.InputOrder);
-
-                AddBytes(4, 1);  // output X-dimension size
-                AddBytes(4, 1);  // output Y-dimension size
-                AddBytes(4, it->getOutputTensor(0)->getShape().totalSize());  // output Z-dimension size  (0xb0)
-                AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // output step x
-                AddBytes(4, blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize());   // output step y
-                AddBytes(4, blob_stats.tensor_number_size);  // output step z
-                AddBytes(4, conv_pool_stage.OutputOffset);
+                int outputLocation = conv_pool_stage.OutputLocation;
                 if (conv_pool_stage.OutputLocation > 4)
                 {
-                    AddBytes(4, 0x04);
+                    outputLocation = 0x04;
                 }
-                else
-                {
-                    AddBytes(4, conv_pool_stage.OutputLocation);
-                }
-                AddBytes(4, conv_pool_stage.OutputDataType);   //0xd0
-                AddBytes(4, conv_pool_stage.OutputOrder);
+
+                Blob_Tensor input = Blob_Tensor(
+                    0x01,   // X
+                    0x01,   // Y
+                    it->getInputTensor(0)->getShape().totalSize(),   // Z
+                    blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize(),     // X Stride
+                    blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize(),    // Y Stride
+                    blob_stats.tensor_number_size,
+                    conv_pool_stage.InputOffset,
+                    InputLocation,
+                    conv_pool_stage.InputDataType,
+                    conv_pool_stage.InputOrder
+                );
+                Blob_Tensor output = Blob_Tensor(
+                    0x01,   // X
+                    0x01,   // Y
+                    it->getOutputTensor(0)->getShape().totalSize(),   // Z
+                    blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),     // X Stride
+                    blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),    // Y Stride
+                    blob_stats.tensor_number_size,
+                    conv_pool_stage.OutputOffset,
+                    outputLocation,
+                    conv_pool_stage.OutputDataType,
+                    conv_pool_stage.OutputOrder
+                );
+                input.write(this);
+                output.write(this);
 
                 AddBytes(4, conv_pool_stage.preop_type);
                 AddBytes(4, conv_pool_stage.postop_type);
@@ -1111,53 +1202,63 @@ namespace mv
 
                 if (it->getOpType() == OpType::Scale)
                 {
-                    // 2nd input info
-                    AddBytes(4, 0x00);  // input X-dimension size
-                    AddBytes(4, 1);  // input Y-dimension size
-                    AddBytes(4, 1);  // input Z-dimension size   (0x90)
-                    AddBytes(4, blob_stats.tensor_number_size);    // InputStrideX
-                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(1)->getShape().totalSize());  // InputStrideY
-                    AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
 
-                    AddBytes(4, conv_pool_stage.TBOffset);      // 2nd input
+                    Blob_Tensor input_2 = Blob_Tensor(
+                        0x00,   // X
+                        1,   // Y
+                        1,   // Z
+                        blob_stats.tensor_number_size,     // X Stride
+                        blob_stats.tensor_number_size*it->getInputTensor(1)->getShape().totalSize(),    // Y Stride
+                        blob_stats.tensor_number_size,
+                        conv_pool_stage.TBOffset,
+                        3,
+                        conv_pool_stage.OutputDataType,
+                        3
+                    );
                     conv_pool_stage.TBOffset++;
-                    AddBytes(4, 3);    // 2nd location is bias region of blob buffer
-                    AddBytes(4, conv_pool_stage.OutputDataType);
-                    AddBytes(4, 3);   // output order
 
-                    AddBytes(4, conv_pool_stage.BiasDimX);   // 0x100
-                    AddBytes(4, conv_pool_stage.BiasDimY);
-                    AddBytes(4, conv_pool_stage.BiasDimZ);
-                    AddBytes(4, conv_pool_stage.BiasStrideX);
-                    AddBytes(4, conv_pool_stage.BiasStrideY);   // 0x110
-                    AddBytes(4, conv_pool_stage.BiasStrideZ);
-                    AddBytes(4, 0);   // input offset
-                    AddBytes(4, 0);   // input location
-                    AddBytes(4, conv_pool_stage.BiasDataType);   // 0x120
-                    AddBytes(4, conv_pool_stage.BiasOrder);
+
+                    Blob_Tensor bias = Blob_Tensor(
+                        conv_pool_stage.BiasDimX,
+                        conv_pool_stage.BiasDimY,
+                        conv_pool_stage.BiasDimZ,
+                        conv_pool_stage.BiasStrideX,
+                        conv_pool_stage.BiasStrideY,
+                        conv_pool_stage.BiasStrideZ,
+                        0,
+                        0,
+                        conv_pool_stage.BiasDataType,
+                        conv_pool_stage.BiasOrder
+                    );
+
+                    input_2.write(this);
+                    bias.write(this);
 
                 }
                 else   // add or mult
                 {
                     // 2nd input info , same as first except buffer offset and location
-                    AddBytes(4, it->getInputTensor(0)->getShape()[0]);  // input X-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[1]);  // input Y-dimension size
-                    AddBytes(4, it->getInputTensor(0)->getShape()[2]);  // input Z-dimension size   (0x90)
-                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]);    // InputStrideX
-                    AddBytes(4, blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0]);  // InputStrideY
-                    AddBytes(4, blob_stats.tensor_number_size); // InputStrideZ
 
-                    AddBytes(4, conv_pool_stage.Input1Offset);      // 2nd input
+
+                    int input_1Location = conv_pool_stage.Input1Location;
                     if (conv_pool_stage.Input1Location > 4)
                     {
-                        AddBytes(4, 0x04);
+                        input_1Location = 0x04;
                     }
-                    else
-                    {
-                        AddBytes(4, conv_pool_stage.Input1Location);
-                    }
-                    AddBytes(4, conv_pool_stage.OutputDataType);
-                    AddBytes(4, conv_pool_stage.OutputOrder);
+
+                    Blob_Tensor input = Blob_Tensor(
+                        it->getInputTensor(0)->getShape()[0],   // X
+                        it->getInputTensor(0)->getShape()[1],   // Y
+                        it->getInputTensor(0)->getShape()[2],   // Z
+                        blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2],     // X Stride
+                        blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0],    // Y Stride
+                        blob_stats.tensor_number_size,
+                        conv_pool_stage.Input1Offset,
+                        input_1Location,
+                        conv_pool_stage.OutputDataType,
+                        conv_pool_stage.OutputOrder
+                    );
+                    input.write(this);
                 }
 
                 AddBytes(4, 0x5);    //  preop
