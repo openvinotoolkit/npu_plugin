@@ -14,8 +14,6 @@ TEST(op_model, validity)
 
 }
 
-
-
 TEST(op_model, failure_sanity)
 {
 

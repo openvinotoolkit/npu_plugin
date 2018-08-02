@@ -2,7 +2,7 @@
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-TEST(computation_model, data_model_construction)
+TEST(data_model, minimal_construction)
 {
 
     mv::OpModel om;

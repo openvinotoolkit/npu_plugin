@@ -160,7 +160,7 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     // Output BLOB - file name of the output binary
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet50.blob");
-    unit.compilationDescriptor()["GenerateJson"]["output"] = std::string("resnet50.json");
+    unit.compilationDescriptor()["GenerateJSON"]["output"] = std::string("resnet50.json");
 
     // Initialize compilation 
     unit.initialize();

@@ -34,6 +34,7 @@ namespace mv
         json::Object& compilationDescriptor();
         CompositionalModel& model();
 
+        void loadModelFromJson(const std::string& path);
         bool initialize();
         json::Object runStep();
         json::Object run();

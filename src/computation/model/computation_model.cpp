@@ -217,6 +217,19 @@ mv::ComputationModel::ComputationModel(mv::json::Value &model, Logger::VerboseLe
     for(unsigned i = 0; i < nodes.size(); ++i)
     {
         auto addedOp = addNodeFromJson(nodes[i]);
+        
+        if (addedOp->getOpType() == OpType::Input)
+        {
+            delete input_;
+            input_ = new Data::OpListIterator(addedOp);
+        }
+
+        if (addedOp->getOpType() == OpType::Output)
+        {
+            delete output_;
+            output_ = new Data::OpListIterator(addedOp);
+        }
+
         addedOperations[addedOp->getName()] = addedOp;
 
         if(opsCounter_->find(addedOp->getOpType()) == opsCounter_->end())

@@ -121,7 +121,6 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("cm_resnet18.blob");
     
     // Initialize compilation 
     unit.initialize();

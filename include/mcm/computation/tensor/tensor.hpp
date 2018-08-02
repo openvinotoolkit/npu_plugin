@@ -135,7 +135,6 @@ namespace mv
         DType getDType() const;
         Order getOrder() const;
         string toString() const;
-        mv::json::Value toJsonValue() const;
         static Logger& logger();
         
         bool add(const Tensor& other);
