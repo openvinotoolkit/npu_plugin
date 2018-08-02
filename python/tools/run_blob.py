@@ -21,7 +21,7 @@ import sys
 import argparse
 import numpy as np
 
-base = os.environ.get('MDKPath')
+base = os.environ.get('MDK_HOME')
 sys.path.append(base + "projects/Fathom/src2/")
 
 from Controllers.DataTransforms import *

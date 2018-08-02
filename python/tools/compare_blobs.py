@@ -2,7 +2,9 @@ import os, sys
 import numpy as np
 import argparse
 
-base = os.environ.get('MDKPath')
+base = os.environ.get('MDK_HOME')
+assert base is not None, "Please set MDK_HOME environment variable"
+
 sys.path.append(base+"projects/Fathom/src2/")
 
 from Views.Validate import *
