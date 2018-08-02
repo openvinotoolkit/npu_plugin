@@ -5,7 +5,7 @@
 static mv::Logger::VerboseLevel logger_level = mv::Logger::VerboseLevel::VerboseSilent;
 
 // test 01 : 1 2d convolution
-TEST (model_serializer, blob_output_conv_01) 
+TEST (generate_blob, blob_output_conv_01) 
 {
 
     mv::CompilationUnit unit(logger_level);
@@ -28,7 +28,6 @@ TEST (model_serializer, blob_output_conv_01)
     unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
-
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -42,7 +41,7 @@ TEST (model_serializer, blob_output_conv_01)
 }
 
 // test 02 : 1 2d convolution, add input z dimension (c=3)
-TEST (model_serializer, blob_output_conv_02)
+TEST (generate_blob, blob_output_conv_02)
 {
 
     mv::CompilationUnit unit(logger_level);
@@ -80,7 +79,7 @@ TEST (model_serializer, blob_output_conv_02)
 }
 
 // test 03 : 1 2d convolution, change input=256x256  stride=2
-TEST (model_serializer, blob_output_conv_03)
+TEST (generate_blob, blob_output_conv_03)
 {
 
     mv::CompilationUnit unit(logger_level);
@@ -119,7 +118,7 @@ TEST (model_serializer, blob_output_conv_03)
 }
 
 // test 04 : 1 2d convolution, change kernel to 5x5
-TEST (model_serializer, blob_output_conv_04)
+TEST (generate_blob, blob_output_conv_04)
 {
 
     mv::CompilationUnit unit(logger_level);
@@ -157,7 +156,7 @@ TEST (model_serializer, blob_output_conv_04)
 }
 
 // test 05 : 2 successive 3x3 convolutions (blur->edge filters)
-TEST (model_serializer, blob_blur_edge_05)
+TEST (generate_blob, blob_blur_edge_05)
 {
 
     mv::CompilationUnit unit(logger_level);
@@ -198,7 +197,7 @@ TEST (model_serializer, blob_blur_edge_05)
 }
 
 // test 06 : conv1->maxpool1->conv2->maxpool2
-TEST (model_serializer, blob_4_ops)
+TEST (generate_blob, blob_4_ops)
 {
     
     mv::CompilationUnit unit(logger_level);
@@ -283,7 +282,7 @@ TEST (model_serializer, blob_4_ops)
                          \-conva->avgpoola->convb->avgpoolb-/
 */
 
-TEST (model_serializer, blob_eltwise_add)
+TEST (generate_blob, blob_eltwise_add)
 {
     
     mv::CompilationUnit unit(logger_level);
@@ -392,7 +391,7 @@ TEST (model_serializer, blob_eltwise_add)
                          \-conva->avgpoola->convb->avgpoolb-/
 */
 
-TEST (model_serializer, blob_eltwise_multiply)
+TEST (generate_blob, blob_eltwise_multiply)
 {
     
     mv::CompilationUnit unit(logger_level);
@@ -501,7 +500,7 @@ TEST (model_serializer, blob_eltwise_multiply)
                          \-conva->avgpoola->convb->avgpoolb-/
 */
 
-TEST (model_serializer, blob_softmax)
+TEST (generate_blob, blob_softmax)
 {
     
     mv::CompilationUnit unit(logger_level);
@@ -607,7 +606,7 @@ TEST (model_serializer, blob_softmax)
 }
 
 // test 10 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2
-TEST (model_serializer, blob_convbias_convrelu)
+TEST (generate_blob, blob_convbias_convrelu)
 {
 
     mv::CompilationUnit unit(logger_level);
@@ -703,7 +702,7 @@ TEST (model_serializer, blob_convbias_convrelu)
 }
 
 // test 09 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2->scale
-TEST (model_serializer, blob_scale)
+TEST (generate_blob, blob_scale)
 {
 
     mv::CompilationUnit unit(logger_level);

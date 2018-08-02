@@ -15,7 +15,8 @@ void mv::CompilationUnit::loadModelFromJson(const std::string &path)
     mv::JSONTextParser parser;
     mv::json::Value value;
     parser.parseFile(path, value);
-    OpModel * oldModel = model_;
+    
+    delete model_;
     model_ = new OpModel(value);
     if(mv::Jsonable::constructBoolTypeFromJson(value["has_populated_tensors"]))
     {
@@ -34,7 +35,7 @@ void mv::CompilationUnit::loadModelFromJson(const std::string &path)
             currentTensorInputStream.close();
         }
     }
-    delete oldModel;
+   
 }
 
 mv::CompilationUnit::~CompilationUnit()

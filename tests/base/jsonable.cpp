@@ -67,7 +67,6 @@ TEST(jsonable, attribute1)
     mv::Attribute att2 = mv::Attribute::JsonAttributeFactory(v);
     mv::json::Value v2 = mv::Jsonable::toJsonValue(att2);
     std::string result2(v2.stringify());
-    //std::cout << result2 << std::endl;
     ASSERT_EQ(result, result2);
 }
 
@@ -81,11 +80,9 @@ TEST(jsonable, attribute2)
     mv::Attribute att(mv::AttrType::FloatVec4DType, vec);
     mv::json::Value v = mv::Jsonable::toJsonValue(att);
     std::string result(v.stringify());
-    std::cout << result << std::endl;
     mv::Attribute att2 = mv::Attribute::JsonAttributeFactory(v);
     mv::json::Value v2 = mv::Jsonable::toJsonValue(att2);
     std::string result2(v2.stringify());
-    //std::cout << result2 << std::endl;
     ASSERT_EQ(result, result2);
 }
 
@@ -94,11 +91,9 @@ TEST(jsonable, attribute_bool)
     mv::Attribute att(mv::AttrType::BoolType, true);
     mv::json::Value v = mv::Jsonable::toJsonValue(att);
     std::string result(v.stringify());
-    //std::cout << result << std::endl;
     mv::Attribute att2 = mv::Attribute::JsonAttributeFactory(v);
     mv::json::Value v2 = mv::Jsonable::toJsonValue(att2);
     std::string result2(v2.stringify());
-    //std::cout << result2 << std::endl;
     ASSERT_EQ(result, result2);
 }
 
@@ -107,11 +102,9 @@ TEST(jsonable, shape)
     mv::Shape s(3, 3, 64, 100);
     mv::json::Value v = mv::Jsonable::toJsonValue(s);
     std::string result(v.stringify());
-    //std::cout << result << std::endl;
     mv::Shape s1(v);
     mv::json::Value v1 = mv::Jsonable::toJsonValue(s1);
     std::string result1(v1.stringify());
-    //std::cout << result1 << std::endl;
     ASSERT_EQ(result1, result);
 }
 
@@ -120,12 +113,9 @@ TEST(jsonable, operation)
     mv::op::Add op("add_test");
     mv::json::Value v = mv::Jsonable::toJsonValue(op);
     std::string result(v.stringify());
-    //std::cout << result << std::endl;
-
     mv::op::Add op2(v);
     mv::json::Value v2 = mv::Jsonable::toJsonValue(op2);
     std::string result2(v2.stringify());
-
     ASSERT_EQ(result, result2);
 }
 
@@ -135,13 +125,10 @@ TEST(jsonable, memory_allocator)
     mv::Shape s(3, 3, 64);
     mv::Tensor t("test_tensor", s, mv::DType::Float, mv::Order::ColumnMajor);
     mv::Tensor t1("test_tensor1", s, mv::DType::Float, mv::Order::ColumnMajor);
-
     m.allocate(t, 0);
     m.allocate(t1, 0);
-
     mv::json::Value v = mv::Jsonable::toJsonValue(m);
     std::string result(v.stringify());
-    std::cout << result << std::endl;
     ASSERT_EQ(result, "{\"max_size\":2048,\"name\":\"test_allocator\",\"states\":[{\"buffers\":[{\"layout\":\"plain\",\"lenght\":576,\"name\":\"test_tensor\",\"offset\":0},{\"layout\":\"plain\",\"lenght\":576,\"name\":\"test_tensor1\",\"offset\":576}],\"free_space\":896,\"stage\":0}]}");
 }
 
@@ -151,7 +138,6 @@ TEST(jsonable, tensor)
     mv::Tensor t("test_tensor", s, mv::DType::Float, mv::Order::ColumnMajor);
     mv::json::Value v = mv::Jsonable::toJsonValue(t);
     std::string result(v.stringify());
-    std::cout << result << std::endl;
     //ASSERT_EQ(result, "{\"attributes\":{\"dType\":{\"attrType\":\"dtype\",\"content\":\"Float\"},\"order\":{\"attrType\":\"order\",\"content\":\"LastDimMajor\"},\"populated\":{\"attrType\":\"bool\",\"content\":false},\"shape\":{\"attrType\":\"shape\",\"content\":[3,3,64]}},\"name\":\"test_tensor\"}");
     mv::Tensor t1(v);
     mv::json::Value v1 = mv::Jsonable::toJsonValue(t1);
@@ -163,7 +149,7 @@ TEST(jsonable, tensor)
 TEST(jsonable, computation_model)
 {
     // Define blank computation model (op view)
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::OpModel om;
 
     // Initialize weights data
     mv::dynamic_vector<mv::float_type> weights1Data = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);

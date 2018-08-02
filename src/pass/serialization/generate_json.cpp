@@ -2,7 +2,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -10,9 +10,9 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(GenerateJson)
-        .setFunc(generateJsonFcn)
-        .setGenre({PassGenre::Validation, PassGenre::Serialization})
+        MV_REGISTER_PASS(GenerateJSON)
+        .setFunc(generateJSONFcn)
+        .setGenre(PassGenre::Serialization)
         .defineArg(json::JSONType::String, "output")
         .setDescription(
             "Generates the JSON representation of computation model"
@@ -22,10 +22,10 @@ namespace mv
 
 }
 
-void generateJsonFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
     std::ofstream ostream;
-    std::string outputPath(compDesc["GenerateJson"]["output"].get<std::string>());
+    std::string outputPath(compDesc["GenerateJSON"]["output"].get<std::string>());
     size_t lastindex = outputPath.find_last_of(".");
     std::string outputPathNoExt(outputPath.substr(0, lastindex));
 

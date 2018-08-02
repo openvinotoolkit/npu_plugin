@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/utils/parser/json_text.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 
 TEST(json, root)
 {
@@ -206,19 +207,17 @@ TEST(json, stringify_object)
         {"nullValue", nullVal},
         {"arrValue", arrVal}
     };
-    std::string objStr = "{\"arrValue\":[],\"nullValue\":null,\"boolValue\":true,\"strValue\":\"str\",\"floatValue\":1.0,\"intValue\":1}";
-    //ASSERT_EQ(root.stringify(), objStr);
+    std::string objStr = "{\"arrValue\":[],\"boolValue\":true,\"floatValue\":1.0,\"intValue\":1,\"nullValue\":null,\"strValue\":\"str\"}";
+    ASSERT_EQ(root.stringify(), objStr);
 
 }
 
 TEST(json, parser_text)
 {
 
-    std::string fileName = "./test.txt";
+    std::string fileName = mv::utils::projectRootPath() + "/tests/data/test_01.json";
     mv::JSONTextParser parser(8);
     mv::json::Value obj;
     parser.parseFile(fileName, obj);
-
-    //std::cout << obj.stringify() << std::endl;
 
 }

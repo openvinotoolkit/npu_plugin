@@ -105,7 +105,9 @@ unsigned mv::JSONTextParser::readStream_()
 std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer_()
 {
 
-    readStream_();
+    while (inputStream_ && bufferStr_.empty())
+        readStream_();
+    
     if (bufferStr_.empty())
         return {JSONSymbol::EOFSymbol, ""};
 
@@ -156,8 +158,8 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
                     readStream_();
                     found = bufferStr_.find('\"');
                 }
-
-                return {JSONSymbol::EOFSymbol, ""};
+                else
+                    return {JSONSymbol::EOFSymbol, ""};
             }
 
             content += bufferStr_.substr(0, found);
@@ -184,7 +186,7 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
         case '-':
         {
 
-            std::regex numEx("(-)?([[:digit:]])+(.[[:digit:]])*((e|e+|e-|E|E+|E-)[[:digit:]]*)?");
+            std::regex numEx("-?(?:0|[1-9][[:digit:]]*)(?:\\.[[:digit:]]+)?(?:[eE][+-]?[[:digit:]]+)?");
             std::regex Ex("[,}\\]]");
             std::smatch match;
             
@@ -235,10 +237,10 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
                 keywordStr = "false";
                 keywordSymbol = JSONSymbol::False;
             }
-            while (bufferLength_ < keywordStr.length() + 1 && inputStream_)
+            while (bufferStr_.length() < keywordStr.length() + 1 && inputStream_)
                 readStream_();
 
-            if (!inputStream_ && bufferLength_ < keywordStr.length() + 1)
+            if (!inputStream_ && bufferStr_.length() < keywordStr.length() + 1)
                 return {JSONSymbol::EOFSymbol, ""};
 
             if (bufferStr_.compare(0, keywordStr.length() + 1, keywordStr) && 
@@ -279,12 +281,11 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
     std::stack<json::Value*> jsonHierarchy;
     std::string lastKey;
 
-    for(auto currentSymbol = lexer_(); currentSymbol.first != JSONSymbol::EOFSymbol && currentSymbol.first != JSONSymbol::Invalid; currentSymbol = lexer_())
+    for(auto currentSymbol = lexer_(); currentSymbol.first != JSONSymbol::EOFSymbol; currentSymbol = lexer_())
     {
 
         if (currentSymbol.first == JSONSymbol::Invalid)
             throw ParsingError("Invalid symbol");
-
 
         if (pushdownAutomata_.find(currentState) == pushdownAutomata_.end())
         {
