@@ -2,7 +2,7 @@
 
 mv::ArgumentError::ArgumentError(const std::string& argName, const std::string& argVal,
     const std::string& whatArg) :
-std::runtime_error("Invalid argument " + argName + "(" + argVal + ") - " + whatArg),
+std::runtime_error("Invalid argument " + argName + " " + argVal + " - " + whatArg),
 argName_(argName),
 argVal_(argVal)
 {

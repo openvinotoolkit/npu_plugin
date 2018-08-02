@@ -73,7 +73,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 {
 
     JSONTextParser parser(jsonParserBufferLenght_);
-
     json::Object jsonDescriptor;
 
     try 
@@ -81,7 +80,10 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
         json::Value jsonRoot;
         if (!parser.parseFile(filePath, jsonRoot))
-            return false;
+        {
+            throw ArgumentError("filePath", filePath, 
+                "Unable to parse target descriptor - error reading");
+        }
         if (jsonRoot.valueType() != json::JSONType::Object)
             return false;
         else

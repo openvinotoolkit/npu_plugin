@@ -2,6 +2,8 @@
 
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
 
+mv::Logger& mv::CompilationUnit::logger_ = mv::ComputationModel::logger();
+
 mv::CompilationUnit::CompilationUnit(mv::Logger::VerboseLevel verboseLevel, bool logTime) :
 model_(new OpModel(verboseLevel, logTime))
 {
@@ -17,10 +19,11 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
 {
     try
     {
-        targetDescriptor_.load(path);
+        return targetDescriptor_.load(path);
     }
     catch (ArgumentError& e)
     {
+        logger_.log(Logger::MessageType::MessageError, e.what());
         return false;
     }
 

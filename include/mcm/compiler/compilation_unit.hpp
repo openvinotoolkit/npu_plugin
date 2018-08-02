@@ -15,6 +15,7 @@ namespace mv
     {
 
         static const std::string ma2480DefDescPath_;
+        static Logger& logger_;
 
         OpModel* model_;
         PassManager passManager_;
