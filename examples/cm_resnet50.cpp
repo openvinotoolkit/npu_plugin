@@ -146,11 +146,12 @@ int main()
     cm.output(softmax);
 
     // Load target descriptor for the selected target to the compilation unit
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+        exit(1);
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
     // Output DOT - file name (base)
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("resnet50.dot");
+    unit.compilationDescriptor()["GeneraTteDot"]["output"] = std::string("resnet50.dot");
     // Output DOT - scope of visualization - executable operations, data flow, control flow
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
     // Output DOT - content included in the visualization - full content

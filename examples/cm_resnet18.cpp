@@ -113,7 +113,8 @@ int main()
     cm.output(softmax);
 
     // Load target descriptor for the selected target to the compilation unit
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+        exit(1);
     
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
