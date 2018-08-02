@@ -895,7 +895,7 @@ namespace mv
                     blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize(),    // Y Stride
                     blob_stats.tensor_number_size,
                     conv_pool_stage.InputOffset,
-                    InputLocation,
+                    inputLocation,
                     conv_pool_stage.InputDataType,
                     conv_pool_stage.InputOrder
                 );
