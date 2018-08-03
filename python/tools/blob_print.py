@@ -211,6 +211,36 @@ blob_format = Struct(
                         "order" / Int32ul,
                     )[3]
                 ),
+
+                # Hardware Convolution
+                33: Struct(
+                    "OpMode" / Int32ul,
+                    "inputSize" / Int32ul,
+                    "outputSize" / Int32ul,
+                    "concatOffset" / Int32ul,
+                    "unloadCMX" / Int32ul,
+                    "overwriteInput" / Int32ul,
+                    "CMXSize" / Int32ul,
+                    "ReluSHVAccum" / Int32ul,
+                    "ShvNegSlope" / Int32ul,
+                    "ShvPosSlope" / Int32ul,
+                    "DescrAmount" / Int32ul,
+                    "Descriptors" / Struct(
+                        "Half-Line" / Int32ul[32]
+                    )[this.DescrAmount],
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[5]
+                ),
                 # conversion
                 37: Struct(
                     "Buffers..." / Struct(
