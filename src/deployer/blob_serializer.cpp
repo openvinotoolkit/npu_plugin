@@ -786,8 +786,14 @@ namespace mv
         {
             if ( it->getOpType() == OpType::Conv2D )
             {
-                if(1)
-                // if (it->getAttr("ValidForNCE1") != mv::ComputationElement::unknownAttr_  && it->getAttr("ValidForNCE1").getContent<int>() != 0)
+                int mx_valid = 1;
+                if (! it->hasAttr("ValidForNCE1")){
+                    printf("Warning: attribute ValidForNCE1 not present. Assuming True.\n");
+                }else{
+                    mx_valid = it->getAttr("ValidForNCE1").getContent<int>();
+                }
+
+                if(mx_valid)
                 {
                     // Serialize for MyriadX H/W
                     bConv2D c = bConv2D(&(*it));
