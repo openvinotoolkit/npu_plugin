@@ -1,6 +1,18 @@
 #ifndef _HWOPERATION_H_
 #define _HWOPERATION_H_
 
+#define NCE1_CONV 0
+#define NCE1_CONV_POOL 1
+#define NCE1_FCL 2
+#define NCE1_POOL 4
+
+#define NCE1_DTYPE_FP16 0
+#define NCE1_DTYPE_U8F 1
+#define NCE1_DTYPE_PALETTE4 2
+#define NCE1_DTYPE_PALLETE2 3
+#define NCE1_DTYPE_DIRECT1 5
+
+
 typedef struct
 {
     uint32_t linkAddress : 32;      // Offset Tracking

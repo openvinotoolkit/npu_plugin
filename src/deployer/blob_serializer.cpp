@@ -1,9 +1,258 @@
 #include "include/mcm/deployer/serializer.hpp"
-#include <assert.h>
 #include <stdio.h>
 
 namespace mv
 {
+
+    void bConv2D::writeStageInfo(WBuffer* b){
+        if (1){
+            // Hardware
+            b->AddBytes(4, this->opMode);
+            b->AddBytes(4, this->input.getShape().totalSize());
+            b->AddBytes(4, this->output.getShape().totalSize());
+            b->AddBytes(4, this->concatOffset);
+            b->AddBytes(4, this->unloadCMX);
+            b->AddBytes(4, this->overwriteInput);
+            b->AddBytes(4, this->CMXSize);
+            b->AddBytes(4, this->reluSHVAcc);
+            b->AddBytes(4, this->shvNegSlope);
+            b->AddBytes(4, this->shvPosSlope);
+            b->AddBytes(4, this->desc_count);
+
+            for (int i = 0; i != this->desc_count; i++){
+                b->AddBytes(32*4, *(int *) &this->descriptors[i]);
+            }
+        }else{
+            // Software
+        }
+    };
+
+    bConv2D::bConv2D(mv::ComputationOp* it):Blob_Op_Definition() {
+
+
+        printf("Serializing a HW Conv\n");
+
+        int cmxSize = 1;
+        int desc_count = 1;
+        int streamingMask = 1;
+
+        if (! it->hasAttr("NCE1_AssignedCMX")){
+            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 1\n");
+        }else{ cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();  }
+
+        if (! it->hasAttr("NCE1_DescriptorSplits")){
+            printf("WARNING: Needs Attribute 'NCE1_DescriptorSplits'. Defaulting to 1\n");
+        }else{ desc_count = it->getAttr("NCE1_DescriptorSplits").getContent<int>(); }
+
+        if (! it->hasAttr("NCE1_StreamingMask")){
+            printf("WARNING: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
+            streamingMask = 1;
+        }else{ streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>(); }
+
+
+        this->input = *(it->getInputTensor(0));
+        this->taps = *(it->getInputTensor(1));
+        this->output = *(it->getOutputTensor(0));
+
+        if (it->hasAttr("bias"))
+        {
+            this->bias = it->getAttr("bias").getContent<mv::dynamic_vector<float>>();
+        }else{
+            this->bias = mv::dynamic_vector<float>();
+        }
+
+        this->opMode = streamingMask;
+
+        this->concatOffset = 0; // Concat not supported currently
+        this->unloadCMX = 0;
+        this->overwriteInput = 0;
+
+        this->CMXSize = cmxSize;
+        this->reluSHVAcc = 0;
+        this->shvNegSlope = 0;
+        this->shvPosSlope = 1;
+
+        this->desc_count = desc_count;
+
+        // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
+        this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
+
+        int chPerRamBlock = 1;
+        int topJunk = 1, bottomJunk = 1;
+        int localLS = 1, localCS = 1;
+        int LPC = 1;
+        int minLines = 1;
+        int stride = 1;
+        int padEn = 1;
+
+
+        if (! it->hasAttr("NCE1_InputChannelsPerRamBlock")){
+            printf("WARNING: Needs Attribute 'NCE1_InputChannelsPerRamBlock'. Defaulting to 1\n");
+        }else{  chPerRamBlock = it->getAttr("NCE1_InputChannelsPerRamBlock").getContent<int>(); }
+
+        if (! it->hasAttr("NCE1_TopOutputJunk")){
+            printf("WARNING: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 1\n");
+        }else{  topJunk = it->getAttr("NCE1_TopOutputJunk").getContent<int>(); }
+
+        if (! it->hasAttr("NCE1_BottomOutputJunk")){
+            printf("WARNING: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 1\n");
+        }else{  bottomJunk = it->getAttr("NCE1_BottomOutputJunk").getContent<int>(); }
+
+        if (! it->hasAttr("NCE1_LocalLineStride")){
+            printf("WARNING: Needs Attribute 'NCE1_LocalLineStride'. Defaulting to 1\n");
+        }else{ localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>(); }
+
+        if (! it->hasAttr("NCE1_LocalChannelStride")){
+            printf("WARNING: Needs Attribute 'NCE1_LocalChannelStride'. Defaulting to 1\n");
+        }else{  localCS = it->getAttr("NCE1_LocalChannelStride").getContent<int>(); }
+
+        if (! it->hasAttr("NCE1_LinesPerChannel")){
+            printf("WARNING: Needs Attribute 'NCE1_LinesPerChannel'. Defaulting to 1\n");
+        }else{  LPC = it->getAttr("NCE1_LinesPerChannel").getContent<int>(); }
+
+        if (! it->hasAttr("NCE1_MinLines")){
+            printf("WARNING: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
+        }else{  minLines = it->getAttr("NCE1_MinLines").getContent<int>(); }
+
+        if (! it->hasAttr("stride")){
+            printf("WARNING: Needs Attribute 'stride'. Defaulting to 1\n");
+        }else{  stride = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0; }
+
+        if (! it->hasAttr("padding")){
+            printf("WARNING: Needs Attribute 'padding'. Defaulting to 1\n");
+        }else{  padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0; }
+
+
+        for (int i = 0; i != this->desc_count; i++){
+            this->descriptors[i] =  cnnConvolutionPoolStructure();
+
+            // Relations to other Descriptors
+            this->descriptors[i].Line0.linkAddress = i*32*4;
+            this->descriptors[i].Line0.id = 0;
+
+            // Layer Meta Information - Layout & DataTypes
+            this->descriptors[i].Line0.type = NCE1_CONV;
+            this->descriptors[i].Line0.interleavedInput = 0;
+            this->descriptors[i].Line0.interleavedOutput = 0;
+            this->descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
+            this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
+
+            // Standard Fields for Convolution
+            this->descriptors[i].kernelWidth = this->taps.getShape()[0];
+            this->descriptors[i].kernelHeight = this->taps.getShape()[1];
+
+            this->descriptors[i].chStride = stride;  // Stride of Kernel (Square only)
+
+            if (padEn > 0){
+                this->descriptors[i].padEn = 1;
+            }else{
+                this->descriptors[i].padEn = 0;
+            }
+
+            this->descriptors[i].padType = 0;   // Zero Padding
+
+            this->descriptors[i].inputHeight = this->input.getShape()[3];
+            this->descriptors[i].inputWidth = this->input.getShape()[2];
+            this->descriptors[i].inputChannels = this->input.getShape()[1];
+
+            this->descriptors[i].outputChannels = this->output.getShape()[3];
+
+            // Descriptor Buffers
+
+            this->descriptors[i].dataBaseAddr = -1;
+            this->descriptors[i].dataChStr = -1;
+            this->descriptors[i].dataLnStr = -1;
+
+            this->descriptors[i].coeffBaseAddr = -1;
+            this->descriptors[i].coeffChStrOut = -1;
+            this->descriptors[i].coeffChStrIn = -1;
+
+            this->descriptors[i].outLnStr = -1;
+            this->descriptors[i].outBaseAddr = -1;
+            this->descriptors[i].outChStr = -1;
+
+            this->descriptors[i].biasBaseAddr = -1;
+            this->descriptors[i].scaleBaseAddr = -1;
+
+            // Myriad X DPU Assignment & Execution Configuration
+            this->descriptors[i].Line0.mode = this->opMode;
+            this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
+            this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
+
+            this->descriptors[i].chPerRamBlock = chPerRamBlock;        // Input Channels per Ram Block
+
+
+            // Myriad X Compensation Fields
+            this->descriptors[i].topOutputJunk = topJunk;
+            this->descriptors[i].bottomOutputJunk = bottomJunk;
+
+            this->descriptors[i].localLs =  localLS;
+            this->descriptors[i].localCs =  localCS;
+            this->descriptors[i].linesPerCh = LPC;
+
+            this->descriptors[i].rud = 0;   // Re-Use bit
+
+            this->descriptors[i].minLines = minLines;     // Minimum lines of data required to carry out function
+
+            this->descriptors[i].coeffLpb = this->descriptors[i].chPerRamBlock * this->descriptors[i].kernelWidth * this->descriptors[i].kernelHeight;
+            this->descriptors[i].css = this->descriptors[i].kernelWidth * this->descriptors[i].kernelHeight -1 ;
+            this->descriptors[i].outputX = this->output.getShape()[2];
+
+            // Myriad X - Splitting groups
+            this->descriptors[i].sohGroup = 0;
+            this->descriptors[i].sodGroup = 0;
+
+            // Fused ReLU
+            this->descriptors[i].t0 = 0;
+            this->descriptors[i].a0 = 0;
+            this->descriptors[i].a1 = 1;
+            this->descriptors[i].reluxEn = 0;
+            this->descriptors[i].reluEn = 0;
+
+            // Fused Pooling
+            if (0){
+                this->descriptors[i].Line0.type = NCE1_CONV_POOL;
+            }
+            this->descriptors[i].avgPoolX = 0;
+            this->descriptors[i].poolType = 0;
+            this->descriptors[i].poolEn = 0;
+            this->descriptors[i].poolKernelHeight = 0;
+            this->descriptors[i].poolKernelWidth = 0;
+
+            // Reserved fields of the hw descriptor. Leave as zero or live in eternal fear.
+            this->descriptors[i].Line0.rsvd1 = 0;
+            this->descriptors[i].rsvd2 = 0;
+            this->descriptors[i].rsvd3 = 0;
+            this->descriptors[i].rsvd4 = 0;
+            this->descriptors[i].rsvd5 = 0;
+            this->descriptors[i].rsvd6 = 0;
+            this->descriptors[i].rsvd7 = 0;
+            this->descriptors[i].rsvd9 = 0;
+            this->descriptors[i].rsvd10 = 0;
+            this->descriptors[i].rsvd13 = 0;
+            this->descriptors[i].rsvd8 = 0;
+
+            // Palette for Weights Lookup (Currently Unsupported).
+            this->descriptors[i].p0 = 0;
+            this->descriptors[i].p1 = 0;
+            this->descriptors[i].p2 = 0;
+            this->descriptors[i].p3 = 0;
+            this->descriptors[i].p4 = 0;
+            this->descriptors[i].p5 = 0;
+            this->descriptors[i].p6 = 0;
+            this->descriptors[i].p7 = 0;
+            this->descriptors[i].p8 = 0;
+            this->descriptors[i].p9 = 0;
+            this->descriptors[i].p10 = 0;
+            this->descriptors[i].p11 = 0;
+            this->descriptors[i].p12 = 0;
+            this->descriptors[i].p13 = 0;
+            this->descriptors[i].p14 = 0;
+            this->descriptors[i].p15 = 0;
+        }
+    };
+
+    Blob_Op_Definition::Blob_Op_Definition(){}
 
     Blob_Op_Definition::Blob_Op_Definition(OpType o){
 
@@ -33,9 +282,6 @@ namespace mv
                 assert(0);
         }
     }
-
-
-
 
     void Blob_buffer::calc(mv::ControlModel& cm)
     {
@@ -540,147 +786,157 @@ namespace mv
         {
             if ( it->getOpType() == OpType::Conv2D )
             {
-
-                op_count++;
-                if (it->hasAttr("postOpType"))
+                if(1)
+                // if (it->getAttr("ValidForNCE1") != mv::ComputationElement::unknownAttr_  && it->getAttr("ValidForNCE1").getContent<int>() != 0)
                 {
-                    if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                    // Serialize for MyriadX H/W
+                    bConv2D c = bConv2D(&(*it));
+                    c.writeStageInfo(this);
+
+                }else{
+                    // Serialize for S/W
+
+                    op_count++;
+                    if (it->hasAttr("postOpType"))
                     {
-                        next_offset += 0xd4 + (3*4) ;
-                    }
-                }
-                else
-                {
-                    next_offset += 0xd4 ;
-                }
-
-                // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
-                conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
-
-                // determine address offset to input buffer
-                if (conv_pool_stage.InputLocation != 1)
-                {
-                    //  find input work buffer in output lists
-                    for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
-                    {
-                        if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
+                        if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
                         {
-                            blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
-                            blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                            conv_pool_stage.InputOffset = reloc_index++;
+                            next_offset += 0xd4 + (3*4) ;
                         }
-                    } // end search outbufnum list
-                }   // end node input is work buffer case
-                else
-                {
-                    conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
-                }
-
-                // determine address offset to output buffer
-                if (conv_pool_stage.OutputLocation != 2)
-
-                {
-                    blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
-                    blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                    conv_pool_stage.OutputOffset = reloc_index++;
-                    conv_pool_stage.next = next_offset ;
-                }
-                else
-                {
-                    conv_pool_stage.OutputOffset = 0 ;
-                    conv_pool_stage.next = 0 ;
-                }
-
-                outlist_index++;
-                inlist_index++;
-
-                AddBytes(4, conv_pool_stage.next);
-                AddBytes(4, 0x00);                                // 0x60
-                AddBytes(4, conv_pool_stage.implementation);
-
-                // operator specific info
-                AddBytes(4, it->getInputTensor(1)->getShape()[0]); //radixX
-                AddBytes(4, it->getInputTensor(1)->getShape()[1]); //radixY
-                AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX  (0x70)
-                AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
-                // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
-                AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
-                AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
-                AddBytes(4, conv_pool_stage.padStyle);   // 0x80
-                AddBytes(4, conv_pool_stage.dilation);
-
-                add_stage_IO_info(it, conv_pool_stage);
-
-                Blob_Tensor taps = Blob_Tensor(
-                    it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1],  // X
-                    it->getInputTensor(1)->getShape()[2],   // y
-                    it->getInputTensor(1)->getShape()[3],   // z
-                    blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3],
-                    blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[3], // Taps Sy
-                    conv_pool_stage.TapsStrideZ, // SZ
-                    conv_pool_stage.TBOffset,
-                    conv_pool_stage.TapsLocation,
-                    conv_pool_stage.TapsDataType,
-                    conv_pool_stage.TapsOrder
-                );
-                conv_pool_stage.TBOffset++ ;
-                taps.write(this);
-
-
-                int biasOffset = 0, biasLocation = 0, biasDataType = 0, biasOrder = 0;
-
-                if (it->hasAttr("bias"))
-                {
-                    conv_pool_stage.BiasDimX = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
-                    conv_pool_stage.BiasStrideY = conv_pool_stage.BiasStrideX*conv_pool_stage.BiasDimX;
-                    conv_pool_stage.BiasStrideZ = conv_pool_stage.BiasStrideY;
-                    biasOffset = conv_pool_stage.TBOffset;
-                    conv_pool_stage.TBOffset++ ;
-                    biasLocation = conv_pool_stage.BiasLocation;
-                    biasDataType = conv_pool_stage.BiasDataType;
-                    biasOrder = 1;  // TODO: should not be hardcoded
-                }
-
-                Blob_Tensor bias = Blob_Tensor(
-                    conv_pool_stage.BiasDimX,  // X
-                    conv_pool_stage.BiasDimY,   // y
-                    conv_pool_stage.BiasDimZ,   // z
-                    conv_pool_stage.BiasStrideX,
-                    conv_pool_stage.BiasStrideY,
-                    conv_pool_stage.BiasStrideZ,
-                    biasOffset,
-                    biasLocation,
-                    biasDataType,
-                    biasOrder   // Order
-                );
-                bias.write(this);
-
-                AddBytes(4, conv_pool_stage.preop_type);
-                if (it->hasAttr("postOpType"))
-                {
-                    if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
-                    {
-                        AddBytes(4, 0x06);    // 0x12c , postop relu
-                        AddBytes(4, 0x00);
-                        AddBytes(4, 0x00);
-                        AddBytes(4, 0x00);
                     }
                     else
                     {
-                        std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
+                        next_offset += 0xd4 ;
                     }
 
-                }
-                else
-                {
+                    // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
+                    conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
+                    conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
+
+                    // determine address offset to input buffer
+                    if (conv_pool_stage.InputLocation != 1)
+                    {
+                        //  find input work buffer in output lists
+                        for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
+                        {
+                            if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
+                            {
+                                blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
+                                blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
+                                conv_pool_stage.InputOffset = reloc_index++;
+                            }
+                        } // end search outbufnum list
+                    }   // end node input is work buffer case
+                    else
+                    {
+                        conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
+                    }
+
+                    // determine address offset to output buffer
+                    if (conv_pool_stage.OutputLocation != 2)
+
+                    {
+                        blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
+                        blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
+                        conv_pool_stage.OutputOffset = reloc_index++;
+                        conv_pool_stage.next = next_offset ;
+                    }
+                    else
+                    {
+                        conv_pool_stage.OutputOffset = 0 ;
+                        conv_pool_stage.next = 0 ;
+                    }
+
+                    outlist_index++;
+                    inlist_index++;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, 0x00);                                // 0x60
+                    AddBytes(4, conv_pool_stage.implementation);
+
+                    // operator specific info
+                    AddBytes(4, it->getInputTensor(1)->getShape()[0]); //radixX
+                    AddBytes(4, it->getInputTensor(1)->getShape()[1]); //radixY
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX  (0x70)
+                    AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
+                    // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
+                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
+                    AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
+                    AddBytes(4, conv_pool_stage.padStyle);   // 0x80
+                    AddBytes(4, conv_pool_stage.dilation);
+
+                    add_stage_IO_info(it, conv_pool_stage);
+
+                    Blob_Tensor taps = Blob_Tensor(
+                        it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1],  // X
+                        it->getInputTensor(1)->getShape()[2],   // y
+                        it->getInputTensor(1)->getShape()[3],   // z
+                        blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3],
+                        blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[3], // Taps Sy
+                        conv_pool_stage.TapsStrideZ, // SZ
+                        conv_pool_stage.TBOffset,
+                        conv_pool_stage.TapsLocation,
+                        conv_pool_stage.TapsDataType,
+                        conv_pool_stage.TapsOrder
+                    );
+                    conv_pool_stage.TBOffset++ ;
+                    taps.write(this);
+
+
+                    int biasOffset = 0, biasLocation = 0, biasDataType = 0, biasOrder = 0;
+
                     if (it->hasAttr("bias"))
                     {
-                        AddBytes(4, 0x09);    // 0x12c , postop bias
+                        conv_pool_stage.BiasDimX = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
+                        conv_pool_stage.BiasStrideY = conv_pool_stage.BiasStrideX*conv_pool_stage.BiasDimX;
+                        conv_pool_stage.BiasStrideZ = conv_pool_stage.BiasStrideY;
+                        biasOffset = conv_pool_stage.TBOffset;
+                        conv_pool_stage.TBOffset++ ;
+                        biasLocation = conv_pool_stage.BiasLocation;
+                        biasDataType = conv_pool_stage.BiasDataType;
+                        biasOrder = 1;  // TODO: should not be hardcoded
+                    }
+
+                    Blob_Tensor bias = Blob_Tensor(
+                        conv_pool_stage.BiasDimX,  // X
+                        conv_pool_stage.BiasDimY,   // y
+                        conv_pool_stage.BiasDimZ,   // z
+                        conv_pool_stage.BiasStrideX,
+                        conv_pool_stage.BiasStrideY,
+                        conv_pool_stage.BiasStrideZ,
+                        biasOffset,
+                        biasLocation,
+                        biasDataType,
+                        biasOrder   // Order
+                    );
+                    bias.write(this);
+
+                    AddBytes(4, conv_pool_stage.preop_type);
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                        {
+                            AddBytes(4, 0x06);    // 0x12c , postop relu
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
+                        }
+                        else
+                        {
+                            std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
+                        }
+
                     }
                     else
                     {
-                        AddBytes(4, 0x05);    // 0x12c , no postop
+                        if (it->hasAttr("bias"))
+                        {
+                            AddBytes(4, 0x09);    // 0x12c , postop bias
+                        }
+                        else
+                        {
+                            AddBytes(4, 0x05);    // 0x12c , no postop
+                        }
                     }
                 }
 

@@ -13,6 +13,7 @@
 #include "include/mcm/utils/serializer/file_buffer.h"
 #include "include/mcm/deployer/myriadX_hardware_descriptors.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include <assert.h>
 
 #define BLOB_VERSION_MAJOR 2
 #define BLOB_VERSION_MINOR 3
@@ -21,17 +22,42 @@
 namespace mv
 {
 
-    // class bLayer{
-    //     public:
-    //         void gatherInformation();
-    //         void write();
-    // };
-
     class Blob_Op_Definition{
         public:
             uint32_t number_of_inputs;
             Blob_Op_Definition(OpType o);
+            Blob_Op_Definition();
+
     };
+
+    class bConv2D : public Blob_Op_Definition
+    {
+        private:
+            mv::Tensor input;
+            mv::Tensor output;
+            mv::Tensor taps;
+            mv::dynamic_vector<float> bias;
+            mv::Tensor scale;
+
+            // Hardware Fields
+            uint32_t opMode;
+            uint32_t concatOffset;
+            uint32_t unloadCMX;
+            uint32_t overwriteInput;
+            uint32_t CMXSize;
+            uint32_t reluSHVAcc;
+            uint32_t shvNegSlope;
+            uint32_t shvPosSlope;
+            uint32_t desc_count;
+
+            cnnConvolutionPoolStructure * descriptors;
+
+        public:
+            uint32_t number_of_inputs = 2;
+            void writeStageInfo(WBuffer* b);
+            bConv2D(mv::ComputationOp* it);
+    };
+
 
     class Blob_Tensor{
         public:
