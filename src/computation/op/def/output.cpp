@@ -34,3 +34,9 @@ mv::Tensor mv::op::Output::getOutputDef(byte_type)
     logger_.log(Logger::MessageType::MessageWarning, "Attempt of getting output tensor of model output operation");
     return Tensor();
 }
+
+
+bool mv::op::Output::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

@@ -13,3 +13,9 @@ Pool2DOp(obj)
 {
 
 }
+
+
+bool mv::op::MaxPool2D::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

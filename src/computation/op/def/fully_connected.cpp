@@ -47,3 +47,8 @@ mv::Tensor mv::op::FullyConnected::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", Shape(1, input1Shape[1]), input0->getDType(), input0->getOrder());
     
 }
+
+bool mv::op::FullyConnected::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

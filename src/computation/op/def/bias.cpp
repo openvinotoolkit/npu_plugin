@@ -48,3 +48,9 @@ mv::Tensor mv::op::Bias::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", inputShape, input->getDType(), input->getOrder());
 
 }
+
+bool mv::op::Bias::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}
+

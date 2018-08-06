@@ -13,3 +13,8 @@ Pool2DOp(obj)
 {
 
 }
+
+bool mv::op::AvgPool2D::isHardwarizeable(mv::json::Object& TargetDescriptor)
+{
+    return false;
+}

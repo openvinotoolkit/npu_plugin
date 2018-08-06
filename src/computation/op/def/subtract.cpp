@@ -13,3 +13,8 @@ EltwiseOp(obj)
 {
 
 }
+
+bool mv::op::Subtract::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

@@ -48,3 +48,8 @@ mv::Tensor mv::op::Scale::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", inputShape, input->getDType(), input->getOrder());
     
 }
+
+bool mv::op::Scale::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

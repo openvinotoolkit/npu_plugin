@@ -53,3 +53,8 @@ mv::Tensor mv::op::MatMul::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", Shape(input0Shape[0], input1Shape[1]), input0->getDType(), input0->getOrder());
     
 }
+
+bool mv::op::MatMul::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

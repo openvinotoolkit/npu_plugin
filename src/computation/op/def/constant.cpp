@@ -37,3 +37,8 @@ mv::Tensor mv::op::Constant::getOutputDef(byte_type idx)
     auto order = getAttr("order").getContent<Order>();
     return Tensor(name_ + ":0", shape, dType, order, data_);
 }
+
+bool mv::op::Constant::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

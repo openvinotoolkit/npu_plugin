@@ -82,3 +82,33 @@ mv::Tensor mv::op::Conv2D::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
 
 }
+
+bool mv::op::Conv2D::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    auto padding = getAttr("padding").getContent<UnsignedVector4D>();
+    auto stride = getAttr("stride").getContent<UnsignedVector2D>();
+
+    auto input = getInputTensor(0);
+    auto inputShape = input->getShape();
+    auto weights = getInputTensor(1);
+    auto weightsShape = weights->getShape();
+
+    // Check for supported padding
+    if((padding.e0 != 0 && padding.e0 != weightsShape[0]/2) || (padding.e2 != 0 && padding.e2 != weightsShape[1]/2))
+        return false;
+
+    // Check for supported kernel sizes
+    if(weightsShape[0] > 15 || weightsShape[1] > 15)
+        return false;
+
+    // Check for supported strides
+    if(stride.e0 > 8 || stride.e1 > 8)
+        return false;
+
+
+    // Should handle dilation here
+
+    // Should run optimizer for mode selection here
+
+    return true;
+}

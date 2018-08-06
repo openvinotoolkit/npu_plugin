@@ -20,7 +20,7 @@ namespace mv
             Bias(mv::json::Value &obj);
 
             Tensor getOutputDef(byte_type idx);
-
+            bool isHardwarizeable(json::Object& TargetDescriptor);
         };
 
     }

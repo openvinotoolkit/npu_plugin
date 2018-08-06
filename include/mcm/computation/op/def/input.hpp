@@ -19,6 +19,7 @@ namespace mv
 
             bool setOutputTensor(Data::TensorIterator &tensor, byte_type idx);
             Tensor getOutputDef(byte_type idx);
+            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };
 

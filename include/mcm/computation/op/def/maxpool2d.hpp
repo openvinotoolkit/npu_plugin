@@ -17,6 +17,7 @@ namespace mv
 
             MaxPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name);
             MaxPool2D(mv::json::Value &obj);
+            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };
 

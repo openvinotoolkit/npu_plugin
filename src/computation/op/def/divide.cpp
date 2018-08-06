@@ -13,3 +13,8 @@ EltwiseOp(obj)
 {
 
 }
+
+bool mv::op::Divide::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}
