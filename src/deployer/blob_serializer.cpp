@@ -63,7 +63,7 @@ namespace mv
                 this->taps.getShape()[0]*this->taps.getShape()[1],  // X
                 fp16_size, // SZ
                 fp16_size*this->taps.getShape()[3], // Taps Sy
-                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[0],
+                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
                 -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
                 0,
