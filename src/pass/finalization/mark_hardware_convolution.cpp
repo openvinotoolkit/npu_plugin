@@ -26,19 +26,20 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 {
 
     mv::OpModel om(model);
+    bool markedOneConvolution = false;
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         if(opIterator->getOpType() == mv::OpType::Conv2D)
         {
-            if(!opIterator->isHardwarizeable(pobj))
+            if(!opIterator->isHardwarizeable(pobj) || markedOneConvolution)
             {
-                om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::BoolType, false));
+                om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
                 continue;
             }
 
             int mode = 0; // Assuming mode 0
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::BoolType, true));
+            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 1));
             om.addAttr(opIterator, "NCE1_Mode", mv::Attribute(mv::AttrType::IntegerType, mode));
             om.addAttr(opIterator, "NCE1_AssignedCMX", mv::Attribute(mv::AttrType::IntegerType, 0));
 
@@ -91,7 +92,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
             int streamingMask = 1; //For DDR streaming
             om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
-            break; //1 Conv is enough for now9
+            markedOneConvolution = true;
         }
     }
 

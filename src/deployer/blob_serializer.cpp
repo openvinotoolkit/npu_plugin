@@ -30,7 +30,12 @@ namespace mv
         }
     }
 
-    bConv2D::bConv2D(mv::ComputationOp* it):Blob_Op_Definition()
+    bConv2D::bConv2D(mv::ComputationOp* it)
+        :
+          Blob_Op_Definition(),
+          input(*(it->getInputTensor(0))),
+          output(*(it->getOutputTensor(0))),
+          taps(*(it->getInputTensor(1)))
     {
 
 
@@ -68,9 +73,7 @@ namespace mv
             streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
         }
 
-        this->input = *(it->getInputTensor(0));
-        this->taps = *(it->getInputTensor(1));
-        this->output = *(it->getOutputTensor(0));
+
 
         if (it->hasAttr("bias"))
         {
@@ -220,11 +223,11 @@ namespace mv
 
             this->descriptors[i].padType = 0;   // Zero Padding
 
-            this->descriptors[i].inputHeight = this->input.getShape()[3];
-            this->descriptors[i].inputWidth = this->input.getShape()[2];
-            this->descriptors[i].inputChannels = this->input.getShape()[1];
+            this->descriptors[i].inputWidth = this->input.getShape()[0];
+            this->descriptors[i].inputHeight = this->input.getShape()[1];
+            this->descriptors[i].inputChannels = this->input.getShape()[2];
 
-            this->descriptors[i].outputChannels = this->output.getShape()[3];
+            this->descriptors[i].outputChannels = this->output.getShape()[2];
 
             // Descriptor Buffers
 
@@ -861,13 +864,13 @@ namespace mv
             if ( it->getOpType() == OpType::Conv2D )
             {
                 int mx_valid = 1;
-                if (! it->hasAttr("ValidForNCE1"))
+                if (! it->hasAttr("NCE1_Compatible"))
                 {
-                    printf("Warning: attribute ValidForNCE1 not present. Assuming True.\n");
+                    printf("Warning: attribute NCE1_Compatible not present. Assuming True.\n");
                 }
                 else
                 {
-                    mx_valid = it->getAttr("ValidForNCE1").getContent<int>();
+                    mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
                 }
 
                 if(mx_valid)
