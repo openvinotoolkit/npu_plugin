@@ -28,6 +28,79 @@ namespace mv
                     b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
                 }
             }
+
+            int fp16_size = 2;
+
+            Blob_Tensor input = Blob_Tensor(
+                this->input.getShape()[0],   // X
+                this->input.getShape()[1],   // Y
+                this->input.getShape()[2],   // Z
+                fp16_size*this->input.getShape()[2],     // X Stride
+                fp16_size*this->input.getShape()[2]*this->input.getShape()[0],    // Y Stride
+                fp16_size,   // Z Stride
+                -1, // Offset - Memory Manager
+                -1, // Location - Memory Manager
+                0,
+                1
+            );
+            Blob_Tensor output = Blob_Tensor(
+                this->output.getShape()[0],   // X
+                this->output.getShape()[1],   // Y
+                this->output.getShape()[2],   // Z
+                fp16_size*this->output.getShape()[2],     // X Stride
+                fp16_size*this->output.getShape()[2]*this->output.getShape()[0],    // Y Stride
+                fp16_size,   // Z Stride
+                 -1, // Offset - Memory Manager
+                -1, // Location - Memory Manager
+                0,
+                1
+            );
+
+            Blob_Tensor taps = Blob_Tensor(
+                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
+                this->taps.getShape()[2],   // y
+                this->taps.getShape()[3],   // z
+                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
+                fp16_size*this->taps.getShape()[3], // Taps Sy
+                fp16_size, // SZ
+                -1, // Offset - Memory Manager
+                -1, // Location - Memory Manager
+                0,
+                1
+            );
+            Blob_Tensor bias = Blob_Tensor(
+                this->output.getShape().totalSize(),   // X
+                0x01,   // Y
+                0x01,   // Z
+                fp16_size,     // X Stride
+                fp16_size*this->output.getShape().totalSize(),    // Y Stride
+                fp16_size*this->output.getShape().totalSize(),    // z Stride
+                 -1, // Offset - Memory Manager
+                -1, // Location - Memory Manager
+                0,
+                1
+            );
+
+            printf("Warning: Currently no Scale absorb support in HW\n");
+            Blob_Tensor scale = Blob_Tensor(
+                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
+                this->taps.getShape()[2],   // y
+                this->taps.getShape()[3],   // z
+                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
+                fp16_size*this->taps.getShape()[3], // Taps Sy
+                fp16_size, // SZ
+                 -1, // Offset - Memory Manager
+                -1, // Location - Memory Manager
+                0,
+                1
+            );
+
+            input.write(b);
+            output.write(b);
+            taps.write(b);
+            bias.write(b);
+            scale.write(b);
+
         }else{
             // Software
         }
@@ -414,11 +487,43 @@ namespace mv
                 }
                 else
                 {
+
                     kernel_sizeX = it->getInputTensor(1)->getShape()[0] ;
                     kernel_sizeY = it->getInputTensor(1)->getShape()[1] ;
                     kernel_sizeZ = it->getInputTensor(1)->getShape()[2] ;
                     kernel_sizeN = it->getInputTensor(1)->getShape()[3] ;
-                    blob_stats.stage_section_size += (53*4) ;
+
+
+                    int mx_valid = 1;
+                    if (! it->hasAttr("NCE1_Compatible"))
+                    {
+                        printf("Warning: attribute NCE1_Compatible not present. Assuming True.\n");
+                    }
+                    else
+                    {
+
+                        mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+                        mx_valid = 1;
+                    }
+
+                    if(mx_valid){
+
+                        int descriptors = 1;
+                        if (! it->hasAttr("NCE1_DescriptorSplits"))
+                        {
+                            printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
+                        }
+                        else
+                        {
+                            descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                        }
+                        blob_stats.stage_section_size += (11*4) ; // Descriptor
+                        blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
+                        blob_stats.stage_section_size += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+
+                    }else{
+                        blob_stats.stage_section_size += (53*4) ;
+                    }
                 }
 
                 // buffer data section for convolution has 3 regions: taps, bias, and params
@@ -879,6 +984,8 @@ namespace mv
                 else
                 {
                     mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+                    printf("COmpatbilt: %i\n", mx_valid);
+                    mx_valid = 1;
                 }
 
                 if(mx_valid)
@@ -886,7 +993,7 @@ namespace mv
 
 
                     AddBytes(4, conv_pool_stage.next);
-                    AddBytes(4, 33);                                // 0x60
+                    AddBytes(4, 0x21);                                // 0x60
                     AddBytes(4, conv_pool_stage.implementation);
 
 
