@@ -58,24 +58,29 @@ namespace mv
             );
 
             Blob_Tensor taps = Blob_Tensor(
-                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
-                this->taps.getShape()[2],   // y
                 this->taps.getShape()[3],   // z
-                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
-                fp16_size*this->taps.getShape()[3], // Taps Sy
+                this->taps.getShape()[2],   // y
+                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
                 fp16_size, // SZ
+                fp16_size*this->taps.getShape()[3], // Taps Sy
+                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[0],
                 -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
                 0,
                 1
             );
             Blob_Tensor bias = Blob_Tensor(
-                this->output.getShape().totalSize(),   // X
-                0x01,   // Y
-                0x01,   // Z
+                // this->output.getShape().totalSize(),   // X
+                // 0x01,   // Y
+                // 0x01,   // Z
+                0,
+                0,
+                0,
                 fp16_size,     // X Stride
-                fp16_size*this->output.getShape().totalSize(),    // Y Stride
-                fp16_size*this->output.getShape().totalSize(),    // z Stride
+                0,
+                0,
+                // fp16_size*this->output.getShape().totalSize(),    // Y Stride
+                // fp16_size*this->output.getShape().totalSize(),    // z Stride
                  -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
                 0,
@@ -84,16 +89,21 @@ namespace mv
 
             printf("Warning: Currently no Scale absorb support in HW\n");
             Blob_Tensor scale = Blob_Tensor(
-                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
-                this->taps.getShape()[2],   // y
-                this->taps.getShape()[3],   // z
-                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
-                fp16_size*this->taps.getShape()[3], // Taps Sy
+                // this->taps.getShape()[0]*this->taps.getShape()[1],  // X
+                // this->taps.getShape()[2],   // y
+                // this->taps.getShape()[3],   // z
+                0,
+                0,
+                0,
+                // fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
+                // fp16_size*this->taps.getShape()[3], // Taps Sy
+                0,
+                0,
                 fp16_size, // SZ
                  -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
                 0,
-                1
+                0
             );
 
             input.write(b);
@@ -1001,6 +1011,10 @@ namespace mv
                     // Serialize for MyriadX H/W
                     bConv2D c = bConv2D(&(*it));
                     c.writeStageInfo(this);
+
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
+
 
                 }
                 else
