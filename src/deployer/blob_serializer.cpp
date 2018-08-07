@@ -41,12 +41,12 @@ namespace mv
 
         printf("Serializing a HW Conv\n");
 
-        int cmxSize = 1;
+        int cmxSize = 1024*256;
         int descriptors_count = 1;
 
         if (! it->hasAttr("NCE1_AssignedCMX"))
         {
-            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 1\n");
+            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 1024*256\n");
         }
         else
         {
@@ -880,6 +880,13 @@ namespace mv
 
                 if(mx_valid)
                 {
+
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, 33);                                // 0x60
+                    AddBytes(4, conv_pool_stage.implementation);
+
+
                     // Serialize for MyriadX H/W
                     bConv2D c = bConv2D(&(*it));
                     c.writeStageInfo(this);
