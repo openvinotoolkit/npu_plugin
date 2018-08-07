@@ -30,14 +30,15 @@ namespace mv
             }
 
             int fp16_size = 2;
+            // TODO:
 
             Blob_Tensor input = Blob_Tensor(
                 this->input.getShape()[0],   // X
                 this->input.getShape()[1],   // Y
                 this->input.getShape()[2],   // Z
-                fp16_size*this->input.getShape()[2],     // X Stride
-                fp16_size*this->input.getShape()[2]*this->input.getShape()[0],    // Y Stride
-                fp16_size,   // Z Stride
+                fp16_size,
+                fp16_size*this->input.getShape()[1],
+                fp16_size*this->input.getShape()[1]*this->input.getShape()[0],
                 -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
                 0,
@@ -47,13 +48,13 @@ namespace mv
                 this->output.getShape()[0],   // X
                 this->output.getShape()[1],   // Y
                 this->output.getShape()[2],   // Z
-                fp16_size*this->output.getShape()[2],     // X Stride
-                fp16_size*this->output.getShape()[2]*this->output.getShape()[0],    // Y Stride
-                fp16_size,   // Z Stride
+                fp16_size,
+                fp16_size*this->output.getShape()[2]*this->output.getShape()[0],
+                fp16_size*this->output.getShape()[1],
                  -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
                 0,
-                1
+                2
             );
 
             Blob_Tensor taps = Blob_Tensor(
