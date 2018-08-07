@@ -9,7 +9,7 @@ namespace mv
         if (1)
         {
             // Hardware
-            b->AddBytes(4, this->opMode);
+            b->AddBytes(4, this->streamingMask);
             b->AddBytes(4, this->input.getShape().totalSize());
             b->AddBytes(4, this->output.getShape().totalSize());
             b->AddBytes(4, this->concatOffset);
@@ -43,7 +43,6 @@ namespace mv
 
         int cmxSize = 1;
         int descriptors_count = 1;
-        int streamingMask = 1;
 
         if (! it->hasAttr("NCE1_AssignedCMX"))
         {
@@ -66,13 +65,21 @@ namespace mv
         if (! it->hasAttr("NCE1_StreamingMask"))
         {
             printf("WARNING: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
-            streamingMask = 1;
+            this->streamingMask = 1;
         }
         else
         {
-            streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
+            this->streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
         }
-
+        if (! it->hasAttr("NCE1_Mode"))
+        {
+            printf("WARNING: Needs Attribute 'NCE1_Mode'. Defaulting to 0\n");
+            this->opMode = 0;
+        }
+        else
+        {
+            this->opMode = it->getAttr("NCE1_Mode").getContent<int>();
+        }
 
 
         if (it->hasAttr("bias"))
@@ -83,8 +90,6 @@ namespace mv
         {
             this->bias = mv::dynamic_vector<float>();
         }
-
-        this->opMode = streamingMask;
 
         this->concatOffset = 0; // Concat not supported currently
         this->unloadCMX = 0;

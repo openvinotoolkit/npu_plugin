@@ -42,6 +42,7 @@ namespace mv
 
             // Hardware Fields
             uint32_t opMode;
+            uint32_t streamingMask;
             uint32_t concatOffset;
             uint32_t unloadCMX;
             uint32_t overwriteInput;
