@@ -22,7 +22,8 @@
 namespace mv
 {
 
-    class Blob_Op_Definition{
+    class Blob_Op_Definition
+    {
         public:
             uint32_t number_of_inputs;
             Blob_Op_Definition(OpType o);
@@ -59,7 +60,8 @@ namespace mv
     };
 
 
-    class Blob_Tensor{
+    class Blob_Tensor
+    {
         public:
             uint32_t dimX;
             uint32_t dimY;
@@ -74,7 +76,7 @@ namespace mv
 
             Blob_Tensor(int x, int y, int z,
                 int sx, int sy, int sz,
-                int offset, int location, int dtype, int order);
+                int offsetParam, int locationParam, int dtype, int orderParam);
 
             void write(WBuffer* b);
     };
@@ -240,6 +242,7 @@ namespace mv
         public:
             Blob_buffer()
             {
+
             }
 
             // Calculate Blob Statistics

@@ -4,8 +4,10 @@
 namespace mv
 {
 
-    void bConv2D::writeStageInfo(WBuffer* b){
-        if (1){
+    void bConv2D::writeStageInfo(WBuffer* b)
+    {
+        if (1)
+        {
             // Hardware
             b->AddBytes(4, this->opMode);
             b->AddBytes(4, this->input.getShape().totalSize());
@@ -19,36 +21,52 @@ namespace mv
             b->AddBytes(4, this->shvPosSlope);
             b->AddBytes(4, this->desc_count);
 
-            for (int i = 0; i != this->desc_count; i++){
+            for (unsigned i = 0; i != this->desc_count; i++)
+            {
                 b->AddBytes(32*4, *(int *) &this->descriptors[i]);
             }
         }else{
             // Software
         }
-    };
+    }
 
-    bConv2D::bConv2D(mv::ComputationOp* it):Blob_Op_Definition() {
+    bConv2D::bConv2D(mv::ComputationOp* it):Blob_Op_Definition()
+    {
 
 
         printf("Serializing a HW Conv\n");
 
         int cmxSize = 1;
-        int desc_count = 1;
+        int descriptors_count = 1;
         int streamingMask = 1;
 
-        if (! it->hasAttr("NCE1_AssignedCMX")){
+        if (! it->hasAttr("NCE1_AssignedCMX"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 1\n");
-        }else{ cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();  }
+        }
+        else
+        {
+            cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_DescriptorSplits")){
+        if (! it->hasAttr("NCE1_DescriptorSplits"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_DescriptorSplits'. Defaulting to 1\n");
-        }else{ desc_count = it->getAttr("NCE1_DescriptorSplits").getContent<int>(); }
+        }
+        else
+        {
+            descriptors_count = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_StreamingMask")){
+        if (! it->hasAttr("NCE1_StreamingMask"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
             streamingMask = 1;
-        }else{ streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>(); }
-
+        }
+        else
+        {
+            streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
+        }
 
         this->input = *(it->getInputTensor(0));
         this->taps = *(it->getInputTensor(1));
@@ -57,7 +75,9 @@ namespace mv
         if (it->hasAttr("bias"))
         {
             this->bias = it->getAttr("bias").getContent<mv::dynamic_vector<float>>();
-        }else{
+        }
+        else
+        {
             this->bias = mv::dynamic_vector<float>();
         }
 
@@ -72,7 +92,7 @@ namespace mv
         this->shvNegSlope = 0;
         this->shvPosSlope = 1;
 
-        this->desc_count = desc_count;
+        this->desc_count = descriptors_count;
 
         // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
         this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
@@ -86,44 +106,90 @@ namespace mv
         int padEn = 1;
 
 
-        if (! it->hasAttr("NCE1_InputChannelsPerRamBlock")){
+        if (! it->hasAttr("NCE1_InputChannelsPerRamBlock"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_InputChannelsPerRamBlock'. Defaulting to 1\n");
-        }else{  chPerRamBlock = it->getAttr("NCE1_InputChannelsPerRamBlock").getContent<int>(); }
+        }
+        else
+        {
+            chPerRamBlock = it->getAttr("NCE1_InputChannelsPerRamBlock").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_TopOutputJunk")){
+        if (! it->hasAttr("NCE1_TopOutputJunk"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 1\n");
-        }else{  topJunk = it->getAttr("NCE1_TopOutputJunk").getContent<int>(); }
+        }
+        else
+        {
+            topJunk = it->getAttr("NCE1_TopOutputJunk").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_BottomOutputJunk")){
+        if (! it->hasAttr("NCE1_BottomOutputJunk"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 1\n");
-        }else{  bottomJunk = it->getAttr("NCE1_BottomOutputJunk").getContent<int>(); }
+        }
+        else
+        {
+            bottomJunk = it->getAttr("NCE1_BottomOutputJunk").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_LocalLineStride")){
+        if (! it->hasAttr("NCE1_LocalLineStride"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_LocalLineStride'. Defaulting to 1\n");
-        }else{ localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>(); }
+        }
+        else
+        {
+            localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_LocalChannelStride")){
+        if (! it->hasAttr("NCE1_LocalChannelStride"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_LocalChannelStride'. Defaulting to 1\n");
-        }else{  localCS = it->getAttr("NCE1_LocalChannelStride").getContent<int>(); }
+        }
+        else
+        {
+            localCS = it->getAttr("NCE1_LocalChannelStride").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_LinesPerChannel")){
+        if (! it->hasAttr("NCE1_LinesPerChannel"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_LinesPerChannel'. Defaulting to 1\n");
-        }else{  LPC = it->getAttr("NCE1_LinesPerChannel").getContent<int>(); }
+        }
+        else
+        {
+            LPC = it->getAttr("NCE1_LinesPerChannel").getContent<int>();
+        }
 
-        if (! it->hasAttr("NCE1_MinLines")){
+        if (! it->hasAttr("NCE1_MinLines"))
+        {
             printf("WARNING: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
-        }else{  minLines = it->getAttr("NCE1_MinLines").getContent<int>(); }
+        }
+        else
+        {
+            minLines = it->getAttr("NCE1_MinLines").getContent<int>();
+        }
 
-        if (! it->hasAttr("stride")){
+        if (! it->hasAttr("stride"))
+        {
             printf("WARNING: Needs Attribute 'stride'. Defaulting to 1\n");
-        }else{  stride = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0; }
+        }
+        else
+        {
+            stride = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
+        }
 
-        if (! it->hasAttr("padding")){
+        if (! it->hasAttr("padding"))
+        {
             printf("WARNING: Needs Attribute 'padding'. Defaulting to 1\n");
-        }else{  padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0; }
+        }
+        else
+        {
+            padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
+        }
 
 
-        for (int i = 0; i != this->desc_count; i++){
+        for (unsigned i = 0; i != this->desc_count; i++)
+        {
             this->descriptors[i] =  cnnConvolutionPoolStructure();
 
             // Relations to other Descriptors
@@ -143,9 +209,12 @@ namespace mv
 
             this->descriptors[i].chStride = stride;  // Stride of Kernel (Square only)
 
-            if (padEn > 0){
+            if (padEn > 0)
+            {
                 this->descriptors[i].padEn = 1;
-            }else{
+            }
+            else
+            {
                 this->descriptors[i].padEn = 0;
             }
 
@@ -210,7 +279,8 @@ namespace mv
             this->descriptors[i].reluEn = 0;
 
             // Fused Pooling
-            if (0){
+            if (0)
+            {
                 this->descriptors[i].Line0.type = NCE1_CONV_POOL;
             }
             this->descriptors[i].avgPoolX = 0;
@@ -250,16 +320,21 @@ namespace mv
             this->descriptors[i].p14 = 0;
             this->descriptors[i].p15 = 0;
         }
-    };
+    }
 
-    Blob_Op_Definition::Blob_Op_Definition(){}
+    Blob_Op_Definition::Blob_Op_Definition()
+    {
 
-    Blob_Op_Definition::Blob_Op_Definition(OpType o){
+    }
+
+    Blob_Op_Definition::Blob_Op_Definition(OpType o)
+    {
 
         // Number of Inputs
 
         this->number_of_inputs = -1;
-        switch(o){
+        switch(o)
+        {
             case OpType::Add:
             case OpType::Multiply:
             case OpType::Scale:
@@ -489,19 +564,20 @@ namespace mv
 
     Blob_Tensor::Blob_Tensor(int x, int y, int z,
         int sx, int sy, int sz,
-        int offset, int location,
-        int dtype, int order)
+        int offsetParam, int locationParam,
+        int dtype, int orderParam)
+        : dimX(x),
+          dimY(y),
+          dimZ(z),
+          strideX(sx),
+          strideY(sy),
+          strideZ(sz),
+          offset(offsetParam),
+          location(locationParam),
+          dataType(dtype),
+          order(orderParam)
     {
-            this->dimX = x;
-            this->dimY = y;
-            this->dimZ = z;
-            this->strideX = sx;
-            this->strideY = sy;
-            this->strideZ = sz;
-            this->offset = offset;
-            this->location = location;
-            this->dataType = dtype;
-            this->order = order;
+
     }
 
     void Blob_buffer::add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
@@ -554,9 +630,8 @@ namespace mv
         output.write(this);
     }
 
-    void Blob_buffer::write_stages(mv::ControlModel& cm){
-
-
+    void Blob_buffer::write_stages(mv::ControlModel& cm)
+    {
         Blob_stage conv_pool_stage ;
         uint32_t op_count = 0 ;
         uint32_t next_offset = 4*3 + 4*5 ;
@@ -690,10 +765,9 @@ namespace mv
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
 
+            //Blob_Op_Definition op_spec = Blob_Op_Definition(it->getOpType());
 
-            Blob_Op_Definition op_spec = Blob_Op_Definition(it->getOpType());
-
-            int work_buffer_size = 0 ;
+            int work_buffer_size = 0;
             if (it->getOpType() != OpType::Output)
             {
                 int padX = 0;
@@ -787,9 +861,12 @@ namespace mv
             if ( it->getOpType() == OpType::Conv2D )
             {
                 int mx_valid = 1;
-                if (! it->hasAttr("ValidForNCE1")){
+                if (! it->hasAttr("ValidForNCE1"))
+                {
                     printf("Warning: attribute ValidForNCE1 not present. Assuming True.\n");
-                }else{
+                }
+                else
+                {
                     mx_valid = it->getAttr("ValidForNCE1").getContent<int>();
                 }
 
@@ -799,7 +876,9 @@ namespace mv
                     bConv2D c = bConv2D(&(*it));
                     c.writeStageInfo(this);
 
-                }else{
+                }
+                else
+                {
                     // Serialize for S/W
 
                     op_count++;
