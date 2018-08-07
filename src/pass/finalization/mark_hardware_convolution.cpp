@@ -39,6 +39,13 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
             }
 
             int mode = 0; // Assuming mode 0
+            int noOfBlocks = 1 << mode;
+            int inputChannels = opIterator->getInputTensor(0)->getShape()[2];
+            int outputChannels = opIterator->getOutputTensor(0)->getShape()[2];
+            if(inputChannels % 8)
+                continue;
+            if(outputChannels % noOfBlocks)
+                continue;
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 1));
             om.addAttr(opIterator, "NCE1_Mode", mv::Attribute(mv::AttrType::IntegerType, mode));
             om.addAttr(opIterator, "NCE1_AssignedCMX", mv::Attribute(mv::AttrType::IntegerType, 0));
@@ -48,18 +55,16 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
             int kerDimX = opIterator->getInputTensor(1)->getShape()[0];
             int kerDimY = opIterator->getInputTensor(1)->getShape()[1];
             int coefficientsForInputChannel = kerDimX * kerDimY;
-            int coefficientsForChannelRequiredMemory = coefficientsForInputChannel * bytesPerCoefficient;
+            int coefficientsForInputChannelRequiredMemory = coefficientsForInputChannel * bytesPerCoefficient;
             int inputDimX = opIterator->getInputTensor(0)->getShape()[0];
-            int inputChannels = opIterator->getInputTensor(0)->getShape()[2];
-            int noOfBlocks = 1 << mode;
             int inputChannelsPerRamBlock = inputChannels / noOfBlocks;
             int memoryDPE = 512; //512 bytes for each DPE
             int coefficientsAvailableMemory = memoryDPE * noOfBlocks;
-            int splitsOverInputChannels = coefficientsForChannelRequiredMemory / coefficientsAvailableMemory + 1;
+            int splitsOverInputChannels = coefficientsForInputChannelRequiredMemory / coefficientsAvailableMemory + 1;
             int splitsOverHeight = 1;
-            float numOutputChannel = opIterator->getOutputTensor(0)->getShape()[2];
+            float floatOutputChannels = (float) outputChannels;
 
-            int descriptorsSplits = splitsOverHeight * splitsOverInputChannels * ceil(numOutputChannel / 256); //<- If mode 0 is used for every subtensor.
+            int descriptorsSplits = splitsOverHeight * splitsOverInputChannels * ceil(floatOutputChannels / 256); //<- If mode 0 is used for every subtensor.
             //Assuming no split over H (if possible)
             om.addAttr(opIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::IntegerType, descriptorsSplits));
             om.addAttr(opIterator, "NCE1_InputChannelsPerRamBlock", mv::Attribute(mv::AttrType::IntegerType, inputChannelsPerRamBlock));
@@ -93,6 +98,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
             int streamingMask = 1; //For DDR streaming
             om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
             markedOneConvolution = true;
+            std::cout << "Marked one convolution as executable in HW" << std::endl;
         }
     }
 
