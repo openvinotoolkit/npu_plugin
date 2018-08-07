@@ -23,7 +23,10 @@ namespace mv
 
             for (unsigned i = 0; i != this->desc_count; i++)
             {
-                b->AddBytes(32*4, *(int *) &this->descriptors[i]);
+                for(unsigned j = 0; j != 32; j++){
+                    printf("halfline - %x\n", ((int *) &this->descriptors[i])[j]);
+                    b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
+                }
             }
         }else{
             // Software
