@@ -166,4 +166,66 @@ typedef struct
     uint32_t p15                : 16;
 } cnnFCStructure;
 
+inline void dump_descriptors(cnnConvolutionPoolStructure * c){
+    std::cout << "===========================================" << std::endl;
+    std::cout << "Link Address: " << c->Line0.linkAddress << std::endl;
+    std::cout << "Mode: " << c->Line0.mode << std::endl;
+    std::cout << "ID: " << c->Line0.id << std::endl;
+    std::cout << "IT: " << c->Line0.it << std::endl;
+    std::cout << "CM: " << c->Line0.cm << std::endl;
+    std::cout << "DM: " << c->Line0.dm << std::endl;
+    std::cout << "Type: " << c->Line0.type << std::endl;
+    std::cout << "DISINT: " << c->Line0.disInt << std::endl;
+
+    std::cout << "Interleaved Input: " << c->Line0.interleavedInput << std::endl;
+    std::cout << "Interleaved Output: " << c->Line0.interleavedOutput << std::endl;
+
+    std::cout << "KernelWidth: " << c->kernelWidth << std::endl;
+    std::cout << "KernelHeight: " << c->kernelHeight << std::endl;
+    std::cout << "chStride: " << c->chStride << std::endl;
+    std::cout << "padEn: " << c->padEn << std::endl;
+    std::cout << "padType: " << c->padType << std::endl;
+    std::cout << "inputWidth: " << c->inputWidth << std::endl;
+    std::cout << "inputHeight: " << c->inputHeight << std::endl;
+    std::cout << "inputChannels: " << c->inputChannels << std::endl;
+    std::cout << "outputChannels: " << c->outputChannels << std::endl;
+    std::cout << "dataBaseAddr: " << c->dataBaseAddr << std::endl;
+    std::cout << "dataChStr: " << c->dataChStr << std::endl;
+    std::cout << "dataLnStr: " << c->dataLnStr << std::endl;
+    std::cout << "coeffBaseAddr: " << c->coeffBaseAddr << std::endl;
+    std::cout << "coeffChStrOut: " << c->coeffChStrOut << std::endl;
+    std::cout << "coeffChStrIn: " << c->coeffChStrIn << std::endl;
+    std::cout << "outLnStr: " << c->outLnStr << std::endl;
+    std::cout << "outBaseAddr: " << c->outBaseAddr << std::endl;
+    std::cout << "outChStr: " << c->outChStr << std::endl;
+    std::cout << "biasBaseAddr: " << c->biasBaseAddr << std::endl;
+    std::cout << "scaleBaseAddr: " << c->scaleBaseAddr << std::endl;
+    std::cout << "chPerRamBlock: " << c->chPerRamBlock << std::endl;
+    std::cout << "topOutputJunk: " << c->topOutputJunk << std::endl;
+    std::cout << "bottomOutputJunk: " << c->bottomOutputJunk << std::endl;
+    std::cout << "localLs: " << c->localLs << std::endl;
+    std::cout << "localCs: " << c->localCs << std::endl;
+    std::cout << "linesPerCh: " << c->linesPerCh << std::endl;
+    std::cout << "rud: " << c->rud << std::endl;
+    std::cout << "minLines: " << c->minLines << std::endl;
+    std::cout << "coeffLpb: " << c->coeffLpb << std::endl;
+    std::cout << "css: " << c->css << std::endl;
+    std::cout << "outputX: " << c->outputX << std::endl;
+    std::cout << "sohGroup: " << c->sohGroup << std::endl;
+    std::cout << "sodGroup: " << c->sodGroup << std::endl;
+    std::cout << "t0: " << c->t0 << std::endl;
+    std::cout << "a0: " << c->a0 << std::endl;
+    std::cout << "a1: " << c->a1 << std::endl;
+    std::cout << "reluxEn: " << c->reluxEn << std::endl;
+    std::cout << "reluEn: " << c->reluEn << std::endl;
+    std::cout << "avgPoolX: " << c->avgPoolX << std::endl;
+    std::cout << "poolType: " << c->poolType << std::endl;
+    std::cout << "poolEn: " << c->poolEn << std::endl;
+    std::cout << "poolKernelHeight: " << c->poolKernelHeight << std::endl;
+    std::cout << "poolKernelWidth: " << c->poolKernelWidth << std::endl;
+    std::cout << "===========================================" << std::endl;
+
+};
+
+
 #endif

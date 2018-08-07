@@ -21,8 +21,21 @@ namespace mv
             b->AddBytes(4, this->shvPosSlope);
             b->AddBytes(4, this->desc_count);
 
+            std::cout << "Streaming Mask: " << this->streamingMask << std::endl;
+            std::cout << "Total Input Size: " << this->input.getShape().totalSize() << std::endl;
+            std::cout << "Total Output Size: " << this->output.getShape().totalSize() << std::endl;
+            std::cout << "concatOffset: " << this->concatOffset << std::endl;
+            std::cout << "unloadCMX: " << this->unloadCMX << std::endl;
+            std::cout << "overwriteInput: " << this->overwriteInput << std::endl;
+            std::cout << "CMXSize: " << this->CMXSize << std::endl;
+            std::cout << "reluSHVAcc: " << this->reluSHVAcc << std::endl;
+            std::cout << "shvNegSlope: " << this->shvNegSlope << std::endl;
+            std::cout << "shvPosSlope: " << this->shvPosSlope << std::endl;
+            std::cout << "Desc Count: " << this->desc_count << std::endl;
+
             for (unsigned i = 0; i != this->desc_count; i++)
             {
+                dump_descriptors(&this->descriptors[i]);
                 for(unsigned j = 0; j != 32; j++){
                     printf("halfline - %x\n", ((int *) &this->descriptors[i])[j]);
                     b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
@@ -184,8 +197,10 @@ namespace mv
 
         this->CMXSize = cmxSize;
         this->reluSHVAcc = 0;
-        this->shvNegSlope = 0;
-        this->shvPosSlope = 1;
+        float val = 0;
+        float val2 = 1;
+        this->shvNegSlope = *(int * )(&val);
+        this->shvPosSlope = *(int * )(&val2);
 
         this->desc_count = descriptors_count;
 
