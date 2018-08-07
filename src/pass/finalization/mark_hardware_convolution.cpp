@@ -43,9 +43,15 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
             int inputChannels = opIterator->getInputTensor(0)->getShape()[2];
             int outputChannels = opIterator->getOutputTensor(0)->getShape()[2];
             if(inputChannels % 8)
+            {
+                om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
                 continue;
+            }
             if(outputChannels % noOfBlocks)
+            {
+                om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
                 continue;
+            }
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 1));
             om.addAttr(opIterator, "NCE1_Mode", mv::Attribute(mv::AttrType::IntegerType, mode));
             om.addAttr(opIterator, "NCE1_AssignedCMX", mv::Attribute(mv::AttrType::IntegerType, 0));
