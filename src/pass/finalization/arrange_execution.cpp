@@ -38,6 +38,11 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
         {
             nextOp = currentOp.leftmostChild();
             cm.defineFlow(currentOp, nextOp);
+            if (nextOp->getOpType() != OpType::Output)
+            {
+                auto stage = cm.addStage();
+                cm.addToStage(stage, nextOp);
+            }
             currentOp = nextOp;
 
         }
@@ -61,6 +66,11 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
                 {
 
                     cm.defineFlow(currentOp, nextOp);
+                    if (nextOp->getOpType() != OpType::Output)
+                    {
+                        auto stage = cm.addStage();
+                        cm.addToStage(stage, nextOp);
+                    }
                     currentOp = nextOp;
                     nextOp = currentOp.leftmostChild();
 
