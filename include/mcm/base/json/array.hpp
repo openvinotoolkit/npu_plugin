@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include "include/mcm/base/json/value.hpp"
-#include "include/mcm/base/json/exception/index_error.hpp"
+#include "include/mcm/base/exception/index_error.hpp"
 
 namespace mv
 {

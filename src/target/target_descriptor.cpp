@@ -270,7 +270,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             for (std::size_t i = 0; i < jsonDescriptor["resources"]["memory"].size(); ++i)
             {
                 
-                std::string name;
+                std::string name, orderStr;
                 long long size;
 
                 if (!jsonDescriptor["resources"]["memory"][i].hasKey("name") || 
@@ -281,7 +281,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 }
 
                 if (jsonDescriptor["resources"]["memory"][i]["name"].valueType() != json::JSONType::String || 
-                    jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger)
+                    jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger ||
+                    jsonDescriptor["resources"]["memory"][i]["order"].valueType() != json::JSONType::String)
                 {
                     reset();
                     return false;
@@ -291,14 +292,16 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
                 name = jsonDescriptor["resources"]["memory"][i]["name"].get<std::string>();
                 size = jsonDescriptor["resources"]["memory"][i]["size"].get<long long>();
+                orderStr = jsonDescriptor["resources"]["memory"][i]["order"].get<std::string>();
+                Order order = toOrder(orderStr);
 
-                if (size < 0)
+                if (size < 0 || order == Order::Unknown)
                 {
                     reset();
                     return false;
                 }
                 
-                memoryDefs_[name] = {size};
+                memoryDefs_[name] = {size, order};
 
             }
 
@@ -556,14 +559,14 @@ bool mv::TargetDescriptor::opSupported(OpType op) const
     return false;
 }
 
-bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size)
+bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size, Order order)
 {
     if (size < 0)
         return false;
 
     if (memoryDefs_.find(name) == memoryDefs_.end())
     {
-        memoryDefs_[name] = {size};
+        memoryDefs_[name] = {size, order};
         return true;
     }
     return false;

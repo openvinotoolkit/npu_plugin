@@ -9,8 +9,8 @@
 #include <map>
 #include <regex>
 #include "include/mcm/base/json/json.hpp"
-#include "include/mcm/utils/parser/exception/argument_error.hpp"
-#include "include/mcm/utils/parser/exception/parsing_error.hpp"
+#include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/base/exception/parsing_error.hpp"
 
 namespace mv
 {

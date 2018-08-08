@@ -2,38 +2,16 @@
 #define TENSOR_HPP_
 
 #include <functional>
-#include <exception>
 #include <memory>
 #include <algorithm>
 #include "include/mcm/computation/tensor/shape.hpp"
 #include "include/mcm/computation/model/computation_element.hpp"
+#include "include/mcm/base/exception/order_error.hpp"
+#include "include/mcm/base/exception/shape_error.hpp"
+#include "include/mcm/base/exception/value_error.hpp"
 
 namespace mv
 {
-
-    class ShapeError : public std::logic_error
-    {
-
-        public:
-            explicit ShapeError(const std::string& whatArg);
-        
-    };
-
-    class OrderError : public std::logic_error
-    {
-
-        public:
-            explicit OrderError(const std::string& whatArg);
-        
-    };
-
-    class ValueError : public std::logic_error
-    {
-
-        public:
-            explicit ValueError(const std::string& whatArg);
-
-    };
     
     class Tensor : public ComputationElement
     {

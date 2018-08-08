@@ -1,4 +1,4 @@
-#include "include/mcm/utils/parser/exception/argument_error.hpp"
+#include "include/mcm/base/exception/argument_error.hpp"
 
 mv::ArgumentError::ArgumentError(const std::string& argName, const std::string& argVal,
     const std::string& whatArg) :

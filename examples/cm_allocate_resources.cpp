@@ -28,7 +28,7 @@ int main()
 
     // Load target descriptor for the selected target to the compilation unit
     std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
-    unit.targetDescriptor().load(targetDescPath);
+    unit.loadTargetDescriptor(mv::Target::ma2480);
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
     // Output DOT - file name (base)

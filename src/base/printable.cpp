@@ -35,6 +35,16 @@ mv::string mv::Printable::toString(unsigned_type value)
     return std::to_string(value);
 }
 
+mv::string mv::Printable::toString(long long value)
+{
+    return std::to_string(value);
+}
+
+mv::string mv::Printable::toString(std::size_t value)
+{
+    return std::to_string(value);
+}
+
 mv::string mv::Printable::toString(byte_type value)
 {
     return toString((unsigned_type)value);
