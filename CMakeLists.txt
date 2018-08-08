@@ -99,6 +99,7 @@ file(GLOB ops
     "src/computation/op/def/softmax.cpp"
     "src/computation/op/def/subtract.cpp"
     "src/computation/op/def/fully_connected.cpp"
+    "src/computation/op/def/conversion.cpp"
 )
 
 file(GLOB logger
