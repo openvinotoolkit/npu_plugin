@@ -6,6 +6,7 @@ SinkOp(mv::OpType::Conversion, 1, name),
 SourceOp(mv::OpType::Conversion, 1, name)
 {
     addAttr("target_order", mv::Attribute(mv::AttrType::OrderType, targetOrder));
+    addAttr("executable", AttrType::BoolType, true);
 }
 
 mv::op::Conversion::Conversion(mv::json::Value& value):
