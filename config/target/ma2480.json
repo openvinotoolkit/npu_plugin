@@ -42,32 +42,13 @@
 		
 		"finalize":
 		[
-<<<<<<< HEAD
 			"ArrangeLinearExecution",
 			"AllocatePopulatedTensors"
 		],
-=======
-			"ArrangeLinearExecution"
-		],
+
 
 		"serialize":
 		[
-			"GenerateBlob"
-		],
-	
-		"validate":
-		[
-			"GenerateDot"
-		]
->>>>>>> e2fac11c8071506ad9bf23eccf3c5754984bef49
-
-	},
-
-	"resources":
-	{
-		"memory":
-		[
-<<<<<<< HEAD
 			"GenerateJSON",
 			"GenerateBlob"
 		],
@@ -99,13 +80,6 @@
 
 		]
 		
-=======
-			{
-				"name": "BlobBufferSection",
-				"size": 1024000000
-			}
-		]
->>>>>>> e2fac11c8071506ad9bf23eccf3c5754984bef49
 	}
 
 }
