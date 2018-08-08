@@ -225,7 +225,7 @@ inline void dump_descriptors(cnnConvolutionPoolStructure * c){
     std::cout << "poolKernelWidth: " << c->poolKernelWidth << std::endl;
     std::cout << "===========================================" << std::endl;
 
-};
+}
 
 
 #endif

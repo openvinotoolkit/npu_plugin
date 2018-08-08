@@ -70,13 +70,7 @@ namespace mv
                 2
             );
 
-<<<<<<< HEAD
-            Blob_Tensor taps = Blob_Tensor(
-=======
             Blob_Tensor tapsBlobTensor = Blob_Tensor(
-                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
-                this->taps.getShape()[2],   // y
->>>>>>> Renamed some variables to avoid annoyiance from compiler.
                 this->taps.getShape()[3],   // z
                 this->taps.getShape()[2],   // y
                 this->taps.getShape()[0]*this->taps.getShape()[1],  // X
@@ -88,20 +82,13 @@ namespace mv
                 0,
                 1
             );
-<<<<<<< HEAD
-            Blob_Tensor bias = Blob_Tensor(
+            Blob_Tensor biasBlobTensor = Blob_Tensor(
                 // this->output.getShape().totalSize(),   // X
                 // 0x01,   // Y
                 // 0x01,   // Z
                 0,
                 0,
                 0,
-=======
-            Blob_Tensor biasBlobTensor = Blob_Tensor(
-                this->output.getShape().totalSize(),   // X
-                0x01,   // Y
-                0x01,   // Z
->>>>>>> Renamed some variables to avoid annoyiance from compiler.
                 fp16_size,     // X Stride
                 0,
                 0,
@@ -114,8 +101,7 @@ namespace mv
             );
 
             printf("Warning: Currently no Scale absorb support in HW\n");
-<<<<<<< HEAD
-            Blob_Tensor scale = Blob_Tensor(
+            Blob_Tensor scaleBlobTensor = Blob_Tensor(
                 // this->taps.getShape()[0]*this->taps.getShape()[1],  // X
                 // this->taps.getShape()[2],   // y
                 // this->taps.getShape()[3],   // z
@@ -126,14 +112,6 @@ namespace mv
                 // fp16_size*this->taps.getShape()[3], // Taps Sy
                 0,
                 0,
-=======
-            Blob_Tensor scaleBlobTensor = Blob_Tensor(
-                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
-                this->taps.getShape()[2],   // y
-                this->taps.getShape()[3],   // z
-                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
-                fp16_size*this->taps.getShape()[3], // Taps Sy
->>>>>>> Renamed some variables to avoid annoyiance from compiler.
                 fp16_size, // SZ
                  -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
