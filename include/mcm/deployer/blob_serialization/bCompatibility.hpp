@@ -17,5 +17,5 @@ namespace mv{
             void writeStageInfo(WBuffer* b);
             bCompatibility(mv::ComputationOp* it);
     };
-};
+}
 #endif

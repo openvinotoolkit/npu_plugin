@@ -14,5 +14,5 @@ namespace mv
             Blob_Op_Definition();
 
     };
-};
+}
 #endif

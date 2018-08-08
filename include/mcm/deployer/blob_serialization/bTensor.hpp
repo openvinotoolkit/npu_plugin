@@ -27,5 +27,5 @@ namespace mv
             void write(WBuffer* b);
     };
 
-};
+}
 #endif

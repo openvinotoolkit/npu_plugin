@@ -36,6 +36,6 @@ namespace mv{
             void writeStageInfo(WBuffer* b);
             bConv2D(mv::ComputationOp* it);
     };
-};
+}
 
 #endif
