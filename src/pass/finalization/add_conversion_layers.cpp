@@ -66,9 +66,18 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             conversionNeeded = true;
         }
 
+        if(conversionNeeded && source->getOpType() == mv::OpType::Constant)
+        {
+            //No need for a conversion layer in this case, just reorder the tensor in place
+            flowIt->getTensor()->reorder(targetOrder);
+            ++flowIt;
+            continue;
+        }
+
         if(conversionNeeded)
         {
             mv::Data::TensorIterator conversionOutputTensor = om.conversion(flowIt->getTensor(), targetOrder);
+
             unsigned i = 0;
             for(; i < sink->inputSlots(); ++i)
                 if(sink->getInputTensor(i) == flowIt->getTensor())
