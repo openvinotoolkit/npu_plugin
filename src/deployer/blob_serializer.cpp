@@ -529,7 +529,6 @@ namespace mv
                     {
 
                         mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
-                        mx_valid = 1;
                     }
 
                     if(mx_valid){
