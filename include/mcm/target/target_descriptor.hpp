@@ -80,7 +80,11 @@ namespace mv
         bool undefineOp(OpType op);
         bool opSupported(OpType op) const;
 
+<<<<<<< HEAD
         bool defineMemory(const std::string& name, long long size, Order order);
+=======
+        bool defineMemory(const std::string& name, long long size);
+>>>>>>> e2fac11c8071506ad9bf23eccf3c5754984bef49
         bool undefineMemory(const std::string& name);
 
         std::size_t adaptPassesCount() const;
