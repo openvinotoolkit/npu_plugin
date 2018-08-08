@@ -1327,8 +1327,11 @@ namespace mv
                 // write weights and pad to file
                 for (unsigned i=0; i< buffer_taps_weights_len; i++)
                 {
-                    new_weight = cvtr.compress((it->getInputTensor(1)->getData()[i])) ;  // TODO assume fp16
-                    AddBytes(weights_number_size, new_weight) ;
+                    if(it->getInputTensor(1)->isPopulated())
+                    {
+                        new_weight = cvtr.compress((it->getInputTensor(1)->getData()[i])) ;  // TODO assume fp16
+                        AddBytes(weights_number_size, new_weight) ;
+                    }
                 }
 
                 // BIAS region
