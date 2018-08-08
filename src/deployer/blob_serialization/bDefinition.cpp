@@ -27,6 +27,7 @@ namespace mv
             case OpType::MaxPool2D:
             case OpType::Softmax:
             case OpType::ReLU:
+            case OpType::Conversion:
                 this->number_of_inputs = 1;
                 break;
             case OpType::Output:
