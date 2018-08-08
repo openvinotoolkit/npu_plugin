@@ -37,7 +37,10 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
 
         //Mandatory check, otherwise the loop could be potentially infinite
         if(source->getOpType() == mv::OpType::Conversion || sink->getOpType() == mv::OpType::Conversion)
+        {
+            ++flowIt;
             continue;
+        }
 
         //A conversion layer is needed in two cases
         //1) HW -> SW (Target order is columnMajor)
