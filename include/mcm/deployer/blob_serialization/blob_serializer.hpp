@@ -11,8 +11,12 @@
 #include "include/mcm/utils/serializer/mv_types.h"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/serializer/file_buffer.h"
-#include "include/mcm/deployer/myriadX_hardware_descriptors.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/deployer/blob_serialization/myriadX_hardware_descriptors.hpp"
+#include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
+#include "include/mcm/deployer/blob_serialization/bTensor.hpp"
+#include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
+#include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
 #include <assert.h>
 
 #define BLOB_VERSION_MAJOR 2
@@ -21,66 +25,6 @@
 
 namespace mv
 {
-
-    class Blob_Op_Definition
-    {
-        public:
-            uint32_t number_of_inputs;
-            Blob_Op_Definition(OpType o);
-            Blob_Op_Definition();
-
-    };
-
-    class bConv2D : public Blob_Op_Definition
-    {
-        private:
-            mv::Tensor input;
-            mv::Tensor output;
-            mv::Tensor taps;
-            mv::dynamic_vector<float> bias;
-            mv::Tensor scale;
-
-            // Hardware Fields
-            uint32_t opMode;
-            uint32_t streamingMask;
-            uint32_t concatOffset;
-            uint32_t unloadCMX;
-            uint32_t overwriteInput;
-            uint32_t CMXSize;
-            uint32_t reluSHVAcc;
-            uint32_t shvNegSlope;
-            uint32_t shvPosSlope;
-            uint32_t desc_count;
-
-            cnnConvolutionPoolStructure * descriptors;
-
-        public:
-            uint32_t number_of_inputs = 2;
-            void writeStageInfo(WBuffer* b);
-            bConv2D(mv::ComputationOp* it);
-    };
-
-
-    class Blob_Tensor
-    {
-        public:
-            uint32_t dimX;
-            uint32_t dimY;
-            uint32_t dimZ;
-            uint32_t strideX;
-            uint32_t strideY;
-            uint32_t strideZ;
-            uint32_t offset;
-            uint32_t location;
-            uint32_t dataType;
-            uint32_t order;
-
-            Blob_Tensor(int x, int y, int z,
-                int sx, int sy, int sz,
-                int offsetParam, int locationParam, int dtype, int orderParam);
-
-            void write(WBuffer* b);
-    };
 
     class Blob_stage
     {

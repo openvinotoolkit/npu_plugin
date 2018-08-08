@@ -73,10 +73,8 @@ file(GLOB computation_model
     "src/computation/op/pool2d_op.cpp"
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
-    "src/computation/deployer/Fp16Convert.cpp"
-    "src/computation/deployer/serializer.cpp"
-    "src/computation/deployer/blob_serializer.cpp"
-
+    "src/deployer/*.cpp"
+    "src/deployer/blob_serialization/*.cpp"
 )
 
 file(GLOB ops
@@ -116,6 +114,7 @@ file(GLOB pass
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
+    "src/deployer/blob_serialization/*.cpp"
 )
 
 file(GLOB compiler
