@@ -43,8 +43,9 @@
 		
 		"finalize":
 		[
-			"ArrangeLinearExecution",
-			"MarkHardwareConvolution"
+			"MarkHardwareConvolution",
+			"AddConversionLayers",
+			"ArrangeLinearExecution"
 		],
 
 		"validate":
@@ -55,7 +56,6 @@
 
 		"serialize":
 		[
-			"GenerateJSON",
 			"GenerateBlob"
 		]
 
