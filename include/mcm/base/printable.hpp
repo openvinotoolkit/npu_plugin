@@ -21,6 +21,8 @@ namespace mv
         static string toString(int_type value);
         static string toString(float_type value);
         static string toString(unsigned_type value);
+        static string toString(long long value);
+        static string toString(std::size_t value);
         static string toString(byte_type value);
         static string toString(dim_type value);
         static string toString(bool value);

@@ -42,7 +42,8 @@
 		
 		"finalize":
 		[
-			"ArrangeLinearExecution"
+			"ArrangeLinearExecution",
+			"AllocatePopulatedTensors"
 		],
 
 		"serialize":
@@ -65,8 +66,15 @@
 		[
 
 			{
-				"name": "BlobBufferSection",
-				"size": 1024000000
+				"name": "ConstantMemory",
+				"size": 1024000000,
+				"order": "planar"
+			},
+
+			{
+				"name": "IntermediateMemory",
+				"size": 1024000000,
+				"order": "planar"
 			}
 
 		]

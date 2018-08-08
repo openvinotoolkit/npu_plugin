@@ -118,13 +118,14 @@ int main()
     
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     
     // Initialize compilation 
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().disablePass(mv::PassGenre::Adaptation);
 
     // Run all passes
     unit.run();

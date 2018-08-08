@@ -3,7 +3,7 @@
 #include "include/mcm/computation/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-/*TEST(tensor, populating)
+TEST(tensor, populating)
 {
 
     mv::Shape tShape(5, 5);
@@ -429,14 +429,12 @@ TEST(tensor, augment)
     mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize());
     mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::ColumnMajor);
     t.populate(data);
-    t.augment(tShapeAugmented);
-
-    std::cout << t.getShape().toString() << std::endl;
+    t.broadcast(tShapeAugmented);
 
     for (unsigned k = 0; k < 4; ++k)
         for (unsigned j = 0; j < 4; ++j)
             for (unsigned i = 0; i < 8; ++i)
-                std::cout << i << "," << j << "," << k << ": " << t(i,j,k) << std::endl;
+                ASSERT_EQ(t(i,j,k), t(i,0,k));
 
 }
 
@@ -460,7 +458,7 @@ TEST(tensor, add)
             for (unsigned k = 0; k < tShape[2]; ++k)
                 ASSERT_FLOAT_EQ(t3(i, j, k), 0.0f);
 
-}*/
+}
 
 TEST(tensor, add_broadcast_vec)
 {

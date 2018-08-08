@@ -1,24 +1,6 @@
 #include "include/mcm/computation/tensor/tensor.hpp"
 #include "include/mcm/computation/tensor/math.hpp"
 
-mv::ShapeError::ShapeError(const std::string& whatArg) :
-std::logic_error(whatArg)
-{
-
-}
-
-mv::OrderError::OrderError(const std::string& whatArg) :
-std::logic_error(whatArg)
-{
-
-}
-
-mv::ValueError::ValueError(const std::string& whatArg) :
-std::logic_error(whatArg)
-{
-
-}
-
 mv::allocator mv::Tensor::allocator_;
 mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> mv::Tensor::subsBuffer_;
 

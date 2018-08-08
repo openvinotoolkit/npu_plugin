@@ -1,7 +1,7 @@
 #ifndef MV_JSON_DETAIL_VALUE_CONTENT_HPP_
 #define MV_JSON_DETAIL_VALUE_CONTENT_HPP_
 
-#include "include/mcm/base/json/exception/value_error.hpp"
+#include "include/mcm/base/exception/value_error.hpp"
 
 namespace mv
 {

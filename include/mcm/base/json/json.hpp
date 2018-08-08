@@ -4,7 +4,7 @@
 #include "include/mcm/base/json/object.hpp"
 #include "include/mcm/base/json/array.hpp"
 #include "include/mcm/base/json/object.hpp"
-#include "include/mcm/base/json/exception/index_error.hpp"
-#include "include/mcm/base/json/exception/value_error.hpp"
+#include "include/mcm/base/exception/index_error.hpp"
+#include "include/mcm/base/exception/value_error.hpp"
 
 #endif // MV_JSON_JSON_HPP_

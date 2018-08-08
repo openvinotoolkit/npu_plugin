@@ -40,9 +40,8 @@ file(GLOB base
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
-    "src/base/json/exception/*.cpp"
     "src/utils/parser/json_text.cpp"
-    "src/utils/parser/exception/*.cpp"
+    "src/base/exception/*.cpp"
     "src/utils/*.cpp"
     "src/base/singleton.cpp"
 )
@@ -124,6 +123,6 @@ file(GLOB compiler
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
 add_subdirectory(examples)
-add_subdirectory(python/api)
+#add_subdirectory(python/api)
 
 add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})

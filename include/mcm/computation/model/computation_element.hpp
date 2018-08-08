@@ -33,6 +33,7 @@ namespace mv
     protected:
 
         friend class OpModel;
+        friend class DataModel;
         friend class ComputationGroup;
         friend class ComputationStage;
 
