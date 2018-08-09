@@ -3,7 +3,7 @@
  * 
  * The OpModel (defined in include/mcm/computation/model/op_model.hpp) view implements the CompositionalModel interface
  * (defined in include/mcm/api/compositional_model.hpp) which is commonly referred as the Composition API. Through this API, 
- * all methods that allows to create operations of particular types are exposed for the outside use, so typically that will 
+ * all methods that allows the creation of operations of particular types are exposed for an outside use, so typically that will 
  * be the first bridge interface for an application using mcmCompiler engine.
  * 
  * @file 02_op_model.cpp
@@ -62,6 +62,11 @@ int main()
         Moreover conv2D will accept only 3 dimensional tensor as an input data (the first input).
     */
     auto conv1 = compModel.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
+
+    /*
+        Requirements of specific operations are contained by a their overrides of the getOutputDef() method which can be found in src/computation/op/def.
+        Note that the current implementation of operations hierarchy is scheduled for refactoring.
+    */
     auto pool1 = compModel.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     mv::dynamic_vector<mv::float_type> weights2Data = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
     auto weights2 = compModel.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::ColumnMajor);
@@ -70,6 +75,11 @@ int main()
     mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
     auto weights3 = compModel.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::ColumnMajor);
     auto conv3 = compModel.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
+
+    /*
+        The output operation is the only terminal operation - output does not have any output tensor. For the consistency, composition call returns a tensor
+        iterator but in this special case it refers to an input tensor of an output operation.
+    */
     auto output = compModel.output(conv3);
 
     return 0;

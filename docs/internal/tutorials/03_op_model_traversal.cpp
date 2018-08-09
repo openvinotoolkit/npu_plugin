@@ -13,7 +13,7 @@ int main()
 {
 
     /*
-        In this example a two branched copModelputation graph will be used
+        In this example a two branched computation graph will be used
     */
     mv::OpModel opModel(mv::Logger::VerboseLevel::VerboseInfo);
     auto input = opModel.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::ColumnMajor);
@@ -38,20 +38,31 @@ int main()
     opModel.output(conv4It);
 
     /*
-        The traversal of a copModelputation model using an OpModel view usually starts by obtaining an iterator to an input operation.
+        The traversal of a computation model using an OpModel view usually starts by obtaining an iterator to an input operation.
         This can be done using getInput() method.
     */
     mv::Data::OpListIterator inputOp = opModel.getInput();
 
     /*
         An iterator for an operation can also be obtained using getSourceOp() method that takes a tensor iterator as an argument. Each
-        tensor has a source operation, so input operation iterator can be obtained using input tensor iterator defined eariler.
+        tensor has a source operation, so input operation iterator can be obtained using input tensor iterator defined eariler. That method
+        of conversion between tensor iterator and operation iterator will work for any tensor.
     */
     inputOp = opModel.getSourceOp(input);
 
     /*
-        
+        An operation iterator can be used for a traversal of computation graph. Calling its preincrement operator "++it" will advance
+        the referred operation to the next one, based on a traversal method defined by the type of an iterator.
+        In OpModel itarators from the Data:: namespace are used. It indicates the fact, that in this view data flows are treated as
+        relation definitions (edges) between operations (nodes).
+        The first available type of the operation iterator - Data::OpListIterator - actualy ignores the whole built graph stucture (ignores 
+        data flows) and uses the list of all defined operations stored internally. The order of this list is defined by the order of addition
+        to the computation model. The Data::OpListIterator is the only iterator that allows to access every operation always, even in the case of
+        disjoint (invalid) model (and potentially in the case of model with multiple inputs in the future).
     */
+    for (mv::Data::OpListIterator it = inputOp; it != opModel.opEnd(); ++it)
+        std::cout << it->getName() << std::endl;
+
 
     return 0;
 }
