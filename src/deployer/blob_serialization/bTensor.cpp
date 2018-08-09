@@ -62,7 +62,7 @@ namespace mv
             this->dimZ = (*t)->getShape()[2];
         }
 
-        if (!dm->hasAllocator("ConstantMemory"))
+        if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
             assert(0);
         // if (!dm->hasAllocator("BSS"))
         //     assert(0);
@@ -84,18 +84,21 @@ namespace mv
 
             this->offset = rt_entry;
 
-        }else{
-            // mem = dm->getBuffer("BSS", stg, *t);
-            printf("Serialization Error: Unpopulated Tensor does not have an allocator yet.\n");
+        }
+        else
+        {
+            mem = dm->getBuffer("IntermediateMemory", stg, *t);
+            //printf("Serialization Error: Unpopulated Tensor does not have an allocator yet.\n");
             // this->offset = mem->offset;
             this->location = BLOB_EXTERNAL_LOCATION;
-
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(999, bLocation::Variable ));
+            blk_stride = (int)mem->stride;
+            block = (int)mem->block;
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
             this->offset = rt_entry;
-
         }
 
         int striding_axis = 0;
+        // !!! That probably should not be an assignment but comparison ==
         if (block = 2){
             // X
             striding_axis = 0;

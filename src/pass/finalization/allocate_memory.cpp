@@ -58,6 +58,24 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
 void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
+    using namespace mv;
 
+    ControlModel cm(model);
+    DataModel dm(model);
+
+    if (!dm.hasAllocator("IntermediateMemory"))
+        throw ArgumentError("allocator", "IntermediateMemory", "Computation model does not have IntermediateMemory specified");
+
+    if (cm.stageSize() == 0)
+        throw ArgumentError("stages count", "0", "Computation model does not have stages specified");
+
+    for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
+    {
+        if (!tIt->isPopulated())
+        {
+            auto stageIt = cm.getStage(0);
+            dm.allocateTensor("IntermediateMemory", stageIt, tIt);
+        }
+    }
     
 }
