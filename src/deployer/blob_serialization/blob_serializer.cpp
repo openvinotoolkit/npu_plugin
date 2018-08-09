@@ -10,6 +10,8 @@ namespace mv
             Does a soft run through to calculate all offsets for use in blob.
         */
 
+        printf("Calc...\n");
+
         blob_stats.input_size = cm.getFirst()->getOutputTensor(0)->getShape().totalSize();
 
         // set fixed header sizes for blob
@@ -165,6 +167,7 @@ namespace mv
             @param write_or_query - 0 to return size of section, 1 to write section.
 
         */
+        printf("ELF...\n");
 
         AddBytes(2, 0x0000);  // 0x00
         AddBytes(2, 0x0001);
@@ -187,6 +190,9 @@ namespace mv
 
     void Blob_buffer::write_mv_header()
     {
+
+        printf("MVHEAD...\n");
+
         uint32_t mv_magic_number = BLOB_MAGIC_NUMBER ;
         uint32_t mv_version_major = BLOB_VERSION_MAJOR ;
         uint32_t mv_version_minor = BLOB_VERSION_MINOR ;
@@ -215,6 +221,9 @@ namespace mv
 
     void Blob_buffer::write_stage_section_header()
     {
+
+        printf("STG...\n");
+
         AddBytes(4, blob_stats.stage_count);   // 0x50
         AddBytes(4, blob_stats.stage_section_size);
         AddBytes(4, blob_stats.output_size);
@@ -234,6 +243,9 @@ namespace mv
             - Blob Stage to pull details from
 
         */
+
+
+        printf("IO...\n");
 
         int inputLocation = conv_pool_stage.InputLocation;
         if (conv_pool_stage.InputLocation > 4)
@@ -277,6 +289,10 @@ namespace mv
 
     void Blob_buffer::write_stages(mv::ControlModel& cm)
     {
+
+
+        printf("Stages...\n");
+
         Blob_stage conv_pool_stage ;
         uint32_t op_count = 0 ;
         uint32_t next_offset = 4*3 + 4*5 ;
@@ -520,15 +536,13 @@ namespace mv
                 if(mx_valid)
                 {
 
-
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x21);                                // 0x60
                     AddBytes(4, conv_pool_stage.implementation);
 
-
                     // Serialize for MyriadX H/W
                     bConv2D c = bConv2D(&(*it));
-                    c.writeStageInfo(this);
+                    c.writeStageInfo(&om, this);
 
                     AddBytes(4, 0x05);    // 0x12c , no preop
                     AddBytes(4, 0x05);    // 0x12c , no postop
@@ -1378,101 +1392,104 @@ namespace mv
 
     void Blob_buffer::write_relocation_section(mv::ControlModel& cm)
     {
-        uint32_t relocation_section_header_size = 20 ;
-        uint32_t blob_buffer_reloc_size = 8*blob_stats.data_buffer_count ;
-        uint32_t work_buffer_reloc_size = 0x10 * (blob_stats.stage_count-2) + 8*blob_stats.elt_count ;
-        uint32_t blob_buffer_reloc_offset = blob_stats.blob_file_size - blob_stats.relocation_section_size + relocation_section_header_size ;
-        uint32_t work_buffer_reloc_offset = blob_buffer_reloc_offset + blob_buffer_reloc_size ;
 
-        // write relocation section header
-        AddBytes(4, blob_stats.relocation_section_size );
-        AddBytes(4, blob_buffer_reloc_offset);
-        AddBytes(4, blob_buffer_reloc_size);
-        AddBytes(4, work_buffer_reloc_offset);
-        AddBytes(4, work_buffer_reloc_size);
+        this->reloc_table.write(this);
 
-        // write buffer data relocation info
-        uint32_t running_offset = 0 ;
-        uint32_t node_index = 0 ;
+        // uint32_t relocation_section_header_size = 20 ;
+        // uint32_t blob_buffer_reloc_size = 8*blob_stats.data_buffer_count ;
+        // uint32_t work_buffer_reloc_size = 0x10 * (blob_stats.stage_count-2) + 8*blob_stats.elt_count ;
+        // uint32_t blob_buffer_reloc_offset = blob_stats.blob_file_size - blob_stats.relocation_section_size + relocation_section_header_size ;
+        // uint32_t work_buffer_reloc_offset = blob_buffer_reloc_offset + blob_buffer_reloc_size ;
 
-        for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
-        {
-            if (( it->getOpType() == OpType::Conv2D ) || ( it->getOpType() == OpType::FullyConnected ))
-            {
-                // calculate buffer sizes etc related to weights
-                uint32_t kernel_sizeX = 0 ;
-                uint32_t kernel_sizeY = 1 ;
-                uint32_t kernel_sizeZ = 1 ;
-                uint32_t kernel_sizeN = 1 ;
-                if ( it->getOpType() == OpType::Conv2D )
-                {
-                    kernel_sizeX = it->getInputTensor(1)->getShape()[0] ;
-                    kernel_sizeY = it->getInputTensor(1)->getShape()[1] ;
-                    kernel_sizeZ = it->getInputTensor(1)->getShape()[2] ;
-                    kernel_sizeN = it->getInputTensor(1)->getShape()[3] ;
-                }
-                else
-                {
-                    kernel_sizeX = it->getInputTensor(1)->getShape().totalSize() ;
-                }
+        // // write relocation section header
+        // AddBytes(4, blob_stats.relocation_section_size );
+        // AddBytes(4, blob_buffer_reloc_offset);
+        // AddBytes(4, blob_buffer_reloc_size);
+        // AddBytes(4, work_buffer_reloc_offset);
+        // AddBytes(4, work_buffer_reloc_size);
 
-                uint32_t bias_region_size = 0 ;
-                uint32_t bias_number_size = 2 ;             // TODO assume FP16
-                uint32_t bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
+        // // write buffer data relocation info
+        // uint32_t running_offset = 0 ;
+        // uint32_t node_index = 0 ;
 
-                if (it->hasAttr("bias"))
-                {
-                    bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
-                }
+        // for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
+        // {
+        //     if (( it->getOpType() == OpType::Conv2D ) || ( it->getOpType() == OpType::FullyConnected ))
+        //     {
+        //         // calculate buffer sizes etc related to weights
+        //         uint32_t kernel_sizeX = 0 ;
+        //         uint32_t kernel_sizeY = 1 ;
+        //         uint32_t kernel_sizeZ = 1 ;
+        //         uint32_t kernel_sizeN = 1 ;
+        //         if ( it->getOpType() == OpType::Conv2D )
+        //         {
+        //             kernel_sizeX = it->getInputTensor(1)->getShape()[0] ;
+        //             kernel_sizeY = it->getInputTensor(1)->getShape()[1] ;
+        //             kernel_sizeZ = it->getInputTensor(1)->getShape()[2] ;
+        //             kernel_sizeN = it->getInputTensor(1)->getShape()[3] ;
+        //         }
+        //         else
+        //         {
+        //             kernel_sizeX = it->getInputTensor(1)->getShape().totalSize() ;
+        //         }
 
-                uint32_t bias_values_size = bias_values_len*bias_number_size;
-                bias_region_size = bias_values_size ;
-                //std::cout << "    bias region size (in reloc table) =  "<<  bias_region_size << std::endl;
+        //         uint32_t bias_region_size = 0 ;
+        //         uint32_t bias_number_size = 2 ;             // TODO assume FP16
+        //         uint32_t bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
 
-                uint32_t weights_region_size = kernel_sizeN*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size ;
-                // relocation section: blob buffer relocation information
-                // weights region
-                AddBytes(4, running_offset);  // offset from start of buffer section
-                AddBytes(4, 0x00000003);          // memory type = blob-buffer
-                running_offset += weights_region_size ;
-                // bias region offset
-                AddBytes(4, running_offset);
-                AddBytes(4, 0x00000003);          // memory type = blob-buffer
-                running_offset += bias_region_size ;
+        //         if (it->hasAttr("bias"))
+        //         {
+        //             bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
+        //         }
 
-            }   // end convolution, FC case
+        //         uint32_t bias_values_size = bias_values_len*bias_number_size;
+        //         bias_region_size = bias_values_size ;
+        //         //std::cout << "    bias region size (in reloc table) =  "<<  bias_region_size << std::endl;
 
-            if ( it->getOpType() == OpType::Scale )
-            {
-                uint32_t bias_region_size = 0 ;
-                uint32_t bias_number_size = 2 ;             // TODO assume FP16
-                uint32_t bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
+        //         uint32_t weights_region_size = kernel_sizeN*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size ;
+        //         // relocation section: blob buffer relocation information
+        //         // weights region
+        //         AddBytes(4, running_offset);  // offset from start of buffer section
+        //         AddBytes(4, 0x00000003);          // memory type = blob-buffer
+        //         running_offset += weights_region_size ;
+        //         // bias region offset
+        //         AddBytes(4, running_offset);
+        //         AddBytes(4, 0x00000003);          // memory type = blob-buffer
+        //         running_offset += bias_region_size ;
 
-                bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
+        //     }   // end convolution, FC case
 
-                uint32_t bias_values_size = bias_values_len*bias_number_size;
-                bias_region_size = bias_values_size ;
-                //std::cout << "    bias region size (in reloc table) =  "<<  bias_region_size << std::endl;
+        //     if ( it->getOpType() == OpType::Scale )
+        //     {
+        //         uint32_t bias_region_size = 0 ;
+        //         uint32_t bias_number_size = 2 ;             // TODO assume FP16
+        //         uint32_t bias_values_len = 1;        // TODO use 1 for now (same bias all outputs)
 
-                // bias region offset
-                AddBytes(4, running_offset);
-                AddBytes(4, 0x00000003);          // memory type = blob-buffer
-                running_offset += bias_region_size ;
-            }
-            node_index++;
+        //         bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
 
-        }  // end graph pass to output wts,bias buffer info
+        //         uint32_t bias_values_size = bias_values_len*bias_number_size;
+        //         bias_region_size = bias_values_size ;
+        //         //std::cout << "    bias region size (in reloc table) =  "<<  bias_region_size << std::endl;
 
-        // output work buffer relocation table
-        for (unsigned j=0; j<blob_stats.relocbuf_list.size(); j++)
-        {
-            // relocation section: work buffer relocation information
-            AddBytes(4, blob_stats.relocadr_list[j]);          // offset from start of work section
-            if (blob_stats.relocbuf_list[j]>4)
-            {
-                blob_stats.relocbuf_list[j] = 4 ;
-            }
-            AddBytes(4, blob_stats.relocbuf_list[j]);          // memory type =
-        }    // end loop for work buffer output
+        //         // bias region offset
+        //         AddBytes(4, running_offset);
+        //         AddBytes(4, 0x00000003);          // memory type = blob-buffer
+        //         running_offset += bias_region_size ;
+        //     }
+        //     node_index++;
+
+        // }  // end graph pass to output wts,bias buffer info
+
+        // // output work buffer relocation table
+        // for (unsigned j=0; j<blob_stats.relocbuf_list.size(); j++)
+        // {
+        //     // relocation section: work buffer relocation information
+        //     AddBytes(4, blob_stats.relocadr_list[j]);          // offset from start of work section
+        //     if (blob_stats.relocbuf_list[j]>4)
+        //     {
+        //         blob_stats.relocbuf_list[j] = 4 ;
+        //     }
+        //     AddBytes(4, blob_stats.relocbuf_list[j]);          // memory type =
+        // }    // end loop for work buffer output
     }
 }

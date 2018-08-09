@@ -16,6 +16,7 @@
 #include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
 #include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
+#include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
 #include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
 #include <assert.h>
 
@@ -185,9 +186,10 @@ namespace mv
             blob_summary blob_stats;
 
         public:
+            RelocationTable reloc_table;
             Blob_buffer()
             {
-
+                this->reloc_table = RelocationTable();
             }
 
             // Calculate Blob Statistics

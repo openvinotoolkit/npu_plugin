@@ -4,14 +4,18 @@
 namespace mv
 {
 
-    void bConv2D::writeStageInfo(WBuffer* b)
+    void bConv2D::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
     {
         if (1)
         {
+
+            mv::DataModel dm(*om);
+            mv::ControlModel cm(*om);
+
             // Hardware
             b->AddBytes(4, this->streamingMask);
-            b->AddBytes(4, this->input.getShape().totalSize());
-            b->AddBytes(4, this->output.getShape().totalSize());
+            b->AddBytes(4, this->input->getShape().totalSize());
+            b->AddBytes(4, this->output->getShape().totalSize());
             b->AddBytes(4, this->concatOffset);
             b->AddBytes(4, this->unloadCMX);
             b->AddBytes(4, this->overwriteInput);
@@ -22,8 +26,8 @@ namespace mv
             b->AddBytes(4, this->desc_count);
 
             std::cout << "Streaming Mask: " << this->streamingMask << std::endl;
-            std::cout << "Total Input Size: " << this->input.getShape().totalSize() << std::endl;
-            std::cout << "Total Output Size: " << this->output.getShape().totalSize() << std::endl;
+            std::cout << "Total Input Size: " << this->input->getShape().totalSize() << std::endl;
+            std::cout << "Total Output Size: " << this->output->getShape().totalSize() << std::endl;
             std::cout << "concatOffset: " << this->concatOffset << std::endl;
             std::cout << "unloadCMX: " << this->unloadCMX << std::endl;
             std::cout << "overwriteInput: " << this->overwriteInput << std::endl;
@@ -35,9 +39,9 @@ namespace mv
 
             for (unsigned i = 0; i != this->desc_count; i++)
             {
-                dump_descriptors(&this->descriptors[i]);
+                // dump_descriptors(&this->descriptors[i]);
                 for(unsigned j = 0; j != 32; j++){
-                    printf("halfline - %x\n", ((int *) &this->descriptors[i])[j]);
+                    // printf("halfline - %x\n", ((int *) &this->descriptors[i])[j]);
                     b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
                 }
             }
@@ -45,45 +49,13 @@ namespace mv
             int fp16_size = 2;
             // TODO:
 
-            Blob_Tensor inputBlobTensor = Blob_Tensor(
-                this->input.getShape()[0],   // X
-                this->input.getShape()[1],   // Y
-                this->input.getShape()[2],   // Z
-                fp16_size,
-                fp16_size*this->input.getShape()[1],
-                fp16_size*this->input.getShape()[1]*this->input.getShape()[0],
-                -1, // Offset - Memory Manager
-                -1, // Location - Memory Manager
-                0,
-                1
-            );
-            Blob_Tensor outputBlobTensor = Blob_Tensor(
-                this->output.getShape()[0],   // X
-                this->output.getShape()[1],   // Y
-                this->output.getShape()[2],   // Z
-                fp16_size,
-                fp16_size*this->output.getShape()[2]*this->output.getShape()[0],
-                fp16_size*this->output.getShape()[1],
-                 -1, // Offset - Memory Manager
-                -1, // Location - Memory Manager
-                0,
-                2
-            );
+            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+            Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
 
-            Blob_Tensor tapsBlobTensor = Blob_Tensor(
-                this->taps.getShape()[3],   // z
-                this->taps.getShape()[2],   // y
-                this->taps.getShape()[0]*this->taps.getShape()[1],  // X
-                fp16_size, // SZ
-                fp16_size*this->taps.getShape()[3], // Taps Sy
-                fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
-                -1, // Offset - Memory Manager
-                -1, // Location - Memory Manager
-                0,
-                1
-            );
+            printf("Warning: Currently no Scale absorb support in HW Serialization\n");
             Blob_Tensor biasBlobTensor = Blob_Tensor(
-                // this->output.getShape().totalSize(),   // X
+                // this->output->getShape().totalSize(),   // X
                 // 0x01,   // Y
                 // 0x01,   // Z
                 0,
@@ -92,24 +64,24 @@ namespace mv
                 fp16_size,     // X Stride
                 0,
                 0,
-                // fp16_size*this->output.getShape().totalSize(),    // Y Stride
-                // fp16_size*this->output.getShape().totalSize(),    // z Stride
+                // fp16_size*this->output->getShape().totalSize(),    // Y Stride
+                // fp16_size*this->output->getShape().totalSize(),    // z Stride
                  -1, // Offset - Memory Manager
                 -1, // Location - Memory Manager
                 0,
                 1
             );
 
-            printf("Warning: Currently no Scale absorb support in HW\n");
+            printf("Warning: Currently no Scale absorb support in HW Serialization\n");
             Blob_Tensor scaleBlobTensor = Blob_Tensor(
-                // this->taps.getShape()[0]*this->taps.getShape()[1],  // X
-                // this->taps.getShape()[2],   // y
-                // this->taps.getShape()[3],   // z
+                // this->taps->getShape()[0]*this->taps->getShape()[1],  // X
+                // this->taps->getShape()[2],   // y
+                // this->taps->getShape()[3],   // z
                 0,
                 0,
                 0,
-                // fp16_size*this->taps.getShape()[2]*this->taps.getShape()[3],
-                // fp16_size*this->taps.getShape()[3], // Taps Sy
+                // fp16_size*this->taps->getShape()[2]*this->taps->getShape()[3],
+                // fp16_size*this->taps->getShape()[3], // Taps Sy
                 0,
                 0,
                 fp16_size, // SZ
@@ -133,9 +105,9 @@ namespace mv
     bConv2D::bConv2D(mv::ComputationOp* it)
         :
           Blob_Op_Definition(),
-          input(*(it->getInputTensor(0))),
-          output(*(it->getOutputTensor(0))),
-          taps(*(it->getInputTensor(1)))
+          input((it->getInputTensor(0))),
+          output((it->getOutputTensor(0))),
+          taps((it->getInputTensor(1)))
     {
 
 
@@ -314,8 +286,8 @@ namespace mv
             this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
 
             // Standard Fields for Convolution
-            this->descriptors[i].kernelWidth = this->taps.getShape()[0];
-            this->descriptors[i].kernelHeight = this->taps.getShape()[1];
+            this->descriptors[i].kernelWidth = this->taps->getShape()[0];
+            this->descriptors[i].kernelHeight = this->taps->getShape()[1];
 
             this->descriptors[i].chStride = stride;  // Stride of Kernel (Square only)
 
@@ -330,11 +302,11 @@ namespace mv
 
             this->descriptors[i].padType = 0;   // Zero Padding
 
-            this->descriptors[i].inputWidth = this->input.getShape()[0];
-            this->descriptors[i].inputHeight = this->input.getShape()[1];
-            this->descriptors[i].inputChannels = this->input.getShape()[2];
+            this->descriptors[i].inputWidth = this->input->getShape()[0];
+            this->descriptors[i].inputHeight = this->input->getShape()[1];
+            this->descriptors[i].inputChannels = this->input->getShape()[2];
 
-            this->descriptors[i].outputChannels = this->output.getShape()[2];
+            this->descriptors[i].outputChannels = this->output->getShape()[2];
 
             // Descriptor Buffers
 
@@ -375,7 +347,7 @@ namespace mv
 
             this->descriptors[i].coeffLpb = this->descriptors[i].chPerRamBlock * this->descriptors[i].kernelWidth * this->descriptors[i].kernelHeight;
             this->descriptors[i].css = this->descriptors[i].kernelWidth * this->descriptors[i].kernelHeight -1 ;
-            this->descriptors[i].outputX = this->output.getShape()[2];
+            this->descriptors[i].outputX = this->output->getShape()[2];
 
             // Myriad X - Splitting groups
             this->descriptors[i].sohGroup = 0;

@@ -3,51 +3,25 @@
 
 namespace mv
 {
-    void bCompatibility::writeStageInfo(WBuffer* b)
+    void bCompatibility::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
-        if (1)
-        {
-            int fp16_size = 2;
-            // TODO:
+        int fp16_size = 2;
 
-            Blob_Tensor inputBlobTensor = Blob_Tensor(
-                this->input.getShape()[0],   // X
-                this->input.getShape()[1],   // Y
-                this->input.getShape()[2],   // Z
-                fp16_size,
-                fp16_size*this->input.getShape()[1],
-                fp16_size*this->input.getShape()[1]*this->input.getShape()[0],
-                -1, // Offset - Memory Manager
-                -1, // Location - Memory Manager
-                0,
-                1
-            );
-            Blob_Tensor outputBlobTensor = Blob_Tensor(
-                this->output.getShape()[0],   // X
-                this->output.getShape()[1],   // Y
-                this->output.getShape()[2],   // Z
-                fp16_size,
-                fp16_size*this->output.getShape()[2]*this->output.getShape()[0],
-                fp16_size*this->output.getShape()[1],
-                 -1, // Offset - Memory Manager
-                -1, // Location - Memory Manager
-                0,
-                2
-            );
+        mv::DataModel dm(*om);
+        mv::ControlModel cm(*om);
 
-            inputBlobTensor.write(b);
-            outputBlobTensor.write(b);
+        Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
+        Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
 
-        }else{
-            // Software
-        }
+        inputBlobTensor.write(b);
+        outputBlobTensor.write(b);
     }
 
     bCompatibility::bCompatibility(mv::ComputationOp* it)
         :
           Blob_Op_Definition(),
-          input(*(it->getInputTensor(0))),
-          output(*(it->getOutputTensor(0)))
+          input((it->getInputTensor(0))),
+          output((it->getOutputTensor(0)))
     {
     }
 

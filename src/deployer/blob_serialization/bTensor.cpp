@@ -1,5 +1,11 @@
 #include <stdio.h>
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
+#include <string.h>
+
+#define BLOB_INPUT_LOCATION 1
+#define BLOB_OUTPUT_LOCATION 2
+#define BLOB_INTERNAL_LOCATION 3
+#define BLOB_EXTERNAL_LOCATION 4
 
 namespace mv
 {
@@ -33,5 +39,94 @@ namespace mv
           order(orderParam)
     {
 
+    }
+
+    Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t){
+
+        printf("Tensor Start\n");
+
+        int fp16_size = 2;
+        this->dataType = 0;
+
+        this->dimX = (*t)->getShape()[0];
+        this->dimY = (*t)->getShape()[1];
+        this->dimZ = (*t)->getShape()[2];
+
+        if (!dm->hasAllocator("ConstantMemory"))
+            assert(0);
+        // if (!dm->hasAllocator("BSS"))
+        //     assert(0);
+
+        Data::BufferIterator mem;
+        mv::Control::StageIterator stg = cm->getStage(0);
+
+        int blk_stride = 0;
+        int block = 0;
+
+        if ((*t)->isPopulated()){
+            mem = dm->getBuffer("ConstantMemory", stg, *t);
+            this->location = BLOB_INTERNAL_LOCATION;
+
+            blk_stride = (int)mem->stride;
+            block = (int)mem->block;
+
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
+
+            this->offset = rt_entry;
+
+        }else{
+            // mem = dm->getBuffer("BSS", stg, *t);
+            printf("Serialization Error: Unpopulated Tensor does not have an allocator yet.\n");
+            // this->offset = mem->offset;
+            this->offset = 42;
+            this->location = BLOB_EXTERNAL_LOCATION;
+        }
+
+        int striding_axis = 0;
+        if (block = 2){
+            // X
+            striding_axis = 0;
+        }else if(block == this->dimX){
+            // Y
+            striding_axis = 1;
+        }else if(block == this->dimX*this->dimY){
+            // Z
+            striding_axis = 2;
+        }else if(block == this->dimX*this->dimY*this->dimZ){
+            // N
+            striding_axis = 3;
+        }else{
+            std::cout << "Serialization Error: Unknown mapping of memory block to mvTensor notations" << std::endl;
+            assert(0);
+        }
+
+        switch((*t)->getOrder()){
+            case Order::RowMajor:
+                // UPA Shave
+                this->order = 0;
+                this->strideZ = (striding_axis == 0)? blk_stride:fp16_size;
+                this->strideX = (striding_axis == 0)? blk_stride:fp16_size*this->strideZ;
+                this->strideY = (striding_axis == 0)? blk_stride:fp16_size*this->strideZ*this->strideX;
+                break;
+            case Order::Planar:
+                // NCE1 - Option 1
+                this->order = 1;
+                this->strideX = (striding_axis == 0)? blk_stride:fp16_size;
+                this->strideY = (striding_axis == 0)? blk_stride:fp16_size*this->strideX;
+                this->strideZ = (striding_axis == 0)? blk_stride:fp16_size*this->strideX*this->strideY;
+                break;
+            case Order::ColumnMajor:
+                // NCE1 - Option 2
+                this->order = 2;
+                this->strideX = (striding_axis == 0)? blk_stride:fp16_size;
+                this->strideZ = (striding_axis == 0)? blk_stride:fp16_size*this->strideX;
+                this->strideY = (striding_axis == 0)? blk_stride:fp16_size*this->strideX*this->strideZ;
+                break;
+            default:
+                std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
+                assert(0);
+        }
+
+        printf("Tensor End\n");
     }
 }

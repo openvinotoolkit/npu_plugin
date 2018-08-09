@@ -1,5 +1,6 @@
 #include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
 #include <stdio.h>
+#include <assert.h>
 
 namespace mv
 {
