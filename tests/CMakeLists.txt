@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.0.0)
-project(mcm VERSION 1.0.0)
+cmake_minimum_required(VERSION 3.5.0)
+project(mcmComplier VERSION 0.0.1)
 
 enable_testing()
 include_directories(${GTEST_INCLUDE_DIRS})
