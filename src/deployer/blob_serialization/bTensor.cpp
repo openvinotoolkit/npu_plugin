@@ -48,9 +48,19 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        this->dimX = (*t)->getShape()[0];
-        this->dimY = (*t)->getShape()[1];
-        this->dimZ = (*t)->getShape()[2];
+        if ((int)(*t)->getShape().ndims() == 4){
+
+            this->dimX = (*t)->getShape()[0] * (*t)->getShape()[1];
+            this->dimY = (*t)->getShape()[2];
+            this->dimZ = (*t)->getShape()[3];
+
+        }else{
+            assert((int)(*t)->getShape().ndims() == 3);
+
+            this->dimX = (*t)->getShape()[0];
+            this->dimY = (*t)->getShape()[1];
+            this->dimZ = (*t)->getShape()[2];
+        }
 
         if (!dm->hasAllocator("ConstantMemory"))
             assert(0);
@@ -78,8 +88,11 @@ namespace mv
             // mem = dm->getBuffer("BSS", stg, *t);
             printf("Serialization Error: Unpopulated Tensor does not have an allocator yet.\n");
             // this->offset = mem->offset;
-            this->offset = 42;
             this->location = BLOB_EXTERNAL_LOCATION;
+
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(999, bLocation::Variable ));
+            this->offset = rt_entry;
+
         }
 
         int striding_axis = 0;
@@ -104,23 +117,26 @@ namespace mv
             case Order::RowMajor:
                 // UPA Shave
                 this->order = 0;
-                this->strideZ = (striding_axis == 0)? blk_stride:fp16_size;
-                this->strideX = (striding_axis == 0)? blk_stride:fp16_size*this->strideZ;
-                this->strideY = (striding_axis == 0)? blk_stride:fp16_size*this->strideZ*this->strideX;
+                printf("ROW MAJOR\n");
+                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
+                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
+                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 break;
             case Order::Planar:
                 // NCE1 - Option 1
+                printf("PLANAR\n");
                 this->order = 1;
-                this->strideX = (striding_axis == 0)? blk_stride:fp16_size;
-                this->strideY = (striding_axis == 0)? blk_stride:fp16_size*this->strideX;
-                this->strideZ = (striding_axis == 0)? blk_stride:fp16_size*this->strideX*this->strideY;
+                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
+                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
+                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimY*this->strideY;
                 break;
             case Order::ColumnMajor:
                 // NCE1 - Option 2
+                printf("Column MAJOR\n");
                 this->order = 2;
-                this->strideX = (striding_axis == 0)? blk_stride:fp16_size;
-                this->strideZ = (striding_axis == 0)? blk_stride:fp16_size*this->strideX;
-                this->strideY = (striding_axis == 0)? blk_stride:fp16_size*this->strideX*this->strideZ;
+                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
+                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
+                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 break;
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;

@@ -9,13 +9,15 @@ namespace mv
         if (1)
         {
 
+            int fp16_size = 2;
+
             mv::DataModel dm(*om);
             mv::ControlModel cm(*om);
 
             // Hardware
             b->AddBytes(4, this->streamingMask);
-            b->AddBytes(4, this->input->getShape().totalSize());
-            b->AddBytes(4, this->output->getShape().totalSize());
+            b->AddBytes(4, this->input->getShape().totalSize()*fp16_size);
+            b->AddBytes(4, this->output->getShape().totalSize()*fp16_size);
             b->AddBytes(4, this->concatOffset);
             b->AddBytes(4, this->unloadCMX);
             b->AddBytes(4, this->overwriteInput);
@@ -26,8 +28,8 @@ namespace mv
             b->AddBytes(4, this->desc_count);
 
             std::cout << "Streaming Mask: " << this->streamingMask << std::endl;
-            std::cout << "Total Input Size: " << this->input->getShape().totalSize() << std::endl;
-            std::cout << "Total Output Size: " << this->output->getShape().totalSize() << std::endl;
+            std::cout << "Total Input Size: " << this->input->getShape().totalSize()*fp16_size << std::endl;
+            std::cout << "Total Output Size: " << this->output->getShape().totalSize()*fp16_size << std::endl;
             std::cout << "concatOffset: " << this->concatOffset << std::endl;
             std::cout << "unloadCMX: " << this->unloadCMX << std::endl;
             std::cout << "overwriteInput: " << this->overwriteInput << std::endl;
@@ -46,12 +48,12 @@ namespace mv
                 }
             }
 
-            int fp16_size = 2;
             // TODO:
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+            // Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->scale);
 
             printf("Warning: Currently no Scale absorb support in HW Serialization\n");
             Blob_Tensor biasBlobTensor = Blob_Tensor(
@@ -90,6 +92,9 @@ namespace mv
                 0,
                 0
             );
+            b->reloc_table.push_entry(std::pair<int, bLocation>(666, bLocation::Constant ));
+            b->reloc_table.push_entry(std::pair<int, bLocation>(666, bLocation::Constant ));
+
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);

@@ -32,6 +32,8 @@ namespace mv
         blob_stats.weights_region_size = 0 ;
         blob_stats.bias_region_size = 0 ;
 
+        int additional_buf = 0;
+
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
             if (( it->getOpType() == OpType::Conv2D ) || ( it->getOpType() == OpType::FullyConnected ))
@@ -67,6 +69,7 @@ namespace mv
                     {
 
                         mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+                        mx_valid = 1;
                     }
 
                     if(mx_valid){
@@ -80,10 +83,15 @@ namespace mv
                         {
                             descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
                         }
-                        blob_stats.stage_section_size += (11*4) ; // Descriptor
+                        blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
                         blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
                         blob_stats.stage_section_size += (5*10*4) ; // Input, Bias, Taps, Output, Scale
 
+                        blob_stats.stage_section_size += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                        blob_stats.stage_section_size += (3*4) ; // nextsatge, etc MOVE OUT.
+                        blob_stats.data_buffer_count++;     // BAD: Account for two incorrectly added buffers to relocation.
+                        blob_stats.data_buffer_count++;     // BAD: Account for two incorrectly added buffers to relocation.
+                        additional_buf++;       // Has scale also
                     }else{
                         blob_stats.stage_section_size += (53*4) ;
                     }
@@ -150,11 +158,43 @@ namespace mv
 
         blob_stats.output_size = cm.getLast()->getInputTensor(0)->getShape().totalSize();
         blob_stats.stage_section_size = align(blob_stats.stage_section_size, 16) ;
-        blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size ;
-        uint32_t aligned_buffer_data_size = align(blob_stats.buffer_data_size, 64) ;
-        blob_stats.buffer_data_pad_size = aligned_buffer_data_size - blob_stats.buffer_data_size ;
-        blob_stats.buffer_data_size = aligned_buffer_data_size ;
+
+        // Calculate Buffer Size
+        mv::DataModel dm(cm);
+        mv::Control::StageIterator stg = cm.getStage(0);
+
+        unsigned int totalSize = 0;
+        unsigned int amount_const = 0;
+
+        for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
+            totalSize += bit->size;
+            int adjustment = 0;
+            while((bit->size*2 + adjustment*2) % 64 != 0){
+                printf("Adjustment?\n");
+                AddBytes(2, 0);
+                adjustment++;
+            }
+            totalSize += adjustment;
+        }
+
+        blob_stats.buffer_data_size = totalSize*2;
+        // blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size ;
+        // uint32_t aligned_buffer_data_size = align(blob_stats.buffer_data_size, 64) ;
+        // blob_stats.buffer_data_pad_size = aligned_buffer_data_size - blob_stats.buffer_data_size ;
+        // blob_stats.buffer_data_size = aligned_buffer_data_size ;
         blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) ;
+
+        blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) + additional_buf*8;
+
+
+        std::cout << "\n\n" <<
+            "\nheaders_data_size: " << headers_data_size <<
+            "\nblob_stats.header_pad_size: " << blob_stats.header_pad_size <<
+            "\nblob_stats.stage_section_size: " << blob_stats.stage_section_size <<
+            "\nblob_stats.buffer_header_size: " << blob_stats.buffer_header_size <<
+            "\nblob_stats.buffer_data_size: " << blob_stats.buffer_data_size <<
+            "\nblob_stats.relocation_section_size: " << blob_stats.relocation_section_size << "\n\n" <<
+        std::endl;
         blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
     }
 
@@ -536,6 +576,8 @@ namespace mv
                 if(mx_valid)
                 {
 
+                    std::cout << "POINT 1: " << getPointer() << std::endl;
+
                     AddBytes(4, conv_pool_stage.next);
                     AddBytes(4, 0x21);                                // 0x60
                     AddBytes(4, conv_pool_stage.implementation);
@@ -547,7 +589,31 @@ namespace mv
                     AddBytes(4, 0x05);    // 0x12c , no preop
                     AddBytes(4, 0x05);    // 0x12c , no postop
 
+                    std::cout << "POINT 2: " << getPointer() << std::endl;
 
+                    int descriptors = 1;
+                    int point0 = 0;
+                    if (! it->hasAttr("NCE1_DescriptorSplits"))
+                    {
+                        printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
+                    }
+                    else
+                    {
+                        descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                    }
+                    point0 += (11*4) ; // Header of Descriptors
+                    point0 += (descriptors*32*4) ; // Descriptor
+                    point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+
+                    point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+
+                    std::cout << "My POint: " << point0 << std::endl;
+
+
+                    // next_offset += 0xd4 ;
+                    next_offset += point0 ;
                 }
                 else
                 {
@@ -1285,6 +1351,8 @@ namespace mv
         uint32_t stage_pad_size = buffer_section_offset - next_offset  ;
         if (stage_pad_size > 0)
         {
+            printf("buffer_section_offset: %d | next_offset %d\n", buffer_section_offset, next_offset);
+            printf("Stage Pad: %d\n", stage_pad_size);
             AddBytes(stage_pad_size, 0x00000000);
         }
 
@@ -1298,96 +1366,44 @@ namespace mv
         uint8_t buffer_pad_val = 0x00 ;
         Float16Compressor cvtr ;
 
+        mv::DataModel dm(cm);
+        mv::Control::StageIterator stg = cm.getStage(0);
+
+        // unsigned int totalSize = 0;
+
+        // for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
+        //     totalSize += bit->size;
+        //     int adjustment = 0;
+        //     while((bit->size*2 + adjustment*2) % 64 != 0){
+        //         AddBytes(2, 0);
+        //         adjustment++;
+        //     }
+        //     totalSize += adjustment;
+        // }
+
         // buffer section header
         AddBytes(4, (blob_stats.buffer_header_size + blob_stats.buffer_data_size));
+        // AddBytes(4, (blob_stats.buffer_header_size + totalSize*2));
 
         for (unsigned i=0; i<buffer_header_pad_size; i++)
         {
             AddBytes(4, buffer_header_pad_val);
         }
 
-        for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
-        {
-            if (( it->getOpType() == OpType::Conv2D ) || ( it->getOpType() == OpType::FullyConnected ))
-            {
-                // buffer data section for convolution has 3 regions: taps, bias, and params
-                // size of TAP region = align((roundUp(8,#kernels)*kernelX*kernelY*kernelZ)*dataSize),0x40)
 
-                // TAPS region
-                // calculate buffer sizes etc related to weights
-                uint32_t kernel_sizeX = 0 ;
-                uint32_t kernel_sizeY = 1 ;
-                uint32_t kernel_sizeZ = 1 ;
-                uint32_t kernel_sizeN = 1 ;
+        for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
+            printf("Convert to FP16 Buffer of size %lu\n", bit->size);
+            for (int idx = 0; idx != (int)bit->size; idx++){
+                u_int16_t fp16_val = cvtr.compress((*bit->data).getData()[idx]) ;  // Convert to fp16.
+                AddBytes(2, fp16_val) ;
+            }
 
-                if ( it->getOpType() == OpType::Conv2D )
-                {
-                    kernel_sizeX = it->getInputTensor(1)->getShape()[0] ;
-                    kernel_sizeY = it->getInputTensor(1)->getShape()[1] ;
-                    kernel_sizeZ = it->getInputTensor(1)->getShape()[2] ;
-                    kernel_sizeN = it->getInputTensor(1)->getShape()[3] ;
-                }
-                else    //fc
-                {
-                    kernel_sizeX = it->getInputTensor(1)->getShape().totalSize();
-                    kernel_sizeY = 1 ;
-                    kernel_sizeZ = 1 ;
-                    kernel_sizeN = 1 ;
-                }
-
-                uint32_t weights_number_size = 2 ;          // TODO assume FP16
-                uint32_t buffer_taps_weights_len = kernel_sizeX*kernel_sizeY*kernel_sizeZ*kernel_sizeN;
-                uint32_t new_weight=0 ;
-                // write weights and pad to file
-                for (unsigned i=0; i< buffer_taps_weights_len; i++)
-                {
-                    if(it->getInputTensor(1)->isPopulated())
-                    {
-                        new_weight = cvtr.compress((it->getInputTensor(1)->getData()[i])) ;  // TODO assume fp16
-                        AddBytes(weights_number_size, new_weight) ;
-                    }
-                }
-
-                // BIAS region
-                uint32_t bias_number_size = 2 ;             // TODO assume FP16
-                uint16_t buffer_bias_val = 0x0000 ;  // TODO bias = 0 hardcoded
-                uint32_t buffer_bias_values_len = 0;
-
-                if (it->hasAttr("bias"))
-                {
-                    //std::cout << "writing bias values for "<< it->getName() << std::endl;
-                    buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
-                    for (unsigned i = 0; i < buffer_bias_values_len; ++i)
-                    {
-                        auto buffer_bias_val32 =  it->getAttr("bias").getContent<mv::dynamic_vector<float>>()[i] ;
-                        buffer_bias_val = cvtr.compress(buffer_bias_val32);
-                        AddBytes(bias_number_size, buffer_bias_val);
-                    }
-                }
-
-            }  //  end conv or FC  case
-            else if ( it->getOpType() == OpType::Scale ) // scale vector
-            {
-                // BIAS region
-                uint32_t bias_number_size = 2 ;             // TODO assume FP16
-                uint16_t buffer_bias_val = 0x0000;  // TODO bias = 0 hardcoded
-                uint32_t buffer_bias_values_len = it->getInputTensor(1)->getShape().totalSize();
-
-                for (unsigned i = 0; i < buffer_bias_values_len; ++i)
-                {
-                    buffer_bias_val = cvtr.compress(it->getInputTensor(1)->getData()[i]);
-                    AddBytes(bias_number_size, buffer_bias_val);
-                }
-
-            }   // end scale case
-        }    // end traverse of graph
-
-        // pad buffer section to align to 64 byte boundary
-        for (unsigned i=0; i< blob_stats.buffer_data_pad_size; i++)
-        {
-            AddBytes(1, buffer_pad_val);
+            int adjustment = 0;
+            while((bit->size*2 + adjustment*2) % 64 != 0){
+                AddBytes(2, 0);
+                adjustment++;
+            }
         }
-
     }
 
     void Blob_buffer::write_relocation_section(mv::ControlModel& cm)

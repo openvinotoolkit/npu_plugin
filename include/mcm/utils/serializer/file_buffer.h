@@ -25,6 +25,10 @@ class WBuffer
             FileSize = 0 ;
         }
 
+        int getPointer(){
+            return this->BitPointer;
+        }
+
         template <typename number_T>
         number_T align8(number_T number_2_round)
         {

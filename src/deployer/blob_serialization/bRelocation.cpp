@@ -22,12 +22,10 @@ namespace mv
         }
 
         std::vector<std::pair<int, bLocation>>::iterator v_it;
-        for(v_it = constant_entries.begin(); v_it != constant_entries.end(); v_it++ )    {
+        for(v_it = variable_entries.begin(); v_it != variable_entries.end(); v_it++ )    {
             b->AddBytes(4, v_it->first);
             b->AddBytes(4, (int)v_it->second);
         }
-
-
     }
 
     unsigned int RelocationTable::push_entry(std::pair<int, bLocation> ol){
