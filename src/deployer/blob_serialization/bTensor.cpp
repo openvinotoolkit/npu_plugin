@@ -74,6 +74,7 @@ namespace mv
         int block = 0;
 
         if ((*t)->isPopulated()){
+            printf("Populated\n");
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
@@ -87,14 +88,44 @@ namespace mv
         }
         else
         {
-            mem = dm->getBuffer("IntermediateMemory", stg, *t);
-            //printf("Serialization Error: Unpopulated Tensor does not have an allocator yet.\n");
-            // this->offset = mem->offset;
-            this->location = BLOB_EXTERNAL_LOCATION;
-            blk_stride = (int)mem->stride;
-            block = (int)mem->block;
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
-            this->offset = rt_entry;
+            try{
+                printf("UnPopulated\n");
+                mem = dm->getBuffer("IntermediateMemory", stg, *t);
+                //printf("Serialization Error: Unpopulated Tensor does not have an allocator yet.\n");
+                // this->offset = mem->offset;
+                this->location = BLOB_EXTERNAL_LOCATION;
+                blk_stride = (int)mem->stride;
+                block = (int)mem->block;
+                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
+                this->offset = rt_entry;
+            }catch(ArgumentError){
+                printf("Not Present in ALlocator. Probably an Input or Output Buffer\n");
+
+                mv::OpModel om(*cm);
+                auto ipt = om.getInput();
+                auto opt = om.getOutput();
+                auto idf = dm->getInputFlow()->getTensor();
+                auto odf = dm->getOutputFlow()->getTensor();
+                std::cout << "Op: " << ipt->getName() << std::endl;
+                std::cout << "Op: " << opt->getName() << std::endl;
+                std::cout << "DataFlow:" << idf->getName() << std::endl;
+                std::cout << "DataFlow:" << odf->getName() << std::endl;
+                std::cout << "This:" << (*t)->getName() << std::endl;
+
+                if (idf->getName().compare((*t)->getName()) == 0){
+                    std::cout  << "Network Input. Note: IO Offset not supported by serializer" << std::endl;
+                    this->location = BLOB_INPUT_LOCATION;
+                    this->offset = 0;
+                }
+                else if (odf->getName().compare((*t)->getName()) == 0){
+                    std::cout  << "Network Output. Note: IO Offset not supported by serializer" << std::endl;
+                    this->location = BLOB_OUTPUT_LOCATION;
+                    this->offset = 0;
+                } else{
+                    std::cout << "Serialization Error: Tensor Position not resolved" << std::endl;
+                    assert(0);
+                }
+            }
         }
 
         int striding_axis = 0;

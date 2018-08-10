@@ -48,8 +48,6 @@ namespace mv
                 }
             }
 
-            // TODO:
-
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
@@ -68,8 +66,8 @@ namespace mv
                 0,
                 // fp16_size*this->output->getShape().totalSize(),    // Y Stride
                 // fp16_size*this->output->getShape().totalSize(),    // z Stride
-                 -1, // Offset - Memory Manager
-                -1, // Location - Memory Manager
+                999, // Offset - Memory Manager
+                3, // Location - Memory Manager
                 0,
                 1
             );
@@ -87,8 +85,8 @@ namespace mv
                 0,
                 0,
                 fp16_size, // SZ
-                 -1, // Offset - Memory Manager
-                -1, // Location - Memory Manager
+                999, // Offset - Memory Manager
+                3, // Location - Memory Manager
                 0,
                 0
             );
