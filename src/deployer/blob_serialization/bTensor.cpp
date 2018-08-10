@@ -91,53 +91,10 @@ namespace mv
         {
 
             mv::OpModel om(*cm);
-            std::vector<pair<mv::Data::TensorIterator, mv::string>> const_names;
 
             std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
-            mem = dm->getBuffer("IntermediateMemory", stg, *t);
 
-            // HACK: Taps are not directly connected to a layer
-            bool hack_activated = false;
-
-            for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
-            {
-                if(opIterator->getOpType() == OpType::Constant){
-                    auto bin = opIterator->getInputTensor(0);
-                    auto bout = opIterator->getOutputTensor(0)->getName();
-
-                    std::cout << "CONSTANT" << std::endl;
-                    std::cout << "Ops: " << bout << std::endl;
-                    std::cout << "Ops: " <<  bin->getName() << " - " << std::endl;
-
-                    pair<mv::Data::TensorIterator, mv::string> b(bin, bout);
-                    const_names.push_back(b);
-                }
-            }
-            for(auto constIt = const_names.begin(); constIt != const_names.end(); ++constIt){
-                if(constIt->second.compare((*t)->getName())){
-                    std::cout  << "Network Const..." << std::endl;
-
-                    std::cout << "Const Ref: " <<  (*(constIt->first)).getName() << std::endl;
-
-                    mem = dm->getBuffer("ConstantMemory", stg, constIt->first);
-
-                    std::cout << "Const Ref: " <<  mem << std::endl;
-                    this->location = BLOB_INTERNAL_LOCATION;
-
-                    blk_stride = (int)mem->stride;
-                    block = (int)mem->block;
-
-                    int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
-
-                    this->offset = rt_entry;
-                    hack_activated = true;
-                }else{
-                    std::cout << "Const Comapre: " << constIt->second << (*t)->getName() << std::endl;
-                }
-            }
-            // Hack End
-
-            if (mem == dm->bufferEnd("IntermediateMemory", stg) && !hack_activated){
+            if (mem == dm->bufferEnd("IntermediateMemory", stg)  ){//&& !hack_activated){
                 // Not Found - In or Output
                 std::vector<mv::string> input_names, output_names;
 
