@@ -8,13 +8,13 @@ int main()
 
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
-    
+
     // Initialize weights data
     mv::dynamic_vector<mv::float_type> weights1Data = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
     mv::dynamic_vector<mv::float_type> weights2Data = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
     mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
 
-    // Compose model - use Composition API to create ops and obtain tensors 
+    // Compose model - use Composition API to create ops and obtain tensors
     auto input = cm.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::ColumnMajor);
     auto weights1 = cm.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::ColumnMajor);
     auto conv1 = cm.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
@@ -24,7 +24,7 @@ int main()
     auto pool2 = cm.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
     auto weights3 = cm.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::ColumnMajor);
     auto conv3 = cm.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
-    cm.output(conv3); 
+    cm.output(conv3);
 
     // Load target descriptor for the selected target to the compilation unit
     std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
@@ -42,7 +42,7 @@ int main()
     // Output BLOB - file name of the output binary
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("allocate_resouces.blob");
 
-    // Initialize compilation 
+    // Initialize compilation
     unit.initialize();
 
     // Run all passes
