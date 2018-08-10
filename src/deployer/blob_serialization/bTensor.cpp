@@ -98,8 +98,7 @@ namespace mv
         }
 
         int striding_axis = 0;
-        // !!! That probably should not be an assignment but comparison ==
-        if (block = 2){
+        if (block == fp16_size){
             // X
             striding_axis = 0;
         }else if(block == this->dimX){
