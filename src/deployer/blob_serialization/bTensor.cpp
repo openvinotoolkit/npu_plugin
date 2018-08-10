@@ -43,16 +43,17 @@ namespace mv
 
     Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t){
 
-        printf("Tensor Start\n");
-
         int fp16_size = 2;
         this->dataType = 0;
 
+        std::cout << "***********" << Printable::toString((*t)->getOrder()) << "***********" <<  std::endl;
+
         if ((int)(*t)->getShape().ndims() == 4){
 
-            this->dimX = (*t)->getShape()[0] * (*t)->getShape()[1];
+            // Note: The Myriad's Idea of Planar for Weights and The C++ Compiler's Idea are different, hence the swap in Z & X
+            this->dimX = (*t)->getShape()[3];
             this->dimY = (*t)->getShape()[2];
-            this->dimZ = (*t)->getShape()[3];
+            this->dimZ = (*t)->getShape()[0] * (*t)->getShape()[1];
 
         }else{
             assert((int)(*t)->getShape().ndims() == 3);
@@ -74,7 +75,8 @@ namespace mv
         int block = 0;
 
         if ((*t)->isPopulated()){
-            printf("Populated\n");
+            std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
+
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
@@ -84,47 +86,94 @@ namespace mv
             int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
 
             this->offset = rt_entry;
-
         }
         else
         {
-            try{
-                printf("UnPopulated\n");
-                mem = dm->getBuffer("IntermediateMemory", stg, *t);
-                //printf("Serialization Error: Unpopulated Tensor does not have an allocator yet.\n");
-                // this->offset = mem->offset;
+
+            mv::OpModel om(*cm);
+            std::vector<pair<mv::Data::TensorIterator, mv::string>> const_names;
+
+            std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
+            mem = dm->getBuffer("IntermediateMemory", stg, *t);
+
+            // HACK: Taps are not directly connected to a layer
+            bool hack_activated = false;
+
+            for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+            {
+                if(opIterator->getOpType() == OpType::Constant){
+                    auto bin = opIterator->getInputTensor(0);
+                    auto bout = opIterator->getOutputTensor(0)->getName();
+
+                    std::cout << "CONSTANT" << std::endl;
+                    std::cout << "Ops: " << bout << std::endl;
+                    std::cout << "Ops: " <<  bin->getName() << " - " << std::endl;
+
+                    pair<mv::Data::TensorIterator, mv::string> b(bin, bout);
+                    const_names.push_back(b);
+                }
+            }
+            for(auto constIt = const_names.begin(); constIt != const_names.end(); ++constIt){
+                if(constIt->second.compare((*t)->getName())){
+                    std::cout  << "Network Const..." << std::endl;
+
+                    std::cout << "Const Ref: " <<  (*(constIt->first)).getName() << std::endl;
+
+                    mem = dm->getBuffer("ConstantMemory", stg, constIt->first);
+
+                    std::cout << "Const Ref: " <<  mem << std::endl;
+                    this->location = BLOB_INTERNAL_LOCATION;
+
+                    blk_stride = (int)mem->stride;
+                    block = (int)mem->block;
+
+                    int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
+
+                    this->offset = rt_entry;
+                    hack_activated = true;
+                }else{
+                    std::cout << "Const Comapre: " << constIt->second << (*t)->getName() << std::endl;
+                }
+            }
+            // Hack End
+
+            if (mem == dm->bufferEnd("IntermediateMemory", stg) && !hack_activated){
+                // Not Found - In or Output
+                std::vector<mv::string> input_names, output_names;
+
+                for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+                {
+                    if (opIterator->getOpType() == OpType::Input){
+                        auto b = opIterator->getOutputTensor(0)->getName();
+                        input_names.push_back(b);
+                    }else if(opIterator->getOpType() == OpType::Output){
+                        auto b = opIterator->getInputTensor(0)->getName();
+                        output_names.push_back(b);
+                    }
+                }
+
+                if(std::find(input_names.begin(), input_names.end(), (*t)->getName()) != input_names.end()) {
+                    std::cout  << "Network Input. Note: IO Offset not supported by serializer" << std::endl;
+                    this->location = BLOB_INPUT_LOCATION;
+                    this->offset = 0;
+                }else{
+                    if(std::find(output_names.begin(), output_names.end(), (*t)->getName()) != output_names.end()) {
+                        std::cout  << "Network Output. Note: IO Offset not supported by serializer" << std::endl;
+                        this->location = BLOB_OUTPUT_LOCATION;
+                        this->offset = 0;
+                    }else{
+
+                        std::cout << "Serialization Error: Tensor Position not resolved" << std::endl;
+                        assert(0);
+                    }
+                }
+            }else{
+                // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
                 blk_stride = (int)mem->stride;
                 block = (int)mem->block;
                 int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
                 this->offset = rt_entry;
-            }catch(ArgumentError){
-                printf("Not Present in ALlocator. Probably an Input or Output Buffer\n");
-
-                mv::OpModel om(*cm);
-                auto ipt = om.getInput();
-                auto opt = om.getOutput();
-                auto idf = dm->getInputFlow()->getTensor();
-                auto odf = dm->getOutputFlow()->getTensor();
-                std::cout << "Op: " << ipt->getName() << std::endl;
-                std::cout << "Op: " << opt->getName() << std::endl;
-                std::cout << "DataFlow:" << idf->getName() << std::endl;
-                std::cout << "DataFlow:" << odf->getName() << std::endl;
-                std::cout << "This:" << (*t)->getName() << std::endl;
-
-                if (idf->getName().compare((*t)->getName()) == 0){
-                    std::cout  << "Network Input. Note: IO Offset not supported by serializer" << std::endl;
-                    this->location = BLOB_INPUT_LOCATION;
-                    this->offset = 0;
-                }
-                else if (odf->getName().compare((*t)->getName()) == 0){
-                    std::cout  << "Network Output. Note: IO Offset not supported by serializer" << std::endl;
-                    this->location = BLOB_OUTPUT_LOCATION;
-                    this->offset = 0;
-                } else{
-                    std::cout << "Serialization Error: Tensor Position not resolved" << std::endl;
-                    assert(0);
-                }
             }
         }
 
@@ -175,7 +224,5 @@ namespace mv
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);
         }
-
-        printf("Tensor End\n");
     }
 }

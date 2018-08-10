@@ -71,11 +71,49 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
-        if (!tIt->isPopulated())
+
+        OpModel om(dm) ;
+        bool external = false, fake = false;
+        std::vector<mv::string> input_names, output_names, invalid_names;
+        for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+        {
+            if (opIterator->getOpType() == OpType::Input){
+                auto b = opIterator->getOutputTensor(0)->getName();
+                input_names.push_back(b);
+            }else if(opIterator->getOpType() == OpType::Output){
+                auto b = opIterator->getInputTensor(0)->getName();
+                output_names.push_back(b);
+            }else if(opIterator->getOpType() == OpType::Constant){
+                auto b = opIterator->getOutputTensor(0)->getName();
+                invalid_names.push_back(b);
+            }
+        }
+
+        std::cout << "MEMALL: " << tIt->getName() << std::endl;
+
+        if(std::find(input_names.begin(), input_names.end(), tIt->getName()) != input_names.end()) {
+            std::cout  << "MEMALL: Network Input. Note: IO Offset not supported by serializer" << std::endl;
+            external = true;
+        }else {
+            if(std::find(output_names.begin(), output_names.end(), tIt->getName()) != output_names.end()) {
+                std::cout  << "MEMALL: Network Output. Note: IO Offset not supported by serializer" << std::endl;
+                external = true;
+            }else{
+                std::cout << "MEMALL: Serialization Error: Tensor Position not external" << std::endl;
+            }
+        }
+
+
+        if(std::find(invalid_names.begin(), invalid_names.end(), tIt->getName()) != invalid_names.end()) {
+            fake = true;
+        }
+
+
+        if (!tIt->isPopulated() and !external and !fake)
         {
             auto stageIt = cm.getStage(0);
             dm.allocateTensor("IntermediateMemory", stageIt, tIt);
         }
     }
-    
+
 }

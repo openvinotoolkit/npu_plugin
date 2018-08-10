@@ -45,7 +45,8 @@
 			"MarkHardwareConvolution",
 			"AddConversionLayers",
 			"ArrangeLinearExecution",
-			"AllocatePopulatedTensors"
+			"AllocatePopulatedTensors",
+			"AllocateUnpopulatedTensors"
 		],
 
 		"serialize":

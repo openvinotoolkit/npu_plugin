@@ -15,6 +15,7 @@ namespace mv
 
         inputBlobTensor.write(b);
         outputBlobTensor.write(b);
+
     }
 
     bCompatibility::bCompatibility(mv::ComputationOp* it)
