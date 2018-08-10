@@ -4,9 +4,10 @@
 #include <vector>
 #include <utility>
 #include "include/mcm/utils/serializer/file_buffer.h"
-
+// #include "include/mcm/deployer/blob_serializer.hpp"
 namespace mv
 {
+    class Blob_buffer; // Forward Declaration
 
     enum class bLocation
     {
@@ -25,7 +26,7 @@ namespace mv
             std::vector<std::pair<int, bLocation>> variable_entries;
 
         public:
-            void write(WBuffer* b);
+            void write(Blob_buffer* b);
             unsigned int push_entry(std::pair<int, bLocation> ol );
     };
 }

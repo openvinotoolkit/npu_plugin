@@ -89,8 +89,6 @@ namespace mv
 
                         blob_stats.stage_section_size += (2*4) ; // PreOp PostOp TODO: Move OUT.
                         blob_stats.stage_section_size += (3*4) ; // nextsatge, etc MOVE OUT.
-                        blob_stats.data_buffer_count++;     // BAD: Account for two incorrectly added buffers to relocation.
-                        blob_stats.data_buffer_count++;     // BAD: Account for two incorrectly added buffers to relocation.
                         additional_buf++;       // Has scale also
                     }else{
                         blob_stats.stage_section_size += (53*4) ;
@@ -182,7 +180,7 @@ namespace mv
         // uint32_t aligned_buffer_data_size = align(blob_stats.buffer_data_size, 64) ;
         // blob_stats.buffer_data_pad_size = aligned_buffer_data_size - blob_stats.buffer_data_size ;
         // blob_stats.buffer_data_size = aligned_buffer_data_size ;
-        blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) ;
+        // blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) ;
 
         blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) + additional_buf*8;
 
@@ -1404,6 +1402,10 @@ namespace mv
                 adjustment++;
             }
         }
+    }
+
+    blob_summary Blob_buffer::getBlobSumm(){
+        return this->blob_stats;
     }
 
     void Blob_buffer::write_relocation_section(mv::ControlModel& cm)

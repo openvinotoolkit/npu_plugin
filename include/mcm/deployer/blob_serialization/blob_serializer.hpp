@@ -192,6 +192,9 @@ namespace mv
                 this->reloc_table = RelocationTable();
             }
 
+            blob_summary getBlobSumm();
+
+
             // Calculate Blob Statistics
             void calc(mv::ControlModel& cm);
 

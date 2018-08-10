@@ -1,18 +1,28 @@
 #include <stdio.h>
-#include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
 #include <string.h>
 #include <assert.h>
+#include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
+#include "include/mcm/deployer/blob_serialization/blob_serializer.hpp"
 
 namespace mv
 {
-    void RelocationTable::write(WBuffer* b)
+
+    void RelocationTable::write(Blob_buffer* b)
     {
         printf("Write Reloc Table Now\n");
 
-        b->AddBytes(4, 20); // Section Header Size HARDCODED :(
-        b->AddBytes(4, 42);  // Unknown - blob_buffer_reloc_offset
+        auto blob_stats = b->getBlobSumm();
+
+        b->AddBytes(4, blob_stats.relocation_section_size);
+
+        uint32_t mv_stage_section_offset = blob_stats.elf_header_size+blob_stats.mv_header_size+blob_stats.header_pad_size ;
+        uint32_t mv_buffer_section_offset = mv_stage_section_offset + blob_stats.stage_section_size ;
+        uint32_t mv_relocation_offset = mv_buffer_section_offset + blob_stats.buffer_header_size + blob_stats.buffer_data_size ;
+
+
+        b->AddBytes(4, mv_relocation_offset + 20);
         b->AddBytes(4, 8*this->constant_entries.size()); // blob_buffer_reloc_size
-        b->AddBytes(4, 42);  // Unknown - work_buffer_reloc_offset
+        b->AddBytes(4, mv_relocation_offset+20+8*this->constant_entries.size());  // Unknown - work_buffer_reloc_offset
         b->AddBytes(4, 8*this->variable_entries.size()); // work_buffer_reloc_size
 
         std::vector<std::pair<int, bLocation>>::iterator c_it;
