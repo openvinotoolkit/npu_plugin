@@ -44,6 +44,7 @@ file(GLOB base
     "src/base/exception/*.cpp"
     "src/utils/*.cpp"
     "src/base/singleton.cpp"
+    "src/base/order/*.cpp"
 )
 
 file(GLOB tensor

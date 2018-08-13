@@ -10,7 +10,8 @@ include_directories(${GTEST_INCLUDE_DIRS})
 #include_directories(include/mcm/graph)
 
 file(GLOB base_src
-    "base/*.cpp"    
+    "base/*.cpp"
+    "base/order/*.cpp"
 )
 
 file(GLOB op_src
@@ -33,9 +34,14 @@ file(GLOB graph_src
     "graph/*.cpp"
 )
 
+file(GLOB resources
+    "resources/*.cpp"
+)
+
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     ${graph_src}
+    ${resources}
     ${base_src}
     ${op_src}
     ${pass_src}

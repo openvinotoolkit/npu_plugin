@@ -89,7 +89,7 @@ namespace mv
         /**
          * @brief Order of 1-dimensional representations of multidimensional tensors allocated by the allocator
          */
-        Order order_;
+        std::unique_ptr<OrderClass> order_;
 
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
@@ -113,7 +113,7 @@ namespace mv
         BufferIterator bufferBegin(unsigned stageIdx);
         BufferIterator bufferEnd(unsigned stageIdx);
         BufferIterator getBuffer(unsigned stageIdx, Data::TensorIterator tensor);
-
+        long recursiveWriteStrides(unsigned dimension_index, const mv::dynamic_vector<unsigned>& paddings, mv::dynamic_vector<unsigned> &strides, const Shape s);
     };
 
 }

@@ -1,7 +1,31 @@
 #include "include/mcm/computation/resource/memory_allocator.hpp"
+#include "include/mcm/base/order/order_factory.hpp"
 #include <iostream>
 
 mv::allocator mv::MemoryAllocator::allocator_;
+
+long mv::MemoryAllocator::recursiveWriteStrides(unsigned i, const mv::dynamic_vector<unsigned>& p, mv::dynamic_vector<unsigned>& strides, const mv::Shape d)
+{
+    if(order_->isFirstContiguousDimensionIndex(d, i))
+    {
+        strides.push_back(p[i]);
+        return p[i] + d[i];
+    }
+    else
+    {
+        long new_stride;
+        for(unsigned c = 0; c < d[i]; ++c)
+        {
+            unsigned next_dim_index = order_->previousContiguousDimensionIndex(d, i);
+            new_stride = recursiveWriteStrides(next_dim_index, p, strides, d);
+        }
+        //Last stride should be joined (stride definition -> only between two blocks)
+        long toAdd = strides.back();
+        strides.pop_back();
+        strides.push_back(p[i] * new_stride + toAdd);
+        return new_stride * (d[i] + p[i])                                                                                                                                                                         ;
+    }
+}
 
 bool mv::MemoryAllocator::MemoryBuffer::operator<(const MemoryBuffer& other) const
 {
@@ -66,7 +90,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx, BufferIterator first,
 mv::MemoryAllocator::MemoryAllocator(string name, std::size_t size, Order order) :
 name_(name),
 size_(size),
-order_(order)
+order_(mv::OrderFactory::createOrder(order))
 {
 
 }

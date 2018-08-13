@@ -9,6 +9,7 @@
 #include "include/mcm/base/exception/order_error.hpp"
 #include "include/mcm/base/exception/shape_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
+#include "include/mcm/base/order/order_factory.hpp"
 
 namespace mv
 {
@@ -22,15 +23,6 @@ namespace mv
         Shape shape_;
         bool populated_;
         static static_vector<dim_type, byte_type, max_ndims> subsBuffer_;
-        std::function<unsigned(const Shape&, const static_vector<dim_type, byte_type, max_ndims>&)> subToIndFcn_;
-        std::function<static_vector<dim_type, byte_type, max_ndims>(const Shape& s, unsigned)> indToSubFcn_;
-
-        static const std::function<unsigned(const Shape& s, const static_vector<dim_type, byte_type, max_ndims>&)> subToIndColumMajor_;
-        static const std::function<static_vector<dim_type, byte_type, max_ndims>(const Shape& s, unsigned)> indToSubColumMajor_;
-        static const std::function<unsigned(const Shape& s, const static_vector<dim_type, byte_type, max_ndims>&)> subToIndRowMajor_;
-        static const std::function<static_vector<dim_type, byte_type, max_ndims>(const Shape& s, unsigned)> indToSubRowMajor_;
-        static const std::function<unsigned(const Shape& s, const static_vector<dim_type, byte_type, max_ndims>&)> subToIndPlanar_;
-        static const std::function<static_vector<dim_type, byte_type, max_ndims>(const Shape& s, unsigned)> indToSubPlanar_;
 
         bool elementWise_(const Tensor& other, const std::function<float(float, float)>& opFunc);
 
@@ -48,56 +40,8 @@ namespace mv
             unfoldSubs_(subs...);
         }
 
-        static inline std::function<unsigned(const Shape&, const static_vector<dim_type, byte_type, max_ndims>&)> selectSubToInd_(Order order)
-        {
-            switch (order)
-            {
-                case Order::ColumnMajor:
-                    return subToIndColumMajor_;
-
-                case Order::RowMajor:
-                    return subToIndRowMajor_;
-
-                case Order::Planar:
-                    return subToIndPlanar_;
-
-                default:
-                    throw OrderError("Undefined order");
-            }
-        }
-
-        static inline std::function<static_vector<dim_type, byte_type, max_ndims>(const Shape& s, unsigned)> selectIndToSub_(Order order)
-        {
-            switch (order)
-            {
-                case Order::ColumnMajor:
-                    return indToSubColumMajor_;
-
-                case Order::RowMajor:
-                    return indToSubRowMajor_;
-
-                case Order::Planar:
-                    return indToSubPlanar_;
-
-                default:
-                    throw OrderError("Undefined order");
-            }
-        }
-
-        inline unsigned subToInd_(const Shape& s, static_vector<dim_type, byte_type, max_ndims>& sub) const
-        {
-            return subToIndFcn_(s, sub);
-        }
-
-        inline static_vector<dim_type, byte_type, max_ndims> indToSub_(const Shape& s, unsigned idx) const
-        {
-            return indToSubFcn_(s, idx);
-        }
 
     public:
-
-        static unsigned subToInd(const Shape& shape, const static_vector<dim_type, byte_type, max_ndims>& sub, Order order);
-        static static_vector<dim_type, byte_type, max_ndims> indToSub(const Shape& s, unsigned idx, Order order);
 
         Tensor(const string &name, const Shape &shape, DType dType, Order order);
         Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data);
@@ -125,16 +69,6 @@ namespace mv
         bool divide(float val);
         bool sqrt();
 
-        inline unsigned subToInd(const static_vector<dim_type, byte_type, max_ndims>& sub) const
-        {
-            return subToIndFcn_(shape_, sub);
-        }
-
-        static_vector<dim_type, byte_type, max_ndims> indToSub(unsigned idx) const
-        {
-            return indToSubFcn_(shape_, idx);
-        }
-
         float_type& at(const static_vector<dim_type, byte_type, max_ndims>& sub);
         const float_type& at(const static_vector<dim_type, byte_type, max_ndims>& sub) const;
         float_type& at(unsigned idx);
@@ -154,6 +88,32 @@ namespace mv
             return shape_;
         }
 
+        inline static_vector<dim_type, byte_type, max_ndims> indToSub(unsigned index)
+        {
+            return indToSub_(shape_, index);
+        }
+
+        inline unsigned subToInd(const static_vector<dim_type, byte_type, max_ndims>& sub) const
+        {
+            return subToInd_(shape_, sub);
+        }
+
+        inline static_vector<dim_type, byte_type, max_ndims> indToSub_(const Shape& s, unsigned index)
+        {
+            std::unique_ptr<OrderClass> order_ = mv::OrderFactory::createOrder(getOrder());
+
+            return order_->indToSub(s, index);
+        }
+
+        inline unsigned subToInd_(const Shape& s, const static_vector<dim_type, byte_type, max_ndims>& sub) const
+        {
+            std::unique_ptr<OrderClass> order_ = mv::OrderFactory::createOrder(getOrder());
+
+            return order_->subToInd(s, sub);
+        }
+
+
+
         template<typename... Idx>
         float_type& at(Idx... indices)
         {
@@ -168,7 +128,9 @@ namespace mv
             subsBuffer_.clear();
             unfoldSubs_(indices...);
 
-            return (*data_)[subToInd(subsBuffer_)];
+            std::unique_ptr<OrderClass> order_ = mv::OrderFactory::createOrder(getOrder());
+
+            return (*data_)[order_->subToInd(shape_, subsBuffer_)];
 
         }
 
@@ -185,7 +147,9 @@ namespace mv
             subsBuffer_.clear();
             unfoldSubs_(indices...);
 
-            return (*data_)[subToInd(subsBuffer_)];
+            std::unique_ptr<OrderClass> order_ = mv::OrderFactory::createOrder(getOrder());
+
+            return (*data_)[order_->subToInd(shape_, subsBuffer_)];
 
         }
 
