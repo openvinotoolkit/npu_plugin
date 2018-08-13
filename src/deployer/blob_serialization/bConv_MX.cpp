@@ -258,7 +258,7 @@ namespace mv
         }
         else
         {
-            LPC = it->getAttr("NCE1_LinesPerChannel").getContent<int>();
+            LPC = it->getAttr("NCE1_LinesPerChannel").getContent<int>() -1;
         }
 
         if (! it->hasAttr("NCE1_MinLines"))
@@ -267,7 +267,7 @@ namespace mv
         }
         else
         {
-            minLines = it->getAttr("NCE1_MinLines").getContent<int>();
+            minLines = it->getAttr("NCE1_MinLines").getContent<int>() -1;
         }
 
         if (! it->hasAttr("stride"))
@@ -305,10 +305,10 @@ namespace mv
             this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
 
             // Standard Fields for Convolution
-            this->descriptors[i].kernelWidth = this->taps->getShape()[0];
-            this->descriptors[i].kernelHeight = this->taps->getShape()[1];
+            this->descriptors[i].kernelWidth = this->taps->getShape()[0] -1;
+            this->descriptors[i].kernelHeight = this->taps->getShape()[1] -1;
 
-            this->descriptors[i].chStride = stride;  // Stride of Kernel (Square only)
+            this->descriptors[i].chStride = stride -1;  // Stride of Kernel (Square only)
 
             if (padEn > 0)
             {
@@ -321,11 +321,16 @@ namespace mv
 
             this->descriptors[i].padType = 0;   // Zero Padding
 
-            this->descriptors[i].inputWidth = this->input->getShape()[0];
-            this->descriptors[i].inputHeight = this->input->getShape()[1];
-            this->descriptors[i].inputChannels = this->input->getShape()[2];
+            std::cout << "Input Size: " << this->input->getShape()[0] << std::endl;
+            std::cout << "Input Size: " << this->input->getShape()[1] << std::endl;
+            std::cout << "Input Size: " << this->input->getShape()[2] << std::endl;
+            std::cout << "Output Size: " << this->input->getShape()[2] << std::endl;
 
-            this->descriptors[i].outputChannels = this->output->getShape()[2];
+            this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
+            this->descriptors[i].inputHeight = this->input->getShape()[1] -1;
+            this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
+
+            this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 
             // Descriptor Buffers
 
@@ -347,11 +352,13 @@ namespace mv
             // this->descriptors[i].scaleBaseAddr = 0;
 
             // Myriad X DPU Assignment & Execution Configuration
-            this->descriptors[i].Line0.mode = this->opMode;
+            this->descriptors[i].Line0.mode = 0 ;//this->opMode;
             this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
             this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
 
-            this->descriptors[i].chPerRamBlock = chPerRamBlock;        // Input Channels per Ram Block
+
+            std::cout << "chPerRamBlock:::::::::::::::::::::::::"<< chPerRamBlock << std::endl;
+            this->descriptors[i].chPerRamBlock = chPerRamBlock -1;        // Input Channels per Ram Block
 
 
             // Myriad X Compensation Fields
@@ -366,7 +373,7 @@ namespace mv
 
             this->descriptors[i].minLines = minLines;     // Minimum lines of data required to carry out function
 
-            this->descriptors[i].coeffLpb = this->descriptors[i].chPerRamBlock * this->descriptors[i].kernelWidth * this->descriptors[i].kernelHeight;
+            this->descriptors[i].coeffLpb = this->descriptors[i].chPerRamBlock * this->descriptors[i].kernelWidth * this->descriptors[i].kernelHeight - 1;
             this->descriptors[i].css = this->descriptors[i].kernelWidth * this->descriptors[i].kernelHeight -1 ;
             this->descriptors[i].outputX = this->output->getShape()[2];
 
@@ -377,7 +384,7 @@ namespace mv
             // Fused ReLU
             this->descriptors[i].t0 = 0;
             this->descriptors[i].a0 = 0;
-            this->descriptors[i].a1 = 1;
+            this->descriptors[i].a1 = 0;
             this->descriptors[i].reluxEn = 0;
             this->descriptors[i].reluEn = 0;
 

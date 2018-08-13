@@ -31,7 +31,8 @@ class SerializedDescriptor:
             ("NextDesc", [32, None, HEX]),
             ("Type", [3, None]),
             ("mode", [3, None]),
-            ("rsvd_00", [2, None]),
+            ("rsvd_01_interleavedInput", [1, None]),
+            ("rsvd_01_interleavedOutput", [1, None]),
             ("id", [4, None]),
             ("it", [4, None]),
             ("cm", [3, None]),
@@ -45,19 +46,19 @@ class SerializedDescriptor:
             main_layout = OrderedDict([
                 # Line 1
                 ("iDimY-1", [12, None]),
-                ("rsvd_10", [4, None]),
+                ("rsvd_10_topOutputJunk", [4, None]),
                 ("iDimX-1", [12, None]),
-                ("rsvd_11", [4, None]),
+                ("rsvd_11_bottomOutputJunk", [4, None]),
                 ("iChans-1", [11, None]),
                 ("rsvd_12", [5, None]),
                 ("oChans-1", [11, None]),
                 ("rsvd_13", [3, None]),
-                ("interleaved", [2, None]),
+                ("rsvd_13_interleaved", [2, None]),
 
                 # Line 2
                 ("ChRamBlk-1", [11, None]),
                 ("rsvd_20", [5, None]),
-                ("stride", [4, None]),
+                ("Ch_stride", [4, None]),
                 ("rsvd_21", [12, None]),
                 ("InFw-1", [4, None]),
                 ("InFh-1", [4, None]),
@@ -104,12 +105,12 @@ class SerializedDescriptor:
                 ("localCs", [13, None]),
                 ("rsvd_91", [3, None]),
                 ("linesPerCh-1", [9, None]),
-                ("rsvd_92", [22, None]),
+                ("rsvd_92_SODGroup", [22, None]),
                 ("rud", [1, None]),
 
                 # Line 10
                 ("minLines-1", [9, None]),
-                ("rsvd_A0", [23, None]),
+                ("rsvd_A0__SOHGroup", [23, None]),
                 ("coeffLpb-1", [8, None]),
                 ("css-1", [8, None]),
                 ("outputX", [12, None]),
@@ -345,7 +346,7 @@ class SerializedDescriptor:
             if len(self.layout[x]) == 3:
                 print(x, self.layout[x][2].format(self.layout[x][1]), end='. ')
             else:
-                print(x, self.layout[x][1],end='. ')
+                print(x, self.layout[x][1], end='. ')
             bit_count += self.layout[x][0]
             if bit_count >= 64:
                 # End of Line
@@ -372,7 +373,13 @@ class SerializedDescriptor:
         step = 8
         while x < len(desc):                            # Each 'half-line' is 32 bits, or 8 hex values.
             hex_ = desc[x:x+step]                       # We iterate over each of these half-lines.
-            bin_ = bin(int(hex_,16))[2:].zfill(step*4)  # Convert to binary.
+            # print(hex_)
+            bin_ = bin(int(hex_,16))[2:]
+            # print("orig:   ", bin_)
+            # bin_ = bin_[::-1].zfill(step*4)[::-1]
+            bin_ = bin_.zfill(step*4)
+            # print("filled: ",bin_)
+
             lines.append(bin_)                          # and add to a larger list.
             x+=step
 
@@ -380,16 +387,35 @@ class SerializedDescriptor:
 
         for field in self.layout:
             field_bits = self.layout[field][0]          # How many bits required for field.
+
+
             idx = (char_count)//32                      # Index of Half-line in line list.
             target_line = lines[idx]
+
+            # target_line = target_line[::-1]
+
+            # if field == "ChRamBlk-1":
+            #     print("Original Binary: ", target_line, "To Extract", field, "from", field_bits, "bits. On half-line:", idx)
+
             tmp_cc = char_count - ((char_count//32)*32)
+
+
                                                         # We then index into the half-line from the other direction.
             end = 32-tmp_cc
             start = 32-(tmp_cc + field_bits)
 
-            cut_value = target_line[start:end].zfill(field_bits)      # Strip the part we want and pad with 0s if required.
+            # end = (tmp_cc + field_bits)
+            # start = tmp_cc
+
+            target_segment = target_line[start:end]
+            # if field in ["ChRamBlk-1"]:
+            #     print("Extracted: ", target_segment, "@", start, ":", end)
+            cut_value = target_segment.zfill(field_bits)      # Strip the part we want and pad with 0s if required.
+
             char_count += field_bits                    # Increment pointer
 
+            # if field == "ChRamBlk-1":
+            #     print(field, cut_value, '0x{:08X}'.format(int(cut_value,2)), int(cut_value,2))
             self.set_field(field, int(cut_value,2))     # Populate field
 
 
@@ -763,15 +789,40 @@ def main():
             descriptor = ""
             for j, d in enumerate(s["Op..."]["Descriptors"]):
                 for x in d["Half-Line"]:
-                    descriptor += x.hex()
+                    # print("original Hex", x, x.hex())
+                    # descriptor += x.hex()
+                    import struct
+                    # val = struct.pack(">I", int(x.hex()))
+                    # print(x.hex(), type(x.hex()))
+                    val = x.hex()
+                    # print("Original:  ", val)
+                    # print("Hex: L:", val[:4], "R:", val[4:])
+                    lval = val[:4]
+                    rval = val[4:]
+                    # print("LR: ", lval, rval)
+                    lval = int(lval, 16)
+                    rval = int(rval, 16)
+                    # print("LR: ", lval, rval)
+                    lval = struct.pack('<H',lval)
+                    rval = struct.pack('<H',rval)
+                    # print("LR: ", lval, rval)
+                    # val = struct.unpack('>I', val)
+                    # print("VAL", val)
+                    # print(lval+rval)
+                    val = rval+lval
+                    # print("Converted: ", val.hex())
+                    descriptor += val.hex()
+
 
                 print("")
                 print("Descriptor #", j)
                 s = SerializedDescriptor("Conv")
                 s.deserialize(descriptor)
                 s.print()
+                # quit()
 
-        except :
+        except Exception as e:
+            # print(e)
             print("#### No Descriptors at index", i, "####")
 
 if __name__ == "__main__":
