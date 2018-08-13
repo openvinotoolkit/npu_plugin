@@ -39,18 +39,34 @@ namespace mv
             std::cout << "shvPosSlope: " << this->shvPosSlope << std::endl;
             std::cout << "Desc Count: " << this->desc_count << std::endl;
 
-            for (unsigned i = 0; i != this->desc_count; i++)
-            {
-                // dump_descriptors(&this->descriptors[i]);
-                for(unsigned j = 0; j != 32; j++){
-                    // printf("halfline - %x\n", ((int *) &this->descriptors[i])[j]);
-                    b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
-                }
-            }
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+
+            for (unsigned i = 0; i != this->desc_count; i++)
+            {
+
+                this->descriptors[i].dataBaseAddr = 0;
+                this->descriptors[i].coeffBaseAddr = 0;
+                this->descriptors[i].biasBaseAddr = 0;
+                this->descriptors[i].scaleBaseAddr = 0;
+                this->descriptors[i].outBaseAddr = 0;
+
+                this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
+                this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
+
+                this->descriptors[i].coeffChStrOut = tapsBlobTensor.strideZ;
+                this->descriptors[i].coeffChStrIn = tapsBlobTensor.strideY;
+
+                this->descriptors[i].outLnStr = outputBlobTensor.strideY;
+                this->descriptors[i].outChStr = outputBlobTensor.strideZ;
+
+                for(unsigned j = 0; j != 32; j++){
+                    b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
+                }
+            }
+
             // Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->scale);
 
             printf("Warning: Currently no Scale absorb support in HW Serialization\n");
@@ -313,20 +329,22 @@ namespace mv
 
             // Descriptor Buffers
 
-            this->descriptors[i].dataBaseAddr = -1;
-            this->descriptors[i].dataChStr = -1;
-            this->descriptors[i].dataLnStr = -1;
+            // Resolved at write time.
 
-            this->descriptors[i].coeffBaseAddr = -1;
-            this->descriptors[i].coeffChStrOut = -1;
-            this->descriptors[i].coeffChStrIn = -1;
+            // this->descriptors[i].dataBaseAddr = 0;
+            // this->descriptors[i].dataChStr = -1;
+            // this->descriptors[i].dataLnStr = -1;
 
-            this->descriptors[i].outLnStr = -1;
-            this->descriptors[i].outBaseAddr = -1;
-            this->descriptors[i].outChStr = -1;
+            // this->descriptors[i].coeffBaseAddr = 0;
+            // this->descriptors[i].coeffChStrOut = -1;
+            // this->descriptors[i].coeffChStrIn = -1;
 
-            this->descriptors[i].biasBaseAddr = -1;
-            this->descriptors[i].scaleBaseAddr = -1;
+            // this->descriptors[i].outLnStr = 0;
+            // this->descriptors[i].outBaseAddr = -1;
+            // this->descriptors[i].outChStr = -1;
+
+            // this->descriptors[i].biasBaseAddr = 0;
+            // this->descriptors[i].scaleBaseAddr = 0;
 
             // Myriad X DPU Assignment & Execution Configuration
             this->descriptors[i].Line0.mode = this->opMode;

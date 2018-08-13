@@ -758,27 +758,21 @@ def main():
     a = blob_format.parse_file(args.file)
     print(a)
 
+    for i, s in enumerate(a["Layers..."]):
+        try:
+            descriptor = ""
+            for j, d in enumerate(s["Op..."]["Descriptors"]):
+                for x in d["Half-Line"]:
+                    descriptor += x.hex()
 
-    try:
-        descriptor = ""
-        for x in a["Layers..."][1]["Op..."]["Descriptors"][0]["Half-Line"]:
-            descriptor += x.hex()
+                print("")
+                print("Descriptor #", j)
+                s = SerializedDescriptor("Conv")
+                s.deserialize(descriptor)
+                s.print()
 
-            s = SerializedDescriptor("Conv")
-            s.deserialize(descriptor)
-            s.print()
-
-    except :
-        print("Descriptors not at index 1")
-
-
-    # assert a["e_type"] == 1
-    # assert a["e_machine"] == 2
-    # assert a["e_version"] == 1
-    # assert a["e_ehsize"] == 272
-    # assert a["magic_blob"] == 8708
-    # assert 1000 > a["stage_count"] > 0
-
+        except :
+            print("#### No Descriptors at index", i, "####")
 
 if __name__ == "__main__":
     main()
