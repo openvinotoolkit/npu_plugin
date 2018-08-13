@@ -94,7 +94,10 @@ namespace mv
 
             std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
 
+            mem = dm->getBuffer("IntermediateMemory", stg, *t);
+
             if (mem == dm->bufferEnd("IntermediateMemory", stg)  ){//&& !hack_activated){
+
                 // Not Found - In or Output
                 std::vector<mv::string> input_names, output_names;
 
@@ -151,6 +154,7 @@ namespace mv
             std::cout << "Serialization Error: Unknown mapping of memory block to mvTensor notations" << std::endl;
             assert(0);
         }
+
 
         switch((*t)->getOrder()){
             case Order::RowMajor:
