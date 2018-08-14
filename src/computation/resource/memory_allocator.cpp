@@ -4,29 +4,6 @@
 
 mv::allocator mv::MemoryAllocator::allocator_;
 
-long mv::MemoryAllocator::recursiveWriteStrides(unsigned i, const static_vector<dim_type, byte_type, max_ndims>& p, mv::dynamic_vector<unsigned>& strides, const mv::Shape d)
-{
-    if(order_->isFirstContiguousDimensionIndex(d, i))
-    {
-        strides.push_back(p[i]);
-        return p[i] + d[i];
-    }
-    else
-    {
-        long new_stride;
-        for(unsigned c = 0; c < d[i]; ++c)
-        {
-            unsigned next_dim_index = order_->previousContiguousDimensionIndex(d, i);
-            new_stride = recursiveWriteStrides(next_dim_index, p, strides, d);
-        }
-        //Last stride should be joined (stride definition -> only between two blocks)
-        long toAdd = strides.back();
-        strides.pop_back();
-        strides.push_back(p[i] * new_stride + toAdd);
-        return new_stride * (d[i] + p[i])                                                                                                                                                                         ;
-    }
-}
-
 bool mv::MemoryAllocator::MemoryBuffer::operator<(const MemoryBuffer& other) const
 {
     if (offset < other.offset)
