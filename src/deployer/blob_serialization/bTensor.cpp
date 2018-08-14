@@ -46,7 +46,7 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        std::cout << "***********" << Printable::toString((*t)->getOrder()) << "***********" <<  std::endl;
+        std::cout << "Tensor Layout: " << Printable::toString((*t)->getOrder()) <<  std::endl;
 
         if ((int)(*t)->getShape().ndims() == 4){
 
@@ -75,7 +75,7 @@ namespace mv
         int block = 0;
 
         if ((*t)->isPopulated()){
-            std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
+            // std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
 
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
@@ -92,7 +92,7 @@ namespace mv
 
             mv::OpModel om(*cm);
 
-            std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
+            // std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
 
             mem = dm->getBuffer("IntermediateMemory", stg, *t);
 
@@ -113,17 +113,16 @@ namespace mv
                 }
 
                 if(std::find(input_names.begin(), input_names.end(), (*t)->getName()) != input_names.end()) {
-                    std::cout  << "Network Input. Note: IO Offset not supported by serializer" << std::endl;
+                    // std::cout  << "Network Input. Note: IO Offset not supported by serializer" << std::endl;
                     this->location = BLOB_INPUT_LOCATION;
                     this->offset = 0;
                 }else{
                     if(std::find(output_names.begin(), output_names.end(), (*t)->getName()) != output_names.end()) {
-                        std::cout  << "Network Output. Note: IO Offset not supported by serializer" << std::endl;
+                        // std::cout  << "Network Output. Note: IO Offset not supported by serializer" << std::endl;
                         this->location = BLOB_OUTPUT_LOCATION;
                         this->offset = 0;
                     }else{
-
-                        std::cout << "Serialization Error: Tensor Position not resolved" << std::endl;
+                        // std::cout << "Serialization Error: Tensor Position not resolved" << std::endl;
                         assert(0);
                     }
                 }
@@ -160,14 +159,14 @@ namespace mv
             case Order::RowMajor:
                 // UPA Shave
                 this->order = 0;
-                printf("ROW MAJOR\n");
+                // printf("ROW MAJOR\n");
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
                 this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 break;
             case Order::Planar:
                 // NCE1 - Option 1
-                printf("PLANAR\n");
+                // printf("PLANAR\n");
                 this->order = 1;
                 this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
@@ -175,7 +174,7 @@ namespace mv
                 break;
             case Order::ColumnMajor:
                 // NCE1 - Option 2
-                printf("Column MAJOR\n");
+                // printf("Column MAJOR\n");
                 this->order = 2;
                 this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;

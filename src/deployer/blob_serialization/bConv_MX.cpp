@@ -82,8 +82,8 @@ namespace mv
                 0,
                 // fp16_size*this->output->getShape().totalSize(),    // Y Stride
                 // fp16_size*this->output->getShape().totalSize(),    // z Stride
-                999, // Offset - Memory Manager
-                3, // Location - Memory Manager
+                0, // Offset - Memory Manager
+                0, // Location - Memory Manager
                 0,
                 1
             );
@@ -101,8 +101,8 @@ namespace mv
                 0,
                 0,
                 fp16_size, // SZ
-                999, // Offset - Memory Manager
-                3, // Location - Memory Manager
+                0, // Offset - Memory Manager
+                0, // Location - Memory Manager
                 0,
                 0
             );
@@ -132,16 +132,18 @@ namespace mv
 
         printf("Serializing a HW Conv\n");
 
-        int cmxSize = 1024*256;
+        int cmxSize = 1024*256*10;
         int descriptors_count = 1;
 
         if (! it->hasAttr("NCE1_AssignedCMX"))
         {
-            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 1024*256\n");
+            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 1024*256*10\n");
         }
         else
         {
             cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
+            printf("WARNING: Overriding attribute 'NCE1_AssignedCMX' to 1605640\n");
+            cmxSize = 1605640;
         }
 
         if (! it->hasAttr("NCE1_DescriptorSplits"))

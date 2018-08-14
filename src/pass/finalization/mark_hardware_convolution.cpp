@@ -99,7 +99,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
             minLines = std::min(kerDimY+1, linesPerChan);
         om.addAttr(opIterator, "NCE1_MinLines", mv::Attribute(mv::AttrType::IntegerType, minLines));
 
-        int streamingMask = 1; //For DDR streaming
+        int streamingMask = 0; //For DDR streaming
         om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
         markedOneConvolution = true;
         std::cout << "Marked one convolution as executable in HW" << std::endl;

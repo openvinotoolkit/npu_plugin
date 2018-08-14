@@ -10,8 +10,6 @@ namespace mv
             Does a soft run through to calculate all offsets for use in blob.
         */
 
-        printf("Calc...\n");
-
         blob_stats.input_size = cm.getFirst()->getOutputTensor(0)->getShape().totalSize();
 
         // set fixed header sizes for blob
@@ -37,6 +35,15 @@ namespace mv
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
             switch(it->getOpType()){
+
+                // case OpType::Input:
+                //     {
+                //         blob_stats.stage_count++;
+                //     }
+                // case OpType::Output:
+                //     {
+                //         // Pass - Not Written
+                //     }
                 case OpType::Conv2D:
                 case OpType::FullyConnected:
                     {
@@ -169,7 +176,7 @@ namespace mv
                     }
                     break;
                 default:
-                    std::cout << "!!!!!!!!!!!!!!!!!!NO SUCH LAYER!!!!!!!!!!!!!!!!!" << std::endl;
+                    std::cout << "Calc: NO SUCH LAYER:" << Printable::toString(it->getOpType()) << std::endl;
                     assert (0);
                     break;
             }
@@ -189,7 +196,6 @@ namespace mv
             totalSize += bit->size;
             int adjustment = 0;
             while((bit->size*2 + adjustment*2) % 64 != 0){
-                printf("Adjustment?\n");
                 AddBytes(2, 0);
                 adjustment++;
             }
@@ -205,15 +211,6 @@ namespace mv
 
         blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) + additional_buf*8;
 
-
-        std::cout << "\n\n" <<
-            "\nheaders_data_size: " << headers_data_size <<
-            "\nblob_stats.header_pad_size: " << blob_stats.header_pad_size <<
-            "\nblob_stats.stage_section_size: " << blob_stats.stage_section_size <<
-            "\nblob_stats.buffer_header_size: " << blob_stats.buffer_header_size <<
-            "\nblob_stats.buffer_data_size: " << blob_stats.buffer_data_size <<
-            "\nblob_stats.relocation_section_size: " << blob_stats.relocation_section_size << "\n\n" <<
-        std::endl;
         blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
     }
 
@@ -249,8 +246,6 @@ namespace mv
     void Blob_buffer::write_mv_header()
     {
 
-        printf("MVHEAD...\n");
-
         uint32_t mv_magic_number = BLOB_MAGIC_NUMBER ;
         uint32_t mv_version_major = BLOB_VERSION_MAJOR ;
         uint32_t mv_version_minor = BLOB_VERSION_MINOR ;
@@ -279,9 +274,6 @@ namespace mv
 
     void Blob_buffer::write_stage_section_header()
     {
-
-        printf("STG...\n");
-
         AddBytes(4, blob_stats.stage_count);   // 0x50
         AddBytes(4, blob_stats.stage_section_size);
         AddBytes(4, blob_stats.output_size);
@@ -301,9 +293,6 @@ namespace mv
             - Blob Stage to pull details from
 
         */
-
-
-        printf("IO...\n");
 
         int inputLocation = conv_pool_stage.InputLocation;
         if (conv_pool_stage.InputLocation > 4)
@@ -347,8 +336,6 @@ namespace mv
 
     void Blob_buffer::write_stages(mv::ControlModel& cm)
     {
-
-        printf("Stages...\n");
 
         Blob_stage conv_pool_stage ;
         uint32_t op_count = 0 ;
@@ -576,6 +563,7 @@ namespace mv
         int reloc_index = 0 ;
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
+
             switch(it->getOpType()){
                 case OpType::Conv2D:
                     {
@@ -587,22 +575,13 @@ namespace mv
                         else
                         {
                             mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
-                            printf("COmpatbilt: %i\n", mx_valid);
+                            printf("Compatibility Flag from Compiler: %i\n", mx_valid);
                             mx_valid = 1;
                         }
 
                         if(mx_valid)
                         {
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x21);                                // 0x60
-                            AddBytes(4, conv_pool_stage.implementation);
 
-                            // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
-                            c.writeStageInfo(&om, this);
-
-                            AddBytes(4, 0x05);    // 0x12c , no preop
-                            AddBytes(4, 0x05);    // 0x12c , no postop
 
                             int descriptors = 1;
                             int point0 = 0;
@@ -622,6 +601,19 @@ namespace mv
                             point0 += (3*4) ; // nextsatge, etc MOVE OUT.
 
                             next_offset += point0 ;
+
+                            conv_pool_stage.next = next_offset;
+
+                            AddBytes(4, conv_pool_stage.next);
+                            AddBytes(4, 0x21);                                // 0x60
+                            AddBytes(4, conv_pool_stage.implementation);
+
+                            // Serialize for MyriadX H/W
+                            bConv2D c = bConv2D(&(*it));
+                            c.writeStageInfo(&om, this);
+
+                            AddBytes(4, 0x05);    // 0x12c , no preop
+                            AddBytes(4, 0x05);    // 0x12c , no postop
                         }
                         else
                         {
@@ -1355,6 +1347,27 @@ namespace mv
                     break;
                 case OpType::Conversion:
                     {
+
+                        int point0 = 0;
+                        point0 += 2*10 ; // Input, Output
+                        point0 += 2 ; // PreOp PostOp TODO: Move OUT.
+                        point0 += 3 ; // nextstage, id, imp
+                        next_offset += point0*4 ;
+
+
+                        mv::DataModel dm(om);
+                        mv::ControlModel cm(om);
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        auto t = it->getOutputTensor(0);
+
+                        mem = dm.getBuffer("IntermediateMemory", stg, t);
+
+                        if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                            next_offset = 0;
+                        }
+
+                        conv_pool_stage.next = next_offset ;
                         AddBytes(4, conv_pool_stage.next);
                         AddBytes(4, 0x25);                                // 0x60
                         AddBytes(4, conv_pool_stage.implementation);
@@ -1366,28 +1379,11 @@ namespace mv
                         AddBytes(4, 0x05);    // 0x12c , no preop
                         AddBytes(4, 0x05);    // 0x12c , no postop
 
-                        int descriptors = 1;
-                        int point0 = 0;
-                        if (! it->hasAttr("NCE1_DescriptorSplits"))
-                        {
-                            printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
-                        }
-                        else
-                        {
-                            descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
-                        }
-                        point0 += (2*10*4) ; // Input, Bias, Taps, Output
-
-                        point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
-                        point0 += (3*4) ; // nextsatge, etc MOVE OUT.
-
-                        next_offset += point0 ;
                     }
                     break;
 
                 default:
-                    std::cout << "LAYER NOT SUPPORTED FOR WRITING!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-                    std::cout << Printable::toString(it->getOpType()) << std::endl;
+                    std::cout << "Write: NO SUCH LAYER:" << Printable::toString(it->getOpType()) << std::endl;
                     assert(0);
             }
         }
@@ -1396,8 +1392,6 @@ namespace mv
         uint32_t stage_pad_size = buffer_section_offset - next_offset  ;
         if (stage_pad_size > 0)
         {
-            printf("buffer_section_offset: %d | next_offset %d\n", buffer_section_offset, next_offset);
-            printf("Stage Pad: %d\n", stage_pad_size);
             AddBytes(stage_pad_size, 0x00000000);
         }
 
@@ -1437,7 +1431,6 @@ namespace mv
 
 
         for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
-            printf("Convert to FP16 Buffer of size %lu\n", bit->size);
             for (int idx = 0; idx != (int)bit->size; idx++){
                 u_int16_t fp16_val = cvtr.compress((*bit->data).getData()[idx]) ;  // Convert to fp16.
                 AddBytes(2, fp16_val) ;
