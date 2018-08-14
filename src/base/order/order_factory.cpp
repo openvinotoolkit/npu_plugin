@@ -21,4 +21,5 @@ std::unique_ptr<mv::OrderClass> mv::OrderFactory::createOrder(mv::Order value)
         case(mv::Order::Unknown):
             return std::unique_ptr<mv::ColMajor>(new ColMajor());
     }
+    return std::unique_ptr<mv::ColMajor>(new ColMajor());
 }

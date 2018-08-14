@@ -113,7 +113,7 @@ namespace mv
         BufferIterator bufferBegin(unsigned stageIdx);
         BufferIterator bufferEnd(unsigned stageIdx);
         BufferIterator getBuffer(unsigned stageIdx, Data::TensorIterator tensor);
-        long recursiveWriteStrides(unsigned dimension_index, const mv::dynamic_vector<unsigned>& paddings, mv::dynamic_vector<unsigned> &strides, const Shape s);
+        long recursiveWriteStrides(unsigned dimension_index, const static_vector<dim_type, byte_type, max_ndims> &paddings, mv::dynamic_vector<unsigned> &strides, const Shape s);
     };
 
 }

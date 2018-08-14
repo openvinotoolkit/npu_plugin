@@ -4,7 +4,7 @@
 
 mv::allocator mv::MemoryAllocator::allocator_;
 
-long mv::MemoryAllocator::recursiveWriteStrides(unsigned i, const mv::dynamic_vector<unsigned>& p, mv::dynamic_vector<unsigned>& strides, const mv::Shape d)
+long mv::MemoryAllocator::recursiveWriteStrides(unsigned i, const static_vector<dim_type, byte_type, max_ndims>& p, mv::dynamic_vector<unsigned>& strides, const mv::Shape d)
 {
     if(order_->isFirstContiguousDimensionIndex(d, i))
     {
