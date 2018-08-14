@@ -48,8 +48,9 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
     {
         if (tIt->isPopulated())
         {
+            mv::dynamic_vector<size_t> paddings; //TODO: Should be filled
             auto stageIt = cm.getStage(0);
-            dm.allocateTensor("ConstantMemory", stageIt, tIt);
+            dm.allocateTensor("ConstantMemory", stageIt, tIt, paddings);
         }
     }
 

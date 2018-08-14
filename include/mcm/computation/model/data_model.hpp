@@ -39,7 +39,7 @@ namespace mv
 
         bool addAllocator(const string &name, std::size_t size, Order order);
         bool hasAllocator(const string& name);
-        Data::BufferIterator allocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor, int pad = -1);
+        Data::BufferIterator allocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor, mv::dynamic_vector<size_t> pad);
         bool deallocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor);
         void deallocateAll(const string &allocatorName, Control::StageIterator &stage);
         Data::BufferIterator bufferBegin(const string &allocatorName, Control::StageIterator &stage);

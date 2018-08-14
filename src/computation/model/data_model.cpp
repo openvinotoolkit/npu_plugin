@@ -79,13 +79,15 @@ bool mv::DataModel::addAllocator(const string &name, std::size_t size, Order ord
 }
 
 mv::Data::BufferIterator mv::DataModel::allocateTensor(const string &allocatorName, Control::StageIterator &stage,
-    Data::TensorIterator &tensor, int pad)
+    Data::TensorIterator &tensor, mv::dynamic_vector<size_t> pad)
 {
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
     unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    if(pad.size() == 0)
+        pad = mv::dynamic_vector<size_t>(tensor->getShape().ndims(), 0);
     auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, stageIdx, pad);
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {

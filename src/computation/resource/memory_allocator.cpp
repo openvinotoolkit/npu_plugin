@@ -20,21 +20,34 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
 {
 
     std::string res =  "data: '" + this->data->getName() + "'; offset: " + Printable::toString(this->offset) + 
-        "; size: " + Printable::toString(this->size) + "; pad: " + Printable::toString(this->pad) +
-        "; stride: " + Printable::toString(this->stride) + "; block: " + Printable::toString(this->block);
+        "; size: " + Printable::toString(this->size) + "; left pad: " + Printable::toString(this->left_pad) +
+         + "; right pad: " + Printable::toString(this->right_pad)
+         + "; block: " + Printable::toString(this->block) + "; block num: " + Printable::toString(this->block_num);
+
+    res += "; strides:";
+
+    for(size_t stride: this->strides)
+        res += " " + std::to_string(stride);
 
     if (printValues && data->isPopulated())
     {
         res += "\nvalues:\n";
         
-        for (std::size_t i = 0; i < this->pad; ++i)
+        for (std::size_t i = 0; i < this->left_pad; ++i)
             res += "0 ";
 
         auto values = data->getData();
+        size_t stride_no = 0;
         for (std::size_t i = 0; i < values.size(); ++i)
-            res += Printable::toString(values[i]) + " ";
+        {
+            for(std::size_t j = 0; j < block; j++)
+                res += Printable::toString(values[i]) + " ";
+            for(std::size_t j = 0; j < strides[stride_no]; j++)
+                res += "0 ";
+            ++stride_no;
+        }
 
-        for (std::size_t i = 0; i < this->pad; ++i)
+        for (std::size_t i = 0; i < this->right_pad; ++i)
             res += "0 ";
             
     }
@@ -69,23 +82,6 @@ name_(name),
 size_(size),
 order_(mv::OrderFactory::createOrder(order))
 {
-
-}
-
-mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIterator tensor, unsigned stageIdx, int pad)
-{
-
-    std::size_t padValue = (pad > 0) ? static_cast<std::size_t>(pad) : 0;
-    MemoryBuffer newBuffer = {0, tensor->getShape().totalSize() + 2 * padValue, 0, tensor->getShape().totalSize(), 
-        padValue, tensor};
-    
-    if (entries_.find(stageIdx) == entries_.end())
-        entries_.emplace(stageIdx, std::map<Data::TensorIterator, allocator::owner_ptr<MemoryBuffer>, TensorIteratorComparator>());
-    else
-        if (entries_[stageIdx].size() != 0)
-            newBuffer.offset = entries_[stageIdx].rbegin()->second->offset + entries_[stageIdx].rbegin()->second->size;
-
-    return entries_[stageIdx].emplace(tensor, allocator_.make_owner<MemoryBuffer>(newBuffer)).first;
 
 }
 

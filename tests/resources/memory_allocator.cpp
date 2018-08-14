@@ -15,9 +15,7 @@ TEST(memory_allocator, tensor_col_major)
     paddings[1] = 6;
     paddings[2] = 3;
     mv::dynamic_vector<unsigned> strides;
-    std::unique_ptr<mv::OrderClass> orderClass = mv::OrderFactory::createOrder(order);
-    m.recursiveWriteStrides(orderClass->lastContiguousDimensionIndex(t.getShape()), paddings, strides, t.getShape());
-    std::cout << "Test ended" << std::endl;
+    m.writeStrides(paddings, s, strides);
 }
 
 TEST(memory_allocator, tensor_col_major_planar)
@@ -31,9 +29,7 @@ TEST(memory_allocator, tensor_col_major_planar)
     paddings[1] = 6;
     paddings[2] = 3;
     mv::dynamic_vector<unsigned> strides;
-    std::unique_ptr<mv::OrderClass> orderClass = mv::OrderFactory::createOrder(order);
-    m.recursiveWriteStrides(orderClass->lastContiguousDimensionIndex(t.getShape()), paddings, strides, t.getShape());
-    std::cout << "Test ended" << std::endl;
+    m.writeStrides(paddings, s, strides);
 }
 
 TEST(memory_allocator, tensor_row_major)
@@ -47,9 +43,7 @@ TEST(memory_allocator, tensor_row_major)
     paddings[1] = 6;
     paddings[2] = 3;
     mv::dynamic_vector<unsigned> strides;
-    std::unique_ptr<mv::OrderClass> orderClass = mv::OrderFactory::createOrder(order);
-    m.recursiveWriteStrides(orderClass->lastContiguousDimensionIndex(t.getShape()), paddings, strides, t.getShape());
-    std::cout << "Test ended" << std::endl;
+    m.writeStrides(paddings, s, strides);
 }
 
 TEST(memory_allocator, tensor_row_major_planar)
@@ -63,8 +57,6 @@ TEST(memory_allocator, tensor_row_major_planar)
     paddings[1] = 6;
     paddings[2] = 3;
     mv::dynamic_vector<unsigned> strides;
-    std::unique_ptr<mv::OrderClass> orderClass = mv::OrderFactory::createOrder(order);
-    m.recursiveWriteStrides(orderClass->lastContiguousDimensionIndex(t.getShape()), paddings, strides, t.getShape());
-    std::cout << "Test ended" << std::endl;
+    m.writeStrides(paddings, s, strides);
 }
 
