@@ -17,6 +17,7 @@
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
 #include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
 #include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
+#include "include/mcm/deployer/blob_serialization/bPooling.hpp"
 #include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
 #include <assert.h>
 

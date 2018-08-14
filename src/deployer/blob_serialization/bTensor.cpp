@@ -63,8 +63,12 @@ namespace mv
             this->dimZ = (*t)->getShape()[2];
         }
 
-        if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
-            assert(0);
+        try{
+            if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
+                assert(0);
+        }catch(mv::ArgumentError){
+            printf("Warning: No Intermediary Buffers\n");
+        }
         // if (!dm->hasAllocator("BSS"))
         //     assert(0);
 
@@ -75,7 +79,7 @@ namespace mv
         int block = 0;
 
         if ((*t)->isPopulated()){
-            // std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
+            std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
 
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
@@ -92,11 +96,17 @@ namespace mv
 
             mv::OpModel om(*cm);
 
-            // std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
+            std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
 
-            mem = dm->getBuffer("IntermediateMemory", stg, *t);
+            int no_buffers = 0;
+            try{
+                mem = dm->getBuffer("IntermediateMemory", stg, *t);
+            }catch(mv::ArgumentError){
+                printf("Warning: No Intermediary Buffers\n");
+                no_buffers = 1;
+            }
 
-            if (mem == dm->bufferEnd("IntermediateMemory", stg)  ){//&& !hack_activated){
+            if (no_buffers || mem == dm->bufferEnd("IntermediateMemory", stg) ){//&& !hack_activated){
 
                 // Not Found - In or Output
                 std::vector<mv::string> input_names, output_names;
