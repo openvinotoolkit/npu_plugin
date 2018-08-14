@@ -39,7 +39,7 @@ TEST(memory_allocator, tensor_rowMajor)
 TEST(memory_allocator, tensor_planar)
 {
     mv::Shape s(3, 2, 5);
-    mv::Order order = mv::Order::Planar;
+    mv::Order order = mv::Order::ColumnMajorPlanar;
     mv::Tensor t("test_tensor", s, mv::DType::Float, order);
     mv::MemoryAllocator m("m1", 10000, order);
     mv::dynamic_vector<unsigned> paddings;

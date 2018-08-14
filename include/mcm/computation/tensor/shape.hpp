@@ -3,7 +3,6 @@
 
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/printable.hpp"
-#include "include/mcm/graph/static_vector.hpp"
 #include "include/mcm/base/jsonable.hpp"
 
 namespace mv

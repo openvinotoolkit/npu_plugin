@@ -19,7 +19,7 @@
 	
 	"order":
 	{
-		"global": "planar"
+		"global": "rowmajorplanar"
 	},
 
 	"dtype":
@@ -69,13 +69,13 @@
 			{
 				"name": "ConstantMemory",
 				"size": 1024000000,
-				"order": "planar"
+				"order": "rowmajorplanar"
 			},
 
 			{
 				"name": "IntermediateMemory",
 				"size": 1024000000,
-				"order": "planar"
+				"order": "rowmajorplanar"
 			}
 
 		]

@@ -1,17 +1,17 @@
-#ifndef ROWMAJOR_HPP
-#define ROWMAJOR_HPP
+#ifndef COL_MAJOR_PLANAR_HPP
+#define COL_MAJOR_PLANAR_HPP
 
 #include "order.hpp"
 
 namespace mv
 {
 
-    class RowMajor : public OrderClass
+    class ColumnMajorPlanar : public OrderClass
     {
 
     public:
 
-        ~RowMajor();
+        ~ColumnMajorPlanar();
         int previousContiguousDimensionIndex(const Shape& s, unsigned current_dim) const;
         int nextContiguousDimensionIndex(const Shape& s, unsigned current_dim) const;
 

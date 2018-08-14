@@ -33,8 +33,10 @@ mv::DType mv::TargetDescriptor::toDType(const std::string& str)
 mv::Order mv::TargetDescriptor::toOrder(const std::string& str)
 {
 
-    if (str == "planar")
-        return Order::Planar;
+    if (str == "columnmajorplanar")
+        return Order::ColumnMajorPlanar;
+    else if (str == "rowmajorplanar")
+        return Order::RowMajorPlanar;
     else if (str == "columnmajor")
         return Order::ColumnMajor;
     else if (str == "rowmajor")
