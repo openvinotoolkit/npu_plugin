@@ -4,7 +4,7 @@ mv::Planar::~Planar()
 {
 
 }
-
+/*
 unsigned mv::Planar::subToInd(const Shape &s, const static_vector<dim_type, byte_type, max_ndims>& sub) const
 {
     if (s.ndims() == 0)
@@ -73,72 +73,71 @@ mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> mv::Planar::indToS
 
     return sub;
 }
+*/
 
 int mv::Planar::previousContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
 {
+    if(s.ndims() == 0)
+        throw ShapeError("Can't check index for 0-dimensional shape");
+    if(current_dim >= s.ndims())
+        throw ShapeError("Dimension index is bigger than number of dimensions");
+    if(current_dim == 0)
+    {
+        if(s.ndims() == 1)
+            return -1;
+        else
+            return 1;
+    }
     if(current_dim == 1)
         return -1;
-    if(current_dim == 0)
-        return 1;
     if(current_dim == 2)
         return 0;
-    return current_dim - 1;
+    else
+        return current_dim - 1;
 }
 
 int mv::Planar::nextContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
 {
-    if(current_dim == 1)
-        return 0;
+    if(s.ndims() == 0)
+        throw ShapeError("Can't check index for 0-dimensional shape");
+    if(current_dim >= s.ndims())
+        throw ShapeError("Dimension index is bigger than number of dimensions");
     if(current_dim == 0)
     {
-        if(s.ndims() == 2)
+        if(s.ndims() <= 2)
             return -1;
         else
             return 2;
     }
-    if(current_dim + 1 == s.ndims())
-        return -1;
-    else
-        return current_dim + 1;
-}
-
-bool mv::Planar::isLastContiguousDimensionIndex(const Shape &s, unsigned index) const
-{
-    if(s.ndims() == 2)
-    {
-        if(index == 0)
-            return true;
-        else
-            return false;
-    }
+    if(current_dim == 1)
+        return 0;
     else
     {
-        if(index == s.ndims() - 1)
-            return true;
+        if(current_dim + 1 == s.ndims())
+            return -1;
         else
-            return false;
+            return current_dim + 1;
     }
-}
-
-bool mv::Planar::isFirstContiguousDimensionIndex(const Shape &s, unsigned index) const
-{
-    if(index == 1)
-        return true;
-    else
-        return false;
 }
 
 unsigned mv::Planar::lastContiguousDimensionIndex(const Shape &s) const
 {
-    if(s.ndims() == 2)
+    if (s.ndims() == 0)
+        throw ShapeError("0-dimensional shapes have no last contiguous dimension");
+    if(s.ndims() <= 2)
         return 0;
     else
         return s.ndims() - 1;
 }
 
-//Planar is like ColMajor, only the first two dimensions are swapped (ASSUMING ALWAYS at least 2D tensors)
+//Planar is like ColMajor, only the first two dimensions are swapped.
 unsigned mv::Planar::firstContiguousDimensionIndex(const Shape &s) const
 {
-    return 1;
+    if (s.ndims() == 0)
+        throw ShapeError("0-dimensional shapes have no first contiguous dimension");
+    if(s.ndims() == 1)
+        return 0;
+    else
+        return 1;
 }
 

@@ -4,6 +4,7 @@ mv::ColMajor::~ColMajor()
 {
 
 }
+/*
 
 unsigned mv::ColMajor::subToInd(const Shape &s, const static_vector<dim_type, byte_type, max_ndims>& sub) const
 {
@@ -50,44 +51,36 @@ mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> mv::ColMajor::indT
 
     return sub;
 }
-
+*/
 int mv::ColMajor::previousContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
 {
+    if (s.ndims() == 0)
+        throw ShapeError("Cannot check index for 0-dimensional shapes");
     return current_dim - 1;
 }
 
 int mv::ColMajor::nextContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
 {
+    if (s.ndims() == 0)
+        throw ShapeError("Cannot check index for 0-dimensional shapes");
     if(current_dim + 1 == s.ndims())
         return -1;
     else
         return current_dim + 1;
 }
 
-bool mv::ColMajor::isLastContiguousDimensionIndex(const Shape &s, unsigned index) const
-{
-    if(index == s.ndims() - 1)
-        return true;
-    else
-        return false;
-}
-
-bool mv::ColMajor::isFirstContiguousDimensionIndex(const Shape &s, unsigned index) const
-{
-    if(index == 0)
-        return true;
-    else
-        return false;
-}
-
 //Column major -> First dimension is contiguos -> Last dimension is least contiguous
 unsigned mv::ColMajor::lastContiguousDimensionIndex(const Shape &s) const
 {
+    if (s.ndims() == 0)
+        throw ShapeError("0-dimensional shapes have no first contiguous dimension");
     return s.ndims() - 1;
 }
 
 //Column major -> First dimension is contiguos
 unsigned mv::ColMajor::firstContiguousDimensionIndex(const Shape &s) const
 {
+    if (s.ndims() == 0)
+        throw ShapeError("0-dimensional shapes have no first contiguous dimension");
     return 0;
 }

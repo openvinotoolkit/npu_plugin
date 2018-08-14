@@ -38,10 +38,15 @@ file(GLOB resources
     "resources/*.cpp"
 )
 
+file(GLOB order
+    "order/*.cpp"
+)
+
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     ${graph_src}
     ${resources}
+    ${order}
     ${base_src}
     ${op_src}
     ${pass_src}
