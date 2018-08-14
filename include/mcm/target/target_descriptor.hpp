@@ -25,18 +25,26 @@ namespace mv
     class TargetDescriptor
     {
 
+        struct MemoryDescriptor
+        {
+
+            long long size;
+            Order order;
+
+        };
+
         static std::string toString(Target target);
         static Target toTarget(const std::string& str);
         static DType toDType(const std::string& str);
-        static Order toOrder(const std::string& str);
         static OpType toOpType(const std::string str);
-
+        static Order toOrder(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
         Target target_;
         DType globalDType_;
         Order globalOrder_;
         std::set<OpType> ops_;
+        std::map<std::string, MemoryDescriptor> memoryDefs_;
 
         std::vector<std::string> adaptationPasses_;
         std::vector<std::string> optimizationPasses_;
@@ -71,6 +79,9 @@ namespace mv
         bool undefineOp(OpType op);
         bool opSupported(OpType op) const;
 
+        bool defineMemory(const std::string& name, long long size, Order order);
+        bool undefineMemory(const std::string& name);
+
         std::size_t adaptPassesCount() const;
         std::size_t optPassesCount() const;
         std::size_t finalPassesCount() const;
@@ -86,6 +97,8 @@ namespace mv
         Target getTarget() const;
         Order getOrder() const;
         DType getDType() const;
+
+        const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
 
     };
 

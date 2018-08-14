@@ -6,7 +6,7 @@
 #include <vector>
 #include <memory>
 #include "include/mcm/base/json/value_content.hpp"
-#include "include/mcm/base/json/exception/value_error.hpp"
+#include "include/mcm/base/exception/value_error.hpp"
 
 namespace mv
 {

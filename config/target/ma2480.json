@@ -19,7 +19,7 @@
 	
 	"order":
 	{
-		"global": "planar"
+		"global": "rowmajorplanar"
 	},
 
 	"dtype":
@@ -27,9 +27,8 @@
 		"global": "fp16"
 	},
 
-	"pass":
+	"passes":
 	{
-	
 		"adapt":
 		[
 			"FuseBatchNorm", 
@@ -43,21 +42,44 @@
 		
 		"finalize":
 		[
-			"ArrangeLinearExecution"
+			"ArrangeLinearExecution",
+			"AllocatePopulatedTensors"
 		],
 
-		"validate":
-		[
-			"GenerateDot",
-			"CheckTensors"
-		],
 
 		"serialize":
 		[
 			"GenerateJSON",
 			"GenerateBlob"
+		],
+	
+		"validate":
+		[
+			"GenerateDot",
+			"CheckTensors"
 		]
 
+	},
+
+	"resources":
+	{
+		"memory":
+		[
+
+			{
+				"name": "ConstantMemory",
+				"size": 1024000000,
+				"order": "rowmajorplanar"
+			},
+
+			{
+				"name": "IntermediateMemory",
+				"size": 1024000000,
+				"order": "rowmajorplanar"
+			}
+
+		]
+		
 	}
 
 }

@@ -1,225 +1,14 @@
 #include "include/mcm/computation/tensor/tensor.hpp"
 #include "include/mcm/computation/tensor/math.hpp"
 
-mv::ShapeError::ShapeError(const std::string& whatArg) :
-std::logic_error(whatArg)
-{
-
-}
-
-mv::OrderError::OrderError(const std::string& whatArg) :
-std::logic_error(whatArg)
-{
-
-}
-
-mv::ValueError::ValueError(const std::string& whatArg) :
-std::logic_error(whatArg)
-{
-
-}
-
 mv::allocator mv::Tensor::allocator_;
 mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> mv::Tensor::subsBuffer_;
-
-const std::function<unsigned(const mv::Shape&, const mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims>&)> mv::Tensor::subToIndColumMajor_ = 
-    [](const mv::Shape& s, const static_vector<dim_type, byte_type, max_ndims>& sub)
-{
-
-    if (s.ndims() == 0)
-        throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
-
-    if (sub.length() != s.ndims())
-        throw ShapeError("Mismatch between subscript vector and number of dimensions in shape");
-
-    unsigned currentMul = 1;
-    unsigned currentResult = 0;
-
-    for (unsigned i = 0; i < sub.length(); ++i)
-    {
-
-        if (sub[i] >=  s[i])
-            throw ShapeError("Subscript exceeds the dimension");
-
-        currentResult += currentMul * sub[i];
-        currentMul *= s[i];
-
-    }
-
-    return currentResult;
-
-};
-
-const std::function<mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims>(const mv::Shape&, unsigned)> mv::Tensor::indToSubColumMajor_ = 
-    [](const mv::Shape& s, unsigned idx)
-{
-
-    if (s.ndims() == 0)
-        throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
-
-    static_vector<dim_type, byte_type, max_ndims> sub(s.ndims());
-    sub[0] =  idx % s[0];
-    int offset = -sub[0];
-    int scale = s[0];
-    for (int i = 1; i < s.ndims(); ++i)
-    {   
-        sub[i] = (idx + offset) / scale % s[i];
-        offset -= sub[i] * s[i - 1];
-        scale *= s[i];
-    }
-
-    return sub;
-
-};
-
-
-const std::function<unsigned(const mv::Shape& s, const mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims>&)> mv::Tensor::subToIndRowMajor_ =
-    [](const mv::Shape& s, const static_vector<dim_type, byte_type, max_ndims>& sub)
-{
-
-    if (s.ndims() == 0)
-        throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
-
-    if (sub.length() != s.ndims())
-        throw ShapeError("Mismatch between subscript vector and number of dimensions in shape");
-
-    unsigned currentMul = 1;
-    unsigned currentResult = 0;
-
-    for (int i = sub.length() - 1; i >= 0 ; --i)
-    {
-
-        if (sub[i] >=  s[i])
-            throw ShapeError("Subscript exceeds the dimension");
-
-        currentResult += currentMul * sub[i];
-        currentMul *= s[i];
-
-    }
-
-    return currentResult;
-
-};
-
-const std::function<mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims>(const mv::Shape& s, unsigned)> mv::Tensor::indToSubRowMajor_ = 
-    [](const mv::Shape& s, unsigned idx)
-{
-
-    if (s.ndims() == 0)
-        throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
-
-    static_vector<dim_type, byte_type, max_ndims> sub(s.ndims());
-    sub[s.ndims() - 1] =  idx % s[s.ndims() - 1];
-    int offset = -sub[s.ndims() - 1];
-    int scale = s[s.ndims() - 1];
-    for (int i = s.ndims() - 2; i >= 0; --i)
-    {   
-        sub[i] = (idx + offset) / scale % s[i];
-        offset -= sub[i] * scale;
-        scale *= s[i];
-    }
-
-    return sub;
-
-};
-
-const std::function<unsigned(const mv::Shape& s, const mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims>&)> mv::Tensor::subToIndPlanar_ = 
-    [](const mv::Shape& s, const static_vector<dim_type, byte_type, max_ndims>& sub)
-{
-    if (s.ndims() == 0)
-        throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
-
-    if (sub.length() != s.ndims())
-        throw ShapeError("Mismatch between subscript vector and number of dimensions in shape");
-
-    unsigned currentMul = 1;
-    unsigned currentResult = 0;
-
-    for (int i = sub.length() - 1; i > 1; --i)
-    {
-
-        if (sub[i] >=  s[i])
-            throw ShapeError("Subscript exceeds the dimension");
-
-        currentResult += currentMul * sub[i];
-        currentMul *= s[i];
-
-    }
-
-    currentResult += currentMul * sub[0];
-    currentMul *= s[0];
-
-    if (sub.length() > 1)
-        currentResult += currentMul * sub[1];
-
-    return currentResult;
-
-};
-
-const std::function<mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims>(const mv::Shape& s, unsigned)>mv::Tensor:: indToSubPlanar_ = 
-    [](const mv::Shape& s, unsigned idx)
-{
-
-    if (s.ndims() == 0)
-        throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
-
-    static_vector<dim_type, byte_type, max_ndims> sub(s.ndims());
-
-    if (s.ndims() == 1)
-    {
-        sub[0] =  idx % s[0];
-        return sub;
-    }
-    else if (s.ndims() == 2)
-    {
-        sub[0] = idx % s[0];
-        sub[1] = (idx - sub[0]) / s[0] % s[1];
-        return sub;
-    }
-    else
-    {
-        sub[s.ndims() - 1] =  idx % s[s.ndims() - 1];
-        int offset = -sub[s.ndims() - 1];
-        int scale = s[s.ndims() - 1];
-        for (int i = s.ndims() - 2; i > 1; --i)
-        {   
-            sub[i] = (idx + offset) / scale % s[i];
-            offset -= sub[i] * scale;
-            scale *= s[i];
-        }
-        sub[0] = (idx + offset) / scale % s[0];
-        offset -= sub[0] * scale;
-        scale *= s[0];
-        sub[1] = (idx + offset) / scale % s[1];
-    }
-
-    return sub;
-
-};
-
-unsigned mv::Tensor::subToInd(const Shape& shape, const static_vector<dim_type, byte_type, max_ndims>& sub, Order order)
-{
-    
-    auto subToIndFcn = selectSubToInd_(order);
-    return subToIndFcn(shape, sub);
-
-}
-
-mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> mv::Tensor::indToSub(const Shape& shape, unsigned idx, Order order)
-{
-
-    auto subToIndFcn = selectIndToSub_(order);
-    return subToIndFcn(shape, idx);
-
-}
 
 mv::Tensor::Tensor(const string &name, const Shape &shape, DType dType, Order order) :
 ComputationElement(name),
 errValue(0.0f),
 shape_(shape),
-populated_(false),
-subToIndFcn_(selectSubToInd_(order)),
-indToSubFcn_(selectIndToSub_(order))
+populated_(false)
 {
     addAttr("dType", AttrType::DTypeType, dType);
     addAttr("order", AttrType::OrderType, order);
@@ -248,9 +37,7 @@ Tensor(name, shape, dType, order)
 mv::Tensor::Tensor(const Tensor &other) :
 ComputationElement(other),
 shape_(other.shape_),
-populated_(other.populated_),
-subToIndFcn_(other.subToIndFcn_),
-indToSubFcn_(other.indToSubFcn_)
+populated_(other.populated_)
 {
     if (populated_)
         data_ = std::make_shared<dynamic_vector<float_type>>(dynamic_vector<float_type>(*other.data_));
@@ -278,8 +65,6 @@ bool mv::Tensor::populate(const dynamic_vector<float_type>& data, Order order)
     if (order != Order::Unknown && order != getOrder())
     {
         getAttr("order").setContent<Order>(order);
-        selectSubToInd_(order);
-        selectIndToSub_(order);
     }
 
     if (data.size() != getShape().totalSize())
@@ -314,19 +99,20 @@ void mv::Tensor::reorder(Order order)
     Order oldOrder = getAttr("order").getContent<Order>();
 
     getAttr("order").setContent<Order>(order);
-    selectSubToInd_(order);
-    selectIndToSub_(order);
 
     if (!populated_)
         return;
+
+    std::unique_ptr<OrderClass> oldOrderClass = mv::OrderFactory::createOrder(oldOrder);
+    std::unique_ptr<OrderClass> newOrderClass = mv::OrderFactory::createOrder(order);
 
     auto dataPtr = std::make_shared<dynamic_vector<float>>(data_->size());
 
     for (unsigned i = 0; i < dataPtr->size(); ++i)
     {
 
-        auto sub = indToSub(shape_, i, oldOrder);
-        dataPtr->at(subToInd(shape_, sub, order)) = data_->at(i);
+        auto sub = oldOrderClass->indToSub(shape_, i);
+        dataPtr->at(newOrderClass->subToInd(shape_, sub)) = data_->at(i);
 
     }
 

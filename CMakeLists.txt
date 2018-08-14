@@ -40,11 +40,11 @@ file(GLOB base
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
-    "src/base/json/exception/*.cpp"
     "src/utils/parser/json_text.cpp"
-    "src/utils/parser/exception/*.cpp"
+    "src/base/exception/*.cpp"
     "src/utils/*.cpp"
     "src/base/singleton.cpp"
+    "src/base/order/*.cpp"
 )
 
 file(GLOB tensor
