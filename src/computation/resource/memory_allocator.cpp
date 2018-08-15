@@ -37,14 +37,10 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
             res += "0 ";
 
         auto values = data->getData();
-        size_t stride_no = 0;
         for (std::size_t i = 0; i < values.size(); ++i)
         {
             for(std::size_t j = 0; j < block; j++)
                 res += Printable::toString(values[i]) + " ";
-            for(std::size_t j = 0; j < strides[stride_no]; j++)
-                res += "0 ";
-            ++stride_no;
         }
 
         for (std::size_t i = 0; i < this->right_pad; ++i)
