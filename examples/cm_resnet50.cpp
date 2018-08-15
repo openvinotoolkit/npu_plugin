@@ -35,24 +35,24 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 {
     
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::Planar);
+    auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::RowMajorPlanar);
     auto conv = model.conv2D(input, weights, stride, padding);
 
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     mv::dynamic_vector<mv::float_type> bnScaleData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
-    auto bnScaleParam = model.constant(bnScaleData, conv->getShape()[-1], mv::DType::Float, mv::Order::Planar);
+    auto bnScaleParam = model.constant(bnScaleData, conv->getShape()[-1], mv::DType::Float, mv::Order::RowMajorPlanar);
     auto bnScale = model.scale(conv, bnScaleParam);
     
     mv::dynamic_vector<mv::float_type> bnOffsetData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
-    auto bnOffsetParam = model.constant(bnOffsetData, conv->getShape()[-1], mv::DType::Float, mv::Order::Planar);
+    auto bnOffsetParam = model.constant(bnOffsetData, conv->getShape()[-1], mv::DType::Float, mv::Order::RowMajorPlanar);
     auto bnOffset = model.bias(bnScale, bnOffsetParam);
     
     mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
-    auto scaleParam = model.constant(scaleData, conv->getShape()[-1], mv::DType::Float, mv::Order::Planar);
+    auto scaleParam = model.constant(scaleData, conv->getShape()[-1], mv::DType::Float, mv::Order::RowMajorPlanar);
     auto scale = model.scale(bnOffset, scaleParam);
     
     mv::dynamic_vector<mv::float_type> biasData = mv::utils::generateSequence<mv::float_type>(conv->getShape()[-1]);
-    auto biasParam = model.constant(biasData, conv->getShape()[-1], mv::DType::Float, mv::Order::Planar);
+    auto biasParam = model.constant(biasData, conv->getShape()[-1], mv::DType::Float, mv::Order::RowMajorPlanar);
     return model.bias(scale, biasParam);
 
 }
@@ -118,7 +118,7 @@ int main()
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet50
-    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::Planar);
+    auto input = cm.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::RowMajorPlanar);
     auto conv1 = convBatchNormBlock(cm, input, mv::Shape(7, 7, 3, 64), {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -140,7 +140,7 @@ int main()
     auto res5c = residualBlock(cm, res5b, 512);
     auto pool5 = cm.avgpool2D(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
     mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::Planar);
+    auto weights = cm.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::RowMajorPlanar);
     auto fc1000 = cm.fullyConnected(pool5, weights);
     auto softmax = cm.softmax(fc1000);
     cm.output(softmax);
