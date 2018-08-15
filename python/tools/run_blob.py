@@ -22,7 +22,7 @@ import argparse
 import numpy as np
 
 base = os.environ.get('MDK_HOME')
-sys.path.append(base + "projects/Fathom/src2/")
+sys.path.append(os.path.join(base, "projects/Fathom/src2/"))
 
 from Controllers.DataTransforms import *
 import matplotlib.pyplot as plt
