@@ -27,8 +27,13 @@ int main()
     cm.output(conv3); 
 
     // Load target descriptor for the selected target to the compilation unit
-    std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    //std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+    //unit.loadTargetDescriptor(mv::Target::ma2480);
+
+    // Load target descriptor for the selected target to the compilation unit
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+    	exit(1);
+
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
     // Output DOT - file name (base)
@@ -41,6 +46,9 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     // Output BLOB - file name of the output binary
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("allocate_resouces.blob");
+    unit.compilationDescriptor()["GenerateJSON"]["output"] = std::string("allocate_resouces.json");
+
+
 
     // Initialize compilation 
     unit.initialize();
