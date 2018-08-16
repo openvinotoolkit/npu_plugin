@@ -5,7 +5,7 @@ import argparse
 base = os.environ.get('MDK_HOME')
 assert base is not None, "Please set MDK_HOME environment variable"
 
-sys.path.append(base+"projects/Fathom/src2/")
+sys.path.append(os.path.join(base, "projects/Fathom/src2/"))
 
 from Views.Validate import *
 from Models.EnumDeclarations import ValidationStatistic
