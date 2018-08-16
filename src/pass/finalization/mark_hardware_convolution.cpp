@@ -65,7 +65,26 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int memoryDPE = 512; //512 bytes for each DPE
         int coefficientsAvailableMemory = memoryDPE * noOfBlocks;
         int splitsOverInputChannels = coefficientsForInputChannelRequiredMemory / coefficientsAvailableMemory + 1;
+
         int splitsOverHeight = 1;
+        unsigned int total_input_size = opIterator->getInputTensor(0)->getShape().totalSize() * 2;
+        unsigned int total_output_size = opIterator->getOutputTensor(0)->getShape().totalSize() * 2;
+
+        float CMX_STREAM_SIZE = 256*1024;
+
+        printf("%u > %f\n",total_input_size + total_output_size , CMX_STREAM_SIZE );
+
+
+        if (total_input_size + total_output_size > CMX_STREAM_SIZE){
+            // TODO: Take into consideration previous splits.
+            printf("Do Split over H");
+
+            splitsOverHeight = (unsigned int) ceil((total_input_size + total_output_size)/CMX_STREAM_SIZE);
+        }
+
+
+        printf("Split over H: %u\n", splitsOverHeight);
+
         float floatOutputChannels = (float) outputChannels;
 
         int descriptorsSplits = splitsOverHeight * splitsOverInputChannels * ceil(floatOutputChannels / 256); //<- If mode 0 is used for every subtensor.

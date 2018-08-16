@@ -56,6 +56,8 @@ namespace mv
                 this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
                 this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
 
+                printf("Coeff Strides: %i %i %i\n", tapsBlobTensor.strideX, tapsBlobTensor.strideY, tapsBlobTensor.strideZ);
+
                 this->descriptors[i].coeffChStrOut = tapsBlobTensor.strideZ;
                 this->descriptors[i].coeffChStrIn = tapsBlobTensor.strideY;
 
@@ -77,7 +79,7 @@ namespace mv
                 0,
                 0,
                 0,
-                fp16_size,     // X Stride
+                0,     // X Stride
                 0,
                 0,
                 // fp16_size*this->output->getShape().totalSize(),    // Y Stride
@@ -85,7 +87,7 @@ namespace mv
                 0, // Offset - Memory Manager
                 0, // Location - Memory Manager
                 0,
-                1
+                0
             );
 
             printf("Warning: Currently no Scale absorb support in HW Serialization\n");
@@ -100,14 +102,14 @@ namespace mv
                 // fp16_size*this->taps->getShape()[3], // Taps Sy
                 0,
                 0,
-                fp16_size, // SZ
+                0, // SZ
                 0, // Offset - Memory Manager
                 0, // Location - Memory Manager
                 0,
                 0
             );
-            b->reloc_table.push_entry(std::pair<int, bLocation>(666, bLocation::Constant ));
-            b->reloc_table.push_entry(std::pair<int, bLocation>(666, bLocation::Constant ));
+            b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
+            b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
 
 
             inputBlobTensor.write(b);
@@ -132,18 +134,18 @@ namespace mv
 
         printf("Serializing a HW Conv\n");
 
-        int cmxSize = 1024*256*10;
+        int cmxSize = 256*1024;
         int descriptors_count = 1;
 
         if (! it->hasAttr("NCE1_AssignedCMX"))
         {
-            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 1024*256*10\n");
+            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 256*1024\n");
         }
         else
         {
             cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
-            printf("WARNING: Overriding attribute 'NCE1_AssignedCMX' to 1605640\n");
-            cmxSize = 1605640;
+            printf("WARNING: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
+            cmxSize = 256*1024;
         }
 
         if (! it->hasAttr("NCE1_DescriptorSplits"))
@@ -296,7 +298,13 @@ namespace mv
             this->descriptors[i] =  cnnConvolutionPoolStructure();
 
             // Relations to other Descriptors
-            this->descriptors[i].Line0.linkAddress = i*32*4;
+            if (i+1 == this->desc_count){
+                this->descriptors[i].Line0.linkAddress = 0; // Last.
+            }else{
+                this->descriptors[i].Line0.linkAddress = 32*4;
+            }
+          printf("linkAddress: %d\n", 32*4);
+
             this->descriptors[i].Line0.id = 0;
 
             // Layer Meta Information - Layout & DataTypes
@@ -323,16 +331,25 @@ namespace mv
 
             this->descriptors[i].padType = 0;   // Zero Padding
 
-            std::cout << "Input Size: " << this->input->getShape()[0] << std::endl;
-            std::cout << "Input Size: " << this->input->getShape()[1] << std::endl;
-            std::cout << "Input Size: " << this->input->getShape()[2] << std::endl;
-            std::cout << "Output Size: " << this->input->getShape()[2] << std::endl;
-
             this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
-            this->descriptors[i].inputHeight = this->input->getShape()[1] -1;
+            unsigned int original_height = this->input->getShape()[1];
+            unsigned int current_height;
+            if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
+                int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
+                current_height = ceil(original_height/(float)this->desc_count) - surplus;
+            }else{
+                current_height = ceil(original_height/(float)this->desc_count);
+            }
+
+            this->descriptors[i].inputHeight =  current_height - 1;
             this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
 
             this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
+
+            std::cout << "Input Size: " << descriptors[i].inputWidth + 1 << std::endl;
+            std::cout << "Input Size: " << descriptors[i].inputHeight + 1 << std::endl;
+            std::cout << "Input Size: " << descriptors[i].inputChannels + 1 << std::endl;
+            std::cout << "Output Size: " << descriptors[i].outputChannels + 1 << std::endl;
 
             // Descriptor Buffers
 

@@ -19,6 +19,7 @@
 #include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
 #include "include/mcm/deployer/blob_serialization/bPooling.hpp"
 #include "include/mcm/deployer/blob_serialization/bSoftmax.hpp"
+#include "include/mcm/deployer/blob_serialization/bInnerProduct.hpp"
 #include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
 #include <assert.h>
 
