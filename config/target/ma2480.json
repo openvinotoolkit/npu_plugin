@@ -43,6 +43,7 @@
 		"finalize":
 		[
 			"MarkHardwareConvolution",
+			"FormatMXWeights",
 			"AddConversionLayers",
 			"ArrangeLinearExecution",
 			"AllocatePopulatedTensors",

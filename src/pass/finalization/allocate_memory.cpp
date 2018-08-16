@@ -89,17 +89,13 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }
         }
 
-        std::cout << "MEMALL: " << tIt->getName() << std::endl;
-
         if(std::find(input_names.begin(), input_names.end(), tIt->getName()) != input_names.end()) {
-            std::cout  << "MEMALL: Network Input. Note: IO Offset not supported by serializer" << std::endl;
             external = true;
         }else {
             if(std::find(output_names.begin(), output_names.end(), tIt->getName()) != output_names.end()) {
-                std::cout  << "MEMALL: Network Output. Note: IO Offset not supported by serializer" << std::endl;
                 external = true;
             }else{
-                std::cout << "MEMALL: Serialization Error: Tensor Position not external" << std::endl;
+                // Not external, dont do anything
             }
         }
 

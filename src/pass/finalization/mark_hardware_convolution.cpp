@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 
 static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -17,8 +18,13 @@ namespace mv
             "This pass marks the convolutions that can be executed in NCE"
         );
 
+        MV_REGISTER_PASS(FormatMXWeights)
+        .setFunc(formatMXWeights)
+        .setGenre(PassGenre::Finalization)
+        .setDescription(
+            "This pass reshapes relevant Convolution weights for the MyriadX NCE"
+        );
     }
-
 }
 
 //NOTE: This should not be done in such hardcoded way.
@@ -122,5 +128,87 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
         markedOneConvolution = true;
         std::cout << "Marked one convolution as executable in HW" << std::endl;
+    }
+}
+
+
+//NOTE: This should not be done in such hardcoded way.
+void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    bool markedOneConvolution = false;
+
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    {
+        bool valid = false;
+        if(opIterator->hasAttr("NCE1_Compatible"))
+        {
+            valid = opIterator->getAttr("NCE1_Compatible").getContent<int>();
+        }
+        if (valid){
+
+            std::cout << "Taps Reshape" << std::endl;
+
+            auto weights = opIterator->getInputTensor(1);
+            auto wshape = weights->getShape();
+
+            mv::Shape newShape = mv::Shape(
+                // (mv::dim_type)wshape[0],
+                // (mv::dim_type)wshape[1],
+                // (mv::dim_type)(wshape[2] * wshape[3]/8),
+                // (mv::dim_type)8
+                32,
+                64,
+                1,
+                1,
+                8
+            );
+
+            std::cout << "Before" << mv::Printable::toString(wshape) << std::endl;
+            std::cout << "After" << mv::Printable::toString(newShape) << std::endl;
+
+            mv::Tensor newTensor = mv::Tensor("MX_Weights",
+                                                newShape,
+                                                weights->getDType(),
+                                                weights->getOrder());
+
+            mv::dynamic_vector<mv::float_type> new_data;
+            auto data = weights->getData();
+
+            // for(int w = 0; w != newShape[0]; w++){
+            //     for(int x = 0; x != newShape[1]; x++){
+            //         for(int y = 0; y != newShape[2]; y++){
+            //             for(int z = 0; z != newShape[3]; z++){
+            //                 // calc_idx = w*newShape[1]*newShape[2]*newShape[3] +
+            //                 //     x*newShape[2]*newShape[3] +
+            //                 //     y*newShape[3] + z;
+            //                 new_data.push_back(data[
+            //                     w*newShape[1]*newShape[2]*newShape[3] +
+            //                     x*newShape[2]*newShape[3] +
+            //                     y*newShape[3]*(8*z/8) +
+            //                     z % 8
+            //                 ]);
+            //             }
+            //         }
+            //     }
+            // }
+
+            // mv::Data::TensorIterator ti = mv::Data::TensorIterator();
+            // ti;
+            // newTensor;
+
+            newTensor.populate(data);
+
+            auto new_op = om.constant(
+                newTensor.getData(),
+                newTensor.getShape(),
+                newTensor.getDType(),
+                newTensor.getOrder(),
+                "MxWeights"
+            );
+
+            opIterator->setInputTensor(new_op, 1);
+
+        }
     }
 }

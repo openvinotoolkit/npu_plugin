@@ -371,9 +371,14 @@ class SerializedDescriptor:
 
         x = 0
         step = 8
+        hl = 0
         while x < len(desc):                            # Each 'half-line' is 32 bits, or 8 hex values.
             hex_ = desc[x:x+step]                       # We iterate over each of these half-lines.
-            # print(hex_)
+            if hl % 2:
+                nl = "\n"
+            else:
+                nl = ""
+            print(hex_, end=nl)
             bin_ = bin(int(hex_,16))[2:]
             # print("orig:   ", bin_)
             # bin_ = bin_[::-1].zfill(step*4)[::-1]
@@ -382,6 +387,7 @@ class SerializedDescriptor:
 
             lines.append(bin_)                          # and add to a larger list.
             x+=step
+            hl += 1
 
         char_count = 0
 
@@ -394,13 +400,13 @@ class SerializedDescriptor:
 
             # target_line = target_line[::-1]
 
-            # if field == "ChRamBlk-1":
+            # if field == "dataBaseAddr":
             #     print("Original Binary: ", target_line, "To Extract", field, "from", field_bits, "bits. On half-line:", idx)
 
             tmp_cc = char_count - ((char_count//32)*32)
 
 
-                                                        # We then index into the half-line from the other direction.
+            # We then index into the half-line from the other direction.
             end = 32-tmp_cc
             start = 32-(tmp_cc + field_bits)
 
@@ -408,7 +414,7 @@ class SerializedDescriptor:
             # start = tmp_cc
 
             target_segment = target_line[start:end]
-            # if field in ["ChRamBlk-1"]:
+            # if field in ["dataBaseAddr"]:
             #     print("Extracted: ", target_segment, "@", start, ":", end)
             cut_value = target_segment.zfill(field_bits)      # Strip the part we want and pad with 0s if required.
 
@@ -786,8 +792,8 @@ def main():
 
     for i, s in enumerate(a["Layers..."]):
         try:
-            descriptor = ""
             for j, d in enumerate(s["Op..."]["Descriptors"]):
+                descriptor = ""
                 for x in d["Half-Line"]:
                     # print("original Hex", x, x.hex())
                     # descriptor += x.hex()

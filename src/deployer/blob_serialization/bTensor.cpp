@@ -48,7 +48,14 @@ namespace mv
 
         std::cout << "Tensor Layout: " << Printable::toString((*t)->getOrder()) <<  std::endl;
 
-        if ((int)(*t)->getShape().ndims() == 4){
+        if ((int)(*t)->getShape().ndims() == 5){
+            // MyriadX Hardware Weights
+            // this->dimX = (*t)->getShape()[4];
+            this->dimX = (*t)->getShape()[0] * (*t)->getShape()[4];
+            this->dimY = (*t)->getShape()[1];
+            this->dimZ = (*t)->getShape()[2] * (*t)->getShape()[3];
+
+        }else if ((int)(*t)->getShape().ndims() == 4){
 
             // Note: The Myriad's Idea of Planar for Weights and The C++ Compiler's Idea are different, hence the swap in Z & X
             this->dimX = (*t)->getShape()[3];
