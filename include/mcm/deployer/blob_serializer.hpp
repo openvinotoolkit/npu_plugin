@@ -8,7 +8,6 @@
 * @date 4/27/2018
 */
 #include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/utils/serializer/mv_types.h"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/serializer/file_buffer.h"
 #include "include/mcm/deployer/myriadX_hardware_descriptors.hpp"
@@ -48,7 +47,7 @@ namespace mv
 
             Blob_Tensor(int x, int y, int z,
                 int sx, int sy, int sz,
-                int offset, int location, int dtype, int order);
+                int set_offset, int set_location, int dtype, int set_order);
 
             void write(WBuffer* b);
     };

@@ -243,8 +243,8 @@ namespace mv
 
     Blob_Tensor::Blob_Tensor(int x, int y, int z,
         int sx, int sy, int sz,
-        int offset, int location,
-        int dtype, int order)
+        int set_offset, int set_location,
+        int dtype, int set_order)
     {
             this->dimX = x;
             this->dimY = y;
@@ -252,10 +252,10 @@ namespace mv
             this->strideX = sx;
             this->strideY = sy;
             this->strideZ = sz;
-            this->offset = offset;
-            this->location = location;
+            this->offset = set_offset;
+            this->location = set_location;
             this->dataType = dtype;
-            this->order = order;
+            this->order = set_order;
     }
 
     void Blob_buffer::add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
@@ -443,9 +443,6 @@ namespace mv
         uint32_t running_offset = 0 ;
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
-
-
-            Blob_Op_Definition op_spec = Blob_Op_Definition(it->getOpType());
 
             int work_buffer_size = 0 ;
             if (it->getOpType() != OpType::Output)
@@ -1283,7 +1280,7 @@ namespace mv
         uint32_t buffer_header_pad_size = 3 ;
         uint32_t buffer_header_pad_val = 0x002a ;
         uint8_t buffer_pad_val = 0x00 ;
-        Float16Compressor cvtr ;
+        mv_num_convert cvtr ;
 
         // buffer section header
         AddBytes(4, (blob_stats.buffer_header_size + blob_stats.buffer_data_size));
@@ -1328,7 +1325,7 @@ namespace mv
                 // write weights and pad to file
                 for (unsigned i=0; i< buffer_taps_weights_len; i++)
                 {
-                    new_weight = cvtr.compress((it->getInputTensor(1)->getData()[i])) ;  // TODO assume fp16
+                    new_weight = cvtr.fp32_to_fp16((it->getInputTensor(1)->getData()[i])) ;  // TODO assume fp16
                     AddBytes(weights_number_size, new_weight) ;
                 }
 
@@ -1344,7 +1341,7 @@ namespace mv
                     for (unsigned i = 0; i < buffer_bias_values_len; ++i)
                     {
                         auto buffer_bias_val32 =  it->getAttr("bias").getContent<mv::dynamic_vector<float>>()[i] ;
-                        buffer_bias_val = cvtr.compress(buffer_bias_val32);
+                        buffer_bias_val = cvtr.fp32_to_fp16(buffer_bias_val32);
                         AddBytes(bias_number_size, buffer_bias_val);
                     }
                 }
@@ -1359,7 +1356,7 @@ namespace mv
 
                 for (unsigned i = 0; i < buffer_bias_values_len; ++i)
                 {
-                    buffer_bias_val = cvtr.compress(it->getInputTensor(1)->getData()[i]);
+                    buffer_bias_val = cvtr.fp32_to_fp16(it->getInputTensor(1)->getData()[i]);
                     AddBytes(bias_number_size, buffer_bias_val);
                 }
 

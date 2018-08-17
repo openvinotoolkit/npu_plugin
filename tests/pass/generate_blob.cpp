@@ -1,8 +1,23 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/utils/serializer/Fp16Convert.h"
 
 static mv::Logger::VerboseLevel logger_level = mv::Logger::VerboseLevel::VerboseSilent;
+
+TEST (mv_num_convert, fp32_to_fp16)
+{
+   mv_num_convert cvtr ;
+   EXPECT_EQ(cvtr.fp32_to_fp16(1.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625f),0x3c01 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(-2.0f),0xc000 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(65504.0f),0x7bff );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000610352f),0x0400 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000609756f),0x03ff );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000000596046f),0x0001 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0f),0x0000 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.333251953125f),0x3555 );
+}
 
 // test 01 : 1 2d convolution
 TEST (generate_blob, blob_output_conv_01) 
