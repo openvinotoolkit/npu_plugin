@@ -175,29 +175,33 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             mv::dynamic_vector<mv::float_type> new_data;
             auto data = weights->getData();
 
-            // for(int w = 0; w != newShape[0]; w++){
-            //     for(int x = 0; x != newShape[1]; x++){
-            //         for(int y = 0; y != newShape[2]; y++){
-            //             for(int z = 0; z != newShape[3]; z++){
-            //                 // calc_idx = w*newShape[1]*newShape[2]*newShape[3] +
-            //                 //     x*newShape[2]*newShape[3] +
-            //                 //     y*newShape[3] + z;
-            //                 new_data.push_back(data[
-            //                     w*newShape[1]*newShape[2]*newShape[3] +
-            //                     x*newShape[2]*newShape[3] +
-            //                     y*newShape[3]*(8*z/8) +
-            //                     z % 8
-            //                 ]);
-            //             }
-            //         }
-            //     }
-            // }
+            unsigned int o_iC = wshape[2], o_oC = wshape[3], o_fh = wshape[0], o_fw = wshape[1];
 
-            // mv::Data::TensorIterator ti = mv::Data::TensorIterator();
-            // ti;
-            // newTensor;
+            for(int i = 0; i != newShape[0]; i++){
+                for(int j = 0; j != newShape[1]; j++){
+                    for(int x = 0; x != newShape[2]; x++){
+                        for(int y = 0; y != newShape[3]; y++){
+                            for(int z = 0; z != newShape[4]; z++){
+                                new_data.push_back(data[
+                                    x*o_fw*o_iC*o_oC +  // Kernel Height is largest Dim in original matrix.
+                                    y*o_iC*o_oC +       // Followed by Width
+                                    j*o_oC +            // then Input Channels
+                                    i*8 + z             // Output Channels are written in blocks of 8
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
 
-            newTensor.populate(data);
+            newTensor.populate(new_data);
+
+            std::cout << new_data[0] << std::endl;
+            std::cout << new_data[1] << std::endl;
+            std::cout << new_data[2] << std::endl;
+            std::cout << new_data[3] << std::endl;
+            std::cout << new_data[4] << std::endl;
+            std::cout << new_data[5] << std::endl;
 
             auto new_op = om.constant(
                 newTensor.getData(),

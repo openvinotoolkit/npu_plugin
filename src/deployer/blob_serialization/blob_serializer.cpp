@@ -609,6 +609,23 @@ namespace mv
 
                             next_offset += point0 ;
 
+
+                            // No more layers (last)
+                            mv::DataModel dm(om);
+                            mv::ControlModel cm(om);
+                            Data::BufferIterator mem;
+                            mv::Control::StageIterator stg = cm.getStage(0);
+
+                            try{
+                                auto t = it->getOutputTensor(0);
+                                mem = dm.getBuffer("IntermediateMemory", stg, t);
+                                if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                                    next_offset = 0;
+                                }
+                            }catch(mv::ArgumentError){
+                                printf("Warning: No Intermediary Buffers\n");
+                                next_offset = 0;
+                            }
                             conv_pool_stage.next = next_offset;
 
                             AddBytes(4, conv_pool_stage.next);
