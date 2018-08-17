@@ -33,6 +33,18 @@ namespace mv{
             uint32_t shvPosSlope;
             uint32_t desc_count;
 
+            // Software Fields
+            uint32_t radixX;
+            uint32_t radixY;
+            uint32_t strideX;
+            uint32_t strideY;
+            uint32_t padX;
+            uint32_t padY;
+            uint32_t padStyle;
+            uint32_t dilation;
+
+            bool NCE1_Compatible;
+
             cnnConvolutionPoolStructure * descriptors;
 
         public:

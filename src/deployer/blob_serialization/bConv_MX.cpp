@@ -6,9 +6,8 @@ namespace mv
 
     void bConv2D::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
     {
-        if (1)
+        if (this->NCE1_Compatible)
         {
-
             int fp16_size = 2;
 
             mv::DataModel dm(*om);
@@ -137,6 +136,75 @@ namespace mv
 
         }else{
             // Software
+
+            b->AddBytes(4, this->radixX );
+            b->AddBytes(4, this->radixY );
+            b->AddBytes(4, this->strideX); //strideX  (0x70)
+            b->AddBytes(4, this->strideY); //strideY
+
+            // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
+            b->AddBytes(4, this->padX);  // padX
+            b->AddBytes(4, this->padY);  // padY
+            b->AddBytes(4, this->padStyle);   // 0x80
+            b->AddBytes(4, this->dilation);
+
+
+            int fp16_size = 2;
+            mv::DataModel dm(*om);
+            mv::ControlModel cm(*om);
+
+            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+            Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(
+                0,  // X
+                0,   // y
+                0,   // z
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0   // Order
+            );
+
+            inputBlobTensor.write(b);
+            outputBlobTensor.write(b);
+            tapsBlobTensor.write(b);
+
+
+            if (false)
+            {
+                // TODO: Bias not currently supported because it is not stored in memallocator
+
+                // int biasOffset = 0, biasLocation = 0, biasDataType = 0, biasOrder = 0;
+
+                // int bias_X, bias_Y, bias_Z, bias_sZ, bias_sY, bias_sX;
+
+                // bias_X = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
+                // bias_sY = conv_pool_stage.BiasStrideX*conv_pool_stage.BiasDimX;
+                // bias_sZ = conv_pool_stage.BiasStrideY;
+                // // biasOffset = conv_pool_stage.TBOffset;
+                // conv_pool_stage.TBOffset++ ;
+                // biasLocation = conv_pool_stage.BiasLocation;
+                // biasDataType = conv_pool_stage.BiasDataType;
+                // biasOrder = 1;  // TODO: should not be hardcoded
+
+                // biasBlobTensor = Blob_Tensor(
+                //     bias_X,  // X
+                //     conv_pool_stage.BiasDimY,   // y
+                //     conv_pool_stage.BiasDimZ,   // z
+                //     conv_pool_stage.BiasStrideX,
+                //     bias_sY,
+                //     bias_sZ,
+                //     biasOffset,
+                //     biasLocation,
+                //     biasDataType,
+                //     biasOrder   // Order
+                // );
+            }
+            biasBlobTensor.write(b);
         }
     }
 
@@ -148,322 +216,315 @@ namespace mv
           taps((it->getInputTensor(1)))
     {
 
-
-        printf("Serializing a HW Conv\n");
-
-        int cmxSize = 256*1024;
-        int descriptors_count = 1;
-
-        if (! it->hasAttr("NCE1_AssignedCMX"))
+        int mx_valid = 0;
+        if (! it->hasAttr("NCE1_Compatible"))
         {
-            printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 256*1024\n");
+            printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
         }
         else
         {
-            cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
-            printf("WARNING: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
-            cmxSize = 256*1024;
+            mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
         }
+        this->NCE1_Compatible = mx_valid;
 
-        if (! it->hasAttr("NCE1_DescriptorSplits"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_DescriptorSplits'. Defaulting to 1\n");
-        }
-        else
-        {
-            descriptors_count = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
-        }
+        if(this->NCE1_Compatible){
+            printf("Serializing a HW Conv\n");
 
-        if (! it->hasAttr("NCE1_StreamingMask"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
-            this->streamingMask = 1;
-        }
-        else
-        {
-            this->streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
-        }
-        if (! it->hasAttr("NCE1_Mode"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_Mode'. Defaulting to 0\n");
-            this->opMode = 0;
-        }
-        else
-        {
-            this->opMode = it->getAttr("NCE1_Mode").getContent<int>();
-        }
+            int cmxSize = 256*1024;
+            int descriptors_count = 1;
 
-
-        if (it->hasAttr("bias"))
-        {
-            this->bias = it->getAttr("bias").getContent<mv::dynamic_vector<float>>();
-        }
-        else
-        {
-            this->bias = mv::dynamic_vector<float>();
-        }
-
-        this->concatOffset = 0; // Concat not supported currently
-        this->unloadCMX = 0;
-        this->overwriteInput = 0;
-
-        this->CMXSize = cmxSize;
-        this->reluSHVAcc = 0;
-        float val = 0;
-        float val2 = 1;
-        this->shvNegSlope = *(int * )(&val);
-        this->shvPosSlope = *(int * )(&val2);
-
-        this->desc_count = descriptors_count;
-
-        // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
-        this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
-
-        int chPerRamBlock = 1;
-        int topJunk = 1, bottomJunk = 1;
-        int localLS = 1, localCS = 1;
-        int LPC = 1;
-        int minLines = 1;
-        int stride = 1;
-        int padEn = 1;
-
-
-        if (! it->hasAttr("NCE1_InputChannelsPerRamBlock"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_InputChannelsPerRamBlock'. Defaulting to 1\n");
-        }
-        else
-        {
-            chPerRamBlock = it->getAttr("NCE1_InputChannelsPerRamBlock").getContent<int>();
-        }
-
-        if (! it->hasAttr("NCE1_TopOutputJunk"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 1\n");
-        }
-        else
-        {
-            topJunk = it->getAttr("NCE1_TopOutputJunk").getContent<int>();
-        }
-
-        if (! it->hasAttr("NCE1_BottomOutputJunk"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 1\n");
-        }
-        else
-        {
-            bottomJunk = it->getAttr("NCE1_BottomOutputJunk").getContent<int>();
-        }
-
-        if (! it->hasAttr("NCE1_LocalLineStride"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_LocalLineStride'. Defaulting to 1\n");
-        }
-        else
-        {
-            localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>();
-        }
-
-        auto weight_4dshape = this->taps->getShape();
-        localCS = weight_4dshape[0]*2;
-
-        // if (! it->hasAttr("NCE1_LinesPerChannel"))
-        // {
-        //     printf("WARNING: Needs Attribute 'NCE1_LinesPerChannel'. Defaulting to 1\n");
-        // }
-        // else
-        // {
-        //     LPC = it->getAttr("NCE1_LinesPerChannel").getContent<int>() -1;
-        // }
-
-        LPC = weight_4dshape[4];
-
-        if (! it->hasAttr("NCE1_MinLines"))
-        {
-            printf("WARNING: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
-        }
-        else
-        {
-            minLines = it->getAttr("NCE1_MinLines").getContent<int>() -1;
-        }
-
-        if (! it->hasAttr("stride"))
-        {
-            printf("WARNING: Needs Attribute 'stride'. Defaulting to 1\n");
-        }
-        else
-        {
-            stride = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
-        }
-
-        if (! it->hasAttr("padding"))
-        {
-            printf("WARNING: Needs Attribute 'padding'. Defaulting to 1\n");
-        }
-        else
-        {
-            padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
-        }
-
-
-        for (unsigned i = 0; i != this->desc_count; i++)
-        {
-            this->descriptors[i] =  cnnConvolutionPoolStructure();
-
-            // Relations to other Descriptors
-            if (i+1 == this->desc_count){
-                this->descriptors[i].Line0.linkAddress = 0; // Last.
-            }else{
-                this->descriptors[i].Line0.linkAddress = 32*4;
-            }
-            printf("linkAddress: %d\n", 32*4);
-
-            this->descriptors[i].Line0.id = 0;
-
-            // Layer Meta Information - Layout & DataTypes
-            this->descriptors[i].Line0.type = NCE1_CONV;
-            this->descriptors[i].Line0.interleavedInput = 0;
-            this->descriptors[i].Line0.interleavedOutput = 0;
-            this->descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
-            this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
-
-            std::cout << "Taps" <<  Printable::toString(this->taps->getShape()) << std::endl;
-
-            // Standard Fields for Convolution
-            this->descriptors[i].kernelWidth = this->taps->getShape()[2] -1;
-            this->descriptors[i].kernelHeight = this->taps->getShape()[3] -1;
-
-            this->descriptors[i].chStride = stride -1;  // Stride of Kernel (Square only)
-
-            if (padEn > 0)
+            if (! it->hasAttr("NCE1_AssignedCMX"))
             {
-                this->descriptors[i].padEn = 1;
+                printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 256*1024\n");
             }
             else
             {
-                this->descriptors[i].padEn = 0;
+                cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
+                printf("WARNING: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
+                cmxSize = 256*1024;
             }
 
-            this->descriptors[i].padType = 0;   // Zero Padding
-
-            this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
-            unsigned int original_height = this->input->getShape()[1];
-            unsigned int current_height;
-            if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
-                current_height = ceil(original_height/(float)this->desc_count) - surplus;
-            }else{
-                current_height = ceil(original_height/(float)this->desc_count);
-            }
-
-            this->descriptors[i].inputHeight =  current_height - 1;
-            this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
-
-            this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
-
-            // std::cout << "Input Size: " << descriptors[i].inputWidth + 1 << std::endl;
-            // std::cout << "Input Size: " << descriptors[i].inputHeight + 1 << std::endl;
-            // std::cout << "Input Size: " << descriptors[i].inputChannels + 1 << std::endl;
-            // std::cout << "Output Size: " << descriptors[i].outputChannels + 1 << std::endl;
-
-            // Descriptor Buffers
-
-            // Resolved at write time.
-
-            // this->descriptors[i].dataBaseAddr = 0;
-            // this->descriptors[i].dataChStr = -1;
-            // this->descriptors[i].dataLnStr = -1;
-
-            // this->descriptors[i].coeffBaseAddr = 0;
-            // this->descriptors[i].coeffChStrOut = -1;
-            // this->descriptors[i].coeffChStrIn = -1;
-
-            // this->descriptors[i].outLnStr = 0;
-            // this->descriptors[i].outBaseAddr = -1;
-            // this->descriptors[i].outChStr = -1;
-
-            // this->descriptors[i].biasBaseAddr = 0;
-            // this->descriptors[i].scaleBaseAddr = 0;
-
-            // Myriad X DPU Assignment & Execution Configuration
-            this->descriptors[i].Line0.mode = 0 ;//this->opMode;
-            this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
-            this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
-
-
-            std::cout << "chPerRamBlock:::::::::::::::::::::::::"<< chPerRamBlock << std::endl;
-            this->descriptors[i].chPerRamBlock = chPerRamBlock -1;        // Input Channels per Ram Block
-
-
-            // Myriad X Compensation Fields
-            this->descriptors[i].topOutputJunk = topJunk;
-            this->descriptors[i].bottomOutputJunk = bottomJunk;
-
-            this->descriptors[i].localLs =  localLS;
-            this->descriptors[i].localCs =  localCS - 1;
-            this->descriptors[i].linesPerCh = LPC;
-
-            this->descriptors[i].rud = 0;   // Re-Use bit
-
-            this->descriptors[i].minLines = minLines;     // Minimum lines of data required to carry out function
-
-            this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
-            this->descriptors[i].css = (this->descriptors[i].kernelWidth + 1) * (this->descriptors[i].kernelHeight + 1) -1 ;
-            this->descriptors[i].outputX = this->output->getShape()[0];
-
-            // Myriad X - Splitting groups
-            this->descriptors[i].sohGroup = i;  // TODO: Looped decisions
-            this->descriptors[i].sodGroup = 0;
-
-            // Fused ReLU
-            this->descriptors[i].t0 = 0;
-            this->descriptors[i].a0 = 0;
-            this->descriptors[i].a1 = 0;
-            this->descriptors[i].reluxEn = 0;
-            this->descriptors[i].reluEn = 0;
-
-            // Fused Pooling
-            if (0)
+            if (! it->hasAttr("NCE1_DescriptorSplits"))
             {
-                this->descriptors[i].Line0.type = NCE1_CONV_POOL;
+                printf("WARNING: Needs Attribute 'NCE1_DescriptorSplits'. Defaulting to 1\n");
             }
-            this->descriptors[i].avgPoolX = 0;
-            this->descriptors[i].poolType = 0;
-            this->descriptors[i].poolEn = 0;
-            this->descriptors[i].poolKernelHeight = 0;
-            this->descriptors[i].poolKernelWidth = 0;
+            else
+            {
+                descriptors_count = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+            }
 
-            // Reserved fields of the hw descriptor. Leave as zero or live in eternal fear.
-            this->descriptors[i].Line0.rsvd1 = 0;
-            this->descriptors[i].rsvd2 = 0;
-            this->descriptors[i].rsvd3 = 0;
-            this->descriptors[i].rsvd4 = 0;
-            this->descriptors[i].rsvd5 = 0;
-            this->descriptors[i].rsvd6 = 0;
-            this->descriptors[i].rsvd7 = 0;
-            this->descriptors[i].rsvd9 = 0;
-            this->descriptors[i].rsvd10 = 0;
-            this->descriptors[i].rsvd13 = 0;
-            this->descriptors[i].rsvd8 = 0;
+            if (! it->hasAttr("NCE1_StreamingMask"))
+            {
+                printf("WARNING: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
+                this->streamingMask = 1;
+            }
+            else
+            {
+                this->streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
+            }
+            if (! it->hasAttr("NCE1_Mode"))
+            {
+                printf("WARNING: Needs Attribute 'NCE1_Mode'. Defaulting to 0\n");
+                this->opMode = 0;
+            }
+            else
+            {
+                this->opMode = it->getAttr("NCE1_Mode").getContent<int>();
+            }
 
-            // Palette for Weights Lookup (Currently Unsupported).
-            this->descriptors[i].p0 = 0;
-            this->descriptors[i].p1 = 0;
-            this->descriptors[i].p2 = 0;
-            this->descriptors[i].p3 = 0;
-            this->descriptors[i].p4 = 0;
-            this->descriptors[i].p5 = 0;
-            this->descriptors[i].p6 = 0;
-            this->descriptors[i].p7 = 0;
-            this->descriptors[i].p8 = 0;
-            this->descriptors[i].p9 = 0;
-            this->descriptors[i].p10 = 0;
-            this->descriptors[i].p11 = 0;
-            this->descriptors[i].p12 = 0;
-            this->descriptors[i].p13 = 0;
-            this->descriptors[i].p14 = 0;
-            this->descriptors[i].p15 = 0;
+
+            if (it->hasAttr("bias"))
+            {
+                this->bias = it->getAttr("bias").getContent<mv::dynamic_vector<float>>();
+            }
+            else
+            {
+                this->bias = mv::dynamic_vector<float>();
+            }
+
+            this->concatOffset = 0; // Concat not supported currently
+            this->unloadCMX = 0;
+            this->overwriteInput = 0;
+
+            this->CMXSize = cmxSize;
+            this->reluSHVAcc = 0;
+            float val = 0;
+            float val2 = 1;
+            this->shvNegSlope = *(int * )(&val);
+            this->shvPosSlope = *(int * )(&val2);
+
+            this->desc_count = descriptors_count;
+
+            // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
+            this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
+
+            int chPerRamBlock = 1;
+            int topJunk = 1, bottomJunk = 1;
+            int localLS = 1, localCS = 1;
+            int LPC = 1;
+            int minLines = 1;
+            int stride = 1;
+            int padEn = 1;
+
+
+            if (! it->hasAttr("NCE1_InputChannelsPerRamBlock"))
+            {
+                printf("WARNING: Needs Attribute 'NCE1_InputChannelsPerRamBlock'. Defaulting to 1\n");
+            }
+            else
+            {
+                chPerRamBlock = it->getAttr("NCE1_InputChannelsPerRamBlock").getContent<int>();
+            }
+
+            if (! it->hasAttr("NCE1_TopOutputJunk"))
+            {
+                printf("WARNING: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 1\n");
+            }
+            else
+            {
+                topJunk = it->getAttr("NCE1_TopOutputJunk").getContent<int>();
+            }
+
+            if (! it->hasAttr("NCE1_BottomOutputJunk"))
+            {
+                printf("WARNING: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 1\n");
+            }
+            else
+            {
+                bottomJunk = it->getAttr("NCE1_BottomOutputJunk").getContent<int>();
+            }
+
+            if (! it->hasAttr("NCE1_LocalLineStride"))
+            {
+                printf("WARNING: Needs Attribute 'NCE1_LocalLineStride'. Defaulting to 1\n");
+            }
+            else
+            {
+                localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>();
+            }
+
+            auto weight_4dshape = this->taps->getShape();
+            localCS = weight_4dshape[0]*2;
+
+            LPC = weight_4dshape[4];
+
+            if (! it->hasAttr("NCE1_MinLines"))
+            {
+                printf("WARNING: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
+            }
+            else
+            {
+                minLines = it->getAttr("NCE1_MinLines").getContent<int>() -1;
+            }
+
+            if (! it->hasAttr("stride"))
+            {
+                printf("WARNING: Needs Attribute 'stride'. Defaulting to 1\n");
+            }
+            else
+            {
+                stride = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
+            }
+
+            if (! it->hasAttr("padding"))
+            {
+                printf("WARNING: Needs Attribute 'padding'. Defaulting to 1\n");
+            }
+            else
+            {
+                padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
+            }
+
+
+            for (unsigned i = 0; i != this->desc_count; i++)
+            {
+                this->descriptors[i] =  cnnConvolutionPoolStructure();
+
+                // Relations to other Descriptors
+                if (i+1 == this->desc_count){
+                    this->descriptors[i].Line0.linkAddress = 0; // Last.
+                }else{
+                    this->descriptors[i].Line0.linkAddress = 32*4;
+                }
+                printf("linkAddress: %d\n", 32*4);
+
+                this->descriptors[i].Line0.id = 0;
+
+                // Layer Meta Information - Layout & DataTypes
+                this->descriptors[i].Line0.type = NCE1_CONV;
+                this->descriptors[i].Line0.interleavedInput = 0;
+                this->descriptors[i].Line0.interleavedOutput = 0;
+                this->descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
+                this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
+
+                std::cout << "Taps" <<  Printable::toString(this->taps->getShape()) << std::endl;
+
+                // Standard Fields for Convolution
+                this->descriptors[i].kernelWidth = this->taps->getShape()[2] -1;
+                this->descriptors[i].kernelHeight = this->taps->getShape()[3] -1;
+
+                this->descriptors[i].chStride = stride -1;  // Stride of Kernel (Square only)
+
+                if (padEn > 0)
+                {
+                    this->descriptors[i].padEn = 1;
+                }
+                else
+                {
+                    this->descriptors[i].padEn = 0;
+                }
+
+                this->descriptors[i].padType = 0;   // Zero Padding
+
+                this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
+                unsigned int original_height = this->input->getShape()[1];
+                unsigned int current_height;
+                if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
+                    int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
+                    current_height = ceil(original_height/(float)this->desc_count) - surplus;
+                }else{
+                    current_height = ceil(original_height/(float)this->desc_count);
+                }
+
+                this->descriptors[i].inputHeight =  current_height - 1;
+                this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
+
+                this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
+
+                // Myriad X DPU Assignment & Execution Configuration
+                this->descriptors[i].Line0.mode = 0 ;//this->opMode;
+                this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
+                this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
+
+
+                std::cout << "chPerRamBlock:::::::::::::::::::::::::"<< chPerRamBlock << std::endl;
+                this->descriptors[i].chPerRamBlock = chPerRamBlock -1;        // Input Channels per Ram Block
+
+
+                // Myriad X Compensation Fields
+                this->descriptors[i].topOutputJunk = topJunk;
+                this->descriptors[i].bottomOutputJunk = bottomJunk;
+
+                this->descriptors[i].localLs =  localLS;
+                this->descriptors[i].localCs =  localCS - 1;
+                this->descriptors[i].linesPerCh = LPC;
+
+                this->descriptors[i].rud = 0;   // Re-Use bit
+
+                this->descriptors[i].minLines = minLines;     // Minimum lines of data required to carry out function
+
+                this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
+                this->descriptors[i].css = (this->descriptors[i].kernelWidth + 1) * (this->descriptors[i].kernelHeight + 1) -1 ;
+                this->descriptors[i].outputX = this->output->getShape()[0];
+
+                // Myriad X - Splitting groups
+                this->descriptors[i].sohGroup = i;  // TODO: Looped decisions
+                this->descriptors[i].sodGroup = 0;
+
+                // Fused ReLU
+                this->descriptors[i].t0 = 0;
+                this->descriptors[i].a0 = 0;
+                this->descriptors[i].a1 = 0;
+                this->descriptors[i].reluxEn = 0;
+                this->descriptors[i].reluEn = 0;
+
+                // Fused Pooling
+                if (0)
+                {
+                    this->descriptors[i].Line0.type = NCE1_CONV_POOL;
+                }
+                this->descriptors[i].avgPoolX = 0;
+                this->descriptors[i].poolType = 0;
+                this->descriptors[i].poolEn = 0;
+                this->descriptors[i].poolKernelHeight = 0;
+                this->descriptors[i].poolKernelWidth = 0;
+
+                // Reserved fields of the hw descriptor. Leave as zero or live in eternal fear.
+                this->descriptors[i].Line0.rsvd1 = 0;
+                this->descriptors[i].rsvd2 = 0;
+                this->descriptors[i].rsvd3 = 0;
+                this->descriptors[i].rsvd4 = 0;
+                this->descriptors[i].rsvd5 = 0;
+                this->descriptors[i].rsvd6 = 0;
+                this->descriptors[i].rsvd7 = 0;
+                this->descriptors[i].rsvd9 = 0;
+                this->descriptors[i].rsvd10 = 0;
+                this->descriptors[i].rsvd13 = 0;
+                this->descriptors[i].rsvd8 = 0;
+
+                // Palette for Weights Lookup (Currently Unsupported).
+                this->descriptors[i].p0 = 0;
+                this->descriptors[i].p1 = 0;
+                this->descriptors[i].p2 = 0;
+                this->descriptors[i].p3 = 0;
+                this->descriptors[i].p4 = 0;
+                this->descriptors[i].p5 = 0;
+                this->descriptors[i].p6 = 0;
+                this->descriptors[i].p7 = 0;
+                this->descriptors[i].p8 = 0;
+                this->descriptors[i].p9 = 0;
+                this->descriptors[i].p10 = 0;
+                this->descriptors[i].p11 = 0;
+                this->descriptors[i].p12 = 0;
+                this->descriptors[i].p13 = 0;
+                this->descriptors[i].p14 = 0;
+                this->descriptors[i].p15 = 0;
+            }
+        } else {
+            this->radixX = it->getInputTensor(1)->getShape()[0];
+            this->radixY = it->getInputTensor(1)->getShape()[1];
+            this->strideX = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
+            this->strideY = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1;
+            this->padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
+            this->padY = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2;
+            this->padStyle = 2; // HARDCODED.
+            this->dilation = 1; // HARDCODED.
+
+
+            printf("Warning: Manual Override of Convolution Software layer order\n");
+            this->output->setOrder(Order::RowMajor);
+            this->input->setOrder(Order::RowMajor);
+            this->taps->setOrder(Order::RowMajorAlt);
         }
     }
-
 }

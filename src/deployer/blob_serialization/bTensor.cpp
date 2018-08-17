@@ -58,9 +58,9 @@ namespace mv
         }else if ((int)(*t)->getShape().ndims() == 4){
 
             // Note: The Myriad's Idea of Planar for Weights and The C++ Compiler's Idea are different, hence the swap in Z & X
-            this->dimX = (*t)->getShape()[3];
+            this->dimZ = (*t)->getShape()[3];
             this->dimY = (*t)->getShape()[2];
-            this->dimZ = (*t)->getShape()[0] * (*t)->getShape()[1];
+            this->dimX = (*t)->getShape()[0] * (*t)->getShape()[1];
 
         }else{
             assert((int)(*t)->getShape().ndims() == 3);
@@ -197,6 +197,13 @@ namespace mv
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 break;
+            case Order::RowMajorAlt:
+                this->order = 3;
+                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
+                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
+                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimY*this->strideY;
+                break;
+
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);

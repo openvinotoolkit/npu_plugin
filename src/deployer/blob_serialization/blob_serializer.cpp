@@ -38,15 +38,6 @@ namespace mv
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
             switch(it->getOpType()){
-
-                // case OpType::Input:
-                //     {
-                //         blob_stats.stage_count++;
-                //     }
-                // case OpType::Output:
-                //     {
-                //         // Pass - Not Written
-                //     }
                 case OpType::Conv2D:
                 case OpType::FullyConnected:
                     {
@@ -72,16 +63,14 @@ namespace mv
                             kernel_sizeN = it->getInputTensor(1)->getShape()[3] ;
 
 
-                            int mx_valid = 1;
+                            int mx_valid = 0;
                             if (! it->hasAttr("NCE1_Compatible"))
                             {
-                                printf("Warning: attribute NCE1_Compatible not present. Assuming True.\n");
+                                printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
                             }
                             else
                             {
-
                                 mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
-                                mx_valid = 1;
                             }
 
                             if(mx_valid){
@@ -576,16 +565,14 @@ namespace mv
             switch(it->getOpType()){
                 case OpType::Conv2D:
                     {
-                        int mx_valid = 1;
+                        int mx_valid = 0;
                         if (! it->hasAttr("NCE1_Compatible"))
                         {
-                            printf("Warning: attribute NCE1_Compatible not present. Assuming True.\n");
+                            printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
                         }
                         else
                         {
                             mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
-                            printf("Compatibility Flag from Compiler: %i\n", mx_valid);
-                            mx_valid = 1;
                         }
 
                         if(mx_valid)
@@ -643,126 +630,64 @@ namespace mv
                         {
                             // Serialize for S/W
 
+                            int descriptors = 1;
+                            int point0 = 0;
+                            point0 += (8*4) ; // Fields
+                            point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+                            point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
 
                             if (it->hasAttr("postOpType"))
                             {
                                 if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
                                 {
-                                    next_offset += 0xd4 + (3*4) ;
+                                    point0 += (5*4) ;
+                                }else{
+                                    printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
+                                    assert(0);
                                 }
                             }
                             else
                             {
-                                next_offset += 0xd4 ;
+                                point0 += (2*4) ;
                             }
 
-                            // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                            conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
-                            conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
+                            next_offset += point0 ;
 
-                            // determine address offset to input buffer
-                            if (conv_pool_stage.InputLocation != 1)
-                            {
-                                //  find input work buffer in output lists
-                                for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
-                                {
-                                    if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
-                                    {
-                                        blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
-                                        blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                                        conv_pool_stage.InputOffset = reloc_index++;
-                                    }
-                                } // end search outbufnum list
-                            }   // end node input is work buffer case
-                            else
-                            {
-                                conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
+
+                            // No more layers (last)
+                            mv::DataModel dm(om);
+                            mv::ControlModel cm(om);
+                            Data::BufferIterator mem;
+                            mv::Control::StageIterator stg = cm.getStage(0);
+
+                            try{
+                                auto t = it->getOutputTensor(0);
+                                mem = dm.getBuffer("IntermediateMemory", stg, t);
+                                if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                                    next_offset = 0;
+                                }
+                            }catch(mv::ArgumentError){
+                                printf("Warning: No Intermediary Buffers\n");
+                                next_offset = 0;
                             }
-
-                            // determine address offset to output buffer
-                            if (conv_pool_stage.OutputLocation != 2)
-
-                            {
-                                blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
-                                blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                                conv_pool_stage.OutputOffset = reloc_index++;
-                                conv_pool_stage.next = next_offset ;
-                            }
-                            else
-                            {
-                                conv_pool_stage.OutputOffset = 0 ;
-                                conv_pool_stage.next = 0 ;
-                            }
-
-                            outlist_index++;
-                            inlist_index++;
+                            conv_pool_stage.next = next_offset;
 
                             AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x00);                                // 0x60
+                            AddBytes(4, 0);                                // 0x60
                             AddBytes(4, conv_pool_stage.implementation);
 
-                            // operator specific info
-                            AddBytes(4, it->getInputTensor(1)->getShape()[0]); //radixX
-                            AddBytes(4, it->getInputTensor(1)->getShape()[1]); //radixY
-                            AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX  (0x70)
-                            AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
-                            // Ignore asymmetric padding (ignore elements elements p_r and p_b from padding = [p_l, p_r, p_t, p_b])
-                            AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0);  // padX
-                            AddBytes(4, it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2);  // padY
-                            AddBytes(4, conv_pool_stage.padStyle);   // 0x80
-                            AddBytes(4, conv_pool_stage.dilation);
-
-                            add_stage_IO_info(it, conv_pool_stage);
-
-                            Blob_Tensor taps = Blob_Tensor(
-                                it->getInputTensor(1)->getShape()[0]*it->getInputTensor(1)->getShape()[1],  // X
-                                it->getInputTensor(1)->getShape()[2],   // y
-                                it->getInputTensor(1)->getShape()[3],   // z
-                                blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[2]*it->getInputTensor(1)->getShape()[3],
-                                blob_stats.tensor_number_size*it->getInputTensor(1)->getShape()[3], // Taps Sy
-                                conv_pool_stage.TapsStrideZ, // SZ
-                                conv_pool_stage.TBOffset,
-                                conv_pool_stage.TapsLocation,
-                                conv_pool_stage.TapsDataType,
-                                conv_pool_stage.TapsOrder
-                            );
-                            conv_pool_stage.TBOffset++ ;
-                            taps.write(this);
-
-
-                            int biasOffset = 0, biasLocation = 0, biasDataType = 0, biasOrder = 0;
-
-                            if (it->hasAttr("bias"))
-                            {
-                                conv_pool_stage.BiasDimX = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
-                                conv_pool_stage.BiasStrideY = conv_pool_stage.BiasStrideX*conv_pool_stage.BiasDimX;
-                                conv_pool_stage.BiasStrideZ = conv_pool_stage.BiasStrideY;
-                                biasOffset = conv_pool_stage.TBOffset;
-                                conv_pool_stage.TBOffset++ ;
-                                biasLocation = conv_pool_stage.BiasLocation;
-                                biasDataType = conv_pool_stage.BiasDataType;
-                                biasOrder = 1;  // TODO: should not be hardcoded
-                            }
-
-                            Blob_Tensor bias = Blob_Tensor(
-                                conv_pool_stage.BiasDimX,  // X
-                                conv_pool_stage.BiasDimY,   // y
-                                conv_pool_stage.BiasDimZ,   // z
-                                conv_pool_stage.BiasStrideX,
-                                conv_pool_stage.BiasStrideY,
-                                conv_pool_stage.BiasStrideZ,
-                                biasOffset,
-                                biasLocation,
-                                biasDataType,
-                                biasOrder   // Order
-                            );
-                            bias.write(this);
+                            // Serialize for MyriadX H/W
+                            bConv2D c = bConv2D(&(*it));
+                            c.writeStageInfo(&om, this);
 
                             AddBytes(4, conv_pool_stage.preop_type);
                             if (it->hasAttr("postOpType"))
                             {
+
                                 if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
                                 {
+
                                     AddBytes(4, 0x06);    // 0x12c , postop relu
                                     AddBytes(4, 0x00);
                                     AddBytes(4, 0x00);
