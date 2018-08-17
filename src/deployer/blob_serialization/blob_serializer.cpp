@@ -128,7 +128,7 @@ namespace mv
                 case OpType::AvgPool2D:
                     {
                         blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += (3+7+20+2)*4 ;
+                        blob_stats.stage_section_size += bPooling::getSerializedSize()+5*4 ;
                     }
                     break;
                 case OpType::Add:
@@ -136,7 +136,7 @@ namespace mv
                     {
                         blob_stats.stage_count++ ;
                         blob_stats.elt_count++ ;
-                        blob_stats.stage_section_size += (3+32)*4 ;
+                        blob_stats.stage_section_size += bEltwise::getSerializedSize()+5*4 ;
                     }
                     break;
                 case OpType::Softmax:
@@ -633,7 +633,7 @@ namespace mv
                             int descriptors = 1;
                             int point0 = 0;
                             point0 += (8*4) ; // Fields
-                            point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+                            point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
                             point0 += (3*4) ; // nextsatge, etc MOVE OUT.
 
 
@@ -884,408 +884,168 @@ namespace mv
                     break;
                 case OpType::Softmax:
                     {
-                        if(1){
+                        int point0 = 0;
+                        point0 += 1;    // Fields
+                        point0 += 2*10 ; // Input, Output
+                        point0 += 2 ; // PreOp PostOp TODO: Move OUT.
+                        point0 += 3 ; // nextstage, id, imp
+                        next_offset += point0*4 ;
 
-                            int point0 = 0;
-                            point0 += 1;    // Fields
-                            point0 += 2*10 ; // Input, Output
-                            point0 += 2 ; // PreOp PostOp TODO: Move OUT.
-                            point0 += 3 ; // nextstage, id, imp
-                            next_offset += point0*4 ;
-
-                            // No more layers (last)
-                            mv::DataModel dm(om);
-                            mv::ControlModel cm(om);
-                            Data::BufferIterator mem;
-                            mv::Control::StageIterator stg = cm.getStage(0);
-                            try{
-                                auto t = it->getOutputTensor(0);
-                                mem = dm.getBuffer("IntermediateMemory", stg, t);
-                                if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                    next_offset = 0;
-                                }
-                            }catch(mv::ArgumentError){
-                                printf("Warning: No Intermediary Buffers\n");
+                        // No more layers (last)
+                        mv::DataModel dm(om);
+                        mv::ControlModel cm(om);
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        try{
+                            auto t = it->getOutputTensor(0);
+                            mem = dm.getBuffer("IntermediateMemory", stg, t);
+                            if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
                                 next_offset = 0;
                             }
-
-                            conv_pool_stage.next = next_offset ;
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x02);                                // 0x60
-                            AddBytes(4, conv_pool_stage.implementation);
-
-                            // Serialize for MyriadX H/W
-                            bSoftmax c = bSoftmax(&(*it));
-                            c.writeStageInfo(&om, this);
-
-                            AddBytes(4, 0x05);    // 0x12c , no preop
-                            AddBytes(4, 0x05);    // 0x12c , no postop
-                        }else{
-
-                            next_offset += 0x68 ;
-
-                            // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                            conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
-                            conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
-
-                            // determine address offset to input buffer
-                            if (conv_pool_stage.InputLocation != 1)
-                            {
-                                //  find input work buffer in output lists
-                                for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
-                                {
-                                    if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
-                                    {
-                                        blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
-                                        blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                                    //std::cout << "pushing reloc-table (softmax in)relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
-                                        conv_pool_stage.InputOffset = reloc_index++;
-                                    }
-                                } // end search outbufnum list
-                            }   // end node input is work buffer case
-                            else
-                            {
-                                conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
-                            }
-
-                            // determine address offset to output buffer
-                            if (conv_pool_stage.OutputLocation != 2)
-                            {
-                                blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
-                                blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                                    //std::cout << "pushing reloc-table (softmax out) relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[outlist_index] << " " << outbufsiz_list[outlist_index] << std::endl;
-                                conv_pool_stage.OutputOffset = reloc_index++;
-                                conv_pool_stage.next = next_offset ;
-                            }
-                            else
-                            {
-                                conv_pool_stage.OutputOffset = 0 ;
-                                conv_pool_stage.next = 0 ;
-                            }
-
-                            outlist_index++;
-                            inlist_index++;
-
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x03);   // opcode for softmax
-                            AddBytes(4, conv_pool_stage.implementation);
-
-                            // operator specific info
-                            AddBytes(4, 0x01); // softmax axis
-
-
-                            int inputLocation = conv_pool_stage.InputLocation;
-                            if (conv_pool_stage.InputLocation > 4)
-                            {
-                                inputLocation = 0x04;
-                            }
-                            int outputLocation = conv_pool_stage.OutputLocation;
-                            if (conv_pool_stage.OutputLocation > 4)
-                            {
-                                outputLocation = 0x04;
-                            }
-
-                            Blob_Tensor input = Blob_Tensor(
-                                0x01,   // X
-                                0x01,   // Y
-                                it->getInputTensor(0)->getShape().totalSize(),   // Z
-                                blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize(),     // X Stride
-                                blob_stats.tensor_number_size*it->getInputTensor(0)->getShape().totalSize(),    // Y Stride
-                                blob_stats.tensor_number_size,
-                                conv_pool_stage.InputOffset,
-                                inputLocation,
-                                conv_pool_stage.InputDataType,
-                                conv_pool_stage.InputOrder
-                            );
-                            Blob_Tensor output = Blob_Tensor(
-                                0x01,   // X
-                                0x01,   // Y
-                                it->getOutputTensor(0)->getShape().totalSize(),   // Z
-                                blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),     // X Stride
-                                blob_stats.tensor_number_size*it->getOutputTensor(0)->getShape().totalSize(),    // Y Stride
-                                blob_stats.tensor_number_size,
-                                conv_pool_stage.OutputOffset,
-                                outputLocation,
-                                conv_pool_stage.OutputDataType,
-                                conv_pool_stage.OutputOrder
-                            );
-                            input.write(this);
-                            output.write(this);
-
-                            AddBytes(4, conv_pool_stage.preop_type);
-                            AddBytes(4, conv_pool_stage.postop_type);
+                        }catch(mv::ArgumentError){
+                            printf("Warning: No Intermediary Buffers\n");
+                            next_offset = 0;
                         }
+
+                        conv_pool_stage.next = next_offset ;
+                        AddBytes(4, conv_pool_stage.next);
+                        AddBytes(4, 0x02);                                // 0x60
+                        AddBytes(4, conv_pool_stage.implementation);
+
+                        // Serialize for MyriadX H/W
+                        bSoftmax c = bSoftmax(&(*it));
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
                     }
                     break;
                 case OpType::ReLU:
                     {
+                        int point0 = 0;
+                        point0 += 3;    // Fields
+                        point0 += 2*10 ; // Input, Output
+                        point0 += 2 ; // PreOp PostOp TODO: Move OUT.
+                        point0 += 3 ; // nextstage, id, imp
+                        next_offset += point0*4 ;
 
-                        next_offset += 0x70 ;
-
-                        // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                        conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
-                        conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
-
-                        // determine address offset to input buffer
-                        if (conv_pool_stage.InputLocation != 1)
-                        {
-                            //  find input work buffer in output lists
-                            for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
-                            {
-                                if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
-                                {
-                                    blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
-                                    blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                                //std::cout << "pushing reloc-table (relu in) relindex bufnum siz "<< reloc_index << " " <<  outbufnum_list[olist_index] << " " << outbufsiz_list[olist_index] << std::endl;
-                                    conv_pool_stage.InputOffset = reloc_index++;
-                                }
-                            } // end search outbufnum list
-                        }   // end node input is work buffer case
-                        else
-                        {
-                            conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
+                        // No more layers (last)
+                        mv::DataModel dm(om);
+                        mv::ControlModel cm(om);
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        try{
+                            auto t = it->getOutputTensor(0);
+                            mem = dm.getBuffer("IntermediateMemory", stg, t);
+                            if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                                next_offset = 0;
+                            }
+                        }catch(mv::ArgumentError){
+                            printf("Warning: No Intermediary Buffers\n");
+                            next_offset = 0;
                         }
 
-                        // determine address offset to output buffer
-                        if (conv_pool_stage.OutputLocation != 2)
-                        {
-                            blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
-                            blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                            conv_pool_stage.OutputOffset = reloc_index++;
-                            conv_pool_stage.next = next_offset ;
-                        }
-                        else
-                        {
-                            conv_pool_stage.OutputOffset = 0 ;
-                            conv_pool_stage.next = 0 ;
-                        }
-
-                        outlist_index++;
-                        inlist_index++;
-
+                        conv_pool_stage.next = next_offset ;
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, 0x06);   // opcode for ReLU
+                        AddBytes(4, 0x06);                                // 0x60
                         AddBytes(4, conv_pool_stage.implementation);
 
-                        // operator specific info
-                        AddBytes(4, 0x00); // OpX
+                        // Serialize for MyriadX H/W
+                        bRelu c = bRelu(&(*it));
+                        c.writeStageInfo(&om, this);
 
-                        add_stage_IO_info(it, conv_pool_stage);
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
 
-                        AddBytes(4, 0x00); // post stride x
-                        AddBytes(4, 0x00); // post stride y
-
-                        AddBytes(4, conv_pool_stage.preop_type);
-                        AddBytes(4, conv_pool_stage.postop_type);
                     }
                     break;
                 case OpType::MaxPool2D:
-                    {
-                        if(1){
-                            int point0 = 0;
-                            point0 += 7;    // Fields
-                            point0 += 2*10 ; // Input, Output
-                            point0 += 2 ; // PreOp PostOp TODO: Move OUT.
-                            point0 += 3 ; // nextstage, id, imp
-                            next_offset += point0*4 ;
-
-                            // No more layers (last)
-                            mv::DataModel dm(om);
-                            mv::ControlModel cm(om);
-                            Data::BufferIterator mem;
-                            mv::Control::StageIterator stg = cm.getStage(0);
-                            try{
-                                auto t = it->getOutputTensor(0);
-                                mem = dm.getBuffer("IntermediateMemory", stg, t);
-                                if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                    next_offset = 0;
-                                }
-                            }catch(mv::ArgumentError){
-                                printf("Warning: No Intermediary Buffers\n");
-                                next_offset = 0;
-                            }
-
-                            conv_pool_stage.next = next_offset ;
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x01);                                // 0x60
-                            AddBytes(4, conv_pool_stage.implementation);
-
-                            // Serialize for MyriadX H/W
-                            bPooling c = bPooling(&(*it));
-                            c.writeStageInfo(&om, this);
-
-                            AddBytes(4, 0x05);    // 0x12c , no preop
-                            AddBytes(4, 0x05);    // 0x12c , no postop
-                        }else{
-
-                            next_offset += 0x80 ;
-
-                            // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                            conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
-                            conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
-
-                            // determine address offset to input buffer
-                            if (conv_pool_stage.InputLocation != 1)
-                            {
-                                //  find input work buffer in output lists
-                                for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
-                                {
-                                    if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
-                                    {
-                                        blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
-                                        blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                                        conv_pool_stage.InputOffset = reloc_index++;
-                                        break;
-                                    }
-                                } // end search outbufnum list
-                            }   // end node input is work buffer case
-                            else
-                            {
-                                conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
-                            }
-                            // determine address offset to output buffer
-                            if (conv_pool_stage.OutputLocation != 2)
-                            {
-                                blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
-                                blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                                conv_pool_stage.OutputOffset = reloc_index++;
-                                conv_pool_stage.next = next_offset ;
-                            }
-                            else
-                            {
-                                conv_pool_stage.OutputOffset = 0 ;
-                                conv_pool_stage.next = 0 ;
-                            }
-
-                            outlist_index++;
-                            inlist_index++;
-
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 1);             // opcode for maxpool is 1
-                            AddBytes(4, conv_pool_stage.implementation);
-
-                            // operator specific info
-                            AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e0); // radix X
-                            AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1); // radix Y (0x140)
-                            AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX
-                            AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
-                            AddBytes(4, 0x00);   // padX
-                            AddBytes(4, 0x00);   // padY 0x150
-                            AddBytes(4, conv_pool_stage.padStyle);
-
-                            add_stage_IO_info(it, conv_pool_stage);
-
-                            AddBytes(4, conv_pool_stage.preop_type);
-                            AddBytes(4, 0x05);    // 0x1ac  postop type
-                        }
-
-                    }
-                    break;
                 case OpType::AvgPool2D:
                     {
-                        if(1){
 
-                            int point0 = 0;
-                            point0 += 7;    // Fields
-                            point0 += 2*10 ; // Input, Output
-                            point0 += 2 ; // PreOp PostOp TODO: Move OUT.
-                            point0 += 3 ; // nextstage, id, imp
-                            next_offset += point0*4 ;
+                        bPooling c = bPooling(&(*it));
+                        next_offset += c.getSerializedSize() + 5*4;
 
-                            // No more layers (last)
-                            mv::DataModel dm(om);
-                            mv::ControlModel cm(om);
-                            Data::BufferIterator mem;
-                            mv::Control::StageIterator stg = cm.getStage(0);
-                            try{
-                                auto t = it->getOutputTensor(0);
-                                mem = dm.getBuffer("IntermediateMemory", stg, t);
-                                if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                    next_offset = 0;
-                                }
-                            }catch(mv::ArgumentError){
-                                printf("Warning: No Intermediary Buffers\n");
+                        // No more layers (last)
+                        mv::DataModel dm(om);
+                        mv::ControlModel cm(om);
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        try{
+                            auto t = it->getOutputTensor(0);
+                            mem = dm.getBuffer("IntermediateMemory", stg, t);
+                            if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
                                 next_offset = 0;
                             }
-
-                            conv_pool_stage.next = next_offset ;
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x02);                                // 0x60
-                            AddBytes(4, conv_pool_stage.implementation);
-
-                            // Serialize for MyriadX H/W
-                            bPooling c = bPooling(&(*it));
-                            c.writeStageInfo(&om, this);
-
-                            AddBytes(4, 0x05);    // 0x12c , no preop
-                            AddBytes(4, 0x05);    // 0x12c , no postop
-                        }else{
-
-
-                            next_offset += 0x80 ;
-
-                            // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                            conv_pool_stage.InputLocation = inbufnum_list[inlist_index];
-                            conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
-
-                            // determine address offset to input buffer
-                            if (conv_pool_stage.InputLocation != 1)
-                            {
-                                //  find input work buffer in output lists
-                                for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
-                                {
-                                    if (conv_pool_stage.InputLocation == outbufnum_list[olist_index] )
-                                    {
-                                        blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
-                                        blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                                conv_pool_stage.InputOffset = reloc_index++;
-                                    }
-                                } // end search outbufnum list
-                            }   // end node input is work buffer case
-                            else
-                            {
-                                conv_pool_stage.InputOffset = 0 ;   // input to node is input to graph
-                            }
-
-                            // determine address offset to output buffer
-                            if (conv_pool_stage.OutputLocation != 2)
-                            {
-                                blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
-                                blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                                conv_pool_stage.OutputOffset = reloc_index++;
-                                conv_pool_stage.next = next_offset ;
-                            }
-                            else
-                            {
-                                conv_pool_stage.OutputOffset = 0 ;
-                                conv_pool_stage.next = 0 ;
-                            }
-
-                            outlist_index++;
-                            inlist_index++;
-
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x02);     // operation type for avgpool
-                            AddBytes(4, conv_pool_stage.implementation);
-
-                            // operator specific info
-                            AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e0); // radix X
-                            AddBytes(4, it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1); // radix Y (0x140)
-                            AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0); //strideX
-                            AddBytes(4, it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1); //strideY
-                            AddBytes(4, 0x00);   // padX
-                            AddBytes(4, 0x00);   // padY 0x150
-                            AddBytes(4, conv_pool_stage.padStyle);
-
-                            add_stage_IO_info(it, conv_pool_stage);
-
-                            AddBytes(4, conv_pool_stage.preop_type);
-                            AddBytes(4, 0x05);    // 0x1ac  postop type
+                        }catch(mv::ArgumentError){
+                            printf("Warning: No Intermediary Buffers\n");
+                            next_offset = 0;
                         }
+
+                        conv_pool_stage.next = next_offset ;
+                        AddBytes(4, conv_pool_stage.next);
+
+                        if (it->getOpType() == OpType::MaxPool2D)
+                        {
+                            AddBytes(4, 0x01);
+                        }
+                        else if (it->getOpType() == OpType::AvgPool2D)
+                        {
+                            AddBytes(4, 0x02);
+                        }
+                        AddBytes(4, conv_pool_stage.implementation);
+
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
+
                     }
                     break;
                 case OpType::Add:
                 case OpType::Multiply:
+                    {
+
+                        bEltwise c = bEltwise(&(*it));
+                        next_offset += c.getSerializedSize() + 5*4;
+
+                        // No more layers (last)
+                        mv::DataModel dm(om);
+                        mv::ControlModel cm(om);
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        try{
+                            auto t = it->getOutputTensor(0);
+                            mem = dm.getBuffer("IntermediateMemory", stg, t);
+                            if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                                next_offset = 0;
+                            }
+                        }catch(mv::ArgumentError){
+                            printf("Warning: No Intermediary Buffers\n");
+                            next_offset = 0;
+                        }
+
+                        conv_pool_stage.next = next_offset ;
+                        AddBytes(4, conv_pool_stage.next);
+
+
+                        if (it->getOpType() == OpType::Add)
+                        {
+                            AddBytes(4, 0x0c);     // operation type element-wise Add
+                        }
+                        else if (it->getOpType() == OpType::Multiply)
+                        {
+                            AddBytes(4, 0x0d);     // operation type element-wise Multiply
+                        }
+                        AddBytes(4, conv_pool_stage.implementation);
+
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
+
+
+                    }
                 case OpType::Scale:
                     {
 

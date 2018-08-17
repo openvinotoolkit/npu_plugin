@@ -43,7 +43,7 @@ namespace mv
          *  Returns index of entry after pushed into relevant table.
          *
         */
-        printf("Push Reloc Table Entry\n");
+        // printf("Push Reloc Table Entry\n");
         switch(ol.second){
             case bLocation::Input:
                 this->input_entries.push_back(ol);

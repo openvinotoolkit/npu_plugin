@@ -154,6 +154,7 @@ namespace mv
             mv::ControlModel cm(*om);
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
+            std::cout << "Output Of A Conv: " << std::endl;
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
             Blob_Tensor biasBlobTensor = Blob_Tensor(
@@ -172,38 +173,6 @@ namespace mv
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
             tapsBlobTensor.write(b);
-
-
-            if (false)
-            {
-                // TODO: Bias not currently supported because it is not stored in memallocator
-
-                // int biasOffset = 0, biasLocation = 0, biasDataType = 0, biasOrder = 0;
-
-                // int bias_X, bias_Y, bias_Z, bias_sZ, bias_sY, bias_sX;
-
-                // bias_X = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
-                // bias_sY = conv_pool_stage.BiasStrideX*conv_pool_stage.BiasDimX;
-                // bias_sZ = conv_pool_stage.BiasStrideY;
-                // // biasOffset = conv_pool_stage.TBOffset;
-                // conv_pool_stage.TBOffset++ ;
-                // biasLocation = conv_pool_stage.BiasLocation;
-                // biasDataType = conv_pool_stage.BiasDataType;
-                // biasOrder = 1;  // TODO: should not be hardcoded
-
-                // biasBlobTensor = Blob_Tensor(
-                //     bias_X,  // X
-                //     conv_pool_stage.BiasDimY,   // y
-                //     conv_pool_stage.BiasDimZ,   // z
-                //     conv_pool_stage.BiasStrideX,
-                //     bias_sY,
-                //     bias_sZ,
-                //     biasOffset,
-                //     biasLocation,
-                //     biasDataType,
-                //     biasOrder   // Order
-                // );
-            }
             biasBlobTensor.write(b);
         }
     }

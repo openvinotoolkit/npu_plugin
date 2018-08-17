@@ -46,7 +46,8 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        std::cout << "Tensor Layout: " << Printable::toString((*t)->getOrder()) <<  std::endl;
+
+        std::cout << "Tensor:" << (*t)->getName() << "Layout: " << Printable::toString((*t)->getOrder()) << "Shape: " << Printable::toString((*t)->getShape()) <<  std::endl;
 
         if ((int)(*t)->getShape().ndims() == 5){
             // MyriadX Hardware Weights
@@ -64,7 +65,6 @@ namespace mv
 
         }else{
             assert((int)(*t)->getShape().ndims() == 3);
-
             this->dimX = (*t)->getShape()[0];
             this->dimY = (*t)->getShape()[1];
             this->dimZ = (*t)->getShape()[2];
@@ -86,7 +86,7 @@ namespace mv
         int block = 0;
 
         if ((*t)->isPopulated()){
-            std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
+            // std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
 
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
@@ -103,7 +103,7 @@ namespace mv
 
             mv::OpModel om(*cm);
 
-            std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
+            // std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
 
             int no_buffers = 0;
             try{

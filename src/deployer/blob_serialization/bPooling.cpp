@@ -3,6 +3,16 @@
 
 namespace mv
 {
+
+    int bPooling::getSerializedSize(){
+        int fields = 0;
+        fields += 7;     // Individuals
+        fields += 2*10;  // Two buffers
+
+        return fields*4;    // All Ints
+    }
+
+
     void bPooling::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
         int fp16_size = 2;

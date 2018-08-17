@@ -40,4 +40,8 @@ namespace mv
                 assert(0);
         }
     }
+
+    int Blob_Op_Definition::getSerializedSize(){
+        return 0;
+    }
 }

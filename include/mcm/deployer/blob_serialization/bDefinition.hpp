@@ -12,6 +12,7 @@ namespace mv
             uint32_t number_of_inputs;
             Blob_Op_Definition(OpType o);
             Blob_Op_Definition();
+            static int getSerializedSize();
 
     };
 }

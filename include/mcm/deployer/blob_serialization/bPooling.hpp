@@ -29,6 +29,7 @@ namespace mv{
             uint32_t number_of_inputs = 1;
             void writeStageInfo(mv::OpModel * om, Blob_buffer* b);
             bPooling(mv::ComputationOp* it);
+            static int getSerializedSize();
     };
 }
 #endif
