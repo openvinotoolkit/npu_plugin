@@ -142,7 +142,7 @@ namespace mv
                 case OpType::Softmax:
                     {
                         blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += (3+21+2)*4 ;
+                        blob_stats.stage_section_size += bSoftmax::getSerializedSize()+5*4 ;
                     }
                     break;
 
@@ -199,11 +199,6 @@ namespace mv
         }
 
         blob_stats.buffer_data_size = totalSize*2;
-        // blob_stats.buffer_data_size = blob_stats.weights_region_size + blob_stats.bias_region_size ;
-        // uint32_t aligned_buffer_data_size = align(blob_stats.buffer_data_size, 64) ;
-        // blob_stats.buffer_data_pad_size = aligned_buffer_data_size - blob_stats.buffer_data_size ;
-        // blob_stats.buffer_data_size = aligned_buffer_data_size ;
-        // blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) ;
 
         blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) + additional_buf*8;
 
@@ -884,12 +879,9 @@ namespace mv
                     break;
                 case OpType::Softmax:
                     {
-                        int point0 = 0;
-                        point0 += 1;    // Fields
-                        point0 += 2*10 ; // Input, Output
-                        point0 += 2 ; // PreOp PostOp TODO: Move OUT.
-                        point0 += 3 ; // nextstage, id, imp
-                        next_offset += point0*4 ;
+
+                        bSoftmax c = bSoftmax(&(*it));
+                        next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
                         mv::DataModel dm(om);
@@ -909,11 +901,9 @@ namespace mv
 
                         conv_pool_stage.next = next_offset ;
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, 0x02);                                // 0x60
+                        AddBytes(4, 0x03);                                // 0x60
                         AddBytes(4, conv_pool_stage.implementation);
 
-                        // Serialize for MyriadX H/W
-                        bSoftmax c = bSoftmax(&(*it));
                         c.writeStageInfo(&om, this);
 
                         AddBytes(4, 0x05);    // 0x12c , no preop

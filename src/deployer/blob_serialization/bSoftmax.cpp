@@ -3,6 +3,15 @@
 
 namespace mv
 {
+
+    int bSoftmax::getSerializedSize(){
+        int fields = 0;
+        fields += 1;     // Individuals
+        fields += 2*10;  // Two buffers
+
+        return fields*4;    // All Ints
+    }
+
     void bSoftmax::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
         int fp16_size = 2;
