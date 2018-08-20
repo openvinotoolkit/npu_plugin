@@ -147,8 +147,6 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         }
         if (valid){
 
-            std::cout << "Taps Reshape" << std::endl;
-
             auto weights = opIterator->getInputTensor(1);
             auto wshape = weights->getShape();
 
@@ -164,8 +162,8 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 8
             );
 
-            std::cout << "Before" << mv::Printable::toString(wshape) << std::endl;
-            std::cout << "After" << mv::Printable::toString(newShape) << std::endl;
+            // std::cout << "Before" << mv::Printable::toString(wshape) << std::endl;
+            // std::cout << "After" << mv::Printable::toString(newShape) << std::endl;
 
             mv::Tensor newTensor = mv::Tensor("MX_Weights",
                                                 newShape,
@@ -195,13 +193,6 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             }
 
             newTensor.populate(new_data);
-
-            std::cout << new_data[0] << std::endl;
-            std::cout << new_data[1] << std::endl;
-            std::cout << new_data[2] << std::endl;
-            std::cout << new_data[3] << std::endl;
-            std::cout << new_data[4] << std::endl;
-            std::cout << new_data[5] << std::endl;
 
             auto new_op = om.constant(
                 newTensor.getData(),

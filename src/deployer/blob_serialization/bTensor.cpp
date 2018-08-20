@@ -47,7 +47,7 @@ namespace mv
         this->dataType = 0;
 
 
-        std::cout << "Tensor:" << (*t)->getName() << "Layout: " << Printable::toString((*t)->getOrder()) << "Shape: " << Printable::toString((*t)->getShape()) <<  std::endl;
+        // std::cout << "Tensor:" << (*t)->getName() << "Layout: " << Printable::toString((*t)->getOrder()) << "Shape: " << Printable::toString((*t)->getShape()) <<  std::endl;
 
         if ((int)(*t)->getShape().ndims() == 5){
             // MyriadX Hardware Weights
@@ -154,7 +154,10 @@ namespace mv
         }
 
         int striding_axis = 0;
-        if (block == fp16_size){
+        if (block == 0){
+            std::cout << "Warning: Zero-Storage Tensor." << std::endl;
+            striding_axis = 0;
+        }else if (block == fp16_size){
             // X
             striding_axis = 0;
         }else if(block == this->dimX){
@@ -167,6 +170,7 @@ namespace mv
             // N
             striding_axis = 3;
         }else{
+            std::cout << block << ", " << this->dimX*this->dimY*this->dimZ << std::endl;
             std::cout << "Serialization Error: Unknown mapping of memory block to mvTensor notations" << std::endl;
             assert(0);
         }

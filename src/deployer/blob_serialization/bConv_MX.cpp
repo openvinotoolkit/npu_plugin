@@ -26,17 +26,17 @@ namespace mv
             b->AddBytes(4, this->shvPosSlope);
             b->AddBytes(4, this->desc_count);
 
-            std::cout << "Streaming Mask: " << this->streamingMask << std::endl;
-            std::cout << "Total Input Size: " << this->input->getShape().totalSize()*fp16_size << std::endl;
-            std::cout << "Total Output Size: " << this->output->getShape().totalSize()*fp16_size << std::endl;
-            std::cout << "concatOffset: " << this->concatOffset << std::endl;
-            std::cout << "unloadCMX: " << this->unloadCMX << std::endl;
-            std::cout << "overwriteInput: " << this->overwriteInput << std::endl;
-            std::cout << "CMXSize: " << this->CMXSize << std::endl;
-            std::cout << "reluSHVAcc: " << this->reluSHVAcc << std::endl;
-            std::cout << "shvNegSlope: " << this->shvNegSlope << std::endl;
-            std::cout << "shvPosSlope: " << this->shvPosSlope << std::endl;
-            std::cout << "Desc Count: " << this->desc_count << std::endl;
+            // std::cout << "Streaming Mask: " << this->streamingMask << std::endl;
+            // std::cout << "Total Input Size: " << this->input->getShape().totalSize()*fp16_size << std::endl;
+            // std::cout << "Total Output Size: " << this->output->getShape().totalSize()*fp16_size << std::endl;
+            // std::cout << "concatOffset: " << this->concatOffset << std::endl;
+            // std::cout << "unloadCMX: " << this->unloadCMX << std::endl;
+            // std::cout << "overwriteInput: " << this->overwriteInput << std::endl;
+            // std::cout << "CMXSize: " << this->CMXSize << std::endl;
+            // std::cout << "reluSHVAcc: " << this->reluSHVAcc << std::endl;
+            // std::cout << "shvNegSlope: " << this->shvNegSlope << std::endl;
+            // std::cout << "shvPosSlope: " << this->shvPosSlope << std::endl;
+            // std::cout << "Desc Count: " << this->desc_count << std::endl;
 
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
@@ -70,8 +70,8 @@ namespace mv
                 this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
 
                 auto weight_4dshape = this->taps->getShape();
-                printf("Coeff Strides: %i %i %i\n", tapsBlobTensor.strideX, tapsBlobTensor.strideY, tapsBlobTensor.strideZ);
-                printf("Coeff Dims: %i %i %i\n", tapsBlobTensor.dimX, tapsBlobTensor.dimY, tapsBlobTensor.dimZ);
+                // printf("Coeff Strides: %i %i %i\n", tapsBlobTensor.strideX, tapsBlobTensor.strideY, tapsBlobTensor.strideZ);
+                // printf("Coeff Dims: %i %i %i\n", tapsBlobTensor.dimX, tapsBlobTensor.dimY, tapsBlobTensor.dimZ);
                 std::cout << Printable::toString(weight_4dshape) << std::endl;
 
                 this->descriptors[i].coeffChStrOut = tapsBlobTensor.strideZ /  weight_4dshape[0];
@@ -154,7 +154,6 @@ namespace mv
             mv::ControlModel cm(*om);
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-            std::cout << "Output Of A Conv: " << std::endl;
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
             Blob_Tensor biasBlobTensor = Blob_Tensor(
@@ -355,7 +354,7 @@ namespace mv
                 }else{
                     this->descriptors[i].Line0.linkAddress = 32*4;
                 }
-                printf("linkAddress: %d\n", 32*4);
+                // printf("linkAddress: %d\n", 32*4);
 
                 this->descriptors[i].Line0.id = 0;
 
@@ -366,7 +365,6 @@ namespace mv
                 this->descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
                 this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
 
-                std::cout << "Taps" <<  Printable::toString(this->taps->getShape()) << std::endl;
 
                 // Standard Fields for Convolution
                 this->descriptors[i].kernelWidth = this->taps->getShape()[2] -1;
@@ -406,7 +404,7 @@ namespace mv
                 this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
 
 
-                std::cout << "chPerRamBlock:::::::::::::::::::::::::"<< chPerRamBlock << std::endl;
+                // std::cout << "chPerRamBlock:::::::::::::::::::::::::"<< chPerRamBlock << std::endl;
                 this->descriptors[i].chPerRamBlock = chPerRamBlock -1;        // Input Channels per Ram Block
 
 

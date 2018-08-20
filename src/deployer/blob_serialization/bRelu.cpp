@@ -38,4 +38,11 @@ namespace mv
         this->post_strideY = 0; // HARDCODED.
     }
 
+    int bRelu::getSerializedSize(){
+        int fields = 0;
+        fields += 3;    // Individual
+        fields += 2*10 ; // Input, Output
+        return fields*4 ;
+    }
+
 }

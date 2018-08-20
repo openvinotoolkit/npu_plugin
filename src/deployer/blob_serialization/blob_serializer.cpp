@@ -912,12 +912,9 @@ namespace mv
                     break;
                 case OpType::ReLU:
                     {
-                        int point0 = 0;
-                        point0 += 3;    // Fields
-                        point0 += 2*10 ; // Input, Output
-                        point0 += 2 ; // PreOp PostOp TODO: Move OUT.
-                        point0 += 3 ; // nextstage, id, imp
-                        next_offset += point0*4 ;
+
+                        bRelu c = bRelu(&(*it));
+                        next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
                         mv::DataModel dm(om);
@@ -937,11 +934,10 @@ namespace mv
 
                         conv_pool_stage.next = next_offset ;
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, 0x06);                                // 0x60
+                        AddBytes(4, 0x06);
                         AddBytes(4, conv_pool_stage.implementation);
 
                         // Serialize for MyriadX H/W
-                        bRelu c = bRelu(&(*it));
                         c.writeStageInfo(&om, this);
 
                         AddBytes(4, 0x05);    // 0x12c , no preop
@@ -1021,6 +1017,8 @@ namespace mv
 
                         if (it->getOpType() == OpType::Add)
                         {
+                            std::cout << "#### Regular EltAdd ####" << std::endl;
+
                             AddBytes(4, 0x0c);     // operation type element-wise Add
                         }
                         else if (it->getOpType() == OpType::Multiply)
@@ -1033,85 +1031,18 @@ namespace mv
 
                         AddBytes(4, 0x05);    // 0x12c , no preop
                         AddBytes(4, 0x05);    // 0x12c , no postop
-
-
                     }
+                    break;
                 case OpType::Scale:
                     {
+                        std::cout << "We shouldn't have this case, because all scales should be absorbed?" << std::endl;
 
                         next_offset += 0x8c ;
-
-                        // determine input and output buffer numbers. Save to blob_stats and write to stage section of blob
-                        conv_pool_stage.OutputLocation = outbufnum_list[outlist_index];
-                        uint32_t this_inputLocation ;
-                        uint32_t this_inputOffset ;
-
-                        //  write reloc table entry for 2 inputs
-                        for ( int input_index = 0; input_index < 2; input_index++ )
-                        {
-                            if (( it->getOpType() == OpType::Scale )&&(input_index==1))
-                            {
-                                this_inputLocation = 3;  // second input to scale is located in the blob buff (wts-bias)
-                            }
-                            else
-                            {
-                                this_inputLocation = inbufnum_list[inlist_index+input_index];   // input located in work buffer or input
-                            }
-                            // determine address offset to input buffer
-                            if (this_inputLocation >= 4)
-                            {
-                                //  find input work buffer in output lists
-                                for ( uint32_t olist_index = 0; olist_index < outbufnum_list.size(); olist_index++ )
-                                {
-                                    if (this_inputLocation == outbufnum_list[olist_index] )
-                                    {
-                                        blob_stats.relocbuf_list.push_back(outbufnum_list[olist_index]);
-                                        blob_stats.relocadr_list.push_back(outbufadr_list[olist_index]);
-                                        this_inputOffset = reloc_index++;
-                                    }
-                                } // end search outbufnum list
-                            }   // end node input is work buffer case
-                            else
-                            {
-                                this_inputOffset = 0 ;   // input to node is input to graph
-                            }
-
-                            // 2nd input stage info is written as a TapsBuffer
-                            if (input_index == 0)
-                            {
-                                conv_pool_stage.InputLocation = this_inputLocation;
-                                conv_pool_stage.InputOffset = this_inputOffset;
-                            }
-                            else
-                            {
-                                conv_pool_stage.Input1Location = this_inputLocation;
-                                conv_pool_stage.Input1Offset = this_inputOffset;
-                            }
-
-                        }   // end 2 input loop
-
-                        // determine address offset to output buffer
-                        if (conv_pool_stage.OutputLocation != 2)
-                        {
-                            blob_stats.relocbuf_list.push_back(outbufnum_list[outlist_index]);
-                            blob_stats.relocadr_list.push_back(outbufadr_list[outlist_index]);
-                            conv_pool_stage.OutputOffset = reloc_index++;
-                            conv_pool_stage.next = next_offset ;
-                        }
-                        else
-                        {
-                            conv_pool_stage.OutputOffset = 0 ;
-                            conv_pool_stage.next = 0 ;
-                        }
-
-                        outlist_index++;
-                        inlist_index++;
-                        inlist_index++;
-
                         AddBytes(4, conv_pool_stage.next);
 
                         if (it->getOpType() == OpType::Add)
                         {
+                            std::cout << "#### THIS IS WHERE I AM ####" << std::endl;
                             AddBytes(4, 0x0c);     // operation type element-wise Add
                         }
                         else if (it->getOpType() == OpType::Multiply)
