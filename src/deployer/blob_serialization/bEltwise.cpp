@@ -30,8 +30,8 @@ namespace mv
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
 
         input0BlobTensor.write(b);
-        input1BlobTensor.write(b);
         outputBlobTensor.write(b);
+        input1BlobTensor.write(b);
 
         // This was for a reverted commit on mdk.
         // b->AddBytes(4, 0x03);  // Hardcoded values for in-place relus

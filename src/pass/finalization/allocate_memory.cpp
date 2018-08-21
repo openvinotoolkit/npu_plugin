@@ -73,8 +73,11 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
     {
 
         OpModel om(dm) ;
-        bool external = false, fake = false;
-        std::vector<mv::string> input_names, output_names, invalid_names;
+        bool external = false, fake = false, conv_padding = false;
+        std::vector<mv::string> input_names, output_names, invalid_names, c_pad_names;
+
+        int max_pad = 0;
+
         for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
         {
             if (opIterator->getOpType() == OpType::Input){
@@ -86,6 +89,20 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }else if(opIterator->getOpType() == OpType::Constant){
                 auto b = opIterator->getOutputTensor(0)->getName();
                 invalid_names.push_back(b);
+            }else if(opIterator->getOpType() == OpType::Conv2D){
+                auto ot_name = opIterator->getOutputTensor(0)->getName();
+                if(tIt->getName() == ot_name){
+
+                    c_pad_names.push_back(ot_name);
+
+                    int halfksizerounded = ((((opIterator->getInputTensor(1)->getShape()[0])/2)+1)*2);
+                    int cpad = halfksizerounded*opIterator->getOutputTensor(0)->getShape()[1]*opIterator->getOutputTensor(0)->getShape()[2]*2;
+
+                    if (cpad > max_pad){
+                        max_pad = cpad;
+                        max_pad = 0; // TODO: Actual Allocation
+                    }
+                }
             }
         }
 
@@ -99,6 +116,11 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }
         }
 
+        if(std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end()) {
+            conv_padding = true;
+        }else {
+            // Not conv_padding, dont do anything
+        }
 
         if(std::find(invalid_names.begin(), invalid_names.end(), tIt->getName()) != invalid_names.end()) {
             fake = true;
@@ -108,7 +130,13 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         if (!tIt->isPopulated() and !external and !fake)
         {
             auto stageIt = cm.getStage(0);
-            dm.allocateTensor("IntermediateMemory", stageIt, tIt);
+
+            int pad = 0;
+            if (conv_padding){
+                pad = max_pad;
+            }
+
+            dm.allocateTensor("IntermediateMemory", stageIt, tIt, pad);
         }
     }
 
