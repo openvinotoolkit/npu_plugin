@@ -8,7 +8,7 @@ namespace mv
     int bEltwise::getSerializedSize(){
         int fields = 0;
         fields += 10;     // Individuals
-        fields += 3*10;  // Two buffers
+        fields += 2*10;  // Two buffers
 
         return fields*4;    // All Ints
     }
@@ -30,19 +30,20 @@ namespace mv
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
 
         input0BlobTensor.write(b);
-        outputBlobTensor.write(b);
         input1BlobTensor.write(b);
+        outputBlobTensor.write(b);
 
-        b->AddBytes(4, 0x03);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x01);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x01);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x04);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x0C);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x0C);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
-        b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
+        // This was for a reverted commit on mdk.
+        // b->AddBytes(4, 0x03);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x01);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x01);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x04);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x0C);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x0C);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
+        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
 
 
     }

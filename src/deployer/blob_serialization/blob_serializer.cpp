@@ -2,6 +2,8 @@
 // #include "include/mcm/deployer/blob_serializer.hpp"
 #include <stdio.h>
 
+#define FORCE_DISABLE_BIAS
+
 namespace mv
 {
     void Blob_buffer::calc(mv::ControlModel& cm)
@@ -111,7 +113,9 @@ namespace mv
                         {
                             uint32_t buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
-                            blob_stats.data_buffer_count++ ;
+                            #ifndef FORCE_DISABLE_BIAS
+                                blob_stats.data_buffer_count++ ;
+                            #endif
                         }
 
                         blob_stats.stage_count++ ;
@@ -156,7 +160,9 @@ namespace mv
                     {
                         blob_stats.stage_count++ ;
                         blob_stats.stage_section_size += (3+32+10)*4 ;
-                        blob_stats.data_buffer_count++ ;   // uses buffer section (ala wts bias)
+                        #ifndef FORCE_DISABLE_BIAS
+                            blob_stats.data_buffer_count++ ;   // uses buffer section (ala wts bias)
+                        #endif
                         uint32_t buffer_bias_values_len = ( it->getInputTensor(1)->getShape().totalSize() ) *blob_stats.weights_number_size;
                         blob_stats.bias_region_size += buffer_bias_values_len ;
                     }
@@ -200,6 +206,8 @@ namespace mv
 
         blob_stats.buffer_data_size = totalSize*2;
 
+
+        std::cout << "Reloc Size Calc: " << 20 << ", " << blob_stats.data_buffer_count << "," << blob_stats.stage_count-2 << ", " << blob_stats.elt_count << "," << additional_buf << std::endl;
         blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) + additional_buf*8;
 
         blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
@@ -598,17 +606,22 @@ namespace mv
                             Data::BufferIterator mem;
                             mv::Control::StageIterator stg = cm.getStage(0);
 
+                            int finalstage = 0;
                             try{
                                 auto t = it->getOutputTensor(0);
                                 mem = dm.getBuffer("IntermediateMemory", stg, t);
                                 if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                    next_offset = 0;
+                                    conv_pool_stage.next = 0;
+                                    finalstage = 1;
                                 }
                             }catch(mv::ArgumentError){
                                 printf("Warning: No Intermediary Buffers\n");
-                                next_offset = 0;
+                                conv_pool_stage.next = 0;
+                                finalstage = 1;
                             }
-                            conv_pool_stage.next = next_offset;
+                            if(!finalstage){
+                                conv_pool_stage.next = next_offset;
+                            }
 
                             AddBytes(4, conv_pool_stage.next);
                             AddBytes(4, 0x21);                                // 0x60
@@ -655,18 +668,22 @@ namespace mv
                             mv::ControlModel cm(om);
                             Data::BufferIterator mem;
                             mv::Control::StageIterator stg = cm.getStage(0);
-
+                            int finalstage = 0;
                             try{
                                 auto t = it->getOutputTensor(0);
                                 mem = dm.getBuffer("IntermediateMemory", stg, t);
                                 if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                    next_offset = 0;
+                                    conv_pool_stage.next = 0;
+                                    finalstage = 1;
                                 }
                             }catch(mv::ArgumentError){
                                 printf("Warning: No Intermediary Buffers\n");
-                                next_offset = 0;
+                                conv_pool_stage.next = 0;
+                                finalstage = 1;
                             }
-                            conv_pool_stage.next = next_offset;
+                            if(!finalstage){
+                                conv_pool_stage.next = next_offset;
+                            }
 
                             AddBytes(4, conv_pool_stage.next);
                             AddBytes(4, 0);                                // 0x60
@@ -698,7 +715,11 @@ namespace mv
                             {
                                 if (it->hasAttr("bias"))
                                 {
-                                    AddBytes(4, 0x09);    // 0x12c , postop bias
+                                    #ifdef FORCE_DISABLE_BIAS
+                                        AddBytes(4, 0x05);    // 0x12c , postop bias
+                                    #else
+                                        AddBytes(4, 0x09);    // 0x12c , postop bias
+                                    #endif
                                 }
                                 else
                                 {
@@ -722,18 +743,22 @@ namespace mv
                             mv::ControlModel cm(om);
                             Data::BufferIterator mem;
                             mv::Control::StageIterator stg = cm.getStage(0);
+                            int finalstage = 0;
                             try{
                                 auto t = it->getOutputTensor(0);
                                 mem = dm.getBuffer("IntermediateMemory", stg, t);
                                 if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                    next_offset = 0;
+                                    conv_pool_stage.next = 0;
+                                    finalstage = 1;
                                 }
                             }catch(mv::ArgumentError){
                                 printf("Warning: No Intermediary Buffers\n");
-                                next_offset = 0;
+                                conv_pool_stage.next = 0;
+                                finalstage = 1;
                             }
-
-                            conv_pool_stage.next = next_offset ;
+                            if (!finalstage){
+                                conv_pool_stage.next = next_offset;
+                            }
                             AddBytes(4, conv_pool_stage.next);
                             AddBytes(4, 0x04);                                // 0x60
                             AddBytes(4, conv_pool_stage.implementation);
@@ -866,7 +891,12 @@ namespace mv
                                 if (it->hasAttr("bias"))
                                 {
                                     //std::cout << "--bias found for " << it->getName() << std::endl;
-                                    AddBytes(4, 0x09);    // 0x12c , postop bias
+
+                                    #ifdef FORCE_DISABLE_BIAS
+                                        AddBytes(4, 0x05);
+                                    #else
+                                        AddBytes(4, 0x09);    // 0x12c , postop bias
+                                    #endif
                                 }
                                 else
                                 {
@@ -888,18 +918,23 @@ namespace mv
                         mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
+                        int finalstage = 0;
                         try{
                             auto t = it->getOutputTensor(0);
                             mem = dm.getBuffer("IntermediateMemory", stg, t);
                             if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                next_offset = 0;
+                                conv_pool_stage.next = 0;
+                                finalstage = 1;
                             }
                         }catch(mv::ArgumentError){
                             printf("Warning: No Intermediary Buffers\n");
-                            next_offset = 0;
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
                         }
 
-                        conv_pool_stage.next = next_offset ;
+                        if (finalstage == 0){
+                            conv_pool_stage.next = next_offset;
+                        }
                         AddBytes(4, conv_pool_stage.next);
                         AddBytes(4, 0x03);                                // 0x60
                         AddBytes(4, conv_pool_stage.implementation);
@@ -921,18 +956,22 @@ namespace mv
                         mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
+                        int finalstage = 0;
                         try{
                             auto t = it->getOutputTensor(0);
                             mem = dm.getBuffer("IntermediateMemory", stg, t);
                             if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                next_offset = 0;
+                                conv_pool_stage.next = 0;
+                                finalstage = 1;
                             }
                         }catch(mv::ArgumentError){
                             printf("Warning: No Intermediary Buffers\n");
-                            next_offset = 0;
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
                         }
-
-                        conv_pool_stage.next = next_offset ;
+                        if (!finalstage){
+                            conv_pool_stage.next = next_offset;
+                        }
                         AddBytes(4, conv_pool_stage.next);
                         AddBytes(4, 0x06);
                         AddBytes(4, conv_pool_stage.implementation);
@@ -957,18 +996,23 @@ namespace mv
                         mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
+                        int finalstage = 0;
                         try{
                             auto t = it->getOutputTensor(0);
                             mem = dm.getBuffer("IntermediateMemory", stg, t);
                             if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                next_offset = 0;
+                                conv_pool_stage.next = 0;
+                                finalstage = 1;
                             }
                         }catch(mv::ArgumentError){
                             printf("Warning: No Intermediary Buffers\n");
-                            next_offset = 0;
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
+                        }
+                        if(!finalstage){
+                            conv_pool_stage.next = next_offset ;
                         }
 
-                        conv_pool_stage.next = next_offset ;
                         AddBytes(4, conv_pool_stage.next);
 
                         if (it->getOpType() == OpType::MaxPool2D)
@@ -1000,18 +1044,22 @@ namespace mv
                         mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
+                        int finalstage = 0;
                         try{
                             auto t = it->getOutputTensor(0);
                             mem = dm.getBuffer("IntermediateMemory", stg, t);
                             if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                next_offset = 0;
+                                finalstage = 1;
+                                conv_pool_stage.next = 0;
                             }
                         }catch(mv::ArgumentError){
                             printf("Warning: No Intermediary Buffers\n");
-                            next_offset = 0;
+                            finalstage = 1;
+                            conv_pool_stage.next = 0;
                         }
-
-                        conv_pool_stage.next = next_offset ;
+                        if(!finalstage){
+                            conv_pool_stage.next = next_offset ;
+                        }
                         AddBytes(4, conv_pool_stage.next);
 
 
@@ -1147,10 +1195,11 @@ namespace mv
                         }
 
                         if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                            next_offset = 0;
+                            conv_pool_stage.next = 0;
+                        }else{
+                            conv_pool_stage.next = next_offset ;
                         }
 
-                        conv_pool_stage.next = next_offset ;
                         AddBytes(4, conv_pool_stage.next);
                         AddBytes(4, 0x25);                                // 0x60
                         AddBytes(4, conv_pool_stage.implementation);
@@ -1173,8 +1222,10 @@ namespace mv
 
         uint32_t buffer_section_offset = align(next_offset,0x10) ;
         uint32_t stage_pad_size = buffer_section_offset - next_offset  ;
+        std::cout << stage_pad_size << " - " << buffer_section_offset << "? " << next_offset << std::endl;
         if (stage_pad_size > 0)
         {
+            std::cout << "No:" << stage_pad_size << std::endl;
             AddBytes(stage_pad_size, 0x00000000);
         }
 
@@ -1188,7 +1239,6 @@ namespace mv
 
         uint32_t buffer_header_pad_size = 3 ;
         uint32_t buffer_header_pad_val = 0x002a ;
-        uint8_t buffer_pad_val = 0x00 ;
         Float16Compressor cvtr ;
 
         mv::DataModel dm(cm);
@@ -1207,6 +1257,7 @@ namespace mv
             for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
                 for (int idx = 0; idx != (int)bit->size; idx++){
                     u_int16_t fp16_val = cvtr.compress((*bit->data).getData()[idx]) ;  // Convert to fp16.
+                    // u_int16_t fp16_val = f32Tof16((*bit->data).getData()[idx]) ;  // Convert to fp16.
                     AddBytes(2, fp16_val) ;
                 }
 
