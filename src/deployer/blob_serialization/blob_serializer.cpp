@@ -115,7 +115,12 @@ namespace mv
                             uint32_t buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                             blob_stats.data_buffer_count++ ;
-                            total_bias_elements+=buffer_bias_values_len;
+                            if(buffer_bias_values_len % 64 != 0){
+                                // std::cout << buffer_bias_values_len << "->" << align(buffer_bias_values_len, 32) << std::endl;
+                                total_bias_elements+=align(buffer_bias_values_len, 32);
+                            }else{
+                                total_bias_elements+=buffer_bias_values_len;
+                            }
                         }
 
                         blob_stats.stage_count++ ;
