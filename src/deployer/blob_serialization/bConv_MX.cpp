@@ -26,22 +26,11 @@ namespace mv
             b->AddBytes(4, this->shvPosSlope);
             b->AddBytes(4, this->desc_count);
 
-            // std::cout << "Streaming Mask: " << this->streamingMask << std::endl;
-            // std::cout << "Total Input Size: " << this->input->getShape().totalSize()*fp16_size << std::endl;
-            // std::cout << "Total Output Size: " << this->output->getShape().totalSize()*fp16_size << std::endl;
-            // std::cout << "concatOffset: " << this->concatOffset << std::endl;
-            // std::cout << "unloadCMX: " << this->unloadCMX << std::endl;
-            // std::cout << "overwriteInput: " << this->overwriteInput << std::endl;
-            // std::cout << "CMXSize: " << this->CMXSize << std::endl;
-            // std::cout << "reluSHVAcc: " << this->reluSHVAcc << std::endl;
-            // std::cout << "shvNegSlope: " << this->shvNegSlope << std::endl;
-            // std::cout << "shvPosSlope: " << this->shvPosSlope << std::endl;
-            // std::cout << "Desc Count: " << this->desc_count << std::endl;
-
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(om, &b->reloc_table, &this->bias);
 
             for (unsigned i = 0; i != this->desc_count; i++)
             {
@@ -84,27 +73,6 @@ namespace mv
                     b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
                 }
             }
-
-            // Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->scale);
-
-            printf("Warning: Currently no Scale absorb support in HW Serialization\n");
-            Blob_Tensor biasBlobTensor = Blob_Tensor(
-                // this->output->getShape().totalSize(),   // X
-                // 0x01,   // Y
-                // 0x01,   // Z
-                0,
-                0,
-                0,
-                0,     // X Stride
-                0,
-                0,
-                // fp16_size*this->output->getShape().totalSize(),    // Y Stride
-                // fp16_size*this->output->getShape().totalSize(),    // z Stride
-                0, // Offset - Memory Manager
-                0, // Location - Memory Manager
-                0,
-                0
-            );
 
             printf("Warning: Currently no Scale absorb support in HW Serialization\n");
             Blob_Tensor scaleBlobTensor = Blob_Tensor(
@@ -156,23 +124,13 @@ namespace mv
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
-            Blob_Tensor biasBlobTensor = Blob_Tensor(
-                0,  // X
-                0,   // y
-                0,   // z
-                0,
-                0,
-                0,
-                0,
-                0,
-                0,
-                0   // Order
-            );
+            Blob_Tensor biasBlobTensor = Blob_Tensor(om, &b->reloc_table, &this->bias);
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
             tapsBlobTensor.write(b);
             biasBlobTensor.write(b);
+
         }
     }
 
@@ -183,6 +141,19 @@ namespace mv
           output((it->getOutputTensor(0))),
           taps((it->getInputTensor(1)))
     {
+
+        if (it->hasAttr("bias"))
+        {
+
+            this->bias = (it->getAttr("bias").getContent<mv::dynamic_vector<float>>());
+            std::cout << "Conv has Bias (" << this->bias.size() << ")" << std::endl;
+        }
+        else
+        {
+            std::cout << "Conv has no Bias" <<  std::endl;
+            this->bias = {} ;
+        }
+
 
         int mx_valid = 0;
         if (! it->hasAttr("NCE1_Compatible"))
@@ -196,7 +167,7 @@ namespace mv
         this->NCE1_Compatible = mx_valid;
 
         if(this->NCE1_Compatible){
-            printf("Serializing a HW Conv\n");
+            // printf("Serializing a HW Conv\n");
 
             int cmxSize = 256*1024;
             int descriptors_count = 1;
@@ -478,6 +449,7 @@ namespace mv
                 this->descriptors[i].p15 = 0;
             }
         } else {
+            // printf("Serializing a SW Conv\n");
             this->radixX = it->getInputTensor(1)->getShape()[0];
             this->radixY = it->getInputTensor(1)->getShape()[1];
             this->strideX = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;

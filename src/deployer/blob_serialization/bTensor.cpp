@@ -38,8 +38,51 @@ namespace mv
           dataType(dtype),
           order(orderParam)
     {
+        // DEPRECIATED.
+    }
+
+    Blob_Tensor::Blob_Tensor(mv::OpModel* om, RelocationTable* rt , mv::dynamic_vector<mv::float_type>* biasVec)
+        : dimX(biasVec->size()),
+          dataType(0)
+    {
+        // TODO: This should be inside the allocator, and this function should not exist.
+
+        if (this->dimX > 0)
+        {
+            this->strideX = 2;
+            this->dimY = 1; this->strideY = 2*biasVec->size();
+            this->dimZ = 1; this->strideZ = 2*biasVec->size();
+            mv::Data::TensorIterator biasTensor = om->constant(*biasVec, mv::Shape(1, this->dimX, 1, 1), mv::DType::Float, mv::Order::ColumnMajor);
+
+            mv::ControlModel cm(*om);
+            mv::DataModel dm(*om);
+
+            auto stageIt = cm.getStage(0);
+            mv::Data::BufferIterator mem = dm.allocateTensor("ConstantMemory", stageIt, biasTensor);
+
+            std::cout << "## Allocated Bias Buffer. Offset:  " << mem->offset << std::endl;
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
+            std::cout << "## Pushed Bias Relocation entry: " << rt_entry << std::endl;
+            this->offset = rt_entry;
+            this->location = BLOB_INTERNAL_LOCATION;
+            this->order = 1;
+        }
+        else
+        {
+            // biasTensor = om->constant({0,0,0,0}, mv::Shape(1, 1, 1, 1), mv::DType::Float, mv::Order::ColumnMajor);
+            this->dimY = 0;
+            this->dimZ = 0;
+            this->strideX = 0;
+            this->strideY = 0;
+            this->strideZ = 0;
+
+            this->offset = 0 ;
+            this->location = 0;
+            this->order = 0;
+        }
 
     }
+
 
     Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t){
 
@@ -115,6 +158,7 @@ namespace mv
             block = (int)mem->block;
 
             int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
+            std::cout << "## Pushed Taps Relocation entry: " << rt_entry << std::endl;
 
             this->offset = rt_entry;
         }
@@ -194,7 +238,6 @@ namespace mv
             std::cout << "Serialization Error: Unknown mapping of memory block to mvTensor notations" << std::endl;
             assert(0);
         }
-
 
         switch((*t)->getOrder()){
             case Order::RowMajor:

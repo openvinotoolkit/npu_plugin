@@ -36,6 +36,7 @@ namespace mv
         blob_stats.bias_region_size = 0 ;
 
         int additional_buf = 0;
+        int total_bias_elements = 0;
 
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
@@ -113,9 +114,8 @@ namespace mv
                         {
                             uint32_t buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
-                            #ifndef FORCE_DISABLE_BIAS
-                                blob_stats.data_buffer_count++ ;
-                            #endif
+                            blob_stats.data_buffer_count++ ;
+                            total_bias_elements+=buffer_bias_values_len;
                         }
 
                         blob_stats.stage_count++ ;
@@ -204,7 +204,8 @@ namespace mv
             std::cout << "Warning: No Constant Memory Present." << std::endl;
         }
 
-        blob_stats.buffer_data_size = totalSize*2;
+        // TODO: Bias should be part of ConstantMemory already, not have this seperate case.
+        blob_stats.buffer_data_size = totalSize*2 + total_bias_elements*2;
 
 
         std::cout << "Reloc Size Calc: " << 20 << ", " << blob_stats.data_buffer_count << "," << blob_stats.stage_count-2 << ", " << blob_stats.elt_count << "," << additional_buf << std::endl;
@@ -471,8 +472,6 @@ namespace mv
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
 
-            //Blob_Op_Definition op_spec = Blob_Op_Definition(it->getOpType());
-
             int work_buffer_size = 0;
             if (it->getOpType() != OpType::Output)
             {
@@ -564,6 +563,9 @@ namespace mv
         int reloc_index = 0 ;
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
+
+            std::cout << "> " << mv::Printable::toString(it->getOpType()) << std::endl;
+
 
             switch(it->getOpType()){
                 case OpType::Conv2D:
@@ -715,11 +717,7 @@ namespace mv
                             {
                                 if (it->hasAttr("bias"))
                                 {
-                                    #ifdef FORCE_DISABLE_BIAS
-                                        AddBytes(4, 0x05);    // 0x12c , postop bias
-                                    #else
-                                        AddBytes(4, 0x09);    // 0x12c , postop bias
-                                    #endif
+                                    AddBytes(4, 0x09);    // 0x12c , postop bias
                                 }
                                 else
                                 {
@@ -1255,6 +1253,7 @@ namespace mv
 
         try{
             for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
+                std::cout << "Buffer Size: " << bit->size << std::endl;
                 for (int idx = 0; idx != (int)bit->size; idx++){
                     u_int16_t fp16_val = cvtr.compress((*bit->data).getData()[idx]) ;  // Convert to fp16.
                     // u_int16_t fp16_val = f32Tof16((*bit->data).getData()[idx]) ;  // Convert to fp16.

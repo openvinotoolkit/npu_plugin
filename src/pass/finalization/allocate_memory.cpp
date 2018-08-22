@@ -33,6 +33,8 @@ namespace mv
 void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
+    // TODO: Allocate Tensors for Bias, other 'attributes' which are Tensor data.
+
     using namespace mv;
 
     ControlModel cm(model);
@@ -49,7 +51,9 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         if (tIt->isPopulated())
         {
             auto stageIt = cm.getStage(0);
-            dm.allocateTensor("ConstantMemory", stageIt, tIt);
+            auto mem = dm.allocateTensor("ConstantMemory", stageIt, tIt);
+            std::cout << "## Allocated Taps Buffer. Offset:  " << mem->offset << std::endl;
+
         }
     }
 
