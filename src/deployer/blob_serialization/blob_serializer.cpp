@@ -38,6 +38,8 @@ namespace mv
         int additional_buf = 0;
         int total_bias_elements = 0;
 
+        mv::DataModel dm(cm);
+
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
             switch(it->getOpType()){
@@ -112,7 +114,7 @@ namespace mv
                         // calculate buffer size related to bias
                         if (it->hasAttr("bias"))
                         {
-                            uint32_t buffer_bias_values_len = it->getAttr("bias").getContent<mv::dynamic_vector<float>>().size() ;
+                            uint32_t buffer_bias_values_len = dm.findTensor(it->getAttr("bias").getContent<std::string>())->getData().size() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                             blob_stats.data_buffer_count++ ;
                             if(buffer_bias_values_len % 64 != 0){
@@ -189,7 +191,6 @@ namespace mv
         blob_stats.stage_section_size = align(blob_stats.stage_section_size, 16) ;
 
         // Calculate Buffer Size
-        mv::DataModel dm(cm);
         mv::Control::StageIterator stg = cm.getStage(0);
 
         unsigned int totalSize = 0;

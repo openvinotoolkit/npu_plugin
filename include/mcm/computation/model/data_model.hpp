@@ -34,6 +34,9 @@ namespace mv
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
         
+        Data::TensorIterator defineTensor(const string &name, const Shape &shape, DType dType, Order order);
+        Data::TensorIterator defineTensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data);
+        bool undefineTensor(const string &name);
         Data::TensorIterator findTensor(string name);
         unsigned tensorsCount() const;
 
