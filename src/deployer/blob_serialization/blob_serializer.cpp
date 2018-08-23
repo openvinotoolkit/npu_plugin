@@ -1,5 +1,7 @@
 #include "include/mcm/deployer/serializer.hpp"
 // #include "include/mcm/deployer/blob_serializer.hpp"
+
+#include <climits>
 #include <stdio.h>
 
 #define FORCE_DISABLE_BIAS
@@ -121,6 +123,7 @@ namespace mv
                             }else{
                                 total_bias_elements+=buffer_bias_values_len;
                             }
+
                         }
 
                         blob_stats.stage_count++ ;
@@ -1257,16 +1260,57 @@ namespace mv
         }
 
         try{
-            for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
-                std::cout << "Buffer Size: " << bit->size << std::endl;
-                for (int idx = 0; idx != (int)bit->size; idx++){
-                    u_int16_t fp16_val = cvtr.compress((*bit->data).getData()[idx]) ;  // Convert to fp16.
+            std::vector<mv::MemoryAllocator::MemoryBuffer> buffers_out_of_order, buffers_in_order;
+
+
+            // Put buffers in more accessible vector (cuz i dont understand fully their operation yet.)
+            for(Data::BufferIterator bbit = dm.bufferBegin("ConstantMemory", stg); bbit != dm.bufferEnd("ConstantMemory", stg); ++bbit){
+                buffers_out_of_order.push_back(*bbit);
+            }
+
+            std::cout << "Buffer Length: " << buffers_out_of_order.size() << std::endl;
+
+            int xx = 0;
+            int tsize = buffers_out_of_order.size();
+            for(int i = 0; i != tsize; i++)
+            {
+                mv::MemoryAllocator::MemoryBuffer smallest;
+                unsigned long long smallest_val = ULLONG_MAX;   // If this is ever hit we have far, far bigger problems :)
+                for (mv::MemoryAllocator::MemoryBuffer m : buffers_out_of_order) {
+                    if(smallest_val > m.offset){
+                        smallest_val = m.offset;
+                        smallest = m;
+                    }
+                }
+                if (smallest_val == ULLONG_MAX){
+                    break;
+                }
+                std::cout << xx++  << ": smallest number: " << smallest_val << std::endl;
+                buffers_in_order.push_back(smallest);
+                int pos = find(buffers_out_of_order.begin(), buffers_out_of_order.end(), smallest) - buffers_out_of_order.begin();
+
+                buffers_out_of_order.erase(buffers_out_of_order.begin() + pos);
+                std::cout << "Changed Buffer Length: " << buffers_out_of_order.size() << std::endl;
+
+            }
+
+            int c = 0;
+            std::cout << "New Buffer Length: " << buffers_in_order.size() << std::endl;
+            unsigned int running_total = 0;
+            for(auto bit : buffers_in_order)
+            // for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
+            {
+                running_total += bit.size*2;
+                std::cout << c++ << ": " << "Buffer Size: " << bit.size*2 << ". Running Total: " << running_total << std::endl;
+
+                for (int idx = 0; idx != (int)bit.size; idx++){
+                    u_int16_t fp16_val = cvtr.compress((*bit.data).getData()[idx]) ;  // Convert to fp16.
                     // u_int16_t fp16_val = f32Tof16((*bit->data).getData()[idx]) ;  // Convert to fp16.
                     AddBytes(2, fp16_val) ;
                 }
 
                 int adjustment = 0;
-                while((bit->size*2 + adjustment*2) % 64 != 0){
+                while((bit.size*2 + adjustment*2) % 64 != 0){
                     AddBytes(2, 0);
                     adjustment++;
                 }
