@@ -181,8 +181,7 @@ namespace mv
                     }
                     break;
                 default:
-                    std::cout << "Calc: NO SUCH LAYER:" << Printable::toString(it->getOpType()) << std::endl;
-                    assert (0);
+                    std::cout << "Warning : The layer has not been used in calculation:" << Printable::toString(it->getOpType()) << std::endl;
                     break;
             }
         }
