@@ -32,11 +32,10 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 {
 
     mv::OpModel om(model);
-    bool markedOneConvolution = false;
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if(!opIterator->isHardwarizeable(pobj) || markedOneConvolution)
+        if(!opIterator->isHardwarizeable(pobj) )
         {
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
@@ -45,14 +44,39 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int mode = 0; // Assuming mode 0
         int noOfBlocks = 1 << mode;
         int inputChannels = opIterator->getInputTensor(0)->getShape()[2];
+        int inputWidth = opIterator->getInputTensor(0)->getShape()[0];
         int outputChannels = opIterator->getOutputTensor(0)->getShape()[2];
-        if(inputChannels % 8)
+        unsigned int coEffTotalSize = opIterator->getInputTensor(0)->getShape().totalSize();
+
+        // if coEffTotalSize > 128000
+        if( inputChannels >= 256 || outputChannels >= 256)
         {
+            // printf("Total Size: %i\n", coEffTotalSize);
+            printf("inputChannels: %i\n", inputChannels);
+            printf("outputChannels: %i\n", outputChannels);
+            // printf("Incompatible because coefficients exceed on-chip storage space. TODO: Split over Channels\n");
+            printf("Incompatible because coefficients exceed on-chip channel amounts. TODO: Split over Channels\n");
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
+
+
+        if(inputChannels % 8)
+        {
+            printf("Incompatible because input channels %% 8 != 0\n");
+            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            continue;
+        }
+
         if(outputChannels % noOfBlocks)
         {
+            printf("Incompatible because output channels %% NoOfBlocks != 0\n");
+            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            continue;
+        }
+        if(inputWidth < 32)
+        {
+            printf("Incompatible because input Width < 32 != 0\n");
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
@@ -83,11 +107,8 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
         if (total_input_size + total_output_size > CMX_STREAM_SIZE){
             // TODO: Take into consideration previous splits.
-            printf("Do Split over H");
-
             splitsOverHeight = (unsigned int) ceil((total_input_size + total_output_size)/CMX_STREAM_SIZE);
         }
-
 
         printf("Split over H: %u\n", splitsOverHeight);
 
@@ -126,7 +147,6 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
         int streamingMask = 0; //For DDR streaming
         om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
-        markedOneConvolution = true;
         std::cout << "Marked one convolution as executable in HW" << std::endl;
     }
 }
@@ -136,7 +156,6 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
     mv::OpModel om(model);
-    bool markedOneConvolution = false;
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
@@ -199,7 +218,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 newTensor.getShape(),
                 newTensor.getDType(),
                 newTensor.getOrder(),
-                "MxWeights"
+                mv::Printable::toString(mv::OpType::Constant) + "_" + mv::Printable::toString(om.opsCount(mv::OpType::Constant)) + "MxWeights"
             );
 
             opIterator->setInputTensor(new_op, 1);
