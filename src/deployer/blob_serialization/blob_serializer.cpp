@@ -1,11 +1,53 @@
 #include "include/mcm/deployer/serializer.hpp"
-// #include "include/mcm/deployer/blob_serializer.hpp"
 
 #include <climits>
 #include <stdio.h>
 
 namespace mv
 {
+
+    int Blob_buffer::get_blob_enum(mv::OpType o, bool NCE1) {
+        /***
+         *  Mapping of C++ OpTypes to Blob Enumerations
+         ***/
+        switch (o) {
+            case OpType::Conv2D:
+                {
+                    if (NCE1) {
+                        return 33;
+                    } else {
+                        return 0;
+                    }
+                }
+            case OpType::MaxPool2D:
+                return 1;
+            case OpType::AvgPool2D:
+                return 2;
+            case OpType::Softmax:
+                return 3;
+            case OpType::FullyConnected:
+                return 4;
+            case OpType::Input:
+            case OpType::Output:
+                return 5;   // NoOp
+            case OpType::ReLU:
+                return 6;
+            case OpType::Add:
+                return 12;
+            case OpType::Multiply:
+                return 13;
+            case OpType::Scale:
+                return 15;
+            case OpType::Conversion:
+                return 37;
+            default:
+                {
+                    std::cout << "Serialization Error: No Blob Enum Defined for layer" << mv::Printable::toString(o) << std::endl;
+                    assert(0);
+                }
+        }
+    }
+
     void Blob_buffer::calc(mv::ControlModel& cm)
     {
         /*
@@ -211,8 +253,7 @@ namespace mv
         blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
     }
 
-    void Blob_buffer::write_elf_header()
-    {
+    void Blob_buffer::write_elf_header(){
         /*
             Somewhat following the ELF Header standard, but effort was dropped.
             This section remains until properly depreciated.
@@ -240,22 +281,22 @@ namespace mv
         AddBytes(2, 0x0000);  // 0x20
     }
 
-    void Blob_buffer::write_mv_header()
-    {
+    void Blob_buffer::write_mv_header(){
 
-        uint32_t mv_magic_number = BLOB_MAGIC_NUMBER ;
-        uint32_t mv_version_major = BLOB_VERSION_MAJOR ;
-        uint32_t mv_version_minor = BLOB_VERSION_MINOR ;
-        uint32_t mv_num_shaves = 1 ;
+        uint32_t mv_magic_number = BLOB_MAGIC_NUMBER;
+        uint32_t mv_version_major = BLOB_VERSION_MAJOR;
+        uint32_t mv_version_minor = BLOB_VERSION_MINOR;
+        uint32_t mv_num_shaves = 1;
 
-        uint32_t mv_stage_section_offset = blob_stats.elf_header_size+blob_stats.mv_header_size+blob_stats.header_pad_size ;
-
-        uint32_t mv_buffer_section_offset = mv_stage_section_offset + blob_stats.stage_section_size ;
-        uint32_t mv_relocation_offset = mv_buffer_section_offset + blob_stats.buffer_header_size + blob_stats.buffer_data_size ;
-        uint32_t mv_permutation_enabled = 0x0000 ;
+        uint32_t mv_stage_section_offset = blob_stats.elf_header_size +
+            blob_stats.mv_header_size + blob_stats.header_pad_size;
+        uint32_t mv_buffer_section_offset = mv_stage_section_offset +
+            blob_stats.stage_section_size;
+        uint32_t mv_relocation_offset = mv_buffer_section_offset +
+            blob_stats.buffer_header_size + blob_stats.buffer_data_size;
+        uint32_t mv_permutation_enabled = 0x0000;
 
         AddBytes(4, mv_magic_number);
-
         AddBytes(4, blob_stats.blob_file_size);
         AddBytes(4, mv_version_major);
         AddBytes(4, mv_version_minor);
@@ -275,11 +316,6 @@ namespace mv
         AddBytes(4, blob_stats.stage_count);   // 0x50
         AddBytes(4, blob_stats.stage_section_size);
         AddBytes(4, blob_stats.output_size);
-        AddBytes(4, 0x20);     // include input NoOp stage for compatibility with python compiler
-        AddBytes(4, 0x05);
-        AddBytes(4, 0x80000000);
-        AddBytes(4, 0x05);
-        AddBytes(4, 0x05);
     }
 
     void Blob_buffer::add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage)
@@ -346,7 +382,18 @@ namespace mv
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
 
-            switch(it->getOpType()){
+            auto ltype = it->getOpType();
+            switch(ltype){
+                case OpType::Input:
+                    {
+                        AddBytes(4, 0x20);     // include input NoOp stage for compatibility with python compiler
+                        AddBytes(4, get_blob_enum(ltype));
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+                        AddBytes(4, 0x05);
+                        AddBytes(4, 0x05);
+                    }
+                    break;
+
                 case OpType::Conv2D:
                     {
                         int mx_valid = 0;
@@ -405,8 +452,8 @@ namespace mv
                             }
 
                             AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0x21);                                // 0x60
-                            AddBytes(4, conv_pool_stage.implementation);
+                            AddBytes(4, get_blob_enum(ltype, true));
+                            AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
                             bConv2D c = bConv2D(&(*it));
@@ -467,8 +514,8 @@ namespace mv
                             }
 
                             AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, 0);                                // 0x60
-                            AddBytes(4, conv_pool_stage.implementation);
+                            AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                            AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
                             bConv2D c = bConv2D(&(*it));
@@ -537,8 +584,8 @@ namespace mv
                             conv_pool_stage.next = next_offset;
                         }
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, 0x04);                                // 0x60
-                        AddBytes(4, conv_pool_stage.implementation);
+                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // Serialize for MyriadX H/W
                         bInnerProduct c = bInnerProduct(&(*it));
@@ -578,8 +625,8 @@ namespace mv
                             conv_pool_stage.next = next_offset;
                         }
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, 0x03);                                // 0x60
-                        AddBytes(4, conv_pool_stage.implementation);
+                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         c.writeStageInfo(&om, this);
 
@@ -615,8 +662,8 @@ namespace mv
                             conv_pool_stage.next = next_offset;
                         }
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, 0x06);
-                        AddBytes(4, conv_pool_stage.implementation);
+                        AddBytes(4, get_blob_enum(ltype));
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // Serialize for MyriadX H/W
                         c.writeStageInfo(&om, this);
@@ -656,16 +703,8 @@ namespace mv
                         }
 
                         AddBytes(4, conv_pool_stage.next);
-
-                        if (it->getOpType() == OpType::MaxPool2D)
-                        {
-                            AddBytes(4, 0x01);
-                        }
-                        else if (it->getOpType() == OpType::AvgPool2D)
-                        {
-                            AddBytes(4, 0x02);
-                        }
-                        AddBytes(4, conv_pool_stage.implementation);
+                        AddBytes(4, get_blob_enum(ltype));
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         c.writeStageInfo(&om, this);
 
@@ -703,17 +742,8 @@ namespace mv
                             conv_pool_stage.next = next_offset ;
                         }
                         AddBytes(4, conv_pool_stage.next);
-
-
-                        if (it->getOpType() == OpType::Add)
-                        {
-                            AddBytes(4, 0x0c);     // operation type element-wise Add
-                        }
-                        else if (it->getOpType() == OpType::Multiply)
-                        {
-                            AddBytes(4, 0x0d);     // operation type element-wise Multiply
-                        }
-                        AddBytes(4, conv_pool_stage.implementation);
+                        AddBytes(4, get_blob_enum(ltype));
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         c.writeStageInfo(&om, this);
 
@@ -728,21 +758,11 @@ namespace mv
                         next_offset += 0x8c ;
                         AddBytes(4, conv_pool_stage.next);
 
-                        if (it->getOpType() == OpType::Add)
-                        {
-                            AddBytes(4, 0x0c);     // operation type element-wise Add
-                        }
-                        else if (it->getOpType() == OpType::Multiply)
-                        {
-                            AddBytes(4, 0x0d);     // operation type element-wise Multiply
-                        }
-                        else
-                        {
-                            AddBytes(4, 0x0f);     // operation type vector Scale
-                            next_offset += 0x28 ;
-                        }
+                        AddBytes(4, get_blob_enum(ltype));     // operation type element-wise Add
 
-                        AddBytes(4, conv_pool_stage.implementation);
+                        next_offset += 0x28 ;
+
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // operator specific info
                         add_stage_IO_info(it, conv_pool_stage);
@@ -815,11 +835,8 @@ namespace mv
                 case OpType::Conversion:
                     {
 
-                        int point0 = 0;
-                        point0 += 2*10 ; // Input, Output
-                        point0 += 2 ; // PreOp PostOp TODO: Move OUT.
-                        point0 += 3 ; // nextstage, id, imp
-                        next_offset += point0*4 ;
+                        bCompatibility c = bCompatibility(&(*it));
+                        next_offset += c.getSerializedSize() + 5*4 ;
 
                         mv::DataModel dm(om);
                         mv::ControlModel cm(om);
@@ -840,19 +857,16 @@ namespace mv
                         }
 
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, 0x25);                                // 0x60
-                        AddBytes(4, conv_pool_stage.implementation);
+                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // Serialize for MyriadX H/W
-                        bCompatibility c = bCompatibility(&(*it));
                         c.writeStageInfo(&om, this);
 
                         AddBytes(4, 0x05);    // 0x12c , no preop
                         AddBytes(4, 0x05);    // 0x12c , no postop
 
                     }
-                    break;
-                case OpType::Input:
                     break;
 
                 default:

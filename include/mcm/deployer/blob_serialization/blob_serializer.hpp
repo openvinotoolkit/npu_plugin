@@ -29,6 +29,8 @@
 #define BLOB_VERSION_MINOR 3
 #define BLOB_MAGIC_NUMBER 8708
 
+#define BLOB_DEFAULT_IMPLEMENTATION 0x80000000
+
 namespace mv
 {
 
@@ -216,6 +218,8 @@ namespace mv
             void write_buffer_section(mv::ControlModel& cm);
 
             void write_relocation_section(mv::ControlModel& cm);
+
+            int get_blob_enum(mv::OpType o, bool NCE1=false);
 
     };   // end class blob_buffer
 
