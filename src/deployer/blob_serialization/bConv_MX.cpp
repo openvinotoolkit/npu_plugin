@@ -6,12 +6,30 @@ namespace mv
 
     void bConv2D::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
     {
+
+        int fp16_size = 2;
+
+        mv::DataModel dm(*om);
+        mv::ControlModel cm(*om);
+
+        mv::Data::TensorIterator *conv_bias;
+
+        if(this->bias_name != "")
+        {
+            std::cout << "Bias Name: " << this->bias_name << std::endl;
+            this->bias = dm.findTensor(this->bias_name);
+            conv_bias = &this->bias;
+        }
+        else
+        {
+            std::cout << "Bias Name: None " << std::endl;
+            conv_bias = NULL ;
+        }
+
+
+
         if (this->NCE1_Compatible)
         {
-            int fp16_size = 2;
-
-            mv::DataModel dm(*om);
-            mv::ControlModel cm(*om);
 
             // Hardware
             b->AddBytes(4, this->streamingMask);
@@ -30,11 +48,10 @@ namespace mv
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
-            Blob_Tensor biasBlobTensor = Blob_Tensor(om, &b->reloc_table, &this->bias);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
 
             for (unsigned i = 0; i != this->desc_count; i++)
             {
-
 
                 unsigned int original_height = this->input->getShape()[1];
                 unsigned int current_height;
@@ -124,7 +141,7 @@ namespace mv
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
-            Blob_Tensor biasBlobTensor = Blob_Tensor(om, &b->reloc_table, &this->bias);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
@@ -144,14 +161,13 @@ namespace mv
 
         if (it->hasAttr("bias"))
         {
-
-            this->bias = (it->getAttr("bias").getContent<mv::dynamic_vector<float>>());
-            std::cout << "Conv has Bias (" << this->bias.size() << ")" << std::endl;
+            this->bias_name = it->getAttr("bias").getContent<std::string>();
+            std::cout << "Conv has Bias" << std::endl;
         }
         else
         {
+            this->bias_name = "";
             std::cout << "Conv has no Bias" <<  std::endl;
-            this->bias = {} ;
         }
 
 
@@ -209,16 +225,6 @@ namespace mv
             else
             {
                 this->opMode = it->getAttr("NCE1_Mode").getContent<int>();
-            }
-
-
-            if (it->hasAttr("bias"))
-            {
-                this->bias = it->getAttr("bias").getContent<mv::dynamic_vector<float>>();
-            }
-            else
-            {
-                this->bias = mv::dynamic_vector<float>();
             }
 
             this->concatOffset = 0; // Concat not supported currently
@@ -459,6 +465,7 @@ namespace mv
             this->padStyle = 2; // HARDCODED.
             this->dilation = 1; // HARDCODED.
 
+            std::cout << "This Convolution is: " << this->radixX << "x" << this->radixY << " taps:" << mv::Printable::toString(this->taps->getShape()) << std::endl;
 
             printf("Warning: Manual Override of Convolution Software layer order\n");
             this->output->setOrder(Order::RowMajor);

@@ -31,7 +31,6 @@ namespace mv
                 int offsetParam, int locationParam, int dtype, int orderParam);
 
             Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, mv::RelocationTable * rt, mv::Data::TensorIterator* t);
-            Blob_Tensor(mv::OpModel* om, mv::RelocationTable * rt, mv::dynamic_vector<mv::float_type>* biasVec);
 
             void write(WBuffer* b);
     };

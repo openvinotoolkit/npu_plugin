@@ -41,54 +41,28 @@ namespace mv
         // DEPRECIATED.
     }
 
-    Blob_Tensor::Blob_Tensor(mv::OpModel* om, RelocationTable* rt , mv::dynamic_vector<mv::float_type>* biasVec)
-        : dimX(biasVec->size()),
-          dataType(0)
-    {
-        // TODO: This should be inside the allocator, and this function should not exist.
+    Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t){
 
-        if (this->dimX > 0)
-        {
-            this->strideX = 2;
-            this->dimY = 1; this->strideY = 2*biasVec->size();
-            this->dimZ = 1; this->strideZ = 2*biasVec->size();
-            mv::Data::TensorIterator biasTensor = om->constant(*biasVec, mv::Shape(1, this->dimX, 1, 1), mv::DType::Float, mv::Order::ColumnMajor);
+        int fp16_size = 2;
+        this->dataType = 0;
+        printf("??\n");
 
-            mv::ControlModel cm(*om);
-            mv::DataModel dm(*om);
-
-            auto stageIt = cm.getStage(0);
-            mv::Data::BufferIterator mem = dm.allocateTensor("ConstantMemory", stageIt, biasTensor);
-
-            std::cout << "## Allocated Bias Buffer. Offset:  " << mem->offset << std::endl;
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
-            std::cout << "## Pushed Bias Relocation entry: " << rt_entry << std::endl;
-            this->offset = rt_entry;
-            this->location = BLOB_INTERNAL_LOCATION;
-            this->order = 1;
-        }
-        else
-        {
-            // biasTensor = om->constant({0,0,0,0}, mv::Shape(1, 1, 1, 1), mv::DType::Float, mv::Order::ColumnMajor);
+        if(t == NULL || &t == NULL || *t == NULL ){
+            std::cerr << "Empty Tensor" << std::endl;
+            this->dimX = 0;
             this->dimY = 0;
             this->dimZ = 0;
             this->strideX = 0;
             this->strideY = 0;
             this->strideZ = 0;
-
-            this->offset = 0 ;
+            this->offset = 0;
             this->location = 0;
+            this->dataType = 0;
             this->order = 0;
+            return;
+        }else{
+            // std::cout << "Actual Tensor" << std::endl;
         }
-
-    }
-
-
-    Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t){
-
-        int fp16_size = 2;
-        this->dataType = 0;
-
 
         // std::cout << "Tensor:" << (*t)->getName() << "Layout: " << Printable::toString((*t)->getOrder()) << "Shape: " << Printable::toString((*t)->getShape()) <<  std::endl;
 
@@ -117,11 +91,11 @@ namespace mv
                 this->dimZ = (*t)->getShape()[2];
             }
             break;
-            case 2:
+            case 1:
             {
-                this->dimX = 1;
+                this->dimX = (*t)->getShape()[0];
                 this->dimY = 1;
-                this->dimZ = (*t)->getShape()[1];
+                this->dimZ = 1;
             }
             break;
             default:
@@ -157,8 +131,19 @@ namespace mv
             blk_stride = (int)mem->stride;
             block = (int)mem->block;
 
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Constant ));
-            std::cout << "## Pushed Taps Relocation entry: " << rt_entry << std::endl;
+            int offset = mem->offset;
+
+
+            if (offset % 64 != 0){
+                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
+                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
+                printf("WARNING: Short-term alignment fix, likely cause of device crash\n");
+                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
+                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
+                offset = 64+(offset/64)*64 ;
+            }
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(offset, bLocation::Constant ));
+            std::cout << "## Pushed Relocation entry: " << rt_entry << ":" << offset <<  std::endl;
 
             this->offset = rt_entry;
         }
@@ -275,5 +260,6 @@ namespace mv
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);
         }
+        printf("Finished Tensor\n");
     }
 }

@@ -6,35 +6,25 @@ namespace mv
 
     void bInnerProduct::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
     {
+
+        int fp16_size = 2;
+        mv::DataModel dm(*om);
+        mv::ControlModel cm(*om);
+
+
+        if(this->bias_name != "")
+            this->bias = dm.findTensor(this->bias_name);
+        else
+            this->bias = {} ;
+
+
         if (1)
         {
-
-            int fp16_size = 2;
-            mv::DataModel dm(*om);
-            mv::ControlModel cm(*om);
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
-
-            printf("Warning: Currently no Bias support in FC\n");
-            Blob_Tensor biasBlobTensor = Blob_Tensor(
-                // this->output->getShape().totalSize(),   // X
-                // 0x01,   // Y
-                // 0x01,   // Z
-                0,
-                0,
-                0,
-                fp16_size,     // X Stride
-                0,
-                0,
-                // fp16_size*this->output->getShape().totalSize(),    // Y Stride
-                // fp16_size*this->output->getShape().totalSize(),    // z Stride
-                0, // Offset - Memory Manager
-                0, // Location - Memory Manager
-                0,
-                1
-            );
+            Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
 
             b->reloc_table.push_entry(std::pair<int, bLocation>(666, bLocation::Constant ));
 
@@ -55,13 +45,16 @@ namespace mv
           output((it->getOutputTensor(0))),
           taps((it->getInputTensor(1)))
     {
+
         if (it->hasAttr("bias"))
         {
-            this->bias = it->getAttr("bias").getContent<mv::dynamic_vector<float>>();
+            this->bias_name = it->getAttr("bias").getContent<std::string>();
+            std::cout << "Conv has Bias" << std::endl;
         }
         else
         {
-            this->bias = mv::dynamic_vector<float>();
+            this->bias_name = "";
+            std::cout << "Conv has no Bias" <<  std::endl;
         }
 
     }

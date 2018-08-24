@@ -10,6 +10,12 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
+
+        if(this->bias_name != "")
+            this->bias = dm.findTensor(this->bias_name);
+        else
+            this->bias = {} ;
+
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
         // Blob_Tensor tapsBlobTensor = Blob_Tensor(
@@ -27,7 +33,7 @@ namespace mv
         Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
 
 
-        Blob_Tensor biasBlobTensor = Blob_Tensor(om, &b->reloc_table, &this->bias);
+        Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->bias);
 
         inputBlobTensor.write(b);
         outputBlobTensor.write(b);
@@ -45,18 +51,15 @@ namespace mv
 
         if (it->hasAttr("bias"))
         {
-
-            this->bias = (it->getAttr("bias").getContent<mv::dynamic_vector<float>>());
-            std::cout << "Conv has Bias (" << this->bias.size() << ")" << std::endl;
-            for (std::vector<float>::const_iterator i = this->bias.begin(); i != this->bias.end(); ++i)
-                std::cout << *i << ' ';
-            std::cout << std::endl;
+            this->bias_name = it->getAttr("bias").getContent<std::string>();
+            std::cout << "Conv has Bias" << std::endl;
         }
         else
         {
+            this->bias_name = "";
             std::cout << "Conv has no Bias" <<  std::endl;
-            this->bias = {} ;
         }
+
 
 
         printf("Warning: Manual Override of Scale Software layer order\n");

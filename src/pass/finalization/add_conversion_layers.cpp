@@ -55,7 +55,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         //Case 1
         if(sourceIsHw && !sinkIsHw)
         {
-            targetOrder = mv::Order::ColumnMajor;
+            targetOrder = mv::Order::RowMajor;
             conversionNeeded = true;
         }
 

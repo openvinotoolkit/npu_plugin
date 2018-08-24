@@ -31,11 +31,14 @@ namespace mv
 void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
 
+    int amount_marked = 0;
+    int mark_limit = 1;
+
     mv::OpModel om(model);
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if(!opIterator->isHardwarizeable(pobj) )
+        if(!opIterator->isHardwarizeable(pobj) || amount_marked >= mark_limit)
         {
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
@@ -48,7 +51,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int outputChannels = opIterator->getOutputTensor(0)->getShape()[2];
         unsigned int coEffTotalSize = opIterator->getInputTensor(0)->getShape().totalSize();
 
-        // if coEffTotalSize > 128000
+        // // if coEffTotalSize > 128000
         if( inputChannels >= 256 || outputChannels >= 256)
         {
             // printf("Total Size: %i\n", coEffTotalSize);
@@ -148,6 +151,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int streamingMask = 0; //For DDR streaming
         om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
         std::cout << "Marked one convolution as executable in HW" << std::endl;
+        amount_marked++;
     }
 }
 

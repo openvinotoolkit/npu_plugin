@@ -18,7 +18,9 @@ namespace mv{
             mv::Data::TensorIterator input;
             mv::Data::TensorIterator output;
             mv::Data::TensorIterator taps;
-            mv::dynamic_vector<float> bias;
+            mv::Data::TensorIterator bias;
+
+            std::string bias_name;
 
         public:
             uint32_t number_of_inputs = 1;

@@ -8,7 +8,7 @@
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 
 namespace mv
-{   
+{
 
     class MemoryAllocator : public Printable, public Jsonable
     {
@@ -45,7 +45,7 @@ namespace mv
              */
             std::size_t offset;
             /**
-             * @brief Value specifing the size of the buffer, added to the offset represents 
+             * @brief Value specifing the size of the buffer, added to the offset represents
              * the end location of the buffer in an allocator
              */
             std::size_t size;
@@ -69,6 +69,9 @@ namespace mv
 
             bool operator<(const MemoryBuffer& other) const;
             std::string toString(bool printValues = false) const;
+            bool operator==(const MemoryBuffer& other){
+                return this->offset == other.offset;
+            };
 
         };
 
@@ -80,7 +83,7 @@ namespace mv
          * @brief Allocator's identifier
          */
         string name_;
-        
+
         /**
          * @brief Total size of the memory block represented by the allocator
          */

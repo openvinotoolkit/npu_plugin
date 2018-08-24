@@ -18,8 +18,10 @@ namespace mv{
             mv::Data::TensorIterator input;
             mv::Data::TensorIterator output;
             mv::Data::TensorIterator taps;
-            mv::dynamic_vector<float> bias;
+            mv::Data::TensorIterator bias;
             mv::Data::TensorIterator scale;
+
+            std::string bias_name;
 
             // Hardware Fields
             uint32_t opMode;

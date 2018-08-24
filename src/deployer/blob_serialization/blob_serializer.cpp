@@ -4,8 +4,6 @@
 #include <climits>
 #include <stdio.h>
 
-#define FORCE_DISABLE_BIAS
-
 namespace mv
 {
     void Blob_buffer::calc(mv::ControlModel& cm)
@@ -38,7 +36,6 @@ namespace mv
         blob_stats.bias_region_size = 0 ;
 
         int additional_buf = 0;
-        int total_bias_elements = 0;
 
         mv::DataModel dm(cm);
 
@@ -119,13 +116,6 @@ namespace mv
                             uint32_t buffer_bias_values_len = dm.findTensor(it->getAttr("bias").getContent<std::string>())->getData().size() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                             blob_stats.data_buffer_count++ ;
-                            if(buffer_bias_values_len % 64 != 0){
-                                // std::cout << buffer_bias_values_len << "->" << align(buffer_bias_values_len, 32) << std::endl;
-                                total_bias_elements+=align(buffer_bias_values_len, 32);
-                            }else{
-                                total_bias_elements+=buffer_bias_values_len;
-                            }
-
                         }
 
                         blob_stats.stage_count++ ;
@@ -170,9 +160,7 @@ namespace mv
                     {
                         blob_stats.stage_count++ ;
                         blob_stats.stage_section_size += (3+32+10)*4 ;
-                        #ifndef FORCE_DISABLE_BIAS
-                            blob_stats.data_buffer_count++ ;   // uses buffer section (ala wts bias)
-                        #endif
+                        blob_stats.data_buffer_count++ ;   // uses buffer section (ala wts bias)
                         uint32_t buffer_bias_values_len = ( it->getInputTensor(1)->getShape().totalSize() ) *blob_stats.weights_number_size;
                         blob_stats.bias_region_size += buffer_bias_values_len ;
                     }
@@ -184,8 +172,7 @@ namespace mv
                     }
                     break;
                 default:
-                    std::cout << "Calc: NO SUCH LAYER:" << Printable::toString(it->getOpType()) << std::endl;
-                    assert (0);
+                    std::cout << "Warning : The layer has not been used in calculation:" << Printable::toString(it->getOpType()) << std::endl;
                     break;
             }
         }
@@ -204,7 +191,7 @@ namespace mv
                 totalSize += bit->size;
                 int adjustment = 0;
                 while((bit->size*2 + adjustment*2) % 64 != 0){
-                    AddBytes(2, 0);
+                    // AddBytes(2, 0); NOT HERE
                     adjustment++;
                 }
                 totalSize += adjustment;
@@ -214,7 +201,7 @@ namespace mv
         }
 
         // TODO: Bias should be part of ConstantMemory already, not have this seperate case.
-        blob_stats.buffer_data_size = totalSize*2 + total_bias_elements*2;
+        blob_stats.buffer_data_size = totalSize*2 ;
 
 
         std::cout << "Reloc Size Calc: " << 20 << ", " << blob_stats.data_buffer_count << "," << blob_stats.stage_count-2 << ", " << blob_stats.elt_count << "," << additional_buf << std::endl;
@@ -898,12 +885,7 @@ namespace mv
                                 if (it->hasAttr("bias"))
                                 {
                                     //std::cout << "--bias found for " << it->getName() << std::endl;
-
-                                    #ifdef FORCE_DISABLE_BIAS
-                                        AddBytes(4, 0x05);
-                                    #else
-                                        AddBytes(4, 0x09);    // 0x12c , postop bias
-                                    #endif
+                                    AddBytes(4, 0x09);    // 0x12c , postop bias
                                 }
                                 else
                                 {
@@ -1269,7 +1251,7 @@ namespace mv
                 buffers_out_of_order.push_back(*bbit);
             }
 
-            std::cout << "Buffer Length: " << buffers_out_of_order.size() << std::endl;
+            // std::cout << "Buffer Length: " << buffers_out_of_order.size() << std::endl;
 
             int xx = 0;
             int tsize = buffers_out_of_order.size();
@@ -1286,23 +1268,23 @@ namespace mv
                 if (smallest_val == ULLONG_MAX){
                     break;
                 }
-                std::cout << xx++  << ": smallest number: " << smallest_val << std::endl;
+                // std::cout << xx++  << ": smallest number: " << smallest_val << std::endl;
                 buffers_in_order.push_back(smallest);
                 int pos = find(buffers_out_of_order.begin(), buffers_out_of_order.end(), smallest) - buffers_out_of_order.begin();
 
                 buffers_out_of_order.erase(buffers_out_of_order.begin() + pos);
-                std::cout << "Changed Buffer Length: " << buffers_out_of_order.size() << std::endl;
+                // std::cout << "Changed Buffer Length: " << buffers_out_of_order.size() << std::endl;
 
             }
 
             int c = 0;
-            std::cout << "New Buffer Length: " << buffers_in_order.size() << std::endl;
+            // std::cout << "New Buffer Length: " << buffers_in_order.size() << std::endl;
             unsigned int running_total = 0;
             for(auto bit : buffers_in_order)
             // for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
             {
                 running_total += bit.size*2;
-                std::cout << c++ << ": " << "Buffer Size: " << bit.size*2 << ". Running Total: " << running_total << std::endl;
+                // std::cout << c++ << ": " << "Buffer Size: " << bit.size*2 << ". Running Total: " << running_total << std::endl;
 
                 for (int idx = 0; idx != (int)bit.size; idx++){
                     u_int16_t fp16_val = cvtr.compress((*bit.data).getData()[idx]) ;  // Convert to fp16.
@@ -1312,9 +1294,12 @@ namespace mv
 
                 int adjustment = 0;
                 while((bit.size*2 + adjustment*2) % 64 != 0){
+                    // printf("Pad Buffer\n");
                     AddBytes(2, 0);
                     adjustment++;
+                    running_total += 2;
                 }
+                // printf("---\n");
             }
         }catch(mv::ArgumentError){
             std::cout << "Warning: No Constant Memory Present." << std::endl;
