@@ -94,6 +94,11 @@ mv::CompositionalModel& mv::CompilationUnit::model()
     return *model_;
 }
 
+mv::CompositionalModel& mv::CompilationUnit::recordedModel()
+{
+    return *recordedModel_;
+}
+
 bool mv::CompilationUnit::initialize()
 {
 

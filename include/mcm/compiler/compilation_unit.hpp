@@ -7,6 +7,7 @@
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
+#include "include/mcm/utils/compositional_model_recorder.hpp"
 
 namespace mv
 {
@@ -18,6 +19,7 @@ namespace mv
         static Logger& logger_;
 
         OpModel* model_;
+        CompositionalModelRecorder* recordedModel_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
         json::Object compilationDescriptor_;
@@ -33,6 +35,7 @@ namespace mv
         PassManager& passManager();
         json::Object& compilationDescriptor();
         CompositionalModel& model();
+        CompositionalModel& recordedModel();
 
         void loadModelFromJson(const std::string& path);
         bool initialize();
