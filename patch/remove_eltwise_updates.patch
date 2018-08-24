@@ -1,0 +1,1164 @@
+From 2ba845a945bcf4163ab40f8d24fac01da6d8e496 Mon Sep 17 00:00:00 2001
+From: Ian Hunter <ian.hunter@intel.com>
+Date: Tue, 21 Aug 2018 10:24:01 +0100
+Subject: [PATCH 1/2] Revert "Fusing Eltwise and Relu (#8314)"
+
+This reverts commit a60072606c974572fc60a22044ba99a7b612af4e.
+---
+ projects/Fathom/src2/Controllers/MiscIO.py         |   1 -
+ projects/Fathom/src2/Controllers/Optimizer.py      |  40 -------
+ .../src2/Controllers/Parsers/Parser/Eltwise.py     |   4 -
+ .../Fathom/src2/Models/StageDefinitions/Eltwise.py |  15 ---
+ .../tests/per_layer_tests/n20_yolo_hw/Makefile     |   4 +-
+ .../per_layer_tests/n20_yolo_hw/data/Fathom.blob   |   2 +-
+ .../n20_yolo_hw/data/InputTensor.bin               |   2 +-
+ .../per_layer_tests/n39_MobileNet_HW/Makefile      |   2 +-
+ .../n39_MobileNet_HW/data/Fathom.blob              |   2 +-
+ .../n39_MobileNet_HW/data/InputTensor.bin          |   2 +-
+ .../n39_MobileNet_HW/data/OutputTensor.bin         |   2 +-
+ .../per_layer_tests/n40_Resnet_18/data/Fathom.blob |   2 +-
+ .../per_layer_tests/n40_Resnet_18_hw/Makefile      |   2 +-
+ .../n40_Resnet_18_hw/data/Fathom.blob              |   2 +-
+ .../per_layer_tests/n40_Resnet_50/data/Fathom.blob |   2 +-
+ .../per_layer_tests/n40_Resnet_50_hw/Makefile      |   2 +-
+ .../n40_Resnet_50_hw/data/Fathom.blob              |   2 +-
+ .../n41_ssd_mobilenet/data/Fathom.blob             |   2 +-
+ .../n41_ssd_mobilenet_hw/data/Fathom.blob          |   2 +-
+ .../per_layer_tests/t11_innerlrn/data/Fathom.blob  |   2 +-
+ .../tests/per_layer_tests/t2_crop/data/Fathom.blob |   2 +-
+ .../per_layer_tests/t7_eltwise/data/Fathom.blob    |   2 +-
+ projects/HwMvTensor/leon/modules/HwOp.cpp          |   8 +-
+ projects/HwMvTensor/leon/mvAccumulate.cpp          | 115 +++++++++++---------
+ projects/HwMvTensor/leon/mvAccumulate.h            |   8 +-
+ projects/HwMvTensor/shave/accumulate_core.cpp      |  76 +++++++++++++
+ .../MvTensor/modules/eltwise/leon/mvEltwise.cpp    | 120 ++++++++-------------
+ .../MvTensor/modules/eltwise/priv/mvEltwiseParam.h |   4 -
+ projects/MvTensor/modules/eltwise/pub/mvEltwise.h  |  22 ----
+ .../modules/eltwise/shave/eltwise_core.cpp         |  71 ++++--------
+ .../modules/postops/shave/postOps_core.cpp         | 105 ++++++------------
+ .../MvTensor/modules/postops/shave/postOps_core.h  |  19 ----
+ projects/MvTensor/shared/modules/EltWise.cpp       |  13 +--
+ projects/MvTensor/shared/modules/EltWise.h         |   2 -
+ 34 files changed, 273 insertions(+), 388 deletions(-)
+ create mode 100644 projects/HwMvTensor/shave/accumulate_core.cpp
+ delete mode 100644 projects/MvTensor/modules/eltwise/pub/mvEltwise.h
+
+diff --git a/projects/Fathom/src2/Controllers/MiscIO.py b/projects/Fathom/src2/Controllers/MiscIO.py
+index 216020c..b227741 100644
+--- a/projects/Fathom/src2/Controllers/MiscIO.py
++++ b/projects/Fathom/src2/Controllers/MiscIO.py
+@@ -28,7 +28,6 @@ from mvnc import mvncapi
+ from Controllers.FileIO import *  # noqa
+ from Controllers.DataTransforms import *  # noqa
+ import re
+-import operator
+ 
+ import Controllers.Globals as GLOBALS
+ 
+diff --git a/projects/Fathom/src2/Controllers/Optimizer.py b/projects/Fathom/src2/Controllers/Optimizer.py
+index 232e71c..8019d77 100644
+--- a/projects/Fathom/src2/Controllers/Optimizer.py
++++ b/projects/Fathom/src2/Controllers/Optimizer.py
+@@ -81,12 +81,6 @@ def postParsingOptimizations(parsedLayers):
+     g = fusePermuteFlatten(g)
+ 
+     """
+-        Fuse Eltwise->Relu sequences, by absorbing Relu into Eltwise
+-    """
+-    print("Fusing Eltwise and Relu")
+-    g = fuseEltwiseRelu(g)
+-
+-    """
+         Eliminate layers that have been parsed as NoOp (e.g. Dropout)
+     """
+     print("Eliminate layers that have been parsed as NoOp")
+@@ -347,40 +341,6 @@ def fusePermuteFlatten(g):
+ 
+     return g
+ 
+-
+-def fuseEltwiseRelu(g):
+-    """
+-        Iterates over the graph removing any qualifying fusions for
+-        Relu until we are complete.
+-    """
+-    import operator
+-
+-    def isEltwise(layer):
+-        """
+-            Returns True/False if the given layer is/is not a Eltwise Layer
+-        """
+-        from Controllers.Parsers.Parser.Eltwise import Eltwise
+-        return type(layer) in [Eltwise]
+-
+-
+-    def isRelu(layer):
+-        """
+-            Returns True/False if the given layer is/is not a Relu Layer
+-        """
+-        return type(layer) in [ReLU]
+-
+-
+-    def EltwiseReluCompensation(eltwise_layer, relu_layer):
+-        eltwise_layer.hasInplaceReLU = True
+-        eltwise_layer.reLUnegSlope = relu_layer.negativeSlope
+-        return eltwise_layer
+-
+-    check_again = True
+-    while check_again:
+-        g, check_again = fuse_nodes(g, isRelu, isEltwise, EltwiseReluCompensation)
+-
+-    return g
+-
+ def findClosestChild(g, source, children):
+     """
+     As this is a directed graph, we only get paths that move 'downwards'.
+diff --git a/projects/Fathom/src2/Controllers/Parsers/Parser/Eltwise.py b/projects/Fathom/src2/Controllers/Parsers/Parser/Eltwise.py
+index c03cd8b..c4eacf1 100644
+--- a/projects/Fathom/src2/Controllers/Parsers/Parser/Eltwise.py
++++ b/projects/Fathom/src2/Controllers/Parsers/Parser/Eltwise.py
+@@ -48,10 +48,6 @@ class Eltwise(Layer):
+         else:
+             self.formatPool = [(tfCM, tfCM), (tfIV, tfIV)]
+ 
+-        self.hasInplaceReLU = False
+-        self.reLUnegSlope = 0.0
+-        self.reLUposSlope = 1.0
+-
+     def loadType(self, type):
+         self.type = type
+ 
+diff --git a/projects/Fathom/src2/Models/StageDefinitions/Eltwise.py b/projects/Fathom/src2/Models/StageDefinitions/Eltwise.py
+index 8e1ead7..34fdaf4 100644
+--- a/projects/Fathom/src2/Models/StageDefinitions/Eltwise.py
++++ b/projects/Fathom/src2/Models/StageDefinitions/Eltwise.py
+@@ -30,11 +30,9 @@ class Eltwise(Op):
+         helper_parseBuffer("input", target_container, instance.dataBUF)
+         helper_parseBuffer("output", target_container, instance.outputBUF)
+         helper_parseBuffer("taps", target_container, instance.tapsBUF)
+-        helper_parseBuffer("op_parmas", target_container, instance.opParamsBUF)
+ 
+     def adapt_fields(self, emulator, layer):
+         from Controllers.Adaptor import BufferEmulator  # TODO: Fix Imports.
+-        from Controllers.Tensor import PopulatedTensor
+ 
+         i = layer.getInputTensors()[0]
+         i.setDatatype(np.float16)
+@@ -50,16 +48,3 @@ class Eltwise(Op):
+         o = layer.getOutputTensors()[0]
+         o.setDatatype(np.float16)
+         emulator.outputBUF  = BufferEmulator(o.resolve())
+-
+-        eltwise_dtype = np.dtype("<i4, <f4, <f4")
+-        eltwise_params = np.array((layer.hasInplaceReLU,
+-                        layer.reLUnegSlope,
+-                        layer.reLUposSlope),
+-                        eltwise_dtype)
+-        eltwise_params = eltwise_params.flatten()
+-        eltwise_params = eltwise_params.view("<f4")
+-
+-        opParamsTensor = PopulatedTensor(eltwise_params)
+-        opParamsTensor.setLayout((0, 1, 2, 3))
+-        opParamsTensor.setDatatype(np.float32)
+-        emulator.opParamsBUF = BufferEmulator(opParamsTensor.resolve(), track=True)
+diff --git a/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/Makefile b/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/Makefile
+index fbf525e..30547d6 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/Makefile
++++ b/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/Makefile
+@@ -1,9 +1,9 @@
++EXPECTED_CRC = 1585539263
+ SHAVES = 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+-EXPECTED_CRC = 883433651
+ FATHOM_EXTRA_PARAMS = --ma2480
+ 
+ include ../fathomPerLayerTest.mk
+ 
+ TEST_HW_PLATFORM := "MV0235_MA2480"
+ TEST_TYPE        := "AUTO"
+-TEST_TAGS        := "MA2480"
+\ No newline at end of file
++TEST_TAGS        := "MA2480"
+diff --git a/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/Fathom.blob
+index 8027946..629472b 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat cc6a74475ff52f148f21e583001bd7a29955c541             33422652
++#$# git-fat cdf3e2bd831f3232ebbe12ecf4edcc0daf407f90             33422652
+diff --git a/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/InputTensor.bin b/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/InputTensor.bin
+index e4b6cc5..44e0438 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/InputTensor.bin
++++ b/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/data/InputTensor.bin
+@@ -1 +1 @@
+-#$# git-fat ad978e8d0058a69cdeff09495158ce6e228198f4              1204224
++#$# git-fat 316299ed3f5ad4b63a7b50b62b7688b5bc6178f5              1605632
+diff --git a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/Makefile b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/Makefile
+index d5d2125..3e92abc 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/Makefile
++++ b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/Makefile
+@@ -1,4 +1,4 @@
+-EXPECTED_CRC = 1630127045
++EXPECTED_CRC = 364438308
+ SHAVES = 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+ FATHOM_EXTRA_PARAMS = --ma2480
+ 
+diff --git a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/Fathom.blob
+index d9c01d3..4b186a4 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat 04481437af8e204991dcf5ff6c1933a9c6faff15             58747076
++#$# git-fat 64393b6863415fc3e3fc67318d5d05f0469eb3be              8485596
+diff --git a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/InputTensor.bin b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/InputTensor.bin
+index 4df803b..acc8e37 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/InputTensor.bin
++++ b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/InputTensor.bin
+@@ -1 +1 @@
+-#$# git-fat a3234bae7870c289b52726efe0da549f8ef1de92               301056
++#$# git-fat d992f4f582fb2f620e112e8cef96dd322724703c               301056
+diff --git a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/OutputTensor.bin b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/OutputTensor.bin
+index d1b4137..e0293ec 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/OutputTensor.bin
++++ b/projects/FathomRun/tests/per_layer_tests/n39_MobileNet_HW/data/OutputTensor.bin
+@@ -1 +1 @@
+-#$# git-fat 48a22e6e957b22f35081878cd6f1d2153ae11210                 2000
++#$# git-fat d97bbbd12ac03a3da642e26def63b90ca56bf9f4                 2000
+diff --git a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18/data/Fathom.blob
+index dd1f4c2..dcd11b6 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat 50e72873423584a42180d57d4c47ef5028b626f8             23386916
++#$# git-fat 76ca141bd07c722a257d3ff04cc20a9be11caa16             23387044
+diff --git a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/Makefile b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/Makefile
+index 4c6be36e..4d51117 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/Makefile
++++ b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/Makefile
+@@ -1,4 +1,4 @@
+-EXPECTED_CRC = 218898414
++EXPECTED_CRC = 1261350447
+ SHAVES = 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+ FATHOM_EXTRA_PARAMS = --ma2480
+ 
+diff --git a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/data/Fathom.blob
+index 98b2f8a..6be9469 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_18_hw/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat acb64e7a76fd5a7103b505b21fa026dbdbd7425a             23453060
++#$# git-fat a3cf90306abb54ae58665a79d1d1c793ccf69561             23453188
+diff --git a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50/data/Fathom.blob
+index 2850ca0..062d491 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat 451bfa3c2434a51a7008bfbb0711c407a79a25ad             51083332
++#$# git-fat 2a1f89117a62c22303632768cf3b295028c432fd             51083588
+diff --git a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/Makefile b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/Makefile
+index 8e9e731..f3cfe52 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/Makefile
++++ b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/Makefile
+@@ -1,4 +1,4 @@
+-EXPECTED_CRC = 4030099178
++EXPECTED_CRC = 1994940268
+ SHAVES = 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+ FATHOM_EXTRA_PARAMS = --ma2480
+ 
+diff --git a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/data/Fathom.blob
+index 8a6ca05..7f195a2 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n40_Resnet_50_hw/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat 58ee8aeb5abef5cd0d062776bb1339c1b70cc423             51237764
++#$# git-fat 31b2fc1fd7830184579bf6b21675436cdbfa4bf3             51238020
+diff --git a/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet/data/Fathom.blob
+index 5afbb76..df7d3e9 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat f9ab99e7f0aa24e342ef51a93f7fa6eda67b8ca6             11588460
++#$# git-fat 02148fc51eddac028bcb7c819e2ee719766d7601             11593820
+diff --git a/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet_hw/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet_hw/data/Fathom.blob
+index b499f00..1467d03 100644
+--- a/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet_hw/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/n41_ssd_mobilenet_hw/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat 13df498af359ee3aa8f44736fc65e78635745a46             61901860
++#$# git-fat 3770d108d273738f164f40978b39bc6c5cedc213             11628588
+diff --git a/projects/FathomRun/tests/per_layer_tests/t11_innerlrn/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/t11_innerlrn/data/Fathom.blob
+index cf589c6..bf9fb63 100644
+--- a/projects/FathomRun/tests/per_layer_tests/t11_innerlrn/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/t11_innerlrn/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat 41e89ad24506ce5ec3845631035e5c6471d74945                 1052
++#$# git-fat 2db942f1cd54f058d1f50893cf408fccd5e9eb28                  948
+diff --git a/projects/FathomRun/tests/per_layer_tests/t2_crop/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/t2_crop/data/Fathom.blob
+index dcaf6a8..915d53f 100644
+--- a/projects/FathomRun/tests/per_layer_tests/t2_crop/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/t2_crop/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat ef2bf57c3a2796214bcf868c3f7cb301a11d2f63                  668
++#$# git-fat 113205384113e3dc05c892053f44b56f307ceb5f                  668
+diff --git a/projects/FathomRun/tests/per_layer_tests/t7_eltwise/data/Fathom.blob b/projects/FathomRun/tests/per_layer_tests/t7_eltwise/data/Fathom.blob
+index eb4bfc1..30ec625 100644
+--- a/projects/FathomRun/tests/per_layer_tests/t7_eltwise/data/Fathom.blob
++++ b/projects/FathomRun/tests/per_layer_tests/t7_eltwise/data/Fathom.blob
+@@ -1 +1 @@
+-#$# git-fat 29993f0d0a2e68d10ee54475fd26c87e3ab53e0a                  980
++#$# git-fat 1711f62717488608b99b3a5cfbde2f65d8719d5a                  860
+diff --git a/projects/HwMvTensor/leon/modules/HwOp.cpp b/projects/HwMvTensor/leon/modules/HwOp.cpp
+index 1aa5c70..923d4d4 100644
+--- a/projects/HwMvTensor/leon/modules/HwOp.cpp
++++ b/projects/HwMvTensor/leon/modules/HwOp.cpp
+@@ -1372,11 +1372,9 @@ bool HwOp::run(int block, int firstShave, int lastShave, const mv::tensor::Resou
+ 
+                     if (loopUnrollCache_[i].accumulateOnShaves)
+                     {
+-                        accumulate_split_over_K(nShaves, firstShave, lastShave, 
+-                            sodItermediateBuffer_.get(), output_,
+-                            loopUnrollCache_[i].depthGroup, total_d_groups, 
+-                            has_relu_, acc_negSlope, acc_posSlope, 
+-                            res.dmaConfig.agent);
++                        accumulate_split_over_K(nShaves, firstShave, lastShave, loopUnrollCache_[i].depthGroup,
++                            (short unsigned *) output_.offset, sodItermediateBuffer_.get(), output_,
++                            total_d_groups, has_relu_, acc_negSlope, acc_posSlope );
+                     }
+ 
+                 }
+diff --git a/projects/HwMvTensor/leon/mvAccumulate.cpp b/projects/HwMvTensor/leon/mvAccumulate.cpp
+index df5e6e8..320a2f8 100644
+--- a/projects/HwMvTensor/leon/mvAccumulate.cpp
++++ b/projects/HwMvTensor/leon/mvAccumulate.cpp
+@@ -6,58 +6,77 @@
+  */
+ 
+ #include "mvAccumulate.h"
+-#include "../../eltwise/pub/mvEltwise.h"
+-
+-void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave,
+-		unsigned short *in_buff, const Buffer &output_,
+-		int group, int groups_,
+-		bool has_relu_, float relu_a0_, float relu_a1_,
+-		u32 dmaLinkAgent)
+-{
+-	unsigned short* out_buff = (unsigned short*)output_.offset;
++
++
++MODULE_ENTRY_DECL(mvAccumulate);
++
++void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave, int group, unsigned short *out_buff, unsigned short *tmp_buff, const Buffer &output_, int groups_, bool has_relu_, float relu_a0_, float relu_a1_){
+ 	/*
+ 	 * Accumulate between HW runs that run on a portion of K each.
+-	 *  performs: out_buff[i] = out_buff[i] + in_buff[i], 
+-	 * 		      followed by an optional Relu operation
++	 *
++	 * TODO: Become functional on Multiple Shaves. (Needs Powering On, uses splitting functionality from software elementwise sum.
++	 * TODO: Use DMA Link Agent from myriad resources so that we do not violate resource allocation policy
+ 	 */
+-	if (nShaves > 0)
+-	{
+-		// assuming that data is in INTERLEAVED (YZX) layout
+-		u32 rounded_x =((output_.x + 7) / 8) * 8;
+-		u32 in_midStride = rounded_x * sizeof(half);
+-
+-		u32 in1_axis0_size   = output_.x;
+-		u32 in1_axis1_size   = output_.z;
+-		u32 in1_axis2_size   = output_.y;
+-		u32 in1_axis1_stride = output_.getMiddleStride();
+-		u32 in2_axis1_stride = in_midStride;
+-		u32 out_axis1_stride = output_.getMiddleStride();
+-		int inplace_relu;
+-		float neg_slope;
+-		float pos_slope;
+-
+-		if (has_relu_ && groups_ > 1 && group == groups_ - 1){
+-			inplace_relu = 1;
+-			neg_slope = relu_a0_;
+-			pos_slope = relu_a1_;
+-		}
+-		else
++
++	if (nShaves > 0){
++
++		int channels;
++
++		channels = output_.z;
++		int height = output_.y;
++		int width =((output_.x + 7) / 8) * 8;
++
++		int strideZ;
++		strideZ = output_.z * output_.getMinorStride();
++
++
++		u32 dmaLinkAgent = 1;	//mvTensorParam->myriadResources->dmaLinkAgent;
++
++		u32 nelem = (width * height + nShaves - 1) / nShaves;
++
++		for(u32 i = 0; i < nShaves; i++)
+ 		{
+-			inplace_relu = 0;
+-			neg_slope = 0.0f;
+-			pos_slope = 1.0f;
++
++			t_MvAccumulateParam *param = useShaveParam<t_MvAccumulateParam>(i + firstShave);
++			param->input = (half *)((u8 *)out_buff + i * nelem * strideZ);
++			param->channels = channels;
++			param->input2 = (half *)((u8 *)tmp_buff + i * nelem * strideZ);
++			param->channels2 = channels;
++
++			param->output = (half *)((u8 *)out_buff + i * nelem * strideZ);
++
++			param->nelements = (i+1) * nelem > width * height ? width * height - i*nelem : nelem;
++			param->istrideX = strideZ;
++			param->i2strideX = strideZ;
++			param->ostrideX = strideZ;
++			param->dmaLinkAgent = dmaLinkAgent;
++			param->cmxslice = (half *)getCMXSliceDataSection(firstShave + i);
++
++			if (has_relu_ && groups_ > 1 && group == groups_ - 1){
++				param->inplace_relu = 1;
++				param->neg_slope = relu_a0_;
++				param->pos_slope = relu_a1_;
++			}else{
++				param->inplace_relu = 0;
++				param->neg_slope = 0;
++				param->pos_slope = 1;
++			}
++
++			u32 readBackAddr = (u32)(&(param->cmxslice));
++			GET_REG_WORD_VAL(readBackAddr);
++
++			startShave(firstShave + i, (u32)&MODULE_ENTRY(mvAccumulate), (u32)param);
++			if(param->nelements + i*nelem == width*height)
++			{
++				lastShave = firstShave + i;
++				break;
++			}
++
+ 		}
+ 
+-		eltwise(kSum, (fp16*)out_buff,
+-			in1_axis0_size, in1_axis1_size, in1_axis2_size,
+-			(fp16*)in_buff,
+-			(fp16*)out_buff,
+-			in1_axis1_stride, in2_axis1_stride, out_axis1_stride,
+-			inplace_relu, neg_slope, pos_slope,
+-			firstShave, lastShave, dmaLinkAgent);
+-	}
+-	else
+-	{
++		waitShaves(firstShave, lastShave);
++
++	}else{
+ 		// Run on LEON (slow)
+ 
+ 		unsigned rounded_x = ((output_.x + 7) / 8) * 8;
+@@ -69,7 +88,7 @@ void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave,
+ 		{
+ 			for (unsigned int i = 0; i < rounded_x * y * z; i++)
+ 			{
+-				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(in_buff[i]);
++				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(tmp_buff[i]);
+ 				res_fl = res_fl < 0.0f ? res_fl * relu_a0_ : res_fl * relu_a1_;
+ 				uint16_t res = (uint16_t) (f32Tof16(res_fl) & 0x0000ffff);
+ 				out_buff[i] = res;
+@@ -80,7 +99,7 @@ void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave,
+ 		{
+ 			for (unsigned int i = 0; i < rounded_x * y * z; i++)
+ 			{
+-				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(in_buff[i]);
++				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(tmp_buff[i]);
+ 				uint16_t res = (uint16_t) (f32Tof16(res_fl) & 0x0000ffff);
+ 				out_buff[i] = res;
+ 			}
+diff --git a/projects/HwMvTensor/leon/mvAccumulate.h b/projects/HwMvTensor/leon/mvAccumulate.h
+index 7cdf06a..a0dd194 100644
+--- a/projects/HwMvTensor/leon/mvAccumulate.h
++++ b/projects/HwMvTensor/leon/mvAccumulate.h
+@@ -23,9 +23,7 @@
+ #include <Fp16Convert.h>
+ #include "../priv/mvAccumulateParam.h"
+ 
+-void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave,
+-		unsigned short *in_buff, const Buffer &output_,
+-		int group, int groups_,
+-		bool has_relu_, float relu_a0_, float relu_a1_,
+-		u32 dmaLinkAgent);
++//uint16_t
++void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave, int group, unsigned short *out_buff, unsigned short *tmp_buff, const Buffer &output_, int groups_, bool has_relu_, float relu_a0_, float relu_a1_);
++
+ #endif
+diff --git a/projects/HwMvTensor/shave/accumulate_core.cpp b/projects/HwMvTensor/shave/accumulate_core.cpp
+new file mode 100644
+index 0000000..abe5d74
+--- /dev/null
++++ b/projects/HwMvTensor/shave/accumulate_core.cpp
+@@ -0,0 +1,76 @@
++///
++/// @file
++/// @copyright All code copyright Movidius Ltd 2016, all rights reserved.
++///            For License Warranty see: common/license.txt
++///
++/// @brief     Simple effect code
++///
++
++#include <mvTensorDma.h>
++
++#include "../priv/mvAccumulateParam.h"
++
++#define INPUT_BPP 2
++
++extern "C"
++void mvAccumulate(t_MvAccumulateParam *p)
++{
++    using namespace mv::tensor;
++    dma::Config dmaConfig = { 1, p->dmaLinkAgent };
++    dma::User dmaUser(dmaConfig);
++
++    const int maxSize=41976;
++
++    u32 max_slice = maxSize / (p->channels + p->channels2);   // Number of "pixels" to process at each stage
++    half *cmxslice2 = p->cmxslice + (max_slice * p->channels + 7) / 8 * 8;
++    for(u32 i = 0; i < p->nelements; i += max_slice)
++    {
++        u32 nelem = p->nelements - i;
++        if(nelem > max_slice)
++            nelem = max_slice;
++
++        dma::Task(dmaUser).start((u8 *)p->input + i * p->istrideX, // src
++                                 (u8 *)p->cmxslice,                // dst
++                                 nelem * p->channels * INPUT_BPP,  // byte length
++                                 p->channels * INPUT_BPP,          // src width
++                                 p->channels * INPUT_BPP,          // dst width
++                                 p->istrideX,                      // src stride
++                                 p->channels * INPUT_BPP);         // dst stride
++
++
++        dma::Task(dmaUser).start((u8 *)p->input2 + i * p->i2strideX, // src
++                                 (u8 *)cmxslice2,                    // dst
++                                 nelem * p->channels2 * INPUT_BPP,   // byte length
++                                 p->channels2 * INPUT_BPP,           // src width
++                                 p->channels2 * INPUT_BPP,           // dst width
++                                 p->i2strideX,                       // src stride
++                                 p->channels2 * INPUT_BPP);          // dst stride
++        for(u32 j = 0; j < nelem; j++)
++		{
++			u32 k;
++			for(k = 0; k+7 < p->channels2; k += 8)
++				*(half8 *)&p->cmxslice[j * p->channels + k] += *(half8 *)&cmxslice2[j * p->channels2 + k];
++			for(; k < p->channels2; k++)
++				p->cmxslice[j * p->channels + k] += cmxslice2[j * p->channels2 + k];
++		}
++
++        if (p->inplace_relu){
++			for(u32 j = 0; j < nelem; j++)
++			{
++				u32 k = 0;
++				for(; k < p->channels2; k++){	// Could be faster with shave builtins
++					int idx = j * p->channels + k;
++					p->cmxslice[idx]  = p->cmxslice[idx] > 0? p->cmxslice[idx]*p->pos_slope: p->cmxslice[idx]*p->neg_slope;
++				}
++			}
++        }
++
++        dma::Task(dmaUser).start((u8 *)p->cmxslice,                 // src
++                                 (u8 *)p->output + i * p->ostrideX, // dst
++                                 nelem * p->channels * INPUT_BPP,   // byte length
++                                 p->channels * INPUT_BPP,           // src width
++                                 p->channels * INPUT_BPP,           // dst width
++                                 p->channels * INPUT_BPP,           // src stride
++                                 p->ostrideX);                      // dst stride
++    }
++}
+diff --git a/projects/MvTensor/modules/eltwise/leon/mvEltwise.cpp b/projects/MvTensor/modules/eltwise/leon/mvEltwise.cpp
+index 38ccb5d..b0c5704 100644
+--- a/projects/MvTensor/modules/eltwise/leon/mvEltwise.cpp
++++ b/projects/MvTensor/modules/eltwise/leon/mvEltwise.cpp
+@@ -9,74 +9,63 @@
+ #include "../priv/mvEltwiseParam.h"
+ #include <mvTensorInternal.h>
+ #include <mvModuleHandle.h>
+-#include "../pub/mvEltwise.h"
+ 
+ //#define DPRINTF(...) printf(__VA_ARGS__ );
+ #define DPRINTF(...)
+ 
+-MODULE_ENTRY_DECL(mvEltwise);
+-
+-void eltwise(u32 op, fp16* input,
+-            u32 in1_axis0_size, u32 in1_axis1_size, u32 in1_axis2_size,
+-            fp16* input2,
+-            fp16* output,
+-            u32 in1_axis1_stride, u32 in2_axis1_stride, u32 out_axis1_stride,
+-            s32 inplace_relu, float neg_slope, float pos_slope,
+-            u32 firstShave, u32 lastShave, u32 dmaLinkAgent)
+-{
+-    u32 nShaves = lastShave - firstShave + 1;
+-
+-    // Divide between shaves
+-    u32 nelem = (in1_axis1_size * in1_axis2_size + nShaves - 1) / nShaves;
+-    for(u32 i = 0; i < nShaves; i++)
+-    {
+-        // Square input and multiply by band matrix
+-        t_MvEltwiseParam *param = useShaveParam<t_MvEltwiseParam>(i + firstShave);
+-        param->op = op == kProd ? Eltwise_prod : op == kMax ? Eltwise_max : Eltwise_sum;
+-        param->input = (half *)((u8 *)input + i * nelem * in1_axis1_stride);
+-        param->in1_axis0_size = in1_axis0_size;
+-        param->in2_axis0_size = in1_axis0_size; // axes sizes of in1 and in2 must be identical
+-        param->input2 = (half *)((u8 *)input2 + i * nelem * in2_axis1_stride);
+-        param->output = (half *)((u8 *)output + i * nelem * out_axis1_stride);
+-        param->nelements = (i+1) * nelem > in1_axis1_size * in1_axis2_size ? in1_axis1_size * in1_axis2_size - i*nelem : nelem;
+-        param->in1_axis1_stride = in1_axis1_stride;
+-        param->in2_axis1_stride = in2_axis1_stride;
+-        param->out_axis1_stride = out_axis1_stride;
+-        param->dmaLinkAgent = dmaLinkAgent;
+-        param->inplace_relu = inplace_relu;
+-        param->neg_slope = neg_slope;
+-        param->pos_slope = pos_slope;
+-        param->cmxslice = (half *)getCMXSliceDataSection(firstShave + i);
+-
+-        u32 readBackAddr = (u32)(&(param->cmxslice));
+-        GET_REG_WORD_VAL(readBackAddr);
+-
+-        startShave(firstShave + i, (u32)&MODULE_ENTRY(mvEltwise), (u32)param);
+ 
+-        if(param->nelements + i*nelem == in1_axis1_size*in1_axis2_size)
+-        {
+-            lastShave = firstShave + i;
+-            break;
+-        }
+-    }
+-
+-    waitShaves(firstShave, lastShave);
+-}
++MODULE_ENTRY_DECL(mvEltwise);
+ 
+ namespace
+ {
+     using namespace mv::tensor;
+ 
+-    typedef struct
+-    {
+-        s32  isInplaceReLU;
+-        float  reLUnegSlope;
+-        float  reLUposSlope;
+-    } t_EltwiseLayerParams;
+-
+     class Eltwise : public Layer
+     {
+     private:
++        static void eltwise(u32 op, fp16* input, 
++                u32 in1_axis0_size, u32 in1_axis1_size, u32 in1_axis2_size, 
++                fp16* input2, 
++                u32 in2_axis0_size, 
++                fp16* output,
++                u32 in1_axis1_stride, u32 in2_axis1_stride, u32 out_axis1_stride,
++                u32 firstShave, u32 lastShave, u32 dmaLinkAgent)
++        {
++            u32 nShaves = lastShave - firstShave + 1;
++            // Divide between shaves
++            u32 nelem = (in1_axis1_size * in1_axis2_size + nShaves - 1) / nShaves;
++            for(u32 i = 0; i < nShaves; i++)
++            {
++                // Square input and multiply by band matrix
++                t_MvEltwiseParam *param = useShaveParam<t_MvEltwiseParam>(i + firstShave);
++                param->op = op == kProd ? Eltwise_prod : op == kMax ? Eltwise_max : Eltwise_sum;
++                param->input = (half *)((u8 *)input + i * nelem * in1_axis1_stride);
++                param->in1_axis0_size = in1_axis0_size;
++                param->in2_axis0_size = in2_axis0_size;
++                param->input2 = (half *)((u8 *)input2 + i * nelem * in2_axis1_stride);
++                param->output = (half *)((u8 *)output + i * nelem * out_axis1_stride);
++                param->nelements = (i+1) * nelem > in1_axis1_size * in1_axis2_size ? in1_axis1_size * in1_axis2_size - i*nelem : nelem;
++                param->in1_axis1_stride = in1_axis1_stride;
++                param->in2_axis1_stride = in2_axis1_stride;
++                param->out_axis1_stride = out_axis1_stride;
++                param->dmaLinkAgent = dmaLinkAgent;
++                param->cmxslice = (half *)getCMXSliceDataSection(firstShave + i);
++
++                u32 readBackAddr = (u32)(&(param->cmxslice));
++                GET_REG_WORD_VAL(readBackAddr);
++
++                startShave(firstShave + i, (u32)&MODULE_ENTRY(mvEltwise), (u32)param);
++
++                if(param->nelements + i*nelem == in1_axis1_size*in1_axis2_size)
++                {
++                    lastShave = firstShave + i;
++                    break;
++                }
++            }
++
++            waitShaves(firstShave, lastShave);
++        }
++
+         virtual void run_(const t_MvTensorParam *mvTensorParam, const t_MvTensorOp &op, const Optimization &, const Resources &)
+         {
+             // Channel Minor format
+@@ -89,29 +78,10 @@ namespace
+             u32 in1_axis1_stride;
+             u32 in2_axis1_stride;
+             u32 out_axis1_stride;
+-            s32  isInplaceReLU;
+-            float  reLUnegSlope;
+-            float  reLUposSlope;
+ 
+             u32 in1_so = mvTensorParam->input->storageOrder;
+             u32 in2_so = mvTensorParam->weights->storageOrder;
+             u32 out_so = mvTensorParam->output->storageOrder;
+-
+-            // Eltwise layer parameters
+-            t_EltwiseLayerParams *layer_parameters =
+-                reinterpret_cast<t_EltwiseLayerParams *>(op.params);
+-            if (layer_parameters == NULL)
+-            {
+-                isInplaceReLU = 0;
+-                reLUnegSlope = 0;
+-                reLUposSlope = 1.0;
+-            }
+-            else
+-            {
+-                isInplaceReLU = layer_parameters->isInplaceReLU;
+-                reLUnegSlope = layer_parameters->reLUnegSlope;
+-                reLUposSlope = layer_parameters->reLUposSlope;
+-            }
+             mvTensorAssert(in1_so == in2_so && in1_so == out_so, 
+                         "Eltwise: in1, in2 and out must have the same storage order");
+ 
+@@ -154,9 +124,9 @@ namespace
+             eltwise(op.type, (half *) mvTensorParam->input->data, 
+                     in1_axis0_size, in1_axis1_size, in1_axis2_size,
+                     (half *) mvTensorParam->weights->data, 
++                    in2_axis0_size,
+                     (half *) mvTensorParam->output->data,
+                     in1_axis1_stride, in2_axis1_stride, out_axis1_stride,
+-                    isInplaceReLU, reLUnegSlope, reLUposSlope,
+                     mvTensorParam->myriadResources->firstShave, mvTensorParam->myriadResources->lastShave, 
+                     mvTensorParam->myriadResources->dmaLinkAgent);
+         }
+diff --git a/projects/MvTensor/modules/eltwise/priv/mvEltwiseParam.h b/projects/MvTensor/modules/eltwise/priv/mvEltwiseParam.h
+index c5fa3d7..b7395fa 100644
+--- a/projects/MvTensor/modules/eltwise/priv/mvEltwiseParam.h
++++ b/projects/MvTensor/modules/eltwise/priv/mvEltwiseParam.h
+@@ -40,10 +40,6 @@ typedef struct
+ 
+     u32 nelements;
+ 
+-    s32 inplace_relu;
+-    float neg_slope;
+-    float pos_slope;
+-
+     half *cmxslice;
+     u32 dmaLinkAgent;
+ } t_MvEltwiseParam;
+diff --git a/projects/MvTensor/modules/eltwise/pub/mvEltwise.h b/projects/MvTensor/modules/eltwise/pub/mvEltwise.h
+deleted file mode 100644
+index fcdb6f0..0000000
+--- a/projects/MvTensor/modules/eltwise/pub/mvEltwise.h
++++ /dev/null
+@@ -1,22 +0,0 @@
+-///
+-/// \file
+-/// \copyright All code copyright Movidius Ltd 2016, all rights reserved.
+-///            For License Warranty see: common/license.txt
+-///
+-
+-#ifndef _MV_ELTWISE_H_
+-#define _MV_ELTWISE_H_
+-
+-#include <mvTensor.h>
+-
+-using namespace mv::tensor;
+-
+-void eltwise(u32 op, fp16* input,
+-            u32 in1_axis0_size, u32 in1_axis1_size, u32 in1_axis2_size,
+-            fp16* input2,
+-            fp16* output,
+-            u32 in1_axis1_stride, u32 in2_axis1_stride, u32 out_axis1_stride,
+-            s32 inplace_relu, float neg_slope, float pos_slope,
+-            u32 firstShave, u32 lastShave, u32 dmaLinkAgent);
+-
+-#endif /* _MV_ELTWISE_H_ */
+diff --git a/projects/MvTensor/modules/eltwise/shave/eltwise_core.cpp b/projects/MvTensor/modules/eltwise/shave/eltwise_core.cpp
+index c08f10b..e669c35 100644
+--- a/projects/MvTensor/modules/eltwise/shave/eltwise_core.cpp
++++ b/projects/MvTensor/modules/eltwise/shave/eltwise_core.cpp
+@@ -11,7 +11,6 @@
+ #include "addV2Fp16.h"
+ #include "maximumV2.h"
+ #include "../priv/mvEltwiseParam.h"
+-#include "../../postops/shave/postOps_core.h"
+ #include <mvTensorUtil.h>
+ 
+ #define INPUT_BPP 2
+@@ -20,8 +19,6 @@
+ //#define SKIP_DATAOUT_TRANSFER
+ using namespace mv::tensor;
+ 
+-#define UNROLL_SIZE 8
+-
+ extern "C"
+ void mvEltwise(t_MvEltwiseParam *p)
+ {
+@@ -34,7 +31,7 @@ void mvEltwise(t_MvEltwiseParam *p)
+     dma::Task dmaTask(dmaUser);
+ 
+     // Number of rows of size axis0 elements that fit into the buffer
+-    // Must have: in1_axis0_size == in2_axis0_size
++    // Assuming in1_axis0_size == in2_axis0_size
+     u32 buffer_size = util::round_down<16>(maxSize / 4);
+     u32 max_rows = buffer_size / p->in1_axis0_size;   
+ 
+@@ -89,8 +86,7 @@ void mvEltwise(t_MvEltwiseParam *p)
+             oldi = i;
+             oldnelem = nelem;
+ 
+-            if (i + max_rows < p->nelements)
+-            {
++            if (i + max_rows < p->nelements) {
+                 i += max_rows;
+ 
+                 nelem = p->nelements - i;
+@@ -120,9 +116,7 @@ void mvEltwise(t_MvEltwiseParam *p)
+ #endif
+             }
+             else
+-            {
+                 i = p->nelements; // just increment index, no input data transfer in advance
+-            }
+ 
+             // computation for previously transferred slice
+             {
+@@ -130,25 +124,24 @@ void mvEltwise(t_MvEltwiseParam *p)
+                                          (half*)cmxsliceRight[(currentSlice-1) & 0x01]};
+ 
+                 half* outputLines[] = {(half*)cmxsliceLeft[(currentSlice-1) & 0x01]};
+-                u32 h8elements = (oldnelem * p->in2_axis0_size + 7) / 8;
+-                u32 helements = h8elements * 8; // 8 == FP16s in one half8
+-
+ 
+                 if (p->op == Eltwise_sum)
+-                    mvcvAddV2Fp16_asm((half**)outputLines, (half**)inputLines, helements); 
++                    mvcvAddV2Fp16_asm((half**)outputLines, (half**)inputLines,
++                            ((oldnelem * p->in2_axis0_size) + 7) / 8 * 8); // 8 == FP16s in one half8
+                 else if (p->op == Eltwise_max)
+-                    mvcvMaximumV2_asm((half**)inputLines, (half**)outputLines, helements);
+-                else if (p->op == Eltwise_prod)
+-                {
++                    mvcvMaximumV2_asm((half**)inputLines, (half**)outputLines,
++                            (oldnelem * p->in2_axis0_size + 7) / 8 * 8);
++                else if (p->op == Eltwise_prod) {
++
+                     half8* ph8val2 = (half8*)inputLines[1];
+                     half8* ph8val1 = (half8*)inputLines[0];
+                     half8* ph8dest = ph8val1;
+ 
+                     // unrolled loops with half8 elements
+                     u32 vline = 0;
++                    u32 h8elements = (oldnelem * p->in2_axis0_size + 7) / 8;
+ 
+-                    for (; vline + 8 <= h8elements; vline += 8)
+-                    {
++                    for (; vline + 8 <= h8elements; vline += 8) {
+                         ph8dest[vline+0] = ph8val1[vline+0] * ph8val2[vline+0];
+                         ph8dest[vline+1] = ph8val1[vline+1] * ph8val2[vline+1];
+                         ph8dest[vline+2] = ph8val1[vline+2] * ph8val2[vline+2];
+@@ -168,48 +161,28 @@ void mvEltwise(t_MvEltwiseParam *p)
+                     //    ph8dest[vline+3] = ph8val1[vline+3] * ph8val2[vline+3];
+                     //}
+ 
+-                    for (; vline + 2 <= h8elements; vline += 2)
+-                    {
++                    for (; vline + 2 <= h8elements; vline += 2) {
+                         ph8dest[vline+0] = ph8val1[vline+0] * ph8val2[vline+0];
+                         ph8dest[vline+1] = ph8val1[vline+1] * ph8val2[vline+1];
+                     }
+ 
+-                    for (; vline + 1 <= h8elements; vline += 1)
+-                    {
++                    for (; vline + 1 <= h8elements; vline += 1) {
+                         ph8dest[vline+0] = ph8val1[vline+0] * ph8val2[vline+0];
+                     }
+-                }
+-
+-                if (p->inplace_relu)
+-                {
+-                    if (p->neg_slope == 0.0f && p->pos_slope == 1.0f)
+-                    {
+-                        reluFp16((half8*)outputLines[0], (half8*)outputLines[0],
+-                            NULL,
+-                            NULL,
+-                            1, h8elements, -1.0,
+-                            NULL);
+-                    }
+-                    else
+-                    {
+-                        reluNegPosSlopeFp16((half8*)outputLines[0], (half8*)outputLines[0],
+-                            (half)p->neg_slope, (half)p->pos_slope,
+-                            h8elements);
+-                    }
+-                }
+             }
++        }
+ 
+-            dmaTask.wait(); // wait for overlapped data transfer to end
++        dmaTask.wait(); // wait for overlapped data transfer to end
+ 
+ #ifndef SKIP_DATAOUT_TRANSFER
+-            dmaTask.start(cmxsliceLeft[(currentSlice-1) & 0x01],                // src
+-                                (u8 *)p->output + (oldi) * p->out_axis1_stride, // dst
+-                                oldnelem * p->in1_axis0_size * INPUT_BPP,       // byte length
+-                                p->in1_axis0_size * INPUT_BPP,                  // src width
+-                                p->in1_axis0_size * INPUT_BPP,                  // dst width
+-                                ((p->in1_axis0_size)) * INPUT_BPP,              // src stride
+-                                p->out_axis1_stride);                           // dst stride
+-            dmaTask.wait();
++        dmaTask.start(cmxsliceLeft[(currentSlice-1) & 0x01],                // src
++                            (u8 *)p->output + (oldi) * p->out_axis1_stride, // dst
++                            oldnelem * p->in1_axis0_size * INPUT_BPP,       // byte length
++                            p->in1_axis0_size * INPUT_BPP,                  // src width
++                            p->in1_axis0_size * INPUT_BPP,                  // dst width
++                            ((p->in1_axis0_size)) * INPUT_BPP,              // src stride
++                            p->out_axis1_stride);                           // dst stride
++        dmaTask.wait();
+ #endif
+         } // end of while
+     }
+diff --git a/projects/MvTensor/modules/postops/shave/postOps_core.cpp b/projects/MvTensor/modules/postops/shave/postOps_core.cpp
+index 83b0f8a..76dba77 100644
+--- a/projects/MvTensor/modules/postops/shave/postOps_core.cpp
++++ b/projects/MvTensor/modules/postops/shave/postOps_core.cpp
+@@ -24,41 +24,8 @@
+   #define pows(a, b) __hpow(a, b)
+ #endif
+ 
+-void reluNegPosSlopeFp16(half8 * data_in,
+-                        half8 * __restrict__ data_out,
+-                        half neg_slope, half pos_slope,
+-                        s32 nelem)
++namespace
+ {
+-    const half8 zeros     = (half8)0.0;
+-    const half8 neg_slope_h8 = (half8)neg_slope;
+-    const half8 pos_slope_h8 = (half8)pos_slope;
+-    s32 i;
+-
+-    for(i = 0; i < (nelem / UNROLL_SIZE) * (UNROLL_SIZE); i += UNROLL_SIZE)
+-    {
+-        data_out[i + 0] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 0], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 0], zeros);
+-        data_out[i + 1] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 1], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 1], zeros);
+-        data_out[i + 2] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 2], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 2], zeros);
+-        data_out[i + 3] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 3], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 3], zeros);
+-        data_out[i + 4] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 4], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 4], zeros);
+-        data_out[i + 5] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 5], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 5], zeros);
+-        data_out[i + 6] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 6], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 6], zeros);
+-        data_out[i + 7] = pos_slope_h8 * __builtin_shave_cmu_max_f16_rr_half8(data_in[i + 7], zeros) +
+-                        neg_slope_h8 * __builtin_shave_cmu_min_f16_rr_half8(data_in[i + 7], zeros);
+-    }
+-
+-    for(; i < nelem; ++i)
+-        data_out[i] = pos_slope * __builtin_shave_cmu_max_f16_rr_half8(data_in[i], zeros) +
+-                    neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[i], zeros);
+-}
+-
+     void reluFp16(half8 * __restrict__ data_in,
+                   half8 * __restrict__ data_out,
+                   half8 * __restrict__ weights,
+@@ -89,42 +56,6 @@ void reluNegPosSlopeFp16(half8 * data_in,
+             data_out[i] = __builtin_shave_cmu_clamp0_f16_rr_half8(data_in[i], x_vec);
+     }
+ 
+-void reluNegSlopeFp16(half8 * __restrict__ data_in,
+-                      half8 * __restrict__ data_out,
+-                      half8 * __restrict__ weights,
+-                      half8 * __restrict__ bias,
+-                      s32 no_lines, s32 line_size, half x,
+-                      void *parameters)
+-{
+-    UNUSED(bias);
+-    UNUSED(weights);
+-    UNUSED(parameters);
+-
+-    const half8 zeros     = (half8)0.0;
+-    const half8 neg_slope = (half8)x;
+-
+-    s32 i = 0;
+-    for(s32 bias_i = 0; bias_i < line_size; ++bias_i)
+-    {
+-        for(i = 0; i < (no_lines / UNROLL_SIZE) * (UNROLL_SIZE); i += UNROLL_SIZE)
+-        {
+-            data_out[(i + 0) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 0) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 0) * line_size + bias_i], zeros);
+-            data_out[(i + 1) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 1) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 1) * line_size + bias_i], zeros);
+-            data_out[(i + 2) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 2) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 2) * line_size + bias_i], zeros);
+-            data_out[(i + 3) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 3) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 3) * line_size + bias_i], zeros);
+-            data_out[(i + 4) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 4) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 4) * line_size + bias_i], zeros);
+-            data_out[(i + 5) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 5) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 5) * line_size + bias_i], zeros);
+-            data_out[(i + 6) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 6) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 6) * line_size + bias_i], zeros);
+-            data_out[(i + 7) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 7) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 7) * line_size + bias_i], zeros);
+-        }
+-
+-        for(; i < no_lines; ++i)
+-            data_out[i * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[i * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[i * line_size + bias_i], zeros);
+-    }
+-}
+-namespace
+-{
+-
+     void reluFp16WithBias(half8 * __restrict__ data_in,
+                           half8 * __restrict__ data_out,
+                           half8 * __restrict__ weights,
+@@ -158,6 +89,40 @@ namespace
+         }
+     }
+ 
++    void reluNegSlopeFp16(half8 * __restrict__ data_in,
++                          half8 * __restrict__ data_out,
++                          half8 * __restrict__ weights,
++                          half8 * __restrict__ bias,
++                          s32 no_lines, s32 line_size, half x,
++                          void *parameters)
++    {
++        UNUSED(bias);
++        UNUSED(weights);
++        UNUSED(parameters);
++
++        const half8 zeros     = (half8)0.0;
++        const half8 neg_slope = (half8)x;
++
++        s32 i = 0;
++        for(s32 bias_i = 0; bias_i < line_size; ++bias_i)
++        {
++            for(i = 0; i < (no_lines / UNROLL_SIZE) * (UNROLL_SIZE); i += UNROLL_SIZE)
++            {
++                data_out[(i + 0) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 0) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 0) * line_size + bias_i], zeros);
++                data_out[(i + 1) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 1) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 1) * line_size + bias_i], zeros);
++                data_out[(i + 2) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 2) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 2) * line_size + bias_i], zeros);
++                data_out[(i + 3) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 3) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 3) * line_size + bias_i], zeros);
++                data_out[(i + 4) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 4) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 4) * line_size + bias_i], zeros);
++                data_out[(i + 5) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 5) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 5) * line_size + bias_i], zeros);
++                data_out[(i + 6) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 6) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 6) * line_size + bias_i], zeros);
++                data_out[(i + 7) * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[(i + 7) * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[(i + 7) * line_size + bias_i], zeros);
++            }
++
++            for(; i < no_lines; ++i)
++                data_out[i * line_size + bias_i] = __builtin_shave_cmu_max_f16_rr_half8(data_in[i * line_size + bias_i], zeros) + neg_slope * __builtin_shave_cmu_min_f16_rr_half8(data_in[i * line_size + bias_i], zeros);
++        }
++    }
++
+     void reluNegSlopeFp16WithBias(half8 * __restrict__ data_in,
+                           half8 * __restrict__ data_out,
+                           half8 * __restrict__ weights,
+diff --git a/projects/MvTensor/modules/postops/shave/postOps_core.h b/projects/MvTensor/modules/postops/shave/postOps_core.h
+index e7845ad..e52f6b3 100644
+--- a/projects/MvTensor/modules/postops/shave/postOps_core.h
++++ b/projects/MvTensor/modules/postops/shave/postOps_core.h
+@@ -16,25 +16,6 @@ extern "C"
+ {
+ #endif
+ 
+-void reluNegPosSlopeFp16(half8 * data_in,
+-                        half8 * __restrict__ data_out,
+-                        half neg_slope, half pos_slope,
+-                        s32 nelem);
+-
+-void reluFp16(half8 * __restrict__ data_in,
+-                half8 * __restrict__ data_out,
+-                half8 * __restrict__ weights,
+-                half8 * __restrict__ bias,
+-                s32 no_lines, s32 line_size, half x,
+-                void *parameters);
+-
+-void reluNegSlopeFp16(half8 * __restrict__ data_in,
+-                      half8 * __restrict__ data_out,
+-                      half8 * __restrict__ weights,
+-                      half8 * __restrict__ bias,
+-                      s32 no_lines, s32 line_size, half x,
+-                      void *parameters);
+-
+ void postOps_core(t_PostOpsParams *params);
+ 
+ #ifdef __cplusplus
+diff --git a/projects/MvTensor/shared/modules/EltWise.cpp b/projects/MvTensor/shared/modules/EltWise.cpp
+index 5d13f02..acf72ce 100644
+--- a/projects/MvTensor/shared/modules/EltWise.cpp
++++ b/projects/MvTensor/shared/modules/EltWise.cpp
+@@ -21,15 +21,13 @@ void EltWise::parse(const unsigned char * &data, IBufferSet &bufferSet)
+     input.parse(data, bufferSet);
+     output.parse(data, bufferSet);
+     taps.parse(data, bufferSet);
+-    op_params.parse(data, bufferSet);
+ }
+ 
+ void EltWise::relocate(const RelocationData &rd)
+ {
+-    input.relocate(rd);
+-    output.relocate(rd);
+-    taps.relocate(rd);
+-    op_params.relocate(rd);
++    input.relocate(bss, buf_sec, in, out);
++    output.relocate(bss, buf_sec, in, out);
++    taps.relocate(bss, buf_sec, in, out);
+ }
+ 
+ void EltWise::convertBuffersToMvTensorData(t_mvTensorGenData * in, t_mvTensorGenData * taps, t_mvTensorGenData *, t_mvTensorGenData * out)
+@@ -38,8 +36,3 @@ void EltWise::convertBuffersToMvTensorData(t_mvTensorGenData * in, t_mvTensorGen
+     this->taps.convertToMvTensorData(taps);
+     output.convertToMvTensorData(out);
+ }
+-
+-void EltWise::convertToMvTensorOp(t_MvTensorOp * MvOp)
+-{
+-    MvOp->params = reinterpret_cast<void *>(op_params.offset);
+-}
+diff --git a/projects/MvTensor/shared/modules/EltWise.h b/projects/MvTensor/shared/modules/EltWise.h
+index 1dc6e78..c828cde 100644
+--- a/projects/MvTensor/shared/modules/EltWise.h
++++ b/projects/MvTensor/shared/modules/EltWise.h
+@@ -23,9 +23,7 @@ private:
+     Buffer input;
+     Buffer output;
+     Buffer taps;
+-    Buffer op_params;
+ 
+-    virtual void convertToMvTensorOp(t_MvTensorOp * MvOp);
+     virtual void convertBuffersToMvTensorData(t_mvTensorGenData * in, t_mvTensorGenData * taps, t_mvTensorGenData * bias, t_mvTensorGenData * out);
+ };
+ 
+-- 
+2.7.4
+
+
+From aa8ffecdd11ac1594132cb3021599c0bfaea8dd2 Mon Sep 17 00:00:00 2001
+From: Ian Hunter <ian.hunter@intel.com>
+Date: Wed, 22 Aug 2018 14:56:28 +0100
+Subject: [PATCH 2/2] fix for fathomkey eltwise revert
+
+---
+ projects/MvTensor/shared/modules/EltWise.cpp | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/projects/MvTensor/shared/modules/EltWise.cpp b/projects/MvTensor/shared/modules/EltWise.cpp
+index acf72ce..21ffc73 100644
+--- a/projects/MvTensor/shared/modules/EltWise.cpp
++++ b/projects/MvTensor/shared/modules/EltWise.cpp
+@@ -25,9 +25,9 @@ void EltWise::parse(const unsigned char * &data, IBufferSet &bufferSet)
+ 
+ void EltWise::relocate(const RelocationData &rd)
+ {
+-    input.relocate(bss, buf_sec, in, out);
+-    output.relocate(bss, buf_sec, in, out);
+-    taps.relocate(bss, buf_sec, in, out);
++    input.relocate(rd);
++    output.relocate(rd);
++    taps.relocate(rd);
+ }
+ 
+ void EltWise::convertBuffersToMvTensorData(t_mvTensorGenData * in, t_mvTensorGenData * taps, t_mvTensorGenData *, t_mvTensorGenData * out)
+-- 
+2.7.4
+
