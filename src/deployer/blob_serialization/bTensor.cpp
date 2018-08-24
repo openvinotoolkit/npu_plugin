@@ -86,6 +86,13 @@ namespace mv
                 this->dimZ = (*t)->getShape()[2];
             }
             break;
+            case 2:
+            {
+                this->dimX = 1;
+                this->dimY = 1;
+                this->dimZ = (*t)->getShape()[1];
+            }
+            break;
             case 1:
             {
                 this->dimX = (*t)->getShape()[0];

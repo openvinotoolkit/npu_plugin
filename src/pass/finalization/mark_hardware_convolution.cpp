@@ -32,7 +32,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 {
 
     int amount_marked = 0;
-    int mark_limit = 1;
+    int mark_limit = 3;
 
     mv::OpModel om(model);
 
@@ -49,15 +49,17 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int inputChannels = opIterator->getInputTensor(0)->getShape()[2];
         int inputWidth = opIterator->getInputTensor(0)->getShape()[0];
         int outputChannels = opIterator->getOutputTensor(0)->getShape()[2];
+        auto kernelsize = opIterator->getInputTensor(1)->getShape();
+
         unsigned int coEffTotalSize = opIterator->getInputTensor(0)->getShape().totalSize();
 
         // // if coEffTotalSize > 128000
-        if( inputChannels >= 256 || outputChannels >= 256)
-        {
-            // printf("Incompatible because coefficients exceed on-chip channel amounts. TODO: Split over Channels\n");
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
-            continue;
-        }
+        // if( inputChannels >= 256 || outputChannels >= 256)
+        // {
+        //     // printf("Incompatible because coefficients exceed on-chip channel amounts. TODO: Split over Channels\n");
+        //     om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+        //     continue;
+        // }
 
         if(inputChannels % 8)
         {
@@ -65,10 +67,16 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
-
         if(outputChannels % noOfBlocks)
         {
             // printf("Incompatible because output channels %% NoOfBlocks != 0\n");
+            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            continue;
+        }
+
+        if(kernelsize[0] != 1 || kernelsize[1] != 1)
+        {
+            printf("Incompatible because not a 1x1 conv\n");
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
@@ -161,6 +169,9 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
             auto weights = opIterator->getInputTensor(1);
             auto wshape = weights->getShape();
+
+            std::cout << mv::Printable::toString(wshape) << std::endl;
+            std::cout << wshape[3]/8 << ",64,1,1,8"<<std::endl;
 
             mv::Shape newShape = mv::Shape(
                 // (mv::dim_type)wshape[0],

@@ -214,9 +214,8 @@ namespace mv
                     break;
                 case OpType::Input:
                 case OpType::Output:
-                {
+                    {}
                     break;
-                }
 
                 default:
                     std::cout << "Serialization Warning : The layer has not been used in calculation:" << Printable::toString(it->getOpType()) << std::endl;
