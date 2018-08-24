@@ -5,7 +5,8 @@ const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma24
 mv::Logger& mv::CompilationUnit::logger_ = mv::ComputationModel::logger();
 
 mv::CompilationUnit::CompilationUnit(mv::Logger::VerboseLevel verboseLevel, bool logTime) :
-model_(new OpModel(verboseLevel, logTime))
+model_(new OpModel(verboseLevel, logTime)),
+recordedModel_(new CompositionalModelRecorder(verboseLevel, logTime, *model_))
 {
 
 }
