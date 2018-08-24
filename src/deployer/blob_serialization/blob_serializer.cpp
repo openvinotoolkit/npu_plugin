@@ -869,8 +869,9 @@ namespace mv
                     break;
 
                 default:
-                    std::cout << "Serialization Error: No Available Write Methods for layer:" << Printable::toString(it->getOpType()) << std::endl;
-                    assert(0);
+                    break;
+                    //std::cout << "Serialization Error: No Available Write Methods for layer:" << Printable::toString(it->getOpType()) << std::endl;
+                    //assert(0);
             }
         }
 
