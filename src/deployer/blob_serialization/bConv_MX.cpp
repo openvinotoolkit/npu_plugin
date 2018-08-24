@@ -16,16 +16,13 @@ namespace mv
 
         if(this->bias_name != "")
         {
-            std::cout << "Bias Name: " << this->bias_name << std::endl;
             this->bias = dm.findTensor(this->bias_name);
             conv_bias = &this->bias;
         }
         else
         {
-            std::cout << "Bias Name: None " << std::endl;
             conv_bias = NULL ;
         }
-
 
 
         if (this->NCE1_Compatible)
@@ -76,9 +73,6 @@ namespace mv
                 this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
 
                 auto weight_4dshape = this->taps->getShape();
-                // printf("Coeff Strides: %i %i %i\n", tapsBlobTensor.strideX, tapsBlobTensor.strideY, tapsBlobTensor.strideZ);
-                // printf("Coeff Dims: %i %i %i\n", tapsBlobTensor.dimX, tapsBlobTensor.dimY, tapsBlobTensor.dimZ);
-                std::cout << Printable::toString(weight_4dshape) << std::endl;
 
                 this->descriptors[i].coeffChStrOut = tapsBlobTensor.strideZ /  weight_4dshape[0];
                 this->descriptors[i].coeffChStrIn = weight_4dshape[4]*2;
@@ -91,16 +85,11 @@ namespace mv
                 }
             }
 
-            printf("Warning: Currently no Scale absorb support in HW Serialization\n");
+            // Currently no integrated scale support.
             Blob_Tensor scaleBlobTensor = Blob_Tensor(
-                // this->taps->getShape()[0]*this->taps->getShape()[1],  // X
-                // this->taps->getShape()[2],   // y
-                // this->taps->getShape()[3],   // z
                 0,
                 0,
                 0,
-                // fp16_size*this->taps->getShape()[2]*this->taps->getShape()[3],
-                // fp16_size*this->taps->getShape()[3], // Taps Sy
                 0,
                 0,
                 0, // SZ
@@ -162,19 +151,17 @@ namespace mv
         if (it->hasAttr("bias"))
         {
             this->bias_name = it->getAttr("bias").getContent<std::string>();
-            std::cout << "Conv has Bias" << std::endl;
         }
         else
         {
             this->bias_name = "";
-            std::cout << "Conv has no Bias" <<  std::endl;
         }
 
 
         int mx_valid = 0;
         if (! it->hasAttr("NCE1_Compatible"))
         {
-            printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
+            printf("Serializer Info: attribute NCE1_Compatible not present. Assuming False.\n");
         }
         else
         {
@@ -190,18 +177,18 @@ namespace mv
 
             if (! it->hasAttr("NCE1_AssignedCMX"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 256*1024\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 256*1024\n");
             }
             else
             {
                 cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
-                printf("WARNING: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
+                printf("Serializer Info: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
                 cmxSize = 256*1024;
             }
 
             if (! it->hasAttr("NCE1_DescriptorSplits"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_DescriptorSplits'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_DescriptorSplits'. Defaulting to 1\n");
             }
             else
             {
@@ -210,7 +197,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_StreamingMask"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
                 this->streamingMask = 1;
             }
             else
@@ -219,7 +206,7 @@ namespace mv
             }
             if (! it->hasAttr("NCE1_Mode"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_Mode'. Defaulting to 0\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_Mode'. Defaulting to 0\n");
                 this->opMode = 0;
             }
             else
@@ -254,7 +241,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_InputChannelsPerRamBlock"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_InputChannelsPerRamBlock'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsPerRamBlock'. Defaulting to 1\n");
             }
             else
             {
@@ -263,7 +250,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_TopOutputJunk"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 1\n");
             }
             else
             {
@@ -272,7 +259,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_BottomOutputJunk"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 1\n");
             }
             else
             {
@@ -281,7 +268,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_LocalLineStride"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_LocalLineStride'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_LocalLineStride'. Defaulting to 1\n");
             }
             else
             {
@@ -295,7 +282,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_MinLines"))
             {
-                printf("WARNING: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
             }
             else
             {
@@ -304,7 +291,7 @@ namespace mv
 
             if (! it->hasAttr("stride"))
             {
-                printf("WARNING: Needs Attribute 'stride'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'stride'. Defaulting to 1\n");
             }
             else
             {
@@ -313,7 +300,7 @@ namespace mv
 
             if (! it->hasAttr("padding"))
             {
-                printf("WARNING: Needs Attribute 'padding'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'padding'. Defaulting to 1\n");
             }
             else
             {
@@ -380,8 +367,6 @@ namespace mv
                 this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                 this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
 
-
-                // std::cout << "chPerRamBlock:::::::::::::::::::::::::"<< chPerRamBlock << std::endl;
                 this->descriptors[i].chPerRamBlock = chPerRamBlock -1;        // Input Channels per Ram Block
 
 
@@ -465,9 +450,8 @@ namespace mv
             this->padStyle = 2; // HARDCODED.
             this->dilation = 1; // HARDCODED.
 
-            std::cout << "This Convolution is: " << this->radixX << "x" << this->radixY << " taps:" << mv::Printable::toString(this->taps->getShape()) << std::endl;
 
-            printf("Warning: Manual Override of Convolution Software layer order\n");
+            printf("Serializer Info: Manual Override of Convolution Software layer order\n");
             this->output->setOrder(Order::RowMajor);
             this->input->setOrder(Order::RowMajor);
             this->taps->setOrder(Order::RowMajorAlt);

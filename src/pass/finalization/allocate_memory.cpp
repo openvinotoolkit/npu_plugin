@@ -52,8 +52,6 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         {
             auto stageIt = cm.getStage(0);
             auto mem = dm.allocateTensor("ConstantMemory", stageIt, tIt);
-            std::cout << "## Allocated Populated Buffer. Offset:  " << mem->offset << std::endl;
-
         }
     }
 

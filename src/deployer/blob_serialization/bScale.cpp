@@ -18,21 +18,7 @@ namespace mv
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
-        // Blob_Tensor tapsBlobTensor = Blob_Tensor(
-        //     0x00,   // X
-        //     1,   // Y
-        //     1,   // Z
-        //     2,     // X Stride
-        //     2*it->getInputTensor(1)->getShape().totalSize(),    // Y Stride
-        //     2,
-        //     conv_pool_stage.TBOffset,
-        //     3,
-        //     conv_pool_stage.OutputDataType,
-        //     3
-        // );
         Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
-
-
         Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->bias);
 
         inputBlobTensor.write(b);
@@ -52,17 +38,13 @@ namespace mv
         if (it->hasAttr("bias"))
         {
             this->bias_name = it->getAttr("bias").getContent<std::string>();
-            std::cout << "Conv has Bias" << std::endl;
         }
         else
         {
             this->bias_name = "";
-            std::cout << "Conv has no Bias" <<  std::endl;
         }
 
-
-
-        printf("Warning: Manual Override of Scale Software layer order\n");
+        printf("Serialization Warning: Manual Override of Scale Software layer order\n");
         this->output->setOrder(Order::RowMajor);
         this->input->setOrder(Order::RowMajor);
         this->taps->setOrder(Order::RowMajorAlt);

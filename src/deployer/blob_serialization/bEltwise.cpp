@@ -20,7 +20,7 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        printf("Warning: Manual Override of bEltwise Software layer order\n");
+        printf("Serialization Warning: Manual Override of bEltwise Software layer order\n");
         this->output->setOrder(Order::RowMajor);
         this->input0->setOrder(Order::RowMajor);
         this->input1->setOrder(Order::RowMajor);
@@ -32,20 +32,6 @@ namespace mv
         input0BlobTensor.write(b);
         outputBlobTensor.write(b);
         input1BlobTensor.write(b);
-
-        // This was for a reverted commit on mdk.
-        // b->AddBytes(4, 0x03);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x01);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x01);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x04);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x0C);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x0C);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
-        // b->AddBytes(4, 0x00);  // Hardcoded values for in-place relus
-
-
     }
 
     bEltwise::bEltwise(mv::ComputationOp* it)

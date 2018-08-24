@@ -45,10 +45,9 @@ namespace mv
 
         int fp16_size = 2;
         this->dataType = 0;
-        printf("??\n");
 
         if(t == NULL || &t == NULL || *t == NULL ){
-            std::cerr << "Empty Tensor" << std::endl;
+            // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
             this->dimY = 0;
             this->dimZ = 0;
@@ -60,11 +59,7 @@ namespace mv
             this->dataType = 0;
             this->order = 0;
             return;
-        }else{
-            // std::cout << "Actual Tensor" << std::endl;
         }
-
-        // std::cout << "Tensor:" << (*t)->getName() << "Layout: " << Printable::toString((*t)->getOrder()) << "Shape: " << Printable::toString((*t)->getShape()) <<  std::endl;
 
         switch((int)(*t)->getShape().ndims()){
             case 5:
@@ -111,10 +106,8 @@ namespace mv
             if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
                 assert(0);
         }catch(mv::ArgumentError){
-            printf("Warning: No Intermediary Buffers\n");
+            printf("Serializer Warning: Allocator Missing\n");
         }
-        // if (!dm->hasAllocator("BSS"))
-        //     assert(0);
 
         Data::BufferIterator mem;
         mv::Control::StageIterator stg = cm->getStage(0);
@@ -135,16 +128,10 @@ namespace mv
 
 
             if (offset % 64 != 0){
-                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
-                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
-                printf("WARNING: Short-term alignment fix, likely cause of device crash\n");
-                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
-                std::cout << "WARNING WARNING WARNING WARNING WARNING WARNING " << std::endl;
+                printf("Serializer Warning: Short-term alignment fix, likely cause of device crash. IMPORTANT.\n");
                 offset = 64+(offset/64)*64 ;
             }
             int rt_entry = rt->push_entry(std::pair<int, bLocation>(offset, bLocation::Constant ));
-            std::cout << "## Pushed Relocation entry: " << rt_entry << ":" << offset <<  std::endl;
-
             this->offset = rt_entry;
         }
         else
@@ -158,7 +145,7 @@ namespace mv
             try{
                 mem = dm->getBuffer("IntermediateMemory", stg, *t);
             }catch(mv::ArgumentError){
-                printf("Warning: No Intermediary Buffers\n");
+                printf("Serializer Warning: No Intermediary Buffers\n");
                 no_buffers = 1;
             }
 
@@ -204,7 +191,7 @@ namespace mv
 
         int striding_axis = 0;
         if (block == 0){
-            std::cout << "Warning: Zero-Storage Tensor." << std::endl;
+            std::cout << "Serializer Warning: Zero-Storage Tensor." << std::endl;
             striding_axis = 0;
         }else if (block == fp16_size){
             // X
@@ -260,6 +247,5 @@ namespace mv
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);
         }
-        printf("Finished Tensor\n");
     }
 }

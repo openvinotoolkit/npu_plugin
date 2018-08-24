@@ -11,8 +11,7 @@ namespace mv
         mv::ControlModel cm(*om);
 
         if (this->input->getOrder() == this->output->getOrder()){
-            printf("Warning: Manual Override of Conversion layer due to non-difference\n");
-            std::cout << Printable::toString(this->output->getOrder()) << std::endl;
+            printf("Serialization Warning: Manual Override of Conversion layer due to non-difference\n");
             this->input->setOrder(Order::ColumnMajor);
         }
 
@@ -30,6 +29,13 @@ namespace mv
           input((it->getInputTensor(0))),
           output((it->getOutputTensor(0)))
     {
+    }
+
+    int bCompatibility::getSerializedSize(){
+        int fields = 0;
+        fields += 0;    // Individual
+        fields += 2*10 ; // Input, Output
+        return fields*4 ;
     }
 
 }

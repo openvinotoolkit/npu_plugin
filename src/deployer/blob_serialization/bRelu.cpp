@@ -10,7 +10,7 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        printf("Warning: Manual Override of ReLU Software layer order\n");
+        printf("Serialization Warning: Manual Override of ReLU Software layer order\n");
         this->output->setOrder(Order::RowMajor);
         this->input->setOrder(Order::RowMajor);
 

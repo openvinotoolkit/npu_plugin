@@ -54,32 +54,27 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         // // if coEffTotalSize > 128000
         if( inputChannels >= 256 || outputChannels >= 256)
         {
-            // printf("Total Size: %i\n", coEffTotalSize);
-            printf("inputChannels: %i\n", inputChannels);
-            printf("outputChannels: %i\n", outputChannels);
-            // printf("Incompatible because coefficients exceed on-chip storage space. TODO: Split over Channels\n");
-            printf("Incompatible because coefficients exceed on-chip channel amounts. TODO: Split over Channels\n");
+            // printf("Incompatible because coefficients exceed on-chip channel amounts. TODO: Split over Channels\n");
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
 
-
         if(inputChannels % 8)
         {
-            printf("Incompatible because input channels %% 8 != 0\n");
+            // printf("Incompatible because input channels %% 8 != 0\n");
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
 
         if(outputChannels % noOfBlocks)
         {
-            printf("Incompatible because output channels %% NoOfBlocks != 0\n");
+            // printf("Incompatible because output channels %% NoOfBlocks != 0\n");
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
         if(inputWidth < 32)
         {
-            printf("Incompatible because input Width < 32 != 0\n");
+            // printf("Incompatible because input Width < 32 != 0\n");
             om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
             continue;
         }
@@ -105,15 +100,10 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
         float CMX_STREAM_SIZE = 256*1024;
 
-        printf("%u > %f\n",total_input_size + total_output_size , CMX_STREAM_SIZE );
-
-
         if (total_input_size + total_output_size > CMX_STREAM_SIZE){
             // TODO: Take into consideration previous splits.
             splitsOverHeight = (unsigned int) ceil((total_input_size + total_output_size)/CMX_STREAM_SIZE);
         }
-
-        printf("Split over H: %u\n", splitsOverHeight);
 
         float floatOutputChannels = (float) outputChannels;
 
@@ -150,7 +140,6 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
         int streamingMask = 0; //For DDR streaming
         om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
-        std::cout << "Marked one convolution as executable in HW" << std::endl;
         amount_marked++;
     }
 }
@@ -184,9 +173,6 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 1,
                 8
             );
-
-            // std::cout << "Before" << mv::Printable::toString(wshape) << std::endl;
-            // std::cout << "After" << mv::Printable::toString(newShape) << std::endl;
 
             mv::Tensor newTensor = mv::Tensor("MX_Weights",
                                                 newShape,
