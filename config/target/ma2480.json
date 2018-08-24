@@ -52,7 +52,6 @@
 
 		"serialize":
 		[
-			"GenerateJSON",
 			"GenerateBlob"
 		],
 

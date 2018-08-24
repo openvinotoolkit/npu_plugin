@@ -20,7 +20,7 @@ TEST (mv_num_convert, fp32_to_fp16)
 }
 
 // test 01 : 1 2d convolution
-TEST (generate_blob, blob_output_conv_01) 
+TEST (generate_blob, blob_output_conv_01)
 {
 
     mv::CompilationUnit unit(logger_level);
@@ -46,7 +46,7 @@ TEST (generate_blob, blob_output_conv_01)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (452LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (444LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
@@ -84,7 +84,7 @@ TEST (generate_blob, blob_output_conv_02)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (580LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (572LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_02.blob");
@@ -123,7 +123,7 @@ TEST (generate_blob, blob_output_conv_03)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (580LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (572LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_03.blob");
@@ -161,7 +161,7 @@ TEST (generate_blob, blob_output_conv_04)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (900LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (892LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_04.blob");
@@ -202,7 +202,7 @@ TEST (generate_blob, blob_blur_edge_05)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (692LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (740LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_05.blob");
@@ -214,14 +214,14 @@ TEST (generate_blob, blob_blur_edge_05)
 // test 06 : conv1->maxpool1->conv2->maxpool2
 TEST (generate_blob, blob_4_ops)
 {
-    
+
     mv::CompilationUnit unit(logger_level);
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
     auto inIt6 = test_cm.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::RowMajorPlanar);
 
-    // define first convolution  3D conv 
+    // define first convolution  3D conv
 
     mv::dynamic_vector<mv::float_type> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
     auto weightsIt61 = test_cm.constant(weightsData61, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
@@ -245,7 +245,7 @@ TEST (generate_blob, blob_4_ops)
     // define output
     auto outIt6 = test_cm.output(maxpoolIt62);
 
-    // Check if model is valid 
+    // Check if model is valid
     EXPECT_TRUE(test_cm.isValid());
 
     // Check output shapes of each layer
@@ -282,7 +282,7 @@ TEST (generate_blob, blob_4_ops)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1108LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1156LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_06.blob");
@@ -299,7 +299,7 @@ TEST (generate_blob, blob_4_ops)
 
 TEST (generate_blob, blob_eltwise_add)
 {
-    
+
     mv::CompilationUnit unit(logger_level);
     mv::CompositionalModel& test_cm = unit.model();
 
@@ -307,7 +307,7 @@ TEST (generate_blob, blob_eltwise_add)
     auto inIt7 = test_cm.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::RowMajorPlanar);
     auto maxpoolIt11= test_cm.maxpool2D(inIt7,{1,1}, {1, 1}, {0,0,0,0});
 
-    // define first convolution 
+    // define first convolution
     mv::dynamic_vector<mv::float_type> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100f, 0.010f);
     auto weightsIt71 = test_cm.constant(weightsData71, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
     EXPECT_EQ(weightsIt71->getShape()[0], 5);
@@ -327,7 +327,7 @@ TEST (generate_blob, blob_eltwise_add)
     // define second avgpool
     auto avgpoolIt72 = test_cm.avgpool2D(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
 
-    // define first convolution branch a 
+    // define first convolution branch a
     mv::dynamic_vector<mv::float_type> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
     auto weightsIt7a = test_cm.constant(weightsData7a, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
     EXPECT_EQ(weightsIt7a->getShape()[0], 5);
@@ -353,7 +353,7 @@ TEST (generate_blob, blob_eltwise_add)
     // define output
     auto outIt7 = test_cm.output(eltwiseIt7);
 
-    // Check if model is valid 
+    // Check if model is valid
     EXPECT_TRUE(test_cm.isValid()) << "INVALID MODEL" ;
 
     // Check output shapes of each layer
@@ -390,7 +390,7 @@ TEST (generate_blob, blob_eltwise_add)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2372LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2468LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_07.blob");
@@ -408,7 +408,7 @@ TEST (generate_blob, blob_eltwise_add)
 
 TEST (generate_blob, blob_eltwise_multiply)
 {
-    
+
     mv::CompilationUnit unit(logger_level);
     mv::CompositionalModel& test_cm = unit.model();
 
@@ -416,7 +416,7 @@ TEST (generate_blob, blob_eltwise_multiply)
     auto inIt7 = test_cm.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::RowMajorPlanar);
     auto maxpoolIt11= test_cm.maxpool2D(inIt7,{1,1}, {1, 1}, {0,0,0,0});
 
-    // define first convolution 
+    // define first convolution
     mv::dynamic_vector<mv::float_type> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100f, 0.010f);
     auto weightsIt71 = test_cm.constant(weightsData71, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
     EXPECT_EQ(weightsIt71->getShape()[0], 5);
@@ -437,7 +437,7 @@ TEST (generate_blob, blob_eltwise_multiply)
 
     auto avgpoolIt72 = test_cm.avgpool2D(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
 
-    // define first convolution branch a 
+    // define first convolution branch a
     mv::dynamic_vector<mv::float_type> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
     auto weightsIt7a = test_cm.constant(weightsData7a, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
     EXPECT_EQ(weightsIt7a->getShape()[0], 5);
@@ -463,7 +463,7 @@ TEST (generate_blob, blob_eltwise_multiply)
     // define output
     auto outIt7 = test_cm.output(eltwiseIt7);
 
-    // Check if model is valid 
+    // Check if model is valid
     EXPECT_TRUE(test_cm.isValid()) << "INVALID MODEL" ;
 
     // Check output shapes of each layer
@@ -500,7 +500,7 @@ TEST (generate_blob, blob_eltwise_multiply)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2372LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2468LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_08.blob");
@@ -517,14 +517,14 @@ TEST (generate_blob, blob_eltwise_multiply)
 
 TEST (generate_blob, blob_softmax)
 {
-    
+
     mv::CompilationUnit unit(logger_level);
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
     auto inIt7 = test_cm.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::RowMajorPlanar);
 
-    // define first convolution 
+    // define first convolution
     mv::dynamic_vector<mv::float_type> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100f, 0.010f);
     auto weightsIt71 = test_cm.constant(weightsData71, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
     EXPECT_EQ(weightsIt71->getShape()[0], 5);
@@ -545,7 +545,7 @@ TEST (generate_blob, blob_softmax)
 
     auto avgpoolIt72 = test_cm.avgpool2D(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
 
-    // define first convolution branch a 
+    // define first convolution branch a
     mv::dynamic_vector<mv::float_type> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
     auto weightsIt7a = test_cm.constant(weightsData7a, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
     EXPECT_EQ(weightsIt7a->getShape()[0], 5);
@@ -574,7 +574,7 @@ TEST (generate_blob, blob_softmax)
     // define output
     auto outIt7 = test_cm.output(softIt7);
 
-    // Check if model is valid 
+    // Check if model is valid
     EXPECT_TRUE(test_cm.isValid()) << "INVALID MODEL" ;
 
     // Check output shapes of each layer
@@ -611,7 +611,7 @@ TEST (generate_blob, blob_softmax)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (2356LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (2452LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_09.blob");
@@ -630,7 +630,7 @@ TEST (generate_blob, blob_convbias_convrelu)
     // Define input as 1 64x64x3 image
     auto inIt6 = test_cm.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::RowMajorPlanar);
 
-    // define first convolution  3D conv 
+    // define first convolution  3D conv
 
     mv::dynamic_vector<mv::float_type> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
     auto weightsIt61 = test_cm.constant(weightsData61, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
@@ -670,7 +670,7 @@ TEST (generate_blob, blob_convbias_convrelu)
     // define output
     auto outIt6 = test_cm.output(maxpoolIt62);
 
-    // Check if model is valid 
+    // Check if model is valid
     EXPECT_TRUE(test_cm.isValid());
 
     // Check output shapes of each layer
@@ -707,7 +707,7 @@ TEST (generate_blob, blob_convbias_convrelu)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1556LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1948LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_10.blob");
@@ -726,7 +726,7 @@ TEST (generate_blob, blob_scale)
     // Define input as 1 64x64x3 image
     auto inIt6 = test_cm.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::RowMajorPlanar);
 
-    // define first convolution  3D conv 
+    // define first convolution  3D conv
 
     mv::dynamic_vector<mv::float_type> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000f, 0.010f);
     auto weightsIt61 = test_cm.constant(weightsData61, mv::Shape(5, 5, 3, 1), mv::DType::Float, mv::Order::RowMajorPlanar);   // kh, kw, ins, outs
@@ -760,7 +760,7 @@ TEST (generate_blob, blob_scale)
     // define output
     auto outIt6 = test_cm.output(scaleIt62);
 
-    // Check if model is valid 
+    // Check if model is valid
     EXPECT_TRUE(test_cm.isValid());
 
     // Check output shapes of each layer
@@ -793,11 +793,11 @@ TEST (generate_blob, blob_scale)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (964LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (1084LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 
     // compare blob file contents to blob previously generated with mvNCCheck
     std::string goldBlobPath = mv::utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
     std::string command = "diff \"" + blobName + "\" \"" + goldBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: generated blob file contents do not match expected";
-    
+
 }
