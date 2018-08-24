@@ -60,3 +60,8 @@ mv::Tensor mv::op::BatchNorm::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", inputShape, input->getDType(), input->getOrder());
     
 }
+
+bool mv::op::BatchNorm::isHardwarizeable(mv::json::Object& TargetDescriptor)
+{
+    return false;
+}

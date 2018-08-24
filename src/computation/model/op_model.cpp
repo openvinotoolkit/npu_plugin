@@ -303,6 +303,20 @@ mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, con
     return result;
 }
 
+mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, mv::Order targetOrder, const string& name)
+{
+    string opName;
+    if (name != "")
+        opName = name;
+    else
+        opName = getOpName_(OpType::Conversion);
+    Data::OpListIterator conversionIt = dataGraph_.node_insert(allocator_.make_owner<op::Conversion>(opName, targetOrder));
+    Data::TensorIterator inputs[] = {inputTensor};
+    auto result = defineOp_(conversionIt, inputs, 1);
+    if (isValid(result))
+        incrementOpsCounter_(OpType::Conversion);
+    return result;
+}
 mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator inputTensor, const string& name)
 {
     string opName;

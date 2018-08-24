@@ -13,7 +13,7 @@
 
 namespace mv
 {
-    
+
     class Tensor : public ComputationElement
     {
 
@@ -56,9 +56,10 @@ namespace mv
         dynamic_vector<float_type> &getData();
         DType getDType() const;
         Order getOrder() const;
+        void setOrder(Order order);
         string toString() const;
         static Logger& logger();
-        
+
         bool add(const Tensor& other);
         bool add(float val);
         bool subtract(const Tensor& other);
@@ -77,7 +78,7 @@ namespace mv
         const float_type& operator()(unsigned idx) const;
         float_type& operator()(const static_vector<dim_type, byte_type, max_ndims>& sub);
         const float_type& operator()(const static_vector<dim_type, byte_type, max_ndims>& sub) const;
-        
+
         inline bool isPopulated() const
         {
             return populated_;
@@ -117,7 +118,7 @@ namespace mv
         template<typename... Idx>
         float_type& at(Idx... indices)
         {
-            
+
             if (!isPopulated())
             {
                 logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
@@ -137,7 +138,7 @@ namespace mv
         template<typename... Idx>
         float_type at(Idx... indices) const
         {
-            
+
             if (!isPopulated())
             {
                 logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
@@ -164,7 +165,7 @@ namespace mv
         {
             return at(indices...);
         }
-        
+
     };
 
 }

@@ -4,6 +4,7 @@
 #include "include/mcm/computation/op/def/input.hpp"
 #include "include/mcm/computation/op/def/output.hpp"
 #include "include/mcm/computation/op/def/conv2d.hpp"
+#include "include/mcm/computation/op/def/conversion.hpp"
 #include "include/mcm/computation/op/def/maxpool2d.hpp"
 #include "include/mcm/computation/op/def/avgpool2d.hpp"
 #include "include/mcm/computation/op/def/concat.hpp"

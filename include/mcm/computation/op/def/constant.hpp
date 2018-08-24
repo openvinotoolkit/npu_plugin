@@ -21,6 +21,7 @@ namespace mv
             Constant(mv::json::Value &obj);
             Tensor getOutputDef(byte_type idx);
             mv::json::Value toJsonValue() const;
+            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };
 

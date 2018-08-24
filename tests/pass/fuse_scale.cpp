@@ -78,7 +78,7 @@ TEST(fuse_scale, case_conv_bias_fused)
     // Check general model properties
     mv::DataModel dm(om);
     ASSERT_EQ(om.opsCount(), 4);
-    ASSERT_EQ(dm.tensorsCount(), 3);
+    ASSERT_EQ(dm.tensorsCount(), 4);
 
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
@@ -92,7 +92,7 @@ TEST(fuse_scale, case_conv_bias_fused)
     for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
         ASSERT_FLOAT_EQ(convOp->getInputTensor(1)->getData()[i], newWeigths.getData()[i]);
 
-    auto biasVector = convOp->getAttr("bias").getContent<mv::dynamic_vector<float>>();
+    auto biasVector = dm.findTensor(convOp->getAttr("bias").getContent<std::string>())->getData();
     for (unsigned i = 0; i < biasVector.size(); ++i)
         ASSERT_FLOAT_EQ(biasVector[i], newBiases.getData()[i]);
 

@@ -13,3 +13,8 @@ ActivationOp(obj)
 {
 
 }
+
+bool mv::op::Softmax::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

@@ -1,5 +1,6 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 
 static void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
@@ -26,6 +27,7 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
     using namespace mv;
 
     OpModel om(model);
+    DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
@@ -49,8 +51,8 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
             auto conv2D = om.conv2D(sourceTensor, weights, {1, 1}, {0, 0, 0, 0});
             if (opIt->hasAttr("bias"))
             {
-                auto biasData = opIt->getAttr("bias").getContent<dynamic_vector<float>>();
-                om.addAttr(om.getSourceOp(conv2D), "bias", Attribute(AttrType::FloatVecType, biasData));
+                auto biasTensorName = opIt->getAttr("bias").getContent<std::string>();
+                om.addAttr(om.getSourceOp(conv2D), "bias", Attribute(AttrType::StringType, biasTensorName));
             }
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)

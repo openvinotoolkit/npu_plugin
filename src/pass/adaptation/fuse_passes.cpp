@@ -1,5 +1,6 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/tensor/math.hpp"
 
 static void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
@@ -61,6 +62,7 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
     using namespace mv;
 
     OpModel om(model);
+    DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
@@ -77,14 +79,14 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasData = parentOpIt->getAttr("bias").getContent<dynamic_vector<float>>();
-                    for (std::size_t i = 0; i < biasData.size(); ++i)
-                        biasData[i] += bias.getData()[i];
-                    parentOpIt->getAttr("bias").setContent<dynamic_vector<float>>(biasData);
+                    auto biasTensor = dm.findTensor(parentOpIt->getAttr("bias").getContent<std::string>());
+                    biasTensor->add(bias);
                 }
                 else
                 {
-                    Attribute biasAttr(AttrType::FloatVecType, bias.getData());
+                    std::string biasTensorName = parentOpIt->getName() + "_bias";
+                    auto biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData());
+                    Attribute biasAttr(AttrType::StringType, biasTensor->getName());
                     om.addAttr(parentOpIt, "bias", biasAttr);
                 }
                 
@@ -120,6 +122,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
     
     using namespace mv;
     OpModel om(model);
+    DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
@@ -137,15 +140,8 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasData = parentOpIt->getAttr("bias").getContent<dynamic_vector<float>>();
-                    if (biasData.size() != scale.getData().size())
-                        throw pass::RutimeError("Mismatch between bias length and scale length");
-
-                    for (unsigned i = 0; i < biasData.size(); ++i)
-                        biasData[i] *= scale.getData()[i];
-                    
-                    parentOpIt->getAttr("bias").setContent<dynamic_vector<float>>(biasData);
-
+                    auto biasTensor = dm.findTensor(parentOpIt->getAttr("bias").getContent<std::string>());
+                    biasTensor->multiply(scale);
                 }
 
                 auto sourceTensor = parentOpIt->getOutputTensor(0);

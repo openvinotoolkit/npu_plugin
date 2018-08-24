@@ -61,7 +61,7 @@ TEST(data_model, allocate_populated_tensor)
     dm.addAllocator("Memory1", 4096, mv::Order::ColumnMajor);
     mv::dynamic_vector<size_t> paddings;
     auto buf = dm.allocateTensor("Memory1", stage, weights, paddings);
-    
+
     std::cout << buf->toString(true) << std::endl;
 
 }

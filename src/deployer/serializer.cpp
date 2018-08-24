@@ -1,5 +1,5 @@
 #include "include/mcm/deployer/serializer.hpp"
-
+#include <stdio.h>
 
 namespace mv
 {
@@ -9,6 +9,8 @@ namespace mv
 
     uint64_t Serializer::serialize(mv::ControlModel& graph_2_deploy, const char* ofilename )
     {
+
+        printf("Serializer\n");
 
         uint64_t fsize = 0 ;
         switch( output_format )

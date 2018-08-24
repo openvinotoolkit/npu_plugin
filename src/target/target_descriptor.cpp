@@ -7,7 +7,7 @@ std::string mv::TargetDescriptor::toString(Target target)
 
         case Target::ma2480:
             return "ma2480";
-        
+
         default:
             return "unknown";
 
@@ -18,15 +18,15 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 {
     if (str == "ma2480")
         return Target::ma2480;
-    
+
     return Target::Unknown;
-}  
+}
 
 mv::DType mv::TargetDescriptor::toDType(const std::string& str)
 {
     if (str == "fp16")
         return DType::Float;
-    
+
     return DType::Unknown;
 }
 
@@ -41,7 +41,7 @@ mv::Order mv::TargetDescriptor::toOrder(const std::string& str)
         return Order::ColumnMajor;
     else if (str == "rowmajor")
         return Order::RowMajor;
-    
+
     return Order::Unknown;
 }
 
@@ -53,7 +53,7 @@ globalOrder_(Order::Unknown)
 
     if (!filePath.empty())
         if (!load(filePath))
-            throw ArgumentError("filePath", filePath, 
+            throw ArgumentError("filePath", filePath,
                 "Unable to parse target descriptor - error reading or invalid");
 
 }
@@ -78,13 +78,13 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
     JSONTextParser parser(jsonParserBufferLenght_);
     json::Object jsonDescriptor;
 
-    try 
+    try
     {
 
         json::Value jsonRoot;
         if (!parser.parseFile(filePath, jsonRoot))
         {
-            throw ArgumentError("filePath", filePath, 
+            throw ArgumentError("filePath", filePath,
                 "Unable to parse target descriptor - error reading");
         }
         if (jsonRoot.valueType() != json::JSONType::Object)
@@ -251,7 +251,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             }
 
         }
-        
+
     }
 
     if (jsonDescriptor["resources"].valueType() != json::JSONType::Object)
@@ -271,25 +271,25 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
             for (std::size_t i = 0; i < jsonDescriptor["resources"]["memory"].size(); ++i)
             {
-                
+
                 std::string name, orderStr;
                 long long size;
 
-                if (!jsonDescriptor["resources"]["memory"][i].hasKey("name") || 
+                if (!jsonDescriptor["resources"]["memory"][i].hasKey("name") ||
                     !jsonDescriptor["resources"]["memory"][i].hasKey("size"))
                 {
                     reset();
                     return false;
                 }
 
-                if (jsonDescriptor["resources"]["memory"][i]["name"].valueType() != json::JSONType::String || 
+                if (jsonDescriptor["resources"]["memory"][i]["name"].valueType() != json::JSONType::String ||
                     jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger ||
                     jsonDescriptor["resources"]["memory"][i]["order"].valueType() != json::JSONType::String)
                 {
                     reset();
                     return false;
                 }
-                
+
 
 
                 name = jsonDescriptor["resources"]["memory"][i]["name"].get<std::string>();
@@ -302,7 +302,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                     reset();
                     return false;
                 }
-                
+
                 memoryDefs_[name] = {size, order};
 
             }
@@ -319,7 +319,7 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
 {
 
     // open a file in read mode.
-    std::ofstream descFile; 
+    std::ofstream descFile;
     descFile.open(filePath, std::ios::out | std::ios::trunc);
 
     if (!descFile.is_open())

@@ -69,7 +69,7 @@ bool mv::Tensor::populate(const dynamic_vector<float_type>& data, Order order)
 
     if (data.size() != getShape().totalSize())
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to populate tensor - mismatch between input array size (" + 
+        logger_.log(Logger::MessageType::MessageError, "Unable to populate tensor - mismatch between input array size (" +
             Printable::toString((unsigned)data.size()) + ") and declared shape (" + getAttr("shape").getContentStr() + ")");
         return false;
     }
@@ -85,7 +85,7 @@ bool mv::Tensor::unpopulate()
 {
     if (!getAttr("populated").getContent<bool>())
         return false;
-    
+
     data_.reset();
     getAttr("populated").setContent<bool>(false);
     populated_ = false;
@@ -137,10 +137,10 @@ bool mv::Tensor::broadcast(const Shape& shape)
         return false;
     }
 
-    if (s1 == s2)   
+    if (s1 == s2)
         return true;
     else
-    {   
+    {
 
         Shape sO = Shape::broadcast(s1, s2);
         if (sO == Shape())
@@ -157,7 +157,7 @@ bool mv::Tensor::broadcast(const Shape& shape)
 
         for (unsigned i = 0; i < dataPtr->size(); ++i)
         {
-            
+
             static_vector<dim_type, byte_type, max_ndims> sub = indToSub_(sO, i);
 
             for (unsigned j = 0; j < sub.length(); ++j)
@@ -172,7 +172,7 @@ bool mv::Tensor::broadcast(const Shape& shape)
 
         shape_ = sO;
         data_ = dataPtr;
-        return true; 
+        return true;
 
     }
 
@@ -198,6 +198,11 @@ mv::Order mv::Tensor::getOrder() const
     return getAttr("order").getContent<Order>();
 }
 
+void mv::Tensor::setOrder(mv::Order order)
+{
+    getAttr("order").setContent<mv::Order>(order);
+}
+
 mv::string mv::Tensor::toString() const
 {
     return "tensor '" + name_ + "' " + ComputationElement::toString();
@@ -221,13 +226,13 @@ bool mv::Tensor::elementWise_(const Tensor& other, const std::function<float(flo
     }
 
     if (s1 == s2)
-    {      
+    {
         for (unsigned i = 0; i < data_->size(); ++i)
             (*data_)[i] = opFunc(at(i), other(i));
         return true;
     }
     else
-    {   
+    {
 
         /*Tensor broadcastOther(other);
         if (!broadcastOther.broadcast(s1))
@@ -259,7 +264,7 @@ bool mv::Tensor::elementWise_(const Tensor& other, const std::function<float(flo
 
         for (unsigned i = 0; i < dataPtr->size(); ++i)
         {
-            
+
             static_vector<dim_type, byte_type, max_ndims> subO = indToSub_(sO, i);
             static_vector<dim_type, byte_type, max_ndims> sub1 = subO, sub2 = subO;
 
@@ -299,7 +304,7 @@ bool mv::Tensor::add(float val)
     }
     for (unsigned i = 0; i < data_->size(); ++i)
         (*data_)[i] += val;
-    
+
     return true;
 
 }
@@ -319,7 +324,7 @@ bool mv::Tensor::subtract(float val)
     }
     for (unsigned i = 0; i < data_->size(); ++i)
         (*data_)[i] -= val;
-    
+
     return true;
 
 }
@@ -339,7 +344,7 @@ bool mv::Tensor::multiply(float val)
     }
     for (unsigned i = 0; i < data_->size(); ++i)
         (*data_)[i] *= val;
-    
+
     return true;
 
 }
@@ -354,7 +359,7 @@ bool mv::Tensor::divide(float val)
     }
     for (unsigned i = 0; i < data_->size(); ++i)
         (*data_)[i] /= val;
-    
+
     return true;
 
 }
@@ -401,7 +406,7 @@ const mv::float_type& mv::Tensor::at(const static_vector<dim_type, byte_type, ma
 
 mv::float_type& mv::Tensor::at(unsigned idx)
 {
-    
+
     if (!isPopulated())
     {
         logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");

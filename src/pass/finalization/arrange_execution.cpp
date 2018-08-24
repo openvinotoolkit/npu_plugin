@@ -32,8 +32,8 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
 
     while (currentOp != om.getOutput())
     {
-
         Data::OpListIterator nextOp;
+
         if (currentOp.childrenSize() == 1)
         {
             nextOp = currentOp.leftmostChild();
@@ -44,15 +44,13 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
                 cm.addToStage(stage, nextOp);
             }
             currentOp = nextOp;
-
         }
         else
         {
-
             for (auto nextChildOp = currentOp.leftmostChild(); nextChildOp != om.opEnd(); ++nextChildOp)
             {
-
                 nextOp = nextChildOp;
+
                 auto executableParents = [&om, &nextOp]()
                 {
                     std::size_t result = 0;
@@ -64,7 +62,6 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
 
                 while (nextOp.parentsSize() == 1 || executableParents() == 1)
                 {
-
                     cm.defineFlow(currentOp, nextOp);
                     if (nextOp->getOpType() != OpType::Output)
                     {
@@ -73,13 +70,8 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
                     }
                     currentOp = nextOp;
                     nextOp = currentOp.leftmostChild();
-
                 }
-
             }
-
         }
-
     }
-
 } 

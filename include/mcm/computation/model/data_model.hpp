@@ -11,7 +11,7 @@ namespace mv
 
     namespace Data
     {
-        using BufferIterator = IteratorDetail::ModelValueIterator<std::map<TensorIterator, allocator::owner_ptr<MemoryAllocator::MemoryBuffer>, 
+        using BufferIterator = IteratorDetail::ModelValueIterator<std::map<TensorIterator, allocator::owner_ptr<MemoryAllocator::MemoryBuffer>,
             MemoryAllocator::TensorIteratorComparator>::iterator, MemoryAllocator::MemoryBuffer>;
     }
 
@@ -19,7 +19,7 @@ namespace mv
     {
 
     public:
-    
+
         DataModel(const ComputationModel &ComputationModel);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
@@ -33,7 +33,10 @@ namespace mv
         bool removeGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
-        
+
+        Data::TensorIterator defineTensor(const string &name, const Shape &shape, DType dType, Order order);
+        Data::TensorIterator defineTensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data);
+        bool undefineTensor(const string &name);
         Data::TensorIterator findTensor(string name);
         unsigned tensorsCount() const;
 

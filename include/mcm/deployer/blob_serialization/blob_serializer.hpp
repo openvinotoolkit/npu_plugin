@@ -10,47 +10,29 @@
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/serializer/file_buffer.h"
-#include "include/mcm/deployer/myriadX_hardware_descriptors.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/deployer/blob_serialization/myriadX_hardware_descriptors.hpp"
+#include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
+#include "include/mcm/deployer/blob_serialization/bTensor.hpp"
+#include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
+#include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
+#include "include/mcm/deployer/blob_serialization/bPooling.hpp"
+#include "include/mcm/deployer/blob_serialization/bSoftmax.hpp"
+#include "include/mcm/deployer/blob_serialization/bRelu.hpp"
+#include "include/mcm/deployer/blob_serialization/bScale.hpp"
+#include "include/mcm/deployer/blob_serialization/bEltwise.hpp"
+#include "include/mcm/deployer/blob_serialization/bInnerProduct.hpp"
+#include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
+#include <assert.h>
 
 #define BLOB_VERSION_MAJOR 2
 #define BLOB_VERSION_MINOR 3
 #define BLOB_MAGIC_NUMBER 8708
 
+#define BLOB_DEFAULT_IMPLEMENTATION 0x80000000
+
 namespace mv
 {
-
-    // class bLayer{
-    //     public:
-    //         void gatherInformation();
-    //         void write();
-    // };
-
-    class Blob_Op_Definition{
-        public:
-            uint32_t number_of_inputs;
-            Blob_Op_Definition(OpType o);
-    };
-
-    class Blob_Tensor{
-        public:
-            uint32_t dimX;
-            uint32_t dimY;
-            uint32_t dimZ;
-            uint32_t strideX;
-            uint32_t strideY;
-            uint32_t strideZ;
-            uint32_t offset;
-            uint32_t location;
-            uint32_t dataType;
-            uint32_t order;
-
-            Blob_Tensor(int x, int y, int z,
-                int sx, int sy, int sz,
-                int set_offset, int set_location, int dtype, int set_order);
-
-            void write(WBuffer* b);
-    };
 
     class Blob_stage
     {
@@ -211,9 +193,14 @@ namespace mv
             blob_summary blob_stats;
 
         public:
+            RelocationTable reloc_table;
             Blob_buffer()
             {
+                this->reloc_table = RelocationTable();
             }
+
+            blob_summary getBlobSumm();
+
 
             // Calculate Blob Statistics
             void calc(mv::ControlModel& cm);
@@ -231,6 +218,8 @@ namespace mv
             void write_buffer_section(mv::ControlModel& cm);
 
             void write_relocation_section(mv::ControlModel& cm);
+
+            int get_blob_enum(mv::OpType o, bool NCE1=false);
 
     };   // end class blob_buffer
 

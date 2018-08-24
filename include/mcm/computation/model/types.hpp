@@ -32,10 +32,10 @@ namespace mv
     typedef std::string string;
 
     typedef stl_allocator allocator;
-    
+
     template <class T>
     using dynamic_vector = std::vector<T>;
-    
+
     template <class T_key, class T_value>
     using map = std::map<T_key, T_value>;
 
@@ -58,6 +58,7 @@ namespace mv
         ColumnMajorPlanar,
         RowMajor,
         RowMajorPlanar,
+        TBDLayout,
         Unknown
     };
 
@@ -67,6 +68,7 @@ namespace mv
         {Order::ColumnMajorPlanar, "ColumnMajorPlanar"},
         {Order::RowMajor, "RowMajor"},
         {Order::RowMajorPlanar, "RowMajorPlanar"},
+        {Order::TBDLayout, "TBDLayout"},
         {Order::Unknown, "Unknown"}
     };
 
@@ -76,6 +78,7 @@ namespace mv
         {"ColumnMajorPlanar", Order::ColumnMajorPlanar},
         {"RowMajor", Order::RowMajor},
         {"RowMajorPlanar", Order::RowMajorPlanar},
+        {"TBDLayout", Order::TBDLayout},
         {"Unknown", Order::Unknown}
     };
 
@@ -99,7 +102,7 @@ namespace mv
 
     enum class AttrType
     {
-        
+
         UnknownType,
         ByteType,
         UnsignedType,

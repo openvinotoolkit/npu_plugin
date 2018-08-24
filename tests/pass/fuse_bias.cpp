@@ -31,12 +31,12 @@ TEST(fuse_bias, case_conv)
     // Check general model properties
     mv::DataModel dm(om);
     ASSERT_EQ(om.opsCount(), 4);
-    ASSERT_EQ(dm.tensorsCount(), 3);
+    ASSERT_EQ(dm.tensorsCount(), 4);
 
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
 
-    for (unsigned i = 0; i < convOp->getAttr("bias").getContent<mv::dynamic_vector<float>>().size(); ++i)
-        ASSERT_FLOAT_EQ(convOp->getAttr("bias").getContent<mv::dynamic_vector<float>>()[i], biasesData[i]);
+    for (unsigned i = 0; i < dm.findTensor(convOp->getAttr("bias").getContent<std::string>())->getData().size(); ++i)
+        ASSERT_FLOAT_EQ(dm.findTensor(convOp->getAttr("bias").getContent<std::string>())->getData()[i], biasesData[i]);
 
 }

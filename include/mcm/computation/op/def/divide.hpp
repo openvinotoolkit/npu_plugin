@@ -16,6 +16,7 @@ namespace mv
 
             Divide(const string &name);
             Divide(mv::json::Value &obj);
+            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };
 

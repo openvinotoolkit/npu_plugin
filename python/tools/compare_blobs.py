@@ -21,6 +21,8 @@ parser.add_argument('blob1', metavar='', type=str, nargs='?',
                     help='path to first blob')
 parser.add_argument('blob2', metavar='', type=str, nargs='?',
                     help='path to second blob')
+parser.add_argument('--img', action='store_true',
+                    help='Use a real image rather than rand data')
 args = parser.parse_args()
 
 # NCCheck Files:
@@ -51,9 +53,14 @@ out_x = str(out_x)
 out_y = str(out_y)
 out_z = str(out_z)
 
+if args.img:
+    test_input = "test.npy"
+else:
+    test_input = "nps_mug.png"
 
-os.system('python3 ./run_blob.py ' + blob1_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i test.npy -res ' + blob1_res)
-os.system('python3 ./run_blob.py ' + blob2_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\)  -i test.npy -res ' + blob2_res)
+
+os.system('python3 ./run_blob.py ' + blob1_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+test_input+' -res ' + blob1_res)
+os.system('python3 ./run_blob.py ' + blob2_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\)  -i '+test_input+' -res ' + blob2_res)
 
 blob1_np = np.load('./' + blob1_res + '.npy')
 blob2_np = np.load('./' + blob2_res + '.npy')

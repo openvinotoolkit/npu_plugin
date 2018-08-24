@@ -59,3 +59,8 @@ mv::Tensor mv::op::Concat::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", Shape(input0Shape[0], input0Shape[1], lastDim), input0->getDType(), input0->getOrder());
     
 }
+
+bool mv::op::Concat::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

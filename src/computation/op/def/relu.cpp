@@ -13,3 +13,8 @@ ActivationOp(obj)
 {
 
 }
+
+bool mv::op::ReLU::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

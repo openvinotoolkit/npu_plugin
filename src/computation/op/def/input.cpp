@@ -39,3 +39,8 @@ mv::Tensor mv::op::Input::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", outputShape, dType, order);
 
 }
+
+bool mv::op::Input::isHardwarizeable(json::Object &TargetDescriptor)
+{
+    return false;
+}

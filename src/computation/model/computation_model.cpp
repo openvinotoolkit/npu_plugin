@@ -158,6 +158,11 @@ mv::Data::OpListIterator mv::ComputationModel::addNodeFromJson(mv::json::Value& 
             addInputTensorsJson(toReturn);
             addOutputTensorsJson(toReturn);
             break;
+        case OpType::Conversion:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::Conversion>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
     }
     return toReturn;
 

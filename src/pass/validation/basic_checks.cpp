@@ -19,7 +19,7 @@ namespace mv
             "States that are considered to be invalid:"
             " - Populated tensor is an output of a non const operation"
             " - Unpopulated tensor is an output of a const operation"
-            " - Populated tensor is referenced by data flow that source is not a const op"
+            " - Populated tensor is referenced by a data flow that source is not a const op"
             " - Populated tensor holding no data"
         );
 

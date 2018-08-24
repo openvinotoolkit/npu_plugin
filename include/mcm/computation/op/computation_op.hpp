@@ -36,7 +36,7 @@ namespace mv
         virtual byte_type inputSlots();
         virtual byte_type outputSlots();
         bool isExecutable() const;
-
+        virtual bool isHardwarizeable(mv::json::Object& TargetDescriptor) = 0;
         bool operator==(const ComputationOp &other) const;
 
     };

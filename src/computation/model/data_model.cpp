@@ -55,6 +55,62 @@ bool mv::DataModel::removeGroupElement(Data::FlowListIterator &element, GroupCon
     return removeGroupElement_(ptr, group);
 }
 
+mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const Shape &shape, DType dType, Order order)
+{
+
+    if (flowTensors_->find(name) == flowTensors_->end())
+    {
+        // TODO: handle failure
+        auto result = flowTensors_->emplace(name, allocator_.make_owner<Tensor>(name, shape, dType, order));
+        logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+        return result.first;
+    }
+
+    logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
+    return Data::TensorIterator();
+
+}
+
+mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data)
+{
+
+    if (flowTensors_->find(name) == flowTensors_->end())
+    {
+        // TODO: handle failure
+        auto result = flowTensors_->emplace(name, allocator_.make_owner<Tensor>(name, shape, dType, order, data));
+        logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+        return result.first;
+    }
+
+    logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
+    return Data::TensorIterator();
+
+}
+
+bool mv::DataModel::undefineTensor(const string &name)
+{
+
+    if (flowTensors_->find(name) == flowTensors_->end())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to remove unexisting tensor " + name +
+            " from the computation model");
+        return false;
+    }
+
+    auto tensorSource = tensorsSources_->find(name);
+    if (tensorSource != tensorsSources_->end())
+    {
+        logger_.log(Logger::MessageType::MessageError, "Unable to remove the tensor " + name +
+            " that is an output of the operation " + tensorSource->second->getName() + " - source "
+            "operation has to be removed to achieve this");
+        return false;
+    }
+
+    flowTensors_->erase(name);
+    return true;
+
+}
+
 mv::Data::TensorIterator mv::DataModel::findTensor(string name)
 {
 
@@ -160,11 +216,9 @@ bool mv::DataModel::hasAllocator(const string& name)
 
     return false;
 
-}   
+}
 
 bool mv::DataModel::addAttr(Data::TensorIterator tensor, const string& name, const Attribute& attr)
 {
-
     return tensor->addAttr(name, attr);
-
 }

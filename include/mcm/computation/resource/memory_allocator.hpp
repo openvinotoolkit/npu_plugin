@@ -6,9 +6,10 @@
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/base/order/order_factory.hpp"
 
 namespace mv
-{   
+{
 
     class MemoryAllocator : public Printable, public Jsonable
     {
@@ -45,7 +46,7 @@ namespace mv
              */
             std::size_t offset;
             /**
-             * @brief Value specifing the size of the buffer, added to the offset represents 
+             * @brief Value specifing the size of the buffer, added to the offset represents
              * the end location of the buffer in an allocator
              */
             std::size_t size;
@@ -77,6 +78,10 @@ namespace mv
 
             bool operator<(const MemoryBuffer& other) const;
             std::string toString(bool printValues = false) const;
+            bool operator==(const MemoryBuffer& other){
+                // TODO: Also check length and other things.
+                return this->offset == other.offset;
+            };
 
         };
 
@@ -88,7 +93,7 @@ namespace mv
          * @brief Allocator's identifier
          */
         string name_;
-        
+
         /**
          * @brief Total size of the memory block represented by the allocator
          */
@@ -114,6 +119,8 @@ namespace mv
         template <typename VecType>
         mv::MemoryAllocator::BufferIterator allocate(Data::TensorIterator tensor, unsigned stageIdx, const VecType& paddings)
         {
+            // TODO: Move this to the cpp.
+
             mv::dynamic_vector<size_t> strides;
             Shape s(tensor->getShape());
             writeStrides(paddings, s, strides);

@@ -20,6 +20,7 @@ namespace mv
             Conv2D(mv::json::Value &obj);
 
             Tensor getOutputDef(byte_type idx);
+            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };
 
