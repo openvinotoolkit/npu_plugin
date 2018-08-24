@@ -46,7 +46,7 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        if(t == NULL || &t == NULL || *t == NULL ){
+        if ( t == NULL || &t == NULL ) {  // || *t == NULL ){
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
             this->dimY = 0;
@@ -121,7 +121,7 @@ namespace mv
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
-            blk_stride = (int)mem->stride;
+            blk_stride = (int)mem->strides[0]+ mem->block;
             block = (int)mem->block;
 
             int offset = mem->offset;
@@ -182,7 +182,7 @@ namespace mv
             }else{
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
-                blk_stride = (int)mem->stride;
+                blk_stride = (int)mem->strides[0] + mem->block;
                 block = (int)mem->block;
                 int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
                 this->offset = rt_entry;
@@ -190,26 +190,29 @@ namespace mv
         }
 
         int striding_axis = 0;
-        if (block == 0){
-            std::cout << "Serializer Warning: Zero-Storage Tensor." << std::endl;
-            striding_axis = 0;
-        }else if (block == fp16_size){
-            // X
-            striding_axis = 0;
-        }else if(block == this->dimX){
-            // Y
-            striding_axis = 1;
-        }else if(block == this->dimX*this->dimY){
-            // Z
-            striding_axis = 2;
-        }else if(block == this->dimX*this->dimY*this->dimZ){
-            // N
-            striding_axis = 3;
-        }else{
-            std::cout << block << ", " << this->dimX*this->dimY*this->dimZ << std::endl;
-            std::cout << "Serialization Error: Unknown mapping of memory block to mvTensor notations" << std::endl;
-            assert(0);
-        }
+        // TODO: Enable Non-Tight Buffers with Stride Support
+        // if (block == 0){
+        //     std::cout << "Serializer Warning: Zero-Storage Tensor." << std::endl;
+        //     striding_axis = 0;
+        // }else if (block == fp16_size){
+        //     // X
+        //     striding_axis = 0;
+        // }else if(block == this->dimX){
+        //     // Y
+        //     striding_axis = 1;
+        // }else if(block == this->dimX*this->dimY){
+        //     // Z
+        //     striding_axis = 2;
+        // }else if(block == this->dimX*this->dimY*this->dimZ){
+        //     // N
+        //     striding_axis = 3;
+        // }else{
+        //     std::cout << this->dimX<< ", "<<this->dimY<< ", "<<this->dimZ << std::endl;
+        //     std::cout << block << ", " << this->dimX*this->dimY*this->dimZ << std::endl;
+        //     std::cout << "Serialization Error: Unknown mapping of memory block to mvTensor notations" << std::endl;
+        //     assert(0);
+        // }
+        striding_axis = 1;
 
         switch((*t)->getOrder()){
             case Order::RowMajor:
@@ -220,7 +223,7 @@ namespace mv
                 this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 break;
-            case Order::Planar:
+            case Order::RowMajorPlanar: // Column Major
                 // NCE1 - Option 1
                 // printf("PLANAR\n");
                 this->order = 1;
@@ -228,7 +231,7 @@ namespace mv
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimY*this->strideY;
                 break;
-            case Order::ColumnMajor:
+            case Order::ColumnMajor:    //
                 // NCE1 - Option 2
                 // printf("Column MAJOR\n");
                 this->order = 2;
@@ -236,7 +239,7 @@ namespace mv
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 break;
-            case Order::RowMajorAlt:
+            case Order::TBDLayout:      // Row Major
                 this->order = 3;
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;

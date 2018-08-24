@@ -454,7 +454,7 @@ namespace mv
             printf("Serializer Info: Manual Override of Convolution Software layer order\n");
             this->output->setOrder(Order::RowMajor);
             this->input->setOrder(Order::RowMajor);
-            this->taps->setOrder(Order::RowMajorAlt);
+            this->taps->setOrder(Order::TBDLayout);
         }
     }
 }

@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-static mv::Logger::VerboseLevel verbose = mv::Logger::VerboseLevel::VerboseInfo;
+static mv::Logger::VerboseLevel verbose = mv::Logger::VerboseLevel::VerboseSilent;
 
 TEST(data_model, allocate_unpopulated_tensor)
 {
@@ -24,8 +24,10 @@ TEST(data_model, allocate_unpopulated_tensor)
     cm.addToStage(stage, pool1Op);
     cm.addToStage(stage, pool2Op);
     dm.addAllocator("Memory1", 4096, mv::Order::ColumnMajor);
-    auto buf1 = dm.allocateTensor("Memory1", stage, pool1, 2);
-    auto buf2 = dm.allocateTensor("Memory1", stage, pool2, 10);
+    mv::dynamic_vector<size_t> paddings;
+    auto buf1 = dm.allocateTensor("Memory1", stage, pool1, paddings);
+    mv::dynamic_vector<size_t> paddings1;
+    auto buf2 = dm.allocateTensor("Memory1", stage, pool2, paddings1);
     std::cout << buf1->toString() << std::endl;
     std::cout << buf2->toString() << std::endl;
 
@@ -57,8 +59,9 @@ TEST(data_model, allocate_populated_tensor)
     auto stage = cm.addStage();
     cm.addToStage(stage, conv1Op);
     dm.addAllocator("Memory1", 4096, mv::Order::ColumnMajor);
-    auto buf = dm.allocateTensor("Memory1", stage, weights, 5);
-    
+    mv::dynamic_vector<size_t> paddings;
+    auto buf = dm.allocateTensor("Memory1", stage, weights, paddings);
+
     std::cout << buf->toString(true) << std::endl;
 
 }

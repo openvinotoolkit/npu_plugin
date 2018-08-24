@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.0.0)
-project(mcm VERSION 1.0.0)
+cmake_minimum_required(VERSION 3.5.0)
+project(mcmComplier VERSION 0.0.1)
 
 enable_testing()
 include_directories(${GTEST_INCLUDE_DIRS})
@@ -10,7 +10,8 @@ include_directories(${GTEST_INCLUDE_DIRS})
 #include_directories(include/mcm/graph)
 
 file(GLOB base_src
-    "base/*.cpp"    
+    "base/*.cpp"
+    "base/order/*.cpp"
 )
 
 file(GLOB op_src
@@ -33,9 +34,19 @@ file(GLOB graph_src
     "graph/*.cpp"
 )
 
+file(GLOB resources
+    "resources/*.cpp"
+)
+
+file(GLOB order
+    "order/*.cpp"
+)
+
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     ${graph_src}
+    ${resources}
+    ${order}
     ${base_src}
     ${op_src}
     ${pass_src}

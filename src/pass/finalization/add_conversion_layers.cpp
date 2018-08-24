@@ -62,7 +62,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         //Case 2
         if(!sourceIsHw && sinkIsHw)
         {
-            targetOrder = mv::Order::Planar;
+            targetOrder = mv::Order::RowMajorPlanar;
             conversionNeeded = true;
         }
 

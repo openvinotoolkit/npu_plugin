@@ -36,9 +36,8 @@ namespace mv
         static std::string toString(Target target);
         static Target toTarget(const std::string& str);
         static DType toDType(const std::string& str);
-        static Order toOrder(const std::string& str);
         static OpType toOpType(const std::string str);
-
+        static Order toOrder(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
         Target target_;

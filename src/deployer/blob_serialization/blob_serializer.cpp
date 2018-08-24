@@ -877,7 +877,7 @@ namespace mv
 
         uint32_t buffer_header_pad_size = 3 ;
         uint32_t buffer_header_pad_val = 0x002a ;
-        Float16Compressor cvtr ;
+        mv_num_convert cvtr ;
 
         mv::DataModel dm(cm);
         mv::Control::StageIterator stg = cm.getStage(0);
@@ -927,7 +927,7 @@ namespace mv
                 running_total += bit.size*2;
 
                 for (int idx = 0; idx != (int)bit.size; idx++){
-                    u_int16_t fp16_val = cvtr.compress((*bit.data).getData()[idx]) ;  // Convert to fp16.
+                    u_int16_t fp16_val = cvtr.fp32_to_fp16((*bit.data).getData()[idx]) ;  // Convert to fp16.
                     AddBytes(2, fp16_val) ;
                 }
 

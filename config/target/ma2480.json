@@ -19,7 +19,7 @@
 
 	"order":
 	{
-		"global": "planar"
+		"global": "rowmajorplanar"
 	},
 
 	"dtype":
@@ -52,6 +52,7 @@
 
 		"serialize":
 		[
+			"GenerateJSON",
 			"GenerateBlob"
 		],
 
@@ -69,13 +70,13 @@
 			{
 				"name": "ConstantMemory",
 				"size": 1024000000,
-				"order": "planar"
+				"order": "rowmajorplanar"
 			},
 
 			{
 				"name": "IntermediateMemory",
 				"size": 1024000000,
-				"order": "planar"
+				"order": "rowmajorplanar"
 			}
 		]
 	}

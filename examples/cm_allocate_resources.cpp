@@ -8,7 +8,6 @@ int main()
 
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
-
     // Initialize weights data
     mv::dynamic_vector<mv::float_type> weights1Data = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
     mv::dynamic_vector<mv::float_type> weights2Data = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
@@ -27,8 +26,13 @@ int main()
     cm.output(conv3);
 
     // Load target descriptor for the selected target to the compilation unit
-    std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    //std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
+    //unit.loadTargetDescriptor(mv::Target::ma2480);
+
+    // Load target descriptor for the selected target to the compilation unit
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+    	exit(1);
+
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
     // Output DOT - file name (base)
@@ -41,6 +45,9 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     // Output BLOB - file name of the output binary
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("allocate_resouces.blob");
+    unit.compilationDescriptor()["GenerateJSON"]["output"] = std::string("allocate_resouces.json");
+
+
 
     // Initialize compilation
     unit.initialize();

@@ -8,7 +8,6 @@
 * @date 4/27/2018
 */
 #include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/utils/serializer/mv_types.h"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/serializer/file_buffer.h"
 #include "include/mcm/computation/model/control_model.hpp"

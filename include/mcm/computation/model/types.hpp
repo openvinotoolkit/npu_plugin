@@ -55,27 +55,30 @@ namespace mv
     enum class Order
     {
         ColumnMajor,
+        ColumnMajorPlanar,
         RowMajor,
-        Planar,
-        RowMajorAlt,
+        RowMajorPlanar,
+        TBDLayout,
         Unknown
     };
 
     const std::map<Order, string> orderStrings
     {
         {Order::ColumnMajor, "ColumnMajor"},
+        {Order::ColumnMajorPlanar, "ColumnMajorPlanar"},
         {Order::RowMajor, "RowMajor"},
-        {Order::Planar, "Planar"},
-        {Order::RowMajorAlt, "RowMajorAlt"},
+        {Order::RowMajorPlanar, "RowMajorPlanar"},
+        {Order::TBDLayout, "TBDLayout"},
         {Order::Unknown, "Unknown"}
     };
 
     const std::map<string, Order> orderStringsReversed
     {
         {"ColumnMajor", Order::ColumnMajor},
+        {"ColumnMajorPlanar", Order::ColumnMajorPlanar},
         {"RowMajor", Order::RowMajor},
-        {"Planar", Order::Planar},
-        {"RowMajorAlt", Order::RowMajorAlt},
+        {"RowMajorPlanar", Order::RowMajorPlanar},
+        {"TBDLayout", Order::TBDLayout},
         {"Unknown", Order::Unknown}
     };
 

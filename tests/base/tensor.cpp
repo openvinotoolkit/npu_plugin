@@ -2,6 +2,11 @@
 #include "include/mcm/computation/tensor/tensor.hpp"
 #include "include/mcm/computation/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/base/order/order_factory.hpp"
+#include "include/mcm/base/order/col_major.hpp"
+#include "include/mcm/base/order/row_major.hpp"
+#include "include/mcm/base/order/row_major_planar.hpp"
+#include "include/mcm/base/order/col_major_planar.hpp"
 
 TEST(tensor, populating)
 {
@@ -33,9 +38,11 @@ TEST(tensor, sub_to_ind_column_major)
         return s[0] + tShape[0] * (s[1] + tShape[1] * (s[2] + tShape[2] * s[3]));
     };
 
+    mv::ColMajor order;
+
     for (unsigned i = 0; i < 5; ++i)
-        ASSERT_EQ(mv::Tensor::subToInd(tShape, subs[i], mv::Order::ColumnMajor),
-            idxFcn(subs[i]));
+        ASSERT_EQ(order.subToInd(tShape, subs[i]), idxFcn(subs[i]));
+
 
 
 }
@@ -52,7 +59,7 @@ TEST(tensor, int_to_sub_column_major)
 
     for (unsigned i = 0; i < 5; ++i)
     {
-        mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> sub = mv::Tensor::indToSub(tShape, idx[i], mv::Order::ColumnMajor);
+        mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> sub = t.indToSub(idx[i]);
         ASSERT_EQ(t(sub), idx[i]);
     }
 
@@ -74,10 +81,10 @@ TEST(tensor, sub_to_ind_row_major)
         return s[3] + tShape[3] * (s[2] + tShape[2] * (s[1] + tShape[1] * s[0]));
     };
 
-    for (unsigned i = 0; i < 5; ++i)
-        ASSERT_EQ(mv::Tensor::subToInd(tShape, subs[i], mv::Order::RowMajor),
-            idxFcn(subs[i]));
+    mv::RowMajor order;
 
+    for (unsigned i = 0; i < 5; ++i)
+        ASSERT_EQ(order.subToInd(tShape, subs[i]), idxFcn(subs[i]));
 
 }
 
@@ -93,7 +100,7 @@ TEST(tensor, ind_to_sub_row_major)
 
     for (unsigned i = 0; i < 5; ++i)
     {
-        mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> sub = mv::Tensor::indToSub(tShape, idx[i], mv::Order::RowMajor);
+        mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> sub = t.indToSub(idx[i]);
         ASSERT_EQ(t(sub), t(idx[i]));
     }
 
@@ -115,9 +122,10 @@ TEST(tensor, sub_to_ind_planar)
         return s[3] + tShape[3] * (s[2] + tShape[2] * (s[0] + tShape[0] * s[1]));
     };
 
+    mv::RowMajorPlanar order;
+
     for (unsigned i = 0; i < 5; ++i)
-        ASSERT_EQ(mv::Tensor::subToInd(tShape, subs[i], mv::Order::Planar),
-            idxFcn(subs[i]));
+        ASSERT_EQ(order.subToInd(tShape, subs[i]), idxFcn(subs[i]));
 
 }
 
@@ -126,7 +134,7 @@ TEST(tensor, ind_to_sub_planar)
 
     mv::Shape tShape(32, 16, 8, 4);
     mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::Planar);
+    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::RowMajorPlanar);
     t.populate(data);
 
     std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
@@ -136,7 +144,7 @@ TEST(tensor, ind_to_sub_planar)
 
     for (unsigned i = 0; i < 5; ++i)
     {
-        mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> sub = mv::Tensor::indToSub(tShape, idx[i], mv::Order::Planar);
+        mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> sub = t.indToSub(idx[i]);
         ASSERT_EQ(t(sub), t(idx[i]));
     }
     
@@ -250,7 +258,7 @@ TEST(tensor, column_major_to_planar)
 
     mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::ColumnMajor);
     t.populate(data);
-    t.reorder(mv::Order::Planar);
+    t.reorder(mv::Order::RowMajorPlanar);
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -287,7 +295,7 @@ TEST(tensor, planar_to_column_major)
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::Planar);
+    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::RowMajorPlanar);
     t.populate(data);
     t.reorder(mv::Order::ColumnMajor);
 
@@ -326,7 +334,7 @@ TEST(tensor, row_major_to_planar)
 
     mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::RowMajor);
     t.populate(data);
-    t.reorder(mv::Order::Planar);
+    t.reorder(mv::Order::RowMajorPlanar);
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -362,7 +370,7 @@ TEST(tensor, planar_to_row_major)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::Planar);
+    mv::Tensor t("t", tShape, mv::DType::Float, mv::Order::RowMajorPlanar);
     t.populate(data);
     t.reorder(mv::Order::RowMajor);
 
@@ -378,16 +386,16 @@ TEST(tensor, ind_to_sub_1d)
     mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize());
     mv::Tensor tColumnMajor("t", tShape, mv::DType::Float, mv::Order::ColumnMajor);
     mv::Tensor tRowMajor("t", tShape, mv::DType::Float, mv::Order::RowMajor);
-    mv::Tensor tPlanar("t", tShape, mv::DType::Float, mv::Order::Planar);
+    mv::Tensor tPlanar("t", tShape, mv::DType::Float, mv::Order::RowMajorPlanar);
     tColumnMajor.populate(data);
     tRowMajor.populate(data);
     tPlanar.populate(data);
 
     for (unsigned i = 0; i < data.size(); ++i)
     {
-        auto subColumnMajor = mv::Tensor::indToSub(tShape, i, mv::Order::ColumnMajor);
-        auto subRowMajor = mv::Tensor::indToSub(tShape, i, mv::Order::RowMajor);
-        auto subPlanar = mv::Tensor::indToSub(tShape, i, mv::Order::Planar);
+        auto subColumnMajor = tColumnMajor.indToSub(i);
+        auto subRowMajor = tRowMajor.indToSub(i);
+        auto subPlanar = tPlanar.indToSub(i);
         ASSERT_EQ(tColumnMajor(subColumnMajor), data[i]);
         ASSERT_EQ(tRowMajor(subRowMajor), data[i]);
         ASSERT_EQ(tPlanar(subPlanar), data[i]);
@@ -402,16 +410,16 @@ TEST(tensor, ind_to_sub_2d)
     mv::dynamic_vector<mv::float_type> data = mv::utils::generateSequence<mv::float_type>(tShape.totalSize());
     mv::Tensor tColumnMajor("t", tShape, mv::DType::Float, mv::Order::ColumnMajor);
     mv::Tensor tRowMajor("t", tShape, mv::DType::Float, mv::Order::RowMajor);
-    mv::Tensor tPlanar("t", tShape, mv::DType::Float, mv::Order::Planar);
+    mv::Tensor tPlanar("t", tShape, mv::DType::Float, mv::Order::RowMajorPlanar);
     tColumnMajor.populate(data);
     tRowMajor.populate(data);
     tPlanar.populate(data);
 
     for (unsigned i = 0; i < data.size(); ++i)
     {
-        auto subColumnMajor = mv::Tensor::indToSub(tShape, i, mv::Order::ColumnMajor);
-        auto subRowMajor = mv::Tensor::indToSub(tShape, i, mv::Order::RowMajor);
-        auto subPlanar = mv::Tensor::indToSub(tShape, i, mv::Order::Planar);
+        auto subColumnMajor = tColumnMajor.indToSub(i);
+        auto subRowMajor = tRowMajor.indToSub(i);
+        auto subPlanar = tPlanar.indToSub(i);
         
         ASSERT_EQ(tColumnMajor(subColumnMajor), data[i]);
         ASSERT_EQ(tRowMajor(subRowMajor), data[i]);

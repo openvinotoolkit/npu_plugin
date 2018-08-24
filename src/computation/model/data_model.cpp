@@ -65,7 +65,7 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const S
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
         return result.first;
     }
-    
+
     logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
     return Data::TensorIterator();
 
@@ -81,7 +81,7 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const S
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
         return result.first;
     }
-    
+
     logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
     return Data::TensorIterator();
 
@@ -92,7 +92,7 @@ bool mv::DataModel::undefineTensor(const string &name)
 
     if (flowTensors_->find(name) == flowTensors_->end())
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to remove unexisting tensor " + name + 
+        logger_.log(Logger::MessageType::MessageError, "Unable to remove unexisting tensor " + name +
             " from the computation model");
         return false;
     }
@@ -100,7 +100,7 @@ bool mv::DataModel::undefineTensor(const string &name)
     auto tensorSource = tensorsSources_->find(name);
     if (tensorSource != tensorsSources_->end())
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to remove the tensor " + name + 
+        logger_.log(Logger::MessageType::MessageError, "Unable to remove the tensor " + name +
             " that is an output of the operation " + tensorSource->second->getName() + " - source "
             "operation has to be removed to achieve this");
         return false;
@@ -135,13 +135,15 @@ bool mv::DataModel::addAllocator(const string &name, std::size_t size, Order ord
 }
 
 mv::Data::BufferIterator mv::DataModel::allocateTensor(const string &allocatorName, Control::StageIterator &stage,
-    Data::TensorIterator &tensor, int pad)
+    Data::TensorIterator &tensor, mv::dynamic_vector<size_t> pad)
 {
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
     unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    if(pad.size() == 0)
+        pad = mv::dynamic_vector<size_t>(tensor->getShape().ndims(), 0);
     auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, stageIdx, pad);
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {
@@ -214,11 +216,9 @@ bool mv::DataModel::hasAllocator(const string& name)
 
     return false;
 
-}   
+}
 
 bool mv::DataModel::addAttr(Data::TensorIterator tensor, const string& name, const Attribute& attr)
 {
-
     return tensor->addAttr(name, attr);
-
 }

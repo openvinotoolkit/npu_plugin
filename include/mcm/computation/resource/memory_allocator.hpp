@@ -6,6 +6,7 @@
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/base/order/order_factory.hpp"
 
 namespace mv
 {
@@ -50,18 +51,26 @@ namespace mv
              */
             std::size_t size;
             /**
-             * @brief Value specifing the displacement between consequent storage memory blocks owned by the buffer
+             * @brief Values specifing the displacement between consequent storage memory blocks owned by the buffer
              */
-            std::size_t stride;
+            mv::dynamic_vector<size_t> strides;
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */
             std::size_t block;
             /**
+             * @brief Value specifing the size of the storage memory blocks owned by the buffer
+             */
+            std::size_t block_num;
+            /**
              * @brief Value specifing the displacement between the start location of the buffer and the beginning of
              * the first memory storage block
              */
-            std::size_t pad;
+            std::size_t left_pad;
+            /**
+             * @brief Value specifing the displacement between the end of last memory storage block and the end location of the buffer.
+             */
+            std::size_t right_pad;
             /**
              * @brief Tensor allocated in the buffer
              */
@@ -70,6 +79,7 @@ namespace mv
             bool operator<(const MemoryBuffer& other) const;
             std::string toString(bool printValues = false) const;
             bool operator==(const MemoryBuffer& other){
+                // TODO: Also check length and other things.
                 return this->offset == other.offset;
             };
 
@@ -92,7 +102,7 @@ namespace mv
         /**
          * @brief Order of 1-dimensional representations of multidimensional tensors allocated by the allocator
          */
-        Order order_;
+        std::unique_ptr<OrderClass> order_;
 
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
@@ -106,7 +116,36 @@ namespace mv
     public:
 
         MemoryAllocator(string name, std::size_t size, Order order);
-        BufferIterator allocate(Data::TensorIterator tensor, unsigned stageIdx, int pad = -1);
+        template <typename VecType>
+        mv::MemoryAllocator::BufferIterator allocate(Data::TensorIterator tensor, unsigned stageIdx, const VecType& paddings)
+        {
+            // TODO: Move this to the cpp.
+
+            mv::dynamic_vector<size_t> strides;
+            Shape s(tensor->getShape());
+            writeStrides(paddings, s, strides);
+            //Last stride is actually right padding
+            size_t right_pad = strides.back();
+            strides.pop_back();
+            size_t left_pad = 0; //No real reason to allocate any left pad at the moment
+            size_t block = s[order_->firstContiguousDimensionIndex(s)];
+            size_t offset = 0;
+            size_t size = s.totalSize();
+            size_t block_num = size / block;
+            for(size_t stride: strides)
+                size += stride;
+            size += right_pad;
+            size += left_pad;
+            MemoryBuffer newBuffer = {offset, size, strides, block, block_num, left_pad, right_pad, tensor};
+
+            if (entries_.find(stageIdx) == entries_.end())
+                entries_.emplace(stageIdx, std::map<Data::TensorIterator, allocator::owner_ptr<MemoryBuffer>, TensorIteratorComparator>());
+            else
+                if (entries_[stageIdx].size() != 0)
+                    newBuffer.offset = entries_[stageIdx].rbegin()->second->offset + entries_[stageIdx].rbegin()->second->size;
+
+            return entries_[stageIdx].emplace(tensor, allocator_.make_owner<MemoryBuffer>(newBuffer)).first;
+        }
         bool deallocate(Data::TensorIterator tensor, unsigned stageIdx);
         void deallocateAll(unsigned stageIdx);
         long long freeSpace(unsigned stageIdx) const;
@@ -117,6 +156,35 @@ namespace mv
         BufferIterator bufferEnd(unsigned stageIdx);
         BufferIterator getBuffer(unsigned stageIdx, Data::TensorIterator tensor);
 
+        template <typename VecType1, typename VecType2>
+        long writeStrides(const VecType1& p, const mv::Shape& s, VecType2& strides)
+        {
+            return recursiveWriteStrides(order_->lastContiguousDimensionIndex(s), s, p, strides);
+        }
+
+        template <typename VecType1, typename VecType2>
+        long recursiveWriteStrides(unsigned i, const mv::Shape& d, const VecType1& p, VecType2& strides)
+        {
+            if(order_->isFirstContiguousDimensionIndex(d, i))
+            {
+                strides.push_back(p[i]);
+                return p[i] + d[i];
+            }
+            else
+            {
+                long new_stride;
+                for(unsigned c = 0; c < d[i]; ++c)
+                {
+                    unsigned next_dim_index = order_->previousContiguousDimensionIndex(d, i);
+                    new_stride = recursiveWriteStrides(next_dim_index, d, p, strides);
+                }
+                //Last stride should be joined (stride definition -> only between two blocks)
+                long toAdd = strides.back();
+                strides.pop_back();
+                strides.push_back(p[i] * new_stride + toAdd);
+                return new_stride * (d[i] + p[i])                                                                                                                                                                         ;
+            }
+        }
     };
 
 }

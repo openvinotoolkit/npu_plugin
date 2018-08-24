@@ -33,8 +33,6 @@ namespace mv
 void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
-    // TODO: Allocate Tensors for Bias, other 'attributes' which are Tensor data.
-
     using namespace mv;
 
     ControlModel cm(model);
@@ -51,7 +49,10 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         if (tIt->isPopulated())
         {
             auto stageIt = cm.getStage(0);
-            auto mem = dm.allocateTensor("ConstantMemory", stageIt, tIt);
+
+            mv::dynamic_vector<size_t> paddings; //TODO: Should be filled
+            dm.allocateTensor("ConstantMemory", stageIt, tIt, paddings);
+
         }
     }
 
@@ -138,7 +139,8 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                 pad = max_pad;
             }
 
-            dm.allocateTensor("IntermediateMemory", stageIt, tIt, pad);
+            mv::dynamic_vector<size_t> paddings; //TODO: Should be filled
+            dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
         }
     }
 
