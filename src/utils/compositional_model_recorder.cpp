@@ -135,7 +135,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::maxpool2D(Data::TensorI
 	/*Construct a string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::MaxPool2D) << " =" << " rc.maxpool2D(" << sourceIt0->getName()<< ", " << Printable::toString(kernelSize) << ", " << Printable::toString(stride) << ", " << Printable::toString(padding) << ")" << ";" << "\n";;
 	outputSourceFile << ss.str();
-	ss.str("");
+	ss.str("");https://www.geeksforgeeks.org/new-and-delete-operators-in-cpp-for-dynamic-memory/
 	outputSourceFile.close();
 
 	auto result = modelRef_.maxpool2D(inputTensor, kernelSize, stride, padding, name);
@@ -222,7 +222,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::scale(Data::TensorItera
 
 mv::Data::TensorIterator mv::CompositionalModelRecorder::relu(Data::TensorIterator inputTensor, const string& name)
 {
-	/*get the name of the argument(s)*/
+	/*get the name of the argument(s)*/https://www.geeksforgeeks.org/new-and-delete-operators-in-cpp-for-dynamic-memory/
 	auto sourceIt0 = modelRef_.getSourceOp(inputTensor);
 
 	/*open the recording file*/
