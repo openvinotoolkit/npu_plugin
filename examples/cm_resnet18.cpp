@@ -14,6 +14,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
+#define COMPOSITIONAL_MODEL_RECORDER
 /**
  * @brief Helper function creates a chain of conv2D and batchnorm attached to the selected input tensor
  * 
@@ -85,10 +86,10 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 
 int main()
 {
-
     // Define the primary compilation unit
-    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseDebug);
 
+#ifndef COMPOSITIONAL_MODEL_RECORDER
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
 
@@ -111,6 +112,36 @@ int main()
     auto fc1000 = cm.fullyConnected(pool5, weights);
     auto softmax = cm.softmax(fc1000);
     cm.output(softmax);
+
+#else
+    // Compose the model for ResNet18
+    // Obtain compositional model recorder from the compilation unit
+    mv::CompositionalModel& rc = unit.recordedModel();
+
+    auto input = rc.input(mv::Shape(224, 224, 3), mv::DType::Float, mv::Order::ColumnMajorPlanar);
+    auto conv1 = convBatchNormBlock(rc, input, mv::Shape(7, 7, 3, 64), {2, 2}, {3, 3, 3, 3});
+    conv1 = rc.relu(conv1);
+    auto pool1 = rc.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1}); //Calls are OK to here
+    auto res2a = residualConvBlock(rc, pool1, 64, {1, 1});
+    auto res2b = residualBlock(rc, res2a);
+    auto res3a = residualConvBlock(rc, res2b, 128, {2, 2});
+    auto res3b = residualBlock(rc, res3a);
+    auto res4a = residualConvBlock(rc, res3b, 256, {2, 2});
+    auto res4b = residualBlock(rc, res4a);
+    auto res5a = residualConvBlock(rc, res4b, 512, {2, 2});
+    auto res5b = residualBlock(rc, res5a);
+    auto pool5 = rc.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
+
+    mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(pool5->getShape().totalSize() * 1000u);
+
+    auto weights = rc.constant(weightsData, mv::Shape(pool5->getShape().totalSize(), 1000), mv::DType::Float, mv::Order::ColumnMajorPlanar);
+
+
+    auto fc1000 = rc.fullyConnected(pool5, weights);
+    auto softmax = rc.softmax(fc1000);
+    rc.output(softmax);
+
+#endif
 
     // Load target descriptor for the selected target to the compilation unit
     if (!unit.loadTargetDescriptor(mv::Target::ma2480))
