@@ -16,6 +16,8 @@ namespace mv
     {
 
         static const std::string ma2480DefDescPath_;
+        static const std::string compositionalModelRecordingsPath_;
+
         static Logger& logger_;
 
         OpModel* model_;

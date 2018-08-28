@@ -35,6 +35,10 @@ int main()
     
     mv::conjoined_graph<std::string, string_1, string_2, mv::stl_allocator> cg;
 
+
+    mv::graph<std::string, string_1, mv::stl_allocator> graph1;
+    mv::graph<std::string, string_2, mv::stl_allocator> graph2;
+
     mv::graph<std::string, string_1, mv::stl_allocator> &g1 = cg.get_first();
     mv::graph<std::string, string_2, mv::stl_allocator> &g2 = cg.get_second();
 
@@ -43,6 +47,11 @@ int main()
     auto g1n3It = g1.node_insert(g1n1It, "g1_n3", "g1_e2");
     auto g1n4It = g1.node_insert(g1n2It, "g1_n4", "g1_e3");
     auto g1n5It = g1.node_insert(g1n2It, "g1_n5", "g1_e4");
+
+
+
+    mv::Visualizer gv(mv::node_content, mv::edge_content);
+    gv.print_dot(g1);
 
 
     auto g2n1It = g2.node_insert("g2_n1");
@@ -82,7 +91,6 @@ int main()
     for (auto it = g2.node_begin(); it != g2.node_end(); ++it)
         std::cout << *it << std::endl;
 
-    mv::Visualizer gv(mv::node_content, mv::edge_content);
     gv.print_dot(g1);
 
     gv.print_dot(g2);
@@ -106,7 +114,5 @@ int main()
     std::cout << g1.edge_size() << std::endl;
     std::cout << g2.node_size() << std::endl;
     std::cout << g2.edge_size() << std::endl;
-
-    
 
 }

@@ -36,19 +36,19 @@ namespace mv
         template <class T>
         static string toString(Vector2D<T> value)
         {
-            return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ")"; 
+            return "{" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + "}";
         }
 
         template <class T>
         static string toString(Vector3D<T> value)
         {
-            return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + ")"; 
+            return "{" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + "}";
         }
 
         template <class T>
         static string toString(Vector4D<T> value)
         {
-            return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + ", " + Printable::toString(value.e3) + ")"; 
+            return "{" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + ", " + Printable::toString(value.e3) + "}";
         }
 
     };
