@@ -68,31 +68,31 @@ import_array();
         return a;
     }
 
-    mv::Shape * getShape(int x){
+    mv::Shape * getShape(std::size_t x){
         /// Create a c++ shape object from a passed in set of dimension sizes
         mv::Shape* a = new mv::Shape({x});
         return a;
     }
 
-    mv::Shape * getShape(int x, int y){
+    mv::Shape * getShape(std::size_t x, std::size_t y){
         /// Create a c++ shape object from a passed in set of dimension sizes
         mv::Shape* a = new mv::Shape({x, y});
         return a;
     }
 
-    mv::Shape * getShape(int x, int y, int z){
+    mv::Shape * getShape(std::size_t x, std::size_t y, std::size_t z){
         /// Create a c++ shape object from a passed in set of dimension sizes
         mv::Shape* a = new mv::Shape({x, y, z});
         return a;
     }
 
-    mv::Shape * getShape(int b, int x, int y, int z){
+    mv::Shape * getShape(std::size_t b, std::size_t x, std::size_t y, std::size_t z){
         /// Create a c++ shape object from a passed in set of dimension sizes
         mv::Shape* a = new mv::Shape({b, x, y, z});
         return a;
     }
 
-    std::vector<double> * getData(double * d, unsigned len){
+    std::vector<double> * getData(double * d, std::size_t len){
         /// Populate a Vector with a numpy array.
         std::vector<double> * weightsData = new std::vector<double>(d, d + len);
         return weightsData;
@@ -349,8 +349,8 @@ mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z);
 
 // Expand a numpy array to a data pointer and a length
 %include "stdint.i"
-%apply (double* INPLACE_ARRAY1, int DIM1) {(double* d, int len)}
-std::vector<double> * getData(double * d, int len);
+%apply (double* INPLACE_ARRAY1, std::size_t DIM1) {(double* d, std::size_t len)}
+std::vector<double> * getData(double * d, std::size_t len);
 
 
 mv::Data::TensorIterator input(mv::OpModel * o, const mv::Shape &shape);
