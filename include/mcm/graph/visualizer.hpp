@@ -60,8 +60,8 @@ namespace mv
         *
         * @param graph_2_show (by reference) points to the graph you want to visualize
         */
-        template <class T_node, class T_edge, class T_allocator>
-        void print_dot(mv::graph<T_node, T_edge, T_allocator>& graph_2_show)
+        template <class T_node, class T_edge>
+        void print_dot(mv::graph<T_node, T_edge>& graph_2_show)
         {
 
             std::cout << "digraph G {" << std::endl ;
@@ -85,8 +85,8 @@ namespace mv
             std::cout << "visualizing graph. node, edge modes= " << node_display_mode << " " << edge_display_mode << std::endl;
         }
 
-        template <class T_node, class T_edge, class T_allocator>
-        void print_nodes(mv::graph<T_node, T_edge, T_allocator>& graph_2_show)
+        template <class T_node, class T_edge>
+        void print_nodes(mv::graph<T_node, T_edge>& graph_2_show)
         {
             for (auto it = graph_2_show.node_begin(); it != graph_2_show.node_end(); ++it)
             {
@@ -113,8 +113,8 @@ namespace mv
     
         }
 
-        template <class T_node, class T_edge, class T_allocator>
-        void print_edges(mv::graph<T_node, T_edge, T_allocator>& graph_2_show)
+        template <class T_node, class T_edge>
+        void print_edges(mv::graph<T_node, T_edge>& graph_2_show)
         {
             for (auto it = graph_2_show.edge_begin(); it != graph_2_show.edge_end(); ++it)
             {

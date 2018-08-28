@@ -3,10 +3,9 @@
 #include <string>
 #include <vector>
 #include "include/mcm/graph/graph.hpp"
-#include "include/mcm/graph/stl_allocator.hpp"
 #include "include/mcm/graph/visualizer.hpp"
 
-using int_int_graph = mv::graph<int, int, mv::stl_allocator>;
+using int_int_graph = mv::graph<int, int>;
 
 TEST (graph_container, int_int_graph_contruction) {
     // build a test int_int_graph
@@ -419,7 +418,7 @@ TEST (graph_container, int_int_graph_manipulation)
 */
 }
 
-using char_int_graph = mv::graph<char, int, mv::stl_allocator>;
+using char_int_graph = mv::graph<char, int>;
 
 TEST (graph_container, int_int_graph_operations)
 {

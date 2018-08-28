@@ -22,10 +22,6 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
     endif()
 endif()
 
-file(GLOB allocator
-    "src/graph/base_allocator.cpp"
-)
-
 file(GLOB base
     "src/base/attribute.cpp"
     "src/base/printable.cpp"

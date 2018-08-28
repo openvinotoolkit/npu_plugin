@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include "include/mcm/graph/stl_allocator.hpp"
 #include "include/mcm/graph/conjoined_graph.hpp"
 #include "include/mcm/graph/visualizer.hpp"
 
@@ -33,10 +32,10 @@ public:
 int main()
 {
     
-    mv::conjoined_graph<std::string, string_1, string_2, mv::stl_allocator> cg;
+    mv::conjoined_graph<std::string, string_1, string_2> cg;
 
-    mv::graph<std::string, string_1, mv::stl_allocator> &g1 = cg.get_first();
-    mv::graph<std::string, string_2, mv::stl_allocator> &g2 = cg.get_second();
+    mv::graph<std::string, string_1> &g1 = cg.get_first();
+    mv::graph<std::string, string_2> &g2 = cg.get_second();
 
     auto g1n1It = g1.node_insert("g1_n1");
     auto g1n2It = g1.node_insert(g1n1It, "g1_n2", "g1_e1");

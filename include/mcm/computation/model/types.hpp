@@ -7,7 +7,6 @@
 #include <map>
 #include <memory>
 #include <assert.h>
-#include "include/mcm/graph/stl_allocator.hpp"
 #include "include/mcm/graph/conjoined_graph.hpp"
 
 namespace mv
@@ -17,8 +16,7 @@ namespace mv
     class DataFlow;
     class ControlFlow;
 
-    using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>,
-        std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>, stl_allocator, std::size_t>;
+    using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
 
     class StdOutLogger;
     typedef StdOutLogger DefaultLogger;

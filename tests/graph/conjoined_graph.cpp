@@ -1,6 +1,5 @@
 #include "gtest/gtest.h"
 #include "include/mcm/graph/conjoined_graph.hpp"
-#include "include/mcm/graph/stl_allocator.hpp"
 #include "include/mcm/graph/visualizer.hpp"
 #include <string>
 
@@ -28,7 +27,7 @@ public:
 
 };
 
-using str_conjoined_graph = mv::conjoined_graph<std::string, Str1, Str2, mv::stl_allocator>;
+using str_conjoined_graph = mv::conjoined_graph<std::string, Str1, Str2>;
 
 
 TEST(conjoined_graph, skip_child)

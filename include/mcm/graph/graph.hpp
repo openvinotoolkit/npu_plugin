@@ -1,8 +1,9 @@
 #ifndef GRAPH_CONTAINER_HPP_
 #define GRAPH_CONTAINER_HPP_
 
-#include <stdint.h>
-#include "include/mcm/graph/pair.hpp"
+#include <memory>
+#include <set>
+#include <deque>
 
 namespace mv
 {
@@ -72,7 +73,7 @@ namespace mv
          * 
          * @tparam T_unique Type of compared iterable object
          */
-        template <class T_unique, class T_allocator>
+        template <class T_unique>
         struct id_comparator_class
         {
 
@@ -84,7 +85,7 @@ namespace mv
              * @return true If rhs has greater ID than lhs
              * @return false If lhs has greater or equal ID to rhs
              */
-            bool operator()(const typename T_allocator::template access_ptr<T_unique>& lhs, const typename T_allocator::template access_ptr<T_unique>& rhs)
+            bool operator()(const typename std::weak_ptr<T_unique>& lhs, const typename std::weak_ptr<T_unique>& rhs)
             {
                 return lhs.lock()->getID() < rhs.lock()->getID();
             }
@@ -97,7 +98,7 @@ namespace mv
              * @return true If rhs has greater ID than lhs
              * @return false If lhs has greater or equal ID to rhs
              */
-            bool operator()(const typename T_allocator::template owner_ptr<T_unique>& lhs, const typename T_allocator::template owner_ptr<T_unique>& rhs)
+            bool operator()(const typename std::shared_ptr<T_unique>& lhs, const typename std::shared_ptr<T_unique>& rhs)
             {
                 return lhs->getID() < rhs->getID();
             }
@@ -121,7 +122,7 @@ namespace mv
      * @tparam T_node Type of nodes content
      * @tparam T_edge Type of edges content
      */
-    template <class T_node, class T_edge, class T_allocator, class T_size = uint32_t>
+    template <class T_node, class T_edge>
     class graph
     {
 
@@ -131,20 +132,11 @@ namespace mv
 
     private:
 
-        using unique_element = detail::unique_element_class<T_size>;
-        using base_node = detail::base_node_class<T_node, T_size>;
+        using unique_element = detail::unique_element_class<std::size_t>;
+        using base_node = detail::base_node_class<T_node, std::size_t>;
 
         template <class T_unique>
-        using id_comparator = detail::id_comparator_class<T_unique, T_allocator>;
-
-        template <class T>
-        using owner_ptr = typename T_allocator::template owner_ptr<T>;
-
-        template <class T>
-        using access_ptr = typename T_allocator::template access_ptr<T>;
-
-        //template <class T>
-        //using opaque_ptr = typename T_allocator::template opaque_ptr<T>;
+        using id_comparator = detail::id_comparator_class<T_unique>;
         
         template <class T_iterable, class T_content> class base_iterator;
         template <class T_iterable, class T_content> class list_iterator;
@@ -159,22 +151,22 @@ namespace mv
         class edge;
         
         template <class T_iterable>
-        using iterable_access_set = typename T_allocator::template set<access_ptr<T_iterable>, id_comparator<T_iterable> >;
+        using iterable_access_set = typename std::set<std::weak_ptr<T_iterable>, id_comparator<T_iterable> >;
 
         template <class T_iterable>
-        using iterable_access_set_ptr = owner_ptr<iterable_access_set<T_iterable> >;
+        using iterable_access_set_ptr = std::shared_ptr<iterable_access_set<T_iterable> >;
 
         template <class T_iterable>
-        using iterable_owner_set = typename T_allocator::template set<owner_ptr<T_iterable>, id_comparator<T_iterable> >;
+        using iterable_owner_set = typename std::set<std::shared_ptr<T_iterable>, id_comparator<T_iterable> >;
 
         template <class T_iterable>
-        using iterable_owner_set_ptr = owner_ptr<iterable_owner_set<T_iterable> >;
+        using iterable_owner_set_ptr = std::shared_ptr<iterable_owner_set<T_iterable> >;
 
         template <class T_iterable>
-        using access_deque = typename T_allocator::template deque<access_ptr<T_iterable> >;
+        using access_deque = std::deque<std::weak_ptr<T_iterable> >;
 
         template <class T_iterable>
-        using access_deque_ptr = owner_ptr<access_deque<T_iterable> >;
+        using access_deque_ptr = std::shared_ptr<access_deque<T_iterable> >;
         
 
         // Curiously recurring template pattern
@@ -185,9 +177,6 @@ namespace mv
         protected:
 
             graph& graph_;
-            //T_content content_;
-            const T_allocator& allocator_;
-
             iterable_access_set_ptr<T_iterable> children_;
             iterable_access_set_ptr<T_iterable> parents_;
             iterable_access_set_ptr<T_iterable> siblings_;
@@ -222,10 +211,10 @@ namespace mv
                 return *siblings_;   
             }
 
-            bool add_child_(const access_ptr<T_iterable>& child)
+            bool add_child_(const std::weak_ptr<T_iterable>& child)
             {
 
-                if (child)
+                if (!child.expired())
                 {
                     auto result = children_->insert(child);
                     
@@ -240,10 +229,10 @@ namespace mv
 
             }
 
-            bool add_parent_(const access_ptr<T_iterable>& parent, const access_ptr<T_iterable>& child)
+            bool add_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& child)
             {
 
-                if (parent && child)
+                if (!parent.expired() && !child.expired())
                 {
 
                     // Bond child to parent
@@ -253,15 +242,15 @@ namespace mv
                     {
 
                         // Bond with new siblings
-                        for (auto new_sibling = parent->get_children().begin(); new_sibling != parent->get_children().end(); ++new_sibling)
+                        for (auto new_sibling = parent.lock()->get_children().begin(); new_sibling != parent.lock()->get_children().end(); ++new_sibling)
                         {
 
-                            if (*new_sibling != child)
+                            if (new_sibling->lock() != child.lock())
                             {
                                 // Add child of a common parent as a sibling
                                 auto result_1 = siblings_->insert(*new_sibling);
                                 // Add new child to siblings of child of a common parent
-                                auto result_2 = (*new_sibling)->siblings_->insert(child);
+                                auto result_2 = (*new_sibling).lock()->siblings_->insert(child);
     
                                 // Check if any insertion failed
                                 if (!result_1.second || !result_2.second)
@@ -272,11 +261,11 @@ namespace mv
 
                                         // Revert changes
                                         for (typename iterable_access_set<T_iterable>::reverse_iterator revert_sibling(++new_sibling);
-                                        revert_sibling != parent->get_children().rend(); ++revert_sibling)
+                                        revert_sibling != parent.lock()->get_children().rend(); ++revert_sibling)
                                         {
                                             
                                             siblings_->erase(*revert_sibling);
-                                            (*revert_sibling)->siblings_->erase(child);
+                                            (*revert_sibling).lock()->siblings_->erase(child);
 
                                         }
 
@@ -304,15 +293,15 @@ namespace mv
 
             }
 
-            void remove_child_(const access_ptr<T_iterable>& child)
+            void remove_child_(const std::weak_ptr<T_iterable>& child)
             {
 
-                if (child)
+                if (!child.expired())
                 {
 
-                    for (auto sibling : *child->siblings_)
+                    for (auto sibling : *(child.lock()->siblings_))
                     {
-                        if (sibling)
+                        if (!sibling.expired())
                         {
 
                             unsigned common_parents = 0;
@@ -320,7 +309,7 @@ namespace mv
                             for (auto child_parent : *parents_)
                             {
 
-                                if (sibling->parents_->find(child_parent) != sibling->parents_->end())
+                                if (sibling.lock()->parents_->find(child_parent) != sibling.lock()->parents_->end())
                                     ++common_parents;
 
                             }
@@ -328,8 +317,8 @@ namespace mv
                             if (common_parents <= 1)
                             {
 
-                                sibling->siblings_->erase(child);
-                                child->siblings_->erase(sibling);
+                                sibling.lock()->siblings_->erase(child);
+                                child.lock()->siblings_->erase(sibling);
 
                             }
                             
@@ -342,15 +331,15 @@ namespace mv
 
             }
 
-            void remove_parent_(const access_ptr<T_iterable>& parent, const access_ptr<T_iterable>& child)
+            void remove_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& child)
             {
                 
-                if (parent && child)
+                if (!parent.expired() && !child.expired())
                 {
 
                     for (auto sibling : *siblings_)
                     {
-                        if (sibling)
+                        if (!sibling.expired())
                         {
 
                             unsigned common_parents = 0;
@@ -358,7 +347,7 @@ namespace mv
                             for (auto child_parent : *parents_)
                             {
 
-                                if (sibling->parents_->find(child_parent) != sibling->parents_->end())
+                                if (sibling.lock()->parents_->find(child_parent) != sibling.lock()->parents_->end())
                                     ++common_parents;
 
                             }
@@ -366,8 +355,8 @@ namespace mv
                             if (common_parents <= 1)
                             {
 
-                                sibling->siblings_->erase(child);
-                                child->siblings_->erase(sibling);
+                                sibling.lock()->siblings_->erase(child);
+                                child.lock()->siblings_->erase(sibling);
 
                             }
                             
@@ -383,15 +372,12 @@ namespace mv
 
         public:
             
-            //iterable(graph& master_graph, const T_content& content, T_size id) :
-            iterable(graph& master_graph, T_size id) :
+            iterable(graph& master_graph, std::size_t id) :
             unique_element(id), 
             graph_(master_graph),
-            //content_(content),
-            allocator_(master_graph.allocator_),
-            children_(allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>()),
-            parents_(allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>()),
-            siblings_(allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>())
+            children_(std::make_shared<std::set<std::weak_ptr<T_iterable>, id_comparator<T_iterable>>>()),
+            parents_(std::make_shared<std::set<std::weak_ptr<T_iterable>, id_comparator<T_iterable>>>()),
+            siblings_(std::make_shared<std::set<std::weak_ptr<T_iterable>, id_comparator<T_iterable>>>())
             {
 
             }
@@ -400,17 +386,17 @@ namespace mv
 
             virtual ~iterable() = 0;
 
-            T_size children_size() const
+            std::size_t children_size() const
             {
                 return children_->size();
             }
 
-            T_size siblings_size() const
+            std::size_t siblings_size() const
             {
                 return siblings_->size();
             }
 
-            T_size parents_size() const
+            std::size_t parents_size() const
             {
                 return parents_->size();
             }
@@ -448,14 +434,14 @@ namespace mv
         };
 
         template <class T_iterable, class T_content>
-        class base_iterator : protected access_ptr<T_iterable>
+        class base_iterator : protected std::weak_ptr<T_iterable>
         {
 
             friend class graph;
 
         protected:
 
-            access_ptr<T_iterable> get() const
+            std::weak_ptr<T_iterable> get() const
             {
                 return *(this);
             }
@@ -463,20 +449,20 @@ namespace mv
 
         public:
 
-            base_iterator(const owner_ptr<T_iterable>& obj_ptr) : 
-            access_ptr<T_iterable>(obj_ptr)
+            base_iterator(const std::shared_ptr<T_iterable>& obj_ptr) : 
+            std::weak_ptr<T_iterable>(obj_ptr)
             {
                 
             }
 
-            base_iterator(const access_ptr<T_iterable>& obj_ptr) : 
-            access_ptr<T_iterable>(obj_ptr)
+            base_iterator(const std::weak_ptr<T_iterable>& obj_ptr) : 
+            std::weak_ptr<T_iterable>(obj_ptr)
             {
                 
             }
 
             base_iterator(const base_iterator& other) :
-            access_ptr<T_iterable>(other)
+            std::weak_ptr<T_iterable>(other)
             {
                 
             }
@@ -491,7 +477,7 @@ namespace mv
             virtual base_iterator& operator=(const base_iterator& other)
             {
                 
-                access_ptr<T_iterable>::operator=(other);
+                std::weak_ptr<T_iterable>::operator=(other);
                 return *this;
                 
             }
@@ -501,17 +487,28 @@ namespace mv
             
             T_content& operator*() const
             {
-                return access_ptr<T_iterable>::operator*().get_content();
+                return std::weak_ptr<T_iterable>::lock()->get_content();
             }
 
             T_iterable* operator->() const
             {
-                return access_ptr<T_iterable>::operator->();
+                return std::weak_ptr<T_iterable>::lock().operator->();
             }
 
             bool operator==(const base_iterator& other) const noexcept
             {
-                return access_ptr<T_iterable>::operator==(other);
+                if (!this->expired())
+                {
+                    if (!other.expired())
+                        return *std::weak_ptr<T_iterable>::lock() == *other.lock();
+                }
+                else
+                {
+                    if (other.expired())
+                        return true;
+                }
+
+                return false;
             }
 
             bool operator!=(const base_iterator& other) const noexcept
@@ -519,7 +516,10 @@ namespace mv
                 return !operator==(other);
             }
 
-            using access_ptr<T_iterable>::operator bool;
+            explicit operator bool() const noexcept
+            {
+                return !std::weak_ptr<T_iterable>::expired();
+            }
 
         };
 
@@ -534,20 +534,20 @@ namespace mv
 
         public:
 
-            list_iterator(const owner_ptr<T_iterable>& obj_ptr) : 
+            list_iterator(const std::shared_ptr<T_iterable>& obj_ptr) : 
             base_iterator<T_iterable, T_content>(obj_ptr)
             {
 
-                if (this->get())
+                if (*this)
                     it_ = (*this)->graph_.find(this->get());
 
             }
 
-            list_iterator(const access_ptr<T_iterable>& obj_ptr) :
+            list_iterator(const std::weak_ptr<T_iterable>& obj_ptr) :
             base_iterator<T_iterable, T_content>(obj_ptr)
             {
 
-                if (this->get())
+                if (*this)
                     it_ = (*this)->graph_.find(this->get());
 
             }
@@ -556,7 +556,7 @@ namespace mv
             base_iterator<T_iterable, T_content>(other)
             {
 
-                if (this->get())
+                if (*this)
                     it_ = (*this)->graph_.find(this->get());
 
             }
@@ -573,7 +573,7 @@ namespace mv
             it_(++(other.it_).base())
             {
 
-                if (this->get())
+                if (*this)
                     it_ = (*this)->graph_.find(this->get());
 
             }
@@ -591,13 +591,13 @@ namespace mv
             list_iterator& operator++()
             {
 
-                if (this->get())
+                if (*this)
                 {
                     
                     ++it_;
 
-                    if (it_ != (*this)->graph_.set_end(static_cast<access_ptr<T_iterable>>(*this)))
-                        this->set(*it_);
+                    if (it_ != (*this)->graph_.set_end(static_cast<std::weak_ptr<T_iterable>>(*this)))
+                        std::weak_ptr<T_iterable>::operator=(*it_);
                     else
                         this->reset();
 
@@ -613,15 +613,15 @@ namespace mv
                 if (this->get())
                 {
 
-                    if (it_ == (*this)->graph_.set_begin(static_cast<access_ptr<T_iterable>>(*this)))
+                    if (it_ == (*this)->graph_.set_begin(static_cast<std::weak_ptr<T_iterable>>(*this)))
                     {
-                        it_ = (*this)->graph_.set_end(static_cast<access_ptr<T_iterable>>(*this));
+                        it_ = (*this)->graph_.set_end(static_cast<std::weak_ptr<T_iterable>>(*this));
                         this->reset();
                     }
                     else
                     {
                         --it_;
-                        this->set(*it_);
+                        std::weak_ptr<T_iterable>::operator=(*it_);
                     }
 
                 }
@@ -643,7 +643,7 @@ namespace mv
             {
 
                 base_iterator<T_iterable, T_content>::operator=(other);
-                if (this->get())
+                if (*this)
                     it_ = (*this)->graph_.find(this->get());
                 return *this;
 
@@ -662,20 +662,20 @@ namespace mv
 
         public:
 
-            reverse_list_iterator(const owner_ptr<T_iterable>& obj_ptr) : 
+            reverse_list_iterator(const std::shared_ptr<T_iterable>& obj_ptr) : 
             base_iterator<T_iterable, T_content>(obj_ptr)
             {
-                if (this->get())
+                if (*this)
                 {
                     reverse_set_iterator it(++(*this)->graph_.find(this->get()));
                     it_ = it;
                 }
             }
 
-            reverse_list_iterator(const access_ptr<T_iterable>& obj_ptr) : 
+            reverse_list_iterator(const std::weak_ptr<T_iterable>& obj_ptr) : 
             base_iterator<T_iterable, T_content>(obj_ptr)
             {
-                if (this->get())
+                if (*this)
                 {
                     reverse_set_iterator it(++(*this)->graph_.find(this->get()));
                     it_ = it;
@@ -686,7 +686,7 @@ namespace mv
             base_iterator<T_iterable, T_content>(other)
             {
 
-                if (this->get())
+                if (*this)
                 {
                     reverse_set_iterator it(++(*this)->graph_.find(this->get()));
                     it_ = it;
@@ -714,13 +714,13 @@ namespace mv
             reverse_list_iterator& operator++()
             {
 
-                if (this->get())
+                if (*this)
                 {
 
                     ++it_;
 
-                    if (it_ != (*this)->graph_.set_rend(static_cast<access_ptr<T_iterable>>(*this)))
-                        this->set(*it_);
+                    if (it_ != (*this)->graph_.set_rend(static_cast<std::weak_ptr<T_iterable>>(*this)))
+                        std::weak_ptr<T_iterable>::operator=(*it_);
                     else
                         this->reset();
 
@@ -733,18 +733,18 @@ namespace mv
             reverse_list_iterator& operator--()
             {
 
-                if (this->get())
+                if (*this)
                 {
 
-                    if (it_ == (*this)->graph_.set_rbegin(static_cast<access_ptr<T_iterable>>(*this)))
+                    if (it_ == (*this)->graph_.set_rbegin(static_cast<std::weak_ptr<T_iterable>>(*this)))
                     {
-                        it_ = (*this)->graph_.set_rend(static_cast<access_ptr<T_iterable>>(*this));
+                        it_ = (*this)->graph_.set_rend(static_cast<std::weak_ptr<T_iterable>>(*this));
                         this->reset();
                     }
                     else
                     {
                         --it_;
-                        this->set(*it_);
+                        std::weak_ptr<T_iterable>::operator=(*it_);
                     }
 
                 }
@@ -773,18 +773,17 @@ namespace mv
         protected:
 
             access_deque_ptr<T_iterable> search_list_;
-            const T_allocator& allocator_;
 
-            void visit_(const access_ptr<T_iterable>& v)
+            void visit_(const std::weak_ptr<T_iterable>& v)
             {
-                if (v)
+                if (!v.expired())
                 {
 
                     auto result = labeled_->insert(v);
                     if (result.second)
                     {
                         this->update_list_(v);
-                        this->set(v);
+                        std::weak_ptr<T_iterable>::operator=(v);
                     }
                     else
                     {
@@ -801,23 +800,22 @@ namespace mv
 
             }
 
-            virtual void update_list_(const access_ptr<T_iterable>& v) = 0;
+            virtual void update_list_(const std::weak_ptr<T_iterable>& v) = 0;
 
         public:
 
             search_iterator(const base_iterator<T_iterable, T_content>& other) :
             base_iterator<T_iterable, T_content>(other),
-            labeled_(graph::allocator_.template make_set<access_ptr<T_iterable>, id_comparator<T_iterable>>()),
-            search_list_(graph::allocator_.template make_deque<access_ptr<T_iterable>>()),
-            allocator_(graph::allocator_)
+            labeled_(std::make_shared<std::set<std::weak_ptr<T_iterable>, id_comparator<T_iterable>>>()),
+            search_list_(std::make_shared<std::deque<std::weak_ptr<T_iterable>>>())
             {
-                if (this->get())
+                if (*this)
                 {
 
-                    auto result_1 = search_list_->push_front(this->get());
-                    auto result_2 = labeled_->insert(this->get());
+                    search_list_->push_front(this->get());
+                    auto result = labeled_->insert(this->get());
 
-                    if (!result_1 || !result_2.second)
+                    if (!result.second)
                     {
 
                         search_list_->clear();
@@ -834,15 +832,15 @@ namespace mv
             search_iterator& operator++()
             {
 
-                if (this->get())
+                if (*this)
                 {
                     while (!search_list_->empty())
                     {
 
-                        access_ptr<T_iterable> v = search_list_->front();
+                        std::weak_ptr<T_iterable> v = search_list_->front();
                         search_list_->pop_front();
         
-                        if (v && labeled_->find(v) == labeled_->end())
+                        if (!v.expired() && labeled_->find(v) == labeled_->end())
                         {
                             visit_(v);
                             return *this;
@@ -884,15 +882,15 @@ namespace mv
             search_direction dir_;
             search_side side_;
         
-            void update_list_(const access_ptr<T_iterable>& v)
+            void update_list_(const std::weak_ptr<T_iterable>& v)
             {
 
                 iterable_access_set<T_iterable> *adj;
 
                 if (dir_ == forward)
-                    adj =& v->get_children();
+                    adj =& v.lock()->get_children();
                 else
-                    adj =& v->get_parents();
+                    adj =& v.lock()->get_parents();
 
                 if (side_ == leftmost)
                 {
@@ -900,18 +898,9 @@ namespace mv
                     for (auto it = adj->rbegin(); it != adj->rend(); ++it)
                     {
 
-                        if (*it)
-                        {
+                        if (!it->expired())
+                            this->search_list_->push_front(*it);
 
-                            bool result = this->search_list_->push_front(*it);
-                            if (!result)
-                            {
-                                this->search_list_->clear();
-                                this->reset();
-                            }
-
-                        }
-    
                     }
 
                 }
@@ -920,17 +909,8 @@ namespace mv
 
                     for (auto it = adj->begin(); it != adj->end(); ++it)
                     {
-                        if (*it)
-                        {
-
-                            bool result = this->search_list_->push_front(*it);
-                            if (!result)
-                            {
-                                this->search_list_->clear();
-                                this->reset();
-                            }
-
-                        }
+                        if (!it->expired())
+                            this->search_list_->push_front(*it);
 
                     }
 
@@ -946,7 +926,7 @@ namespace mv
             dir_(dir),
             side_(side)
             {
-                if (this->get())
+                if (*this)
                     update_list_(this->get());
             }
 
@@ -981,15 +961,15 @@ namespace mv
             search_direction dir_;
             search_side side_;
 
-            void update_list_(const access_ptr<T_iterable>& v)
+            void update_list_(const std::weak_ptr<T_iterable>& v)
             {
 
                 iterable_access_set<T_iterable> *adj;
                 
                 if (dir_ == forward)
-                    adj =& v->get_children();
+                    adj =& v.lock()->get_children();
                 else
-                    adj =& v->get_parents();
+                    adj =& v.lock()->get_parents();
 
                 if (side_ == leftmost)
                 {
@@ -997,16 +977,9 @@ namespace mv
                     for (auto it = adj->begin(); it != adj->end(); ++it)
                     {
 
-                        if (*it)
-                        {
-
-                            bool result = this->search_list_->push_back(*it);
-                            if (!result)
-                            {
-                                this->search_list_->clear();
-                                this->reset();
-                            }
-                        }
+                        if (!it->expired())
+                            this->search_list_->push_back(*it);
+                
                     }
 
                 }
@@ -1015,15 +988,8 @@ namespace mv
 
                     for (auto it = adj->rbegin(); it != adj->rend(); ++it)
                     {
-                        if (*it)
-                        {
-                            bool result = this->search_list_->push_back(*it);
-                            if (!result)
-                            {
-                                this->search_list_->clear();
-                                this->reset();
-                            }
-                        }
+                        if (!it->expired())
+                            this->search_list_->push_back(*it);
                     }
 
                 }
@@ -1038,7 +1004,7 @@ namespace mv
             dir_(dir),
             side_(side)
             {
-                if (this->get())
+                if (*this)
                     update_list_(this->get());
             }
 
@@ -1074,7 +1040,7 @@ namespace mv
             current_relative_(current_relative)
             {
                 if (current_relative_ != relatives_.end())
-                    this->set(*current_relative_);
+                    std::weak_ptr<T_iterable>::operator=(*current_relative_);
             }
 
             relative_iterator(const iterable_access_set<T_iterable>& relatives) :
@@ -1082,20 +1048,20 @@ namespace mv
             current_relative_(relatives_.begin())
             {
                 if (current_relative_ != relatives_.end())
-                    this->set(*current_relative_);
+                    std::weak_ptr<T_iterable>::operator=(*current_relative_);
             }
 
             virtual ~relative_iterator() = 0;
 
             relative_iterator& operator++()
             {
-                if (this->get())
+                if (*this)
                 { 
 
                     ++current_relative_;
-                    if (current_relative_ != relatives_.end() && *current_relative_)
+                    if (current_relative_ != relatives_.end() && !current_relative_->expired())
                     {
-                        this->set(*current_relative_);
+                        std::weak_ptr<T_iterable>::operator=(*current_relative_);
                     }
                     else
                     {
@@ -1109,7 +1075,7 @@ namespace mv
 
             relative_iterator& operator--()
             {
-                if (this->get())
+                if (*this)
                 {
 
                     if (current_relative_ == relatives_.begin())
@@ -1120,7 +1086,7 @@ namespace mv
                     else
                     {
                         --current_relative_;
-                        this->set(*current_relative_);
+                        std::weak_ptr<T_iterable>::operator=(*current_relative_);
                     }
                 }
 
@@ -1247,7 +1213,7 @@ namespace mv
 
             friend class graph;
 
-            access_ptr<base_node> content_;
+            std::weak_ptr<base_node> content_;
 
             iterable_access_set_ptr<edge> inputs_;
             iterable_access_set_ptr<edge> outputs_;
@@ -1262,27 +1228,27 @@ namespace mv
                 content_.lock()->get_content() = content;
             }
 
-            void set_id_(T_size id)
+            void set_id_(std::size_t id)
             {
                 this->id_ = id;
             }
 
         public:
             
-            node(graph& master_graph, owner_ptr<base_node>& content) : 
+            node(graph& master_graph, std::shared_ptr<base_node>& content) : 
             //iterable<node, T_node>(master_graph, content, id),
             iterable<node, T_node>(master_graph, content->getID()),
             content_(content),
-            inputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>()),
-            outputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>())
+            inputs_(std::make_shared<std::set<std::weak_ptr<edge>, id_comparator<edge>>>()),
+            outputs_(std::make_shared<std::set<std::weak_ptr<edge>, id_comparator<edge>>>())
             {
 
             }
 
-            node(graph& master_graph, T_size id) :
+            node(graph& master_graph, std::size_t id) :
             iterable<node, T_node>(master_graph, id),
-            inputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>()),
-            outputs_(allocator_.template make_set<access_ptr<edge>, id_comparator<edge>>())
+            inputs_(std::make_shared<std::set<std::weak_ptr<edge>, id_comparator<edge>>>()),
+            outputs_(std::make_shared<std::set<std::weak_ptr<edge>, id_comparator<edge>>>())
             {
 
             }
@@ -1292,12 +1258,12 @@ namespace mv
 
             }
 
-            T_size inputs_size() const
+            std::size_t inputs_size() const
             {
                 return inputs_->size();
             }
 
-            T_size outputs_size() const 
+            std::size_t outputs_size() const 
             {
                 return outputs_->size();
             }
@@ -1333,8 +1299,8 @@ namespace mv
             
             T_edge content_;
 
-            access_ptr<node> source_;
-            access_ptr<node> sink_;
+            std::weak_ptr<node> source_;
+            std::weak_ptr<node> sink_;
 
             T_edge& get_stored_content_()
             {
@@ -1378,9 +1344,8 @@ namespace mv
 
     protected:
 
-        typename T_allocator::template owner_ptr<typename T_allocator::template 
-            set<typename T_allocator::template owner_ptr<detail::base_node_class<T_node, T_size>>, 
-            id_comparator<detail::base_node_class<T_node, T_size>>>> base_nodes_;
+        typename std::shared_ptr<std::set<std::shared_ptr<detail::base_node_class<T_node, std::size_t>>, 
+            id_comparator<detail::base_node_class<T_node, std::size_t>>>> base_nodes_;
         
     private:
         
@@ -1389,67 +1354,66 @@ namespace mv
 
     protected:
 
-        owner_ptr<T_size> node_id_;
-        owner_ptr<T_size> edge_id_;
+        std::shared_ptr<std::size_t> node_id_;
+        std::shared_ptr<std::size_t> edge_id_;
 
     private:
 
-        owner_ptr<node> search_node_;
-        static T_allocator allocator_;
+        std::shared_ptr<node> search_node_;
 
-        typename iterable_owner_set<node>::iterator find(access_ptr<node> node_ptr)
+        typename iterable_owner_set<node>::iterator find(std::weak_ptr<node> node_ptr)
         {
             return nodes_->find(node_ptr.lock());
         }
 
-        typename iterable_owner_set<edge>::iterator find(access_ptr<edge> edge_ptr)
+        typename iterable_owner_set<edge>::iterator find(std::weak_ptr<edge> edge_ptr)
         {
             return edges_->find(edge_ptr.lock());
         }
 
-        typename iterable_owner_set<node>::iterator set_begin(access_ptr<node>)
+        typename iterable_owner_set<node>::iterator set_begin(std::weak_ptr<node>)
         {
             return nodes_->begin();
         }
 
-        typename iterable_owner_set<edge>::iterator set_begin(access_ptr<edge>)
+        typename iterable_owner_set<edge>::iterator set_begin(std::weak_ptr<edge>)
         {
             return edges_->begin();
         }
 
-        typename iterable_owner_set<node>::iterator set_end(access_ptr<node>)
+        typename iterable_owner_set<node>::iterator set_end(std::weak_ptr<node>)
         {
             return nodes_->end();
         }
 
-        typename iterable_owner_set<edge>::iterator set_end(access_ptr<edge>)
+        typename iterable_owner_set<edge>::iterator set_end(std::weak_ptr<edge>)
         {
             return edges_->end();
         }
 
-        typename iterable_owner_set<node>::reverse_iterator set_rbegin(access_ptr<node>)
+        typename iterable_owner_set<node>::reverse_iterator set_rbegin(std::weak_ptr<node>)
         {
             return nodes_->rbegin();
         }
 
-        typename iterable_owner_set<edge>::reverse_iterator set_rbegin(access_ptr<edge>)
+        typename iterable_owner_set<edge>::reverse_iterator set_rbegin(std::weak_ptr<edge>)
         {
             return edges_->rbegin();
         }
 
-        typename iterable_owner_set<node>::reverse_iterator set_rend(access_ptr<node>)
+        typename iterable_owner_set<node>::reverse_iterator set_rend(std::weak_ptr<node>)
         {
             return nodes_->rend();
         }
 
-        typename iterable_owner_set<edge>::reverse_iterator set_rend(access_ptr<edge>)
+        typename iterable_owner_set<edge>::reverse_iterator set_rend(std::weak_ptr<edge>)
         {
             return edges_->rend();
         }
 
     protected:
 
-        owner_ptr<node> get_node_(owner_ptr<base_node>& b_node)
+        std::shared_ptr<node> get_node_(std::shared_ptr<base_node>& b_node)
         {
             //owner_ptr<node> n_ptr(*this, b_node);
             //return *nodes_->find(n_ptr);
@@ -1458,15 +1422,15 @@ namespace mv
             return *nodes_->find(search_node_);
         }
 
-        owner_ptr<base_node> get_base_node_(node_list_iterator& node_it)
+        std::shared_ptr<base_node> get_base_node_(node_list_iterator& node_it)
         {
             return node_it->content_.lock();
         }
 
-        virtual bool make_node_(owner_ptr<base_node>& b_node, owner_ptr<node>& new_node)
+        virtual bool make_node_(std::shared_ptr<base_node>& b_node, std::shared_ptr<node>& new_node)
         {
 
-            new_node = allocator_.template make_owner<node>(*this, b_node);
+            new_node = std::make_shared<node>(*this, b_node);
 
             if (new_node)
             {   
@@ -1484,7 +1448,7 @@ namespace mv
 
         }
 
-        virtual void terminate_node_(owner_ptr<base_node>& , owner_ptr<node>& del_node)
+        virtual void terminate_node_(std::shared_ptr<base_node>& , std::shared_ptr<node>& del_node)
         {
             
             if (del_node)
@@ -1516,13 +1480,14 @@ namespace mv
             edges_->clear();
         }
 
-        graph(const typename T_allocator::template owner_ptr<typename T_allocator::template set<typename T_allocator::template owner_ptr<detail::base_node_class<T_node, T_size>>, id_comparator<detail::base_node_class<T_node, T_size>>>>& base_nodes, const owner_ptr<T_size>& node_id) : 
+        graph(const std::shared_ptr<std::set<std::shared_ptr<detail::base_node_class<T_node, std::size_t>>,
+            id_comparator<detail::base_node_class<T_node, std::size_t>>>>& base_nodes, const std::shared_ptr<std::size_t>& node_id) : 
         base_nodes_(base_nodes), 
-        nodes_(allocator_.template make_set<owner_ptr<node>, id_comparator<node>>()), 
-        edges_(allocator_.template make_set<owner_ptr<edge>, id_comparator<edge>>()), 
+        nodes_(std::make_shared<std::set<std::shared_ptr<node>, id_comparator<node>>>()), 
+        edges_(std::make_shared<std::set<std::shared_ptr<edge>, id_comparator<edge>>>()), 
         node_id_(node_id),
-        edge_id_(allocator_.template make_owner<T_size>(T_size(0))),
-        search_node_(allocator_.template make_owner<node>(*this, (*node_id_)++))
+        edge_id_(std::make_shared<std::size_t>(0)),
+        search_node_(std::make_shared<node>(*this, (*node_id_)++))
         {
 
         }
@@ -1530,7 +1495,7 @@ namespace mv
     public:
 
         graph() :
-        graph(allocator_.template make_set<owner_ptr<base_node>, id_comparator<base_node>>(), allocator_.template make_owner<T_size>(T_size(0)))
+        graph(std::make_shared<std::set<std::shared_ptr<base_node>, id_comparator<base_node>>>(), std::make_shared<std::size_t>(0))
         {
 
         }
@@ -1609,7 +1574,7 @@ namespace mv
         node_list_iterator node_insert(const T_node& content)
         {
 
-            auto n_base_ptr = allocator_.template make_owner<base_node>(content, *node_id_);
+            auto n_base_ptr = std::make_shared<base_node>(content, *node_id_);
             
             if (!n_base_ptr)
                 return node_end();
@@ -1619,7 +1584,7 @@ namespace mv
                 
             ++(*node_id_);
 
-            owner_ptr<node> n_ptr;
+            std::shared_ptr<node> n_ptr;
             bool result = make_node_(n_base_ptr, n_ptr);
 
             if (!result)
@@ -1664,7 +1629,7 @@ namespace mv
             {
     
                 // Construct an edge with a defined content
-                auto e_ptr = allocator_.template make_owner<edge>(*this, n1_it, n2_it, content, *edge_id_);
+                auto e_ptr = std::make_shared<edge>(*this, n1_it, n2_it, content, *edge_id_);
 
                 if (!e_ptr)
                     return edge_end();
@@ -1713,7 +1678,7 @@ namespace mv
                 // Bond parent edges
                 for (auto parent_ref = n1_it->inputs_->begin(); parent_ref != n1_it->inputs_->end(); ++parent_ref)
                 {
-                    result_1 = (*parent_ref)->add_child_(e_ptr);
+                    result_1 = parent_ref->lock()->add_child_(e_ptr);
                     result_2 = e_ptr->add_parent_(*parent_ref, e_ptr);
 
                     // Revert changes if bonding failed
@@ -1728,7 +1693,7 @@ namespace mv
                         for (typename iterable_access_set<edge>::reverse_iterator reverse_parent(++parent_ref);
                         reverse_parent != n1_it->inputs_->rend(); ++reverse_parent)
                         {
-                            (*reverse_parent)->remove_child_(e_ptr);
+                            reverse_parent->lock()->remove_child_(e_ptr);
                             e_ptr->remove_parent_(*reverse_parent, e_ptr);
                         }
 
@@ -1741,7 +1706,7 @@ namespace mv
                 for (auto child_ref = n2_it->outputs_->begin(); child_ref != n2_it->outputs_->end(); ++child_ref)
                 {
 
-                    result_1 = (*child_ref)->add_parent_(e_ptr, *child_ref);
+                    result_1 = child_ref->lock()->add_parent_(e_ptr, *child_ref);
                     result_2 = e_ptr->add_child_(*child_ref);
 
                     // Revert changes if bonding failed
@@ -1755,14 +1720,14 @@ namespace mv
 
                         for (auto reverse_parent = n1_it->inputs_->begin(); reverse_parent != n1_it->inputs_->end(); ++reverse_parent)
                         {
-                            (*reverse_parent)->remove_child_(e_ptr);
+                            reverse_parent->lock()->remove_child_(e_ptr);
                             e_ptr->remove_parent_(*reverse_parent, e_ptr);
                         }
 
                         for (typename iterable_access_set<edge>::reverse_iterator reverse_child(++child_ref);
                         reverse_child != n2_it->outputs_->rend(); ++reverse_child)
                         {
-                            (*reverse_child)->remove_parent_(e_ptr, *reverse_child);
+                            reverse_child->lock()->remove_parent_(e_ptr, *reverse_child);
                             e_ptr->remove_child_(*reverse_child);
                         }
 
@@ -1817,14 +1782,14 @@ namespace mv
                 // of output edges of the sink node
                 for (auto child_ref : *sink_ptr->outputs_)
                 {
-                    child_ref->remove_parent_(e_it.get(), child_ref);
+                    child_ref.lock()->remove_parent_(e_it.get(), child_ref);
                 }
 
                 // Remove the edge being deleted from sets of children
                 // of input edges of the source node
                 for (auto parent_ref : *source_ptr->inputs_)
                 {
-                    parent_ref->remove_child_(e_it.get());
+                    parent_ref.lock()->remove_child_(e_it.get());
                 }
 
                 // Remove relation between source and sink node
@@ -1843,12 +1808,12 @@ namespace mv
 
         }
 
-        virtual T_size node_size()
+        virtual std::size_t node_size()
         {
             return nodes_->size();
         }
 
-        T_size edge_size()
+        std::size_t edge_size()
         {
             return edges_->size();
         }
@@ -1898,9 +1863,9 @@ namespace mv
             return node_end();
         }
 
-        pair<node_list_iterator, node_list_iterator> node_equal_range(const T_node& val)
+        std::pair<node_list_iterator, node_list_iterator> node_equal_range(const T_node& val)
         {
-            return pair<node_list_iterator, node_list_iterator>(node_lower_bound(val), node_upper_bound(val));
+            return {node_lower_bound(val), node_upper_bound(val)};
         }
 
         /// Complexity n 
@@ -1929,17 +1894,14 @@ namespace mv
             return edge_end();
         }
 
-        pair<edge_list_iterator, edge_list_iterator> edge_equal_range(const T_edge& val)
+        std::pair<edge_list_iterator, edge_list_iterator> edge_equal_range(const T_edge& val)
         {
-            return pair<edge_list_iterator, edge_list_iterator>(edge_lower_bound(val), edge_upper_bound(val));
+            return {edge_lower_bound(val), edge_upper_bound(val)};
         }
 
     };
 
 }
-
-template <class T_node, class T_edge, class T_allocator, class T_size>
-T_allocator mv::graph<T_node, T_edge, T_allocator, T_size>::allocator_;
 
 template <class T_size>
 mv::detail::unique_element_class<T_size>::~unique_element_class()
@@ -1947,38 +1909,32 @@ mv::detail::unique_element_class<T_size>::~unique_element_class()
 
 }
 
-template <class T_node, class T_edge, class T_allocator, class T_size>
+template <class T_node, class T_edge>
 template <class T_iterable, class T_content>
-mv::graph<T_node, T_edge, T_allocator, T_size>::iterable<T_iterable, T_content>::~iterable()
+mv::graph<T_node, T_edge>::iterable<T_iterable, T_content>::~iterable()
 {
 
 }
 
-template <class T_node, class T_edge, class T_allocator, class T_size>
+template <class T_node, class T_edge>
 template <class T_iterable, class T_content>
-mv::graph<T_node, T_edge, T_allocator, T_size>::base_iterator<T_iterable, T_content>::~base_iterator()
+mv::graph<T_node, T_edge>::base_iterator<T_iterable, T_content>::~base_iterator()
 {
 
 }
 
-template <class T_node, class T_edge, class T_allocator, class T_size>
+template <class T_node, class T_edge>
 template <class T_iterable, class T_content>
-mv::graph<T_node, T_edge, T_allocator, T_size>::search_iterator<T_iterable, T_content>::~search_iterator()
+mv::graph<T_node, T_edge>::search_iterator<T_iterable, T_content>::~search_iterator()
 {
 
 }
 
-template <class T_node, class T_edge, class T_allocator, class T_size>
+template <class T_node, class T_edge>
 template <class T_iterable, class T_content>
-mv::graph<T_node, T_edge, T_allocator, T_size>::relative_iterator<T_iterable, T_content>::~relative_iterator()
+mv::graph<T_node, T_edge>::relative_iterator<T_iterable, T_content>::~relative_iterator()
 {
 
 }
-
-/*template <class T_node, class T_edge, class T_allocator, class T_size>
-mv::graph<T_node, T_edge, T_allocator, T_size>::base_node::~base_node()
-{
-
-}*/
 
 #endif // GRAPH_CONTAINER_HPP_

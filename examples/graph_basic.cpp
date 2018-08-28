@@ -1,11 +1,9 @@
 #include <iostream>
 #include <string>
 #include "include/mcm/graph/graph.hpp"
-#include "include/mcm/graph/stl_allocator.hpp"
 
-
-using graph_char_int= mv::graph<char, int, mv::stl_allocator>;
-using graph_char_bool = mv::graph<char, bool, mv::stl_allocator>;
+using graph_char_int= mv::graph<char, int>;
+using graph_char_bool = mv::graph<char, bool>;
 
 int main()
 {
