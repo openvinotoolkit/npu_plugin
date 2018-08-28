@@ -14,39 +14,37 @@ namespace mv
     public:
 
         virtual ~Printable() = 0;
-        static void replaceSub(string &input, const string &oldSub, const string &newSub);
-        virtual string toString() const = 0;
+        static void replaceSub(std::string &input, const std::string &oldSub, const std::string &newSub);
+        virtual std::string toString() const = 0;
 
-        static string toString(const Printable &obj);
-        static string toString(int_type value);
-        static string toString(float_type value);
-        static string toString(unsigned_type value);
-        static string toString(long long value);
-        static string toString(std::size_t value);
-        static string toString(byte_type value);
-        static string toString(dim_type value);
-        static string toString(bool value);
-        static string toString(DType value);
-        static string toString(Order value);
-        static string toString(const mv::dynamic_vector<float> &value);
-        static string toString(const mv::dynamic_vector<std::string> &value);
-        static string toString(AttrType value);
-        static string toString(OpType value);
+        static std::string toString(const Printable &obj);
+        static std::string toString(int value);
+        static std::string toString(double value);
+        static std::string toString(unsigned value);
+        static std::string toString(unsigned long long value);
+        static std::string toString(std::size_t value);
+        static std::string toString(bool value);
+        static std::string toString(DType value);
+        static std::string toString(Order value);
+        static std::string toString(const std::vector<double> &value);
+        static std::string toString(const std::vector<std::string> &value);
+        static std::string toString(AttrType value);
+        static std::string toString(OpType value);
 
         template <class T>
-        static string toString(Vector2D<T> value)
+        static std::string toString(Vector2D<T> value)
         {
             return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ")"; 
         }
 
         template <class T>
-        static string toString(Vector3D<T> value)
+        static std::string toString(Vector3D<T> value)
         {
             return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + ")"; 
         }
 
         template <class T>
-        static string toString(Vector4D<T> value)
+        static std::string toString(Vector4D<T> value)
         {
             return "(" + Printable::toString(value.e0) + ", " + Printable::toString(value.e1) + ", " + Printable::toString(value.e2) + ", " + Printable::toString(value.e3) + ")"; 
         }

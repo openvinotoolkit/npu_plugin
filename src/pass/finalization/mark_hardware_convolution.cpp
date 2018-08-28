@@ -51,8 +51,6 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int outputChannels = opIterator->getOutputTensor(0)->getShape()[2];
         auto kernelsize = opIterator->getInputTensor(1)->getShape();
 
-        unsigned int coEffTotalSize = opIterator->getInputTensor(0)->getShape().totalSize();
-
         // // if coEffTotalSize > 128000
         // if( inputChannels >= 256 || outputChannels >= 256)
         // {
@@ -90,8 +88,8 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         om.addAttr(opIterator, "NCE1_Mode", mv::Attribute(mv::AttrType::IntegerType, mode));
         om.addAttr(opIterator, "NCE1_AssignedCMX", mv::Attribute(mv::AttrType::IntegerType, 0));
 
-        int bytesPerInputPixel = sizeof(float)/2; // Assuming FP16 for inputs
-        int bytesPerCoefficient = sizeof(float)/2; // Assuming FP16 for coeffiecients
+        int bytesPerInputPixel = sizeof(double)/2; // Assuming FP16 for inputs
+        int bytesPerCoefficient = sizeof(double)/2; // Assuming FP16 for coeffiecients
         int kerDimX = opIterator->getInputTensor(1)->getShape()[0];
         int kerDimY = opIterator->getInputTensor(1)->getShape()[1];
         int coefficientsForInputChannel = kerDimX * kerDimY;
@@ -106,16 +104,16 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         unsigned int total_input_size = opIterator->getInputTensor(0)->getShape().totalSize() * 2;
         unsigned int total_output_size = opIterator->getOutputTensor(0)->getShape().totalSize() * 2;
 
-        float CMX_STREAM_SIZE = 256*1024;
+        double CMX_STREAM_SIZE = 256*1024;
 
         if (total_input_size + total_output_size > CMX_STREAM_SIZE){
             // TODO: Take into consideration previous splits.
             splitsOverHeight = (unsigned int) ceil((total_input_size + total_output_size)/CMX_STREAM_SIZE);
         }
 
-        float floatOutputChannels = (float) outputChannels;
+        double doubleOutputChannels = (double) outputChannels;
 
-        int descriptorsSplits = splitsOverHeight * splitsOverInputChannels * ceil(floatOutputChannels / 256); //<- If mode 0 is used for every subtensor.
+        int descriptorsSplits = splitsOverHeight * splitsOverInputChannels * ceil(doubleOutputChannels / 256); //<- If mode 0 is used for every subtensor.
         //Assuming no split over H (if possible)
         om.addAttr(opIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::IntegerType, descriptorsSplits));
         om.addAttr(opIterator, "NCE1_InputChannelsPerRamBlock", mv::Attribute(mv::AttrType::IntegerType, inputChannelsPerRamBlock));
@@ -154,7 +152,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
 
 //NOTE: This should not be done in such hardcoded way.
-void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -173,16 +171,16 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             std::cout << mv::Printable::toString(wshape) << std::endl;
             std::cout << wshape[3]/8 << ",64,1,1,8"<<std::endl;
 
-            mv::Shape newShape = mv::Shape(
-                // (mv::dim_type)wshape[0],
-                // (mv::dim_type)wshape[1],
-                // (mv::dim_type)(wshape[2] * wshape[3]/8),
-                // (mv::dim_type)8
-                32,
+            mv::Shape newShape(
+                // (mv::std::size_t)wshape[0],
+                // (mv::std::size_t)wshape[1],
+                // (mv::std::size_t)(wshape[2] * wshape[3]/8),
+                // (mv::std::size_t)8
+                {32,
                 64,
                 1,
                 1,
-                8
+                8}
             );
 
             mv::Tensor newTensor = mv::Tensor("MX_Weights",
@@ -190,16 +188,16 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                                                 weights->getDType(),
                                                 weights->getOrder());
 
-            mv::dynamic_vector<mv::float_type> new_data;
+            std::vector<double> new_data;
             auto data = weights->getData();
 
-            unsigned int o_iC = wshape[2], o_oC = wshape[3], o_fh = wshape[0], o_fw = wshape[1];
+            unsigned int o_iC = wshape[2], o_oC = wshape[3], o_fw = wshape[1];
 
-            for(int i = 0; i != newShape[0]; i++){
-                for(int j = 0; j != newShape[1]; j++){
-                    for(int x = 0; x != newShape[2]; x++){
-                        for(int y = 0; y != newShape[3]; y++){
-                            for(int z = 0; z != newShape[4]; z++){
+            for(std::size_t i = 0; i != newShape[0]; i++){
+                for(std::size_t j = 0; j != newShape[1]; j++){
+                    for(std::size_t x = 0; x != newShape[2]; x++){
+                        for(std::size_t y = 0; y != newShape[3]; y++){
+                            for(std::size_t z = 0; z != newShape[4]; z++){
                                 new_data.push_back(data[
                                     x*o_fw*o_iC*o_oC +  // Kernel Height is largest Dim in original matrix.
                                     y*o_iC*o_oC +       // Followed by Width

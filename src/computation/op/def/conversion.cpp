@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/conversion.hpp"
 
-mv::op::Conversion::Conversion(const string &name, mv::Order targetOrder):
+mv::op::Conversion::Conversion(const std::string &name, mv::Order targetOrder):
 ComputationOp(mv::OpType::Conversion, name),
 SinkOp(mv::OpType::Conversion, 1, name),
 SourceOp(mv::OpType::Conversion, 1, name)
@@ -17,7 +17,7 @@ SourceOp(value)
 
 }
 
-mv::Tensor mv::op::Conversion::getOutputDef(byte_type idx)
+mv::Tensor mv::op::Conversion::getOutputDef(std::size_t idx)
 {
     if (idx > 0)
         return Tensor();
@@ -31,7 +31,7 @@ mv::Tensor mv::op::Conversion::getOutputDef(byte_type idx)
     return Tensor(name_ + ":0", input->getShape(), input->getDType(), getAttr("target_order").getContent<mv::Order>());
 }
 
-bool mv::op::Conversion::isHardwarizeable(mv::json::Object& TargetDescriptor)
+bool mv::op::Conversion::isHardwarizeable(mv::json::Object&)
 {
     return false;
 }

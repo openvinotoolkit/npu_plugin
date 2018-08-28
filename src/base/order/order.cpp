@@ -1,11 +1,11 @@
 #include "include/mcm/base/order/order.hpp"
 
-unsigned mv::OrderClass::subToInd(const Shape &s, const static_vector<dim_type, byte_type, max_ndims>& sub) const
+unsigned mv::OrderClass::subToInd(const Shape &s, const std::vector<std::size_t>& sub) const
 {
     if (s.ndims() == 0)
         throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
 
-    if (sub.length() != s.ndims())
+    if (sub.size() != s.ndims())
         throw ShapeError("Mismatch between subscript vector and number of dimensions in shape");
 
     unsigned currentMul = 1;
@@ -25,12 +25,12 @@ unsigned mv::OrderClass::subToInd(const Shape &s, const static_vector<dim_type, 
     return currentResult;
 }
 
-mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> mv::OrderClass::indToSub(const Shape &s, unsigned idx) const
+std::vector<std::size_t> mv::OrderClass::indToSub(const Shape &s, std::size_t idx) const
 {
     if (s.ndims() == 0)
         throw ShapeError("Cannot compute subscripts for 0-dimensional shape");
 
-    static_vector<dim_type, byte_type, max_ndims> sub(s.ndims());
+    std::vector<std::size_t> sub(s.ndims());
     sub[firstContiguousDimensionIndex(s)] =  idx % s[firstContiguousDimensionIndex(s)];
     int offset = -sub[firstContiguousDimensionIndex(s)];
     int scale = s[firstContiguousDimensionIndex(s)];
@@ -44,12 +44,12 @@ mv::static_vector<mv::dim_type, mv::byte_type, mv::max_ndims> mv::OrderClass::in
     return sub;
 }
 
-bool mv::OrderClass::isLastContiguousDimensionIndex(const Shape &s, unsigned index) const
+bool mv::OrderClass::isLastContiguousDimensionIndex(const Shape &s, std::size_t index) const
 {
     return index == lastContiguousDimensionIndex(s);
 }
 
-bool mv::OrderClass::isFirstContiguousDimensionIndex(const Shape &s, unsigned index) const
+bool mv::OrderClass::isFirstContiguousDimensionIndex(const Shape &s, std::size_t index) const
 {
     return index == firstContiguousDimensionIndex(s);
 }

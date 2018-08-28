@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/matmul.hpp"
 
-mv::op::MatMul::MatMul(const string &name) :
+mv::op::MatMul::MatMul(const std::string &name) :
 ComputationOp(OpType::MatMul, name),
 SinkOp(OpType::MatMul, 2, name),
 SourceOp(OpType::MatMul, 1, name)
@@ -16,7 +16,7 @@ SourceOp(obj)
 
 }
 
-mv::Tensor mv::op::MatMul::getOutputDef(byte_type idx)
+mv::Tensor mv::op::MatMul::getOutputDef(std::size_t idx)
 {
     
     if (idx > 0)
@@ -50,11 +50,11 @@ mv::Tensor mv::op::MatMul::getOutputDef(byte_type idx)
         return Tensor();
     }
 
-    return Tensor(name_ + ":0", Shape(input0Shape[0], input1Shape[1]), input0->getDType(), input0->getOrder());
+    return Tensor(name_ + ":0", {input0Shape[0], input1Shape[1]}, input0->getDType(), input0->getOrder());
     
 }
 
-bool mv::op::MatMul::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::MatMul::isHardwarizeable(json::Object&)
 {
     return false;
 }

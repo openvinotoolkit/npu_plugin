@@ -46,7 +46,7 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == NULL || &t == NULL ) {  // || *t == NULL ){
+        if ( t == nullptr) {  // || *t == NULL ){
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
             this->dimY = 0;
@@ -120,7 +120,7 @@ namespace mv
         mv::Control::StageIterator stg = cm->getStage(0);
 
         int blk_stride = 0;
-        int block = 0;
+        //int block = 0;
 
         if ((*t)->isPopulated()){
             // std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
@@ -129,16 +129,15 @@ namespace mv
             this->location = BLOB_INTERNAL_LOCATION;
 
             // blk_stride = (int)mem->strides[0]+ mem->block;
-            block = (int)mem->block;
+            //block = (int)mem->block;
 
-            int offset = mem->offset;
+            int offsetValue = mem->offset;
 
-
-            if (offset % 64 != 0){
+            if (offsetValue % 64 != 0){
                 printf("Serializer Warning: Short-term alignment fix, likely cause of device crash. IMPORTANT.\n");
-                offset = 64+(offset/64)*64 ;
+                offsetValue = 64+(offsetValue/64)*64 ;
             }
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(offset, bLocation::Constant ));
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(offsetValue, bLocation::Constant ));
             this->offset = rt_entry;
         }
         else
@@ -159,7 +158,7 @@ namespace mv
             if (no_buffers || mem == dm->bufferEnd("IntermediateMemory", stg) ){//&& !hack_activated){
 
                 // Not Found - In or Output
-                std::vector<mv::string> input_names, output_names;
+                std::vector<std::string> input_names, output_names;
 
                 for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
                 {
@@ -190,7 +189,7 @@ namespace mv
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
                 // blk_stride = (int)mem->strides[0] + mem->block;
-                block = (int)mem->block;
+                //block = (int)mem->block;
                 int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
                 this->offset = rt_entry;
             }

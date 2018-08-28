@@ -10,17 +10,17 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
 {
 
     mv::OpModel om;
-    auto input = om.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::ColumnMajor);
-    mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 3 * 3);
-    auto weights = om.constant(weightsData, mv::Shape(3, 3, 3, 3), mv::DType::Float, mv::Order::ColumnMajor, "weights");
+    auto input = om.input({64, 64, 3}, mv::DType::Float, mv::Order::ColumnMajor);
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3);
+    auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DType::Float, mv::Order::ColumnMajor, "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
-    mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(convShape.totalSize());
-    mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(convShape.totalSize());
-    mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(convShape.totalSize());
-    mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(convShape.totalSize());
-    float eps = 1e-3;
+    std::vector<double> meanData = mv::utils::generateSequence<double>(convShape.totalSize());
+    std::vector<double> varianceData = mv::utils::generateSequence<double>(convShape.totalSize());
+    std::vector<double> offsetData = mv::utils::generateSequence<double>(convShape.totalSize());
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(convShape.totalSize());
+    double eps = 1e-3;
     auto bnmean = om.constant(meanData, convShape, mv::DType::Float, mv::Order::ColumnMajor, "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
     auto bnvariance = om.constant(varianceData, convShape, mv::DType::Float, mv::Order::ColumnMajor, "variance");
@@ -86,24 +86,24 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 {
 
     mv::OpModel om;
-    auto input = om.input(mv::Shape(64, 64, 16), mv::DType::Float, mv::Order::ColumnMajor);
-    mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 16 * 32);
-    auto weights = om.constant(weightsData, mv::Shape(3, 3, 16, 32), mv::DType::Float, mv::Order::ColumnMajor, "weights");
+    auto input = om.input({64, 64, 16}, mv::DType::Float, mv::Order::ColumnMajor);
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
+    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DType::Float, mv::Order::ColumnMajor, "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
-    mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(convShape[-1]);
-    mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(convShape[-1]);
-    mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(convShape[-1]);
-    mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(convShape[-1]);
-    float eps = 1e-3;
-    auto bnmean = om.constant(meanData, convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "mean");
+    std::vector<double> meanData = mv::utils::generateSequence<double>(convShape[-1]);
+    std::vector<double> varianceData = mv::utils::generateSequence<double>(convShape[-1]);
+    std::vector<double> offsetData = mv::utils::generateSequence<double>(convShape[-1]);
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(convShape[-1]);
+    double eps = 1e-3;
+    auto bnmean = om.constant(meanData, {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "variance");
+    auto bnvariance = om.constant(varianceData, {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "variance");
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "offset");
+    auto bnoffset = om.constant(offsetData, {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "offset");
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "scale");
+    auto bnscale = om.constant(scaleData, {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
     auto batchnorm = om.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
@@ -132,11 +132,11 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
     // Check fusing
-    mv::Tensor mean("mean", convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, meanData);
-    mv::Tensor variance("variance", convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, varianceData);
-    mv::Tensor offset("offset", convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, offsetData);
-    mv::Tensor scale("scale", convShape[-1], mv::DType::Float, mv::Order::ColumnMajor, scaleData);
-    mv::Tensor originalWeights("originalWeights", mv::Shape(3, 3, 16, 32), mv::DType::Float, mv::Order::ColumnMajor, weightsData);
+    mv::Tensor mean("mean", {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, meanData);
+    mv::Tensor variance("variance", {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, varianceData);
+    mv::Tensor offset("offset", {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, offsetData);
+    mv::Tensor scale("scale", {convShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, scaleData);
+    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DType::Float, mv::Order::ColumnMajor, weightsData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
     mv::Tensor offsetParam = mv::math::subtract(offset, 
@@ -156,15 +156,15 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 {
 
     mv::OpModel om;
-    auto input = om.input(mv::Shape(64, 64, 3), mv::DType::Float, mv::Order::ColumnMajor);
+    auto input = om.input({64, 64, 3}, mv::DType::Float, mv::Order::ColumnMajor);
     auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
     auto poolShape = pool->getShape();
-    mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(poolShape.totalSize());
-    mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(poolShape.totalSize());
-    mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(poolShape.totalSize());
-    mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(poolShape.totalSize());
-    float eps = 1e-3;
+    std::vector<double> meanData = mv::utils::generateSequence<double>(poolShape.totalSize());
+    std::vector<double> varianceData = mv::utils::generateSequence<double>(poolShape.totalSize());
+    std::vector<double> offsetData = mv::utils::generateSequence<double>(poolShape.totalSize());
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(poolShape.totalSize());
+    double eps = 1e-3;
     auto bnmean = om.constant(meanData, poolShape, mv::DType::Float, mv::Order::ColumnMajor, "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
     auto bnvariance = om.constant(varianceData, poolShape, mv::DType::Float, mv::Order::ColumnMajor, "variance");
@@ -230,22 +230,22 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 {
 
     mv::OpModel om;
-    auto input = om.input(mv::Shape(64, 64, 16), mv::DType::Float, mv::Order::ColumnMajor);
+    auto input = om.input({64, 64, 16}, mv::DType::Float, mv::Order::ColumnMajor);
     auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
     auto poolShape = pool->getShape();
-    mv::dynamic_vector<mv::float_type> meanData = mv::utils::generateSequence<mv::float_type>(poolShape[-1]);
-    mv::dynamic_vector<mv::float_type> varianceData = mv::utils::generateSequence<mv::float_type>(poolShape[-1]);
-    mv::dynamic_vector<mv::float_type> offsetData = mv::utils::generateSequence<mv::float_type>(poolShape[-1]);
-    mv::dynamic_vector<mv::float_type> scaleData = mv::utils::generateSequence<mv::float_type>(poolShape[-1]);
-    float eps = 1e-3;
-    auto bnmean = om.constant(meanData, poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "mean");
+    std::vector<double> meanData = mv::utils::generateSequence<double>(poolShape[-1]);
+    std::vector<double> varianceData = mv::utils::generateSequence<double>(poolShape[-1]);
+    std::vector<double> offsetData = mv::utils::generateSequence<double>(poolShape[-1]);
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(poolShape[-1]);
+    double eps = 1e-3;
+    auto bnmean = om.constant(meanData, {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "variance");
+    auto bnvariance = om.constant(varianceData, {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "variance");
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "offset");
+    auto bnoffset = om.constant(offsetData, {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "offset");
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, "scale");
+    auto bnscale = om.constant(scaleData, {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
     auto batchnorm = om.batchNorm(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
@@ -280,10 +280,10 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
     // Check fusing
-    mv::Tensor mean("mean", poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, meanData);
-    mv::Tensor variance("variance", poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, varianceData);
-    mv::Tensor offset("offset", poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, offsetData);
-    mv::Tensor scale("scale", poolShape[-1], mv::DType::Float, mv::Order::ColumnMajor, scaleData);
+    mv::Tensor mean("mean", {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, meanData);
+    mv::Tensor variance("variance", {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, varianceData);
+    mv::Tensor offset("offset", {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, offsetData);
+    mv::Tensor scale("scale", {poolShape[-1]}, mv::DType::Float, mv::Order::ColumnMajor, scaleData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
     mv::Tensor offsetParam = mv::math::subtract(offset, 

@@ -12,7 +12,7 @@ const std::map<mv::json::JSONType, std::string> mv::json::Value::typeString_ =
     {mv::json::JSONType::Array, "array"},
     {mv::json::JSONType::Bool, "bool"},
     {mv::json::JSONType::Null, "null"},
-    {mv::json::JSONType::NumberFloat, "number (float)"},
+    {mv::json::JSONType::NumberFloat, "number (double)"},
     {mv::json::JSONType::NumberInteger, "number (integer)"},
     {mv::json::JSONType::Object, "object"},
     {mv::json::JSONType::String, "string"}
@@ -26,7 +26,7 @@ content_(std::unique_ptr<Null>(new Null()))
 
 }
 
-mv::json::Value::Value(float value) :
+mv::json::Value::Value(double value) :
 valueType_(JSONType::NumberFloat),
 content_(std::unique_ptr<NumberFloat>(new NumberFloat(value)))
 {
@@ -94,7 +94,7 @@ mv::json::Value::Value(const Value& other)
     operator=(other);
 }
 
-mv::json::Value& mv::json::Value::operator=(float value)
+mv::json::Value& mv::json::Value::operator=(double value)
 {
 
     content_.reset();
@@ -288,7 +288,7 @@ mv::json::Value& mv::json::Value::operator=(const Value& other)
             break;
 
         case mv::json::JSONType::NumberFloat:
-            content_ = std::unique_ptr<NumberFloat>(new NumberFloat((float)*other.content_.get()));
+            content_ = std::unique_ptr<NumberFloat>(new NumberFloat((double)*other.content_.get()));
             break;
 
         case mv::json::JSONType::NumberInteger:

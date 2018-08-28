@@ -19,11 +19,11 @@ TEST(generate_json, case1)
     mv::CompilationUnit unit1;
     mv::OpModel om = unit1.model();
     auto input = om.input(mv::Shape(64, 64, 16), mv::DType::Float, mv::Order::ColumnMajor);
-    mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 16 * 32);
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, mv::Shape(3, 3, 16, 32), mv::DType::Float, mv::Order::ColumnMajor, "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
-    mv::dynamic_vector<mv::float_type> scalesData = mv::utils::generateSequence<mv::float_type>(32);
+    std::vector<double> scalesData = mv::utils::generateSequence<double>(32);
     auto scales = om.constant(scalesData, mv::Shape(32), mv::DType::Float, mv::Order::ColumnMajor, "biases");
     auto scale = om.scale(conv, scales);
     om.output(scale);

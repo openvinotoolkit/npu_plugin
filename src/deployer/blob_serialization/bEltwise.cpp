@@ -15,7 +15,6 @@ namespace mv
 
     void bEltwise::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
-        int fp16_size = 2;
 
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
@@ -32,6 +31,7 @@ namespace mv
         input0BlobTensor.write(b);
         outputBlobTensor.write(b);
         input1BlobTensor.write(b);
+        
     }
 
     bEltwise::bEltwise(mv::ComputationOp* it)

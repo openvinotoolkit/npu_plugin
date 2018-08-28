@@ -1,8 +1,6 @@
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include <iostream>
 
-mv::allocator mv::MemoryAllocator::allocator_;
-
 bool mv::MemoryAllocator::MemoryBuffer::operator<(const MemoryBuffer& other) const
 {
     if (offset < other.offset)
@@ -72,7 +70,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx, BufferIterator first,
 
 }
 
-mv::MemoryAllocator::MemoryAllocator(string name, std::size_t size, Order order) :
+mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, Order order) :
 name_(name),
 size_(size),
 order_(mv::OrderFactory::createOrder(order))
@@ -80,7 +78,7 @@ order_(mv::OrderFactory::createOrder(order))
 
 }
 
-bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, unsigned stageIdx)
+bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, std::size_t stageIdx)
 {
 
     if (entries_.find(stageIdx) == entries_.end())
@@ -98,9 +96,11 @@ bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, unsigned stage
         return true;
     }
 
+    return false;
+
 }
 
-void mv::MemoryAllocator::deallocateAll(unsigned stageIdx)
+void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
 {
 
     if (entries_.find(stageIdx) == entries_.end())
@@ -111,7 +111,7 @@ void mv::MemoryAllocator::deallocateAll(unsigned stageIdx)
 
 }
 
-long long mv::MemoryAllocator::usedSpace(unsigned stageIdx) const
+long long unsigned mv::MemoryAllocator::usedSpace(std::size_t stageIdx) const
 {
 
     if (entries_.find(stageIdx) == entries_.cend())
@@ -122,7 +122,7 @@ long long mv::MemoryAllocator::usedSpace(unsigned stageIdx) const
 
 }
 
-long long mv::MemoryAllocator::freeSpace(unsigned stageIdx) const
+long long unsigned mv::MemoryAllocator::freeSpace(std::size_t stageIdx) const
 {
 
     if (entries_.find(stageIdx) == entries_.cend())
@@ -140,10 +140,10 @@ long long mv::MemoryAllocator::freeSpace(unsigned stageIdx) const
 
 }
 
-mv::string mv::MemoryAllocator::toString() const
+std::string mv::MemoryAllocator::toString() const
 {
 
-    string result = "memory allocator '" + name_ + "'";
+    std::string result = "memory allocator '" + name_ + "'";
     for (auto it = entries_.cbegin(); it != entries_.cend(); ++it)
     {
 
@@ -203,7 +203,7 @@ mv::json::Value mv::MemoryAllocator::toJsonValue() const
 
 }
 
-mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferBegin(unsigned stageIdx)
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferBegin(std::size_t stageIdx)
 {
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
@@ -212,7 +212,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferBegin(unsigned st
     return it->second.begin();
 }
 
-mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferEnd(unsigned stageIdx)
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferEnd(std::size_t stageIdx)
 {
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
@@ -221,7 +221,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferEnd(unsigned stag
     return it->second.end();
 }
 
-mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(unsigned stageIdx, Data::TensorIterator tensor)
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t stageIdx, Data::TensorIterator tensor)
 {
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())

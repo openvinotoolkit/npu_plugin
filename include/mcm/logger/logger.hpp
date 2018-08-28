@@ -2,6 +2,7 @@
 #define LOGGER_HPP_
 
 #include <time.h>
+#include <string>
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/printable.hpp"
 
@@ -34,17 +35,17 @@ namespace mv
 
         VerboseLevel verboseLevel_;
         bool logTime_;
-        string indent_;
+        std::string indent_;
         
-        string getTime() const;
-        void logMessage(MessageType messageType, string content) const;
+        std::string getTime() const;
+        void logMessage(MessageType messageType, std::string content) const;
 
     protected:
 
-        virtual void logError(const string &content) const = 0;
-        virtual void logWarning(const string &content) const = 0;
-        virtual void logInfo(const string &content) const = 0;
-        virtual void logDebug(const string &content) const = 0;
+        virtual void logError(const std::string &content) const = 0;
+        virtual void logWarning(const std::string &content) const = 0;
+        virtual void logInfo(const std::string &content) const = 0;
+        virtual void logDebug(const std::string &content) const = 0;
 
     public:
 
@@ -52,7 +53,7 @@ namespace mv
         virtual ~Logger() = 0;
         void setVerboseLevel(VerboseLevel verboseLevel);
         void setLogTime(bool logTime);
-        void log(MessageType messageType, const string &content) const;
+        void log(MessageType messageType, const std::string &content) const;
 
     };
 

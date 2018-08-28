@@ -10,7 +10,7 @@ mv::Tensor mv::math::add(const Tensor& t1, const Tensor& t2)
 
 }
 
-mv::Tensor mv::math::add(const Tensor& t, float_type x)
+mv::Tensor mv::math::add(const Tensor& t, double x)
 {
     Tensor output(t);
     output.add(x);
@@ -28,7 +28,7 @@ mv::Tensor mv::math::subtract(const Tensor& t1, const Tensor& t2)
 
 }
 
-mv::Tensor mv::math::subtract(const Tensor& t, float_type x)
+mv::Tensor mv::math::subtract(const Tensor& t, double x)
 {
     Tensor output(t);
     output.subtract(x);
@@ -46,7 +46,7 @@ mv::Tensor mv::math::multiply(const Tensor& t1, const Tensor& t2)
 
 }
 
-mv::Tensor mv::math::multiply(const Tensor& t, float_type x)
+mv::Tensor mv::math::multiply(const Tensor& t, double x)
 {
     Tensor output(t);
     output.multiply(x);
@@ -64,7 +64,7 @@ mv::Tensor mv::math::divide(const Tensor& t1, const Tensor& t2)
 
 }
 
-mv::Tensor mv::math::divide(const Tensor& t, float_type x)
+mv::Tensor mv::math::divide(const Tensor& t, double x)
 {
     Tensor output(t);
     output.divide(x);

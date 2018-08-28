@@ -42,7 +42,7 @@ TEST(order, col_major0d)
 TEST(order, col_major1d)
 {
     mv::ColMajor order;
-    mv::Shape s(3);
+    mv::Shape s({3});
 
     try
     {
@@ -75,7 +75,7 @@ TEST(order, col_major1d)
 TEST(order, col_major2d)
 {
     mv::ColMajor order;
-    mv::Shape s(2,3);
+    mv::Shape s({2, 3});
 
     try
     {
@@ -108,7 +108,7 @@ TEST(order, col_major2d)
 TEST(order, col_major3d)
 {
     mv::ColMajor order;
-    mv::Shape s(2,3,5);
+    mv::Shape s({2, 3, 5});
 
     try
     {
@@ -141,7 +141,7 @@ TEST(order, col_major3d)
 TEST(order, col_major4d)
 {
     mv::ColMajor order;
-    mv::Shape s(3,3,5,7);
+    mv::Shape s({3, 3, 5, 7});
 
     try
     {
@@ -208,7 +208,7 @@ TEST(order, row_major0d)
 TEST(order, row_major1d)
 {
     mv::RowMajor order;
-    mv::Shape s(3);
+    mv::Shape s({3});
 
     try
     {
@@ -241,7 +241,7 @@ TEST(order, row_major1d)
 TEST(order, row_major2d)
 {
     mv::RowMajor order;
-    mv::Shape s(2,3);
+    mv::Shape s({2, 3});
 
     try
     {
@@ -274,7 +274,7 @@ TEST(order, row_major2d)
 TEST(order, row_major3d)
 {
     mv::RowMajor order;
-    mv::Shape s(2,3,5);
+    mv::Shape s({2, 3, 5});
 
     try
     {
@@ -307,7 +307,7 @@ TEST(order, row_major3d)
 TEST(order, row_major4d)
 {
     mv::RowMajor order;
-    mv::Shape s(3,3,5,7);
+    mv::Shape s({3, 3, 5, 7});
 
     try
     {
@@ -373,7 +373,7 @@ TEST(order, planar0d)
 TEST(order, planar1d)
 {
     mv::ColumnMajorPlanar order;
-    mv::Shape s(3);
+    mv::Shape s({3});
 
     try
     {
@@ -406,7 +406,7 @@ TEST(order, planar1d)
 TEST(order, planar2d)
 {
     mv::ColumnMajorPlanar order;
-    mv::Shape s(2,3);
+    mv::Shape s({2, 3});
 
     try
     {
@@ -439,7 +439,7 @@ TEST(order, planar2d)
 TEST(order, planar3d)
 {
     mv::ColumnMajorPlanar order;
-    mv::Shape s(2,3,5);
+    mv::Shape s({2, 3, 5});
 
     try
     {
@@ -472,7 +472,7 @@ TEST(order, planar3d)
 TEST(order, planar4d)
 {
     mv::ColumnMajorPlanar order;
-    mv::Shape s(3,3,5,7);
+    mv::Shape s({3, 3, 5, 7});
 
     try
     {
@@ -538,7 +538,7 @@ TEST(order, planar20d)
 TEST(order, planar21d)
 {
     mv::RowMajorPlanar order;
-    mv::Shape s(3);
+    mv::Shape s({3});
 
     try
     {
@@ -571,7 +571,7 @@ TEST(order, planar21d)
 TEST(order, planar22d)
 {
     mv::RowMajorPlanar order;
-    mv::Shape s(2,3);
+    mv::Shape s({2, 3});
 
     try
     {
@@ -604,7 +604,7 @@ TEST(order, planar22d)
 TEST(order, planar23d)
 {
     mv::RowMajorPlanar order;
-    mv::Shape s(2,3,5);
+    mv::Shape s({2, 3, 5});
 
     try
     {
@@ -637,7 +637,7 @@ TEST(order, planar23d)
 TEST(order, planar24d)
 {
     mv::RowMajorPlanar order;
-    mv::Shape s(3,3,5,7);
+    mv::Shape s({3, 3, 5, 7});
 
     try
     {

@@ -50,7 +50,7 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         {
             auto stageIt = cm.getStage(0);
 
-            mv::dynamic_vector<size_t> paddings; //TODO: Should be filled
+            std::vector<size_t> paddings; //TODO: Should be filled
             dm.allocateTensor("ConstantMemory", stageIt, tIt, paddings);
 
         }
@@ -76,8 +76,8 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
     {
 
         OpModel om(dm) ;
-        bool external = false, fake = false, conv_padding = false;
-        std::vector<mv::string> input_names, output_names, invalid_names, c_pad_names;
+        bool external = false, fake = false; //, conv_padding = false;
+        std::vector<std::string> input_names, output_names, invalid_names, c_pad_names;
 
         int max_pad = 0;
 
@@ -119,11 +119,11 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }
         }
 
-        if(std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end()) {
+        /*if(std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end()) {
             conv_padding = true;
         }else {
             // Not conv_padding, dont do anything
-        }
+        }*/
 
         if(std::find(invalid_names.begin(), invalid_names.end(), tIt->getName()) != invalid_names.end()) {
             fake = true;
@@ -134,12 +134,12 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         {
             auto stageIt = cm.getStage(0);
 
-            int pad = 0;
+            /*int pad = 0;
             if (conv_padding){
                 pad = max_pad;
-            }
+            }*/
 
-            mv::dynamic_vector<size_t> paddings; //TODO: Should be filled
+            std::vector<size_t> paddings; //TODO: Should be filled
             dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
         }
     }

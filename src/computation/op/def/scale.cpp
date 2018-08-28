@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/scale.hpp"
 
-mv::op::Scale::Scale(const string &name) :
+mv::op::Scale::Scale(const std::string &name) :
 ComputationOp(OpType::Scale, name),
 SourceOp(OpType::Scale, 1, name),
 SinkOp(OpType::Scale, 2, name)
@@ -16,7 +16,7 @@ SinkOp(obj)
 
 }
 
-mv::Tensor mv::op::Scale::getOutputDef(byte_type idx)
+mv::Tensor mv::op::Scale::getOutputDef(std::size_t idx)
 {
     
     if (idx > 0)
@@ -49,7 +49,7 @@ mv::Tensor mv::op::Scale::getOutputDef(byte_type idx)
     
 }
 
-bool mv::op::Scale::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Scale::isHardwarizeable(json::Object&)
 {
     return false;
 }

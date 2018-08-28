@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/add.hpp"
 
-mv::op::Add::Add(const string& name) :
+mv::op::Add::Add(const std::string& name) :
 ComputationOp(OpType::Add, name),
 EltwiseOp(OpType::Add, name)
 {
@@ -14,7 +14,7 @@ EltwiseOp(obj)
 
 }
 
-bool mv::op::Add::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Add::isHardwarizeable(json::Object&)
 {
     return false;
 }

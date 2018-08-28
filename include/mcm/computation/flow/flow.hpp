@@ -12,10 +12,10 @@ namespace mv
 
     public:
 
-        ComputationFlow(const string &name);
-        ComputationFlow(mv::json::Value& value);
+        ComputationFlow(const std::string &name);
+        ComputationFlow(json::Value& value);
         virtual ~ComputationFlow() = 0;
-        virtual string toString() const;
+        virtual std::string toString() const;
 
     };
 

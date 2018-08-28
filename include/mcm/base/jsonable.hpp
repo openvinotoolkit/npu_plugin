@@ -20,31 +20,29 @@ namespace mv
 
         //Base type -> Json value
         static json::Value toJsonValue(const Jsonable &obj);
-        static json::Value toJsonValue(int_type value);
-        static json::Value toJsonValue(float_type value);
-        static json::Value toJsonValue(unsigned_type value);
-        static json::Value toJsonValue(byte_type value);
-        static json::Value toJsonValue(dim_type value);
+        static json::Value toJsonValue(int value);
+        static json::Value toJsonValue(double value);
+        static json::Value toJsonValue(unsigned value);
+        static json::Value toJsonValue(std::size_t value);
         static json::Value toJsonValue(bool value);
         static json::Value toJsonValue(DType value);
         static json::Value toJsonValue(Order value);
         static json::Value toJsonValue(AttrType value);
         static json::Value toJsonValue(OpType value);
-        static json::Value toJsonValue(const string &value);
+        static json::Value toJsonValue(const std::string &value);
         static json::Value toJsonValue(const char *value);
 
         //Json value -> base type
-        static int_type constructIntTypeFromJson(mv::json::Value& v);
-        static unsigned_type constructUnsignedTypeFromJson(mv::json::Value& v);
-        static float_type constructFloatTypeFromJson(mv::json::Value& v);
-        static byte_type constructByteTypeFromJson(mv::json::Value& v);
-        static dim_type constructDimTypeFromJson(mv::json::Value& v);
+        static int constructIntTypeFromJson(mv::json::Value& v);
+        static unsigned constructUnsignedTypeFromJson(mv::json::Value& v);
+        static double constructFloatTypeFromJson(mv::json::Value& v);
+        static std::size_t constructByteTypeFromJson(mv::json::Value& v);
         static bool constructBoolTypeFromJson(mv::json::Value& v);
         static DType constructDTypeFromJson(mv::json::Value& v);
         static Order constructOrderTypeFromJson(mv::json::Value& v);
         static AttrType constructAttrTypeFromJson(mv::json::Value& v);
         static OpType constructOpTypeFromJson(mv::json::Value& v);
-        static string constructStringFromJson(mv::json::Value& v);
+        static std::string constructStringFromJson(mv::json::Value& v);
         static IntVector2D constructIntVector2DFromJson(mv::json::Value &v);
         static IntVector3D constructIntVector3DFromJson(mv::json::Value &v);
         static IntVector4D constructIntVector4DFromJson(mv::json::Value &v);
@@ -54,8 +52,8 @@ namespace mv
         static UnsignedVector2D constructUnsignedVector2DFromJson(mv::json::Value &v);
         static UnsignedVector3D constructUnsignedVector3DFromJson(mv::json::Value &v);
         static UnsignedVector4D constructUnsignedVector4DFromJson(mv::json::Value &v);
-        static mv::dynamic_vector<float_type> constructFloatVectorFromJson(mv::json::Value &v);
-        static mv::dynamic_vector<mv::string> constructStringVectorFromJson(mv::json::Value &v);
+        static std::vector<double> constructFloatVectorFromJson(mv::json::Value &v);
+        static std::vector<std::string> constructStringVectorFromJson(mv::json::Value &v);
 
         template <class T>
         static json::Value toJsonValue(Vector2D<T> value)
@@ -89,7 +87,7 @@ namespace mv
         }
 
         template <class T>
-        static json::Value toJsonValue(mv::dynamic_vector<T> value)
+        static json::Value toJsonValue(std::vector<T> value)
         {
             mv::json::Array a;
             for(auto x = value.begin(); x != value.end(); ++x)

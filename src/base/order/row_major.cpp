@@ -5,7 +5,7 @@ mv::RowMajor::~RowMajor()
 
 }
 
-int mv::RowMajor::previousContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
+int mv::RowMajor::previousContiguousDimensionIndex(const Shape& s, std::size_t current_dim) const
 {
     if (s.ndims() == 0)
         throw ShapeError("0-dimensional shapes have no first contiguous dimension");
@@ -15,7 +15,7 @@ int mv::RowMajor::previousContiguousDimensionIndex(const Shape& s, unsigned curr
         return current_dim + 1;
 }
 
-int mv::RowMajor::nextContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
+int mv::RowMajor::nextContiguousDimensionIndex(const Shape& s, std::size_t current_dim) const
 {
     if (s.ndims() == 0)
         throw ShapeError("Cannot check index for 0-dimensional shapes");
@@ -23,7 +23,7 @@ int mv::RowMajor::nextContiguousDimensionIndex(const Shape& s, unsigned current_
 }
 
 //RowMajor -> Last dimension is contiguos -> First dimension is least contiguous
-unsigned mv::RowMajor::lastContiguousDimensionIndex(const Shape &s) const
+std::size_t mv::RowMajor::lastContiguousDimensionIndex(const Shape &s) const
 {
     if (s.ndims() == 0)
         throw ShapeError("0-dimensional shapes have no last contiguous dimension");
@@ -31,7 +31,7 @@ unsigned mv::RowMajor::lastContiguousDimensionIndex(const Shape &s) const
 }
 
 //RowMajor -> Last dimension is contiguos
-unsigned mv::RowMajor::firstContiguousDimensionIndex(const Shape &s) const
+std::size_t mv::RowMajor::firstContiguousDimensionIndex(const Shape &s) const
 {
     if (s.ndims() == 0)
         throw ShapeError("0-dimensional shapes have no first contiguous dimension");

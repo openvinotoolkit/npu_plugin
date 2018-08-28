@@ -6,13 +6,13 @@ ComputationModel(verboseLevel, logTime)
 
 }
 
-mv::DataModel::DataModel(Logger &logger) :
+mv::DataModel::DataModel(Logger& logger) :
 ComputationModel(logger)
 {
 
 }*/
 
-mv::DataModel::DataModel(const ComputationModel &other) :
+mv::DataModel::DataModel(const ComputationModel& other) :
 ComputationModel(other)
 {
 
@@ -43,25 +43,25 @@ mv::Data::FlowListIterator mv::DataModel::flowEnd()
     return *dataFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
 {
-    allocator::owner_ptr<DataFlow> ptr = element;
+    std::shared_ptr<DataFlow> ptr = element;
     return addGroupElement_(ptr, group);
 }
 
-bool mv::DataModel::removeGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group)
+bool mv::DataModel::removeGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
 {
-    allocator::owner_ptr<DataFlow> ptr = element;
+    std::shared_ptr<DataFlow> ptr = element;
     return removeGroupElement_(ptr, group);
 }
 
-mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const Shape &shape, DType dType, Order order)
+mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order)
 {
 
     if (flowTensors_->find(name) == flowTensors_->end())
     {
         // TODO: handle failure
-        auto result = flowTensors_->emplace(name, allocator_.make_owner<Tensor>(name, shape, dType, order));
+        auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
         return result.first;
     }
@@ -71,13 +71,13 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const S
 
 }
 
-mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data)
+mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data)
 {
 
     if (flowTensors_->find(name) == flowTensors_->end())
     {
         // TODO: handle failure
-        auto result = flowTensors_->emplace(name, allocator_.make_owner<Tensor>(name, shape, dType, order, data));
+        auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
         return result.first;
     }
@@ -87,7 +87,7 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const string &name, const S
 
 }
 
-bool mv::DataModel::undefineTensor(const string &name)
+bool mv::DataModel::undefineTensor(const std::string& name)
 {
 
     if (flowTensors_->find(name) == flowTensors_->end())
@@ -111,7 +111,7 @@ bool mv::DataModel::undefineTensor(const string &name)
 
 }
 
-mv::Data::TensorIterator mv::DataModel::findTensor(string name)
+mv::Data::TensorIterator mv::DataModel::findTensor(const std::string& name)
 {
 
     return ComputationModel::findTensor_(name);
@@ -123,9 +123,9 @@ unsigned mv::DataModel::tensorsCount() const
     return flowTensors_->size();
 }
 
-bool mv::DataModel::addAllocator(const string &name, std::size_t size, Order order)
+bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, Order order)
 {
-    auto result = memoryAllocators_->emplace(name, allocator_.make_owner<MemoryAllocator>(name, size, order));
+    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size, order));
     if (result.second)
     {
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
@@ -134,16 +134,16 @@ bool mv::DataModel::addAllocator(const string &name, std::size_t size, Order ord
     return false;
 }
 
-mv::Data::BufferIterator mv::DataModel::allocateTensor(const string &allocatorName, Control::StageIterator &stage,
-    Data::TensorIterator &tensor, mv::dynamic_vector<size_t> pad)
+mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& allocatorName, Control::StageIterator& stage,
+    Data::TensorIterator& tensor, std::vector<size_t> pad)
 {
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
-    unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    unsigned stageIdx = stage->getAttr("idx").getContent<std::size_t>();
     if(pad.size() == 0)
-        pad = mv::dynamic_vector<size_t>(tensor->getShape().ndims(), 0);
+        pad = std::vector<size_t>(tensor->getShape().ndims(), 0);
     auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, stageIdx, pad);
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {
@@ -159,56 +159,56 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const string &allocatorNa
 
 }
 
-bool mv::DataModel::deallocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor)
+bool mv::DataModel::deallocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor)
 {
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
-    unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    unsigned stageIdx = stage->getAttr("idx").getContent<std::size_t>();
     return (*memoryAllocators_)[allocatorName]->deallocate(tensor, stageIdx);
 
 }
 
-void mv::DataModel::deallocateAll(const string &allocatorName, Control::StageIterator &stage)
+void mv::DataModel::deallocateAll(const std::string& allocatorName, Control::StageIterator& stage)
 {
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
-    unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    unsigned stageIdx = stage->getAttr("idx").getContent<std::size_t>();
     (*memoryAllocators_)[allocatorName]->deallocateAll(stageIdx);
 
 }
 
-mv::Data::BufferIterator mv::DataModel::bufferBegin(const string &allocatorName, Control::StageIterator &stage)
+mv::Data::BufferIterator mv::DataModel::bufferBegin(const std::string& allocatorName, Control::StageIterator& stage)
 {
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
-    unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    unsigned stageIdx = stage->getAttr("idx").getContent<std::size_t>();
     return (*memoryAllocators_)[allocatorName]->bufferBegin(stageIdx);
 }
 
-mv::Data::BufferIterator mv::DataModel::bufferEnd(const string &allocatorName, Control::StageIterator &stage)
+mv::Data::BufferIterator mv::DataModel::bufferEnd(const std::string& allocatorName, Control::StageIterator& stage)
 {
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
-    unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    unsigned stageIdx = stage->getAttr("idx").getContent<std::size_t>();
     return (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx);
 }
 
-mv::Data::BufferIterator mv::DataModel::getBuffer(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator tensor)
+mv::Data::BufferIterator mv::DataModel::getBuffer(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator tensor)
 {
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError("allocatorName", allocatorName, "Undefined allocator");
 
-    unsigned stageIdx = stage->getAttr("idx").getContent<unsigned_type>();
+    unsigned stageIdx = stage->getAttr("idx").getContent<std::size_t>();
     return (*memoryAllocators_)[allocatorName]->getBuffer(stageIdx, tensor);
 }
 
-bool mv::DataModel::hasAllocator(const string& name)
+bool mv::DataModel::hasAllocator(const std::string& name)
 {
 
     if (memoryAllocators_->find(name) != memoryAllocators_->end())
@@ -218,7 +218,7 @@ bool mv::DataModel::hasAllocator(const string& name)
 
 }
 
-bool mv::DataModel::addAttr(Data::TensorIterator tensor, const string& name, const Attribute& attr)
+bool mv::DataModel::addAttr(Data::TensorIterator tensor, const std::string& name, const Attribute& attr)
 {
     return tensor->addAttr(name, attr);
 }

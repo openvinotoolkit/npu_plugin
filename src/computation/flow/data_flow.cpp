@@ -1,7 +1,7 @@
 #include "include/mcm/computation/flow/data_flow.hpp"
 
-mv::DataFlow::DataFlow(const Data::OpListIterator& source, byte_type outputIdx, const Data::OpListIterator& sink, 
-    byte_type inputIdx, const Data::TensorIterator& data) :
+mv::DataFlow::DataFlow(const Data::OpListIterator& source, std::size_t outputIdx, const Data::OpListIterator& sink, 
+    std::size_t inputIdx, const Data::TensorIterator& data) :
 ComputationFlow("df_" + source->getName() + Printable::toString(outputIdx) + "_" + sink->getName() + Printable::toString(inputIdx)),
 data_(data)
 {
@@ -29,7 +29,7 @@ mv::Data::TensorIterator& mv::DataFlow::getTensor()
     return data_;
 }
 
-mv::string mv::DataFlow::toString() const
+std::string mv::DataFlow::toString() const
 {
     return "data flow '" + name_ + "'\n'tensor': " + data_->getName() + ComputationElement::toString();
 }

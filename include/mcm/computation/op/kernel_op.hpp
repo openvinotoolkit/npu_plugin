@@ -13,15 +13,15 @@ namespace mv
 
     protected:
 
-        static dim_type getOutputDim_(dim_type inputDim, dim_type kernelDim, byte_type stride)
+        static std::size_t getOutputDim_(std::size_t inputDim, std::size_t kernelDim, std::size_t stride)
         {
             return (inputDim - kernelDim) / stride + 1;
         }
 
     public:
 
-        KernelOp(OpType opType, UnsignedVector2D stride, UnsignedVector4D padding, const string &name);
-        KernelOp(mv::json::Value& value);
+        KernelOp(OpType opType, UnsignedVector2D stride, UnsignedVector4D padding, const std::string &name);
+        KernelOp(json::Value& value);
         virtual ~KernelOp() = 0;
 
     };

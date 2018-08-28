@@ -14,7 +14,7 @@ namespace mv
 
         public:
 
-            Softmax(const string &name);
+            Softmax(const std::string &name);
             Softmax(mv::json::Value &obj);
             bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 

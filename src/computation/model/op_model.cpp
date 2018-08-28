@@ -46,7 +46,7 @@ mv::Data::OpListIterator mv::OpModel::checkInputTensor_(Data::TensorIterator inp
 
 }
 
-mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::node_list_iterator& opNode, Data::TensorIterator* inputs, byte_type numInputs)
+mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::node_list_iterator& opNode, Data::TensorIterator* inputs, std::size_t numInputs)
 {
 
     if (opNode == dataGraph_.node_end())
@@ -55,7 +55,7 @@ mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::
         return tensorEnd();
     }
 
-    for (byte_type i = 0; i < numInputs; ++i)
+    for (std::size_t i = 0; i < numInputs; ++i)
     {
 
         if (defineFlow(inputs[i], opNode, i) == flowEnd())
@@ -95,7 +95,7 @@ void mv::OpModel::decrementOpsCounter_(OpType opType)
     }
 }
 
-mv::string mv::OpModel::getOpName_(OpType opType)
+std::string mv::OpModel::getOpName_(OpType opType)
 {
     return Printable::toString(opType) + "_" + Printable::toString(opsCount(opType));
 }
@@ -105,7 +105,7 @@ mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator othe
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const string& name)
+mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const std::string& name)
 {
 
     if (*input_ != opEnd())
@@ -114,13 +114,13 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
         return tensorEnd();
     }
 
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Input);
 
-    *input_ = dataGraph_.node_insert(allocator_.make_owner<op::Input>(shape, dType, order, opName));
+    *input_ = dataGraph_.node_insert(std::make_shared<op::Input>(shape, dType, order, opName));
     
     if (*input_ == opEnd())
     {
@@ -136,16 +136,16 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
 
 }
 
-mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, const std::string& name)
 {
     
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Output);
     
-    auto outputIt = dataGraph_.node_insert(allocator_.make_owner<op::Output>(opName));
+    auto outputIt = dataGraph_.node_insert(std::make_shared<op::Output>(opName));
 
     if (outputIt == dataGraph_.node_end())
     {
@@ -168,14 +168,14 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
 
 }
 
-mv::Data::TensorIterator mv::OpModel::constant(const dynamic_vector<float_type>& data, const Shape& shape, DType dType, Order order, const string& name)
+mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape, DType dType, Order order, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Constant);
-    Data::OpListIterator constantIt = dataGraph_.node_insert(allocator_.make_owner<op::Constant>(data, shape, dType, order, opName));
+    Data::OpListIterator constantIt = dataGraph_.node_insert(std::make_shared<op::Constant>(data, shape, dType, order, opName));
     auto outputTensor = defineOutputTensor_(constantIt, 0);
     constantIt->setOutputTensor(outputTensor, 0);
     incrementOpsCounter_(OpType::Constant);
@@ -183,14 +183,14 @@ mv::Data::TensorIterator mv::OpModel::constant(const dynamic_vector<float_type>&
     return outputTensor;
 }
 
-mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
+mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Conv2D);
-    auto conv = dataGraph_.node_insert(allocator_.make_owner<op::Conv2D>(stride, padding, opName));
+    auto conv = dataGraph_.node_insert(std::make_shared<op::Conv2D>(stride, padding, opName));
     Data::TensorIterator inputs[] = {inputTensor, filtersTensor};
     auto result = defineOp_(conv, inputs, 2);;
     if (isValid(result))
@@ -198,14 +198,14 @@ mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, D
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::MatMul);
-    auto matMulIt = dataGraph_.node_insert(allocator_.make_owner<op::MatMul>(opName));
+    auto matMulIt = dataGraph_.node_insert(std::make_shared<op::MatMul>(opName));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     auto result = defineOp_(matMulIt, inputs, 2);
     if (isValid(result))
@@ -213,14 +213,14 @@ mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator input0Tensor, 
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
+mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::MaxPool2D);
-    auto poolIt = dataGraph_.node_insert(allocator_.make_owner<op::MaxPool2D>(kernelSize, stride, padding, opName));
+    auto poolIt = dataGraph_.node_insert(std::make_shared<op::MaxPool2D>(kernelSize, stride, padding, opName));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(poolIt, inputs, 1);
     if (isValid(result))
@@ -228,14 +228,14 @@ mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string& name)
+mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::AvgPool2D);
-    auto poolIt = dataGraph_.node_insert(allocator_.make_owner<op::AvgPool2D>(kernelSize, stride, padding, opName));
+    auto poolIt = dataGraph_.node_insert(std::make_shared<op::AvgPool2D>(kernelSize, stride, padding, opName));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(poolIt, inputs, 1);
     if (isValid(result))
@@ -243,14 +243,14 @@ mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::concat(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::concat(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Concat);
-    Data::OpListIterator concatIt = dataGraph_.node_insert(allocator_.make_owner<op::Concat>(opName));
+    Data::OpListIterator concatIt = dataGraph_.node_insert(std::make_shared<op::Concat>(opName));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     auto result = defineOp_(concatIt, inputs, 2);
     if (isValid(result))
@@ -258,14 +258,14 @@ mv::Data::TensorIterator mv::OpModel::concat(Data::TensorIterator input0Tensor, 
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::batchNorm(Data::TensorIterator inputTensor, Data::TensorIterator meanTensor, Data::TensorIterator varianceTensor, Data::TensorIterator offsetTensor, Data::TensorIterator scaleTensor, float_type varianceEps, const string& name)
+mv::Data::TensorIterator mv::OpModel::batchNorm(Data::TensorIterator inputTensor, Data::TensorIterator meanTensor, Data::TensorIterator varianceTensor, Data::TensorIterator offsetTensor, Data::TensorIterator scaleTensor, double varianceEps, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::BatchNorm);
-    Data::OpListIterator batchNormIt = dataGraph_.node_insert(allocator_.make_owner<op::BatchNorm>(varianceEps, opName));
+    Data::OpListIterator batchNormIt = dataGraph_.node_insert(std::make_shared<op::BatchNorm>(varianceEps, opName));
     Data::TensorIterator inputs[] = {inputTensor, meanTensor, varianceTensor, offsetTensor, scaleTensor};
     auto result = defineOp_(batchNormIt, inputs, 5);
     if (isValid(result))
@@ -273,14 +273,14 @@ mv::Data::TensorIterator mv::OpModel::batchNorm(Data::TensorIterator inputTensor
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator inputTensor, Data::TensorIterator scaleTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator inputTensor, Data::TensorIterator scaleTensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Scale);
-    Data::OpListIterator scaleIt = dataGraph_.node_insert(allocator_.make_owner<op::Scale>(opName));
+    Data::OpListIterator scaleIt = dataGraph_.node_insert(std::make_shared<op::Scale>(opName));
     Data::TensorIterator inputs[] = {inputTensor, scaleTensor};
     auto result = defineOp_(scaleIt, inputs, 2);
     if (isValid(result))
@@ -288,14 +288,14 @@ mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator inputTensor, Da
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::ReLU);
-    Data::OpListIterator reluIt = dataGraph_.node_insert(allocator_.make_owner<op::ReLU>(opName));
+    Data::OpListIterator reluIt = dataGraph_.node_insert(std::make_shared<op::ReLU>(opName));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(reluIt, inputs, 1);
     if (isValid(result))
@@ -303,28 +303,28 @@ mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, con
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, mv::Order targetOrder, const string& name)
+mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, mv::Order targetOrder, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Conversion);
-    Data::OpListIterator conversionIt = dataGraph_.node_insert(allocator_.make_owner<op::Conversion>(opName, targetOrder));
+    Data::OpListIterator conversionIt = dataGraph_.node_insert(std::make_shared<op::Conversion>(opName, targetOrder));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(conversionIt, inputs, 1);
     if (isValid(result))
         incrementOpsCounter_(OpType::Conversion);
     return result;
 }
-mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator inputTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator inputTensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Softmax);
-    Data::OpListIterator softmaxIt = dataGraph_.node_insert(allocator_.make_owner<op::Softmax>(opName));
+    Data::OpListIterator softmaxIt = dataGraph_.node_insert(std::make_shared<op::Softmax>(opName));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(softmaxIt, inputs, 1);
     if (isValid(result))
@@ -332,14 +332,14 @@ mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator inputTensor, 
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::add(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::add(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Add);
-    Data::OpListIterator addIt = dataGraph_.node_insert(allocator_.make_owner<op::Add>(opName));
+    Data::OpListIterator addIt = dataGraph_.node_insert(std::make_shared<op::Add>(opName));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     auto result = defineOp_(addIt, inputs, 2);
     if (isValid(result))
@@ -347,14 +347,14 @@ mv::Data::TensorIterator mv::OpModel::add(Data::TensorIterator input0Tensor, Dat
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::subtract(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::subtract(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Subtract);
-    Data::OpListIterator subtractIt = dataGraph_.node_insert(allocator_.make_owner<op::Subtract>(opName));
+    Data::OpListIterator subtractIt = dataGraph_.node_insert(std::make_shared<op::Subtract>(opName));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     auto result = defineOp_(subtractIt, inputs, 2);
     if (isValid(result))
@@ -362,14 +362,14 @@ mv::Data::TensorIterator mv::OpModel::subtract(Data::TensorIterator input0Tensor
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::multiply(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::multiply(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Multiply);
-    Data::OpListIterator multiplyIt = dataGraph_.node_insert(allocator_.make_owner<op::Multiply>(opName));
+    Data::OpListIterator multiplyIt = dataGraph_.node_insert(std::make_shared<op::Multiply>(opName));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     auto result = defineOp_(multiplyIt, inputs, 2);
     if (isValid(result))
@@ -378,14 +378,14 @@ mv::Data::TensorIterator mv::OpModel::multiply(Data::TensorIterator input0Tensor
 
 }
 
-mv::Data::TensorIterator mv::OpModel::divide(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::divide(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
 {   
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Divide);
-    Data::OpListIterator divideIt = dataGraph_.node_insert(allocator_.make_owner<op::Divide>(opName));
+    Data::OpListIterator divideIt = dataGraph_.node_insert(std::make_shared<op::Divide>(opName));
     Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
     auto result = defineOp_(divideIt, inputs, 2);
     if (isValid(result))
@@ -393,14 +393,14 @@ mv::Data::TensorIterator mv::OpModel::divide(Data::TensorIterator input0Tensor, 
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator inputTensor, const Shape& shape, const string& name)
+mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator inputTensor, const Shape& shape, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Reshape);
-    Data::OpListIterator reshapeIt = dataGraph_.node_insert(allocator_.make_owner<op::Reshape>(shape, opName));
+    Data::OpListIterator reshapeIt = dataGraph_.node_insert(std::make_shared<op::Reshape>(shape, opName));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(reshapeIt, inputs, 1);
     if (isValid(result))
@@ -408,14 +408,14 @@ mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator inputTensor, 
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator inputTensor, Data::TensorIterator biasesTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator inputTensor, Data::TensorIterator biasesTensor, const std::string& name)
 {   
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Bias);
-    Data::OpListIterator biasIt = dataGraph_.node_insert(allocator_.make_owner<op::Bias>(opName));
+    Data::OpListIterator biasIt = dataGraph_.node_insert(std::make_shared<op::Bias>(opName));
     Data::TensorIterator inputs[] = {inputTensor, biasesTensor};
     auto result = defineOp_(biasIt, inputs, 2);
     if (isValid(result))
@@ -423,15 +423,15 @@ mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator inputTensor, Dat
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const string& name)
+mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const std::string& name)
 {
-    string opName;
+    std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::FullyConnected);
 
-    Data::OpListIterator fullyConnectedIt = dataGraph_.node_insert(allocator_.make_owner<op::FullyConnected>(opName));
+    Data::OpListIterator fullyConnectedIt = dataGraph_.node_insert(std::make_shared<op::FullyConnected>(opName));
     Data::TensorIterator inputs[] = {inputTensor, weightsTensor};
     auto result = defineOp_(fullyConnectedIt, inputs, 2);
     if (isValid(result))
@@ -445,7 +445,7 @@ mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)
     return findSourceOp_(tensor);
 }
 
-bool mv::OpModel::addAttr(Data::OpListIterator opIt, const string& name, const Attribute& attr)
+bool mv::OpModel::addAttr(Data::OpListIterator opIt, const std::string& name, const Attribute& attr)
 {
 
     return opIt->addAttr(name, attr);
@@ -458,7 +458,7 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
     if (op == opEnd())
         return false;
 
-    for (byte_type j = 0; j < op->outputSlots(); ++j)
+    for (std::size_t j = 0; j < op->outputSlots(); ++j)
     {
         tensorsSources_->erase(op->getOutputTensor(j)->getName());
         flowTensors_->erase(op->getOutputTensor(j));
@@ -479,7 +479,7 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
 
 }
 
-mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, byte_type inputIdx)
+mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, std::size_t inputIdx)
 {
     
     if (!isValid(sourceTensor))
@@ -506,7 +506,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
         return flowEnd();
     }
 
-    Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, allocator_.make_owner<DataFlow>(sourceOp, 0, sinkOp, inputIdx, sourceTensor));
+    Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, std::make_shared<DataFlow>(sourceOp, 0, sinkOp, inputIdx, sourceTensor));
     
     if (inputFlow != *dataFlowEnd_)
     {
@@ -522,7 +522,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
 
 }
 
-mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::OpListIterator sourceOp, byte_type outputIdx, Data::OpListIterator sinkOp, byte_type inputIdx)
+mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::OpListIterator sourceOp, std::size_t outputIdx, Data::OpListIterator sinkOp, std::size_t inputIdx)
 {
 
     auto sourceTensor = sourceOp->getOutputTensor(outputIdx);
@@ -584,21 +584,21 @@ mv::Data::FlowListIterator mv::OpModel::flowEnd() const
 mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
 {
 
-    allocator::owner_ptr<ComputationOp> ptr = newElement;
+    std::shared_ptr<ComputationOp> ptr = newElement;
     return addGroupElement_(ptr, group);
 
 }
 
 bool mv::OpModel::removeGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group)
 {
-    allocator::owner_ptr<ComputationOp> ptr = element;
+    std::shared_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);
 }
 
-mv::dynamic_vector<mv::Shape> mv::OpModel::getInputShapes(Data::OpListIterator& op)
+std::vector<mv::Shape> mv::OpModel::getInputShapes(Data::OpListIterator& op)
 {
 
-    dynamic_vector<Shape> shapes;
+    std::vector<Shape> shapes;
 
     for (auto it = op.leftmostInput(); it != *dataFlowEnd_; ++it)
     {
@@ -609,10 +609,10 @@ mv::dynamic_vector<mv::Shape> mv::OpModel::getInputShapes(Data::OpListIterator& 
 
 }
 
-mv::dynamic_vector<mv::Shape> mv::OpModel::getOutputShapes(Data::OpListIterator& op)
+std::vector<mv::Shape> mv::OpModel::getOutputShapes(Data::OpListIterator& op)
 {
 
-    dynamic_vector<Shape> shapes;
+    std::vector<Shape> shapes;
 
     for (auto it = op.leftmostOutput(); it != *dataFlowEnd_; ++it)
     {
@@ -623,19 +623,19 @@ mv::dynamic_vector<mv::Shape> mv::OpModel::getOutputShapes(Data::OpListIterator&
 
 }
 
-unsigned mv::OpModel::opsCount() const
+std::size_t mv::OpModel::opsCount() const
 {
     return dataGraph_.node_size();
 }
 
-unsigned mv::OpModel::opsCount(OpType opType) const
+std::size_t mv::OpModel::opsCount(OpType opType) const
 {
     if (opsCounter_->find(opType) != opsCounter_->end())
         return opsCounter_->at(opType);
     return 0;
 }
 
-unsigned mv::OpModel::parametersCount() const
+long long unsigned mv::OpModel::parametersCount() const
 {
 
     unsigned result = 0;

@@ -23,7 +23,7 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::DataModel dm(model);
     mv::OpModel om(model);

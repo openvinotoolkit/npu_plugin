@@ -9,14 +9,13 @@
 template<mv::AttrType> struct AttrTypeToType { typedef void type; enum { value = false }; };
 #define DEFINE_ENUMERATED_TYPE(TYPE, ATTRTYPE) template<> struct AttrTypeToType<ATTRTYPE> { typedef TYPE type; enum { value = true }; }
 
-DEFINE_ENUMERATED_TYPE(mv::int_type, mv::AttrType::IntegerType);
-DEFINE_ENUMERATED_TYPE(mv::unsigned_type, mv::AttrType::UnsignedType);
-DEFINE_ENUMERATED_TYPE(mv::float_type, mv::AttrType::FloatType);
+DEFINE_ENUMERATED_TYPE(int, mv::AttrType::IntegerType);
+DEFINE_ENUMERATED_TYPE(long long unsigned, mv::AttrType::UnsignedType);
+DEFINE_ENUMERATED_TYPE(double, mv::AttrType::FloatType);
 DEFINE_ENUMERATED_TYPE(mv::Shape, mv::AttrType::ShapeType);
-DEFINE_ENUMERATED_TYPE(mv::byte_type, mv::AttrType::ByteType);
 DEFINE_ENUMERATED_TYPE(mv::DType, mv::AttrType::DTypeType);
 DEFINE_ENUMERATED_TYPE(mv::Order, mv::AttrType::OrderType);
-DEFINE_ENUMERATED_TYPE(mv::string, mv::AttrType::StringType);
+DEFINE_ENUMERATED_TYPE(std::string, mv::AttrType::StringType);
 DEFINE_ENUMERATED_TYPE(bool, mv::AttrType::BoolType);
 DEFINE_ENUMERATED_TYPE(mv::OpType, mv::AttrType::OpTypeType);
 DEFINE_ENUMERATED_TYPE(mv::FloatVector2D, mv::AttrType::FloatVec2DType);
@@ -28,8 +27,8 @@ DEFINE_ENUMERATED_TYPE(mv::IntVector4D, mv::AttrType::IntVec4DType);
 DEFINE_ENUMERATED_TYPE(mv::UnsignedVector2D, mv::AttrType::UnsignedVec2DType);
 DEFINE_ENUMERATED_TYPE(mv::UnsignedVector3D, mv::AttrType::UnsignedVec3DType);
 DEFINE_ENUMERATED_TYPE(mv::UnsignedVector4D, mv::AttrType::UnsignedVec4DType);
-DEFINE_ENUMERATED_TYPE(mv::dynamic_vector<mv::float_type>, mv::AttrType::FloatVecType);
-DEFINE_ENUMERATED_TYPE(mv::dynamic_vector<std::string>, mv::AttrType::StringVecType);
+DEFINE_ENUMERATED_TYPE(std::vector<double>, mv::AttrType::FloatVecType);
+DEFINE_ENUMERATED_TYPE(std::vector<std::string>, mv::AttrType::StringVecType);
 
 template<class T, class U>
 struct is_same {
@@ -123,7 +122,7 @@ namespace mv
         struct GenericAttributeContent
         {
 
-            //byte_type typeId_;
+            //std::size_t typeId_;
             AttrType typeId_;
 
             GenericAttributeContent(AttrType typeId) : typeId_(typeId) {}
@@ -145,24 +144,23 @@ namespace mv
 
         };
 
-        static allocator allocator_;
-        allocator::owner_ptr<GenericAttributeContent> content_;
+        std::shared_ptr<GenericAttributeContent> content_;
         AttrType attrType_;
 
     public:
 
         Attribute();
         ~Attribute();
-        static Attribute JsonAttributeFactory(mv::json::Value& value);
+        static Attribute JsonAttributeFactory(json::Value& value);
         AttrType getType() const;
-        string toString() const;
-        mv::json::Value toJsonValue() const;
-        mv::json::Value getContentJson() const;
-        string getContentStr() const;
+        std::string toString() const;
+        json::Value toJsonValue() const;
+        json::Value getContentJson() const;
+        std::string getContentStr() const;
 
         template <class T>
         Attribute(AttrType attrType, const T &content) : 
-        content_(allocator_.make_owner<AttributeContent<T>>(content)),
+        content_(std::make_shared<AttributeContent<T>>(content)),
         attrType_(attrType)
         {
 
@@ -173,7 +171,7 @@ namespace mv
         {
 
             assert(getTypeId<T>() == content_->typeId_ && "Attribute type mismatch");
-            return content_.cast_pointer<AttributeContent<T>>()->getContent();
+            return std::static_pointer_cast<AttributeContent<T>>(content_)->getContent();
         
         }
 
@@ -182,7 +180,7 @@ namespace mv
         {
 
             assert(getTypeId<T>() == content_->typeId_ && "Attribute type mismatch");
-            return content_.cast_pointer<AttributeContent<T>>()->setContent(content);
+            return std::static_pointer_cast<AttributeContent<T>>(content_)->setContent(content);
         
         }
 

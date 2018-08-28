@@ -7,9 +7,9 @@ TEST(group, op_member_append)
 
     mv::OpModel om;
 
-    auto input = om.input(mv::Shape(8, 8, 1), mv::DType::Float, mv::Order::ColumnMajor);
+    auto input = om.input({8, 8, 1}, mv::DType::Float, mv::Order::ColumnMajor);
     auto inputOp = om.getSourceOp(input);
-    auto weights = om.constant(mv::utils::generateSequence<float>(1), mv::Shape(1, 1, 1, 1), mv::DType::Float, mv::Order::ColumnMajor);
+    auto weights = om.constant(mv::utils::generateSequence<double>(1), {1, 1, 1, 1}, mv::DType::Float, mv::Order::ColumnMajor);
     auto weightsOp = om.getSourceOp(weights);
     auto conv = om.conv2D(input, weights, {1, 1}, {0, 0, 0, 0});
     auto convOp = om.getSourceOp(conv);
@@ -31,8 +31,8 @@ TEST(group, op_member_append)
         if (it != poolOp)
         {
             ASSERT_TRUE(it->hasAttr("groups"));
-            ASSERT_EQ(it->getAttr("groups").getContent<mv::dynamic_vector<std::string>>().size(), 1);
-            ASSERT_EQ(it->getAttr("groups").getContent<mv::dynamic_vector<std::string>>()[0], groupName);
+            ASSERT_EQ(it->getAttr("groups").getContent<std::vector<std::string>>().size(), 1);
+            ASSERT_EQ(it->getAttr("groups").getContent<std::vector<std::string>>()[0], groupName);
         }
     }
     
@@ -50,9 +50,9 @@ TEST(group, op_member_remove)
 
     mv::OpModel om;
 
-    auto input = om.input(mv::Shape(8, 8, 1), mv::DType::Float, mv::Order::ColumnMajor);
+    auto input = om.input({8, 8, 1}, mv::DType::Float, mv::Order::ColumnMajor);
     auto inputOp = om.getSourceOp(input);
-    auto weights = om.constant(mv::utils::generateSequence<float>(1), mv::Shape(1, 1, 1, 1), mv::DType::Float, mv::Order::ColumnMajor);
+    auto weights = om.constant(mv::utils::generateSequence<double>(1), {1, 1, 1, 1}, mv::DType::Float, mv::Order::ColumnMajor);
     auto weightsOp = om.getSourceOp(weights);
     auto conv = om.conv2D(input, weights, {1, 1}, {0, 0, 0, 0});
     auto convOp = om.getSourceOp(conv);

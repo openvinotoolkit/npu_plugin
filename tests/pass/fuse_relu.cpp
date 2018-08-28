@@ -9,9 +9,9 @@ TEST(fuse_relu, case_conv)
 {
 
     mv::OpModel om;
-    auto input = om.input(mv::Shape(64, 64, 16), mv::DType::Float, mv::Order::ColumnMajor);
-    mv::dynamic_vector<mv::float_type> weightsData = mv::utils::generateSequence<mv::float_type>(3 * 3 * 16 * 32);
-    auto weights = om.constant(weightsData, mv::Shape(3, 3, 16, 32), mv::DType::Float, mv::Order::ColumnMajor, "weights");
+    auto input = om.input({64, 64, 16}, mv::DType::Float, mv::Order::ColumnMajor);
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
+    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DType::Float, mv::Order::ColumnMajor, "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto relu = om.relu(conv);

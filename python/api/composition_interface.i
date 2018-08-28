@@ -70,31 +70,31 @@ import_array();
 
     mv::Shape * getShape(int x){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(x);
+        mv::Shape* a = new mv::Shape({x});
         return a;
     }
 
     mv::Shape * getShape(int x, int y){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(x, y);
+        mv::Shape* a = new mv::Shape({x, y});
         return a;
     }
 
     mv::Shape * getShape(int x, int y, int z){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(x, y, z);
+        mv::Shape* a = new mv::Shape({x, y, z});
         return a;
     }
 
     mv::Shape * getShape(int b, int x, int y, int z){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(b, x, y, z);
+        mv::Shape* a = new mv::Shape({b, x, y, z});
         return a;
     }
 
-    mv::dynamic_vector<mv::float_type> * getData(float * d, size_t len){
+    std::vector<double> * getData(double * d, unsigned len){
         /// Populate a Vector with a numpy array.
-        mv::dynamic_vector<mv::float_type> * weightsData = new mv::dynamic_vector<mv::float_type>(d, d + len);
+        std::vector<double> * weightsData = new std::vector<double>(d, d + len);
         return weightsData;
     }
 
@@ -151,14 +151,14 @@ import_array();
 
         mv::Shape i = input->getShape();
 
-        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
-        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
+        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
 
-        float caffe_x = ceil(inner_x_calc / strideX) + 1;
-        float caffe_y = ceil(inner_y_calc / strideX) + 1;
+        double caffe_x = ceil(inner_x_calc / strideX) + 1;
+        double caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
+        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
@@ -192,14 +192,14 @@ import_array();
         int kernelSizeX =  k[0];
         int kernelSizeY =  k[1];
 
-        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
-        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
+        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
 
-        float caffe_x = ceil(inner_x_calc / strideX) + 1;
-        float caffe_y = ceil(inner_y_calc / strideX) + 1;
+        double caffe_x = ceil(inner_x_calc / strideX) + 1;
+        double caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
+        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
@@ -207,7 +207,7 @@ import_array();
         return o->conv2D(input, filters, {strideX, strideY}, {padX , padX- adj_X, padY, padY - adj_Y});
     }
 
-    mv::Data::TensorIterator constant(mv::OpModel *o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
+    mv::Data::TensorIterator constant(mv::OpModel *o, const std::vector<double>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the OpModel and return the relevant iterator
         return o->constant(data, shape, mv::DType::Float, mv::Order::RowMajorPlanar);
     }
@@ -236,14 +236,14 @@ import_array();
 
         mv::Shape i = input->getShape();
 
-        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
-        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
+        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
 
-        float caffe_x = ceil(inner_x_calc / strideX) + 1;
-        float caffe_y = ceil(inner_y_calc / strideX) + 1;
+        double caffe_x = ceil(inner_x_calc / strideX) + 1;
+        double caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
+        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
@@ -252,7 +252,7 @@ import_array();
             {padX, padX+ adj_X, padY, padY+ adj_Y});
     }
 
-    mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, mv::float_type varianceEps){
+    mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps){
         return o->batchNorm(input, mean, variance, offset, scale, varianceEps);
     }
     mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale){
@@ -349,8 +349,8 @@ mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z);
 
 // Expand a numpy array to a data pointer and a length
 %include "stdint.i"
-%apply (float* INPLACE_ARRAY1, int DIM1) {(float* d, int len)}
-mv::dynamic_vector<mv::float_type> * getData(float * d, int len);
+%apply (double* INPLACE_ARRAY1, int DIM1) {(double* d, int len)}
+std::vector<double> * getData(double * d, int len);
 
 
 mv::Data::TensorIterator input(mv::OpModel * o, const mv::Shape &shape);
@@ -370,7 +370,7 @@ mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator te
 
 mv::Data::TensorIterator matMul(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
 mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding);
-mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, float varianceEps);
+mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
 mv::Data::TensorIterator relu(mv::OpModel *o,mv::Data::TensorIterator input);
 mv::Data::TensorIterator softmax(mv::OpModel *o,mv::Data::TensorIterator input);
@@ -381,7 +381,7 @@ mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, 
 mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape);
 mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
 mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
+mv::Data::TensorIterator constant(mv::OpModel * o, const std::vector<double>& data, const mv::Shape &shape);
 
 int testConv(
     mv::Data::OpListIterator &target,

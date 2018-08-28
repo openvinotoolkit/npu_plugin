@@ -14,14 +14,12 @@ namespace mv
     class MemoryAllocator : public Printable, public Jsonable
     {
 
-        static allocator allocator_;
-
     public:
 
         struct AllocatorOrderComparator
         {
 
-            bool operator()(const allocator::owner_ptr<MemoryAllocator> &lhs, const allocator::owner_ptr<MemoryAllocator> &rhs)
+            bool operator()(const std::shared_ptr<MemoryAllocator> &lhs, const std::shared_ptr<MemoryAllocator> &rhs)
             {
                 return lhs->name_ < rhs->name_;
             }
@@ -53,7 +51,7 @@ namespace mv
             /**
              * @brief Values specifing the displacement between consequent storage memory blocks owned by the buffer
              */
-            mv::dynamic_vector<size_t> strides;
+            std::vector<size_t> strides;
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */
@@ -92,12 +90,12 @@ namespace mv
         /**
          * @brief Allocator's identifier
          */
-        string name_;
+        std::string name_;
 
         /**
          * @brief Total size of the memory block represented by the allocator
          */
-        long long size_;
+        long long unsigned size_;
 
         /**
          * @brief Order of 1-dimensional representations of multidimensional tensors allocated by the allocator
@@ -107,21 +105,21 @@ namespace mv
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */
-        std::map<unsigned, std::map<Data::TensorIterator,  allocator::owner_ptr<MemoryBuffer>, TensorIteratorComparator>> entries_;
+        std::map<unsigned, std::map<Data::TensorIterator,  std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>> entries_;
 
-        using BufferIterator = std::map<Data::TensorIterator, allocator::owner_ptr<MemoryBuffer>, TensorIteratorComparator>::iterator;
+        using BufferIterator = std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>::iterator;
 
         void placeBuffers_(unsigned stageIdx, BufferIterator first, BufferIterator last);
 
     public:
 
-        MemoryAllocator(string name, std::size_t size, Order order);
+        MemoryAllocator(std::string name, std::size_t size, Order order);
         template <typename VecType>
-        mv::MemoryAllocator::BufferIterator allocate(Data::TensorIterator tensor, unsigned stageIdx, const VecType& paddings)
+        mv::MemoryAllocator::BufferIterator allocate(Data::TensorIterator tensor, std::size_t stageIdx, const VecType& paddings)
         {
             // TODO: Move this to the cpp.
 
-            mv::dynamic_vector<size_t> strides;
+            std::vector<size_t> strides;
             Shape s(tensor->getShape());
             writeStrides(paddings, s, strides);
             //Last stride is actually right padding
@@ -139,22 +137,22 @@ namespace mv
             MemoryBuffer newBuffer = {offset, size, strides, block, block_num, left_pad, right_pad, tensor};
 
             if (entries_.find(stageIdx) == entries_.end())
-                entries_.emplace(stageIdx, std::map<Data::TensorIterator, allocator::owner_ptr<MemoryBuffer>, TensorIteratorComparator>());
+                entries_.emplace(stageIdx, std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>());
             else
                 if (entries_[stageIdx].size() != 0)
                     newBuffer.offset = entries_[stageIdx].rbegin()->second->offset + entries_[stageIdx].rbegin()->second->size;
 
-            return entries_[stageIdx].emplace(tensor, allocator_.make_owner<MemoryBuffer>(newBuffer)).first;
+            return entries_[stageIdx].emplace(tensor, std::make_shared<MemoryBuffer>(newBuffer)).first;
         }
-        bool deallocate(Data::TensorIterator tensor, unsigned stageIdx);
-        void deallocateAll(unsigned stageIdx);
-        long long freeSpace(unsigned stageIdx) const;
-        long long usedSpace(unsigned stageIdx) const;
-        string toString() const;
+        bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
+        void deallocateAll(std::size_t stageIdx);
+        long long unsigned freeSpace(std::size_t stageIdx) const;
+        long long unsigned usedSpace(std::size_t stageIdx) const;
+        std::string toString() const;
         mv::json::Value toJsonValue() const;
-        BufferIterator bufferBegin(unsigned stageIdx);
-        BufferIterator bufferEnd(unsigned stageIdx);
-        BufferIterator getBuffer(unsigned stageIdx, Data::TensorIterator tensor);
+        BufferIterator bufferBegin(std::size_t stageIdx);
+        BufferIterator bufferEnd(std::size_t stageIdx);
+        BufferIterator getBuffer(std::size_t stageIdx, Data::TensorIterator tensor);
 
         template <typename VecType1, typename VecType2>
         long writeStrides(const VecType1& p, const mv::Shape& s, VecType2& strides)

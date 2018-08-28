@@ -5,8 +5,7 @@ namespace mv
 {
     void bCompatibility::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
-        int fp16_size = 2;
-
+        
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 

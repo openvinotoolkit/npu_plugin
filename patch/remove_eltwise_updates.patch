@@ -143,10 +143,10 @@ index 8e1ead7..34fdaf4 100644
 -        from Controllers.Tensor import PopulatedTensor
  
          i = layer.getInputTensors()[0]
-         i.setDatatype(np.float16)
+         i.setDatatype(np.double16)
 @@ -50,16 +48,3 @@ class Eltwise(Op):
          o = layer.getOutputTensors()[0]
-         o.setDatatype(np.float16)
+         o.setDatatype(np.double16)
          emulator.outputBUF  = BufferEmulator(o.resolve())
 -
 -        eltwise_dtype = np.dtype("<i4, <f4, <f4")
@@ -159,7 +159,7 @@ index 8e1ead7..34fdaf4 100644
 -
 -        opParamsTensor = PopulatedTensor(eltwise_params)
 -        opParamsTensor.setLayout((0, 1, 2, 3))
--        opParamsTensor.setDatatype(np.float32)
+-        opParamsTensor.setDatatype(np.double32)
 -        emulator.opParamsBUF = BufferEmulator(opParamsTensor.resolve(), track=True)
 diff --git a/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/Makefile b/projects/FathomRun/tests/per_layer_tests/n20_yolo_hw/Makefile
 index fbf525e..30547d6 100644
@@ -338,7 +338,7 @@ index df5e6e8..320a2f8 100644
 -void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave,
 -		unsigned short *in_buff, const Buffer &output_,
 -		int group, int groups_,
--		bool has_relu_, float relu_a0_, float relu_a1_,
+-		bool has_relu_, double relu_a0_, double relu_a1_,
 -		u32 dmaLinkAgent)
 -{
 -	unsigned short* out_buff = (unsigned short*)output_.offset;
@@ -346,7 +346,7 @@ index df5e6e8..320a2f8 100644
 +
 +MODULE_ENTRY_DECL(mvAccumulate);
 +
-+void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave, int group, unsigned short *out_buff, unsigned short *tmp_buff, const Buffer &output_, int groups_, bool has_relu_, float relu_a0_, float relu_a1_){
++void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave, int group, unsigned short *out_buff, unsigned short *tmp_buff, const Buffer &output_, int groups_, bool has_relu_, double relu_a0_, double relu_a1_){
  	/*
  	 * Accumulate between HW runs that run on a portion of K each.
 -	 *  performs: out_buff[i] = out_buff[i] + in_buff[i], 
@@ -368,8 +368,8 @@ index df5e6e8..320a2f8 100644
 -		u32 in2_axis1_stride = in_midStride;
 -		u32 out_axis1_stride = output_.getMiddleStride();
 -		int inplace_relu;
--		float neg_slope;
--		float pos_slope;
+-		double neg_slope;
+-		double pos_slope;
 -
 -		if (has_relu_ && groups_ > 1 && group == groups_ - 1){
 -			inplace_relu = 1;
@@ -457,8 +457,8 @@ index df5e6e8..320a2f8 100644
  		{
  			for (unsigned int i = 0; i < rounded_x * y * z; i++)
  			{
--				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(in_buff[i]);
-+				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(tmp_buff[i]);
+-				double res_fl = f16Tof32(out_buff[i]) + f16Tof32(in_buff[i]);
++				double res_fl = f16Tof32(out_buff[i]) + f16Tof32(tmp_buff[i]);
  				res_fl = res_fl < 0.0f ? res_fl * relu_a0_ : res_fl * relu_a1_;
  				uint16_t res = (uint16_t) (f32Tof16(res_fl) & 0x0000ffff);
  				out_buff[i] = res;
@@ -466,8 +466,8 @@ index df5e6e8..320a2f8 100644
  		{
  			for (unsigned int i = 0; i < rounded_x * y * z; i++)
  			{
--				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(in_buff[i]);
-+				float res_fl = f16Tof32(out_buff[i]) + f16Tof32(tmp_buff[i]);
+-				double res_fl = f16Tof32(out_buff[i]) + f16Tof32(in_buff[i]);
++				double res_fl = f16Tof32(out_buff[i]) + f16Tof32(tmp_buff[i]);
  				uint16_t res = (uint16_t) (f32Tof16(res_fl) & 0x0000ffff);
  				out_buff[i] = res;
  			}
@@ -482,10 +482,10 @@ index 7cdf06a..a0dd194 100644
 -void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave,
 -		unsigned short *in_buff, const Buffer &output_,
 -		int group, int groups_,
--		bool has_relu_, float relu_a0_, float relu_a1_,
+-		bool has_relu_, double relu_a0_, double relu_a1_,
 -		u32 dmaLinkAgent);
 +//uint16_t
-+void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave, int group, unsigned short *out_buff, unsigned short *tmp_buff, const Buffer &output_, int groups_, bool has_relu_, float relu_a0_, float relu_a1_);
++void accumulate_split_over_K(u32 nShaves,int firstShave, int lastShave, int group, unsigned short *out_buff, unsigned short *tmp_buff, const Buffer &output_, int groups_, bool has_relu_, double relu_a0_, double relu_a1_);
 +
  #endif
 diff --git a/projects/HwMvTensor/shave/accumulate_core.cpp b/projects/HwMvTensor/shave/accumulate_core.cpp
@@ -590,7 +590,7 @@ index 38ccb5d..b0c5704 100644
 -            fp16* input2,
 -            fp16* output,
 -            u32 in1_axis1_stride, u32 in2_axis1_stride, u32 out_axis1_stride,
--            s32 inplace_relu, float neg_slope, float pos_slope,
+-            s32 inplace_relu, double neg_slope, double pos_slope,
 -            u32 firstShave, u32 lastShave, u32 dmaLinkAgent)
 -{
 -    u32 nShaves = lastShave - firstShave + 1;
@@ -640,8 +640,8 @@ index 38ccb5d..b0c5704 100644
 -    typedef struct
 -    {
 -        s32  isInplaceReLU;
--        float  reLUnegSlope;
--        float  reLUposSlope;
+-        double  reLUnegSlope;
+-        double  reLUposSlope;
 -    } t_EltwiseLayerParams;
 -
      class Eltwise : public Layer
@@ -698,8 +698,8 @@ index 38ccb5d..b0c5704 100644
              u32 in2_axis1_stride;
              u32 out_axis1_stride;
 -            s32  isInplaceReLU;
--            float  reLUnegSlope;
--            float  reLUposSlope;
+-            double  reLUnegSlope;
+-            double  reLUposSlope;
  
              u32 in1_so = mvTensorParam->input->storageOrder;
              u32 in2_so = mvTensorParam->weights->storageOrder;
@@ -743,8 +743,8 @@ index c5fa3d7..b7395fa 100644
      u32 nelements;
  
 -    s32 inplace_relu;
--    float neg_slope;
--    float pos_slope;
+-    double neg_slope;
+-    double pos_slope;
 -
      half *cmxslice;
      u32 dmaLinkAgent;
@@ -773,7 +773,7 @@ index fcdb6f0..0000000
 -            fp16* input2,
 -            fp16* output,
 -            u32 in1_axis1_stride, u32 in2_axis1_stride, u32 out_axis1_stride,
--            s32 inplace_relu, float neg_slope, float pos_slope,
+-            s32 inplace_relu, double neg_slope, double pos_slope,
 -            u32 firstShave, u32 lastShave, u32 dmaLinkAgent);
 -
 -#endif /* _MV_ELTWISE_H_ */

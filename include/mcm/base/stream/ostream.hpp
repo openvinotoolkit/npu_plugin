@@ -12,7 +12,7 @@ namespace mv
     public:
 
         virtual ~OStream() = 0;
-        virtual OStream& operator<<(const string &output) = 0;
+        virtual OStream& operator<<(const std::string &output) = 0;
         virtual bool open() = 0;
         virtual void close() = 0;
 

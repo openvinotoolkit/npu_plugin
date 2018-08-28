@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/bias.hpp"
 
-mv::op::Bias::Bias(const string& name) :
+mv::op::Bias::Bias(const std::string& name) :
 ComputationOp(OpType::Bias, name),
 SourceOp(OpType::Bias, 1, name),
 SinkOp(OpType::Bias, 2, name)
@@ -16,7 +16,7 @@ SinkOp(obj)
 
 }
 
-mv::Tensor mv::op::Bias::getOutputDef(byte_type idx)
+mv::Tensor mv::op::Bias::getOutputDef(std::size_t idx)
 {
 
     if (idx > 0)
@@ -49,7 +49,7 @@ mv::Tensor mv::op::Bias::getOutputDef(byte_type idx)
 
 }
 
-bool mv::op::Bias::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Bias::isHardwarizeable(json::Object&)
 {
     return false;
 }

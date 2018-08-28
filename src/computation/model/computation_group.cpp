@@ -5,25 +5,25 @@ bool mv::ComputationGroup::markMembmer_(ComputationElement &member)
 
     if (!member.hasAttr("groups"))
     {
-        member.addAttr("groups", AttrType::StringVecType, mv::dynamic_vector<std::string>({name_}));
+        member.addAttr("groups", AttrType::StringVecType, std::vector<std::string>({name_}));
     }
     else
     {
-        mv::dynamic_vector<std::string> groups = member.getAttr("groups").template getContent<mv::dynamic_vector<std::string>>();
+        std::vector<std::string> groups = member.getAttr("groups").template getContent<std::vector<std::string>>();
         auto isPresent = std::find(groups.begin(), groups.end(), name_);
         if(isPresent == groups.end())
         {
             groups.push_back(name_);
-            member.getAttr("groups").template setContent<mv::dynamic_vector<std::string>>(groups);
+            member.getAttr("groups").template setContent<std::vector<std::string>>(groups);
         }
     }
 
-    dynamic_vector<std::string> membersAttr = getAttr("members").getContent<dynamic_vector<std::string>>();
+    std::vector<std::string> membersAttr = getAttr("members").getContent<std::vector<std::string>>();
     auto isPresent = std::find(membersAttr.begin(), membersAttr.end(), member.getName());
     if(isPresent == membersAttr.end())
     {
         membersAttr.push_back(member.getName());
-        getAttr("members").setContent<dynamic_vector<std::string>>(membersAttr);
+        getAttr("members").setContent<std::vector<std::string>>(membersAttr);
     }
     return true; 
 
@@ -34,7 +34,7 @@ bool mv::ComputationGroup::unmarkMembmer_(ComputationElement &member)
 
     if (member.hasAttr("groups"))
     {
-        mv::dynamic_vector<std::string> groups = member.getAttr("groups").template getContent<mv::dynamic_vector<std::string>>();
+        std::vector<std::string> groups = member.getAttr("groups").template getContent<std::vector<std::string>>();
 
         for (auto it = groups.begin(); it != groups.end(); ++it)
         {
@@ -49,11 +49,11 @@ bool mv::ComputationGroup::unmarkMembmer_(ComputationElement &member)
                 else
                 {
                     groups.erase(it);
-                    member.getAttr("groups").template setContent<mv::dynamic_vector<std::string>>(groups);
-                    dynamic_vector<std::string> membersAttr = getAttr("members").getContent<dynamic_vector<std::string>>();
+                    member.getAttr("groups").template setContent<std::vector<std::string>>(groups);
+                    std::vector<std::string> membersAttr = getAttr("members").getContent<std::vector<std::string>>();
                     auto attrIt = std::find(membersAttr.begin(), membersAttr.end(), *it);
                     membersAttr.erase(attrIt);
-                    getAttr("members").setContent<dynamic_vector<std::string>>(membersAttr);
+                    getAttr("members").setContent<std::vector<std::string>>(membersAttr);
                 }
 
                 return true;
@@ -70,11 +70,11 @@ bool mv::ComputationGroup::unmarkMembmer_(ComputationElement &member)
 
 }
 
-mv::ComputationGroup::ComputationGroup(const string &name) :
+mv::ComputationGroup::ComputationGroup(const std::string &name) :
 ComputationElement(name),
 members_()
 {
-    addAttr("members", Attribute(AttrType::StringVecType, dynamic_vector<std::string>()));
+    addAttr("members", Attribute(AttrType::StringVecType, std::vector<std::string>()));
 }
 
 mv::ComputationGroup::ComputationGroup(mv::json::Value& value):
@@ -90,7 +90,7 @@ bool mv::ComputationGroup::erase(MemberSet::iterator &member)
     if (member != members_.end())
     {
         members_.erase(member);
-        unmarkMembmer_(**member);
+        unmarkMembmer_(*member->lock());
         return true;
     }
 
@@ -103,7 +103,7 @@ void mv::ComputationGroup::clear()
 
     for (auto it = members_.begin(); it != members_.end(); ++it)
     {
-        unmarkMembmer_(**it);
+        unmarkMembmer_(*it->lock());
     }
     
     members_.clear();
@@ -125,7 +125,7 @@ std::size_t mv::ComputationGroup::size() const
     return members_.size();
 }
 
-mv::string mv::ComputationGroup::toString() const
+std::string mv::ComputationGroup::toString() const
 {
     return "group " + ComputationElement::toString();
 }

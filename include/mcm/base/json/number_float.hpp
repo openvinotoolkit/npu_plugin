@@ -13,12 +13,12 @@ namespace mv
         class NumberFloat : public detail::ValueContent
         {
 
-            float value_;
+            double value_;
 
         public:
 
-            NumberFloat(float value);
-            explicit operator float&() override;
+            NumberFloat(double value);
+            explicit operator double&() override;
             std::string stringify() const override;
             std::string stringifyPretty() const override;
 

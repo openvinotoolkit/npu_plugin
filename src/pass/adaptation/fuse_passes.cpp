@@ -32,7 +32,7 @@ namespace mv
             "Fuses a bias op to the parent op if this op is of type conv2d. "
             "Bias op is removed from the model, the biases tensor "
             " (second input of bias op) is appended to parent op as an attribute "
-            " of type float vector of name 'bias'."
+            " of type double vector of name 'bias'."
         );
 
         MV_REGISTER_PASS(FuseRelu)
@@ -48,7 +48,7 @@ namespace mv
         .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Fuses a scale op to the parent op is this op is of type conv2d. Scale op is removed from the model and conv2d weights are rescaled. "
-            "If the conv2d has a 'bias' attribute of type float vector it is rescaled as well. In this case the length of scale op parameters tensor and 'bias' attribute "
+            "If the conv2d has a 'bias' attribute of type double vector it is rescaled as well. In this case the length of scale op parameters tensor and 'bias' attribute "
             "has to match."
         );
 
@@ -94,7 +94,7 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
                 {
-                    byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                    std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
                     sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
                     om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
                 }
@@ -148,7 +148,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
                 {
-                    byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                    std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
                     sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
                     om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
                 }
@@ -191,7 +191,7 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
                 sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
                 om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
             }
@@ -231,7 +231,7 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             auto bnVar = *opIt->getInputTensor(2);
             auto bnOffset = *opIt->getInputTensor(3);
             auto bnScale = *opIt->getInputTensor(4);
-            float bnEps = opIt->getAttr("varianceEps").getContent<float>();
+            double bnEps = opIt->getAttr("varianceEps").getContent<double>();
 
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
@@ -272,7 +272,7 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
                 sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
                 om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
             }

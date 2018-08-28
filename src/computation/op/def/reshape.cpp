@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/reshape.hpp"
 
-mv::op::Reshape::Reshape(Shape outputShape, const string& name) :
+mv::op::Reshape::Reshape(Shape outputShape, const std::string& name) :
 ComputationOp(OpType::Reshape, name),
 SourceOp(OpType::Reshape, 1, name),
 SinkOp(OpType::Reshape, 1, name)
@@ -17,7 +17,7 @@ SinkOp(obj)
 
 }
 
-mv::Tensor mv::op::Reshape::getOutputDef(byte_type idx)
+mv::Tensor mv::op::Reshape::getOutputDef(std::size_t idx)
 {
     
     if (idx > 0)
@@ -42,7 +42,7 @@ mv::Tensor mv::op::Reshape::getOutputDef(byte_type idx)
 
 }
 
-bool mv::op::Reshape::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Reshape::isHardwarizeable(json::Object&)
 {
     return false;
 }

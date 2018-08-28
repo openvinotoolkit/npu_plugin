@@ -14,11 +14,11 @@ namespace mv
 
         public:
 
-            Input(Shape outputShape, DType dType, Order order, const string &name);
+            Input(Shape outputShape, DType dType, Order order, const std::string &name);
             Input(mv::json::Value &obj);
 
-            bool setOutputTensor(Data::TensorIterator &tensor, byte_type idx);
-            Tensor getOutputDef(byte_type idx);
+            bool setOutputTensor(Data::TensorIterator &tensor, std::size_t idx);
+            Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };

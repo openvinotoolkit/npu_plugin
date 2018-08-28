@@ -1,11 +1,9 @@
 #include "include/mcm/computation/model/computation_element.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-mv::allocator mv::ComputationElement::allocator_;
-mv::Attribute mv::ComputationElement::unknownAttr_;
 mv::Logger &mv::ComputationElement::logger_= mv::ComputationModel::logger();
 
-mv::ComputationElement::ComputationElement(const string &name) : 
+mv::ComputationElement::ComputationElement(const std::string &name) : 
 name_(name)
 {
 
@@ -17,7 +15,7 @@ mv::ComputationElement::ComputationElement(mv::json::Value& value)
     name_ = mv::Jsonable::constructStringFromJson(value["name"]);
     mv::json::Value attributes = value["attributes"];
     std::vector<std::string> keys(attributes.getKeys());
-    for(unsigned_type i = 0; i < keys.size(); ++i)
+    for(std::size_t i = 0; i < keys.size(); ++i)
         addAttr(keys[i], mv::Attribute::JsonAttributeFactory(attributes[keys[i]]));
 
 }
@@ -27,9 +25,7 @@ name_(other.name_)
 {
 
     for (auto it = other.attributes_.cbegin(); it != other.attributes_.cend(); ++it)
-    {
         attributes_[it->first] = it->second;
-    }
 
 }
 
@@ -39,9 +35,7 @@ mv::ComputationElement& mv::ComputationElement::operator=(const ComputationEleme
     this->name_ = other.name_;
     
     for (auto it = other.attributes_.cbegin(); it != other.attributes_.cend(); ++it)
-    {
         attributes_[it->first] = it->second;
-    } 
 
     return *this;
 
@@ -52,7 +46,7 @@ mv::ComputationElement::~ComputationElement()
     
 }
 
-const mv::string &mv::ComputationElement::getName() const
+const std::string &mv::ComputationElement::getName() const
 {
     return name_;
 }
@@ -62,7 +56,7 @@ void mv::ComputationElement::setName(const std::string& name)
     name_ = name;
 }
 
-bool mv::ComputationElement::addAttr(const string &name, const Attribute &attr)
+bool mv::ComputationElement::addAttr(const std::string &name, const Attribute &attr)
 {
 
     if (attributes_.find(name) == attributes_.end())
@@ -79,7 +73,7 @@ bool mv::ComputationElement::addAttr(const string &name, const Attribute &attr)
 
 }
 
-bool mv::ComputationElement::hasAttr(const string &name) const
+bool mv::ComputationElement::hasAttr(const std::string &name) const
 {
     
     if (attributes_.find(name) != attributes_.cend())
@@ -89,33 +83,33 @@ bool mv::ComputationElement::hasAttr(const string &name) const
 
 }
 
-mv::Attribute& mv::ComputationElement::getAttr(const string &name)
+mv::Attribute& mv::ComputationElement::getAttr(const std::string &name)
 {
-    if (attributes_.find(name) != attributes_.end())
-        return attributes_.at(name);
-    else
-        return unknownAttr_;
+    if (attributes_.find(name) == attributes_.end())
+        throw ArgumentError("Attribute", name, "Attempt of getting an undefined attribute");
+
+    return attributes_.at(name);
 
 }
 
-const mv::Attribute& mv::ComputationElement::getAttr(const string &name) const
+const mv::Attribute& mv::ComputationElement::getAttr(const std::string &name) const
 {
-    if (attributes_.find(name) != attributes_.cend())
-        return attributes_.at(name);
-    else
-        return unknownAttr_;
+    if (attributes_.find(name) == attributes_.end())
+        throw ArgumentError("Attribute", name, "Attempt of getting an undefined attribute");
+
+    return attributes_.at(name);
 
 }
 
-mv::allocator::vector<mv::string> mv::ComputationElement::getAttrKeys() const
+std::vector<std::string> mv::ComputationElement::getAttrKeys() const
 {
-    allocator::vector<mv::string> attrKeys;
+    std::vector<std::string> attrKeys;
     for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
         attrKeys.push_back(it->first);
     return attrKeys;
 }
 
-mv::AttrType mv::ComputationElement::getAttrType(const string &name) const
+mv::AttrType mv::ComputationElement::getAttrType(const std::string &name) const
 {
     if (attributes_.find(name) != attributes_.cend())
         return attributes_.at(name).getType();
@@ -123,12 +117,12 @@ mv::AttrType mv::ComputationElement::getAttrType(const string &name) const
         return AttrType::UnknownType;
 }
 
-mv::unsigned_type mv::ComputationElement::attrsCount() const
+std::size_t mv::ComputationElement::attrsCount() const
 {
     return attributes_.size();
 }
 
-bool mv::ComputationElement::removeAttr(const string &name)
+bool mv::ComputationElement::removeAttr(const std::string &name)
 {
 
     auto it = attributes_.find(name);
@@ -142,9 +136,9 @@ bool mv::ComputationElement::removeAttr(const string &name)
     return false;
 }
 
-mv::string mv::ComputationElement::toString() const
+std::string mv::ComputationElement::toString() const
 {
-    string result;
+    std::string result;
 
     for (auto it = attributes_.cbegin(); it != attributes_.cend(); ++it)
         result += "\n'" +  it->first + "' " + it->second.toString();

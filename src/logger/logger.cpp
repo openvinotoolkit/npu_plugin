@@ -1,6 +1,6 @@
 #include "include/mcm/logger/logger.hpp"
 
-mv::string mv::Logger::getTime() const
+std::string mv::Logger::getTime() const
 {
     struct tm *timeInfo;
     time_t rawTime;
@@ -8,13 +8,13 @@ mv::string mv::Logger::getTime() const
     time(&rawTime);
     timeInfo = localtime(&rawTime);
     strftime(buffer, 18, "%T %D", timeInfo);
-    return string(buffer);
+    return std::string(buffer);
 }
 
-void mv::Logger::logMessage(MessageType messageType, string content) const
+void mv::Logger::logMessage(MessageType messageType, std::string content) const
 {
 
-    string logContent;
+    std::string logContent;
 
     if (logTime_)
         logContent += getTime() + " ";
@@ -86,7 +86,7 @@ void mv::Logger::setLogTime(bool logTime)
         indent_ = "   ";
 }
 
-void mv::Logger::log(MessageType messageType, const string &content) const
+void mv::Logger::log(MessageType messageType, const std::string& content) const
 {
 
     switch (verboseLevel_)

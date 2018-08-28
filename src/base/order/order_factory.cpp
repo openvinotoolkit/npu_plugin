@@ -5,6 +5,7 @@
 #include "include/mcm/base/order/col_major_planar.hpp"
 #include "include/mcm/base/order/row_major_planar.hpp"
 #include "include/mcm/base/order/order_factory.hpp"
+#include "include/mcm/base/exception/order_error.hpp"
 
 std::unique_ptr<mv::OrderClass> mv::OrderFactory::createOrder(mv::Order value)
 {
@@ -20,6 +21,8 @@ std::unique_ptr<mv::OrderClass> mv::OrderFactory::createOrder(mv::Order value)
             return std::unique_ptr<mv::RowMajorPlanar>(new RowMajorPlanar());
         case(mv::Order::Unknown):
             return std::unique_ptr<mv::ColMajor>(new ColMajor());
+        default:
+            throw OrderError("Unrecognized order");
     }
     return std::unique_ptr<mv::ColMajor>(new ColMajor());
 }

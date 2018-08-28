@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/maxpool2d.hpp"
 
-mv::op::MaxPool2D::MaxPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
+mv::op::MaxPool2D::MaxPool2D(UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const std::string &name) :
 ComputationOp(OpType::MaxPool2D, name),
 Pool2DOp(OpType::MaxPool2D, kernelSize, stride, padding, name)
 {
@@ -15,7 +15,7 @@ Pool2DOp(obj)
 }
 
 
-bool mv::op::MaxPool2D::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::MaxPool2D::isHardwarizeable(json::Object&)
 {
     return false;
 }

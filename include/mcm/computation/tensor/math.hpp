@@ -11,13 +11,13 @@ namespace mv
     {
        
         Tensor add(const Tensor& t1, const Tensor& t2);
-        Tensor add(const Tensor& t, float_type x);
+        Tensor add(const Tensor& t, double x);
         Tensor subtract(const Tensor& t1, const Tensor& t2);
-        Tensor subtract(const Tensor& t, float_type x);
+        Tensor subtract(const Tensor& t, double x);
         Tensor multiply(const Tensor& t1, const Tensor& t2);
-        Tensor multiply(const Tensor& t, float_type x);
+        Tensor multiply(const Tensor& t, double x);
         Tensor divide(const Tensor& t1, const Tensor& t2);
-        Tensor divide(const Tensor& t, float_type x);
+        Tensor divide(const Tensor& t, double x);
         Tensor sqrt(const Tensor& t);
 
     }

@@ -34,7 +34,7 @@ namespace mv
 
         virtual bool definePassArg(const std::string& pass, const std::string& argName, const std::string& argValue) = 0;
         virtual bool definePassArg(const std::string& pass, const std::string& argName, int argValue) = 0;
-        virtual bool definePassArg(const std::string& pass, const std::string& argName, float argValue) = 0;
+        virtual bool definePassArg(const std::string& pass, const std::string& argName, double argValue) = 0;
         virtual bool definePassArg(const std::string& pass, const std::string& argName, bool argValue) = 0;
         virtual bool definePassArg(const std::string& pass, const std::string& argName) = 0;
         virtual bool undefinePassArg(const std::string& pass, const std::string& argName) = 0;

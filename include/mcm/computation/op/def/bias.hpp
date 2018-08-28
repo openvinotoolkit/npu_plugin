@@ -16,10 +16,10 @@ namespace mv
 
         public:
 
-            Bias(const string& name);
+            Bias(const std::string& name);
             Bias(mv::json::Value &obj);
 
-            Tensor getOutputDef(byte_type idx);
+            Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(json::Object& TargetDescriptor);
         };
 

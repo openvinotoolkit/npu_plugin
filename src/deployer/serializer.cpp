@@ -7,7 +7,7 @@ namespace mv
         output_format = set_output_format;
     }
 
-    uint64_t Serializer::serialize(mv::ControlModel& graph_2_deploy, const char* ofilename )
+    unsigned long long Serializer::serialize(mv::ControlModel& graph_2_deploy, const char* ofilename )
     {
 
         printf("Serializer\n");

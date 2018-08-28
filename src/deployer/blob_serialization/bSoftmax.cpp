@@ -14,7 +14,6 @@ namespace mv
 
     void bSoftmax::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
-        int fp16_size = 2;
 
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
@@ -36,9 +35,9 @@ namespace mv
     bSoftmax::bSoftmax(mv::ComputationOp* it)
         :
           Blob_Op_Definition(),
+          axis(1),
           input((it->getInputTensor(0))),
-          output((it->getOutputTensor(0))),
-          axis(1)
+          output((it->getOutputTensor(0)))
     {
 
     }

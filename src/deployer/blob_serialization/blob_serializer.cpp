@@ -230,7 +230,6 @@ namespace mv
         mv::Control::StageIterator stg = cm.getStage(0);
 
         unsigned int totalSize = 0;
-        unsigned int amount_const = 0;
 
         try{
             for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
@@ -375,7 +374,7 @@ namespace mv
         Blob_stage conv_pool_stage ;
         uint32_t next_offset = 4*3 + 4*5 ;
         mv::OpModel om(cm);
-
+        mv::DataModel dm(cm);
 
         // Write each stage as we encounter it.
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
@@ -428,8 +427,6 @@ namespace mv
 
 
                             // No more layers (last)
-                            mv::DataModel dm(om);
-                            mv::ControlModel cm(om);
                             Data::BufferIterator mem;
                             mv::Control::StageIterator stg = cm.getStage(0);
 
@@ -464,8 +461,6 @@ namespace mv
                         else
                         {
                             // Serialize for S/W
-
-                            int descriptors = 1;
                             int point0 = 0;
                             point0 += (8*4) ; // Fields
                             point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
@@ -491,8 +486,6 @@ namespace mv
 
 
                             // No more layers (last)
-                            mv::DataModel dm(om);
-                            mv::ControlModel cm(om);
                             Data::BufferIterator mem;
                             mv::Control::StageIterator stg = cm.getStage(0);
                             int finalstage = 0;
@@ -562,8 +555,6 @@ namespace mv
                         next_offset += point0*4 ;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -602,8 +593,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -640,8 +629,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -680,8 +667,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -720,8 +705,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -837,8 +820,6 @@ namespace mv
                         bCompatibility c = bCompatibility(&(*it));
                         next_offset += c.getSerializedSize() + 5*4 ;
 
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         auto t = it->getOutputTensor(0);
@@ -912,7 +893,6 @@ namespace mv
                 buffers_out_of_order.push_back(*bbit);
             }
 
-            int xx = 0;
             int tsize = buffers_out_of_order.size();
             for(int i = 0; i != tsize; i++)
             {
@@ -934,7 +914,6 @@ namespace mv
 
             }
 
-            int c = 0;
             unsigned int running_total = 0;
             for(auto bit : buffers_in_order)
             {
@@ -962,7 +941,7 @@ namespace mv
         return this->blob_stats;
     }
 
-    void Blob_buffer::write_relocation_section(mv::ControlModel& cm)
+    void Blob_buffer::write_relocation_section(mv::ControlModel&)
     {
         this->reloc_table.write(this);
     }

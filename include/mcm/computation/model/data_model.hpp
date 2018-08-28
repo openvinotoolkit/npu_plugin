@@ -11,7 +11,7 @@ namespace mv
 
     namespace Data
     {
-        using BufferIterator = IteratorDetail::ModelValueIterator<std::map<TensorIterator, allocator::owner_ptr<MemoryAllocator::MemoryBuffer>,
+        using BufferIterator = IteratorDetail::ModelValueIterator<std::map<TensorIterator, std::shared_ptr<MemoryAllocator::MemoryBuffer>,
             MemoryAllocator::TensorIteratorComparator>::iterator, MemoryAllocator::MemoryBuffer>;
     }
 
@@ -20,7 +20,7 @@ namespace mv
 
     public:
 
-        DataModel(const ComputationModel &ComputationModel);
+        DataModel(const ComputationModel& ComputationModel);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
 
@@ -29,27 +29,27 @@ namespace mv
         Data::FlowListIterator flowBegin();
         Data::FlowListIterator flowEnd();
 
-        GroupContext::MemberIterator addGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group);
-        bool removeGroupElement(Data::FlowListIterator &element, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group);
+        bool removeGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
 
-        Data::TensorIterator defineTensor(const string &name, const Shape &shape, DType dType, Order order);
-        Data::TensorIterator defineTensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data);
-        bool undefineTensor(const string &name);
-        Data::TensorIterator findTensor(string name);
+        Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order);
+        Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
+        bool undefineTensor(const std::string& name);
+        Data::TensorIterator findTensor(const std::string& name);
         unsigned tensorsCount() const;
 
-        bool addAllocator(const string &name, std::size_t size, Order order);
-        bool hasAllocator(const string& name);
-        Data::BufferIterator allocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor, mv::dynamic_vector<size_t> pad);
-        bool deallocateTensor(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator &tensor);
-        void deallocateAll(const string &allocatorName, Control::StageIterator &stage);
-        Data::BufferIterator bufferBegin(const string &allocatorName, Control::StageIterator &stage);
-        Data::BufferIterator bufferEnd(const string &allocatorName, Control::StageIterator &stage);
-        Data::BufferIterator getBuffer(const string &allocatorName, Control::StageIterator &stage, Data::TensorIterator tensor);
+        bool addAllocator(const std::string& name, std::size_t size, Order order);
+        bool hasAllocator(const std::string& name);
+        Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor, std::vector<size_t> pad);
+        bool deallocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
+        void deallocateAll(const std::string& allocatorName, Control::StageIterator& stage);
+        Data::BufferIterator bufferBegin(const std::string& allocatorName, Control::StageIterator& stage);
+        Data::BufferIterator bufferEnd(const std::string& allocatorName, Control::StageIterator& stage);
+        Data::BufferIterator getBuffer(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator tensor);
 
-        bool addAttr(Data::TensorIterator tensor, const string& name, const Attribute& attr);
+        bool addAttr(Data::TensorIterator tensor, const std::string& name, const Attribute& attr);
 
     };
 

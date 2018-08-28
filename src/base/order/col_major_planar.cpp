@@ -5,7 +5,7 @@ mv::RowMajorPlanar::~RowMajorPlanar()
 
 }
 
-int mv::RowMajorPlanar::previousContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
+int mv::RowMajorPlanar::previousContiguousDimensionIndex(const Shape& s, std::size_t current_dim) const
 {
     if(s.ndims() == 0)
         throw ShapeError("Can't check index for 0-dimensional shape");
@@ -26,7 +26,7 @@ int mv::RowMajorPlanar::previousContiguousDimensionIndex(const Shape& s, unsigne
         return current_dim + 1;
 }
 
-int mv::RowMajorPlanar::nextContiguousDimensionIndex(const Shape& s, unsigned current_dim) const
+int mv::RowMajorPlanar::nextContiguousDimensionIndex(const Shape& s, std::size_t current_dim) const
 {
     if(s.ndims() == 0)
         throw ShapeError("Can't check index for 0-dimensional shape");
@@ -49,7 +49,7 @@ int mv::RowMajorPlanar::nextContiguousDimensionIndex(const Shape& s, unsigned cu
     }
 }
 
-unsigned mv::RowMajorPlanar::lastContiguousDimensionIndex(const Shape &s) const
+std::size_t mv::RowMajorPlanar::lastContiguousDimensionIndex(const Shape &s) const
 {
     if(s.ndims() == 0)
         throw ShapeError("0-dimensional shapes have no first contiguous dimension");
@@ -60,7 +60,7 @@ unsigned mv::RowMajorPlanar::lastContiguousDimensionIndex(const Shape &s) const
 }
 
 //Planar2 is like RowMajor, only the last; two dimensions are swapped.
-unsigned mv::RowMajorPlanar::firstContiguousDimensionIndex(const Shape &s) const
+std::size_t mv::RowMajorPlanar::firstContiguousDimensionIndex(const Shape &s) const
 {
     if(s.ndims() == 0)
         throw ShapeError("0-dimensional shapes have no first contiguous dimension");

@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/batch_norm.hpp"
 
-mv::op::BatchNorm::BatchNorm(float_type varianceEps, const string &name) :
+mv::op::BatchNorm::BatchNorm(double varianceEps, const std::string &name) :
 ComputationOp(OpType::BatchNorm, name),
 SourceOp(OpType::BatchNorm, 1, name),
 SinkOp(OpType::BatchNorm, 5, name)
@@ -17,7 +17,7 @@ SinkOp(obj)
 
 }
 
-mv::Tensor mv::op::BatchNorm::getOutputDef(byte_type idx)
+mv::Tensor mv::op::BatchNorm::getOutputDef(std::size_t idx)
 {
     
     if (idx > 0)
@@ -61,7 +61,7 @@ mv::Tensor mv::op::BatchNorm::getOutputDef(byte_type idx)
     
 }
 
-bool mv::op::BatchNorm::isHardwarizeable(mv::json::Object& TargetDescriptor)
+bool mv::op::BatchNorm::isHardwarizeable(json::Object&)
 {
     return false;
 }

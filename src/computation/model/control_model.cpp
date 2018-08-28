@@ -46,25 +46,25 @@ mv::Control::FlowListIterator mv::ControlModel::flowEnd()
 
 mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
 {
-    allocator::owner_ptr<ComputationOp> ptr = element;
+    std::shared_ptr<ComputationOp> ptr = element;
     return addGroupElement_(ptr, group);
 }
 
 mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group)
 {
-    allocator::owner_ptr<ControlFlow> ptr = element;
+    std::shared_ptr<ControlFlow> ptr = element;
     return addGroupElement_(ptr, group);
 }
 
 bool mv::ControlModel::removeGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
 {
-    allocator::owner_ptr<ComputationOp> ptr = element;
+    std::shared_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);
 }
 
 bool mv::ControlModel::removeGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group)
 {
-    allocator::owner_ptr<ControlFlow> ptr = element;
+    std::shared_ptr<ControlFlow> ptr = element;
     return removeGroupElement_(ptr, group);
 }
 
@@ -77,7 +77,7 @@ mv::Control::StageIterator mv::ControlModel::addStage()
 
 }
 
-mv::Control::StageIterator mv::ControlModel::getStage(unsigned_type stageIdx)
+mv::Control::StageIterator mv::ControlModel::getStage(std::size_t stageIdx)
 {
 
     return stages_->find(stageIdx);
@@ -89,7 +89,7 @@ bool mv::ControlModel::removeStage(Control::StageIterator &stage)
     if (stage != stageEnd())
     {
         stage->clear();
-        stages_->erase(stage->getAttr("idx").getContent<unsigned_type>());
+        stages_->erase(stage->getAttr("idx").getContent<std::size_t>());
         stage = stageEnd();
         return true;
     }
@@ -130,7 +130,7 @@ bool mv::ControlModel::removeFromStage(Control::OpListIterator &op)
 
     if (op->hasAttr("stage"))
     {
-        auto stage = getStage(op->getAttr("stage").getContent<unsigned_type>());
+        auto stage = getStage(op->getAttr("stage").getContent<std::size_t>());
 
         if (stage != stageEnd())
         {
@@ -154,7 +154,7 @@ bool mv::ControlModel::removeFromStage(Data::OpListIterator &op)
     return removeFromStage(it);
 }
 
-mv::unsigned_type mv::ControlModel::stageSize() const
+std::size_t mv::ControlModel::stageSize() const
 {
     return stages_->size();
 }
@@ -200,7 +200,7 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
     if (!isValid(sinkOp))
         return flowEnd();
 
-    Control::FlowListIterator flow = controlGraph_.edge_insert(sourceOp, sinkOp, allocator_.make_owner<ControlFlow>(sourceOp, sinkOp));
+    Control::FlowListIterator flow = controlGraph_.edge_insert(sourceOp, sinkOp, std::make_shared<ControlFlow>(sourceOp, sinkOp));
 
     if (flow != *controlFlowEnd_)
     {

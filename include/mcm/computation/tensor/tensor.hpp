@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <algorithm>
+#include <vector>
 #include "include/mcm/computation/tensor/shape.hpp"
 #include "include/mcm/computation/model/computation_element.hpp"
 #include "include/mcm/base/exception/order_error.hpp"
@@ -17,23 +18,22 @@ namespace mv
     class Tensor : public ComputationElement
     {
 
-        static allocator allocator_;
-        std::shared_ptr<dynamic_vector<float_type>> data_;
-        float_type errValue;
+        std::shared_ptr<std::vector<double>> data_;
+        double errValue;
         Shape shape_;
         bool populated_;
-        static static_vector<dim_type, byte_type, max_ndims> subsBuffer_;
+        static std::vector<std::size_t> subsBuffer_;
 
-        bool elementWise_(const Tensor& other, const std::function<float(float, float)>& opFunc);
+        bool elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
-        static inline void unfoldSubs_(unsigned_type sub)
+        static inline void unfoldSubs_(std::size_t sub)
         {
             subsBuffer_.push_back(sub);
             //output[dim] = sub;
         }
 
         template<typename... Subs>
-        static inline void unfoldSubs_(unsigned_type sub, Subs... subs)
+        static inline void unfoldSubs_(std::size_t sub, Subs... subs)
         {
             //output[dim] = sub;
             subsBuffer_.push_back(sub);
@@ -43,41 +43,41 @@ namespace mv
 
     public:
 
-        Tensor(const string &name, const Shape &shape, DType dType, Order order);
-        Tensor(const string &name, const Shape &shape, DType dType, Order order, const dynamic_vector<float_type>& data);
-        Tensor(const Tensor &other);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
+        Tensor(const Tensor& other);
         Tensor();
-        Tensor(json::Value &v);
+        Tensor(json::Value& v);
         ~Tensor();
-        bool populate(const dynamic_vector<float_type>& data, Order order = Order::Unknown);
+        bool populate(const std::vector<double>& data, Order order = Order::Unknown);
         bool unpopulate();
         void reorder(Order order);
         bool broadcast(const Shape& shape);
-        dynamic_vector<float_type> &getData();
+        std::vector<double>& getData();
         DType getDType() const;
         Order getOrder() const;
         void setOrder(Order order);
-        string toString() const;
+        std::string toString() const;
         static Logger& logger();
 
         bool add(const Tensor& other);
-        bool add(float val);
+        bool add(double val);
         bool subtract(const Tensor& other);
-        bool subtract(float val);
+        bool subtract(double val);
         bool multiply(const Tensor& other);
-        bool multiply(float val);
+        bool multiply(double val);
         bool divide(const Tensor& other);
-        bool divide(float val);
+        bool divide(double val);
         bool sqrt();
 
-        float_type& at(const static_vector<dim_type, byte_type, max_ndims>& sub);
-        const float_type& at(const static_vector<dim_type, byte_type, max_ndims>& sub) const;
-        float_type& at(unsigned idx);
-        const float_type& at(unsigned idx) const;
-        float_type& operator()(unsigned idx);
-        const float_type& operator()(unsigned idx) const;
-        float_type& operator()(const static_vector<dim_type, byte_type, max_ndims>& sub);
-        const float_type& operator()(const static_vector<dim_type, byte_type, max_ndims>& sub) const;
+        double& at(const std::vector<std::size_t>& sub);
+        const double& at(const std::vector<std::size_t>& sub) const;
+        double& at(unsigned idx);
+        const double& at(unsigned idx) const;
+        double& operator()(unsigned idx);
+        const double& operator()(unsigned idx) const;
+        double& operator()(const std::vector<std::size_t>& sub);
+        const double& operator()(const std::vector<std::size_t>& sub) const;
 
         inline bool isPopulated() const
         {
@@ -89,24 +89,24 @@ namespace mv
             return shape_;
         }
 
-        inline static_vector<dim_type, byte_type, max_ndims> indToSub(unsigned index)
+        inline std::vector<std::size_t> indToSub(unsigned index)
         {
             return indToSub_(shape_, index);
         }
 
-        inline unsigned subToInd(const static_vector<dim_type, byte_type, max_ndims>& sub) const
+        inline unsigned subToInd(const std::vector<std::size_t>& sub) const
         {
             return subToInd_(shape_, sub);
         }
 
-        inline static_vector<dim_type, byte_type, max_ndims> indToSub_(const Shape& s, unsigned index)
+        inline std::vector<std::size_t> indToSub_(const Shape& s, unsigned index)
         {
             std::unique_ptr<OrderClass> order_ = mv::OrderFactory::createOrder(getOrder());
 
             return order_->indToSub(s, index);
         }
 
-        inline unsigned subToInd_(const Shape& s, const static_vector<dim_type, byte_type, max_ndims>& sub) const
+        inline unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const
         {
             std::unique_ptr<OrderClass> order_ = mv::OrderFactory::createOrder(getOrder());
 
@@ -116,7 +116,7 @@ namespace mv
 
 
         template<typename... Idx>
-        float_type& at(Idx... indices)
+        double& at(Idx... indices)
         {
 
             if (!isPopulated())
@@ -125,7 +125,7 @@ namespace mv
                 return errValue;
             }
 
-            //dynamic_vector<unsigned> subs(getShape().ndims());
+            //std::vector<unsigned> subs(getShape().ndims());
             subsBuffer_.clear();
             unfoldSubs_(indices...);
 
@@ -136,7 +136,7 @@ namespace mv
         }
 
         template<typename... Idx>
-        float_type at(Idx... indices) const
+        double at(Idx... indices) const
         {
 
             if (!isPopulated())
@@ -155,13 +155,13 @@ namespace mv
         }
 
         template<typename... Idx>
-        float_type& operator()(Idx... indices)
+        double& operator()(Idx... indices)
         {
             return at(indices...);
         }
 
         template<typename... Idx>
-        float_type operator()(Idx... indices) const
+        double operator()(Idx... indices) const
         {
             return at(indices...);
         }

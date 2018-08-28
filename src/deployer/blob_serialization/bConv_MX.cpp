@@ -53,10 +53,10 @@ namespace mv
                 unsigned int original_height = this->input->getShape()[1];
                 unsigned int current_height;
                 if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                    int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
-                    current_height = ceil(original_height/(float)this->desc_count) - surplus;
+                    int surplus = ceil(original_height/(double)this->desc_count)*this->desc_count - original_height;
+                    current_height = ceil(original_height/(double)this->desc_count) - surplus;
                 }else{
-                    current_height = ceil(original_height/(float)this->desc_count);
+                    current_height = ceil(original_height/(double)this->desc_count);
                 }
 
 
@@ -121,11 +121,6 @@ namespace mv
             b->AddBytes(4, this->padY);  // padY
             b->AddBytes(4, this->padStyle);   // 0x80
             b->AddBytes(4, this->dilation);
-
-
-            int fp16_size = 2;
-            mv::DataModel dm(*om);
-            mv::ControlModel cm(*om);
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
@@ -220,8 +215,8 @@ namespace mv
 
             this->CMXSize = cmxSize;
             this->reluSHVAcc = 0;
-            float val = 0;
-            float val2 = 1;
+            double val = 0;
+            double val2 = 1;
             this->shvNegSlope = *(int * )(&val);
             this->shvPosSlope = *(int * )(&val2);
 
@@ -351,10 +346,10 @@ namespace mv
                 unsigned int original_height = this->input->getShape()[1];
                 unsigned int current_height;
                 if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                    int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
-                    current_height = ceil(original_height/(float)this->desc_count) - surplus;
+                    int surplus = ceil(original_height/(double)this->desc_count)*this->desc_count - original_height;
+                    current_height = ceil(original_height/(double)this->desc_count) - surplus;
                 }else{
-                    current_height = ceil(original_height/(float)this->desc_count);
+                    current_height = ceil(original_height/(double)this->desc_count);
                 }
 
                 this->descriptors[i].inputHeight =  current_height - 1;

@@ -1,8 +1,15 @@
 #include "include/mcm/computation/tensor/shape.hpp"
 
-void mv::Shape::addDim(dim_type newDim)
+mv::Shape::Shape(std::initializer_list<std::size_t> dims) :
+dims_(dims)
 {
-    dims_.push_back(newDim);
+
+}
+
+mv::Shape::Shape(std::size_t ndims) :
+dims_(ndims)
+{
+
 }
 
 mv::Shape::Shape(const Shape& other) :
@@ -14,13 +21,7 @@ dims_(other.dims_)
 mv::Shape::Shape(mv::json::Value& o)
 {
     for(unsigned i = 0; i < o.size(); ++i)
-        addDim(constructDimTypeFromJson(o[i]));
-}
-
-mv::Shape::Shape(byte_type n)
-{
-    for (unsigned i = 0; i < n; ++i)
-        addDim(0);
+        dims_.push_back(constructByteTypeFromJson(o[i]));
 }
 
 mv::Shape::Shape()
@@ -28,34 +29,34 @@ mv::Shape::Shape()
     
 }
 
-mv::byte_type mv::Shape::ndims() const
+std::size_t mv::Shape::ndims() const
 {
-    return dims_.length();
+    return dims_.size();
 }
 
-mv::unsigned_type mv::Shape::totalSize() const
+std::size_t mv::Shape::totalSize() const
 {
 
-    unsigned_type result = dims_[0];
+    std::size_t result = dims_[0];
 
-    for (byte_type i = 1; i < dims_.length(); ++i)
+    for (std::size_t i = 1; i < dims_.size(); ++i)
         result *= dims_[i];
 
     return result;
     
 }
 
-mv::dim_type& mv::Shape::operator[](int_type ndim)
+std::size_t& mv::Shape::operator[](int ndim)
 {
     if (ndim < 0)
-        return dims_.at(dims_.length() + ndim);
+        return dims_.at(dims_.size() + ndim);
     return dims_.at(ndim);
 }
 
-const mv::dim_type& mv::Shape::operator[](int_type ndim) const
+const std::size_t& mv::Shape::operator[](int ndim) const
 {
     if (ndim < 0)
-        return dims_.at(dims_.length() + ndim);
+        return dims_.at(dims_.size() + ndim);
     return dims_.at(ndim);
 }
 
@@ -75,18 +76,18 @@ bool mv::Shape::operator!=(const Shape& other) const
     return !operator==(other);
 }
 
-mv::string mv::Shape::toString() const
+std::string mv::Shape::toString() const
 {
 
-    string output("(");
+    std::string output("(");
 
-    for (byte_type i = 0; i < dims_.length() - 1; ++i)
+    for (std::size_t i = 0; i < dims_.size() - 1; ++i)
     {
         output += std::to_string(dims_[i]);
         output += ", ";
     }
 
-    output += std::to_string(dims_[dims_.length() - 1]);
+    output += std::to_string(dims_[dims_.size() - 1]);
     output += ")";
     
     return output;
@@ -98,7 +99,7 @@ mv::json::Value mv::Shape::toJsonValue() const
 
     mv::json::Array arr;
 
-    for (byte_type i = 0; i < dims_.length(); ++i)
+    for (std::size_t i = 0; i < dims_.size(); ++i)
     {
         arr.append(mv::Jsonable::toJsonValue(dims_[i]));
     }
@@ -132,7 +133,7 @@ mv::Shape mv::Shape::broadcast(const Shape& s1, const Shape& s2)
 
     Shape sO(*sM);
 
-    for (int_type i = 1; i <= sS->ndims(); ++i)
+    for (std::size_t i = 1; i <= sS->ndims(); ++i)
     {
 
         if ((*sM)[-i] != (*sS)[-i])
@@ -154,7 +155,7 @@ mv::Shape mv::Shape::broadcast(const Shape& s1, const Shape& s2)
 
 }
 
-mv::Shape mv::Shape::augment(const Shape& s, byte_type ndims)
+mv::Shape mv::Shape::augment(const Shape& s, std::size_t ndims)
 {
     
     if (ndims <= s.ndims())
@@ -162,7 +163,7 @@ mv::Shape mv::Shape::augment(const Shape& s, byte_type ndims)
 
     Shape sAug(ndims);
                     
-    for (int i = 0; i < ndims - s.ndims(); ++i)
+    for (std::size_t i = 0; i < ndims - s.ndims(); ++i)
         sAug[i] = 1;
 
     for (unsigned i = 0; i < s.ndims(); ++i)

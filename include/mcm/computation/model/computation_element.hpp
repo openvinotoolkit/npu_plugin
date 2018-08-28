@@ -1,10 +1,14 @@
 #ifndef COMPUTATION_ELEMENT_HPP_
 #define COMPUTATION_ELEMENT_HPP_
 
+#include <vector>
+#include <string>
 #include "include/mcm/computation/model/types.hpp"
+#include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/base/jsonable.hpp"
+
 
 namespace mv
 {
@@ -17,10 +21,10 @@ namespace mv
         struct ElementOrderComparator
         {
 
-            bool operator()(const allocator::access_ptr<ComputationElement> &lhs, const allocator::access_ptr<ComputationElement> &rhs)
+            bool operator()(const std::weak_ptr<ComputationElement> &lhs, const std::weak_ptr<ComputationElement> &rhs)
             {
                 //return lhs.lock()->getName() < rhs.lock()->getName();
-                return *lhs < *rhs;
+                return *lhs.lock() < *rhs.lock();
             }
 
             /*bool operator()(const allocator::owner_ptr<ComputationElement> &lhs, const allocator::owner_ptr<ComputationElement> &rhs)
@@ -37,14 +41,13 @@ namespace mv
         friend class ComputationGroup;
         friend class ComputationStage;
 
-        static allocator allocator_;
         static Attribute unknownAttr_;
         static Logger &logger_;
-        string name_;
-        map<string, Attribute> attributes_;
+        std::string name_;
+        std::map<std::string, Attribute> attributes_;
 
         template <class T>
-        bool addAttr(const string &name, AttrType attrType, const T &content)
+        bool addAttr(const std::string &name, AttrType attrType, const T &content)
         {
 
             Attribute attr(attrType, content);
@@ -52,25 +55,25 @@ namespace mv
 
         }
 
-        bool addAttr(const string &name, const Attribute &attr);
+        bool addAttr(const std::string &name, const Attribute &attr);
 
     public:
 
         ComputationElement(json::Value &value);
-        ComputationElement(const string &name);
+        ComputationElement(const std::string &name);
         ComputationElement(const ComputationElement &other);
         ComputationElement& operator=(const ComputationElement &other);
         virtual ~ComputationElement() = 0;
-        const string &getName() const;
+        const std::string &getName() const;
         void setName(const std::string& name);
-        bool hasAttr(const string &name) const;
-        Attribute& getAttr(const string &name);
-        const Attribute& getAttr(const string &name) const;
-        allocator::vector<string> getAttrKeys() const;
-        AttrType getAttrType(const string &name) const;
-        unsigned_type attrsCount() const;
-        bool removeAttr(const string &name);
-        string toString() const;
+        bool hasAttr(const std::string &name) const;
+        Attribute& getAttr(const std::string &name);
+        const Attribute& getAttr(const std::string &name) const;
+        std::vector<std::string> getAttrKeys() const;
+        AttrType getAttrType(const std::string &name) const;
+        std::size_t attrsCount() const;
+        bool removeAttr(const std::string &name);
+        std::string toString() const;
         mv::json::Value virtual toJsonValue() const;
         virtual bool operator <(ComputationElement &other);
         virtual bool operator ==(const ComputationElement& other);

@@ -16,10 +16,10 @@ namespace mv
 
         public:
 
-            Scale(const string &name);
+            Scale(const std::string &name);
             Scale(mv::json::Value &obj);
 
-            Tensor getOutputDef(byte_type idx);
+            Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };

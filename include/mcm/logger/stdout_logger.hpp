@@ -10,10 +10,10 @@ namespace mv
     class StdOutLogger : public Logger
     {
 
-        void logError(const string &content) const;
-        void logWarning(const string &content) const;
-        void logInfo(const string &content) const;
-        void logDebug(const string &content) const;
+        void logError(const std::string &content) const;
+        void logWarning(const std::string &content) const;
+        void logInfo(const std::string &content) const;
+        void logDebug(const std::string &content) const;
 
     public:
 

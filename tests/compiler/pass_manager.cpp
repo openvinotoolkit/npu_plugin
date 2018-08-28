@@ -120,7 +120,7 @@ TEST(pass_manager, invalid_execution)
 
     setPassReg();
     mv::OpModel model;
-    auto input = model.input(mv::Shape(1), mv::DType::Unknown, mv::Order::ColumnMajor);
+    auto input = model.input({1}, mv::DType::Unknown, mv::Order::ColumnMajor);
     model.output(input);
 
     mv::PassManager pm;
@@ -158,7 +158,7 @@ TEST(pass_manager, execution)
 
     setPassReg();
     mv::OpModel model;
-    auto input = model.input(mv::Shape(1), mv::DType::Unknown, mv::Order::ColumnMajor);
+    auto input = model.input({1}, mv::DType::Unknown, mv::Order::ColumnMajor);
     model.output(input);
 
     mv::PassManager pm;

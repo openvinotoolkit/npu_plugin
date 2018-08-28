@@ -1,10 +1,8 @@
 #include "include/mcm/base/attribute.hpp"
 
-mv::allocator mv::Attribute::allocator_;
-
-/*mv::byte_type mv::Attribute::nextTypeId()
+/*std::size_t mv::Attribute::nextTypeId()
 {
-    static byte_type id(0);
+    static std::size_t id(0);
     assert(id < max_byte && "Out of attribute types ID");
     return id++;
 }*/
@@ -17,7 +15,7 @@ attrType_(AttrType::UnknownType)
 
 mv::Attribute mv::Attribute::JsonAttributeFactory(mv::json::Value& value)
 {
-    string attributeType = constructStringFromJson(value["attrType"]);
+    std::string attributeType = constructStringFromJson(value["attrType"]);
     mv::AttrType attr = mv::attrTypeStringsReversed.at(attributeType);
     switch (attr)
     {
@@ -86,16 +84,16 @@ mv::json::Value mv::Attribute::getContentJson() const
     {
 
         case AttrType::ByteType:
-            return Jsonable::toJsonValue(getContent<byte_type>());
+            return Jsonable::toJsonValue(getContent<std::size_t>());
 
         case AttrType::UnsignedType:
-            return Jsonable::toJsonValue(getContent<unsigned_type>());
+            return Jsonable::toJsonValue(getContent<unsigned>());
 
         case AttrType::IntegerType:
-            return Jsonable::toJsonValue(getContent<int_type>());
+            return Jsonable::toJsonValue(getContent<int>());
 
         case AttrType::FloatType:
-            return Jsonable::toJsonValue(getContent<float_type>());
+            return Jsonable::toJsonValue(getContent<double>());
 
         case AttrType::DTypeType:
             return Jsonable::toJsonValue(getContent<DType>());
@@ -107,7 +105,7 @@ mv::json::Value mv::Attribute::getContentJson() const
             return Jsonable::toJsonValue(getContent<Shape>());
 
         case AttrType::StringType:
-            return Jsonable::toJsonValue(getContent<string>());
+            return Jsonable::toJsonValue(getContent<std::string>());
 
         case AttrType::BoolType:
             return Jsonable::toJsonValue(getContent<bool>());
@@ -143,10 +141,10 @@ mv::json::Value mv::Attribute::getContentJson() const
             return Jsonable::toJsonValue(getContent<UnsignedVector4D>());
 
         case AttrType::FloatVecType:
-            return Jsonable::toJsonValue(getContent<mv::dynamic_vector<float_type>>());
+            return Jsonable::toJsonValue(getContent<std::vector<double>>());
 
         case AttrType::StringVecType:
-            return Jsonable::toJsonValue(getContent<mv::dynamic_vector<string>>());
+            return Jsonable::toJsonValue(getContent<std::vector<std::string>>());
 
         case AttrType::UnknownType:
             return Jsonable::toJsonValue(false);
@@ -155,23 +153,23 @@ mv::json::Value mv::Attribute::getContentJson() const
     return Jsonable::toJsonValue(false);
 }
 
-mv::string mv::Attribute::getContentStr() const
+std::string mv::Attribute::getContentStr() const
 {
 
     switch (attrType_)
     {
         
         case AttrType::ByteType:
-            return Printable::toString(getContent<byte_type>());
+            return Printable::toString(getContent<std::size_t>());
 
         case AttrType::UnsignedType:
-            return Printable::toString(getContent<unsigned_type>());
+            return Printable::toString(getContent<unsigned>());
 
         case AttrType::IntegerType:
-            return Printable::toString(getContent<int_type>());
+            return Printable::toString(getContent<int>());
 
         case AttrType::FloatType:
-            return Printable::toString(getContent<float_type>());
+            return Printable::toString(getContent<double>());
 
         case AttrType::DTypeType:
             return Printable::toString(getContent<DType>());
@@ -183,7 +181,7 @@ mv::string mv::Attribute::getContentStr() const
             return Printable::toString(getContent<Shape>());
 
         case AttrType::StringType:
-            return getContent<string>();
+            return getContent<std::string>();
 
         case AttrType::BoolType:
             return Printable::toString(getContent<bool>());
@@ -219,10 +217,10 @@ mv::string mv::Attribute::getContentStr() const
             return Printable::toString(getContent<UnsignedVector4D>());
 
         case AttrType::FloatVecType:
-            return Printable::toString(getContent<mv::dynamic_vector<float_type>>());
+            return Printable::toString(getContent<std::vector<double>>());
 
         case AttrType::StringVecType:
-            return Printable::toString(getContent<mv::dynamic_vector<std::string>>());
+            return Printable::toString(getContent<std::vector<std::string>>());
 
         default:
             return "unknown";
@@ -231,7 +229,7 @@ mv::string mv::Attribute::getContentStr() const
 
 }
 
-mv::string mv::Attribute::toString() const
+std::string mv::Attribute::toString() const
 {
     return "(" + Printable::toString(attrType_) + "): " + getContentStr();
 }

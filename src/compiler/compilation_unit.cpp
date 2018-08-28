@@ -28,7 +28,7 @@ void mv::CompilationUnit::loadModelFromJson(const std::string &path)
                 continue;
             std::string currentTensorInputPath(pathNoExt+"_"+tensorIt->getName());
             std::ifstream currentTensorInputStream(currentTensorInputPath, std::ios::in | std::ios::binary);
-            mv::dynamic_vector<float> tensorData(tensorIt->getShape().totalSize());
+            std::vector<double> tensorData(tensorIt->getShape().totalSize());
             currentTensorInputStream.read(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
             tensorIt->populate(tensorData, tensorIt->getOrder());
             currentTensorInputStream.close();

@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/pool2d_op.hpp"
 
-mv::Pool2DOp::Pool2DOp(OpType poolType, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
+mv::Pool2DOp::Pool2DOp(OpType poolType, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const std::string &name) :
 ComputationOp(poolType, name),
 KernelOp(poolType, stride, padding, name),
 SinkOp(poolType, 1, name)
@@ -22,7 +22,7 @@ mv::Pool2DOp::~Pool2DOp()
 }
 
 
-mv::Tensor mv::Pool2DOp::getOutputDef(byte_type idx)
+mv::Tensor mv::Pool2DOp::getOutputDef(std::size_t idx)
 {
 
     if (idx > 0)
@@ -65,8 +65,8 @@ mv::Tensor mv::Pool2DOp::getOutputDef(byte_type idx)
         return Tensor();
     }
 
-    Shape outputShape((inputShape[0] + padding.e0 + padding.e1 - kSize.e0) / stride.e0 + 1, (
-        inputShape[1] + padding.e2 + padding.e3 - kSize.e1) / stride.e1 + 1, inputShape[2]);
+    Shape outputShape({(inputShape[0] + padding.e0 + padding.e1 - kSize.e0) / stride.e0 + 1, (
+        inputShape[1] + padding.e2 + padding.e3 - kSize.e1) / stride.e1 + 1, inputShape[2]});
 
     return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
 

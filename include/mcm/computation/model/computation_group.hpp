@@ -2,6 +2,10 @@
 #define GROUP_HPP_
 
 #include <algorithm>
+#include <set>
+#include <memory>
+#include <string>
+#include <vector>
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/model/computation_element.hpp"
 
@@ -13,7 +17,7 @@ namespace mv
     
     protected:
 
-        using MemberSet = allocator::set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
+        using MemberSet = std::set<std::weak_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
         MemberSet members_;
 
         virtual bool markMembmer_(ComputationElement &member);
@@ -21,17 +25,17 @@ namespace mv
                 
     public:
 
-        ComputationGroup(const string &name);
+        ComputationGroup(const std::string &name);
         ComputationGroup(mv::json::Value& value);
         bool erase(MemberSet::iterator &member);
         void clear();
         MemberSet::iterator begin();
         MemberSet::iterator end();
         std::size_t size() const;
-        virtual string toString() const;
+        virtual std::string toString() const;
 
         template <class ElementType>
-        MemberSet::iterator insert(allocator::owner_ptr<ElementType> newMember)
+        MemberSet::iterator insert(std::shared_ptr<ElementType> newMember)
         {
             
             if (markMembmer_(*newMember))
@@ -54,7 +58,7 @@ namespace mv
         MemberSet::iterator find(ElementType& member)
         {   
             for (auto it = members_.begin(); it != members_.end(); ++it)
-                if (**it == member)
+                if (*it->lock() == member)
                     return it;
             return members_.end();
         }

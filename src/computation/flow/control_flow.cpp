@@ -13,7 +13,7 @@ ComputationFlow(value)
 
 }
 
-mv::string mv::ControlFlow::toString() const
+std::string mv::ControlFlow::toString() const
 {
     return "control flow '" + name_ + "' " + ComputationElement::toString();
 }

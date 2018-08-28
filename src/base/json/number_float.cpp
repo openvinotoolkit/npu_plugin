@@ -1,12 +1,12 @@
 #include "include/mcm/base/json/number_float.hpp"
 
-mv::json::NumberFloat::NumberFloat(float value) :
+mv::json::NumberFloat::NumberFloat(double value) :
 value_(value)
 {
 
 }
 
-mv::json::NumberFloat::operator float&()
+mv::json::NumberFloat::operator double&()
 {
     return value_;
 }

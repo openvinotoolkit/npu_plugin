@@ -8,7 +8,7 @@ def gen_image(w, h, c):
     img.save('test.png')
 
 def gen_data(w, h, c):
-    data = np.random.uniform(-1, 1, (h, w, c)).astype(np.float16)
+    data = np.random.uniform(-1, 1, (h, w, c)).astype(np.double16)
     np.save('test.npy', data)
 
 w, h, c = 32, 32, 3

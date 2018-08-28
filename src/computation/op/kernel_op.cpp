@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/kernel_op.hpp"
 
-mv::KernelOp::KernelOp(OpType opType, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
+mv::KernelOp::KernelOp(OpType opType, UnsignedVector2D stride, UnsignedVector4D padding, const std::string &name) :
 ComputationOp(opType, name),
 SourceOp(opType, 1, name)
 {

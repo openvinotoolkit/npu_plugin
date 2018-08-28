@@ -15,8 +15,8 @@ namespace mv
         virtual bool unmarkMembmer_(ComputationElement &member);
     public:
 
-        ComputationStage(unsigned_type idx);
-        string toString() const;
+        ComputationStage(std::size_t idx);
+        std::string toString() const;
         bool operator <(ComputationElement &other);
         
     };

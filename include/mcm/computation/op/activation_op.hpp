@@ -13,10 +13,10 @@ namespace mv
 
     public:
 
-        ActivationOp(OpType activationType, const string& name);
+        ActivationOp(OpType activationType, const std::string& name);
         ActivationOp(mv::json::Value& value);
         virtual ~ActivationOp() = 0;
-        Tensor getOutputDef(byte_type idx);
+        Tensor getOutputDef(std::size_t idx);
 
     };
 

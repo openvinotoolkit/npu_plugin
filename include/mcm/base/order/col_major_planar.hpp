@@ -12,11 +12,11 @@ namespace mv
     public:
 
         ~ColumnMajorPlanar();
-        int previousContiguousDimensionIndex(const Shape& s, unsigned current_dim) const;
-        int nextContiguousDimensionIndex(const Shape& s, unsigned current_dim) const;
+        int previousContiguousDimensionIndex(const Shape& s, std::size_t current_dim) const;
+        int nextContiguousDimensionIndex(const Shape& s, std::size_t current_dim) const;
 
-        unsigned lastContiguousDimensionIndex(const Shape &s) const;
-        unsigned firstContiguousDimensionIndex(const Shape &s) const;
+        std::size_t lastContiguousDimensionIndex(const Shape &s) const;
+        std::size_t firstContiguousDimensionIndex(const Shape &s) const;
     };
 
 }

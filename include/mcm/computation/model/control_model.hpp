@@ -33,13 +33,13 @@ namespace mv
         using ComputationModel::removeGroupElement;
 
         Control::StageIterator addStage();
-        Control::StageIterator getStage(unsigned_type stageIdx);
+        Control::StageIterator getStage(std::size_t stageIdx);
         bool removeStage(Control::StageIterator &stage);
         bool addToStage(Control::StageIterator &stage, Control::OpListIterator &op);
         bool addToStage(Control::StageIterator &stage, Data::OpListIterator &op);
         bool removeFromStage(Control::OpListIterator &op);
         bool removeFromStage(Data::OpListIterator &op);
-        unsigned_type stageSize() const;
+        std::size_t stageSize() const;
 
         Control::StageIterator stageBegin();
         Control::StageIterator stageEnd();

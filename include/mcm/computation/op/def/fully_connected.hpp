@@ -17,10 +17,10 @@ namespace mv
 
         public:
 
-            FullyConnected(const string &name);
+            FullyConnected(const std::string &name);
             FullyConnected(mv::json::Value &obj);
 
-            Tensor getOutputDef(byte_type idx);
+            Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };

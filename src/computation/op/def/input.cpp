@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/input.hpp"
 
-mv::op::Input::Input(Shape outputShape, DType dType, Order order, const string &name) :
+mv::op::Input::Input(Shape outputShape, DType dType, Order order, const std::string &name) :
 ComputationOp(OpType::Input, name),
 SourceOp(OpType::Input, 1, name)
 {
@@ -19,7 +19,7 @@ SourceOp(obj)
 
 }
 
-bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, byte_type idx)
+bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, std::size_t idx)
 {
 
     bool result = SourceOp::setOutputTensor(tensor, idx);
@@ -27,7 +27,7 @@ bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, byte_type idx)
 
 }
 
-mv::Tensor mv::op::Input::getOutputDef(byte_type idx)
+mv::Tensor mv::op::Input::getOutputDef(std::size_t idx)
 {
 
     if (idx > 0)
@@ -40,7 +40,7 @@ mv::Tensor mv::op::Input::getOutputDef(byte_type idx)
 
 }
 
-bool mv::op::Input::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Input::isHardwarizeable(json::Object&)
 {
     return false;
 }

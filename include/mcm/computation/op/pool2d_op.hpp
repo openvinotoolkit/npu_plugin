@@ -12,11 +12,11 @@ namespace mv
 
     public:
 
-        Pool2DOp(OpType poolType, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const string &name);
+        Pool2DOp(OpType poolType, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const std::string &name);
         Pool2DOp(mv::json::Value& value);
 
         virtual ~Pool2DOp() = 0;
-        Tensor getOutputDef(byte_type idx);
+        Tensor getOutputDef(std::size_t idx);
 
     };
 }

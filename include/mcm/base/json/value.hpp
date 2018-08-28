@@ -38,7 +38,7 @@ namespace mv
         public:
 
             Value();
-            Value(float value);
+            Value(double value);
             Value(int value);
             Value(unsigned int value);
             Value(const char * value);
@@ -48,7 +48,7 @@ namespace mv
             Value(const Object& value);
             Value(const Array& value);
             Value(const Value& other);
-            Value& operator=(float value);
+            Value& operator=(double value);
             Value& operator=(long long value);
             Value& operator=(const std::string& value);
             Value& operator=(bool value);

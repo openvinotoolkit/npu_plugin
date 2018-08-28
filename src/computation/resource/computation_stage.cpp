@@ -8,12 +8,12 @@ bool mv::ComputationStage::markMembmer_(ComputationElement &member)
         {
             if (!member.hasAttr("stage"))
             {
-                member.addAttr("stage", AttrType::UnsignedType, getAttr("idx").getContent<unsigned_type>());
+                member.addAttr("stage", AttrType::UnsignedType, getAttr("idx").getContent<std::size_t>());
                 return true;
             }
             else
             {
-                logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' that was already assigned to the stage 'stage_" + Printable::toString(member.getAttr("stage").getContent<unsigned_type>()) + "'");
+                logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' that was already assigned to the stage 'stage_" + Printable::toString(member.getAttr("stage").getContent<std::size_t>()) + "'");
             }
         }
         else
@@ -45,20 +45,20 @@ bool mv::ComputationStage::unmarkMembmer_(ComputationElement &member)
 
 }
 
-mv::ComputationStage::ComputationStage(unsigned_type idx) :
+mv::ComputationStage::ComputationStage(std::size_t idx) :
 ComputationGroup("stage_" + Printable::toString(idx))
 {
     addAttr("idx", AttrType::UnsignedType, idx);
 }
 
-mv::string mv::ComputationStage::toString() const
+std::string mv::ComputationStage::toString() const
 {
 
-    string result = "stage '" + name_ + "'";
+    std::string result = "stage '" + name_ + "'";
 
-    unsigned_type idx = 0;
+    std::size_t idx = 0;
     for (auto it = members_.begin(); it != members_.end(); ++it)
-        result += "\n'member_" + Printable::toString(idx++) + "': " + (*it)->getName();
+        result += "\n'member_" + Printable::toString(idx++) + "': " + it->lock()->getName();
 
     return result + ComputationElement::toString();
 
@@ -66,5 +66,5 @@ mv::string mv::ComputationStage::toString() const
 
 bool mv::ComputationStage::operator <(ComputationElement &other)
 {
-    return getAttr("idx").getContent<unsigned_type>() < other.getAttr("idx").getContent<unsigned_type>();
+    return getAttr("idx").getContent<std::size_t>() < other.getAttr("idx").getContent<std::size_t>();
 }

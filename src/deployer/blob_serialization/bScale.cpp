@@ -6,7 +6,7 @@ namespace mv
 
     void bScale::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
     {
-        int fp16_size = 2;
+
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 

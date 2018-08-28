@@ -16,10 +16,10 @@ namespace mv
 
         public:
 
-            Conv2D(UnsignedVector2D stride, UnsignedVector4D padding, const string& name);
+            Conv2D(UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name);
             Conv2D(mv::json::Value &obj);
 
-            Tensor getOutputDef(byte_type idx);
+            Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& TargetDescriptor);
 
         };

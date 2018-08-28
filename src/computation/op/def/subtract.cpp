@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/subtract.hpp"
 
-mv::op::Subtract::Subtract(const string &name) :
+mv::op::Subtract::Subtract(const std::string &name) :
 ComputationOp(OpType::Subtract, name),
 EltwiseOp(OpType::Subtract, name)
 {
@@ -14,7 +14,7 @@ EltwiseOp(obj)
 
 }
 
-bool mv::op::Subtract::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Subtract::isHardwarizeable(json::Object&)
 {
     return false;
 }

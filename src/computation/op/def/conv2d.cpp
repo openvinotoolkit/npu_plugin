@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/conv2d.hpp"
 
-mv::op::Conv2D::Conv2D(UnsignedVector2D stride, UnsignedVector4D padding, const string& name) :
+mv::op::Conv2D::Conv2D(UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name) :
 ComputationOp(OpType::Conv2D, name),
 KernelOp(OpType::Conv2D, stride, padding, name),
 SinkOp(OpType::Conv2D, 2, name)
@@ -16,7 +16,7 @@ SinkOp(obj)
 
 }
 
-mv::Tensor mv::op::Conv2D::getOutputDef(byte_type idx)
+mv::Tensor mv::op::Conv2D::getOutputDef(std::size_t idx)
 {
 
     if (idx > 0)
@@ -76,14 +76,14 @@ mv::Tensor mv::op::Conv2D::getOutputDef(byte_type idx)
     }
     
     // Make sure that the result of subtract will not be negative
-    Shape outputShape((inputShape[0] + padding.e0 + padding.e1 - weightsShape[0]) / stride.e0 + 1, (
-        inputShape[1] + padding.e2 + padding.e3 - weightsShape[1]) / stride.e1 + 1, weightsShape[3]);
+    Shape outputShape({(inputShape[0] + padding.e0 + padding.e1 - weightsShape[0]) / stride.e0 + 1, (
+        inputShape[1] + padding.e2 + padding.e3 - weightsShape[1]) / stride.e1 + 1, weightsShape[3]});
 
     return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
 
 }
 
-bool mv::op::Conv2D::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Conv2D::isHardwarizeable(json::Object&)
 {
     auto padding = getAttr("padding").getContent<UnsignedVector4D>();
     auto stride = getAttr("stride").getContent<UnsignedVector2D>();

@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/def/softmax.hpp"
 
-mv::op::Softmax::Softmax(const string &name) :
+mv::op::Softmax::Softmax(const std::string &name) :
 ComputationOp(OpType::Softmax, name),
 ActivationOp(OpType::Softmax, name)
 {
@@ -14,7 +14,7 @@ ActivationOp(obj)
 
 }
 
-bool mv::op::Softmax::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Softmax::isHardwarizeable(json::Object&)
 {
     return false;
 }

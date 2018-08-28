@@ -1,6 +1,6 @@
 #include "include/mcm/computation/op/eltwise_op.hpp"
 
-mv::EltwiseOp::EltwiseOp(OpType eltwiseType, const string &name) :
+mv::EltwiseOp::EltwiseOp(OpType eltwiseType, const std::string &name) :
 ComputationOp(eltwiseType, name),
 SourceOp(eltwiseType, 1, name),
 SinkOp(eltwiseType, 2, name)
@@ -21,7 +21,7 @@ mv::EltwiseOp::~EltwiseOp()
 
 }
 
-mv::Tensor mv::EltwiseOp::getOutputDef(byte_type idx)
+mv::Tensor mv::EltwiseOp::getOutputDef(std::size_t idx)
 {
 
     if (idx > 0)

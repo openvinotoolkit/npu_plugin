@@ -5,9 +5,9 @@ mv::json::detail::ValueContent::~ValueContent()
 
 }
 
-mv::json::detail::ValueContent::operator float&()
+mv::json::detail::ValueContent::operator double&()
 {
-    throw ValueError("Unable to obtain a float content from a JSON value");
+    throw ValueError("Unable to obtain a double content from a JSON value");
 }
 
 mv::json::detail::ValueContent::operator long long&()

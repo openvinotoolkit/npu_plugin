@@ -44,8 +44,8 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
             Tensor weigthsTensor = *(opIt->getInputTensor(1));
             weigthsTensor.reorder(Order::RowMajor);
 
-            auto weights = om.constant(weigthsTensor.getData(), mv::Shape(inputShape[0], inputShape[1], inputShape[2], 
-                opIt->getOutputTensor(0)->getShape()[1]), sourceTensor->getDType(), 
+            auto weights = om.constant(weigthsTensor.getData(), {inputShape[0], inputShape[1], inputShape[2], 
+                opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
                 sourceTensor->getOrder(), opIt->getName() + "_weights");
 
             auto conv2D = om.conv2D(sourceTensor, weights, {1, 1}, {0, 0, 0, 0});
@@ -57,7 +57,7 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                byte_type inputIdx = sinkFlow->getAttr("sinkInput").getContent<byte_type>();
+                std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
                 sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
                 om.defineFlow(conv2D, sinkFlow.sink(), inputIdx); 
             }

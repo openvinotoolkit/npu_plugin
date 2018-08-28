@@ -1,6 +1,10 @@
 #ifndef CONTROL_CONTEXT_HPP_
 #define CONTROL_CONTEXT_HPP_
 
+#include <memory>
+#include <map>
+#include <set>
+#include <string>
 #include "include/mcm/graph/graph.hpp"
 #include "include/mcm/computation/model/iterator/model_iterator.hpp"
 #include "include/mcm/computation/resource/computation_stage.hpp"
@@ -27,8 +31,8 @@ namespace mv
         using FlowParentIterator = IteratorDetail::FlowIterator<computation_graph::second_graph, computation_graph::second_graph::edge_child_iterator, ControlFlow, ComputationOp>;
         using FlowSiblingIterator = IteratorDetail::FlowIterator<computation_graph::second_graph, computation_graph::second_graph::edge_sibling_iterator, ControlFlow, ComputationOp>;
         
-        using StageIterator = IteratorDetail::ModelValueIterator<map<unsigned_type, allocator::owner_ptr<ComputationStage>>::iterator, ComputationStage>;
-        using StageMemberIterator = IteratorDetail::ModelLinearIterator<set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>::iterator, ComputationElement>;
+        using StageIterator = IteratorDetail::ModelValueIterator<std::map<std::size_t, std::shared_ptr<ComputationStage>>::iterator, ComputationStage>;
+        using StageMemberIterator = IteratorDetail::ModelLinearIterator<std::set<std::weak_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>::iterator, ComputationElement>;
 
     }
 

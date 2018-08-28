@@ -10,34 +10,29 @@ mv::json::Value mv::Jsonable::toJsonValue(const Jsonable &obj)
     return obj.toJsonValue();
 }
 
-mv::json::Value mv::Jsonable::toJsonValue(int_type value)
+mv::json::Value mv::Jsonable::toJsonValue(int value)
+{
+    return json::Value(value);
+}
+
+mv::json::Value mv::Jsonable::toJsonValue(double value)
+{
+    return json::Value(value);
+}
+
+mv::json::Value mv::Jsonable::toJsonValue(unsigned value)
 {
     return mv::json::Value(value);
 }
 
-mv::json::Value mv::Jsonable::toJsonValue(float_type value)
+mv::json::Value mv::Jsonable::toJsonValue(std::size_t value)
 {
-    return mv::json::Value(value);
-}
-
-mv::json::Value mv::Jsonable::toJsonValue(unsigned_type value)
-{
-    return mv::json::Value(value);
-}
-
-mv::json::Value mv::Jsonable::toJsonValue(byte_type value)
-{
-    return mv::json::Value((unsigned_type)value);
-}
-
-mv::json::Value mv::Jsonable::toJsonValue(dim_type value)
-{
-    return mv::json::Value((unsigned_type)value);
+    return json::Value(static_cast<unsigned>(value));
 }
 
 mv::json::Value mv::Jsonable::toJsonValue(bool value)
 {
-    return mv::json::Value(value);
+    return json::Value(value);
 }
 
 mv::json::Value mv::Jsonable::toJsonValue(DType value)
@@ -60,40 +55,35 @@ mv::json::Value mv::Jsonable::toJsonValue(OpType value)
     return mv::json::Value(mv::opsStrings.at(value));
 }
 
-mv::json::Value mv::Jsonable::toJsonValue(const string& value)
+mv::json::Value mv::Jsonable::toJsonValue(const std::string& value)
 {
     return mv::json::Value(value);
 }
 
 mv::json::Value mv::Jsonable::toJsonValue(const char *value)
 {
-    return mv::json::Value(string(value));
+    return mv::json::Value(std::string(value));
 }
 
 
 //-----------------Base types constructor---------------------
 
-mv::int_type mv::Jsonable::constructIntTypeFromJson(mv::json::Value& v)
+int mv::Jsonable::constructIntTypeFromJson(json::Value& v)
 {
     return v.get<long long>();
 }
 
-mv::unsigned_type mv::Jsonable::constructUnsignedTypeFromJson(mv::json::Value& v)
+unsigned mv::Jsonable::constructUnsignedTypeFromJson(json::Value& v)
 {
     return v.get<long long>();
 }
 
-mv::float_type mv::Jsonable::constructFloatTypeFromJson(mv::json::Value& v)
+double mv::Jsonable::constructFloatTypeFromJson(mv::json::Value& v)
 {
-    return v.get<mv::float_type>();
+    return v.get<double>();
 }
 
-mv::byte_type mv::Jsonable::constructByteTypeFromJson(mv::json::Value& v)
-{
-    return v.get<long long>();
-}
-
-mv::dim_type mv::Jsonable::constructDimTypeFromJson(mv::json::Value& v)
+std::size_t mv::Jsonable::constructByteTypeFromJson(mv::json::Value& v)
 {
     return v.get<long long>();
 }
@@ -105,27 +95,27 @@ bool mv::Jsonable::constructBoolTypeFromJson(mv::json::Value& v)
 
 mv::DType mv::Jsonable::constructDTypeFromJson(mv::json::Value& v)
 {
-    return mv::dtypeStringsReversed.at(v.get<mv::string>());
+    return mv::dtypeStringsReversed.at(v.get<std::string>());
 }
 
 mv::Order mv::Jsonable::constructOrderTypeFromJson(mv::json::Value& v)
 {
-    return mv::orderStringsReversed.at(v.get<mv::string>());
+    return mv::orderStringsReversed.at(v.get<std::string>());
 }
 
 mv::AttrType mv::Jsonable::constructAttrTypeFromJson(mv::json::Value& v)
 {
-    return mv::attrTypeStringsReversed.at(v.get<mv::string>());
+    return mv::attrTypeStringsReversed.at(v.get<std::string>());
 }
 
 mv::OpType mv::Jsonable::constructOpTypeFromJson(mv::json::Value& v)
 {
-    return mv::opsStringsReversed.at(v.get<mv::string>());
+    return mv::opsStringsReversed.at(v.get<std::string>());
 }
 
-mv::string mv::Jsonable::constructStringFromJson(mv::json::Value& v)
+std::string mv::Jsonable::constructStringFromJson(mv::json::Value& v)
 {
-    return v.get<mv::string>();
+    return v.get<std::string>();
 }
 
 mv::FloatVector2D mv::Jsonable::constructFloatVector2DFromJson(mv::json::Value& v)
@@ -209,17 +199,17 @@ mv::UnsignedVector4D mv::Jsonable::constructUnsignedVector4DFromJson(mv::json::V
     return vec;
 }
 
-mv::dynamic_vector<mv::float_type> mv::Jsonable::constructFloatVectorFromJson(mv::json::Value &v)
+std::vector<double> mv::Jsonable::constructFloatVectorFromJson(mv::json::Value &v)
 {
-    mv::dynamic_vector<mv::float_type> vec;
+    std::vector<double> vec;
     for(unsigned i = 0; i < v.size(); ++i)
         vec.push_back(constructFloatTypeFromJson(v[i]));
     return vec;
 }
 
-mv::dynamic_vector<mv::string> mv::Jsonable::constructStringVectorFromJson(mv::json::Value &v)
+std::vector<std::string> mv::Jsonable::constructStringVectorFromJson(mv::json::Value &v)
 {
-    mv::dynamic_vector<mv::string> vec;
+    std::vector<std::string> vec;
     for(unsigned i = 0; i < v.size(); ++i)
         vec.push_back(constructStringFromJson(v[i]));
     return vec;

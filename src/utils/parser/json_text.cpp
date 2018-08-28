@@ -320,12 +320,12 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                 case JSONSymbol::Number:
                     try
                     {
-                        std::size_t intPos, floatPos;
+                        std::size_t intPos, doublePos;
                         long long intVal = std::stoll(currentSymbol.second, &intPos);
-                        float floatVal = std::stof(currentSymbol.second, &floatPos);
+                        double doubleVal = std::stof(currentSymbol.second, &doublePos);
 
-                        if (floatPos > intPos)
-                            newValue = floatVal;
+                        if (doublePos > intPos)
+                            newValue = doubleVal;
                         else
                             newValue = intVal;
                     }
