@@ -11,6 +11,8 @@
  * @date 2018-07-19
  */
 
+#define COMPOSITIONAL_MODEL_RECORDER
+
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
@@ -85,9 +87,9 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 
 int main()
 {
-
     // Define the primary compilation unit
-    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseDebug);
+
 
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();

@@ -1,11 +1,13 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
+const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 
 mv::Logger& mv::CompilationUnit::logger_ = mv::ComputationModel::logger();
 
 mv::CompilationUnit::CompilationUnit(mv::Logger::VerboseLevel verboseLevel, bool logTime) :
-model_(new OpModel(verboseLevel, logTime))
+model_(new OpModel(verboseLevel, logTime)),
+recordedModel_(new CompositionalModelRecorder(verboseLevel, logTime, *model_,compositionalModelRecordingsPath_))
 {
 
 }
@@ -92,6 +94,11 @@ mv::json::Object& mv::CompilationUnit::compilationDescriptor()
 mv::CompositionalModel& mv::CompilationUnit::model()
 {
     return *model_;
+}
+
+mv::CompositionalModel& mv::CompilationUnit::recordedModel()
+{
+    return *recordedModel_;
 }
 
 bool mv::CompilationUnit::initialize()

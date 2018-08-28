@@ -44,7 +44,6 @@ int main()
     auto g1n4It = g1.node_insert(g1n2It, "g1_n4", "g1_e3");
     auto g1n5It = g1.node_insert(g1n2It, "g1_n5", "g1_e4");
 
-
     auto g2n1It = g2.node_insert("g2_n1");
     auto g2n2It = g2.node_insert(g2n1It, "g2_n2", "g2_e1");
     auto g2n3It = g2.node_insert(g2n1It, "g2_n3", "g2_e2");
@@ -82,7 +81,6 @@ int main()
     for (auto it = g2.node_begin(); it != g2.node_end(); ++it)
         std::cout << *it << std::endl;
 
-    mv::Visualizer gv(mv::node_content, mv::edge_content);
     gv.print_dot(g1);
 
     gv.print_dot(g2);
@@ -106,7 +104,5 @@ int main()
     std::cout << g1.edge_size() << std::endl;
     std::cout << g2.node_size() << std::endl;
     std::cout << g2.edge_size() << std::endl;
-
-    
 
 }

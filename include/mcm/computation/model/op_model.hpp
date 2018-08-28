@@ -10,6 +10,7 @@ namespace mv
 
     class OpModel : public ComputationModel, public CompositionalModel
     {
+    	friend class CompositionalModelRecorder;
 
         bool defineDefaultControlFlow_(Data::OpListIterator op);
         bool defaultStage_(Data::OpListIterator op);
