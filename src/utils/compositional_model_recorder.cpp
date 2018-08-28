@@ -13,7 +13,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::input(const Shape& shap
 
 	/* Input is the first call to the CompositionalModel.
 	 *
-	 * Therefore, open two files to store the generated source code and weight vector definitions.
+	 * Open two files to store the generated source code and weight vector definitions.
 	 *
 	 * Populate both source files with the necessary #includes and main() calls etc.
 	 *

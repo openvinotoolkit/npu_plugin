@@ -26,7 +26,6 @@ class CompositionalModelRecorder : public ComputationModel, public Compositional
 	string recordedWeghtsFileName;
 	string recordedSourceFileNameCpp;
 	const string savedRecordingsPath_;
-
 	unsigned weightsVectorCounter = 0;
 
 public:
