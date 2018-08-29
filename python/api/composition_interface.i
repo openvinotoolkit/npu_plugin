@@ -13,8 +13,9 @@ import_array();
 %module composition_api
 %{
     #include <include/mcm/compiler/compilation_unit.hpp>
-    #include <include/mcm/computation/model/op_model.hpp>
+    #include <include/mcm/utils/compositional_model_recorder.hpp>
     #include <math.h>
+    #include <iostream>
 
     int testSWIG(){
         /// A simple test to ensure the connection between Python and C++ is working
@@ -33,17 +34,17 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
         unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
-        unit->compilationDescriptor()["GenerateJSON"]["output"] = std::string("cpp.json");
+        unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
         return unit;
 
     }
 
-    mv::OpModel* getModel(mv::CompilationUnit *unit)
+    mv::CompositionalModel* getModel(mv::CompilationUnit *unit)
     {
-        return new mv::OpModel(unit->model());
+        return &unit->recordedModel();
     }
-
+        
     int compile(mv::CompilationUnit *unit)
     {
         unit->initialize();
@@ -123,24 +124,24 @@ import_array();
         return ret_val;
     }
 
-    mv::Data::TensorIterator input(mv::OpModel *o, const mv::Shape &shape){
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o->input(shape, mv::DType::Float, mv::Order::RowMajorPlanar);
+        return o.input(shape, mv::DType::Float, mv::Order::RowMajorPlanar);
     }
 
-    mv::Data::TensorIterator output(mv::OpModel *o, mv::Data::TensorIterator input){
+    mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
         /// Add an Output Layer to the OpModel and return the relevant iterator
-        return o->output(input);
+        return o.output(input);
     }
 
-    mv::Data::TensorIterator maxpool2D(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+    mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
         unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
         /// Add a Max Pooling Layer to the OpModel and return the relevant iterator
-        return o->maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+        return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, padX, padY, padY});
     }
 
-    mv::Data::TensorIterator maxpool2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+    mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
         unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
 
         /// This differs from the above because caffe calculates output sizes differently.
@@ -163,23 +164,23 @@ import_array();
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
 
-        return o->maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+        return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, padX+ adj_X, padY, padY + adj_Y});
     }
 
-    mv::Data::TensorIterator concat(mv::OpModel *o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+    mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         /// Add a Concat Layer to the OpModel and return the relevant iterator.
         /// Allows only two inputs at a time. More must cascade
-        return o->concat(input0, input1);
+        return o.concat(input0, input1);
     }
 
-    mv::Data::TensorIterator conv2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+    mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
         unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
         /// Add a Convolutional Layer to the OpModel and return the relevant iterator
-        return o->conv2D(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
+        return o.conv2D(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
     }
 
-    mv::Data::TensorIterator conv2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+    mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
         unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
@@ -204,28 +205,28 @@ import_array();
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
 
-        return o->conv2D(input, filters, {strideX, strideY}, {padX , padX- adj_X, padY, padY - adj_Y});
+        return o.conv2D(input, filters, {strideX, strideY}, {padX , padX- adj_X, padY, padY - adj_Y});
     }
 
-    mv::Data::TensorIterator constant(mv::OpModel *o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the OpModel and return the relevant iterator
-        return o->constant(data, shape, mv::DType::Float, mv::Order::RowMajorPlanar);
+        return o.constant(data, shape, mv::DType::Float, mv::Order::RowMajorPlanar);
     }
 
-    mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor){
+    mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
         // Get source operation of a tensor
-        return o->getSourceOp(tensor);
+        return o.getSourceOp(tensor);
     }
 
-    mv::Data::TensorIterator matMul(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights){
-        return o->matMul(input, weights);
+    mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights){
+        return o.matMul(input, weights);
     }
 
-    mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding){
-        return o->avgpool2D(input, kernelSize, stride, padding);
+    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding){
+        return o.avgpool2D(input, kernelSize, stride, padding);
     }
 
-    mv::Data::TensorIterator avgpool2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+    mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
         unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
 
         /// This differs from the above because caffe calculates output sizes differently.
@@ -248,43 +249,47 @@ import_array();
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
 
-        return o->avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
+        return o.avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, padX+ adj_X, padY, padY+ adj_Y});
     }
 
-    mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, mv::float_type varianceEps){
-        return o->batchNorm(input, mean, variance, offset, scale, varianceEps);
+    mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, mv::float_type varianceEps){
+        return o.batchNorm(input, mean, variance, offset, scale, varianceEps);
     }
-    mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale){
-        return o->scale(input, scale);
+    mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale){
+        return o.scale(input, scale);
     }
-    mv::Data::TensorIterator relu(mv::OpModel *o,mv::Data::TensorIterator input){
-        return o->relu(input);
+    mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input){
+        return o.relu(input);
     }
-    mv::Data::TensorIterator softmax(mv::OpModel *o,mv::Data::TensorIterator input){
-        return o->softmax(input);
+    mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input){
+        return o.softmax(input);
     }
-    mv::Data::TensorIterator add(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o->add(input0, input1);
+    mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.add(input0, input1);
     }
-    mv::Data::TensorIterator subtract(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o->subtract(input0, input1);
+    mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.subtract(input0, input1);
     }
-    mv::Data::TensorIterator multiply(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o->multiply(input0, input1);
+    mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.multiply(input0, input1);
     }
-    mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o->fullyConnected(input0, input1);
+    mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.fullyConnected(input0, input1);
     }
 
-    mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
-        return o->divide(input0, input1);
+    mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+        return o.divide(input0, input1);
     }
-    mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape){
-        return o->reshape(input, shape);
+    mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape){
+        return o.reshape(input, shape);
     }
-    mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values){
-        return o->bias(input, bias_values);
+    mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values){
+        return o.bias(input, bias_values);
+    }
+    
+    bool isValid(mv::CompositionalModel& o){
+    	return o.isValid();
     }
 
     /*void produceDOT(mv::OpModel *o, const char *fileName){
@@ -303,7 +308,6 @@ import_array();
 
  %}
 
-#include <include/mcm/computation/model/op_model.hpp>
 #include <include/mcm/computation/model/control_model.hpp>
 #include <include/mcm/deployer/serializer.hpp>
 
@@ -312,13 +316,6 @@ import_array();
 
 namespace mv
 {
-
-    class OpModel
-    {
-    public:
-        bool isValid() const;
-    };
-
     namespace Data
     {
         class TensorIterator
@@ -338,7 +335,7 @@ namespace mv
 
 int testSWIG();
 mv::CompilationUnit* getCompilationUnit();
-mv::OpModel* getModel(mv::CompilationUnit *unit);
+mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
 mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
@@ -353,35 +350,36 @@ mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z);
 mv::dynamic_vector<mv::float_type> * getData(float * d, int len);
 
 
-mv::Data::TensorIterator input(mv::OpModel * o, const mv::Shape &shape);
-mv::Data::TensorIterator output(mv::OpModel * o, mv::Data::TensorIterator input);
-mv::Data::TensorIterator conv2D(mv::OpModel * o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape);
+mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input);
+mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator conv2D_caffe(mv::OpModel * o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator maxpool2D(mv::OpModel * o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
     unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator maxpool2D_caffe(mv::OpModel * o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
     unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator avgpool2D_caffe(mv::OpModel *o, mv::Data::TensorIterator input, unsigned kernelSizeX,
+mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
         unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator concat(mv::OpModel * o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor);
+mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor);
 
-mv::Data::TensorIterator matMul(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
-mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding);
-mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, float varianceEps);
-mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
-mv::Data::TensorIterator relu(mv::OpModel *o,mv::Data::TensorIterator input);
-mv::Data::TensorIterator softmax(mv::OpModel *o,mv::Data::TensorIterator input);
-mv::Data::TensorIterator add(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator subtract(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator multiply(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator divide(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator reshape(mv::OpModel *o,mv::Data::TensorIterator input, const mv::Shape& shape);
-mv::Data::TensorIterator bias(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
-mv::Data::TensorIterator fullyConnected(mv::OpModel *o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator constant(mv::OpModel * o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
+mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
+mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding);
+mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, float varianceEps);
+mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
+mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input);
+mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input);
+mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape);
+mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
+mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+mv::Data::TensorIterator constant(mv::CompositionalModel& o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
+bool isValid(mv::CompositionalModel& o);
 
 int testConv(
     mv::Data::OpListIterator &target,
