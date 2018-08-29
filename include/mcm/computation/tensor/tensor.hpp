@@ -11,6 +11,7 @@
 #include "include/mcm/base/exception/shape_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
 #include "include/mcm/base/order/order_factory.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
@@ -40,6 +41,7 @@ namespace mv
             unfoldSubs_(subs...);
         }
 
+        virtual std::string getLogID_() const override;
 
     public:
 
@@ -58,7 +60,6 @@ namespace mv
         Order getOrder() const;
         void setOrder(Order order);
         std::string toString() const;
-        static Logger& logger();
 
         bool add(const Tensor& other);
         bool add(double val);
@@ -121,7 +122,7 @@ namespace mv
 
             if (!isPopulated())
             {
-                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
                 return errValue;
             }
 
@@ -141,7 +142,7 @@ namespace mv
 
             if (!isPopulated())
             {
-                logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+                log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
                 return errValue;
             }
 

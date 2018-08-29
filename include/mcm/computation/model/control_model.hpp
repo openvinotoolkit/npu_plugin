@@ -11,6 +11,10 @@ namespace mv
 
     class ControlModel : public ComputationModel
     {
+    
+    protected:
+
+        virtual std::string getLogID_() const override;
 
     public:
 

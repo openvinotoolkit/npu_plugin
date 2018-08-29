@@ -14,9 +14,12 @@ namespace mv
     class ComputationOp : public ComputationElement
     {
 
+        OpType opType_;
+
     protected:
 
         bool validOutputDef_();
+        virtual std::string getLogID_() const override;
 
     public:
 

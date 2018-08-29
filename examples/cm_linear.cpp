@@ -6,7 +6,9 @@
 int main()
 {
 
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
+
+    mv::OpModel om;
     auto input = om.input({128, 128, 3}, mv::DType::Float, mv::Order::ColumnMajor);
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
     std::vector<double> weights2Data = mv::utils::generateSequence<double>(5u * 5u * 8u * 16u);
@@ -22,7 +24,7 @@ int main()
     auto conv3 = om.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
     auto output = om.output(conv3);
 
-    auto msgType = mv::Logger::MessageType::MessageInfo;
+    /*auto msgType = mv::Logger::MessageType::MessageInfo;
 
     auto attr = output->getAttr("shape");
     om.logger().log(msgType, "Tensor '" + output->getName() + "' attribute 'shape' content: " + attr.getContent<mv::Shape>().toString());
@@ -49,6 +51,6 @@ int main()
     {
         cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
-    }
+    }*/
 
 }

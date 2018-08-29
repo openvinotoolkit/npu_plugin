@@ -8,12 +8,12 @@
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/base/jsonable.hpp"
-
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
 
-    class ComputationElement : public Printable, public Jsonable
+    class ComputationElement : public Printable, public Jsonable, public LogSender
     {
 
     public:
@@ -42,7 +42,6 @@ namespace mv
         friend class ComputationStage;
 
         static Attribute unknownAttr_;
-        static Logger &logger_;
         std::string name_;
         std::map<std::string, Attribute> attributes_;
 
@@ -56,6 +55,7 @@ namespace mv
         }
 
         bool addAttr(const std::string &name, const Attribute &attr);
+        virtual std::string getLogID_() const override;
 
     public:
 

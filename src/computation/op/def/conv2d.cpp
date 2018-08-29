@@ -32,21 +32,21 @@ mv::Tensor mv::op::Conv2D::getOutputDef(std::size_t idx)
 
     if (inputShape.ndims() != 3)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of incorrect shape " + inputShape.toString() + " of input");
         return Tensor();
     }
     
     if (weightsShape.ndims() != 4)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                 "' because of incorrect shape " + weightsShape.toString() + " of weights");
         return Tensor();
     }
 
     if (inputShape[2] != weightsShape[2])
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of mismatch in channels dimensions between input (" + Printable::toString(inputShape[3])
             + ") and weights (" + Printable::toString(weightsShape[2]) + ")");
         return Tensor();
@@ -57,7 +57,7 @@ mv::Tensor mv::op::Conv2D::getOutputDef(std::size_t idx)
 
     if (inputShape[0] + padding.e0 + padding.e1 < weightsShape[0])
     {
-        logger_.log(Logger::MessageType::MessageError, 
+        log(Logger::MessageType::MessageError, 
             "Unable to define output tensor for '" + name_ + 
             "' because of filter kernel width (" + Printable::toString(weightsShape[0]) + 
             ") larger than padded input width (" + Printable::toString(inputShape[0] + padding.e0 + padding.e1) + ")");
@@ -67,7 +67,7 @@ mv::Tensor mv::op::Conv2D::getOutputDef(std::size_t idx)
 
     if (inputShape[1] + padding.e2 + padding.e3 < weightsShape[1])
     {
-        logger_.log(Logger::MessageType::MessageError, 
+        log(Logger::MessageType::MessageError, 
             "Unable to define output tensor for '" + name_ + 
             "' because of filter kernel height (" + Printable::toString(weightsShape[1]) + 
             ") larger than padded input height (" + Printable::toString(inputShape[1] + padding.e2 + padding.e3) + ")");

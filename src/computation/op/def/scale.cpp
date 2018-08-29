@@ -36,7 +36,7 @@ mv::Tensor mv::op::Scale::getOutputDef(std::size_t idx)
 
         if (scaleShape.ndims() != 1 || scaleShape[0] != inputShape[-1])
         {
-            logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+            log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                 "' because of incorrect shape of scale (" + scaleShape.toString() + ") - it needs to be either"
                 " equal to shape of the input (" + inputShape.toString() + ") or to be one dimensional tensors of dimension " +
                 Printable::toString(inputShape[-1]));

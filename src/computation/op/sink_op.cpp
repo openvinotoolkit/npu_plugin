@@ -27,7 +27,7 @@ bool mv::SinkOp::setInputTensor(Data::TensorIterator &tensor, std::size_t idx)
 
     inputs_[idx] = tensor;
     addAttr("input" + Printable::toString(idx), AttrType::StringType, tensor->getName());
-    logger_.log(Logger::MessageType::MessageDebug, "Set input " + Printable::toString(idx) + " for " + toString() + " as " + tensor->toString());
+    log(Logger::MessageType::MessageDebug, "Set input " + Printable::toString(idx) + " for " + toString() + " as " + tensor->toString());
     return true;
 }
 

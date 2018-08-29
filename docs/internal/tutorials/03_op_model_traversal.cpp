@@ -15,7 +15,7 @@ int main()
     /*
         In this example a two branched computation graph will be used
     */
-    mv::OpModel opModel(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::OpModel opModel;
     auto input = opModel.input({128, 128, 3}, mv::DType::Float, mv::Order::ColumnMajor);
 
     std::vector<double> conv1WeightsData = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);

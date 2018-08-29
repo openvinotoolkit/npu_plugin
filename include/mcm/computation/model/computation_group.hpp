@@ -22,6 +22,7 @@ namespace mv
 
         virtual bool markMembmer_(ComputationElement &member);
         virtual bool unmarkMembmer_(ComputationElement &member);
+        virtual std::string getLogID_() const override;
                 
     public:
 

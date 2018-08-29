@@ -13,7 +13,7 @@ populated_(false)
     addAttr("order", AttrType::OrderType, order);
     addAttr("shape", AttrType::ShapeType, shape);
     addAttr("populated", AttrType::BoolType, false);
-    logger_.log(Logger::MessageType::MessageDebug, "Defined tensor " + toString());
+    log(Logger::MessageType::MessageDebug, "Defined " + toString());
 }
 
 mv::Tensor::Tensor(mv::json::Value& v):
@@ -40,13 +40,13 @@ populated_(other.populated_)
 {
     if (populated_)
         data_ = std::make_shared<std::vector<double>>(std::vector<double>(*other.data_));
-    logger_.log(Logger::MessageType::MessageDebug, "Copied tensor " + toString());
+    log(Logger::MessageType::MessageDebug, "Copied");
 }
 
 mv::Tensor::Tensor() :
 ComputationElement("unknown_tensor")
 {
-    logger_.log(Logger::MessageType::MessageWarning, "Defined unknown tensor");
+    log(Logger::MessageType::MessageWarning, "Defined unknown tensor");
     addAttr("dType", AttrType::DTypeType, DType::Unknown);
     addAttr("order", AttrType::OrderType, Order::Unknown);
     addAttr("shape", AttrType::ShapeType, Shape());
@@ -68,7 +68,7 @@ bool mv::Tensor::populate(const std::vector<double>& data, Order order)
 
     if (data.size() != getShape().totalSize())
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to populate tensor - mismatch between input array size (" +
+        log(Logger::MessageType::MessageError, "Unable to populate - mismatch between input array size (" +
             Printable::toString((unsigned)data.size()) + ") and declared shape (" + getAttr("shape").getContentStr() + ")");
         return false;
     }
@@ -124,7 +124,7 @@ bool mv::Tensor::broadcast(const Shape& shape)
 
     if (!isPopulated())
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using unpopulated tensor");
         return false;
     }
 
@@ -132,7 +132,7 @@ bool mv::Tensor::broadcast(const Shape& shape)
 
     if (s1.ndims() == 0 || s2.ndims() == 0)
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using 0-dimensional tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using 0-dimensional tensor");
         return false;
     }
 
@@ -183,7 +183,7 @@ bool mv::Tensor::broadcast(const Shape& shape)
 std::vector<double>& mv::Tensor::getData()
 {
     if (!isPopulated())
-        logger_.log(Logger::MessageType::MessageWarning, "Attempt of restoring data from an unpopulated tensor '" + name_ + "'");
+        log(Logger::MessageType::MessageWarning, "Attempt of restoring data from an unpopulated tensor '" + name_ + "'");
     return *data_.get();
 }
 
@@ -212,7 +212,7 @@ bool mv::Tensor::elementWise_(const Tensor& other, const std::function<double(do
 
     if (!isPopulated() || !other.isPopulated())
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using unpopulated tensor");
         return false;
     }
 
@@ -220,7 +220,7 @@ bool mv::Tensor::elementWise_(const Tensor& other, const std::function<double(do
 
     if (s1.ndims() == 0 || s2.ndims() == 0)
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using 0-dimensional tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom element-wise operation using 0-dimensional tensor");
         return false;
     }
 
@@ -298,7 +298,7 @@ bool mv::Tensor::add(double val)
 
     if (!isPopulated())
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
         return false;
     }
     for (unsigned i = 0; i < data_->size(); ++i)
@@ -318,7 +318,7 @@ bool mv::Tensor::subtract(double val)
 
     if (!isPopulated())
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
         return false;
     }
     for (unsigned i = 0; i < data_->size(); ++i)
@@ -338,7 +338,7 @@ bool mv::Tensor::multiply(double val)
 
     if (!isPopulated())
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
         return false;
     }
     for (unsigned i = 0; i < data_->size(); ++i)
@@ -353,7 +353,7 @@ bool mv::Tensor::divide(double val)
 
     if (!isPopulated())
     {
-        Tensor::logger().log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Unable to perfom scalar operation using unpopulated tensor");
         return false;
     }
     for (unsigned i = 0; i < data_->size(); ++i)
@@ -376,16 +376,11 @@ bool mv::Tensor::sqrt()
     return true;
 }
 
-mv::Logger& mv::Tensor::logger()
-{
-    return logger_;
-}
-
 double& mv::Tensor::at(const std::vector<std::size_t>& sub)
 {
     if (!isPopulated())
     {
-        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
         return errValue;
     }
 
@@ -396,7 +391,7 @@ const double& mv::Tensor::at(const std::vector<std::size_t>& sub) const
 {
     if (!isPopulated())
     {
-        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
         return errValue;
     }
 
@@ -408,7 +403,7 @@ double& mv::Tensor::at(unsigned idx)
 
     if (!isPopulated())
     {
-        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
         return errValue;
     }
 
@@ -421,7 +416,7 @@ const double& mv::Tensor::at(unsigned idx) const
 
     if (!isPopulated())
     {
-        logger_.log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
+        log(Logger::MessageType::MessageError, "Attempt of reading a value from an unpopulated tensor");
         return errValue;
     }
 
@@ -447,4 +442,15 @@ double& mv::Tensor::operator()(const std::vector<std::size_t>& sub)
 const double& mv::Tensor::operator()(const std::vector<std::size_t>& sub) const
 {
     return at(sub);
+}
+
+std::string mv::Tensor::getLogID_() const
+{
+    std::string prefix;
+    if (isPopulated())
+        prefix = "P";
+    else
+        prefix = "U";
+
+    return prefix + "Tensor " + getName();
 }

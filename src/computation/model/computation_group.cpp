@@ -129,3 +129,8 @@ std::string mv::ComputationGroup::toString() const
 {
     return "group " + ComputationElement::toString();
 }
+
+std::string mv::ComputationGroup::getLogID_() const
+{
+    return "Group " + getName();
+}

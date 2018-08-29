@@ -31,7 +31,7 @@ bool mv::op::Output::setInputTensor(Data::TensorIterator &tensor, std::size_t id
 
 mv::Tensor mv::op::Output::getOutputDef(std::size_t)
 {
-    logger_.log(Logger::MessageType::MessageWarning, "Attempt of getting output tensor of model output operation");
+    log(Logger::MessageType::MessageWarning, "Attempt of getting output tensor of model output operation");
     return Tensor();
 }
 

@@ -18,6 +18,10 @@ namespace mv
     class DataModel : public ComputationModel
     {
 
+    protected:
+
+        virtual std::string getLogID_() const override;
+
     public:
 
         DataModel(const ComputationModel& ComputationModel);

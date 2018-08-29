@@ -36,7 +36,7 @@ mv::Tensor mv::Pool2DOp::getOutputDef(std::size_t idx)
 
     if (inputShape.ndims() != 3)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                 "' because of incorrect shape " + inputShape.toString() + " of input");
         return Tensor();
     }
@@ -47,7 +47,7 @@ mv::Tensor mv::Pool2DOp::getOutputDef(std::size_t idx)
     
     if (inputShape[0] + padding.e0 + padding.e1 < kSize.e0)
     {
-        logger_.log(Logger::MessageType::MessageError, 
+        log(Logger::MessageType::MessageError, 
             "Unable to define output tensor for '" + name_ + 
             "' because of pooling kernel width (" + Printable::toString(kSize.e0) + 
             ") larger than padded input width (" + Printable::toString(inputShape[0] + padding.e0 + padding.e1) + ")");
@@ -57,7 +57,7 @@ mv::Tensor mv::Pool2DOp::getOutputDef(std::size_t idx)
 
     if (inputShape[1] + padding.e2 + padding.e3 < kSize.e1)
     {
-        logger_.log(Logger::MessageType::MessageError, 
+        log(Logger::MessageType::MessageError, 
             "Unable to define output tensor for '" + name_ + 
             "' because of pooling kernel height (" + Printable::toString(kSize.e1) + 
             ") larger than padded input height (" + Printable::toString(inputShape[1] + padding.e2 + padding.e3) + ")");

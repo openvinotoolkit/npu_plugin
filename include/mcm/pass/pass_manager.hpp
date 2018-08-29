@@ -3,11 +3,11 @@
 
 #include <vector>
 #include <algorithm>
-#include <stdexcept>
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/base/json/json.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
@@ -21,7 +21,7 @@ namespace mv
 
     };
 
-    class PassManager
+    class PassManager : public LogSender
     {
 
         bool ready_;
@@ -31,7 +31,6 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         json::Object compDescriptor_;
         ComputationModel *model_;
-        static Logger& logger_;
 
         std::vector<std::string> adaptPassQueue_;
         std::vector<std::string> optPassQueue_;
@@ -58,6 +57,10 @@ namespace mv
         json::Object compOutput_;
 
         static std::string toString(PassGenre passGenre);
+
+    protected:
+
+        virtual std::string getLogID_() const override;
 
     public:
 

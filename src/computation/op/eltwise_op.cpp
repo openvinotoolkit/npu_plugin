@@ -36,7 +36,7 @@ mv::Tensor mv::EltwiseOp::getOutputDef(std::size_t idx)
 
     if (input0Shape != input1Shape)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ +
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ +
             "'because of inconsistent input 0 shape " + input0Shape.toString() + " and input 1 shape " + input1Shape.toString());
         return Tensor();
     }

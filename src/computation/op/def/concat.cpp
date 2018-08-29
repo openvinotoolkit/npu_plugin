@@ -29,7 +29,7 @@ mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
     auto input0Shape = input0->getShape();
     if (input0Shape.ndims() != 3)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of incorrect shape " + input0Shape.toString() + " of input 0");
         return Tensor();
     }
@@ -41,13 +41,13 @@ mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
         auto inputShape = getInputTensor(i)->getShape();
         if (inputShape.ndims() != 3)
         {
-            logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+            log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                 "' because of incorrect shape " + inputShape.toString() + " of input " + Printable::toString(i));
             return Tensor();
         }
         if (inputShape[0] != input0Shape[0] || inputShape[1] != input0Shape[1])
         {
-            logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+            log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                 "' because of inconsistent inputs shapes " + input0Shape.toString() + " and " + inputShape.toString());
             return Tensor();
         }

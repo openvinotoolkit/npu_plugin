@@ -6,14 +6,19 @@
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/printable.hpp"
 #include "include/mcm/base/jsonable.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
 
-    class Shape : public Printable, public Jsonable
+    class Shape : public Printable, public Jsonable, public LogSender
     {
 
         std::vector<std::size_t> dims_;
+
+    protected:
+
+        virtual std::string getLogID_() const override;
 
     public:
 

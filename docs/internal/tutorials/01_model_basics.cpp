@@ -58,13 +58,13 @@ int main()
     mv::OpModel opModel0;
 
     /*
-        Additionally, model provides a logging mechanism that will log important actions. By default logs will
+        TODO: UPDATE Additionally, model provides a logging mechanism that will log important actions. By default logs will
         be redirected to the standard output. The constructor above sets the logging verbose to silent, which
         means that no logs will be visible. There are five levels of verbose: silent, error (log errors only),
         warning (log errors and warnings), info (log errors, warning and important information) and debug (log everything).
         The verbose level can be specified in the call of OpModel's constructor
     */
-    mv::OpModel opModel1(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::OpModel opModel1;
 
     /*
         Having OpModel defined, two other views - DataModel and ControlModel - can be created out of it. All modifications

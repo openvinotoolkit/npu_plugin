@@ -17,7 +17,7 @@
 int main()
 {
 
-    mv::OpModel opModel(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::OpModel opModel;
 
     /*
         CompositionalModel is an abstract type by its own. Therefore, in case of necessity of limiting the exposure

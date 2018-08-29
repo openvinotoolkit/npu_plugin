@@ -47,7 +47,7 @@ mv::Tensor mv::op::BatchNorm::getOutputDef(std::size_t idx)
         if ((meanShape.ndims() != 1 || varianceShape.ndims() != 1 || offsetShape.ndims() != 1 || scaleShape.ndims() != 1) ||
             (meanShape[0] != inputShape[-1] || varianceShape[0] != inputShape[-1] || offsetShape[0] != inputShape[-1] || scaleShape[0] != inputShape[-1]))
         {
-            logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+            log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                 "' because of incorrect shape of mean (" + meanShape.toString() + ") or variance (" + varianceShape.toString() +
                 ") or offset (" + offsetShape.toString() + ") or scale (" + scaleShape.toString() + ") - they need to be either"
                 " equal to shape of the input (" + inputShape.toString() + ") or to be one dimensional tensors of dimension " +

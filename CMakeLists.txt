@@ -98,7 +98,7 @@ file(GLOB ops
 
 file(GLOB logger
     "src/logger/logger.cpp"
-    "src/logger/stdout_logger.cpp"
+    "src/logger/log_sender.cpp"
 )
 
 file(GLOB pass

@@ -4,12 +4,10 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-static mv::Logger::VerboseLevel verbose = mv::Logger::VerboseLevel::VerboseSilent;
-
 TEST(data_model, allocate_unpopulated_tensor)
 {
 
-    mv::OpModel om(verbose);
+    mv::OpModel om;
     mv::ControlModel cm(om);
     mv::DataModel dm(om);
 
@@ -45,7 +43,7 @@ TEST(data_model, allocate_unpopulated_tensor)
 TEST(data_model, allocate_populated_tensor)
 {
 
-    mv::OpModel om(verbose);
+    mv::OpModel om;
     mv::ControlModel cm(om);
     mv::DataModel dm(om);
 

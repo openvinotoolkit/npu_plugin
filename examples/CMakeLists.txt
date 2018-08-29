@@ -21,4 +21,3 @@ target_sources(cm_resnet50 PUBLIC ${base} ${computation_model} ${ops} ${logger} 
 
 add_executable(cm_allocate_resources cm_allocate_resources.cpp)
 target_sources(cm_allocate_resources PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
-

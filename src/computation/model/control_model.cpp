@@ -89,7 +89,7 @@ bool mv::ControlModel::removeStage(Control::StageIterator &stage)
     if (stage != stageEnd())
     {
         stage->clear();
-        stages_->erase(stage->getAttr("idx").getContent<std::size_t>());
+        stages_->erase(stage->getIdx());
         stage = stageEnd();
         return true;
     }
@@ -204,12 +204,12 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
 
     if (flow != *controlFlowEnd_)
     {
-        logger_.log(Logger::MessageType::MessageInfo, "Defined " + flow->toString());
+        log(Logger::MessageType::MessageInfo, "Defined " + flow->toString());
         return flow;
     }
     else
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define new control flow between " + 
+        log(Logger::MessageType::MessageError, "Unable to define new control flow between " + 
             sourceOp->getName() + " and " + sinkOp->getName());
     }
 
@@ -234,4 +234,9 @@ bool mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
     controlGraph_.edge_erase(flow);
     return true;
 
+}
+
+std::string mv::ControlModel::getLogID_() const
+{
+    return "ControlModel";
 }

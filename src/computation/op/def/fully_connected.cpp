@@ -31,14 +31,14 @@ mv::Tensor mv::op::FullyConnected::getOutputDef(std::size_t idx)
 
     if (input1Shape.ndims() != 2)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of incorrect shape " + input1Shape.toString() + " of weights matrix");
         return Tensor();
     }
 
     if (input0Shape.totalSize() != input1Shape[0])
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of inconsistent total size of input " + Printable::toString(input0Shape.totalSize()) + 
             " and 1st dimension of weights matrix " + Printable::toString(input1Shape[0]));
         return Tensor();

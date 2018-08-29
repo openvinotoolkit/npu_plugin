@@ -7,11 +7,12 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/base/order/order_factory.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
 
-    class MemoryAllocator : public Printable, public Jsonable
+    class MemoryAllocator : public Printable, public Jsonable, public LogSender
     {
 
     public:
@@ -110,6 +111,10 @@ namespace mv
         using BufferIterator = std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>::iterator;
 
         void placeBuffers_(unsigned stageIdx, BufferIterator first, BufferIterator last);
+
+    protected:
+
+        virtual std::string getLogID_() const override;
 
     public:
 

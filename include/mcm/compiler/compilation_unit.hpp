@@ -4,14 +4,14 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/logger/logger.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
 
 namespace mv
 {
 
-    class CompilationUnit
+    class CompilationUnit : public LogSender
     {
 
         static const std::string ma2480DefDescPath_;
@@ -22,9 +22,13 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         json::Object compilationDescriptor_;
 
+    protected:
+
+        virtual std::string getLogID_() const override;
+
     public:
 
-        CompilationUnit(mv::Logger::VerboseLevel verboseLevel = mv::Logger::VerboseLevel::VerboseSilent, bool logTime = false);
+        CompilationUnit();
         ~CompilationUnit();
         
         bool loadTargetDescriptor(const std::string& path);

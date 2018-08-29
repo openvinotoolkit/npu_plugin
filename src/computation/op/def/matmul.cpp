@@ -31,21 +31,21 @@ mv::Tensor mv::op::MatMul::getOutputDef(std::size_t idx)
 
     if (input0Shape.ndims() != 2)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of incorrect shape " + input0Shape.toString() + " of input 0");
         return Tensor();
     }
 
     if (input1Shape.ndims() != 2)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of incorrect shape " + input1Shape.toString() + " of input 1");
         return Tensor();
     }
 
     if (input0Shape[1] != input1Shape[0])
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of inconsistent shape of input 0 " + input0Shape.toString() + " and input 1 " + input1Shape.toString());
         return Tensor();
     }

@@ -4,6 +4,7 @@
 #include "include/mcm/api/compositional_model.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/op/ops_headers.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
@@ -19,10 +20,14 @@ namespace mv
         void decrementOpsCounter_(OpType opType);
         std::string getOpName_(OpType opType);
 
+    protected:
+
+        virtual std::string getLogID_() const override;
+
     public:
 
-        OpModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
-        OpModel(mv::json::Value& value, Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
+        OpModel();
+        OpModel(mv::json::Value& value);
 
         OpModel(const ComputationModel& model);
         OpModel(const CompositionalModel& model);
@@ -80,8 +85,11 @@ namespace mv
         std::size_t opsCount(OpType opType) const;
 
         long long unsigned parametersCount() const;
-       
+
+
     };
+
+    
 
 }
 

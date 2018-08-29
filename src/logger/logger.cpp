@@ -1,6 +1,6 @@
 #include "include/mcm/logger/logger.hpp"
 
-std::string mv::Logger::getTime() const
+std::string mv::Logger::getTime_() const
 {
     struct tm *timeInfo;
     time_t rawTime;
@@ -11,13 +11,13 @@ std::string mv::Logger::getTime() const
     return std::string(buffer);
 }
 
-void mv::Logger::logMessage(MessageType messageType, std::string content) const
+void mv::Logger::logMessage_(MessageType messageType, std::string content) const
 {
 
     std::string logContent;
 
     if (logTime_)
-        logContent += getTime() + " ";
+        logContent += getTime_() + " ";
 
     switch (messageType)
     {
@@ -26,7 +26,7 @@ void mv::Logger::logMessage(MessageType messageType, std::string content) const
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logContent += content;
-            logError(logContent);
+            logError_(logContent);
             break;
 
         case MessageType::MessageWarning:
@@ -34,7 +34,7 @@ void mv::Logger::logMessage(MessageType messageType, std::string content) const
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logContent += content;
-            logWarning(logContent);
+            logWarning_(logContent);
             break;
 
         case MessageType::MessageInfo:
@@ -42,7 +42,7 @@ void mv::Logger::logMessage(MessageType messageType, std::string content) const
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logContent += content;
-            logInfo(logContent);
+            logInfo_(logContent);
             break;
 
         default:
@@ -50,16 +50,22 @@ void mv::Logger::logMessage(MessageType messageType, std::string content) const
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
             logContent += content;
-            logDebug(logContent);
+            logDebug_(logContent);
             break;
 
     }
 
 }
 
-mv::Logger::Logger(VerboseLevel verboseLevel, bool logTime) : 
-verboseLevel_(verboseLevel), 
-logTime_(logTime)
+mv::Logger& mv::Logger::instance()
+{
+    static Logger instance_;
+    return instance_;
+}
+
+mv::Logger::Logger() : 
+verboseLevel_(VerboseLevel::VerboseInfo), 
+logTime_(false)
 {
     if (logTime_)
         indent_ = "                     ";
@@ -69,46 +75,49 @@ logTime_(logTime)
 
 mv::Logger::~Logger()
 {
-    
+
 }
 
 void mv::Logger::setVerboseLevel(VerboseLevel verboseLevel)
 {
-    verboseLevel_ = verboseLevel;
+    instance().verboseLevel_ = verboseLevel;
 }
 
-void mv::Logger::setLogTime(bool logTime)
+void mv::Logger::enableLogTime()
 {
-    logTime_ = logTime;
-    if (logTime_)
-        indent_ = "                     ";
-    else
-        indent_ = "   ";
+    instance().logTime_ = true;
+    instance().indent_ = "                     ";
 }
 
-void mv::Logger::log(MessageType messageType, const std::string& content) const
+void mv::Logger::disableLogTime()
+{
+    instance().logTime_ = false;
+    instance().indent_ = "   ";
+}
+
+void mv::Logger::log(MessageType messageType, const std::string& senderName, const std::string &content)
 {
 
-    switch (verboseLevel_)
+    switch (instance().verboseLevel_)
     {
 
          case VerboseLevel::VerboseDebug:
-            logMessage(messageType, content);
+            instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
         case VerboseLevel::VerboseInfo:
             if (messageType == MessageType::MessageError || messageType == MessageType::MessageWarning || messageType == MessageType::MessageInfo)
-                logMessage(messageType, content);
+                instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
         case VerboseLevel::VerboseWarning:
             if (messageType == MessageType::MessageError || messageType == MessageType::MessageWarning)
-                logMessage(messageType, content);
+                instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
         case VerboseLevel::VerboseError:
             if (messageType == MessageType::MessageError)
-                logMessage(messageType, content);
+                instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
         default:
@@ -116,4 +125,24 @@ void mv::Logger::log(MessageType messageType, const std::string& content) const
 
     }
 
+}
+
+void mv::Logger::logError_(const std::string &content) const
+{
+    std::cerr << content << std::endl;
+}
+
+void mv::Logger::logWarning_(const std::string &content) const
+{
+    std::cerr << content << std::endl;
+}
+
+void mv::Logger::logInfo_(const std::string &content) const
+{
+    std::cout << content << std::endl;
+}
+
+void mv::Logger::logDebug_(const std::string &content) const
+{
+    std::cout << content << std::endl;
 }

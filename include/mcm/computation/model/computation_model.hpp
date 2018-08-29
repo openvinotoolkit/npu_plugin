@@ -16,12 +16,11 @@
 #include "include/mcm/computation/model/computation_group.hpp"
 #include "include/mcm/computation/resource/computation_stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
-#include "include/mcm/logger/stdout_logger.hpp"
 
 namespace mv
 {
 
-    class ComputationModel : public Jsonable
+    class ComputationModel : public Jsonable, public LogSender
     {
 
     private:
@@ -72,8 +71,7 @@ namespace mv
         std::shared_ptr<std::map<std::size_t, std::shared_ptr<ComputationStage>>> stages_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<MemoryAllocator>>> memoryAllocators_;
         std::shared_ptr<std::map<OpType, std::size_t>> opsCounter_;
-        static DefaultLogger defaultLogger_;
-        static Logger &logger_;
+        static Logger logger_;
 
         Data::OpListIterator *dataOpEnd_;
         Data::FlowListIterator *dataFlowEnd_;
@@ -102,12 +100,12 @@ namespace mv
         Data::TensorIterator defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx);
         Data::TensorIterator findTensor_(const std::string &name);
         Data::OpListIterator findSourceOp_(Data::TensorIterator &tensor);
+        virtual std::string getLogID_() const override;
 
     public:
 
-        ComputationModel(Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
-
-        ComputationModel(mv::json::Value& model, Logger::VerboseLevel verboseLevel = Logger::VerboseLevel::VerboseWarning, bool logTime = false);
+        ComputationModel();
+        ComputationModel(mv::json::Value& model);
 
         /**
          * @brief Copy constructor performing shallow copy
@@ -145,8 +143,6 @@ namespace mv
 
         void clear();
 
-        static Logger& logger();
-        static void setLogger(Logger &logger);
         json::Value toJsonValue() const;
 
     };

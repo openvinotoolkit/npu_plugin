@@ -8,22 +8,22 @@ bool mv::ComputationStage::markMembmer_(ComputationElement &member)
         {
             if (!member.hasAttr("stage"))
             {
-                member.addAttr("stage", AttrType::UnsignedType, getAttr("idx").getContent<std::size_t>());
+                member.addAttr("stage", AttrType::UnsignedType, idx_);
                 return true;
             }
             else
             {
-                logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' that was already assigned to the stage 'stage_" + Printable::toString(member.getAttr("stage").getContent<std::size_t>()) + "'");
+                log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' that was already assigned to the stage 'stage_" + Printable::toString(member.getAttr("stage").getContent<std::size_t>()) + "'");
             }
         }
         else
         {
-            logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' of invalid type '" + member.getAttr("opType").getContentStr() + "'");
+            log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' of invalid type '" + member.getAttr("opType").getContentStr() + "'");
         }
     }    
     else
     {
-        logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending non-op member '" + member.getName() + "'");
+        log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending non-op member '" + member.getName() + "'");
     }
     
     return false;
@@ -46,9 +46,15 @@ bool mv::ComputationStage::unmarkMembmer_(ComputationElement &member)
 }
 
 mv::ComputationStage::ComputationStage(std::size_t idx) :
-ComputationGroup("stage_" + Printable::toString(idx))
+ComputationGroup("stage_" + Printable::toString(idx)),
+idx_(idx)
 {
-    addAttr("idx", AttrType::UnsignedType, idx);
+
+}
+
+std::size_t mv::ComputationStage::getIdx() const
+{
+    return idx_;
 }
 
 std::string mv::ComputationStage::toString() const
@@ -64,7 +70,12 @@ std::string mv::ComputationStage::toString() const
 
 }
 
-bool mv::ComputationStage::operator <(ComputationElement &other)
+bool mv::ComputationStage::operator <(ComputationStage &other)
 {
-    return getAttr("idx").getContent<std::size_t>() < other.getAttr("idx").getContent<std::size_t>();
+    return idx_ < other.idx_;
+}
+
+std::string mv::ComputationStage::getLogID_() const
+{
+    return "Stage " + Printable::toString(idx_);
 }

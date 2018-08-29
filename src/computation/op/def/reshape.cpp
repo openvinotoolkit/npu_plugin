@@ -32,7 +32,7 @@ mv::Tensor mv::op::Reshape::getOutputDef(std::size_t idx)
 
     if (inputShape.totalSize() != outputShape.totalSize())
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because conversion of input shape " + inputShape.toString() + " and requested shape " + outputShape.toString() +
             " is impossible");
         return Tensor();

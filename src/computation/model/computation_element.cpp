@@ -1,8 +1,6 @@
 #include "include/mcm/computation/model/computation_element.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-mv::Logger &mv::ComputationElement::logger_= mv::ComputationModel::logger();
-
 mv::ComputationElement::ComputationElement(const std::string &name) : 
 name_(name)
 {
@@ -61,13 +59,13 @@ bool mv::ComputationElement::addAttr(const std::string &name, const Attribute &a
 
     if (attributes_.find(name) == attributes_.end())
     {
-        logger_.log(Logger::MessageType::MessageDebug, "Element '" + name_ + "' - adding attribute '" + name + "' " + attr.toString());
+        log(Logger::MessageType::MessageDebug, "Adding attribute '" + name + "' " + attr.toString());
         attributes_[name] = attr;
         return true;
     }
     else
     {
-        logger_.log(Logger::MessageType::MessageWarning, "Element '" + name_ + "' - failed adding attribute of a duplicated name '" + name + "'");
+        log(Logger::MessageType::MessageWarning, "Failed adding attribute of a duplicated name '" + name + "'");
         return false;
     }
 
@@ -169,4 +167,9 @@ bool mv::ComputationElement::operator<(ComputationElement &other)
 bool mv::ComputationElement::operator ==(const ComputationElement& other)
 {
     return name_ == other.name_;
+}
+
+std::string mv::ComputationElement::getLogID_() const
+{
+    return "ComputationElement " + getName();
 }

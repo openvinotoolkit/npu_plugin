@@ -4,7 +4,7 @@
 int main()
 {
     // Define the primary compilation unit
-    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::CompilationUnit unit;
 
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();

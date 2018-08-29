@@ -231,3 +231,8 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t s
     return it->second.find(tensor);
 
 }
+
+std::string mv::MemoryAllocator::getLogID_() const
+{
+    return "Memory allocator " + name_;
+}

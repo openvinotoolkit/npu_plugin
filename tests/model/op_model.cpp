@@ -17,7 +17,7 @@ TEST(op_model, validity)
 TEST(op_model, failure_sanity)
 {
 
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::OpModel om;
 
     auto input = om.input({32, 32, 3}, mv::DType::Float, mv::Order::ColumnMajor);
     om.output(input);

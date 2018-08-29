@@ -6,7 +6,7 @@
 int main()
 {
 
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::OpModel om;
     auto input = om.input({128, 128, 3}, mv::DType::Float, mv::Order::ColumnMajor);
 
     std::vector<double> conv1WeightsData = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
@@ -31,17 +31,17 @@ int main()
     auto msgType = mv::Logger::MessageType::MessageInfo;
     mv::DataModel dm(om);
 
-    dm.logger().log(msgType, "Input op: " + om.getInput()->getName());
-    dm.logger().log(msgType, "Input tensor (output tensor of the input op): " + dm.getInputFlow()->getTensor()->getName());
-    dm.logger().log(msgType, "Output op: " + om.getOutput()->getName());
-    dm.logger().log(msgType, "Output tensor (input tensor of the output op): " + dm.getOutputFlow()->getTensor()->getName());
+    mv::Logger::instance().log(msgType, "cm_two_branch", "Input op: " + om.getInput()->getName());
+    mv::Logger::instance().log(msgType, "cm_two_branch", "Input tensor (output tensor of the input op): " + dm.getInputFlow()->getTensor()->getName());
+    mv::Logger::instance().log(msgType, "cm_two_branch", "Output op: " + om.getOutput()->getName());
+    mv::Logger::instance().log(msgType, "cm_two_branch", "Output tensor (input tensor of the output op): " + dm.getOutputFlow()->getTensor()->getName());
 
     mv::ControlModel cm(om);
 
     std::size_t i = 0;
     for (auto it = cm.getFirst(); it != cm.opEnd(); ++it)
     {
-        cm.logger().log(msgType, "Op " + mv::Printable::toString(i) + ": " + it->getName());
+        mv::Logger::instance().log(msgType, "cm_two_branch", "Op " + mv::Printable::toString(i) + ": " + it->getName());
         ++i;
     }
     

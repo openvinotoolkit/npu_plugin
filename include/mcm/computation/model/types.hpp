@@ -18,9 +18,6 @@ namespace mv
 
     using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
 
-    class StdOutLogger;
-    typedef StdOutLogger DefaultLogger;
-
     enum class Order
     {
         ColumnMajor,

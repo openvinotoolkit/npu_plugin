@@ -3,6 +3,8 @@
 
 #include <time.h>
 #include <string>
+#include <unordered_map>
+#include <iostream>
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/printable.hpp"
 
@@ -37,23 +39,26 @@ namespace mv
         bool logTime_;
         std::string indent_;
         
-        std::string getTime() const;
-        void logMessage(MessageType messageType, std::string content) const;
+        std::string getTime_() const;
+        void logMessage_(MessageType messageType, std::string content) const;
 
-    protected:
+        void logError_(const std::string &content) const;
+        void logWarning_(const std::string &content) const;
+        void logInfo_(const std::string &content) const;
+        void logDebug_(const std::string &content) const;
 
-        virtual void logError(const std::string &content) const = 0;
-        virtual void logWarning(const std::string &content) const = 0;
-        virtual void logInfo(const std::string &content) const = 0;
-        virtual void logDebug(const std::string &content) const = 0;
+        Logger();
+        Logger(const Logger& other) = delete; 
+        Logger& operator=(const Logger& other) = delete;
+        ~Logger();
 
     public:
 
-        Logger(VerboseLevel verboseLevel, bool logTime);
-        virtual ~Logger() = 0;
-        void setVerboseLevel(VerboseLevel verboseLevel);
-        void setLogTime(bool logTime);
-        void log(MessageType messageType, const std::string &content) const;
+        static Logger& instance();
+        static void log(MessageType messageType, const std::string& senderName, const std::string &content);
+        static void setVerboseLevel(VerboseLevel verboseLevel);
+        static void enableLogTime();
+        static void disableLogTime();
 
     };
 

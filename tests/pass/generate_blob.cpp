@@ -3,8 +3,6 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 
-static mv::Logger::VerboseLevel logger_level = mv::Logger::VerboseLevel::VerboseSilent;
-
 TEST (mv_num_convert, fp32_to_fp16)
 {
    mv_num_convert cvtr ;
@@ -23,7 +21,7 @@ TEST (mv_num_convert, fp32_to_fp16)
 TEST (generate_blob, blob_output_conv_01)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
@@ -56,7 +54,7 @@ TEST (generate_blob, blob_output_conv_01)
 TEST (generate_blob, blob_output_conv_02)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
@@ -91,7 +89,7 @@ TEST (generate_blob, blob_output_conv_02)
 TEST (generate_blob, blob_output_conv_03)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
@@ -127,7 +125,7 @@ TEST (generate_blob, blob_output_conv_03)
 TEST (generate_blob, blob_output_conv_04)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
@@ -162,7 +160,7 @@ TEST (generate_blob, blob_output_conv_04)
 TEST (generate_blob, blob_blur_edge_05)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 greyscale 256x256 image
@@ -200,7 +198,7 @@ TEST (generate_blob, blob_blur_edge_05)
 TEST (generate_blob, blob_4_ops)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -249,7 +247,7 @@ TEST (generate_blob, blob_4_ops)
 TEST (generate_blob, blob_eltwise_add)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -313,7 +311,7 @@ TEST (generate_blob, blob_eltwise_add)
 TEST (generate_blob, blob_eltwise_multiply)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -376,7 +374,7 @@ TEST (generate_blob, blob_eltwise_multiply)
 TEST (generate_blob, blob_softmax)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -435,7 +433,7 @@ TEST (generate_blob, blob_softmax)
 TEST (generate_blob, blob_convbias_convrelu)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -492,7 +490,7 @@ TEST (generate_blob, blob_convbias_convrelu)
 TEST (generate_blob, blob_scale)
 {
 
-    mv::CompilationUnit unit(logger_level);
+    mv::CompilationUnit unit;
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image

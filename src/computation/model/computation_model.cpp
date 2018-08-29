@@ -1,11 +1,7 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/op/ops_headers.hpp"
 
-mv::DefaultLogger mv::ComputationModel::defaultLogger_;
-mv::Logger &mv::ComputationModel::logger_ = mv::ComputationModel::defaultLogger_;
-
-
-mv::ComputationModel::ComputationModel(Logger::VerboseLevel verboseLevel, bool logTime) :
+mv::ComputationModel::ComputationModel() :
 opsGraph_(std::make_shared<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
@@ -21,17 +17,8 @@ controlOpEnd_(new Control::OpListIterator(controlGraph_.node_end())),
 controlFlowEnd_(new Control::FlowListIterator(controlGraph_.edge_end())),
 input_(new Data::OpListIterator(*dataOpEnd_)),
 output_(new Data::OpListIterator(*dataOpEnd_))
-/*dataOpEnd_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
-dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
-controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
-controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
-input_(std::make_shared<Data::OpListIterator>(dataOpEnd_)),
-output_(std::make_shared<Data::OpListIterator>(dataOpEnd_)),
-lastOp_(std::make_shared<Control::OpListIterator>()),
-defaultControlFlow_(std::make_shared<bool>(defaultControlFlow))*/
 {
-    logger_.setVerboseLevel(verboseLevel);
-    logger_.setLogTime(logTime);
+
 }
 
 void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
@@ -187,8 +174,8 @@ mv::Control::FlowListIterator mv::ComputationModel::addControlFlowFromJson(json:
     return controlGraph_.edge_insert(opsGraph_->get_second_iterator(addedOperations[source]), opsGraph_->get_second_iterator(addedOperations[target]), d);
 }
 
-mv::ComputationModel::ComputationModel(json::Value &model, Logger::VerboseLevel verboseLevel, bool logTime):
-    ComputationModel(verboseLevel, logTime)
+mv::ComputationModel::ComputationModel(json::Value &model) :
+    ComputationModel()
 {
 
     //COMPUTATIONAL GROUPS
@@ -371,7 +358,7 @@ mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string
         auto result = groups_->emplace(name, std::make_shared<ComputationGroup>(name));
         if (result.second)
         {
-            logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+            log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
             return result.first;
         }
         return groupEnd();
@@ -410,7 +397,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(std::sha
         auto result = group->insert(element);
         if (result != group->end())
         {
-            logger_.log(Logger::MessageType::MessageInfo, "Appended new member '" + result->lock()->getName() + "' to group '" + 
+            log(Logger::MessageType::MessageInfo, "Appended new member '" + result->lock()->getName() + "' to group '" + 
                 group->getName() + "'");
             return result;
         }
@@ -459,7 +446,7 @@ mv::Control::StageIterator mv::ComputationModel::addStage_()
 {   
 
     auto it = stages_->emplace(stages_->size(), std::make_shared<ComputationStage>(stages_->size()));
-    logger_.log(Logger::MessageType::MessageInfo, "Defined " + it.first->second->toString());
+    log(Logger::MessageType::MessageInfo, "Defined " + it.first->second->toString());
     return it.first;
     
 }
@@ -473,7 +460,7 @@ bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpLi
 
         if (result != stage->end())
         {
-            logger_.log(Logger::MessageType::MessageInfo, "Appended new member '" + result->lock()->getName() + "' to stage " + 
+            log(Logger::MessageType::MessageInfo, "Appended new member '" + result->lock()->getName() + "' to stage " + 
                 result->lock()->getAttr("stage").getContentStr());
             return true;
         }
@@ -486,7 +473,7 @@ mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListI
 {
     if (!source)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - invalid source op");
+        log(Logger::MessageType::MessageError, "Unable to define an output tensor - invalid source op");
         return Data::TensorIterator();
     }
 
@@ -497,12 +484,12 @@ mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListI
         // TODO: handle failure
         auto result = flowTensors_->emplace(tensorDef.getName(), std::make_shared<Tensor>(tensorDef));
         tensorsSources_->emplace(tensorDef.getName(), source);
-        logger_.log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+        log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
         return result.first;
     }
     else
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
+        log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
         return Data::TensorIterator();
     }
 }
@@ -610,16 +597,6 @@ void mv::ComputationModel::clear()
     controlGraph_.clear();
 }
 
-mv::Logger &mv::ComputationModel::logger()
-{
-    return logger_;
-}
-
-void mv::ComputationModel::setLogger(Logger &logger)
-{
-    logger_ = logger;
-}
-
 //NOTE: Populated tensors dumping are handled in json pass.
 mv::json::Value mv::ComputationModel::toJsonValue() const
 {
@@ -694,4 +671,10 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     computationModel["operations_counters"] = opsCounters;
     computationModel["has_populated_tensors"] = Jsonable::toJsonValue(hasPopulatedTensors);
     return json::Value(computationModel);
+
+}
+
+std::string mv::ComputationModel::getLogID_() const
+{
+    return "OpModel";
 }

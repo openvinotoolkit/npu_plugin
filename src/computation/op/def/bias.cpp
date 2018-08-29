@@ -32,14 +32,14 @@ mv::Tensor mv::op::Bias::getOutputDef(std::size_t idx)
     
     if (biasesShape.ndims() != 1)
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
                 "' because of incorrect shape " + biasesShape.toString() + " of biases (must be a vector)");
         return Tensor();
     }
 
     if (inputShape[-1] != biasesShape[0])
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
+        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because of mismatch in channels dimensions between input (" + Printable::toString(inputShape[-1])
             + ") and biases (" + Printable::toString(biasesShape[0]) + ")");
         return Tensor();

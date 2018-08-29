@@ -108,11 +108,8 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 int main()
 {
 
-    // Verbose level - change to mv::Logger::VerboseLevel::VerboseSilent to disable log messages
-    mv::Logger::VerboseLevel verboseLevel = mv::Logger::VerboseLevel::VerboseInfo;
-
     // Define the primary compilation unit
-    mv::CompilationUnit unit(verboseLevel);
+    mv::CompilationUnit unit;
 
     // Obtain a compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
