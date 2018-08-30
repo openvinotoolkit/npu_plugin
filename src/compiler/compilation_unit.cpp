@@ -42,6 +42,7 @@ void mv::CompilationUnit::loadModelFromJson(const std::string &path)
 mv::CompilationUnit::~CompilationUnit()
 {
     delete model_;
+    delete recordedModel_;
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
