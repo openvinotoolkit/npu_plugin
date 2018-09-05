@@ -61,6 +61,9 @@ namespace mv
             return;
         }
 
+        std::cout << "   in bTensor constructor "<< std::endl;
+        std::cout << "   Tensor "<< (*t)->getName() << " has " << (int)(*t)->getShape().ndims() << " dimensions"<< std::endl;
+        std::cout << "    "<< std::endl;
         switch((int)(*t)->getShape().ndims()){
             case 5:
             {

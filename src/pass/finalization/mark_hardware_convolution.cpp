@@ -185,7 +185,7 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                     ++num_scales;
 
                     // define scale factors
-                    float scaleUpVar = 2.0f ;
+                    float scaleUpVar = 100.0f ;
                     float scaleDnVar = 1.0f/scaleUpVar ;
                     mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), scaleUpVar, 0.0f);
                     mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), scaleDnVar, 0.0f);
@@ -207,9 +207,11 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                     auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleDnData);
                     Attribute scaleAttr(AttrType::StringType, scaleTensor->getName());
                     om.addAttr(opIt, "scale", scaleAttr);
+                    // test
                     std::cout << "SCALE_FISSION: added HW scale attributes to "<< opIt->getName() << " hasattrscale= " << opIt->hasAttr("scale") << std::endl;
                     auto testTensor = dm.findTensor(opIt->getAttr("scale").getContent<std::string>());
                     std::cout << "               scale from attribute= "<< testTensor->getData()[0] << std::endl;
+                    std::cout << "               name from Tensor= "<< testTensor->getName() << std::endl;
 
                 }                       
             }
