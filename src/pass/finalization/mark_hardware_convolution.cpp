@@ -1,8 +1,11 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/utils/data_generator.hpp"
 
 static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
@@ -16,6 +19,13 @@ namespace mv
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass marks the convolutions that can be executed in NCE"
+        );
+
+        MV_REGISTER_PASS(ScaleFission)
+        .setFunc(scaleFissionFcn)
+        .setGenre(PassGenre::Finalization)
+        .setDescription(
+            "Adds scale layers around HW ops to utilize more bits of fixed-point number representation in MAC HW units"
         );
 
         MV_REGISTER_PASS(FormatMXWeights)
@@ -152,6 +162,51 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
     }
 }
 
+void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+{
+
+    using namespace mv;
+
+    OpModel om(model);
+    DataModel dm(model);
+
+    int num_scales = 0 ;
+    float scaleUpVar = 5.0f ;
+    float scaleDnVar = 1.0f/scaleUpVar ;
+
+    std::cout << "SCALE_FISSION PASS:" << std::endl;
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if ((opIt->getOpType() == OpType::Conv2D)&&(num_scales <1))
+        {
+            if (opIt->hasAttr("NCE1_Compatible"))
+            {
+                if (opIt->getAttr("NCE1_Compatible").getContent<int>()==1)
+                {
+                    std::cout << "SCALE_FISSION: detected HW conv "<< opIt->getName() << " inserting scales " << ++num_scales << std::endl;
+
+                    // create scale ops
+                    float scaleUpVar = 2.0f ;
+                    float scaleDnVar = 1.0f/scaleUpVar ;
+                    mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence(opIt->getInputTensor(1)->getShape().totalSize(), scaleUpVar, 0.0f);
+//                    mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence(opIt->getOutputTensor(0)->getShape().totalSize(), scaleDnVar, 0.0f);
+
+                    auto scaleUpWeights = om.constant(scaleUpWData, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
+                    opIt->getInputTensor(1)->multiply(*scaleUpWeights);
+
+                    if (opIt->hasAttr("bias"))
+                    {
+                        auto biasTensor = dm.findTensor(opIt->getAttr("bias").getContent<std::string>());
+                        mv::dynamic_vector<mv::float_type> scaleUpBData = mv::utils::generateSequence(biasTensor->getShape().totalSize(), scaleUpVar, 0.0f);
+                        auto scaleUpBias = om.constant(scaleUpBData, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
+                        biasTensor->multiply(*scaleUpBias);
+                    }
+                }                       
+            }
+        }
+    }
+    std::cout << "END SCALE_FISSION PASS:" << std::endl;
+}
 
 //NOTE: This should not be done in such hardcoded way.
 void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
@@ -226,4 +281,5 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         }
     }
+std::cout << "exiting formatMXweights pass " << std::endl;
 }
