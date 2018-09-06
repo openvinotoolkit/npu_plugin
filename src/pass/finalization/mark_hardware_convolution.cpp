@@ -175,9 +175,9 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     int numHWconvs = 0;
 
     // define scale factors
-    float scaleUpVars[maxHWconvs] = { 16.0f, 1.0f, 1.0f } ;
+    float scaleUpVars[maxHWconvs] = { 1.0f, 7.6f, 8.0f } ;
 
-    std::cout << "SCALE_FISSION PASS1:" << std::endl;
+    std::cout << "SCALE_FISSION PASS:" << std::endl;
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if ((opIt->getOpType() == OpType::Conv2D)&&(numHWconvs < maxHWconvs))
@@ -188,40 +188,44 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 {
                     std::cout << "SCALE_FISSION: detected HW conv "<< opIt->getName() << std::endl;
                     ++numHWconvs;
-                    if (numHWconvs==2)
+                    if (numHWconvs <= maxHWconvs)
                     {
-                    std::cout << "SCALE_FISSION: detected HW conv "<< opIt->getName() << " inserting scales " << numFissions+1 << std::endl;
-                    ++numFissions;
+                        std::cout << "SCALE_FISSION: detected HW conv "<< opIt->getName() << " inserting scales " << numFissions+1 << std::endl;
 
-                    mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), scaleUpVars[numFissions-1], 0.0f);
-                    mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/scaleUpVars[numFissions-1]), 0.0f);
+                        mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), scaleUpVars[numFissions], 0.0f);
+                        mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/scaleUpVars[numFissions]), 0.0f);
 
-                    // scale (up) inputs by multiplying weights and bias
-                    auto scaleUpWeights = om.constant(scaleUpWData, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
-                    opIt->getInputTensor(1)->multiply(*scaleUpWeights);
+                        // scale (up) inputs by multiplying weights and bias
+//                        auto scaleUpWeights = om.constant(scaleUpWData, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
+                        std::string scaleUpWTensorName = opIt->getName() + "_scale_in";
+                        auto scaleUpWeights = dm.defineTensor(scaleUpWTensorName, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpWData);
+                        opIt->getInputTensor(1)->multiply(*scaleUpWeights);
 
-                    if (opIt->hasAttr("bias"))
-                    {
-                        auto biasTensor = dm.findTensor(opIt->getAttr("bias").getContent<std::string>());
-                        mv::dynamic_vector<mv::float_type> scaleUpBData = mv::utils::generateSequence(biasTensor->getShape().totalSize(), scaleUpVars[numFissions-1], 0.0f);
-                        auto scaleUpBias = om.constant(scaleUpBData, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
-                        biasTensor->multiply(*scaleUpBias);
-                    }
+                        if (opIt->hasAttr("bias"))
+                        {
+                            auto biasTensor = dm.findTensor(opIt->getAttr("bias").getContent<std::string>());
+                            mv::dynamic_vector<mv::float_type> scaleUpBData = mv::utils::generateSequence(biasTensor->getShape().totalSize(), scaleUpVars[numFissions], 0.0f);
+//                            auto scaleUpBias = om.constant(scaleUpBData, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
+                            std::string scaleUpBTensorName = opIt->getName() + "_scale_bias";
+                            auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpBData);
+                            biasTensor->multiply(*scaleUpBias);
+                        }
 
-                    // scale (down) output by adding HWscale attributes to conv
-                    std::string scaleTensorName = opIt->getName() + "_scale";
-                    auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleDnData);
-                    Attribute scaleAttr(AttrType::StringType, scaleTensor->getName());
-                    om.addAttr(opIt, "scale", scaleAttr);
-                    // test
-                    std::cout << "SCALE_FISSION: added HW scale attributes to "<< opIt->getName() << " hasattrscale= " << opIt->hasAttr("scale") << std::endl;
-                    auto testTensor = dm.findTensor(opIt->getAttr("scale").getContent<std::string>());
-                    std::cout << "               scale from attribute= "<< testTensor->getData()[0] << std::endl;
-                    std::cout << "               name from Tensor= "<< testTensor->getName() << std::endl;
+                        // scale (down) output by adding HWscale attributes to conv
+                        std::string scaleTensorName = opIt->getName() + "_scale";
+                        auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleDnData);
+                        Attribute scaleAttr(AttrType::StringType, scaleTensor->getName());
+                        om.addAttr(opIt, "scale", scaleAttr);
+                        // test
+                        std::cout << "SCALE_FISSION: added HW scale attributes to "<< opIt->getName() << " hasattrscale= " << opIt->hasAttr("scale") << std::endl;
+                        auto testTensor = dm.findTensor(opIt->getAttr("scale").getContent<std::string>());
+                        std::cout << "               scale from attribute= "<< testTensor->getData()[0] << std::endl;
+                        std::cout << "               name from Tensor= "<< testTensor->getName() << std::endl;
+                        ++numFissions;
                     }
                     else
                     {
-                    std::cout << "               skipping fission "<< std::endl;
+                        std::cout << "               skipping fission "<< std::endl;
                     }
                 }                       
             }
