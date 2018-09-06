@@ -4,7 +4,7 @@
 TEST (dijkstra, simple_test)
 {
     int source = 0;
-    int target = 4;
+    int target = 5;
 
     std::function<std::vector<int>(int)> generateNeighbours = [](int a)
     {
@@ -24,42 +24,7 @@ TEST (dijkstra, simple_test)
             return v - u;
     };
 
-    std::vector<int> shortestPath = mv::dijkstraRT<int>(source, target, generateNeighbours, computeCost);
-
-}
-
-TEST (dijkstra, complex_test)
-{
-    int source = 192;
-    int target = 0;
-
-    std::function<std::vector<int>(int)> generateNeighbours = [](int a)
-    {
-        int modes_output_channel = [256, 128, 64, 32, 16];
-        std::vector<int> toReturn;
-        for(int i = 0; i < 5; ++i)
-        {
-            int toAdd;
-            int remaining_output_channels = a - modes_output_channel;
-            toAdd = remaining_output_channels < 0 ? 0 : remaining_output_channels;
-            toReturn.push_back(toAdd);
-        }
-        return toReturn;
-    };
-
-    std::function<int(int, int)> computeCost = [](int u, int v)
-    {
-        int modes_output_channel = [256, 128, 64, 32, 16];
-
-        for(int i = 0; i < 5; ++i)
-        {
-            int toAdd;
-            int remaining_output_channels = a - modes_output_channel;
-            toAdd = remaining_output_channels < 0 ? 0 : remaining_output_channels;
-        }
-    };
-
-    std::vector<int> shortestPath = mv::dijkstraRT<int>(source, target, generateNeighbours, computeCost);
-
+    mv::DijkstraReturnValue<int, int> shortestPath = mv::dijkstraRT<int>(source, target, generateNeighbours, computeCost);
+    std::cout << "Finished!" << std::endl;
 }
 

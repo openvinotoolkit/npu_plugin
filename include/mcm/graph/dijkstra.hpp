@@ -13,43 +13,53 @@
 namespace mv
 {
 
-    template <typename T>
+    template <typename T, typename D>
     struct HeapContent
     {
         T id;
-        int distance;
+        D distance;
 
-        friend bool operator<(const HeapContent<T>& a, const HeapContent<T>& b)
+        friend bool operator<(const HeapContent<T, D>& a, const HeapContent<T, D>& b)
         {
             return a.distance < b.distance;
         }
     };
 
+
+    template<typename T, typename D>
+    struct DijkstraReturnValue
+    {
+        std::vector<T> nodes;
+        std::vector<D> distances;
+    };
+
     //In dijkstraRT the initial graph consists of only one node. A rule to generate new neighbours must be passed
     //This rule specifies as well the exit condition (no more neighbours)
-    template <typename NodeValue>
-    std::vector<NodeValue> dijkstraRT(NodeValue source, NodeValue target, std::function<std::vector<NodeValue>(NodeValue)> generateNeighbours, std::function<int(NodeValue, NodeValue)> computeCost)
+
+    //DistanceValue has to overload at least <, =, and + operators
+    template <typename NodeValue, typename DistanceValue>
+    DijkstraReturnValue<NodeValue, DistanceValue> dijkstraRT(NodeValue source, NodeValue target, std::function<std::vector<NodeValue>(NodeValue)> generateNeighbours, std::function<DistanceValue(NodeValue, NodeValue)> computeCost)
     {
          // Auxiliary data structures
-         std::map<NodeValue, int> distances;
+         std::map<NodeValue, DistanceValue> distances;
          std::map<NodeValue, NodeValue> previous;
          std::set<NodeValue> seen;
          std::set<NodeValue> generatedNodes;
-         std::priority_queue<HeapContent<NodeValue>> minHeap;
+         std::priority_queue<HeapContent<NodeValue, DistanceValue>> minHeap;
 
-         // Vector with paths to return
-         std::vector<NodeValue> toReturn;
+         // Variable to return
+         DijkstraReturnValue<NodeValue, DistanceValue> toReturn;
 
          // Inserting the source into heap and graph
          distances[source] = 0;
          previous[source] = source;
-         HeapContent<NodeValue> source_heap = {source, distances[source]};
+         HeapContent<NodeValue, DistanceValue> source_heap = {source, distances[source]};
          minHeap.push(source_heap);
          generatedNodes.insert(source);
 
          while(!minHeap.empty())
          {
-            HeapContent<NodeValue> top = minHeap.top();
+            HeapContent<NodeValue, DistanceValue> top = minHeap.top();
             NodeValue u = top.id;
             minHeap.pop();
             if(seen.count(u))
@@ -64,17 +74,17 @@ namespace mv
             for(int i = 0; i < degree; ++i)
             {
                 NodeValue v = neighbours[i];
-                int cost_u_v = computeCost(u, v);
+                DistanceValue cost_u_v = computeCost(u, v);
                 if(cost_u_v > 0) //solutions with infinite cost are marked with -1
                 {
-                    int distance = distances[u] + cost_u_v;
+                    DistanceValue distance = distances[u] + cost_u_v;
                     if(generatedNodes.count(v))
                     {
                         if(distance < distances[v])
                         {
                             distances[v] = distance;
                             previous[v] = u;
-                            HeapContent<NodeValue> toPush = {v, distances[v]};
+                            HeapContent<NodeValue, DistanceValue> toPush = {v, distances[v]};
                             minHeap.push(toPush);
                         }
                     }
@@ -83,7 +93,7 @@ namespace mv
                         generatedNodes.insert(v);
                         distances[v] = distance;
                         previous[v] = u;
-                        HeapContent<NodeValue> toPush = {v, distances[v]};
+                        HeapContent<NodeValue, DistanceValue> toPush = {v, distances[v]};
                         minHeap.push(toPush);
                     }
                 }
@@ -91,11 +101,15 @@ namespace mv
          }
 
          for(auto mapIt = previous.find(target); mapIt->first != source; mapIt = previous.find(mapIt->second))
-            toReturn.push_back(mapIt->first);
+         {
+            toReturn.nodes.push_back(mapIt->first);
+            toReturn.distances.push_back(distances[mapIt->first]);
+         }
 
-         toReturn.push_back(source);
+         toReturn.nodes.push_back(source);
 
-         std::reverse(toReturn.begin(), toReturn.end());
+         std::reverse(toReturn.nodes.begin(), toReturn.nodes.end());
+         std::reverse(toReturn.distances.begin(), toReturn.distances.end());
 
          return toReturn;
     }
