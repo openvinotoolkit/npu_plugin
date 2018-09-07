@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/base/json/number_float.hpp"
 
 static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
@@ -175,7 +176,12 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     int numHWconvs = 0;
 
     // define scale factors
-    float scaleUpVars[maxHWconvs] = { 1.0f, 7.6f, 8.0f } ;
+    float scaleUpVars[maxHWconvs] = { 1.0f, 1.0f, 8.0f } ;
+    mv::json::Object compDesc;
+    mv::json::Value jnf_val2(7.6f);
+    compDesc["ScaleFission"]["conv2d_2"] = jnf_val2 ;
+    float val2= compDesc["ScaleFission"]["conv2d_2"].get<float>();
+    float upNum = 1.0f;
 
     std::cout << "SCALE_FISSION PASS:" << std::endl;
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -191,12 +197,18 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                     if (numHWconvs <= maxHWconvs)
                     {
                         std::cout << "SCALE_FISSION: detected HW conv "<< opIt->getName() << " inserting scales " << numFissions+1 << std::endl;
-
-                        mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), scaleUpVars[numFissions], 0.0f);
-                        mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/scaleUpVars[numFissions]), 0.0f);
+                        if (opIt->getName() == "conv2d_2")
+                        {
+                            upNum = compDesc["ScaleFission"]["conv2d_2"].get<float>();
+                        }
+                        else
+                        {
+                            upNum = scaleUpVars[numFissions];
+                        }
+                        mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), upNum, 0.0f);
+                        mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/upNum), 0.0f);
 
                         // scale (up) inputs by multiplying weights and bias
-//                        auto scaleUpWeights = om.constant(scaleUpWData, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
                         std::string scaleUpWTensorName = opIt->getName() + "_scale_in";
                         auto scaleUpWeights = dm.defineTensor(scaleUpWTensorName, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpWData);
                         opIt->getInputTensor(1)->multiply(*scaleUpWeights);
@@ -205,7 +217,6 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                         {
                             auto biasTensor = dm.findTensor(opIt->getAttr("bias").getContent<std::string>());
                             mv::dynamic_vector<mv::float_type> scaleUpBData = mv::utils::generateSequence(biasTensor->getShape().totalSize(), scaleUpVars[numFissions], 0.0f);
-//                            auto scaleUpBias = om.constant(scaleUpBData, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar);
                             std::string scaleUpBTensorName = opIt->getName() + "_scale_bias";
                             auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpBData);
                             biasTensor->multiply(*scaleUpBias);
