@@ -32,6 +32,8 @@ namespace mv
                 return 5;   // NoOp
             case OpType::ReLU:
                 return 6;
+            case OpType::PReLU:
+                return 10;
             case OpType::Add:
                 return 12;
             case OpType::Multiply:
@@ -195,6 +197,13 @@ namespace mv
                     {
                         blob_stats.stage_count++ ;
                         blob_stats.stage_section_size += bRelu::getSerializedSize()+5*4 ;
+                    }
+                    break;
+
+                case OpType::PReLU:
+                    {
+                        blob_stats.stage_count++ ;
+                        blob_stats.stage_section_size += bPRelu::getSerializedSize()+5*4 ;
                     }
                     break;
                 case OpType::Scale:
@@ -637,6 +646,45 @@ namespace mv
                     {
 
                         bRelu c = bRelu(&(*it));
+                        next_offset += c.getSerializedSize() + 5*4;
+
+                        // No more layers (last)
+                        mv::DataModel dm(om);
+                        mv::ControlModel cm(om);
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        int finalstage = 0;
+                        try{
+                            auto t = it->getOutputTensor(0);
+                            mem = dm.getBuffer("IntermediateMemory", stg, t);
+                            if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                                conv_pool_stage.next = 0;
+                                finalstage = 1;
+                            }
+                        }catch(mv::ArgumentError){
+                            printf("Warning: No Intermediary Buffers\n");
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
+                        }
+                        if (!finalstage){
+                            conv_pool_stage.next = next_offset;
+                        }
+                        AddBytes(4, conv_pool_stage.next);
+                        AddBytes(4, get_blob_enum(ltype));
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                        // Serialize for MyriadX H/W
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
+
+                    }
+                    break;
+                case OpType::PReLU:
+                    {
+
+                        bPRelu c = bPRelu(&(*it));
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)

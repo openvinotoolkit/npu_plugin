@@ -238,6 +238,24 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::relu(Data::TensorIterat
 	return result;
 }
 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::prelu(Data::TensorIterator inputTensor, Data::TensorIterator negative_slope, const string& name)
+{
+	auto sourceIt0 = modelRef_.getSourceOp(inputTensor);
+	auto sourceIt1 = modelRef_.getSourceOp(negative_slope);
+	/*open the recording file*/
+	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
+
+	/*Construct a string and write to file*/
+	// << ", " << negative_slope
+	ss << "auto " << modelRef_.getOpName_(OpType::PReLU) << " =" << " rc.prelu(" << sourceIt0->getName() << ", " << sourceIt1->getName() << ")" <<";" << "\n";;
+	outputSourceFile << ss.str();
+	ss.str("");
+	outputSourceFile.close();
+
+	auto result = modelRef_.prelu(inputTensor, negative_slope, name);
+	return result;
+}
+
 mv::Data::TensorIterator mv::CompositionalModelRecorder::softmax(Data::TensorIterator inputTensor, const string& name)
 {
 	/*get the name of the argument(s)*/

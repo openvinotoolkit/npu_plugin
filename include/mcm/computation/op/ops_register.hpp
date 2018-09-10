@@ -9,7 +9,7 @@ namespace mv
 
     enum class OpType
     {
-    
+
         Input,
         Output,
         Constant,
@@ -20,6 +20,7 @@ namespace mv
         AvgPool2D,
         Concat,
         ReLU,
+        PReLU,
         Softmax,
         Scale,
         BatchNorm,
@@ -45,6 +46,7 @@ namespace mv
         {OpType::AvgPool2D, "avgpool2d"},
         {OpType::Concat, "concat"},
         {OpType::ReLU, "relu"},
+        {OpType::PReLU, "prelu"},
         {OpType::Softmax, "softmax"},
         {OpType::Scale, "scale"},
         {OpType::BatchNorm, "batchnorm"},
@@ -69,6 +71,7 @@ namespace mv
         {"avgpool2d", OpType::AvgPool2D},
         {"concat", OpType::Concat},
         {"relu", OpType::ReLU},
+        {"prelu", OpType::PReLU},
         {"softmax", OpType::Softmax},
         {"scale", OpType::Scale},
         {"batchnorm", OpType::BatchNorm},

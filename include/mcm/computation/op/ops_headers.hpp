@@ -13,6 +13,7 @@
 #include "include/mcm/computation/op/def/batch_norm.hpp"
 #include "include/mcm/computation/op/def/scale.hpp"
 #include "include/mcm/computation/op/def/relu.hpp"
+#include "include/mcm/computation/op/def/prelu.hpp"
 #include "include/mcm/computation/op/def/softmax.hpp"
 #include "include/mcm/computation/op/def/add.hpp"
 #include "include/mcm/computation/op/def/subtract.hpp"

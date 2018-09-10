@@ -181,6 +181,22 @@ class TestComposition(unittest.TestCase):
 
         self.assertTrue(ca.isValid(om))
 
+    def test_prelu(self):
+
+        cu = ca.getCompilationUnit()
+        om = ca.getModel(cu)
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(om, shape)
+
+        data = ca.getData(np.arange(3).astype(np.float32))
+        slope_ = ca.constant(om, data, ca.getShape(3))
+
+        pr_ = ca.prelu(om, in_, slope_)
+        ca.output(om, pr_)
+
+        self.assertTrue(ca.isValid(om))
+
     def test_softmax(self):
 
         cu = ca.getCompilationUnit()
