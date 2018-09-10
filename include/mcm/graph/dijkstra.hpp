@@ -35,8 +35,6 @@ namespace mv
 
     //In dijkstraRT the initial graph consists of only one node. A rule to generate new neighbours must be passed
     //This rule specifies as well the exit condition (no more neighbours)
-
-    //DistanceValue has to overload at least <, =, and + operators
     template <typename NodeValue, typename DistanceValue>
     DijkstraReturnValue<NodeValue, DistanceValue> dijkstraRT(NodeValue source, NodeValue target, std::function<std::vector<NodeValue>(NodeValue)> generateNeighbours, std::function<DistanceValue(NodeValue, NodeValue)> computeCost)
     {
@@ -46,12 +44,13 @@ namespace mv
          std::set<NodeValue> seen;
          std::set<NodeValue> generatedNodes;
          std::priority_queue<HeapContent<NodeValue, DistanceValue>> minHeap;
+         DistanceValue zeroCost(0);
 
          // Variable to return
          DijkstraReturnValue<NodeValue, DistanceValue> toReturn;
 
          // Inserting the source into heap and graph
-         distances[source] = 0;
+         distances[source] = zeroCost;
          previous[source] = source;
          HeapContent<NodeValue, DistanceValue> source_heap = {source, distances[source]};
          minHeap.push(source_heap);
@@ -75,7 +74,7 @@ namespace mv
             {
                 NodeValue v = neighbours[i];
                 DistanceValue cost_u_v = computeCost(u, v);
-                if(cost_u_v > 0) //solutions with infinite cost are marked with -1
+                if(cost_u_v > zeroCost) //solutions with infinite cost are marked with -1
                 {
                     DistanceValue distance = distances[u] + cost_u_v;
                     if(generatedNodes.count(v))
