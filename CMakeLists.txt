@@ -111,6 +111,7 @@ file(GLOB pass
     "src/target/target_descriptor.cpp"
     "src/pass/adaptation/*.cpp"
     "src/pass/finalization/*.cpp"
+    "src/pass/finalization/nce1/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
