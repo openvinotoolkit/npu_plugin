@@ -40,20 +40,14 @@ TEST (dijkstra, mode_test)
     source.parameters.output_width = 224;
     source.parameters.input_channels = 3;
     source.parameters.output_channels = 64;
-    source.parameters.kernel_x = 3;
-    source.parameters.kernel_y = 3;
-    source.parameters.stride_x = 1;
-    source.parameters.stride_y = 1;
+    source.parameters.kernel_x = 7;
+    source.parameters.kernel_y = 7;
+    source.parameters.stride_x = 2;
+    source.parameters.stride_y = 2;
 
     ModeSelectionNode target;
     target.remaining_output_channels = 0;
 
-    std::function<ModeSelectionDistance(ModeSelectionNode, ModeSelectionNode)> computeCost = [](ModeSelectionNode u, ModeSelectionNode v)
-    {
-        ModeSelectionDistance a(u.remaining_output_channels - v.remaining_output_channels);
-        return a;
-    };
-
-    mv::DijkstraReturnValue<ModeSelectionNode, ModeSelectionDistance> shortestPath = mv::dijkstraRT<ModeSelectionNode, ModeSelectionDistance>(source, target, generateNeighboursComingFromValidModes, computeCost);
+    mv::DijkstraReturnValue<ModeSelectionNode, ModeSelectionDistance> shortestPath = mv::dijkstraRT<ModeSelectionNode, ModeSelectionDistance>(source, target, generateNeighboursComingFromValidModes, computeModeCost);
     std::cout << "Finished!" << std::endl;
 }
