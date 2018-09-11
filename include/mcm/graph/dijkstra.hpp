@@ -23,6 +23,11 @@ namespace mv
         {
             return a.distance < b.distance;
         }
+
+        friend bool operator>(const HeapContent<T, D>& a, const HeapContent<T, D>& b)
+        {
+            return a.distance > b.distance;
+        }
     };
 
 
@@ -43,7 +48,7 @@ namespace mv
          std::map<NodeValue, NodeValue> previous;
          std::set<NodeValue> seen;
          std::set<NodeValue> generatedNodes;
-         std::priority_queue<HeapContent<NodeValue, DistanceValue>> minHeap;
+         std::priority_queue<HeapContent<NodeValue, DistanceValue>, std::vector<HeapContent<NodeValue, DistanceValue>>, std::greater<HeapContent<NodeValue, DistanceValue>>> minHeap;
          DistanceValue zeroCost(0);
 
          // Variable to return
