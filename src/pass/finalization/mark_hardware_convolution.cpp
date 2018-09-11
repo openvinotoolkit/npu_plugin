@@ -6,7 +6,7 @@
 #include "include/mcm/base/json/number_float.hpp"
 
 static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 static void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
@@ -26,7 +26,7 @@ namespace mv
         .setFunc(scaleFissionFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
-            "Adds scale layers around HW ops to utilize more bits of fixed-point number representation in MAC HW units"
+            "Adds scales around HW ops to utilize more bits of fixed-point number representation in MAC HW units"
         );
 
         MV_REGISTER_PASS(FormatMXWeights)
@@ -163,7 +163,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
     }
 }
 
-void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
 
     using namespace mv;
@@ -173,16 +173,37 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
     int numFissions = 0 ;
     std::string const PASS_NAME = "ScaleFission";
+    std::string const FACTOR_KEY = "scalefactors";
     std::string opName = "";
-    std::cout << PASS_NAME << " PASS:" << std::endl;
+    std::cout << "SCALE_FISSION PASS:" << std::endl;
+
+    if (compDesc.hasKey("pass"))    {
+        std::cout << "compDesc haskey pass" << std::endl;
+    }
+    else 
+    {
+        std::cout << "compDesc haskey pass NOT" << std::endl;
+    }
 
     // define scale factors
     float upNum = 1.0f;
-    mv::json::Object compDesc;
+/*
     mv::json::Value jnf_val2(7.6f);
     mv::json::Value jnf_val4(8.0f);
-    compDesc[PASS_NAME]["conv2d_2"] = jnf_val2 ;
-    compDesc[PASS_NAME]["conv2d_4"] = jnf_val4 ;
+
+    mv::json::Object compDesc;
+    compDesc[PASS_NAME][FACTOR_KEY]["conv2d_2"] = jnf_val2 ;
+    compDesc[PASS_NAME][FACTOR_KEY]["conv2d_4"] = jnf_val4 ;
+*/
+    if (!compDesc["pass"][PASS_NAME].hasKey(FACTOR_KEY))
+    {
+        std::cout << "No factors defined: skipping pass" << std::endl;
+        return ;
+    }
+    else
+    {
+        std::cout << "factors defined in json: executing pass" << std::endl;
+    }
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -191,10 +212,10 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         {
             if (opIt->getAttr("NCE1_Compatible").getContent<int>()==1)
             {
-                if (compDesc[PASS_NAME].hasKey(opName))
+                if (compDesc["pass"][PASS_NAME][FACTOR_KEY].hasKey(opName))
                 {
                     std::cout << "       detected HW conv "<< opName << " inserting scales " << numFissions+1 << std::endl;
-                    upNum = compDesc[PASS_NAME][opName].get<float>();
+                    upNum = compDesc["pass"][PASS_NAME][FACTOR_KEY][opName].get<float>();
 
                     std::cout << "       scale factor = " << upNum << std::endl;
                     mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), upNum, 0.0f);

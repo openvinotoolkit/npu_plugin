@@ -1,6 +1,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
+const std::string mv::CompilationUnit::compilationDescPath_ = "/config/compilation/resnet50_HW.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 
 mv::Logger& mv::CompilationUnit::logger_ = mv::ComputationModel::logger();
@@ -9,11 +10,14 @@ mv::CompilationUnit::CompilationUnit(mv::Logger::VerboseLevel verboseLevel, bool
 model_(new OpModel(verboseLevel, logTime)),
 recordedModel_(new CompositionalModelRecorder(verboseLevel, logTime, *model_,compositionalModelRecordingsPath_))
 {
-
+    std::string descPath = utils::projectRootPath() + compilationDescPath_;
+    std::cout << "DECLARING COMPILATION UNIT with descriptor json filename: " << descPath << std::endl;
+    loadCompilationDescriptor(descPath);
 }
 
 void mv::CompilationUnit::loadModelFromJson(const std::string &path)
 {
+
     mv::JSONTextParser parser;
     mv::json::Value value;
     parser.parseFile(path, value);
@@ -57,6 +61,50 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
         return false;
     }
 
+    return true;
+
+}
+
+bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
+{
+
+    JSONTextParser parser(jsonParserBufferLenght_);
+
+    try
+    {
+
+        json::Value jsonRoot;
+        if (!parser.parseFile(filePath, jsonRoot))
+        {
+            throw ArgumentError("filePath", filePath,
+                "Unable to parse compilation descriptor - error reading");
+        }
+        if (jsonRoot.valueType() != json::JSONType::Object)
+            return false;
+        else
+            compilationDescriptor_ = jsonRoot.get<json::Object>();
+
+    }
+    catch (ParsingError& e)
+    {
+        return false;
+    }
+/*
+    if (!compilationDescriptor_.hasKey("pass"))
+        return false;
+    else
+    {
+        std::cout << "parse of comp descriptor json text file hasKey pass" << std::endl;
+        if (compilationDescriptor_["pass"].hasKey("ScaleFission"))
+        {
+            std::cout << "parse of comp descriptor json text file hasKey pass.ScaleFission" << std::endl;
+            if (compilationDescriptor_["pass"]["ScaleFission"].hasKey("scalefactors"))
+            {
+                std::cout << "parse of comp descriptor json text file hasKey pass.ScaleFission.scalefactors" << std::endl;
+            }
+        }
+    }
+*/
     return true;
 
 }

@@ -1,0 +1,14 @@
+{
+
+    "pass":
+    {
+        "ScaleFission":
+        {
+            "scalefactors":
+            {
+                "conv2d_2": 7.6,
+                "conv2d_4": 8.0
+            }
+        }
+    }
+}
