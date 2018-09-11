@@ -59,10 +59,27 @@ struct ConvolutionParameters
     int stride_y;
     int input_channels;
     int output_channels;
-    int width;
-    int height;
+    int input_width;
+    int input_height;
+    int output_width;
+    int output_height;
 
     ConvolutionParameters()
+    {
+
+    }
+
+    ConvolutionParameters(const ConvolutionParameters& other)
+        :kernel_x(other.kernel_x),
+         kernel_y(other.kernel_y),
+         stride_x(other.stride_x),
+         stride_y(other.stride_y),
+         input_channels(other.input_channels),
+         output_channels(other.output_channels),
+         input_width(other.input_width),
+         input_height(other.input_height),
+         output_width(other.output_width),
+         output_height(other.output_height)
     {
 
     }
@@ -113,6 +130,15 @@ struct ModeSelectionNode
 unsigned round_up(unsigned x, unsigned mult)
 {
     return ((x + mult - 1) / mult) * mult;
+}
+
+unsigned next_greater_power_of_2(unsigned number)
+{
+    unsigned bits;
+    number--;
+    for(bits = 0; number != 0; ++bits)
+        number >>= 1;
+    return pow(2,bits);
 }
 
 struct ModeSelectionDistance
@@ -214,7 +240,7 @@ bool check_min_lines_constraint(ConvolutionParameters param)
 {
     unsigned min_lines = param.kernel_y + param.stride_y + 2;
     //Space required by min lines = min_lines * input_width (rounded up to 16) * input data type size * num input channels
-    unsigned space_required = min_lines * round_up(param.width, 16) * 2 * param.input_channels;
+    unsigned space_required = min_lines * round_up(param.input_width, 16) * 2 * param.input_channels;
     return (space_required > pow(2, 17));
 }
 
@@ -238,14 +264,127 @@ bool check_channels_per_ram_block(ConvolutionParameters param, int mode)
     return dpe_x_output_channel.at(mode) > param.input_channels;
 }
 
-ModeSelectionDistance split_by_input_channel(ConvolutionParameters param, int mode)
+ModeSelectionDistance split_by_input_channel(ConvolutionParameters param, unsigned actual_output_channels, int mode, bool support_split_over_c = true, int split_by_input_channel_overhead = 10000)
 {
+    ModeSelectionDistance to_return;
 
+    // Min lines  = Kernel_height + kernel stride + 2
+    unsigned min_lines = param.kernel_y + param.stride_y + 2;
+    // maximum ic that I can process without conflicting with min line constraint
+    unsigned max_ic_minlines = floor((double)(pow(2,17))/(min_lines * 2 * param.input_width));
+    // maximum ic that I can process without conflicting with coefficient line per block constraint
+    unsigned max_ic_ramblock = floor((double)(nce1_dpe)/(param.kernel_x*param.kernel_y)*dpe_x_output_channel.at(mode));
+
+    // calculate the max input channels that can be processed without running out of memory:
+    unsigned max_ic = std::min(max_ic_minlines, max_ic_ramblock);
+    // calculate ramblock for the selected mode
+    unsigned ramBlocks = ram_blocks_x_mode.at(mode);
+    while (max_ic > 0)
+    {
+        // max_ic should be divisible by ramblocks and the split should be integer
+        if((param.input_channels % max_ic) || (max_ic % ramBlocks))
+            max_ic--;
+        else
+            break;
+    }
+    if(max_ic == 0)
+    {
+        //This mode does not allow splits
+        to_return.cost = -1;
+        to_return.split_performed = Splits::InputChannel;
+        to_return.num_splits = 0;
+        to_return.mode = mode;
+    }
+
+    // n of input split required (padded to next pow of 2)
+    unsigned n_split_c = next_greater_power_of_2(param.input_channels/max_ic);
+    unsigned actual_ic_per_split = int(ceil((double)(param.input_channels)/n_split_c));
+
+    if((n_split_c < 2) || (actual_ic_per_split % ramBlocks) || (!support_split_over_c))
+    {
+        //This mode does not allow splits
+        to_return.cost = -1;
+        to_return.split_performed = Splits::InputChannel;
+        to_return.num_splits = 0;
+        to_return.mode = mode;
+    }
+
+    ConvolutionParameters new_param(param);
+    param.input_channels = actual_ic_per_split;
+
+    if (check_coefficient_size_constraint(new_param, mode) ||
+        check_channels_per_ram_block(new_param, mode)  ||
+        check_coefficient_line_constraint(new_param, mode))
+    {
+        //This mode does not allow splits
+        to_return.cost = -1;
+        to_return.split_performed = Splits::InputChannel;
+        to_return.num_splits = n_split_c;
+        to_return.mode = mode;
+    }
+
+    unsigned cost = 0;
+    for(unsigned i = 0; i < n_split_c; ++i)
+    {
+        // calculate the operation cost
+        unsigned ic = std::min(actual_ic_per_split, param.input_channels-i*actual_ic_per_split);
+        cost += param.kernel_x * param.kernel_y * param.output_width * param.output_height * ic / dpe_x_output_channel.at(mode);
+    }
+    // add the cost of summation over input channels
+    cost += (n_split_c - 1) * (actual_output_channels * param.output_width*param.output_height + split_by_input_channel_overhead);
+    to_return.cost = cost;
+    to_return.split_performed = Splits::InputChannel;
+    to_return.num_splits = n_split_c;
+    to_return.mode = mode;
+    return to_return;
 }
 
-ModeSelectionDistance split_by_width(ConvolutionParameters param, int mode)
+ModeSelectionDistance split_by_width(ConvolutionParameters param, int mode, bool support_split_over_w = true, unsigned split_by_width_overhead = 10000)
 {
+    ModeSelectionDistance to_return;
+    unsigned min_lines = param.kernel_y + param.stride_y + 2;
+    // Space required by min lines = min_lines * input_width * input data type size * num input channels
+    unsigned space_required = min_lines * 2 * param.input_width * param.input_channels;
+    unsigned n_split_w = int(ceil(double(space_required)/pow(2, 17)));
 
+    unsigned split_output_width =  param.output_width/n_split_w;
+    unsigned split_input_width =  param.input_width/n_split_w;
+
+    if (check_channels_per_ram_block(param, mode) || support_split_over_w)
+    {
+        to_return.cost = -1;
+        to_return.mode = mode;
+        to_return.split_performed = Splits::Width;
+        to_return.num_splits = n_split_w;
+        return to_return;
+    }
+
+    unsigned cost = 0;
+    for(unsigned i = 0; i < n_split_w; ++i)
+    {
+        unsigned os_w = std::min(split_output_width, param.output_width-i*split_output_width);
+        unsigned is_w = std::min(split_input_width, param.input_width-i*split_input_width);
+
+        ConvolutionParameters new_param(param);
+        new_param.output_width = os_w;
+        new_param.input_width = is_w;
+        if(check_coefficient_size_constraint(new_param, mode) || check_coefficient_line_constraint(new_param, mode))
+        {
+            to_return.cost = -1;
+            to_return.mode = mode;
+            to_return.split_performed = Splits::Width;
+            to_return.num_splits = n_split_w;
+            return to_return;
+        }
+
+        cost += param.kernel_x * param.kernel_y * param.output_width * os_w * param.input_channels / dpe_x_output_channel.at(mode) + split_by_width_overhead;
+    }
+    to_return.cost = cost;
+    to_return.num_splits = n_split_w;
+    to_return.split_performed = Splits::Width;
+    to_return.mode = mode;
+
+    return to_return;
 }
 
 ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelectionNode b)
@@ -279,7 +418,7 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
 
     if(need_split_by_width_or_input_channel)
     {
-        ModeSelectionDistance splitted_by_input_channel = split_by_input_channel(parameters, mode);
+        ModeSelectionDistance splitted_by_input_channel = split_by_input_channel(parameters, b.remaining_output_channels, mode);
         ModeSelectionDistance splitted_by_width = split_by_width(parameters, mode);
         if(splitted_by_input_channel < splitted_by_width)
             to_return = splitted_by_input_channel;
@@ -287,10 +426,10 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
             to_return = splitted_by_width;
     }
     else if(need_split_by_input_channel)
-        to_return = split_by_input_channel(parameters, mode);
+        to_return = split_by_input_channel(parameters, b.remaining_output_channels, mode);
     else
     {
-        to_return.cost = parameters.kernel_x * parameters.kernel_y * parameters.width * parameters.height * parameters.input_channels / dpe_x_output_channel.at(mode);
+        to_return.cost = parameters.kernel_x * parameters.kernel_y * parameters.input_width * parameters.input_height * parameters.input_channels / dpe_x_output_channel.at(mode);
         to_return.split_performed = Splits::NoSplit;
         to_return.num_splits = 1;
         if(check_channels_per_ram_block(parameters, mode))

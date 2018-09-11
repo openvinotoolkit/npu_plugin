@@ -33,8 +33,11 @@ TEST (dijkstra, mode_test)
 {
     ModeSelectionNode source;
     source.remaining_output_channels = 192;
-    source.parameters.height = 224;
-    source.parameters.width = 224;
+
+    source.parameters.input_height = 224;
+    source.parameters.input_width = 224;
+    source.parameters.output_height = 224;
+    source.parameters.output_width = 224;
     source.parameters.input_channels = 3;
     source.parameters.output_channels = 64;
     source.parameters.kernel_x = 3;
