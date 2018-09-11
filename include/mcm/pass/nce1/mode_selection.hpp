@@ -1,8 +1,8 @@
 #include "mcm/graph/dijkstra.hpp"
 #include <cmath>
 
-const int nce1_dpe = 256;
-const std::map<int, int> dpe_x_output_channel =
+const unsigned nce1_dpe = 256;
+const std::map<unsigned, unsigned> dpe_x_output_channel =
 {
     {0, 1},
     {1, 2},
@@ -11,10 +11,10 @@ const std::map<int, int> dpe_x_output_channel =
     {4, 16}
 };
 
-const std::map<int,int>& ram_blocks_x_mode = dpe_x_output_channel;
-const std::map<int,int>& input_streams_x_mode = dpe_x_output_channel;
+const std::map<unsigned,unsigned>& ram_blocks_x_mode = dpe_x_output_channel;
+const std::map<unsigned,unsigned>& input_streams_x_mode = dpe_x_output_channel;
 
-const std::map<int, int> output_channel_performed_one_shot =
+const std::map<unsigned, unsigned> output_channel_performed_one_shot =
 {
     {0, 256},
     {1, 128},
@@ -23,7 +23,7 @@ const std::map<int, int> output_channel_performed_one_shot =
     {4, 16}
 };
 
-const std::map<int, int> reverse_output_channel_performed_one_shot =
+const std::map<unsigned, unsigned> reverse_output_channel_performed_one_shot =
 {
     {256, 0},
     {128, 1},
@@ -32,7 +32,7 @@ const std::map<int, int> reverse_output_channel_performed_one_shot =
     {16, 4}
 };
 
-const int max_descriptors_x_hw_op = 255;
+const unsigned max_descriptors_x_hw_op = 255;
 
 enum Modes
 {
@@ -53,16 +53,16 @@ enum Splits
 
 struct ConvolutionParameters
 {
-    int kernel_x;
-    int kernel_y;
-    int stride_x;
-    int stride_y;
-    int input_channels;
-    int output_channels;
-    int input_width;
-    int input_height;
-    int output_width;
-    int output_height;
+    unsigned kernel_x;
+    unsigned kernel_y;
+    unsigned stride_x;
+    unsigned stride_y;
+    unsigned input_channels;
+    unsigned output_channels;
+    unsigned input_width;
+    unsigned input_height;
+    unsigned output_width;
+    unsigned output_height;
 
     ConvolutionParameters()
     {
@@ -88,7 +88,6 @@ struct ConvolutionParameters
 struct ModeSelectionNode
 {
     int remaining_output_channels;
-    int mode_that_brings_here; //useful when remaining_output_channels == 0
     ConvolutionParameters parameters;
 
     ModeSelectionNode()
@@ -97,15 +96,13 @@ struct ModeSelectionNode
     }
 
     ModeSelectionNode(int n)
-        :remaining_output_channels(n),
-         mode_that_brings_here(-1)
+        :remaining_output_channels(n)
     {
 
     }
 
     ModeSelectionNode(const ModeSelectionNode& other)
         :remaining_output_channels(other.remaining_output_channels),
-         mode_that_brings_here(other.mode_that_brings_here),
          parameters(other.parameters)
     {
 
@@ -132,13 +129,17 @@ unsigned round_up(unsigned x, unsigned mult)
     return ((x + mult - 1) / mult) * mult;
 }
 
-unsigned next_greater_power_of_2(unsigned number)
+unsigned count_bits(unsigned number)
 {
     unsigned bits;
-    number--;
     for(bits = 0; number != 0; ++bits)
         number >>= 1;
-    return pow(2,bits);
+    return bits;
+}
+
+unsigned next_greater_power_of_2(unsigned number)
+{
+    return pow(2,count_bits(--number));
 }
 
 struct ModeSelectionDistance
@@ -210,27 +211,36 @@ struct ModeSelectionDistance
     }
 };
 
+unsigned get_max_mode(ModeSelectionNode node)
+{
+    return ceil(log2(node.parameters.input_channels)); //At least one channel per ramblock
+}
+
+std::vector<unsigned> get_valid_modes(ModeSelectionNode node)
+{
+    std::vector<unsigned> to_return;
+    unsigned max_mode = get_max_mode(node);
+    for(unsigned mode = Mode0; mode <= max_mode; ++mode)
+    {
+        unsigned number_of_descriptors_needed = ceil((double)(node.remaining_output_channels) / output_channel_performed_one_shot.at(mode));
+        if(number_of_descriptors_needed >= max_descriptors_x_hw_op) //Useless check with the current numbers, but you never know
+            continue;
+        to_return.push_back(mode);
+    }
+    return to_return;
+}
+
 std::vector<ModeSelectionNode> generateNeighboursComingFromValidModes(ModeSelectionNode current_node)
 {
     std::set<ModeSelectionNode> valid_neighbours_set;
-    int max_mode = ceil(log2(current_node.parameters.input_channels)); //At least one channel per ramblock
-    for(int mode = Mode0; mode <= Mode4; ++mode)
+    std::vector<unsigned> valid_modes = get_valid_modes(current_node);
+    unsigned n = valid_modes.size();
+    for(unsigned i = 0; i < n; ++i)
     {
-        if(mode > max_mode)
-            continue;
-        int number_of_descriptors_needed = ceil((double)(current_node.remaining_output_channels) / output_channel_performed_one_shot.at(mode));
-        if(number_of_descriptors_needed >= max_descriptors_x_hw_op) //Useless check with the current numbers, but you never know
-            continue;
         ModeSelectionNode neighbour(current_node);
-        neighbour.remaining_output_channels -= output_channel_performed_one_shot.at(mode);
+        neighbour.remaining_output_channels -= output_channel_performed_one_shot.at(valid_modes[i]);
         if(neighbour.remaining_output_channels < 0)
-        {
             neighbour.remaining_output_channels = 0;
-            neighbour.mode_that_brings_here = mode;
-        }
-        auto findIterator = valid_neighbours_set.find(neighbour);
-        if(findIterator != valid_neighbours_set.end())
-            valid_neighbours_set.erase(findIterator);
         valid_neighbours_set.insert(neighbour);
     }
     return std::vector<ModeSelectionNode>(valid_neighbours_set.begin(), valid_neighbours_set.end());
@@ -398,15 +408,20 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
     bool need_split_by_k = false;
     if(b.remaining_output_channels == 0)
     {
-        mode = b.mode_that_brings_here;
-        need_split_by_k = false;
         output_channel_performed = a.remaining_output_channels;
+        std::vector<unsigned> valid_modes = get_valid_modes(a);
+        for(mode = valid_modes[valid_modes.size()-1]; mode >= 0; --mode)
+        {
+            if(output_channel_performed_one_shot.at(mode) >= output_channel_performed)
+                break;
+        }
+        need_split_by_k = false;
     }
     else
     {
-        mode = reverse_output_channel_performed_one_shot.at(a.remaining_output_channels - b.remaining_output_channels);
+        output_channel_performed = a.remaining_output_channels - b.remaining_output_channels;
+        mode = reverse_output_channel_performed_one_shot.at(output_channel_performed);
         need_split_by_k = true;
-        output_channel_performed = output_channel_performed_one_shot.at(mode);
     }
 
     ConvolutionParameters parameters = a.parameters;
@@ -440,5 +455,6 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
         to_return.cost += overhead;
 
     to_return.mode = mode;
+    to_return.performed_output_channels = output_channel_performed;
     return to_return;
 }
