@@ -362,7 +362,7 @@ ModeSelectionDistance split_by_width(ConvolutionParameters param, int mode, bool
     unsigned split_output_width =  param.output_width/n_split_w;
     unsigned split_input_width =  param.input_width/n_split_w;
 
-    if (check_channels_per_ram_block(param, mode) || support_split_over_w)
+    if (check_channels_per_ram_block(param, mode) || !support_split_over_w)
     {
         to_return.cost = -1;
         to_return.mode = mode;
