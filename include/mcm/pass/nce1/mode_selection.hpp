@@ -403,7 +403,7 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
 {
     ModeSelectionDistance to_return;
 
-    int overhead = 0;
+    int split_over_output_channel_overhead = 0;
     int mode = 0;
     unsigned output_channel_performed = 0;
 
@@ -418,12 +418,14 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
                 break;
         }
         need_split_by_k = false;
+        split_over_output_channel_overhead = 0;
     }
     else
     {
         output_channel_performed = a.remaining_output_channels - b.remaining_output_channels;
         mode = reverse_output_channel_performed_one_shot.at(output_channel_performed);
         need_split_by_k = true;
+        split_over_output_channel_overhead = 7000;
     }
 
     ConvolutionParameters parameters = a.parameters;
@@ -453,9 +455,7 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
             to_return.cost = -1; //infinite cost
     }
 
-    if(need_split_by_k)
-        to_return.cost += overhead;
-
+    to_return.cost += split_over_output_channel_overhead;
     to_return.mode = mode;
     to_return.performed_output_channels = output_channel_performed;
     return to_return;
