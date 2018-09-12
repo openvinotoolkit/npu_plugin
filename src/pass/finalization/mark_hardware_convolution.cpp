@@ -174,18 +174,9 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     std::string const PASS_NAME = "ScaleFission";
     std::string const FACTOR_KEY = "scalefactors";
     std::string opName = "";
-//    std::cout << "SCALE_FISSION PASS:" << std::endl;
 
-    // define scale factors
     float upNum = 1.0f;
-/*
-    mv::json::Value jnf_val2(7.6f);
-    mv::json::Value jnf_val4(8.0f);
 
-    mv::json::Object compDesc;
-    compDesc[PASS_NAME][FACTOR_KEY]["conv2d_2"] = jnf_val2 ;
-    compDesc[PASS_NAME][FACTOR_KEY]["conv2d_4"] = jnf_val4 ;
-*/
     if (!compDesc.hasKey("pass"))
     {
         return ;
@@ -232,13 +223,6 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                     auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleDnData);
                     Attribute scaleAttr(AttrType::StringType, scaleTensor->getName());
                     om.addAttr(opIt, "scale", scaleAttr);
-/*
-                    // test
-                    std::cout << "SCALE_FISSION: added HW scale attributes to "<< opName << " hasattrscale= " << opIt->hasAttr("scale") << std::endl;
-                    auto testTensor = dm.findTensor(opIt->getAttr("scale").getContent<std::string>());
-                    std::cout << "               scale from attribute= "<< testTensor->getData()[0] << std::endl;
-                    std::cout << "               name from Tensor= "<< testTensor->getName() << std::endl;
-*/
                 }
                 else
                 {
@@ -247,7 +231,6 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             }  // end HW conv
         }  // end conv                       
     }  // end op loop
-    std::cout << "END SCALE_FISSION PASS:" << std::endl;
 }
 
 //NOTE: This should not be done in such hardcoded way.
