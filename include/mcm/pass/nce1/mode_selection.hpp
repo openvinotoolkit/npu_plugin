@@ -2,6 +2,10 @@
 #include <cmath>
 
 const unsigned nce1_dpe = 256;
+const unsigned input_data_size = 2; //2bytes for half
+const unsigned coefficients_storage_dimension = pow(2, 17); //128K -> 128 == 2^7, K == 2^10 bytes
+const unsigned data_storage_dimension = pow(2, 17); //128K -> 128 == 2^7, K == 2^10 bytes
+
 const std::map<unsigned, unsigned> dpe_x_output_channel =
 {
     {0, 1},
@@ -252,14 +256,14 @@ bool check_min_lines_constraint(ConvolutionParameters param)
 {
     unsigned min_lines = param.kernel_y + param.stride_y + 2;
     //Space required by min lines = min_lines * input_width (rounded up to 16) * input data type size * num input channels
-    unsigned space_required = min_lines * round_up(param.input_width, 16) * 2 * param.input_channels;
-    return (space_required > pow(2, 17));
+    unsigned space_required = min_lines * round_up(param.input_width, 16) * input_data_size * param.input_channels;
+    return space_required > data_storage_dimension;
 }
 
 bool check_coefficient_size_constraint(ConvolutionParameters param, unsigned output_channel_performed)
 {
-    unsigned coeff_size = param.kernel_x * param.kernel_y*param.input_channels*round_up(output_channel_performed,8)*2;
-    return (coeff_size > pow(2, 17));
+    unsigned coeff_size = param.kernel_x * param.kernel_y*param.input_channels*round_up(output_channel_performed,8)*input_data_size;
+    return coeff_size > coefficients_storage_dimension;
 }
 
 bool check_coefficient_line_constraint(ConvolutionParameters param, int mode)
@@ -268,7 +272,7 @@ bool check_coefficient_line_constraint(ConvolutionParameters param, int mode)
    unsigned channel_per_ramblock = param.input_channels / ram_blocks_x_mode.at(mode);
    //coefficient number per line must be lower than 256
    unsigned check_coeff_line_per_block = param.kernel_x*param.kernel_y*channel_per_ramblock;
-   return (check_coeff_line_per_block > 256);
+   return check_coeff_line_per_block > 256;
 }
 
 bool check_channels_per_ram_block(ConvolutionParameters param, int mode)
@@ -283,9 +287,9 @@ ModeSelectionDistance split_by_input_channel(ConvolutionParameters param, unsign
     // Min lines  = Kernel_height + kernel stride + 2
     unsigned min_lines = param.kernel_y + param.stride_y + 2;
     // maximum ic that I can process without conflicting with min line constraint
-    unsigned max_ic_minlines = floor((double)(pow(2,17))/(min_lines * 2 * param.input_width));
+    unsigned max_ic_minlines = floor((double)(data_storage_dimension)/(min_lines * input_data_size * param.input_width));
     // maximum ic that I can process without conflicting with coefficient line per block constraint
-    unsigned max_ic_ramblock = floor((double)(nce1_dpe)/(param.kernel_x*param.kernel_y)*dpe_x_output_channel.at(mode));
+    unsigned max_ic_ramblock = floor((double)(nce1_dpe)/(param.kernel_x*param.kernel_y)*ram_blocks_x_mode.at(mode));
 
     // calculate the max input channels that can be processed without running out of memory:
     unsigned max_ic = std::min(max_ic_minlines, max_ic_ramblock);
@@ -356,8 +360,8 @@ ModeSelectionDistance split_by_width(ConvolutionParameters param, int mode, bool
     ModeSelectionDistance to_return;
     unsigned min_lines = param.kernel_y + param.stride_y + 2;
     // Space required by min lines = min_lines * input_width * input data type size * num input channels
-    unsigned space_required = min_lines * 2 * param.input_width * param.input_channels;
-    unsigned n_split_w = int(ceil(double(space_required)/pow(2, 17)));
+    unsigned space_required = min_lines * input_data_size * param.input_width * param.input_channels;
+    unsigned n_split_w = int(ceil(double(space_required)/data_storage_dimension));
 
     unsigned split_output_width =  param.output_width/n_split_w;
     unsigned split_input_width =  param.input_width/n_split_w;
