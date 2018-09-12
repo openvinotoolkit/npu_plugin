@@ -412,10 +412,8 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
         output_channel_performed = a.remaining_output_channels;
         std::vector<unsigned> valid_modes = get_valid_modes(a);
         for(mode = valid_modes[valid_modes.size()-1]; mode >= 0; --mode)
-        {
             if(output_channel_performed_one_shot.at(mode) >= output_channel_performed)
                 break;
-        }
     }
     else
     {
