@@ -276,7 +276,7 @@ bool check_channels_per_ram_block(ConvolutionParameters param, int mode)
     return dpe_x_output_channel.at(mode) > param.input_channels;
 }
 
-ModeSelectionDistance split_by_input_channel(ConvolutionParameters param, unsigned actual_output_channels, int mode, bool support_split_over_c = true, int split_by_input_channel_overhead = 10000)
+ModeSelectionDistance split_by_input_channel(ConvolutionParameters param, unsigned actual_output_channels, int mode, bool support_split_over_c = true, int split_by_input_channel_overhead = 30000)
 {
     ModeSelectionDistance to_return;
 
@@ -351,7 +351,7 @@ ModeSelectionDistance split_by_input_channel(ConvolutionParameters param, unsign
     return to_return;
 }
 
-ModeSelectionDistance split_by_width(ConvolutionParameters param, int mode, bool support_split_over_w = true, unsigned split_by_width_overhead = 10000)
+ModeSelectionDistance split_by_width(ConvolutionParameters param, int mode, bool support_split_over_w = true, unsigned split_by_width_overhead = 5000)
 {
     ModeSelectionDistance to_return;
     unsigned min_lines = param.kernel_y + param.stride_y + 2;
