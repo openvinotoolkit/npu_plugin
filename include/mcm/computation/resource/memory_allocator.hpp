@@ -56,7 +56,7 @@ namespace mv
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */
-            std::size_t block;
+            std::size_t block_size;
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */

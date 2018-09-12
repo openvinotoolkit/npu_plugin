@@ -120,7 +120,7 @@ namespace mv
         mv::Control::StageIterator stg = cm->getStage(0);
 
         int blk_stride = 0;
-        //int block = 0;
+        int block = 0;
 
         if ((*t)->isPopulated()){
             // std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
@@ -129,7 +129,7 @@ namespace mv
             this->location = BLOB_INTERNAL_LOCATION;
 
             // blk_stride = (int)mem->strides[0]+ mem->block;
-            //block = (int)mem->block;
+            block = (int)mem->block_size;
 
             int offsetValue = mem->offset;
 
@@ -189,7 +189,7 @@ namespace mv
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
                 // blk_stride = (int)mem->strides[0] + mem->block;
-                //block = (int)mem->block;
+                block = (int)mem->block_size;
                 int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
                 this->offset = rt_entry;
             }
