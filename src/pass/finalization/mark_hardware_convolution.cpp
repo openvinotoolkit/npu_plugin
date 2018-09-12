@@ -171,19 +171,10 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     OpModel om(model);
     DataModel dm(model);
 
-    int numFissions = 0 ;
     std::string const PASS_NAME = "ScaleFission";
     std::string const FACTOR_KEY = "scalefactors";
     std::string opName = "";
-    std::cout << "SCALE_FISSION PASS:" << std::endl;
-
-    if (compDesc.hasKey("pass"))    {
-        std::cout << "compDesc haskey pass" << std::endl;
-    }
-    else 
-    {
-        std::cout << "compDesc haskey pass NOT" << std::endl;
-    }
+//    std::cout << "SCALE_FISSION PASS:" << std::endl;
 
     // define scale factors
     float upNum = 1.0f;
@@ -195,14 +186,17 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     compDesc[PASS_NAME][FACTOR_KEY]["conv2d_2"] = jnf_val2 ;
     compDesc[PASS_NAME][FACTOR_KEY]["conv2d_4"] = jnf_val4 ;
 */
-    if (!compDesc["pass"][PASS_NAME].hasKey(FACTOR_KEY))
+    if (!compDesc.hasKey("pass"))
     {
-        std::cout << "No factors defined: skipping pass" << std::endl;
         return ;
     }
-    else
+    if (!compDesc["pass"].hasKey(PASS_NAME))
     {
-        std::cout << "factors defined in json: executing pass" << std::endl;
+        return ;
+    }
+    if (!compDesc["pass"][PASS_NAME].hasKey(FACTOR_KEY))
+    {
+        return ;
     }
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -214,10 +208,8 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             {
                 if (compDesc["pass"][PASS_NAME][FACTOR_KEY].hasKey(opName))
                 {
-                    std::cout << "       detected HW conv "<< opName << " inserting scales " << numFissions+1 << std::endl;
                     upNum = compDesc["pass"][PASS_NAME][FACTOR_KEY][opName].get<float>();
 
-                    std::cout << "       scale factor = " << upNum << std::endl;
                     mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), upNum, 0.0f);
                     mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/upNum), 0.0f);
 
@@ -240,16 +232,16 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                     auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleDnData);
                     Attribute scaleAttr(AttrType::StringType, scaleTensor->getName());
                     om.addAttr(opIt, "scale", scaleAttr);
+/*
                     // test
                     std::cout << "SCALE_FISSION: added HW scale attributes to "<< opName << " hasattrscale= " << opIt->hasAttr("scale") << std::endl;
                     auto testTensor = dm.findTensor(opIt->getAttr("scale").getContent<std::string>());
                     std::cout << "               scale from attribute= "<< testTensor->getData()[0] << std::endl;
                     std::cout << "               name from Tensor= "<< testTensor->getName() << std::endl;
-                    ++numFissions;
+*/
                 }
                 else
                 {
-                    std::cout << "       skipping scale fission for " << opName <<  std::endl;
                     upNum = 1.0f;
                 }
             }  // end HW conv
