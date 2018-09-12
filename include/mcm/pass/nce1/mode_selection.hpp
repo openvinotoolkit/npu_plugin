@@ -220,8 +220,10 @@ std::vector<unsigned> get_valid_modes(ModeSelectionNode node)
 {
     std::vector<unsigned> to_return;
     unsigned max_mode = get_max_mode(node);
-    for(unsigned mode = Mode0; mode <= max_mode; ++mode)
+    for(unsigned mode = Mode0; mode <= Mode4; ++mode)
     {
+        if(mode > max_mode)
+            continue;
         unsigned number_of_descriptors_needed = ceil((double)(node.remaining_output_channels) / output_channel_performed_one_shot.at(mode));
         if(number_of_descriptors_needed >= max_descriptors_x_hw_op) //Useless check with the current numbers, but you never know
             continue;
