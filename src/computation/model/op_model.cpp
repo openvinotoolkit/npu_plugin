@@ -5,11 +5,11 @@ mv::OpModel::OpModel()
 
 }
 
-mv::OpModel::OpModel(mv::json::Value& value) :
+/*mv::OpModel::OpModel(mv::json::Value& value) :
 ComputationModel(value)
 {
 
-}
+}*/
 
 mv::OpModel::OpModel(const ComputationModel& other) :
 ComputationModel(other)
@@ -96,7 +96,7 @@ void mv::OpModel::decrementOpsCounter_(OpType opType)
 
 std::string mv::OpModel::getOpName_(OpType opType)
 {
-    return Printable::toString(opType) + "_" + Printable::toString(opsCount(opType));
+    return opType.toString() + "_" + std::to_string(opsCount(opType));
 }
 
 mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator other)
@@ -182,7 +182,7 @@ mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, 
     return outputTensor;
 }
 
-mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
 {
     std::string opName;
     if (name != "")
@@ -212,7 +212,7 @@ mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator input0Tensor, 
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
 {
     std::string opName;
     if (name != "")
@@ -227,7 +227,7 @@ mv::Data::TensorIterator mv::OpModel::maxpool2D(Data::TensorIterator inputTensor
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor, UnsignedVector2D kernelSize, UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
 {
     std::string opName;
     if (name != "")
@@ -444,13 +444,6 @@ mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)
     return findSourceOp_(tensor);
 }
 
-bool mv::OpModel::addAttr(Data::OpListIterator opIt, const std::string& name, const Attribute& attr)
-{
-
-    return opIt->addAttr(name, attr);
-
-}
-
 bool mv::OpModel::removeOp(Data::OpListIterator op)
 {
 
@@ -580,7 +573,7 @@ mv::Data::FlowListIterator mv::OpModel::flowEnd() const
     return *dataFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
+/*mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
 {
 
     std::shared_ptr<ComputationOp> ptr = newElement;
@@ -592,7 +585,7 @@ bool mv::OpModel::removeGroupElement(Data::OpListIterator element, GroupContext:
 {
     std::shared_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);
-}
+}*/
 
 std::vector<mv::Shape> mv::OpModel::getInputShapes(Data::OpListIterator& op)
 {
@@ -651,7 +644,12 @@ long long unsigned mv::OpModel::parametersCount() const
 
 }
 
-std::string mv::OpModel::getLogID_() const
+void mv::OpModel::addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr)
+{
+    op->set(name, attr);
+}
+
+std::string mv::OpModel::getLogID() const
 {
     return "OpModel";
 }

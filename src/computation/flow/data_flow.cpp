@@ -2,16 +2,16 @@
 
 mv::DataFlow::DataFlow(const Data::OpListIterator& source, std::size_t outputIdx, const Data::OpListIterator& sink, 
     std::size_t inputIdx, const Data::TensorIterator& data) :
-ComputationFlow("df_" + source->getName() + Printable::toString(outputIdx) + "_" + sink->getName() + Printable::toString(inputIdx)),
+ComputationFlow("df_" + source->getName() + std::to_string(outputIdx) + "_" + sink->getName() + std::to_string(inputIdx)),
 data_(data)
 {
-    addAttr("sourceOp", AttrType::StringType, source->getName());
-    addAttr("sourceOutput", AttrType::ByteType, outputIdx);
-    addAttr("sinkOp", AttrType::StringType, sink->getName());
-    addAttr("sinkInput", AttrType::ByteType, inputIdx);
+    set<std::string>("sourceOp", source->getName());
+    set<std::size_t>("sourceOutput", outputIdx);
+    set<std::string>("sinkOp", sink->getName());
+    set<std::size_t>("sinkInput", inputIdx);
 }
 
-mv::DataFlow::DataFlow(mv::json::Value &value):
+/*mv::DataFlow::DataFlow(mv::json::Value &value):
 ComputationFlow(value)
 {
 
@@ -22,7 +22,7 @@ ComputationFlow(value),
 data_(data)
 {
 
-}
+}*/
 
 mv::Data::TensorIterator& mv::DataFlow::getTensor()
 {
@@ -31,13 +31,13 @@ mv::Data::TensorIterator& mv::DataFlow::getTensor()
 
 std::string mv::DataFlow::toString() const
 {
-    return "data flow '" + name_ + "'\n'tensor': " + data_->getName() + ComputationElement::toString();
+    return "data flow '" + name_ + "'\n'tensor': " + data_->getName() + Element::attrsToString_();
 }
 
-mv::json::Value mv::DataFlow::toJsonValue() const
+/*mv::json::Value mv::DataFlow::toJsonValue() const
 {
     mv::json::Value toReturn = mv::ComputationElement::toJsonValue();
     toReturn["tensor"] = data_->getName();
     //toReturn["type"] = mv::Jsonable::toJsonValue("data_flow");
     return mv::json::Value(toReturn);
-}
+}*/

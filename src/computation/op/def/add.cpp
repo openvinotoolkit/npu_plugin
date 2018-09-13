@@ -4,14 +4,7 @@ mv::op::Add::Add(const std::string& name) :
 ComputationOp(OpType::Add, name),
 EltwiseOp(OpType::Add, name)
 {
-    addAttr("executable", AttrType::BoolType, true);
-}
-
-mv::op::Add::Add(mv::json::Value& obj):
-ComputationOp(obj),
-EltwiseOp(obj)
-{
-
+    set<bool>("executable", true);
 }
 
 bool mv::op::Add::isHardwarizeable(json::Object&)

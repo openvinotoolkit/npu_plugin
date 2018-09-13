@@ -6,13 +6,12 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/model/computation_element.hpp"
+#include "include/mcm/base/element.hpp"
 
 namespace mv
 {
 
-    class ComputationGroup : public ComputationElement
+    /*class ComputationGroup : public ComputationElement
     {
     
     protected:
@@ -33,7 +32,7 @@ namespace mv
         MemberSet::iterator begin();
         MemberSet::iterator end();
         std::size_t size() const;
-        virtual std::string toString() const;
+        virtual std::string toString() const override;
 
         template <class ElementType>
         MemberSet::iterator insert(std::shared_ptr<ElementType> newMember)
@@ -64,7 +63,7 @@ namespace mv
             return members_.end();
         }
         
-    };
+    };*/
 
 }
 

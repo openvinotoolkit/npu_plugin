@@ -20,8 +20,8 @@ namespace mv
         mv::ControlModel cm(*om);
 
         printf("Serialization Warning: Manual Override of Pooling Software layer order\n");
-        this->output->setOrder(Order::RowMajor);
-        this->input->setOrder(Order::RowMajor);
+        this->output->setOrder(OrderType::RowMajor);
+        this->input->setOrder(OrderType::RowMajor);
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
@@ -42,10 +42,10 @@ namespace mv
     bPooling::bPooling(mv::ComputationOp* it)
         :
           Blob_Op_Definition(),
-          kernelRadixX(it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e0),
-          kernelRadixY(it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1),
-          kernelStrideX(it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0),
-          kernelStrideY(it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1),
+          kernelRadixX(it->getAttr("kSize").getContent<mv::std::array<unsigned short, 2>>().e0),
+          kernelRadixY(it->getAttr("kSize").getContent<mv::std::array<unsigned short, 2>>().e1),
+          kernelStrideX(it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e0),
+          kernelStrideY(it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e1),
           kernelPadX(0),
           kernelPadY(0),
           kernelPadStyle(2),

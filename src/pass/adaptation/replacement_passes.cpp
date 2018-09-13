@@ -42,7 +42,7 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
             auto inputShape = sourceTensor->getShape();
 
             Tensor weigthsTensor = *(opIt->getInputTensor(1));
-            weigthsTensor.reorder(Order::RowMajor);
+            weigthsTensor.reorder(OrderType::RowMajor);
 
             auto weights = om.constant(weigthsTensor.getData(), {inputShape[0], inputShape[1], inputShape[2], 
                 opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 

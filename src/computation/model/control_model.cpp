@@ -44,7 +44,7 @@ mv::Control::FlowListIterator mv::ControlModel::flowEnd()
     return *controlFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
+/*mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
 {
     std::shared_ptr<ComputationOp> ptr = element;
     return addGroupElement_(ptr, group);
@@ -101,7 +101,7 @@ bool mv::ControlModel::removeStage(Control::StageIterator &stage)
 bool mv::ControlModel::addToStage(Control::StageIterator &stage, Control::OpListIterator &op)
 {
 
-    /*if (stage != stageEnd())
+    if (stage != stageEnd())
     {
         allocator::owner_ptr<ComputationOp> ptr = op;
         auto result = stage->addElement(ptr);
@@ -110,7 +110,7 @@ bool mv::ControlModel::addToStage(Control::StageIterator &stage, Control::OpList
             return true;
     }
 
-    return false;*/
+    return false;
     Data::OpListIterator it(opsGraph_->get_first_iterator(op));
     return addToStage_(stage, it);
 
@@ -189,7 +189,7 @@ mv::Control::StageMemberIterator mv::ControlModel::stageMemberEnd(Control::Stage
     }
     
     return Control::StageMemberIterator();
-}
+}*/
 
 mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp)
 {
@@ -236,7 +236,7 @@ bool mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
 
 }
 
-std::string mv::ControlModel::getLogID_() const
+std::string mv::ControlModel::getLogID() const
 {
     return "ControlModel";
 }

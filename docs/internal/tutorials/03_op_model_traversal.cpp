@@ -16,24 +16,24 @@ int main()
         In this example a two branched computation graph will be used
     */
     mv::OpModel opModel;
-    auto input = opModel.input({128, 128, 3}, mv::DType::Float, mv::Order::ColumnMajor);
+    auto input = opModel.input({128, 128, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
 
     std::vector<double> conv1WeightsData = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
     std::vector<double> conv2WeightsData = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
     std::vector<double> conv3WeightsData = mv::utils::generateSequence<double>(5u * 5u * 8u * 16u);
     std::vector<double> conv4WeightsData = mv::utils::generateSequence<double>(6u * 6u * 16u * 32u);
 
-    auto conv1WeightsIt = opModel.constant(conv1WeightsData, {3, 3, 3, 8}, mv::DType::Float, mv::Order::ColumnMajor);
+    auto conv1WeightsIt = opModel.constant(conv1WeightsData, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv1It = opModel.conv2D(input, conv1WeightsIt, {2, 2}, {1, 1, 1, 1});
     auto pool1It = opModel.maxpool2D(conv1It, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto conv2WeightsIt = opModel.constant(conv2WeightsData, {3, 3, 3, 8}, mv::DType::Float, mv::Order::ColumnMajor);
+    auto conv2WeightsIt = opModel.constant(conv2WeightsData, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv2It = opModel.conv2D(input, conv2WeightsIt, {2, 2}, {1, 1, 1, 1});
     auto pool2It = opModel.maxpool2D(conv2It, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto addIt = opModel.add(pool1It, pool2It);
-    auto conv3WeightsIt = opModel.constant(conv3WeightsData, {5, 5, 8, 16}, mv::DType::Float, mv::Order::ColumnMajor);
+    auto conv3WeightsIt = opModel.constant(conv3WeightsData, {5, 5, 8, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv3It = opModel.conv2D(addIt, conv3WeightsIt, {2, 2}, {2, 2, 2, 2});
     auto pool3It = opModel.maxpool2D(conv3It, {5, 5}, {3, 3}, {2, 2, 2, 2});
-    auto conv4WeightsIt = opModel.constant(conv4WeightsData, {6, 6, 16, 32}, mv::DType::Float, mv::Order::ColumnMajor);
+    auto conv4WeightsIt = opModel.constant(conv4WeightsData, {6, 6, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv4It = opModel.conv2D(pool3It, conv4WeightsIt, {1, 1}, {0, 0, 0, 0});
     opModel.output(conv4It);
 

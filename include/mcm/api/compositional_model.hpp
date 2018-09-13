@@ -1,7 +1,6 @@
 #ifndef MV_COMPOSITIONAL_MODEL_HPP_
 #define MV_COMPOSITIONAL_MODEL_HPP_
 
-#include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 
 namespace mv
@@ -22,16 +21,16 @@ namespace mv
             Order order, const std::string& name = "") = 0;
 
         virtual Data::TensorIterator conv2D(Data::TensorIterator input, Data::TensorIterator filters, 
-            UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name = "") = 0;
+            std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") = 0;
 
         virtual Data::TensorIterator matMul(Data::TensorIterator input0, Data::TensorIterator input1, 
             const std::string& name = "") = 0;
 
-        virtual Data::TensorIterator maxpool2D(Data::TensorIterator input, UnsignedVector2D kernelSize,
-             UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name = "") = 0;
+        virtual Data::TensorIterator maxpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize,
+             std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") = 0;
 
-        virtual Data::TensorIterator avgpool2D(Data::TensorIterator input, UnsignedVector2D kernelSize,
-             UnsignedVector2D stride, UnsignedVector4D padding, const std::string& name = "") = 0;
+        virtual Data::TensorIterator avgpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize,
+             std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") = 0;
 
         virtual Data::TensorIterator concat(Data::TensorIterator input0, Data::TensorIterator input1, 
             const std::string& name = "") = 0;
@@ -70,7 +69,7 @@ namespace mv
 
         virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;
 
-        virtual bool addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) = 0;
+        virtual void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) = 0;
         
         virtual bool isValid() const = 0;
         virtual bool isValid(const Data::TensorIterator& it) const = 0;

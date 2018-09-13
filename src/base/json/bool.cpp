@@ -11,6 +11,16 @@ mv::json::Bool::operator bool&()
     return value_;
 }
 
+bool mv::json::Bool::operator==(const Bool& other) const
+{
+    return value_ == other.value_;
+}
+
+bool mv::json::Bool::operator!=(const Bool& other) const
+{
+    return !operator==(other);
+}
+
 std::string mv::json::Bool::stringify() const
 {
     if (value_)
@@ -22,4 +32,9 @@ std::string mv::json::Bool::stringify() const
 std::string mv::json::Bool::stringifyPretty() const
 {
     return stringify();
+}
+
+std::string mv::json::Bool::getLogID() const
+{
+    return "json::Bool ("+ stringify() + ")";
 }

@@ -3,16 +3,16 @@
 
 #include <map>
 #include <vector>
-#include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
-#include "include/mcm/base/order/order_factory.hpp"
+#include "include/mcm/tensor/order.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
 
-    class MemoryAllocator : public Printable, public Jsonable, public LogSender
+    class MemoryAllocator : public Printable, public LogSender
     {
 
     public:
@@ -101,7 +101,7 @@ namespace mv
         /**
          * @brief Order of 1-dimensional representations of multidimensional tensors allocated by the allocator
          */
-        std::unique_ptr<OrderClass> order_;
+        Order order_;
 
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
@@ -111,10 +111,6 @@ namespace mv
         using BufferIterator = std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>::iterator;
 
         void placeBuffers_(unsigned stageIdx, BufferIterator first, BufferIterator last);
-
-    protected:
-
-        virtual std::string getLogID_() const override;
 
     public:
 
@@ -131,7 +127,7 @@ namespace mv
             size_t right_pad = strides.back();
             strides.pop_back();
             size_t left_pad = 0; //No real reason to allocate any left pad at the moment
-            size_t block = s[order_->firstContiguousDimensionIndex(s)];
+            size_t block = s[order_.firstContiguousDimensionIndex(s)];
             size_t offset = 0;
             size_t size = s.totalSize();
             size_t block_num = size / block;
@@ -153,22 +149,23 @@ namespace mv
         void deallocateAll(std::size_t stageIdx);
         long long unsigned freeSpace(std::size_t stageIdx) const;
         long long unsigned usedSpace(std::size_t stageIdx) const;
-        std::string toString() const;
-        mv::json::Value toJsonValue() const;
+        std::string toString() const override;
+        //mv::json::Value toJSON() const override;
         BufferIterator bufferBegin(std::size_t stageIdx);
         BufferIterator bufferEnd(std::size_t stageIdx);
         BufferIterator getBuffer(std::size_t stageIdx, Data::TensorIterator tensor);
-
+        virtual std::string getLogID() const override; 
+        
         template <typename VecType1, typename VecType2>
         long writeStrides(const VecType1& p, const mv::Shape& s, VecType2& strides)
         {
-            return recursiveWriteStrides(order_->lastContiguousDimensionIndex(s), s, p, strides);
+            return recursiveWriteStrides(order_.lastContiguousDimensionIndex(s), s, p, strides);
         }
 
         template <typename VecType1, typename VecType2>
         long recursiveWriteStrides(unsigned i, const mv::Shape& d, const VecType1& p, VecType2& strides)
         {
-            if(order_->isFirstContiguousDimensionIndex(d, i))
+            if(order_.isFirstContiguousDimensionIndex(d, i))
             {
                 strides.push_back(p[i]);
                 return p[i] + d[i];
@@ -178,7 +175,7 @@ namespace mv
                 long new_stride;
                 for(unsigned c = 0; c < d[i]; ++c)
                 {
-                    unsigned next_dim_index = order_->previousContiguousDimensionIndex(d, i);
+                    unsigned next_dim_index = order_.previousContiguousDimensionIndex(d, i);
                     new_stride = recursiveWriteStrides(next_dim_index, d, p, strides);
                 }
                 //Last stride should be joined (stride definition -> only between two blocks)

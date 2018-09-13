@@ -10,6 +10,6 @@ std::runtime_error(whatArg)
 mv::pass::PassRegistry& mv::pass::PassRegistry::instance()
 {
     
-    return static_cast<PassRegistry&>(Registry<PassEntry>::instance());
+    return static_cast<PassRegistry&>(Registry<std::string, PassEntry>::instance());
 
 }

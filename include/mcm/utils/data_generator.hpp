@@ -2,7 +2,6 @@
 #define DATA_GENERATOR_HPP_
 
 #include <vector>
-#include "include/mcm/computation/model/types.hpp"
 
 namespace mv
 {

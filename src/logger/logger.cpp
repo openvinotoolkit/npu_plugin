@@ -1,4 +1,5 @@
 #include "include/mcm/logger/logger.hpp"
+#include "include/mcm/base/printable.hpp"
 
 std::string mv::Logger::getTime_() const
 {
@@ -64,7 +65,7 @@ mv::Logger& mv::Logger::instance()
 }
 
 mv::Logger::Logger() : 
-verboseLevel_(VerboseLevel::VerboseInfo), 
+verboseLevel_(VerboseLevel::VerboseError), 
 logTime_(false)
 {
     if (logTime_)

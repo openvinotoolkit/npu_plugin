@@ -19,8 +19,8 @@ TEST(target_descriptor, compose)
     mv::TargetDescriptor desc;
     
     desc.setTarget(mv::Target::ma2480);
-    desc.setDType(mv::DType::Float);
-    desc.setOrder(mv::Order::ColumnMajor);
+    desc.setDType(mv::DTypeType::Float16);
+    desc.setOrder(mv::OrderType::ColumnMajor);
 
     desc.appendAdaptPass("adaptPass1");
     desc.appendAdaptPass("adaptPass2", 0);
@@ -33,8 +33,8 @@ TEST(target_descriptor, compose)
     desc.defineOp(mv::OpType::Conv2D);
 
     ASSERT_EQ(desc.getTarget(), mv::Target::ma2480);
-    ASSERT_EQ(desc.getDType(), mv::DType::Float);
-    ASSERT_EQ(desc.getOrder(), mv::Order::ColumnMajor);
+    ASSERT_EQ(desc.getDType(), mv::DTypeType::Float16);
+    ASSERT_EQ(desc.getOrder(), mv::OrderType::ColumnMajor);
 
     ASSERT_EQ(desc.adaptPassesCount(), 2);
     ASSERT_EQ(desc.optPassesCount(), 1);

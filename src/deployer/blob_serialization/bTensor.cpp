@@ -220,8 +220,9 @@ namespace mv
         // }
         striding_axis = 1;
 
-        switch((*t)->getOrder()){
-            case Order::RowMajor:
+        switch((*t)->getOrder())
+        {
+            case OrderType::RowMajor:
                 // UPA Shave
                 this->order = 0;
                 // printf("ROW MAJOR\n");
@@ -229,7 +230,7 @@ namespace mv
                 this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 break;
-            case Order::RowMajorPlanar: // Column Major
+            case OrderType::RowMajorPlanar: // Column Major
                 // NCE1 - Option 1
                 // printf("PLANAR\n");
                 this->order = 1;
@@ -237,7 +238,7 @@ namespace mv
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimY*this->strideY;
                 break;
-            case Order::ColumnMajor:    //
+            case OrderType::ColumnMajor:    //
                 // NCE1 - Option 2
                 // printf("Column MAJOR\n");
                 this->order = 2;
@@ -245,12 +246,12 @@ namespace mv
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 break;
-            case Order::TBDLayout:      // Row Major
+            /*case Order::TBDLayout:      // Row Major
                 this->order = 3;
                 this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
                 this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
                 this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimY*this->strideY;
-                break;
+                break;*/
 
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;

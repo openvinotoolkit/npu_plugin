@@ -5,19 +5,19 @@ ComputationOp(OpType::Input, name),
 SourceOp(OpType::Input, 1, name)
 {
 
-    addAttr("shape", AttrType::ShapeType, outputShape);
-    addAttr("dType", AttrType::DTypeType, dType);
-    addAttr("order", AttrType::OrderType, order);
-    addAttr("executable", AttrType::BoolType, false);
+    set<Shape>("shape", outputShape);
+    set<DType>("dType", dType);
+    set<Order>("order", order);
+    set<bool>("executable", false);
 
 }
 
-mv::op::Input::Input(mv::json::Value& obj) :
+/*mv::op::Input::Input(mv::json::Value& obj) :
 ComputationOp(obj),
 SourceOp(obj)
 {
 
-}
+}*/
 
 bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, std::size_t idx)
 {
@@ -30,12 +30,12 @@ bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, std::size_t id
 mv::Tensor mv::op::Input::getOutputDef(std::size_t idx)
 {
 
-    if (idx > 0)
-        return Tensor();
+    /*if (idx > 0)
+        return Tensor();*/
 
-    auto outputShape = getAttr("shape").getContent<Shape>();
-    auto dType = getAttr("dType").getContent<DType>();
-    auto order = getAttr("order").getContent<Order>();
+    auto outputShape = get<Shape>("shape");
+    auto dType = get<DType>("dType");
+    auto order = get<Order>("order");
     return Tensor(name_ + ":0", outputShape, dType, order);
 
 }

@@ -51,16 +51,16 @@ import_array();
         return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
 
-    mv::UnsignedVector2D * get2DVector(int x, int y){
-        mv::UnsignedVector2D *a = new mv::UnsignedVector2D();
+    mv::std::array<unsigned short, 2> * get2DVector(int x, int y){
+        mv::std::array<unsigned short, 2> *a = new mv::std::array<unsigned short, 2>();
         a->e0 = x;
         a->e1 = y;
         return a;
     }
 
 
-    mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z){
-        mv::UnsignedVector4D *a = new mv::UnsignedVector4D();
+    mv::std::array<unsigned short, 4> * get4DVector(int w, int x, int y, int z){
+        mv::std::array<unsigned short, 4> *a = new mv::std::array<unsigned short, 4>();
         a->e0 = w;
         a->e1 = x;
         a->e2 = y;
@@ -108,8 +108,8 @@ import_array();
         /// A couple of simple checks to ensure we have loaded the items correctly.
 
         int ret_val = 0;    // Success
-        mv::UnsignedVector2D stride = target->getAttr("stride").getContent<mv::UnsignedVector2D>();
-        mv::UnsignedVector4D pad = target->getAttr("padding").getContent<mv::UnsignedVector4D>();
+        mv::std::array<unsigned short, 2> stride = target->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>();
+        mv::std::array<unsigned short, 4> pad = target->getAttr("padding").getContent<mv::std::array<unsigned short, 4>>();
         if(stride.e0 != exp_strideX)
             ret_val = 1;
         if(stride.e1 != exp_strideY)
@@ -125,7 +125,7 @@ import_array();
 
     mv::Data::TensorIterator input(mv::OpModel *o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o->input(shape, mv::DType::Float, mv::Order::RowMajorPlanar);
+        return o->input(shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     }
 
     mv::Data::TensorIterator output(mv::OpModel *o, mv::Data::TensorIterator input){
@@ -209,7 +209,7 @@ import_array();
 
     mv::Data::TensorIterator constant(mv::OpModel *o, const std::vector<double>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the OpModel and return the relevant iterator
-        return o->constant(data, shape, mv::DType::Float, mv::Order::RowMajorPlanar);
+        return o->constant(data, shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     }
 
     mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor){
@@ -221,7 +221,7 @@ import_array();
         return o->matMul(input, weights);
     }
 
-    mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding){
+    mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::std::array<unsigned short, 2> kernelSize, mv::std::array<unsigned short, 2> stride, mv::std::array<unsigned short, 4> padding){
         return o->avgpool2D(input, kernelSize, stride, padding);
     }
 
@@ -344,8 +344,8 @@ mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
 mv::Shape * getShape(int b, int x, int y, int z);
-mv::UnsignedVector2D * get2DVector(int x, int y);
-mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z);
+mv::std::array<unsigned short, 2> * get2DVector(int x, int y);
+mv::std::array<unsigned short, 4> * get4DVector(int w, int x, int y, int z);
 
 // Expand a numpy array to a data pointer and a length
 %include "stdint.i"
@@ -369,7 +369,7 @@ mv::Data::TensorIterator concat(mv::OpModel * o, mv::Data::TensorIterator input0
 mv::Data::OpListIterator getSourceOp(mv::OpModel *o, mv::Data::TensorIterator tensor);
 
 mv::Data::TensorIterator matMul(mv::OpModel *o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
-mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding);
+mv::Data::TensorIterator avgpool2D(mv::OpModel *o, mv::Data::TensorIterator input, mv::std::array<unsigned short, 2> kernelSize, mv::std::array<unsigned short, 2> stride, mv::std::array<unsigned short, 4> padding);
 mv::Data::TensorIterator batchNorm(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 mv::Data::TensorIterator scale(mv::OpModel *o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
 mv::Data::TensorIterator relu(mv::OpModel *o,mv::Data::TensorIterator input);

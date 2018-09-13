@@ -7,7 +7,7 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/base/json/json.hpp"
-#include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm//log_sender.hpp"
 
 namespace mv
 {

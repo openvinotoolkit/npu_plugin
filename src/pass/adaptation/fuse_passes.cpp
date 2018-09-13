@@ -184,8 +184,8 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         {
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            Attribute reluAttr(AttrType::OpTypeType, OpType::ReLU);
-            om.addAttr(parentOpIt, "postOpType", reluAttr);
+            /*Attribute reluAttr(AttrType::OpTypeType, OpType::ReLU);
+            om.addAttr(parentOpIt, "postOpType", reluAttr);*/
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 

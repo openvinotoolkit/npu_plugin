@@ -451,18 +451,6 @@ bool mv::PassManager::validDescriptors() const
         return false;
     }
 
-    if (targetDescriptor_.getDType() == DType::Unknown)
-    {
-        log(Logger::MessageType::MessageError, "Target descriptor has an undefined global data type");
-        return false;
-    }
-
-    if (targetDescriptor_.getOrder() == Order::Unknown)
-    {
-        log(Logger::MessageType::MessageError, "Target descriptor has an undefined global data order");
-        return false;
-    }
-
     auto checkStage = [this](const std::vector<std::string>& queue)
     {
 

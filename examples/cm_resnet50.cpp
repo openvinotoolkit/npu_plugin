@@ -31,28 +31,28 @@
  * @param padding Padding of conv2D
  * @return mv::Data::TensorIterator Iterator referencing the created batchnorm output 
  */
-mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding)
+mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::std::array<unsigned short, 2> stride, mv::std::array<unsigned short, 4> padding)
 {
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DType::Float, mv::Order::RowMajorPlanar);
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto conv = model.conv2D(input, weights, stride, padding);
 
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     std::vector<double> bnScaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DType::Float, mv::Order::RowMajorPlanar);
+    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto bnScale = model.scale(conv, bnScaleParam);
     
     std::vector<double> bnOffsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DType::Float, mv::Order::RowMajorPlanar);
+    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto bnOffset = model.bias(bnScale, bnOffsetParam);
     
     std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DType::Float, mv::Order::RowMajorPlanar);
+    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto scale = model.scale(bnOffset, scaleParam);
     
     std::vector<double> biasData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DType::Float, mv::Order::RowMajorPlanar);
+    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     return model.bias(scale, biasParam);
 
 }
@@ -89,7 +89,7 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
  * @return mv::Data::TensorIterator Iterator referencing the created residual block output
  */
 mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned intermediateDepth,
-    unsigned outputDepth, mv::UnsignedVector2D stride)
+    unsigned outputDepth, mv::std::array<unsigned short, 2> stride)
 {
 
     auto inputShape = input->getShape();
@@ -115,7 +115,7 @@ int main()
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet50
-    auto input = cm.input({224, 224, 3}, mv::DType::Float, mv::Order::RowMajorPlanar);
+    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -137,7 +137,7 @@ int main()
     auto res5c = residualBlock(cm, res5b, 512);
     auto pool5 = cm.avgpool2D(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
     std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DType::Float, mv::Order::RowMajorPlanar);
+    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto fc1000 = cm.fullyConnected(pool5, weights);
     auto softmax = cm.softmax(fc1000);
     cm.output(softmax);

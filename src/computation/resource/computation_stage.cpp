@@ -1,6 +1,6 @@
 #include "include/mcm/computation/resource/computation_stage.hpp"
 
-bool mv::ComputationStage::markMembmer_(ComputationElement &member)
+/*bool mv::ComputationStage::markMembmer_(ComputationElement &member)
 {
     if (member.hasAttr("opType"))
     {
@@ -79,3 +79,4 @@ std::string mv::ComputationStage::getLogID_() const
 {
     return "Stage " + Printable::toString(idx_);
 }
+*/

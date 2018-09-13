@@ -21,6 +21,10 @@ namespace mv
             explicit operator double&() override;
             std::string stringify() const override;
             std::string stringifyPretty() const override;
+            bool operator==(const NumberFloat& other) const;
+            bool operator!=(const NumberFloat& other) const;
+
+            virtual std::string getLogID() const;
 
         };  
 

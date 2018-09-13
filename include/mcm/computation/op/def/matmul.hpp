@@ -21,7 +21,7 @@ namespace mv
             MatMul(mv::json::Value &obj);
 
             Tensor getOutputDef(std::size_t idx);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

@@ -17,6 +17,12 @@ elements_(l)
 
 }
 
+mv::json::Array::Array(std::size_t s) :
+elements_(s)
+{
+
+}
+
 mv::json::Array::Array(const Array& other) :
 elements_(other.elements_)
 {
@@ -29,7 +35,7 @@ void mv::json::Array::append(const Value& value)
     elements_.push_back(value);
 }
 
-void mv::json::Array::erase(unsigned idx)
+void mv::json::Array::erase(std::size_t idx)
 {
     elements_.erase(elements_.begin() + idx);
 }
@@ -120,13 +126,21 @@ std::string mv::json::Array::stringifyPretty() const
 
 }
 
-mv::json::Value& mv::json::Array::operator[](unsigned idx)
+mv::json::Value& mv::json::Array::operator[](std::size_t idx)
 {
 
     if (idx >= size())
-    {
-        throw IndexError("Index out of range");
-    }
+        throw IndexError(*this, idx, "Out of range");
+
+    return elements_[idx];
+
+}
+
+const mv::json::Value& mv::json::Array::operator[](std::size_t idx) const
+{
+
+    if (idx >= size())
+        throw IndexError(*this, idx, "Out of range");
 
     return elements_[idx];
 
@@ -137,7 +151,7 @@ mv::json::Value& mv::json::Array::last()
 
     if (size() == 0)
     {
-        throw IndexError("Index out of range");
+        throw ValueError(*this, "Cannot access the last element of an empty array");
     }
 
     return elements_[size() - 1];
@@ -148,4 +162,32 @@ mv::json::Array& mv::json::Array::operator=(const Array& other)
 {
     elements_ = other.elements_;
     return *this;
+}
+
+bool mv::json::Array::operator==(const Array& other) const
+{
+    
+    if (size() != other.size())
+        return false;
+
+    auto e1 = elements_.begin();
+    for (auto e2 = other.elements_.begin(); e2 != other.elements_.end(); ++e2)
+    {
+        if (*e1 != *e2)
+            return false;
+        ++e1;
+    }
+
+    return true;
+
+}
+
+bool mv::json::Array::operator!=(const Array& other) const
+{
+    return !operator==(other);
+}
+
+std::string mv::json::Array::getLogID() const
+{
+    return "json::Array (size " + std::to_string(size()) + ")";
 }

@@ -19,8 +19,8 @@ namespace mv
         mv::ControlModel cm(*om);
 
         printf("Serialization Warning: Manual Override of Pooling Software layer order\n");
-        this->output->setOrder(Order::RowMajor);
-        this->input->setOrder(Order::RowMajor);
+        this->output->setOrder(OrderType::RowMajor);
+        this->input->setOrder(OrderType::RowMajor);
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);

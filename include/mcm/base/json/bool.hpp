@@ -20,6 +20,10 @@ namespace mv
             explicit operator bool&() override;
             std::string stringify() const override;
             std::string stringifyPretty() const override;
+            bool operator==(const Bool& other) const;
+            bool operator!=(const Bool& other) const;
+
+            virtual std::string getLogID() const;
 
         }; 
         

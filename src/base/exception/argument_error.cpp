@@ -1,20 +1,8 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 
-mv::ArgumentError::ArgumentError(const std::string& argName, const std::string& argVal,
+mv::ArgumentError::ArgumentError(const LogSender& sender, const std::string& argName, const std::string& argVal,
     const std::string& whatArg) :
-std::runtime_error("Invalid argument " + argName + " " + argVal + " - " + whatArg),
-argName_(argName),
-argVal_(argVal)
+LoggedError(sender, "ArgumentError: " + argName + " " + argVal + " - " + whatArg)
 {
 
-}
-
-const std::string& mv::ArgumentError::getArgName() const
-{
-    return argName_;
-}
-
-const std::string& mv::ArgumentError::getArgVal() const
-{
-    return argVal_;
 }

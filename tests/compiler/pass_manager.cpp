@@ -120,7 +120,7 @@ TEST(pass_manager, invalid_execution)
 
     setPassReg();
     mv::OpModel model;
-    auto input = model.input({1}, mv::DType::Unknown, mv::Order::ColumnMajor);
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     model.output(input);
 
     mv::PassManager pm;
@@ -136,8 +136,8 @@ TEST(pass_manager, invalid_execution)
     ASSERT_ANY_THROW(pm.step());
 
     targetDesc.setTarget(mv::Target::ma2480);
-    targetDesc.setDType(mv::DType::Float);
-    targetDesc.setOrder(mv::Order::ColumnMajor);
+    targetDesc.setDType(mv::DTypeType::Float16);
+    targetDesc.setOrder(mv::OrderType::ColumnMajor);
     pm.initialize(model, targetDesc, compDesc);
     pm.enablePass(mv::PassGenre::Adaptation, "__TEST_PassWithArg");
     ASSERT_TRUE(pm.ready());
@@ -158,7 +158,7 @@ TEST(pass_manager, execution)
 
     setPassReg();
     mv::OpModel model;
-    auto input = model.input({1}, mv::DType::Unknown, mv::Order::ColumnMajor);
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     model.output(input);
 
     mv::PassManager pm;
@@ -166,8 +166,8 @@ TEST(pass_manager, execution)
     mv::TargetDescriptor targetDesc;
     mv::json::Object compDesc;
     targetDesc.setTarget(mv::Target::ma2480);
-    targetDesc.setDType(mv::DType::Float);
-    targetDesc.setOrder(mv::Order::ColumnMajor);
+    targetDesc.setDType(mv::DTypeType::Float16);
+    targetDesc.setOrder(mv::OrderType::ColumnMajor);
     targetDesc.appendAdaptPass("__TEST_AdaptPass1");
     targetDesc.appendAdaptPass("__TEST_AdaptPass2");
     targetDesc.appendOptPass("__TEST_OptPass1");

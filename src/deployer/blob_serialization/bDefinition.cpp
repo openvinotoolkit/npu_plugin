@@ -15,7 +15,7 @@ namespace mv
         // Number of Inputs
 
         this->number_of_inputs = -1;
-        switch(o)
+        switch((unsigned short)o)
         {
             case OpType::Add:
             case OpType::Multiply:
@@ -36,7 +36,7 @@ namespace mv
                 this->number_of_inputs = 0;
                 break;
             default:
-                printf("No Entry in 'numberOfInputs' for OpType #%i\n", (int)o);
+                printf("No Entry in 'numberOfInputs' for OpType #%i\n", (unsigned short)o);
                 assert(0);
         }
     }

@@ -12,6 +12,8 @@
 #include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/op/ops_register.hpp"
 #include "include/mcm/base/printable.hpp"
+#include "include/mcm/computation/tensor/order.hpp"
+#include "include/mcm/computation/tensor/dtype.hpp"
 
 namespace mv
 {
@@ -35,9 +37,7 @@ namespace mv
 
         static std::string toString(Target target);
         static Target toTarget(const std::string& str);
-        static DType toDType(const std::string& str);
         static OpType toOpType(const std::string str);
-        static Order toOrder(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
         Target target_;

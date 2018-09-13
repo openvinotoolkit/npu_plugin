@@ -19,7 +19,7 @@ namespace mv
 
             bool setOutputTensor(Data::TensorIterator &tensor, std::size_t idx);
             Tensor getOutputDef(std::size_t idx);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

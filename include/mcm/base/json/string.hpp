@@ -18,8 +18,12 @@ namespace mv
 
             String(const std::string& value);
             explicit operator std::string&() override;
+            bool operator==(const String& other) const;
+            bool operator!=(const String& other) const;
             std::string stringify() const override;
             std::string stringifyPretty() const override;
+
+            virtual std::string getLogID() const;
 
         }; 
         

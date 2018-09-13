@@ -4,15 +4,15 @@ mv::op::Multiply::Multiply(const std::string &name) :
 ComputationOp(OpType::Multiply, name),
 EltwiseOp(OpType::Multiply, name)
 {
-    addAttr("executable", AttrType::BoolType, true);
+    set<bool>("executable", true);
 }
 
-mv::op::Multiply::Multiply(mv::json::Value& obj) :
+/*mv::op::Multiply::Multiply(mv::json::Value& obj) :
 ComputationOp(obj),
 EltwiseOp(obj)
 {
 
-}
+}*/
 
 bool mv::op::Multiply::isHardwarizeable(json::Object&)
 {

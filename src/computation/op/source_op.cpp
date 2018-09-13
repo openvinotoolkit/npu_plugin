@@ -4,12 +4,12 @@ mv::SourceOp::SourceOp(OpType opType, std::size_t outputsCount, const std::strin
 ComputationOp(opType, name),
 outputs_(outputsCount, Data::TensorIterator())
 {
-    addAttr("outputs", AttrType::ByteType, outputsCount);
+    set<unsigned short>("outputs", outputsCount);
 }
 
 mv::SourceOp::SourceOp(mv::json::Value& value) :
 ComputationOp(value),
-outputs_(getAttr("outputs").getContent<std::size_t>(), Data::TensorIterator())
+outputs_(get<unsigned short>("outputs"), Data::TensorIterator())
 {
     //Tensors cannot be filled here
 }
@@ -22,12 +22,12 @@ mv::SourceOp::~SourceOp()
 bool mv::SourceOp::setOutputTensor(Data::TensorIterator &tensor, std::size_t idx)
 {
     
-    if (idx >= getAttr("outputs").getContent<std::size_t>())
+    if (idx >= get<unsigned short>("outputs"))
         return false;   
     
     outputs_[idx] = tensor;
-    addAttr("output" + Printable::toString(idx), AttrType::StringType, tensor->getName());
-    log(Logger::MessageType::MessageDebug, "Set output " + Printable::toString(idx) + " for " + toString() + " as " + tensor->toString());
+    set<std::string>("output" + std::to_string(idx), tensor->getName());
+    log(Logger::MessageType::MessageDebug, "Set output " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
     return true;
 
 }
@@ -35,7 +35,7 @@ bool mv::SourceOp::setOutputTensor(Data::TensorIterator &tensor, std::size_t idx
 mv::Data::TensorIterator mv::SourceOp::getOutputTensor(std::size_t idx)
 {
 
-    if (idx >= getAttr("outputs").getContent<std::size_t>())
+    if (idx >= get<unsigned short>("outputs"))
         return Data::TensorIterator();
 
     return outputs_[idx];

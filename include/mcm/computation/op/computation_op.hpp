@@ -2,24 +2,23 @@
 #define COMPUTATION_OP_HPP_
 
 #include <string>
-#include "include/mcm/computation/model/computation_element.hpp"
-#include "include/mcm/computation/tensor/shape.hpp"
-#include "include/mcm/computation/tensor/tensor.hpp"
-#include "include/mcm/computation/op/ops_register.hpp"
+#include "include/mcm/base/element.hpp"
+#include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/tensor/tensor.hpp"
+#include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 
 namespace mv
 {
 
-    class ComputationOp : public ComputationElement
+    class ComputationOp : public Element
     {
 
         OpType opType_;
 
     protected:
 
-        bool validOutputDef_();
-        virtual std::string getLogID_() const override;
+        void validOutputDef_(std::size_t idx);
 
     public:
 
@@ -28,7 +27,7 @@ namespace mv
         virtual ~ComputationOp() = 0;
 
         OpType getOpType() const;
-        std::string toString() const;
+        std::string toString() const override;
 
         virtual bool setInputTensor(Data::TensorIterator& tensor, std::size_t idx);
         virtual bool setOutputTensor(Data::TensorIterator& tensor, std::size_t idx);
@@ -42,6 +41,7 @@ namespace mv
         bool isExecutable() const;
         virtual bool isHardwarizeable(mv::json::Object& TargetDescriptor) = 0;
         bool operator==(const ComputationOp &other) const;
+        virtual std::string getLogID() const override;
 
     };
 

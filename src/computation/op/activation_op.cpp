@@ -24,11 +24,11 @@ mv::ActivationOp::~ActivationOp()
 mv::Tensor mv::ActivationOp::getOutputDef(std::size_t idx)
 {
 
-    if (idx > 0)
+    /*if (idx > 0)
         return Tensor();
 
     if (!validOutputDef_())
-        return Tensor();
+        return Tensor();*/
 
     auto input = getInputTensor(0);
 

@@ -11,7 +11,6 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 file(GLOB base_src
     "base/*.cpp"
-    "base/order/*.cpp"
 )
 
 file(GLOB op_src
@@ -38,24 +37,25 @@ file(GLOB resources
     "resources/*.cpp"
 )
 
-file(GLOB order
-    "order/*.cpp"
+file(GLOB tensor
+    "tensor/*.cpp"
 )
 
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     ${graph_src}
-    ${resources}
-    ${order}
+    #${resources}
     ${base_src}
-    ${op_src}
-    ${pass_src}
-    ${compiler_src}
+    ${tensor}
+    #${op_src}
+    #${pass_src}
+    #${compiler_src}
     ${model_src}
 )
 
 target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})
+target_sources(mcm_unit_tests PUBLIC ${logger} ${base})
+#target_sources(mcm_unit_tests PUBLIC ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")

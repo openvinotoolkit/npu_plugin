@@ -2,6 +2,7 @@
 #define MV_JSON_DETAIL_VALUE_CONTENT_HPP_
 
 #include "include/mcm/base/exception/value_error.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
@@ -15,7 +16,7 @@ namespace mv
         namespace detail
         {
 
-            class ValueContent
+            class ValueContent : public LogSender
             {
 
             public:
@@ -29,6 +30,8 @@ namespace mv
                 virtual explicit operator bool&();
                 virtual explicit operator Object&();
                 virtual explicit operator Array&();
+
+                virtual std::string getLogID() const = 0;
 
             };  
 

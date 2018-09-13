@@ -1,17 +1,11 @@
 #include "include/mcm/computation/op/computation_op.hpp"
 
 mv::ComputationOp::ComputationOp(OpType opType, const std::string &name) :
-ComputationElement(name),
+Element(name),
 opType_(opType)
 {
     log(Logger::MessageType::MessageDebug, "Defined");
-    addAttr("opType", mv::AttrType::OpTypeType, opType);   
-}
-
-mv::ComputationOp::ComputationOp(mv::json::Value& value) :
-ComputationElement(value)
-{
-
+    //addAttr("opType", mv::AttrType::OpTypeType, opType);   
 }
 
 mv::ComputationOp::~ComputationOp()
@@ -19,16 +13,14 @@ mv::ComputationOp::~ComputationOp()
 
 }
 
-bool mv::ComputationOp::validOutputDef_()
+void mv::ComputationOp::validOutputDef_(std::size_t idx)
 {
 
     if (!hasInputDef())
-    {
-        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + "' because of undefined input/inputs");
-        return false;
-    }
+        throw(OpError(*this, "Unable to determine the output tensor while inputs are undefined"));
 
-    return true;
+    if (idx > 0)
+        throw(IndexError(*this, idx, "Exceeds the number of outputs defined for this op type"));
 
 }
 
@@ -39,7 +31,7 @@ mv::OpType mv::ComputationOp::getOpType() const
 
 std::string mv::ComputationOp::toString() const
 {
-    return "op " + Printable::toString(getOpType()) + " '" + name_ + "' " + ComputationElement::toString();
+    return "op " + getOpType().toString() + " '" + name_ + "' " + Element::attrsToString_();
 }
 
 mv::Data::TensorIterator mv::ComputationOp::getInputTensor(std::size_t)
@@ -89,10 +81,10 @@ bool mv::ComputationOp::operator==(const ComputationOp &other) const
 
 bool mv::ComputationOp::isExecutable() const
 {
-    return getAttr("executable").getContent<bool>();
+    return get<bool>("executable");
 }
 
-std::string mv::ComputationOp::getLogID_() const
+std::string mv::ComputationOp::getLogID() const
 {
-    return "Op " + Printable::toString(getOpType()) + " '" + getName() + "'";
+    return "Op " + getOpType().toString() + " '" + getName() + "'";
 }

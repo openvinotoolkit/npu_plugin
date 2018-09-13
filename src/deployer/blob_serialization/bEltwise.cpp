@@ -20,9 +20,9 @@ namespace mv
         mv::ControlModel cm(*om);
 
         printf("Serialization Warning: Manual Override of bEltwise Software layer order\n");
-        this->output->setOrder(Order::RowMajor);
-        this->input0->setOrder(Order::RowMajor);
-        this->input1->setOrder(Order::RowMajor);
+        this->output->setOrder(OrderType::RowMajor);
+        this->input0->setOrder(OrderType::RowMajor);
+        this->input1->setOrder(OrderType::RowMajor);
 
         Blob_Tensor input0BlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input0);
         Blob_Tensor input1BlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input1);

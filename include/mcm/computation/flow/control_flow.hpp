@@ -14,7 +14,7 @@ namespace mv
     public:
 
         ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink);
-        ControlFlow(mv::json::Value& value);
+        //ControlFlow(mv::json::Value& value);
         std::string toString() const;
         json::Value toJsonValue() const;
     };

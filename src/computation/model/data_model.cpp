@@ -43,7 +43,7 @@ mv::Data::FlowListIterator mv::DataModel::flowEnd()
     return *dataFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
+/*mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
 {
     std::shared_ptr<DataFlow> ptr = element;
     return addGroupElement_(ptr, group);
@@ -53,7 +53,7 @@ bool mv::DataModel::removeGroupElement(Data::FlowListIterator& element, GroupCon
 {
     std::shared_ptr<DataFlow> ptr = element;
     return removeGroupElement_(ptr, group);
-}
+}*/
 
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order)
 {
@@ -134,7 +134,7 @@ bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, Orde
     return false;
 }
 
-mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& allocatorName, Control::StageIterator& stage,
+/*mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& allocatorName, Control::StageIterator& stage,
     Data::TensorIterator& tensor, std::vector<size_t> pad)
 {
 
@@ -216,14 +216,9 @@ bool mv::DataModel::hasAllocator(const std::string& name)
 
     return false;
 
-}
+}*/
 
-bool mv::DataModel::addAttr(Data::TensorIterator tensor, const std::string& name, const Attribute& attr)
-{
-    return tensor->addAttr(name, attr);
-}
-
-std::string mv::DataModel::getLogID_() const
+std::string mv::DataModel::getLogID() const
 {
     return "DataModel";
 }

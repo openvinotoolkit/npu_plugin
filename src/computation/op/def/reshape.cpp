@@ -5,37 +5,37 @@ ComputationOp(OpType::Reshape, name),
 SourceOp(OpType::Reshape, 1, name),
 SinkOp(OpType::Reshape, 1, name)
 {
-    addAttr("shape", AttrType::ShapeType, outputShape);
-    addAttr("executable", AttrType::BoolType, true);
+    set<Shape>("shape", outputShape);
+    set<bool>("executable", true);
 }
 
-mv::op::Reshape::Reshape(mv::json::Value& obj) :
+/*mv::op::Reshape::Reshape(mv::json::Value& obj) :
 ComputationOp(obj),
 SourceOp(obj),
 SinkOp(obj)
 {
 
-}
+}*/
 
 mv::Tensor mv::op::Reshape::getOutputDef(std::size_t idx)
 {
     
-    if (idx > 0)
+    /*if (idx > 0)
         return Tensor();
 
     if (!validOutputDef_())
-        return Tensor();
+        return Tensor();*/
 
     auto input = getInputTensor(0);
     auto inputShape = input->getShape();
-    auto outputShape = getAttr("shape").getContent<Shape>();
+    auto outputShape = get<Shape>("shape");
 
     if (inputShape.totalSize() != outputShape.totalSize())
     {
         log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
             "' because conversion of input shape " + inputShape.toString() + " and requested shape " + outputShape.toString() +
             " is impossible");
-        return Tensor();
+        //return Tensor();
     }
 
     return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());

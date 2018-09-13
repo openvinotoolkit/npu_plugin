@@ -16,7 +16,7 @@ namespace mv
 
             Add(const std::string& name);
             Add(mv::json::Value& obj);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
         

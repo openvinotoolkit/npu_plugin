@@ -1,12 +1,12 @@
 #ifndef MV_ARGUMENT_ERROR_HPP_
 #define MV_ARGUMENT_ERROR_HPP_
 
-#include <stdexcept>
+#include "include/mcm/base/exception/logged_error.hpp"
 
 namespace mv
 {
 
-    class ArgumentError : public std::runtime_error
+    class ArgumentError : public LoggedError
     {
 
         std::string argName_;
@@ -14,11 +14,8 @@ namespace mv
 
     public:
 
-        explicit ArgumentError(const std::string& argName, const std::string& argVal,
-             const std::string& whatArg);
-        
-        const std::string& getArgName() const;
-        const std::string& getArgVal() const;
+        explicit ArgumentError(const LogSender& sender, const std::string& argName,
+            const std::string& argVal, const std::string& whatArg);
 
     };
 

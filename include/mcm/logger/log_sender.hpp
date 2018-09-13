@@ -2,21 +2,18 @@
 #define LOG_SENDER_HPP_
 
 #include <string>
-#include <include/mcm/logger/logger.hpp>
+#include "include/mcm/logger/logger.hpp"
 
 namespace mv
 {
 
     class LogSender
     {    
-        
-    protected:
-
-        virtual std::string getLogID_() const = 0;
 
     public:
 
-        virtual ~LogSender();
+        virtual ~LogSender() = 0;
+        virtual std::string getLogID() const = 0;
         void log(Logger::MessageType messageType, const std::string &content) const;
 
     };

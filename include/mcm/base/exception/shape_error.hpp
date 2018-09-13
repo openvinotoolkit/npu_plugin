@@ -1,17 +1,17 @@
 #ifndef MV_SHAPE_ERROR_HPP_
 #define MV_SHAPE_ERROR_HPP_
 
-#include <stdexcept>
+#include "include/mcm/base/exception/logged_error.hpp"
 
 namespace mv
 {
 
-    class ShapeError : public std::logic_error
+    class ShapeError : public LoggedError
     {
 
     public:
 
-        explicit ShapeError(const std::string& whatArg);
+        explicit ShapeError(const LogSender& sender, const std::string& whatArg);
         
     };
 

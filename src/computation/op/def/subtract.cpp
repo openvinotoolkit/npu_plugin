@@ -4,15 +4,15 @@ mv::op::Subtract::Subtract(const std::string &name) :
 ComputationOp(OpType::Subtract, name),
 EltwiseOp(OpType::Subtract, name)
 {
-    addAttr("executable", AttrType::BoolType, true);
+    set<bool>("executable", true);
 }
 
-mv::op::Subtract::Subtract(mv::json::Value& obj) :
+/*mv::op::Subtract::Subtract(mv::json::Value& obj) :
 ComputationOp(obj),
 EltwiseOp(obj)
 {
 
-}
+}*/
 
 bool mv::op::Subtract::isHardwarizeable(json::Object&)
 {

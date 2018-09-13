@@ -22,33 +22,10 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
     return Target::Unknown;
 }
 
-mv::DType mv::TargetDescriptor::toDType(const std::string& str)
-{
-    if (str == "fp16")
-        return DType::Float;
-
-    return DType::Unknown;
-}
-
-mv::Order mv::TargetDescriptor::toOrder(const std::string& str)
-{
-
-    if (str == "columnmajorplanar")
-        return Order::ColumnMajorPlanar;
-    else if (str == "rowmajorplanar")
-        return Order::RowMajorPlanar;
-    else if (str == "columnmajor")
-        return Order::ColumnMajor;
-    else if (str == "rowmajor")
-        return Order::RowMajor;
-
-    return Order::Unknown;
-}
-
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
-globalDType_(DType::Unknown),
-globalOrder_(Order::Unknown)
+globalDType_(DTypeType::Float16),
+globalOrder_(OrderType::ColumnMajor)
 {
 
     if (!filePath.empty())
@@ -61,8 +38,8 @@ globalOrder_(Order::Unknown)
 void mv::TargetDescriptor::reset()
 {
     target_ = Target::Unknown;
-    globalDType_ = DType::Unknown;
-    globalOrder_ = Order::Unknown;
+    globalDType_ = DTypeType::Float16;
+    globalOrder_ = OrderType::ColumnMajor;
     adaptationPasses_.clear();
     optimizationPasses_.clear();
     finalizationPasses_.clear();
@@ -127,13 +104,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         }
         else
         {
-            globalDType_ = toDType(jsonDescriptor["dtype"]["global"].get<std::string>());
-            if (globalDType_ == DType::Unknown)
-            {
-                reset();
-                return false;
-            }
-
+            globalDType_ = DType(jsonDescriptor["dtype"]["global"].get<std::string>());
         }
 
     }
@@ -152,13 +123,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         }
         else
         {
-            globalOrder_ = toOrder(jsonDescriptor["order"]["global"].get<std::string>());
-            if (globalOrder_ == Order::Unknown)
-            {
-                reset();
-                return false;
-            }
-
+            globalOrder_ = Order(jsonDescriptor["order"]["global"].get<std::string>());
         }
 
     }
@@ -234,17 +199,13 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             }
 
             std::string opStr = jsonDescriptor["ops"][i].get<std::string>();
-            auto it = opsStrings.begin();
-            while (it != opsStrings.end())
+            try
             {
-                if (it->second == opStr)
-                {
-                    ops_.insert(it->first);
-                    break;
-                }
-                ++it;
+                OpType op(opStr);
+                ops_.insert(op);
+                break;
             }
-            if (it == opsStrings.end())
+            catch (OpError& e)
             {
                 reset();
                 return false;
@@ -295,9 +256,9 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 name = jsonDescriptor["resources"]["memory"][i]["name"].get<std::string>();
                 size = jsonDescriptor["resources"]["memory"][i]["size"].get<long long>();
                 orderStr = jsonDescriptor["resources"]["memory"][i]["order"].get<std::string>();
-                Order order = toOrder(orderStr);
+                Order order(orderStr);
 
-                if (size < 0 || order == Order::Unknown)
+                if (size < 0)
                 {
                     reset();
                     return false;
@@ -327,12 +288,12 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
 
     json::Object root;
     root["target"] = toString(target_);
-    root["order"] = Printable::toString(globalOrder_);
-    root["dtype"] = Printable::toString(globalDType_);
+    root["order"] = globalOrder_.toString();
+    root["dtype"] = globalDType_.toString();
     root["ops"] = json::Array();
 
     for (auto it = ops_.begin(); it != ops_.end(); ++it)
-        root["ops"].append(opsStrings.at(*it));
+        root["ops"].append(it->toString());
 
     root["passes"]["adapt"] = json::Array();
     root["passes"]["optimize"] = json::Array();
@@ -371,15 +332,11 @@ void mv::TargetDescriptor::setTarget(Target target)
 
 void mv::TargetDescriptor::setDType(DType dType)
 {
-    if (dType == DType::Unknown)
-        throw ArgumentError("dType", "unknown", "Defining dType as unknown is illegal");
     globalDType_ = dType;
 }
 
 void mv::TargetDescriptor::setOrder(Order order)
 {
-    if (order == Order::Unknown)
-        throw ArgumentError("order", "unknown", "Defining order as unknown is illegal");
     globalOrder_ = order;
 }
 

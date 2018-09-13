@@ -4,12 +4,12 @@ mv::SinkOp::SinkOp(OpType opType, std::size_t inputsCount, const std::string &na
 ComputationOp(opType, name),
 inputs_(inputsCount, Data::TensorIterator())
 {
-    addAttr("inputs", AttrType::ByteType, inputsCount);
+    set<unsigned short>("inputs", inputsCount);
 }
 
 mv::SinkOp::SinkOp(mv::json::Value& value) :
 ComputationOp(value),
-inputs_(getAttr("inputs").getContent<std::size_t>(), Data::TensorIterator())
+inputs_(get<unsigned short>("inputs"), Data::TensorIterator())
 {
     //Tensors cannot be filled here
 }
@@ -22,18 +22,18 @@ mv::SinkOp::~SinkOp()
 
 bool mv::SinkOp::setInputTensor(Data::TensorIterator &tensor, std::size_t idx)
 {
-    if (idx >= getAttr("inputs").getContent<std::size_t>())
+    if (idx >= get<unsigned short>("inputs"))
         return false;
 
     inputs_[idx] = tensor;
-    addAttr("input" + Printable::toString(idx), AttrType::StringType, tensor->getName());
-    log(Logger::MessageType::MessageDebug, "Set input " + Printable::toString(idx) + " for " + toString() + " as " + tensor->toString());
+    set<std::string>("input" + std::to_string(idx), tensor->getName());
+    log(Logger::MessageType::MessageDebug, "Set input " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
     return true;
 }
 
 mv::Data::TensorIterator mv::SinkOp::getInputTensor(std::size_t idx)
 {
-    if (idx >= getAttr("inputs").getContent<std::size_t>())
+    if (idx >= get<unsigned short>("inputs"))
         return Data::TensorIterator();
 
     return inputs_[idx];

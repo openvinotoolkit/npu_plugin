@@ -1,19 +1,18 @@
 #ifndef COMPUTATION_FLOW_HPP_
 #define COMPUTATION_FLOW_HPP_
 
-#include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/model/computation_element.hpp"
+#include "include/mcm/base/element.hpp"
 
 namespace mv
 {
 
-    class ComputationFlow : public ComputationElement
+    class ComputationFlow : public Element
     {
 
     public:
 
         ComputationFlow(const std::string &name);
-        ComputationFlow(json::Value& value);
+        //ComputationFlow(json::Value& value);
         virtual ~ComputationFlow() = 0;
         virtual std::string toString() const;
 

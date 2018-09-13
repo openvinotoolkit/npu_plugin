@@ -1,15 +1,13 @@
 #ifndef DATA_CONTEXT_HPP_
 #define DATA_CONTEXT_HPP_
 
-#include <memory>
 #include <map>
 #include <string>
-#include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/model/iterator/model_iterator.hpp"
-#include "include/mcm/computation/tensor/tensor.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 
 namespace mv
-{   
+{  
 
     namespace Data
     {

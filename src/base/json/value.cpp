@@ -9,13 +9,13 @@
 
 const std::map<mv::json::JSONType, std::string> mv::json::Value::typeString_ =
 {
-    {mv::json::JSONType::Array, "array"},
-    {mv::json::JSONType::Bool, "bool"},
-    {mv::json::JSONType::Null, "null"},
-    {mv::json::JSONType::NumberFloat, "number (double)"},
-    {mv::json::JSONType::NumberInteger, "number (integer)"},
-    {mv::json::JSONType::Object, "object"},
-    {mv::json::JSONType::String, "string"}
+    {JSONType::Array, "json::Array"},
+    {JSONType::Bool, "json::Bool"},
+    {JSONType::Null, "json::Null"},
+    {JSONType::NumberFloat, "json::NumberFloat"},
+    {JSONType::NumberInteger, "json::NumberInteger"},
+    {JSONType::Object, "json::Object"},
+    {JSONType::String, "json::String"}
 
 };
 
@@ -34,20 +34,6 @@ content_(std::unique_ptr<NumberFloat>(new NumberFloat(value)))
 }
 
 mv::json::Value::Value(long long value) :
-valueType_(JSONType::NumberInteger),
-content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
-{
-
-}
-
-mv::json::Value::Value(int value) :
-valueType_(JSONType::NumberInteger),
-content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
-{
-
-}
-
-mv::json::Value::Value(unsigned int value) :
 valueType_(JSONType::NumberInteger),
 content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
 {
@@ -92,6 +78,11 @@ content_(std::unique_ptr<Array>(new Array(value)))
 mv::json::Value::Value(const Value& other)
 {
     operator=(other);
+}
+
+mv::json::Value::~Value()
+{
+    
 }
 
 mv::json::Value& mv::json::Value::operator=(double value)
@@ -154,6 +145,60 @@ mv::json::Value& mv::json::Value::operator=(const Array& value)
 
 }
 
+bool mv::json::Value::operator==(const Value& other) const
+{
+
+    if (valueType() != other.valueType())
+        return false;
+
+    switch (valueType())
+    {
+
+        case JSONType::Array:
+            if (*static_cast<json::Array*>(content_.get()) != *static_cast<json::Array*>(other.content_.get()))
+                return false;
+            break;
+        
+        case JSONType::Bool:
+            if (*static_cast<json::Bool*>(content_.get()) != *static_cast<json::Bool*>(other.content_.get()))
+                return false;
+            break;
+
+        case JSONType::Null:
+            // Nulls are always equal
+            break;
+
+        case JSONType::NumberFloat:
+            if (*static_cast<json::NumberFloat*>(content_.get()) != *static_cast<json::NumberFloat*>(other.content_.get()))
+                return false;
+            break;
+
+        case JSONType::NumberInteger:
+            if (*static_cast<json::NumberInteger*>(content_.get()) != *static_cast<json::NumberInteger*>(other.content_.get()))
+                return false;
+            break;
+
+        case JSONType::Object:
+            if (*static_cast<json::Object*>(content_.get()) != *static_cast<json::Object*>(other.content_.get()))
+                return false;
+            break;
+
+        case JSONType::String:
+            if (*static_cast<json::String*>(content_.get()) != *static_cast<json::String*>(other.content_.get()))
+                return false;
+            break;
+
+    }
+
+    return true;
+
+}
+
+bool mv::json::Value::operator!=(const Value& other) const
+{
+    return !operator==(other);
+}
+
 mv::json::Value& mv::json::Value::operator[](const std::string& key)
 {
 
@@ -173,28 +218,40 @@ const mv::json::Value& mv::json::Value::operator[](const std::string& key) const
 
     if (valueType_ != JSONType::Object)
     {
-         throw ValueError("Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON object");
+         throw ValueError(*this, "Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON object");
     }
     auto objPtr = static_cast<Object*>(content_.get());
     return (*objPtr)[key];
 
 }
 
-mv::json::Value& mv::json::Value::operator[](unsigned idx)
+mv::json::Value& mv::json::Value::operator[](std::size_t idx)
 {
 
     if (valueType_ != JSONType::Array)
-        throw ValueError("Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON array");
+        throw ValueError(*this, "Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON array");
 
     auto arrPtr = static_cast<Array*>(content_.get());
     return (*arrPtr)[idx];
     
 }
 
+const mv::json::Value& mv::json::Value::operator[](std::size_t idx) const
+{
+
+    if (valueType_ != JSONType::Array)
+        throw ValueError(*this, "Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON array");
+
+    auto arrPtr = static_cast<Array*>(content_.get());
+    return (*arrPtr)[idx];
+    
+}
+
+
 mv::json::Value& mv::json::Value::last()
 {
     if (valueType_ != JSONType::Array)
-        throw ValueError("Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON array");
+        throw ValueError(*this, "Attempt of accessing the content of value " + typeString_.at(valueType_) + " as to JSON array");
 
     auto arrPtr = static_cast<Array*>(content_.get());
     return arrPtr->last();
@@ -203,7 +260,7 @@ mv::json::Value& mv::json::Value::last()
 bool mv::json::Value::hasKey(const std::string& key) const
 {
     if (valueType_ != JSONType::Object)
-        throw ValueError("Attempt of checking key for a value of type " + typeString_.at(valueType_));
+        throw ValueError(*this, "Attempt of checking key for a value of type " + typeString_.at(valueType_));
     
     auto objPtr = static_cast<Object*>(content_.get());
     return objPtr->hasKey(key);
@@ -212,16 +269,16 @@ bool mv::json::Value::hasKey(const std::string& key) const
 std::vector<std::string> mv::json::Value::getKeys() const
 {
     if (valueType_ != JSONType::Object)
-        throw ValueError("Attempt of obtaining the keys list from a value of type " + typeString_.at(valueType_));
+        throw ValueError(*this, "Attempt of obtaining the keys list from a value of type " + typeString_.at(valueType_));
     
     auto objPtr = static_cast<Object*>(content_.get());
     return objPtr->getKeys();
 }
 
-void mv::json::Value::append(const std::pair<std::string, Value>& member)
+void mv::json::Value::emplace(const std::pair<std::string, Value>& member)
 {
     if (valueType_ != JSONType::Object)
-        throw ValueError("Attempt of appending a memeber content to the value of type " + typeString_.at(valueType_));
+        throw ValueError(*this, "Attempt of appending a memeber content to the value of type " + typeString_.at(valueType_));
 
     auto objPtr = static_cast<Object*>(content_.get());
     (*objPtr)[member.first] = member.second;
@@ -230,7 +287,7 @@ void mv::json::Value::append(const std::pair<std::string, Value>& member)
 void mv::json::Value::append(const Value& element)
 {
     if (valueType_ != JSONType::Array)
-        throw ValueError("Attempt of appending an element content to the value of type " + typeString_.at(valueType_));
+        throw ValueError(*this, "Attempt of appending an element content to the value of type " + typeString_.at(valueType_));
 
     auto arrPtr = static_cast<Array*>(content_.get());
     arrPtr->append(element);
@@ -241,7 +298,12 @@ mv::json::JSONType mv::json::Value::valueType() const
     return valueType_;
 }
 
-unsigned mv::json::Value::size() const
+std::string mv::json::Value::typeName(JSONType typeID)
+{
+    return typeString_.at(typeID);
+}
+
+std::size_t mv::json::Value::size() const
 {
     if (valueType_ == JSONType::Array)
     {
@@ -306,4 +368,9 @@ mv::json::Value& mv::json::Value::operator=(const Value& other)
     }
     
     return *this;
+}
+
+std::string mv::json::Value::getLogID() const
+{
+    return "json::Value";
 }

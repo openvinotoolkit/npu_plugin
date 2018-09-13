@@ -1,8 +1,17 @@
 #ifndef MODEL_ITERATOR_HPP_
 #define MODEL_ITERATOR_HPP_
 
+#include <memory>
+#include "include/mcm/graph/conjoined_graph.hpp"
+
 namespace mv
-{
+{   
+
+    class ComputationOp;
+    class DataFlow;
+    class ControlFlow;
+
+    using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
 
     namespace IteratorDetail
     {

@@ -87,7 +87,7 @@ mv::JSONTextParser::JSONTextParser(unsigned bufferLength) :
 bufferLength_(bufferLength)
 {
     if (bufferLength_ == 0)
-        throw ArgumentError("bufferLength", std::to_string(bufferLength_), "JSONTextParser buffer length defined as 0");
+        throw ArgumentError(*this, "bufferLength", std::to_string(bufferLength_), "Defined as 0");
 
     buffer_ = new char[bufferLength_];
 }
@@ -285,7 +285,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
     {
 
         if (currentSymbol.first == JSONSymbol::Invalid)
-            throw ParsingError("Invalid symbol");
+            throw ParsingError(*this, fileName, "Invalid symbol \"" + currentSymbol.second + "\"");
 
         if (pushdownAutomata_.find(currentState) == pushdownAutomata_.end())
         {
@@ -297,15 +297,15 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                 else if (symbolStack.top().first == JSONSymbol::LBracket)
                     currentState = ParserState::Element;
                 else
-                    throw ParsingError("Syntax error");
+                    throw ParsingError(*this, fileName, "Syntax error");
 
             }
             else
-                throw ParsingError("Syntax error");
+                throw ParsingError(*this, fileName, "Syntax error");
         }
 
         if (pushdownAutomata_.at(currentState).find(currentSymbol.first) == pushdownAutomata_.at(currentState).end())
-                throw ParsingError("Syntax error");
+                throw ParsingError(*this, fileName, "Syntax error");
 
         currentState = pushdownAutomata_.at(currentState).at(currentSymbol.first);
 
@@ -331,7 +331,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                     }
                     catch (std::invalid_argument& e)
                     {
-                       throw ParsingError("Invalid numeric value");
+                       throw ParsingError(*this, fileName, "Invalid numeric value \"" + currentSymbol.second + "\"");
                     }
                     break;
 
@@ -352,14 +352,14 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                     break;
 
                 default:
-                    throw ParsingError("Invalid value");
+                    throw ParsingError(*this, fileName, "Invalid value \"" + currentSymbol.second + "\"");
 
             }
 
             if (jsonHierarchy.top()->valueType() == json::JSONType::Array)
                 jsonHierarchy.top()->append(newValue);
             else
-                jsonHierarchy.top()->append({lastKey, newValue});
+                jsonHierarchy.top()->emplace({lastKey, newValue});
 
         }
 
@@ -379,7 +379,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                 }
                 else
                 {
-                   jsonHierarchy.top()->append({lastKey, json::Object()});
+                   jsonHierarchy.top()->emplace({lastKey, json::Object()});
                    jsonHierarchy.push(&(*jsonHierarchy.top())[lastKey]);
                 }
             }
@@ -400,7 +400,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                 }
                 else
                 {
-                   jsonHierarchy.top()->append({lastKey, json::Array()});
+                   jsonHierarchy.top()->emplace({lastKey, json::Array()});
                    jsonHierarchy.push(&(*jsonHierarchy.top())[lastKey]);
                 }
             }
@@ -415,7 +415,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                 jsonHierarchy.pop();
             }
             else
-                throw ParsingError("Incorrect right brace");
+                throw ParsingError(*this, fileName, "Incorrect right brace");
         }
         else if (currentSymbol.first == JSONSymbol::RBracket)
         {
@@ -425,7 +425,7 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
                 jsonHierarchy.pop();
             }
             else
-                throw ParsingError("Incorrect right bracket");
+                throw ParsingError(*this, fileName, "Incorrect right bracket");
         }
     }
 
@@ -434,15 +434,20 @@ bool mv::JSONTextParser::parseFile(const std::string& fileName, json::Value& out
         switch (symbolStack.top().first)
         {
             case JSONSymbol::LBrace:
-                throw ParsingError("Unterminated left brace");
+                throw ParsingError(*this, fileName, "Unterminated left brace");
             case JSONSymbol::LBracket:
-                throw ParsingError("Unterminated left bracket");
+                throw ParsingError(*this, fileName, "Unterminated left bracket");
             default:
-                throw ParsingError("Unexpected symbol");
+                throw ParsingError(*this, fileName, "Unexpected symbol \"" + symbolStack.top().second + "\"");
         }
     }
 
     outputObject = root;
     return true;
 
+}
+
+std::string mv::JSONTextParser::getLogID() const
+{
+    return "JSONTextParser";
 }

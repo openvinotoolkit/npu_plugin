@@ -5,36 +5,36 @@ ComputationOp(OpType::Constant, name),
 SourceOp(OpType::Constant, 1, name),
 data_(data)
 {
-    addAttr("shape", AttrType::ShapeType, shape);
-    addAttr("dType", AttrType::DTypeType, dType);
-    addAttr("order", AttrType::OrderType, order);
-    addAttr("executable", AttrType::BoolType, false);
+    set<Shape>("shape", shape);
+    set<DType>("dType", dType);
+    set<Order>("order", order);
+    set<bool>("executable", false);
 }
 
 mv::json::Value mv::op::Constant::toJsonValue() const
 {
-    mv::json::Value toReturn = mv::ComputationOp::toJsonValue();
+    //mv::json::Value toReturn = mv::ComputationOp::toJsonValue();
     //toReturn["data"] = mv::Jsonable::toJsonValue(data_);
-    return toReturn;
+    //return toReturn;
 }
 
-mv::op::Constant::Constant(mv::json::Value& obj) :
+/*mv::op::Constant::Constant(mv::json::Value& obj) :
 ComputationOp(obj),
 SourceOp(obj),
 data_(mv::Jsonable::constructFloatVectorFromJson(obj["data"]))
 {
 
-}
+}*/
 
 mv::Tensor mv::op::Constant::getOutputDef(std::size_t idx)
 {
     
-    if (idx > 0)
-        return Tensor();
+    /*if (idx > 0)
+        return Tensor();*/
 
-    auto shape = getAttr("shape").getContent<Shape>();
-    auto dType = getAttr("dType").getContent<DType>();
-    auto order = getAttr("order").getContent<Order>();
+    auto shape = get<Shape>("shape");
+    auto dType = get<DType>("dType");
+    auto order = get<Order>("order");
     return Tensor(name_ + ":0", shape, dType, order, data_);
 }
 

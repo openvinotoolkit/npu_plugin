@@ -1,6 +1,6 @@
 #include "include/mcm/computation/model/computation_group.hpp"
 
-bool mv::ComputationGroup::markMembmer_(ComputationElement &member)
+/*bool mv::ComputationGroup::markMembmer_(ComputationElement &member)
 {
 
     if (!member.hasAttr("groups"))
@@ -134,3 +134,4 @@ std::string mv::ComputationGroup::getLogID_() const
 {
     return "Group " + getName();
 }
+*/

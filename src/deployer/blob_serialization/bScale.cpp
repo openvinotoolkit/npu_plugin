@@ -45,8 +45,9 @@ namespace mv
         }
 
         printf("Serialization Warning: Manual Override of Scale Software layer order\n");
-        this->output->setOrder(Order::RowMajor);
-        this->input->setOrder(Order::RowMajor);
-        this->taps->setOrder(Order::TBDLayout);
+        this->output->setOrder(OrderType::RowMajor);
+        this->input->setOrder(OrderType::RowMajor);
+        this->taps->setOrder(OrderType::RowMajor);
+        //this->taps->setOrder(OrderType::TBDLayout);
     }
 }

@@ -5,12 +5,11 @@
 #include <map>
 #include <string>
 #include "include/mcm/graph/graph.hpp"
-#include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "include/mcm/computation/model/iterator/group_context.hpp"
-#include "include/mcm/computation/tensor/shape.hpp"
-#include "include/mcm/computation/tensor/tensor.hpp"
+#include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/flow/data_flow.hpp"
 #include "include/mcm/computation/flow/control_flow.hpp"
 #include "include/mcm/computation/model/computation_group.hpp"
@@ -20,9 +19,9 @@
 namespace mv
 {
 
-    class ComputationModel : public Jsonable, public LogSender
+    class ComputationModel : public LogSender
     {
-
+    
     private:
 
         void addOutputTensorsJson(Data::OpListIterator insertedOp);
@@ -31,7 +30,7 @@ namespace mv
         Control::FlowListIterator addControlFlowFromJson(json::Value& edge, std::map<std::string, Data::OpListIterator> &addedOperations);
         Data::FlowListIterator addDataFlowFromJson(json::Value& edge, std::map<std::string, Data::OpListIterator> &addedOperations);
 
-        template <typename T, typename TIterator>
+        /*template <typename T, typename TIterator>
         void handleGroupsForAddedElement(TIterator addedElement)
         {
             if(addedElement->hasAttr("groups"))
@@ -45,7 +44,7 @@ namespace mv
                     addGroupElement_(ptr, group);
                 }
             }
-        }
+        }*/
 
     protected:
 
@@ -67,8 +66,8 @@ namespace mv
         */
         std::shared_ptr<std::map<std::string, std::shared_ptr<Tensor>>> flowTensors_;
         std::shared_ptr<std::map<std::string, Data::OpListIterator>> tensorsSources_;
-        std::shared_ptr<std::map<std::string, std::shared_ptr<ComputationGroup>>> groups_;
-        std::shared_ptr<std::map<std::size_t, std::shared_ptr<ComputationStage>>> stages_;
+        //std::shared_ptr<std::map<std::string, std::shared_ptr<ComputationGroup>>> groups_;
+        //std::shared_ptr<std::map<std::size_t, std::shared_ptr<ComputationStage>>> stages_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<MemoryAllocator>>> memoryAllocators_;
         std::shared_ptr<std::map<OpType, std::size_t>> opsCounter_;
         static Logger logger_;
@@ -90,22 +89,21 @@ namespace mv
         std::shared_ptr<bool> defaultControlFlow_;*/
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
-        GroupContext::MemberIterator addGroupElement_(std::shared_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
-        bool removeGroupElement_(std::weak_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
+        //GroupContext::MemberIterator addGroupElement_(std::shared_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
+        //bool removeGroupElement_(std::weak_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
         
         // Check if every operation has computation stage assigned
-        bool checkOpsStages_() const;
+        /*bool checkOpsStages_() const;
         Control::StageIterator addStage_();
-        bool addToStage_(Control::StageIterator &stage, Data::OpListIterator &op);
+        bool addToStage_(Control::StageIterator &stage, Data::OpListIterator &op);*/
         Data::TensorIterator defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx);
         Data::TensorIterator findTensor_(const std::string &name);
         Data::OpListIterator findSourceOp_(Data::TensorIterator &tensor);
-        virtual std::string getLogID_() const override;
 
     public:
 
         ComputationModel();
-        ComputationModel(mv::json::Value& model);
+        //ComputationModel(mv::json::Value& model);
 
         /**
          * @brief Copy constructor performing shallow copy
@@ -128,7 +126,7 @@ namespace mv
         bool isValid(const Control::OpListIterator &it) const;
         bool isValid(const Data::FlowListIterator &it) const;
         bool isValid(const Control::FlowListIterator &it) const;
-        GroupContext::GroupIterator addGroup(const std::string &name);
+        /*GroupContext::GroupIterator addGroup(const std::string &name);
         bool hasGroup(const std::string &name);
         GroupContext::GroupIterator getGroup(const std::string &name);
         
@@ -137,13 +135,14 @@ namespace mv
         GroupContext::GroupIterator groupBegin();
         GroupContext::GroupIterator groupEnd();
         GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);*/
         Data::TensorIterator tensorBegin() const;
         Data::TensorIterator tensorEnd() const;
 
         void clear();
 
-        json::Value toJsonValue() const;
+        virtual std::string getLogID() const override;
+        //json::Value toJSON() const override;
 
     };
 

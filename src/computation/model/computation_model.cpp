@@ -7,8 +7,8 @@ dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 flowTensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>(std::map<std::string, std::shared_ptr<Tensor>>())),
 tensorsSources_(std::make_shared<std::map<std::string, Data::OpListIterator>>(std::map<std::string, Data::OpListIterator>())),
-groups_(std::make_shared<std::map<std::string, std::shared_ptr<ComputationGroup>>>(std::map<std::string, std::shared_ptr<ComputationGroup>>())),
-stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<ComputationStage>>>(std::map<std::size_t, std::shared_ptr<ComputationStage>>())),
+//groups_(std::make_shared<std::map<std::string, std::shared_ptr<ComputationGroup>>>(std::map<std::string, std::shared_ptr<ComputationGroup>>())),
+//stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<ComputationStage>>>(std::map<std::size_t, std::shared_ptr<ComputationStage>>())),
 memoryAllocators_(std::make_shared<std::map<std::string, std::shared_ptr<MemoryAllocator>>>(std::map<std::string, std::shared_ptr<MemoryAllocator>>())),
 opsCounter_(std::make_shared<std::map<OpType, std::size_t>>(std::map<OpType, std::size_t>())),
 dataOpEnd_(new Data::OpListIterator(dataGraph_.node_end())),
@@ -21,7 +21,7 @@ output_(new Data::OpListIterator(*dataOpEnd_))
 
 }
 
-void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
+/*void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
 {
     std::size_t numOutputs = insertedOp->outputSlots();
     for(std::size_t j = 0; j < numOutputs; j++)
@@ -50,7 +50,7 @@ mv::Data::OpListIterator mv::ComputationModel::addNodeFromJson(json::Value& node
     Data::OpListIterator toReturn;
 
     //Parenthesis are necessary because a scope has to be created
-    switch (opType)
+    switch ((unsigned short)opType)
     {
         case OpType::Input:
             toReturn = dataGraph_.node_insert(std::make_shared<op::Input>(node));
@@ -259,7 +259,7 @@ mv::ComputationModel::ComputationModel(json::Value &model) :
     // MEMORY ALLOCATORS
 
     // STAGES
-}
+}*/
 
 
 mv::ComputationModel::ComputationModel(const ComputationModel &other) :
@@ -268,8 +268,8 @@ dataGraph_(other.dataGraph_),
 controlGraph_(other.controlGraph_),
 flowTensors_(other.flowTensors_),
 tensorsSources_(other.tensorsSources_),
-groups_(other.groups_),
-stages_(other.stages_),
+//groups_(other.groups_),
+//stages_(other.stages_),
 memoryAllocators_(other.memoryAllocators_),
 opsCounter_(other.opsCounter_),
 dataOpEnd_(other.dataOpEnd_),
@@ -349,7 +349,7 @@ bool mv::ComputationModel::isValid(const Control::FlowListIterator &it) const
     return false;
 } 
 
-mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
+/*mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
 {
     
     if (getGroup(name) == groupEnd())
@@ -467,7 +467,7 @@ bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpLi
     }
 
     return false;
-}
+}*/
 
 mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx)
 {
@@ -520,7 +520,7 @@ mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterato
 
 }
 
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
+/*mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
 {
     std::shared_ptr<ComputationGroup> ptr = element;
     return addGroupElement_(ptr, group);
@@ -566,7 +566,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberEnd(GroupContext::G
 
     return GroupContext::MemberIterator();
 
-}
+}*/
 
 mv::Data::TensorIterator mv::ComputationModel::tensorBegin() const
 {
@@ -583,8 +583,8 @@ void mv::ComputationModel::clear()
 {
     flowTensors_->clear();
     tensorsSources_->clear();
-    groups_->clear();
-    stages_->clear();
+    //groups_->clear();
+    //stages_->clear();
     memoryAllocators_->clear();
     opsCounter_->clear();
     *dataOpEnd_ = dataGraph_.node_end();
@@ -598,7 +598,7 @@ void mv::ComputationModel::clear()
 }
 
 //NOTE: Populated tensors dumping are handled in json pass.
-mv::json::Value mv::ComputationModel::toJsonValue() const
+/*mv::json::Value mv::ComputationModel::toJsonValue() const
 {
     json::Object computationModel;
     json::Object graph;
@@ -672,9 +672,9 @@ mv::json::Value mv::ComputationModel::toJsonValue() const
     computationModel["has_populated_tensors"] = Jsonable::toJsonValue(hasPopulatedTensors);
     return json::Value(computationModel);
 
-}
+}*/
 
-std::string mv::ComputationModel::getLogID_() const
+std::string mv::ComputationModel::getLogID() const
 {
-    return "OpModel";
+    return "Model";
 }

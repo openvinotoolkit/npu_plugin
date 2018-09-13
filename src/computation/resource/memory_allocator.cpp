@@ -16,10 +16,10 @@ bool mv::MemoryAllocator::MemoryBuffer::operator<(const MemoryBuffer& other) con
 std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
 {
 
-    std::string res =  "data: '" + this->data->getName() + "'; offset: " + Printable::toString(this->offset) +
-        "; size: " + Printable::toString(this->size) + "; left pad: " + Printable::toString(this->left_pad) +
-         + "; right pad: " + Printable::toString(this->right_pad)
-         + "; block: " + Printable::toString(this->block) + "; block num: " + Printable::toString(this->block_num);
+    std::string res =  "data: '" + this->data->getName() + "'; offset: " + std::to_string(this->offset) +
+        "; size: " + std::to_string(this->size) + "; left pad: " + std::to_string(this->left_pad) +
+         + "; right pad: " + std::to_string(this->right_pad)
+         + "; block: " + std::to_string(this->block) + "; block num: " + std::to_string(this->block_num);
 
     res += "; strides:";
 
@@ -37,7 +37,7 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
         for (std::size_t i = 0; i < values.size(); ++i)
         {
             for(std::size_t j = 0; j < block; j++)
-                res += Printable::toString(values[i]) + " ";
+                res += std::to_string(values[i]) + " ";
         }
 
         for (std::size_t i = 0; i < this->right_pad; ++i)
@@ -73,7 +73,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx, BufferIterator first,
 mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, Order order) :
 name_(name),
 size_(size),
-order_(mv::OrderFactory::createOrder(order))
+order_(order)
 {
 
 }
@@ -82,8 +82,7 @@ bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, std::size_t st
 {
 
     if (entries_.find(stageIdx) == entries_.end())
-        throw ArgumentError("stageIdx", std::to_string(stageIdx), "Attempt of deallocating a tensor using "
-            "an undefined stage");
+        throw IndexError(*this, stageIdx, "Deallocation of tensor for an undefined stage");
 
     auto it = entries_[stageIdx].find(tensor);
     if (it != entries_[stageIdx].end())
@@ -104,8 +103,7 @@ void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
 {
 
     if (entries_.find(stageIdx) == entries_.end())
-        throw ArgumentError("stageIdx", std::to_string(stageIdx), "Attempt of deallocating tensors from "
-            "an undefined stage");
+        throw IndexError(*this, stageIdx, "Deallocation of all tensors for an undefined stage");
 
     entries_[stageIdx].clear();
 
@@ -115,8 +113,7 @@ long long unsigned mv::MemoryAllocator::usedSpace(std::size_t stageIdx) const
 {
 
     if (entries_.find(stageIdx) == entries_.cend())
-        throw ArgumentError("stageIdx", std::to_string(stageIdx), "Attempt of check used space of a buffer " +
-            name_ + " for an undefined stage");
+        throw IndexError(*this, stageIdx, "Check of used space for an undefined stage");
 
     return entries_.at(stageIdx).rbegin()->second->offset + entries_.at(stageIdx).rbegin()->second->size;
 
@@ -126,8 +123,7 @@ long long unsigned mv::MemoryAllocator::freeSpace(std::size_t stageIdx) const
 {
 
     if (entries_.find(stageIdx) == entries_.cend())
-        throw ArgumentError("stageIdx", std::to_string(stageIdx), "Attempt of check free space of a buffer " +
-            name_ + " for an undefined stage");
+        throw IndexError(*this, stageIdx, "Check of free space for an undefined stage");
 
     long long freeSpaceValue = size_;
 
@@ -147,8 +143,8 @@ std::string mv::MemoryAllocator::toString() const
     for (auto it = entries_.cbegin(); it != entries_.cend(); ++it)
     {
 
-        result += "\nStage '" + Printable::toString(it->first) + "'" + "(" + Printable::toString(usedSpace(it->first)) + " used " +
-            Printable::toString(freeSpace(it->first)) + " free " + Printable::toString(size_) + " total)";
+        result += "\nStage '" + std::to_string(it->first) + "'" + "(" + std::to_string(usedSpace(it->first)) + " used " +
+            std::to_string(freeSpace(it->first)) + " free " + std::to_string(size_) + " total)";
         for (auto itEntry = it->second.cbegin(); itEntry != it->second.cend(); ++itEntry)
             result += "\n\t" + itEntry->second->toString();
 
@@ -158,13 +154,13 @@ std::string mv::MemoryAllocator::toString() const
 
 }
 
-mv::json::Value mv::MemoryAllocator::toJsonValue() const
+/*mv::json::Value mv::MemoryAllocator::toJsonValue() const
 {
 
 
     mv::json::Object obj;
 
-    /*obj["name"] = name_;
+    obj["name"] = name_;
     obj["max_size"] = mv::Jsonable::toJsonValue(maxSize_);
     mv::json::Array states;
 
@@ -198,17 +194,16 @@ mv::json::Value mv::MemoryAllocator::toJsonValue() const
         states.append(mv::json::Value(state));
     }
 
-    obj["states"] = mv::json::Value(states);*/
+    obj["states"] = mv::json::Value(states);
     return mv::json::Value(obj);
 
-}
+}*/
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferBegin(std::size_t stageIdx)
 {
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
-        throw ArgumentError("stageIdx", std::to_string(stageIdx), "Attempt of getting a begin buffer iterator "
-            "for an undefined stage");
+        throw IndexError(*this, stageIdx, "Getting the buffer begin iterator for an undefined stage");
     return it->second.begin();
 }
 
@@ -216,8 +211,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferEnd(std::size_t s
 {
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
-        throw ArgumentError("stageIdx", std::to_string(stageIdx), "Attempt of getting an end buffer iterator "
-            "for an undefined stage");
+        throw IndexError(*this, stageIdx, "Getting the buffer end iterator for an undefined stage");
     return it->second.end();
 }
 
@@ -225,14 +219,13 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t s
 {
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
-        throw ArgumentError("stageIdx", std::to_string(stageIdx), "Attempt of finding a buffer iterator "
-            "for an undefined stage");
+        throw IndexError(*this, stageIdx, "Finding a buffer iterator for an undefined stage");
 
     return it->second.find(tensor);
 
 }
 
-std::string mv::MemoryAllocator::getLogID_() const
+std::string mv::MemoryAllocator::getLogID() const
 {
     return "Memory allocator " + name_;
 }

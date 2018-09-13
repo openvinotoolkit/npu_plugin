@@ -50,19 +50,19 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         int sourceIsHw = source->getAttr("NCE1_Compatible").getContent<int>();
         int sinkIsHw = sink->getAttr("NCE1_Compatible").getContent<int>();
         bool conversionNeeded = false;
-        mv::Order targetOrder = mv::Order::Unknown;
+        mv::Order targetOrder = mv::OrderType::ColumnMajor;
 
         //Case 1
         if(sourceIsHw && !sinkIsHw)
         {
-            targetOrder = mv::Order::RowMajor;
+            targetOrder = mv::OrderType::RowMajor;
             conversionNeeded = true;
         }
 
         //Case 2
         if(!sourceIsHw && sinkIsHw)
         {
-            targetOrder = mv::Order::RowMajorPlanar;
+            targetOrder = mv::OrderType::RowMajorPlanar;
             conversionNeeded = true;
         }
 

@@ -290,7 +290,7 @@ namespace mv
             }
             else
             {
-                stride = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
+                stride = it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e0;
             }
 
             if (! it->hasAttr("padding"))
@@ -299,7 +299,7 @@ namespace mv
             }
             else
             {
-                padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
+                padEn = it->getAttr("padding").getContent<mv::std::array<unsigned short, 4>>().e0;
             }
 
 
@@ -438,18 +438,19 @@ namespace mv
             // printf("Serializing a SW Conv\n");
             this->radixX = it->getInputTensor(1)->getShape()[0];
             this->radixY = it->getInputTensor(1)->getShape()[1];
-            this->strideX = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
-            this->strideY = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1;
-            this->padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
-            this->padY = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2;
+            this->strideX = it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e0;
+            this->strideY = it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e1;
+            this->padX = it->getAttr("padding").getContent<mv::std::array<unsigned short, 4>>().e0;
+            this->padY = it->getAttr("padding").getContent<mv::std::array<unsigned short, 4>>().e2;
             this->padStyle = 2; // HARDCODED.
             this->dilation = 1; // HARDCODED.
 
 
             printf("Serializer Info: Manual Override of Convolution Software layer order\n");
-            this->output->setOrder(Order::RowMajor);
-            this->input->setOrder(Order::RowMajor);
-            this->taps->setOrder(Order::TBDLayout);
+            this->output->setOrder(OrderType::RowMajor);
+            this->input->setOrder(OrderType::RowMajor);
+            //this->taps->setOrder(Order::TBDLayout);
+            this->taps->setOrder(OrderType::RowMajor);
         }
     }
 }

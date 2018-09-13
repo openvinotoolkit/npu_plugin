@@ -10,7 +10,7 @@ namespace mv
         /***
          *  Mapping of C++ OpTypes to Blob Enumerations
          ***/
-        switch (o) {
+        switch ((unsigned short)o) {
             case OpType::Conv2D:
                 {
                     if (NCE1) {
@@ -42,7 +42,7 @@ namespace mv
                 return 37;
             default:
                 {
-                    std::cout << "Serialization Error: No Blob Enum Defined for layer" << mv::Printable::toString(o) << std::endl;
+                    std::cout << "Serialization Error: No Blob Enum Defined for layer" << o.toString() << std::endl;
                     assert(0);
                 }
         }
@@ -82,7 +82,7 @@ namespace mv
 
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
-            switch(it->getOpType()){
+            switch((unsigned short)it->getOpType()){
                 case OpType::Conv2D:
                 case OpType::FullyConnected:
                     {
@@ -218,7 +218,7 @@ namespace mv
                     break;
 
                 default:
-                    std::cout << "Serialization Warning : The layer has not been used in calculation:" << Printable::toString(it->getOpType()) << std::endl;
+                    std::cout << "Serialization Warning : The layer has not been used in calculation:" << it->getOpType().toString() << std::endl;
                     break;
             }
         }
@@ -381,7 +381,7 @@ namespace mv
         {
 
             auto ltype = it->getOpType();
-            switch(ltype){
+            switch((unsigned short)ltype){
                 case OpType::Input:
                     {
                         AddBytes(4, 0x20);     // include input NoOp stage for compatibility with python compiler

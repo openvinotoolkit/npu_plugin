@@ -24,11 +24,11 @@ mv::EltwiseOp::~EltwiseOp()
 mv::Tensor mv::EltwiseOp::getOutputDef(std::size_t idx)
 {
 
-    if (idx > 0)
+    /*if (idx > 0)
         return Tensor();
 
     if (!validOutputDef_())
-        return Tensor();
+        return Tensor();*/
 
     auto input0 = getInputTensor(0);
     auto input0Shape = input0->getShape();
@@ -38,7 +38,7 @@ mv::Tensor mv::EltwiseOp::getOutputDef(std::size_t idx)
     {
         log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ +
             "'because of inconsistent input 0 shape " + input0Shape.toString() + " and input 1 shape " + input1Shape.toString());
-        return Tensor();
+        //return Tensor();
     }
 
     return Tensor(name_ + ":0", input0Shape, input0->getDType(), input0->getOrder());

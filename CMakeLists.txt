@@ -6,7 +6,7 @@ set(default_build_type "Release")
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic")
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -23,10 +23,10 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
 endif()
 
 file(GLOB base
-    "src/base/attribute.cpp"
+    "src/base/attribute_registry.cpp"
+    "src/base/attribute_def/*.cpp"
     "src/base/printable.cpp"
     "src/base/jsonable.cpp"
-    "src/base/stream/ostream.cpp"
     "src/base/json/object.cpp"
     "src/base/json/array.cpp"
     "src/base/json/value.cpp"
@@ -39,17 +39,16 @@ file(GLOB base
     "src/utils/parser/json_text.cpp"
     "src/base/exception/*.cpp"
     "src/utils/*.cpp"
-    "src/base/singleton.cpp"
-    "src/base/order/*.cpp"
-)
-
-file(GLOB tensor
-    "src/computation/tensor/shape.cpp"
-    "src/computation/tensor/tensor.cpp"
-    "src/computation/tensor/math.cpp"
-)
-
-file(GLOB computation_model
+    "src/base/element.cpp"
+    "src/tensor/shape.cpp"
+    "src/tensor/tensor.cpp"
+    "src/tensor/math.cpp"
+    "src/tensor/order.cpp"
+    "src/tensor/order/column_major_planar.cpp"
+    "src/tensor/order/column_major.cpp"
+    "src/tensor/order/row_major_planar.cpp"
+    "src/tensor/order/row_major.cpp"
+    "src/tensor/dtype.cpp"
     "src/computation/model/computation_model.cpp"
     "src/api/compositional_model.cpp"
     "src/computation/model/op_model.cpp"
@@ -69,11 +68,7 @@ file(GLOB computation_model
     "src/computation/op/pool2d_op.cpp"
     "src/computation/op/activation_op.cpp"
     "src/computation/op/eltwise_op.cpp"
-    "src/deployer/*.cpp"
-    "src/deployer/blob_serialization/*.cpp"
-)
-
-file(GLOB ops
+    "src/computation/op/op_type.cpp"
     "src/computation/op/def/add.cpp"
     "src/computation/op/def/avgpool2d.cpp"
     "src/computation/op/def/batch_norm.cpp"
@@ -101,7 +96,9 @@ file(GLOB logger
     "src/logger/log_sender.cpp"
 )
 
-file(GLOB pass
+#[[file(GLOB pass
+    "src/deployer/*.cpp"
+    "src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
     "src/target/target_descriptor.cpp"
@@ -115,12 +112,12 @@ file(GLOB pass
 
 file(GLOB compiler
     "src/compiler/*"
-)
+)]]
 
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)
 add_subdirectory(examples)
-add_subdirectory(docs/internal/tutorials)
-add_subdirectory(python/api)
+#add_subdirectory(docs/internal/tutorials)
+#add_subdirectory(python/api)
 
-add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})
+#add_library(cm SHARED ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})

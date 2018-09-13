@@ -2,7 +2,7 @@
 #define CONSTANT_HPP_
 
 #include "include/mcm/computation/op/source_op.hpp"
-#include "include/mcm/computation/tensor/tensor.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 
 namespace mv
 {
@@ -21,7 +21,7 @@ namespace mv
             Constant(mv::json::Value &obj);
             Tensor getOutputDef(std::size_t idx);
             mv::json::Value toJsonValue() const;
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

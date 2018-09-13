@@ -75,7 +75,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                     }
                     else
                     {
-                        nodeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + Printable::toString(opIt->getOpType()) + "</FONT></TD></TR>";
+                        nodeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + opIt->getOpType().toString() + "</FONT></TD></TR>";
                     }
                     nodeDef += "</TABLE>>";
                 }
@@ -227,7 +227,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                     }
                     else
                     {
-                        edgeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + Printable::toString(flowIt.sink()->getOpType()) + "</FONT></TD></TR>";
+                        edgeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + flowIt.sink()->getOpType().toString() + "</FONT></TD></TR>";
                     }
 
                     edgeDef += "</TABLE>>];";

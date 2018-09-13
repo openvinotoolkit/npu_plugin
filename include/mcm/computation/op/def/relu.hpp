@@ -16,7 +16,7 @@ namespace mv
 
             ReLU(const std::string &name);
             ReLU(mv::json::Value &obj);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

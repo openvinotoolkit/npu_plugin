@@ -210,7 +210,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 }
             }
 
-            newTensor.populate(new_data);
+            newTensor.populate(new_data, weights->getOrder());
 
             auto new_op = om.constant(
                 newTensor.getData(),
