@@ -224,9 +224,15 @@ struct ModeSelectionDistance
     }
 };
 
+//At least one channel per ramblock
 unsigned get_max_mode(ModeSelectionNode node)
 {
-    return ceil(log2(node.parameters.input_channels)); //At least one channel per ramblock
+    unsigned mode_to_return = Mode0;
+    for(; mode_to_return < Mode4; ++mode_to_return)
+        if(input_streams_x_mode[mode_to_return] >= node.parameters.input_channels)
+            break;
+    return mode_to_return;
+    //old implementation - return ceil(log2(node.parameters.input_channels));
 }
 
 std::vector<unsigned> get_valid_modes(ModeSelectionNode node)
