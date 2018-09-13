@@ -130,7 +130,7 @@ struct ModeSelectionNode
 
 unsigned round_up(unsigned x, unsigned mult)
 {
-    return ((x + mult - 1) / mult) * mult;
+    return ((x + mult - 1) / mult) * mult; //power of integer arithmetic, don't touch
 }
 
 unsigned count_bits(unsigned number)
@@ -266,11 +266,13 @@ std::vector<ModeSelectionNode> generateNeighboursComingFromValidModes(ModeSelect
     return std::vector<ModeSelectionNode>(valid_neighbours_set.begin(), valid_neighbours_set.end());
 }
 
+//IMPORTANT: All the check functions must be invoked with param values already rounded up to the needed values.
+
 bool check_min_lines_constraint(ConvolutionParameters param)
 {
     unsigned min_lines = param.kernel_y + param.stride_y + 2;
-    //Space required by min lines = min_lines * input_width (rounded up to 16) * input data type size * num input channels
-    unsigned space_required = min_lines * round_up(param.input_width, 16) * input_data_size * param.input_channels;
+    //Space required by min lines = min_lines * input_width (rounded up to 8) * input data type size * num input channels
+    unsigned space_required = min_lines * param.input_width * input_data_size * param.input_channels;
     return space_required > data_storage_dimension;
 }
 
@@ -444,9 +446,14 @@ ModeSelectionDistance computeModeCost(const ModeSelectionNode a, const ModeSelec
     else
         split_over_output_channel_overhead = 7000;
 
+    //Aligning parameters to current mode
     ConvolutionParameters parameters = a.parameters;
     int ram_blocks = ram_blocks_x_mode.at(mode);
     parameters.input_channels = round_up(parameters.input_channels, ram_blocks);
+
+    //These two actually can be done also outside of the function since they do not depend on the mode. But for now they are keeping them here.`
+    parameters.output_channels = round_up(parameters.output_channels, 8);
+    parameters.input_width = round_up(parameters.input_width, 8);
 
     bool need_split_by_width_or_input_channel = check_min_lines_constraint(parameters);
     bool need_split_by_input_channel = check_coefficient_size_constraint(parameters, output_channel_performed) | check_coefficient_line_constraint(parameters, mode);
