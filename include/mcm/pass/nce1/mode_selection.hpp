@@ -50,7 +50,6 @@ enum Modes
 
 enum Splits
 {
-    OutputChannel,
     InputChannel,
     Width,
     NoSplit
