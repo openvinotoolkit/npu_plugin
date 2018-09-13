@@ -327,7 +327,7 @@ ModeSelectionDistance split_by_input_channel(ConvolutionParameters param, unsign
         to_return.mode = mode;
     }
 
-    // n of input split required (padded to next pow of 2)
+    // n of input split required (padded to next pow of 2: WHY?)
     unsigned n_split_c = next_greater_power_of_2(param.input_channels/max_ic);
     unsigned actual_ic_per_split = int(ceil((double)(param.input_channels)/n_split_c));
 
