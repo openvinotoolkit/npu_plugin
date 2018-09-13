@@ -5,6 +5,7 @@ const unsigned nce1_dpe = 256;
 const unsigned input_data_size = 2; //2bytes for half
 const unsigned coefficients_storage_dimension = pow(2, 17); //128K -> 128 == 2^7, K == 2^10 bytes
 const unsigned data_storage_dimension = pow(2, 17); //128K -> 128 == 2^7, K == 2^10 bytes
+const unsigned max_coefficient_number_per_line = 256;
 
 const std::map<unsigned, unsigned> dpe_x_output_channel =
 {
@@ -280,7 +281,7 @@ bool check_coefficient_line_constraint(ConvolutionParameters param, int mode)
    unsigned channel_per_ramblock = param.input_channels / ram_blocks_x_mode.at(mode);
    //coefficient number per line must be lower than 256
    unsigned check_coeff_line_per_block = param.kernel_x*param.kernel_y*channel_per_ramblock;
-   return check_coeff_line_per_block > 256;
+   return check_coeff_line_per_block > max_coefficient_number_per_line;
 }
 
 bool check_channels_per_ram_block(ConvolutionParameters param, int mode)
