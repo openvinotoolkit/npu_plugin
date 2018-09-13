@@ -199,11 +199,19 @@ struct ModeSelectionDistance
 
     friend bool operator<(const ModeSelectionDistance& a, const ModeSelectionDistance& b)
     {
+        if(a.cost < 0) //Negative cost is actually infinite cost
+            return false;
+        if(b.cost < 0)
+            return true;
         return a.cost < b.cost;
     }
 
     friend bool operator>(const ModeSelectionDistance& a, const ModeSelectionDistance& b)
     {
+        if(a.cost < 0) //Negative cost is actually infinite cost
+            return true;
+        if(b.cost < 0)
+            return false;
         return a.cost > b.cost;
     }
 
