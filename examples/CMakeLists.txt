@@ -19,9 +19,6 @@ target_sources(cm_resnet18 PUBLIC ${base} ${allocator} ${computation_model} ${op
 add_executable(cm_resnet50 cm_resnet50.cpp)
 target_sources(cm_resnet50 PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
 
-add_executable(cm_resnet50_compilationDescriptor cm_resnet50_compilationDescriptor.cpp)
-target_sources(cm_resnet50_compilationDescriptor PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
-
 add_executable(cm_allocate_resources cm_allocate_resources.cpp)
 target_sources(cm_allocate_resources PUBLIC ${base} ${allocator} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
 
