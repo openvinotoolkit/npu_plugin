@@ -229,7 +229,7 @@ unsigned get_max_mode(ModeSelectionNode node)
 {
     unsigned mode_to_return = Mode0;
     for(; mode_to_return < Mode4; ++mode_to_return)
-        if(input_streams_x_mode[mode_to_return] >= node.parameters.input_channels)
+        if(input_streams_x_mode.at(mode_to_return) >= node.parameters.input_channels)
             break;
     return mode_to_return;
     //old implementation - return ceil(log2(node.parameters.input_channels));
