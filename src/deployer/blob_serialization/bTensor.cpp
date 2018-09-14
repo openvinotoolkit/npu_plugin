@@ -128,8 +128,17 @@ namespace mv
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
-            // blk_stride = (int)mem->strides[0]+ mem->block;
-            block = (int)mem->block_size;
+            if (!mem->strides.empty()){
+                for(int i = 0; i != mem->strides.size()-1; i++){
+                    blk_stride = (int)mem->strides[i];
+                    block += (int)mem->block_size;
+                    if (blk_stride != 0){
+                        break;
+                    }
+                }
+            }else{
+                blk_stride = -1;
+            }
 
             int offset = mem->offset;
 
@@ -189,70 +198,78 @@ namespace mv
             }else{
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
-                // blk_stride = (int)mem->strides[0] + mem->block;
-                block = (int)mem->block_size;
+                if (!mem->strides.empty()){
+                    for(int i = 0; i != mem->strides.size()-1; i++){
+                        blk_stride = (int)mem->strides[i];
+                    block += (int)mem->block_size;
+                        if (blk_stride != 0){
+                            break;
+                        }
+                    }
+                }else{
+                    blk_stride = -1;
+                }
                 int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
                 this->offset = rt_entry;
             }
         }
 
-        int striding_axis = 0;
-        // TODO: Enable Non-Tight Buffers with Stride Support
-        // if (block == 0){
-        //     std::cout << "Serializer Warning: Zero-Storage Tensor." << std::endl;
-        //     striding_axis = 0;
-        // }else if (block == fp16_size){
-        //     // X
-        //     striding_axis = 0;
-        // }else if(block == this->dimX){
-        //     // Y
-        //     striding_axis = 1;
-        // }else if(block == this->dimX*this->dimY){
-        //     // Z
-        //     striding_axis = 2;
-        // }else if(block == this->dimX*this->dimY*this->dimZ){
-        //     // N
-        //     striding_axis = 3;
-        // }else{
-        //     std::cout << this->dimX<< ", "<<this->dimY<< ", "<<this->dimZ << std::endl;
-        //     std::cout << block << ", " << this->dimX*this->dimY*this->dimZ << std::endl;
-        //     std::cout << "Serialization Error: Unknown mapping of memory block to mvTensor notations" << std::endl;
-        //     assert(0);
-        // }
-        striding_axis = 1;
 
-        switch((*t)->getOrder()){
+        int local_StrideX = 0;
+        int local_StrideY = 0;
+        int local_StrideZ = 0;
+
+        if (blk_stride <= 0){
+            // Tight or Empty Buffer. Either way no exterior striding
+        }else{
+            if (block == this->dimX) {
+                // Striding was on X axis
+                local_StrideX = blk_stride;
+            } else if (block == this->dimX*this->dimY) {
+                // Striding was on Y axis
+                local_StrideY = blk_stride;
+            } else if ( block == this->dimX*this->dimY*this->dimZ ) {
+                // Striding was on Z axis
+                local_StrideZ = blk_stride;
+            } else {
+                std::cout << "Serialization Error: Cannot figure out stride translation" << std::endl;
+            }
+        }
+
+        switch ( (*t)->getOrder() ) {
             case Order::RowMajor:
                 // UPA Shave
                 this->order = 0;
-                // printf("ROW MAJOR\n");
-                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
-                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
-                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
+                // ROW MAJOR (CHANNEL MINOR)
+                // I.E: Y, X, Z
+                this->strideZ = fp16_size;
+                this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
+                this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 break;
-            case Order::RowMajorPlanar: // Column Major
+            case Order::RowMajorPlanar:  // Column Major
                 // NCE1 - Option 1
-                // printf("PLANAR\n");
+                // ROW MAJOR PLANAR (PLANAR)
+                // I.E: Z, Y, X
                 this->order = 1;
-                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
-                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
-                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimY*this->strideY;
+                this->strideX = fp16_size;
+                this->strideY = (this->dimX + local_StrideX)*this->strideX;
+                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
             case Order::ColumnMajor:    //
                 // NCE1 - Option 2
-                // printf("Column MAJOR\n");
+                // COLUMN MAJOR(INTERLEAVED)
+                // I.E: X, Z, Y
                 this->order = 2;
-                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
-                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimX*this->strideX;
-                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
+                this->strideX = fp16_size;
+                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
+                this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
                 break;
             case Order::TBDLayout:      // Row Major
                 this->order = 3;
-                this->strideZ = (striding_axis == 0 && blk_stride != 0)? blk_stride:fp16_size;
-                this->strideY = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimZ*this->strideZ;
-                this->strideX = (striding_axis == 0 && blk_stride != 0)? blk_stride:this->dimY*this->strideY;
+                this->strideZ = fp16_size;
+                this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
+                this->strideX = (this->dimY + local_StrideY)*this->strideY;
                 break;
-
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);
