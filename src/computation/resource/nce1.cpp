@@ -8,6 +8,7 @@ mv::Nce1::Nce1()
      input_data_size(2),
      coefficients_storage_dimension(pow(2,17)), //128K
      data_storage_dimension(pow(2,17)), //128K
+     cmx_stream_size(pow(2,18)), //256K
      max_coefficient_number_per_line(256),
      max_descriptors_x_hw_op(255),
      split_by_input_channel_overhead(30000),
@@ -95,29 +96,49 @@ std::vector<mv::ModeSelectionNode> mv::Nce1::generateNeighboursComingFromValidMo
     return std::vector<mv::ModeSelectionNode>(valid_neighbours_set.begin(), valid_neighbours_set.end());
 }
 
-bool mv::Nce1::check_min_lines_constraint(mv::ConvolutionParameters param)
+bool mv::Nce1::check_min_lines_constraint(unsigned kernel_y, unsigned stride_y, unsigned input_width, unsigned input_channels)
 {
-    unsigned min_lines = param.kernel_y + param.stride_y + 2;
-    unsigned space_required = min_lines * param.input_width * input_data_size * param.input_channels;
+    unsigned min_lines = kernel_y + stride_y + 2;
+    unsigned space_required = min_lines * input_width * input_data_size * input_channels;
     return space_required > data_storage_dimension;
 }
 
-bool mv::Nce1::check_coefficient_size_constraint(mv::ConvolutionParameters param, unsigned output_channel_performed)
+bool mv::Nce1::check_min_lines_constraint_(mv::ConvolutionParameters param)
 {
-    unsigned coeff_size = param.kernel_x * param.kernel_y*param.input_channels*round_up(output_channel_performed,8)*input_data_size;
+    return check_min_lines_constraint(param.kernel_y, param.stride_y, param.input_width, param.input_channels);
+}
+
+bool mv::Nce1::check_coefficient_size_constraint(unsigned kernel_x, unsigned kernel_y, unsigned input_channels, unsigned output_channel_performed)
+{
+    unsigned coeff_size = kernel_x * kernel_y * input_channels * getActualOutputChannels(output_channel_performed) * input_data_size;
     return coeff_size > coefficients_storage_dimension;
 }
 
-bool mv::Nce1::check_coefficient_line_constraint(mv::ConvolutionParameters param, int mode)
+bool mv::Nce1::check_coefficient_size_constraint_(mv::ConvolutionParameters param, unsigned output_channel_performed)
 {
-   unsigned channel_per_ramblock = param.input_channels / dpe_x_output_channel.at(mode);
-   unsigned check_coeff_line_per_block = param.kernel_x*param.kernel_y*channel_per_ramblock;
+    return check_coefficient_size_constraint(param.kernel_x, param.kernel_y, param.input_channels, output_channel_performed);
+}
+
+bool mv::Nce1::check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_x, unsigned kernel_y, int mode)
+{
+   unsigned channel_per_ramblock = input_channels / dpe_x_output_channel.at(mode);
+   unsigned check_coeff_line_per_block = kernel_x * kernel_y * channel_per_ramblock;
    return check_coeff_line_per_block > max_coefficient_number_per_line;
 }
 
-bool mv::Nce1::check_channels_per_ram_block(mv::ConvolutionParameters param, int mode)
+bool mv::Nce1::check_coefficient_line_constraint_(mv::ConvolutionParameters param, int mode)
 {
-    return dpe_x_output_channel.at(mode) > param.input_channels;
+   return check_coefficient_line_constraint(param.input_channels, param.kernel_x, param.kernel_y, mode);
+}
+
+bool mv::Nce1::check_channels_per_ram_block(unsigned input_channels, int mode)
+{
+    return dpe_x_output_channel.at(mode) > input_channels;
+}
+
+bool mv::Nce1::check_channels_per_ram_block_(mv::ConvolutionParameters param, int mode)
+{
+    return check_channels_per_ram_block(param.input_channels, mode);
 }
 
 mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParameters param, unsigned actual_output_channels, int mode, bool support_split_over_c)
@@ -153,7 +174,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     }
 
     // n of input split required (padded to next pow of 2: WHY?)
-    unsigned n_split_c = mv::next_greater_power_of_2(param.input_channels/max_ic);
+    unsigned n_split_c = getActualInputChannelSplits(param.input_channels/max_ic);
     unsigned actual_ic_per_split = int(ceil((double)(param.input_channels)/n_split_c));
 
     if((n_split_c < 2) || (actual_ic_per_split % ramBlocks) || (!support_split_over_c))
@@ -168,9 +189,9 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     ConvolutionParameters new_param(param);
     param.input_channels = actual_ic_per_split;
 
-    if (check_coefficient_size_constraint(new_param, mode) ||
-        check_channels_per_ram_block(new_param, mode)  ||
-        check_coefficient_line_constraint(new_param, mode))
+    if (check_coefficient_size_constraint_(new_param, mode) ||
+        check_channels_per_ram_block_(new_param, mode)  ||
+        check_coefficient_line_constraint_(new_param, mode))
     {
         //This mode does not allow splits
         to_return.cost = -1;
@@ -206,7 +227,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
     unsigned split_output_width =  param.output_width/n_split_w;
     unsigned split_input_width =  param.input_width/n_split_w;
 
-    if (check_channels_per_ram_block(param, mode) || !support_split_over_w)
+    if (check_channels_per_ram_block_(param, mode) || !support_split_over_w)
     {
         to_return.cost = -1;
         to_return.mode = mode;
@@ -224,7 +245,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
         ConvolutionParameters new_param(param);
         new_param.output_width = os_w;
         new_param.input_width = is_w;
-        if(check_coefficient_size_constraint(new_param, mode) || check_coefficient_line_constraint(new_param, mode))
+        if(check_coefficient_size_constraint_(new_param, mode) || check_coefficient_line_constraint_(new_param, mode))
         {
             to_return.cost = -1;
             to_return.mode = mode;
@@ -272,15 +293,14 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
 
     //Aligning parameters to current mode
     mv::ConvolutionParameters parameters = a.parameters;
-    int ram_blocks = dpe_x_output_channel.at(mode);
-    parameters.input_channels = round_up(parameters.input_channels, ram_blocks);
+    parameters.input_channels = getActualInputChannels(parameters.input_channels, mode);
 
     //These two actually can be done also outside of the function since they do not depend on the mode. But for now they are keeping them here.`
-    parameters.output_channels = round_up(parameters.output_channels, 8);
-    parameters.input_width = round_up(parameters.input_width, 8);
+    parameters.output_channels = getActualOutputChannels(parameters.output_channels);
+    parameters.input_width = getActualInputWidth(parameters.input_width);
 
-    bool need_split_by_width_or_input_channel = check_min_lines_constraint(parameters);
-    bool need_split_by_input_channel = check_coefficient_size_constraint(parameters, output_channel_performed) | check_coefficient_line_constraint(parameters, mode);
+    bool need_split_by_width_or_input_channel = check_min_lines_constraint_(parameters);
+    bool need_split_by_input_channel = check_coefficient_size_constraint_(parameters, output_channel_performed) | check_coefficient_line_constraint_(parameters, mode);
 
     if(need_split_by_width_or_input_channel)
     {
@@ -298,7 +318,7 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
         to_return.cost = parameters.kernel_x * parameters.kernel_y * parameters.input_width * parameters.input_height * parameters.input_channels / dpe_x_output_channel.at(mode);
         to_return.split_performed = Splits::NoSplit;
         to_return.num_splits = 1;
-        if(check_channels_per_ram_block(parameters, mode))
+        if(check_channels_per_ram_block_(parameters, mode))
             to_return.cost = -1; //infinite cost
     }
 
@@ -306,4 +326,31 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
     to_return.mode = mode;
     to_return.performed_output_channels = output_channel_performed;
     return to_return;
+}
+
+unsigned mv::Nce1::getSplitsOverH(unsigned total_memory_occupied_by_tensors)
+{
+    return (unsigned int) ceil(double(total_memory_occupied_by_tensors)/cmx_stream_size);
+}
+
+
+//Padding functions
+unsigned mv::Nce1::getActualInputChannels(unsigned input_channels, unsigned mode)
+{
+    return mv::round_up(input_channels, dpe_x_output_channel.at(mode));
+}
+
+unsigned mv::Nce1::getActualOutputChannels(unsigned output_channels)
+{
+    return mv::round_up(output_channels, 8);
+}
+
+unsigned mv::Nce1::getActualInputWidth(unsigned input_width)
+{
+     return mv::round_up(input_width, 8);
+}
+
+unsigned mv::Nce1::getActualInputChannelSplits(unsigned splits)
+{
+     return mv::next_greater_power_of_2(splits);
 }

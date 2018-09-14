@@ -213,6 +213,7 @@ namespace mv
             //Memory dimensions
             unsigned coefficients_storage_dimension;
             unsigned data_storage_dimension;
+            unsigned cmx_stream_size;
 
             //Hw constraints
             unsigned max_coefficient_number_per_line;
@@ -228,12 +229,7 @@ namespace mv
             unsigned split_by_width_overhead;
             unsigned split_by_output_channel_overhead;
 
-        public:
-            //Constructor
-            Nce1();
-
-            //Mode selection procedure
-            ModeSelectionResult optimize_convolution(const ModeSelectionNode source);
+            //-----------PRIVATE FUNCTIONS-------------
 
             //Functions for Dijkstra
             std::vector<ModeSelectionNode> generateNeighboursComingFromValidModes(const ModeSelectionNode current_node);
@@ -247,14 +243,33 @@ namespace mv
             unsigned get_max_mode(unsigned input_channels);
             std::vector<unsigned> get_valid_modes(ModeSelectionNode node);
 
+            //Constraint check functions, private overload
+            //IMPORTANT: All the check functions must be invoked with param values already rounded up to the needed values.
+            bool check_min_lines_constraint_(ConvolutionParameters param);
+            bool check_coefficient_size_constraint_(ConvolutionParameters param, unsigned output_channel_performed);
+            bool check_coefficient_line_constraint_(ConvolutionParameters param, int mode);
+            bool check_channels_per_ram_block_(ConvolutionParameters param, int mode);
+
+        public:
+            //Constructor
+            Nce1();
+
+            //Mode selection procedure
+            ModeSelectionResult optimize_convolution(const ModeSelectionNode source);
+
             //Constraint check functions
             //IMPORTANT: All the check functions must be invoked with param values already rounded up to the needed values.
-            bool check_min_lines_constraint(ConvolutionParameters param);
-            bool check_coefficient_size_constraint(ConvolutionParameters param, unsigned output_channel_performed);
-            bool check_coefficient_line_constraint(ConvolutionParameters param, int mode);
-            bool check_channels_per_ram_block(ConvolutionParameters param, int mode);
+            bool check_min_lines_constraint(unsigned kernel_y, unsigned stride_y, unsigned input_width, unsigned input_channels);
+            bool check_coefficient_size_constraint(unsigned kernel_x, unsigned kernel_y, unsigned input_channels, unsigned output_channel_performed);
+            bool check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_x, unsigned kernel_y, int mode);
+            bool check_channels_per_ram_block(unsigned input_channels, int mode);
+            unsigned getSplitsOverH(unsigned total_memory_occupied_by_tensors);
 
-
+            //Padding helper functions
+            unsigned getActualInputChannels(unsigned input_channels, unsigned mode);
+            unsigned getActualOutputChannels(unsigned output_channels);
+            unsigned getActualInputWidth(unsigned input_width);
+            unsigned getActualInputChannelSplits(unsigned splits);
     };
 }
 
