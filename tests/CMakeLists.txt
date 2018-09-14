@@ -42,8 +42,8 @@ file(GLOB order
     "order/*.cpp"
 )
 
-file(GLOB dijkstra
-    "dijkstra/*.cpp"
+file(GLOB nce1
+    "nce1/*.cpp"
 )
 
 add_executable(mcm_unit_tests 
@@ -56,7 +56,7 @@ add_executable(mcm_unit_tests
     ${pass_src}
     ${compiler_src}
     ${model_src}
-    ${dijkstra}
+    ${nce1}
 )
 
 target_link_libraries (mcm_unit_tests gtest m)
