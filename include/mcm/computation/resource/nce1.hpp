@@ -1,4 +1,4 @@
-#include "mcm/graph/dijkstra.hpp"
+#include "mcm/algorithms/dijkstra.hpp"
 #include <cmath>
 
 const unsigned nce1_dpe = 256;
