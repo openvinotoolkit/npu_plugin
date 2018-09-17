@@ -1,6 +1,7 @@
 ﻿#include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/model/types.hpp"
 
@@ -51,6 +52,7 @@ mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpLis
 
 void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIterator, mv::ModeSelectionResult& modes_to_use, mv::Nce1& nce)
 {
+    mv::DataModel dm(om);
     // ASSUMPTION: all the splits in modes_to_use are are equal (This assumption is true now, and will be routines to assure it's trueness in the future)
 
     // Non vector attributes first
@@ -121,8 +123,8 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     paddingsOutputTensor.e1 = actual_output_height - output_height;
     paddingsOutputTensor.e2 = actual_output_channels - output_channels;
 
-    input_tensor->addAttr("NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVec3DType, paddingsInputTensor));
-    output_tensor->addAttr("NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVec3DType, paddingsOutputTensor));
+    dm.addAttr(input_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVec3DType, paddingsInputTensor));
+    dm.addAttr(output_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVec3DType, paddingsOutputTensor));
 
     // Compute local line stride
     unsigned local_line_stride = nce.computeLocalLineStride(actual_input_width);
