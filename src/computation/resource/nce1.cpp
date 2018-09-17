@@ -354,3 +354,42 @@ unsigned mv::Nce1::getActualInputChannelSplits(unsigned splits)
 {
      return mv::next_greater_power_of_2(splits);
 }
+
+unsigned mv::Nce1::computeBytesPerLine()
+{
+    return 128 / 8; // RAMs are arranged in lines of 128bits
+}
+
+unsigned mv::Nce1::computeLocalLineStride(unsigned input_width)
+{
+    unsigned pixels_per_line = computeBytesPerLine() / input_data_size;
+    return (input_width + (pixels_per_line - 1)) / pixels_per_line;
+}
+
+unsigned mv::Nce1::computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, float actual_output_channels, std::vector<unsigned>& modes)
+{
+    unsigned to_return = splits_over_height * splits_over_input_channels;
+    unsigned n = modes.size();
+    for(unsigned i = 0; i < n; ++i)
+    {
+        unsigned output_channel_performed = output_channel_performed_one_shot.at(modes[i]);
+        to_return += ceil(actual_output_channels / output_channel_performed);
+        actual_output_channels -= output_channel_performed;
+    }
+    return to_return;
+}
+
+unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode)
+{
+    int ram_blocks = dpe_x_output_channel.at(mode);
+    return input_channels / ram_blocks;
+}
+
+unsigned mv::Nce1::computeLinesPerChannel(unsigned channel_per_block, unsigned mode)
+{
+    unsigned ram_blocks = dpe_x_output_channel.at(mode);
+    unsigned block_size = data_storage_dimension / ram_blocks;
+    unsigned bytes_per_channel = block_size / channel_per_block;
+    unsigned bytes_per_line = computeBytesPerLine();
+    return bytes_per_channel / bytes_per_line;
+}
