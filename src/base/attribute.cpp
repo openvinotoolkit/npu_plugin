@@ -63,6 +63,8 @@ mv::Attribute mv::Attribute::JsonAttributeFactory(mv::json::Value& value)
             return Attribute(mv::AttrType::FloatVecType, constructFloatVectorFromJson(value["content"]));
         case mv::AttrType::StringVecType:
             return Attribute(mv::AttrType::StringVecType, constructStringVectorFromJson(value["content"]));
+        case mv::AttrType::UnsignedVecType:
+            return Attribute(mv::AttrType::UnsignedVecType, constructUnsignedVectorFromJson(value["content"]));
         case mv::AttrType::UnknownType:
             return Attribute(mv::AttrType::UnknownType, nullptr);
     }
@@ -84,6 +86,9 @@ mv::json::Value mv::Attribute::getContentJson() const
 
     switch (attrType_)
     {
+
+        case AttrType::UnsignedVecType:
+            return Jsonable::toJsonValue(getContent<mv::dynamic_vector<unsigned>>());
 
         case AttrType::ByteType:
             return Jsonable::toJsonValue(getContent<byte_type>());

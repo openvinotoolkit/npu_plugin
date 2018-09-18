@@ -30,6 +30,7 @@ DEFINE_ENUMERATED_TYPE(mv::UnsignedVector3D, mv::AttrType::UnsignedVec3DType);
 DEFINE_ENUMERATED_TYPE(mv::UnsignedVector4D, mv::AttrType::UnsignedVec4DType);
 DEFINE_ENUMERATED_TYPE(mv::dynamic_vector<mv::float_type>, mv::AttrType::FloatVecType);
 DEFINE_ENUMERATED_TYPE(mv::dynamic_vector<std::string>, mv::AttrType::StringVecType);
+DEFINE_ENUMERATED_TYPE(mv::dynamic_vector<unsigned>, mv::AttrType::UnsignedVecType);
 
 template<class T, class U>
 struct is_same {

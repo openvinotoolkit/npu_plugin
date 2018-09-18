@@ -225,3 +225,11 @@ mv::dynamic_vector<mv::string> mv::Jsonable::constructStringVectorFromJson(mv::j
     return vec;
 }
 
+mv::dynamic_vector<unsigned> mv::Jsonable::constructUnsignedVectorFromJson(mv::json::Value &v)
+{
+    mv::dynamic_vector<unsigned> vec;
+    for(unsigned i = 0; i < v.size(); ++i)
+        vec.push_back(constructUnsignedTypeFromJson(v[i]));
+    return vec;
+}
+

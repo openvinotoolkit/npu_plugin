@@ -340,6 +340,12 @@ unsigned mv::Nce1::getActualInputChannels(unsigned input_channels, unsigned mode
     return mv::round_up(input_channels, dpe_x_output_channel.at(mode));
 }
 
+//Most lazy and safe overload ever.
+unsigned mv::Nce1::getActualInputChannels(unsigned input_channels)
+{
+    return mv::round_up(input_channels, 16);
+}
+
 unsigned mv::Nce1::getActualOutputChannels(unsigned output_channels)
 {
     return mv::round_up(output_channels, 8);
@@ -350,9 +356,24 @@ unsigned mv::Nce1::getActualInputWidth(unsigned input_width)
      return mv::round_up(input_width, 8);
 }
 
+unsigned mv::Nce1::getActualInputHeight(unsigned input_height)
+{
+    return input_height;
+}
+
 unsigned mv::Nce1::getActualInputChannelSplits(unsigned splits)
 {
      return mv::next_greater_power_of_2(splits);
+}
+
+unsigned mv::Nce1::getActualOutputWidth(unsigned output_width)
+{
+    return output_width;
+}
+
+unsigned mv::Nce1::getActualOutputHeight(unsigned output_height)
+{
+    return output_height;
 }
 
 unsigned mv::Nce1::computeBytesPerLine()

@@ -267,9 +267,14 @@ namespace mv
 
             //Padding helper functions
             unsigned getActualInputChannels(unsigned input_channels, unsigned mode);
-            unsigned getActualOutputChannels(unsigned output_channels);
+            unsigned getActualInputChannels(unsigned input_channels);
             unsigned getActualInputWidth(unsigned input_width);
+            unsigned getActualInputHeight(unsigned input_height);
             unsigned getActualInputChannelSplits(unsigned splits);
+
+            unsigned getActualOutputWidth(unsigned output_width);
+            unsigned getActualOutputHeight(unsigned output_height);
+            unsigned getActualOutputChannels(unsigned output_channels);
 
             //Other helper functions
             unsigned computeLocalLineStride(unsigned input_width);
