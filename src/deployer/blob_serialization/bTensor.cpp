@@ -41,12 +41,14 @@ namespace mv
         // DEPRECIATED.
     }
 
-    Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t){
+    Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t)
+    {
 
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == NULL || &t == NULL ) {  // || *t == NULL ){
+        if ( t == NULL || &t == NULL ) {  // || *t == NULL )
+        {
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
             this->dimY = 0;
@@ -61,7 +63,8 @@ namespace mv
             return;
         }
 
-        switch((int)(*t)->getShape().ndims()){
+        switch((int)(*t)->getShape().ndims())
+        {
             case 5:
             {
                 // Hardware Weights
@@ -122,28 +125,35 @@ namespace mv
         int blk_stride = 0;
         int block = 0;
 
-        if ((*t)->isPopulated()){
+        if ((*t)->isPopulated())
+        {
             // std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
 
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
-            if (!mem->strides.empty()){
-                for(int i = 0; i != mem->strides.size()-1; i++){
+            if (!mem->strides.empty())
+            {
+                for(int i = 0; i != mem->strides.size()-1; i++)
+                {
                     blk_stride = (int)mem->strides[i];
                     block += (int)mem->block_size;
-                    if (blk_stride != 0){
+                    if (blk_stride != 0)
+                    {
                         break;
                     }
                 }
-            }else{
+            }
+            else
+            {
                 blk_stride = -1;
             }
 
             int offset = mem->offset;
 
 
-            if (offset % 64 != 0){
+            if (offset % 64 != 0)
+            {
                 printf("Serializer Warning: Short-term alignment fix, likely cause of device crash. IMPORTANT.\n");
                 offset = 64+(offset/64)*64 ;
             }
@@ -165,7 +175,8 @@ namespace mv
                 no_buffers = 1;
             }
 
-            if (no_buffers || mem == dm->bufferEnd("IntermediateMemory", stg) ){//&& !hack_activated){
+            if (no_buffers || mem == dm->bufferEnd("IntermediateMemory", stg) )
+            {
 
                 // Not Found - In or Output
                 std::vector<mv::string> input_names, output_names;
@@ -181,32 +192,44 @@ namespace mv
                     }
                 }
 
-                if(std::find(input_names.begin(), input_names.end(), (*t)->getName()) != input_names.end()) {
+                if(std::find(input_names.begin(), input_names.end(), (*t)->getName()) != input_names.end())
+                {
                     // std::cout  << "Network Input. Note: IO Offset not supported by serializer" << std::endl;
                     this->location = BLOB_INPUT_LOCATION;
                     this->offset = 0;
-                }else{
-                    if(std::find(output_names.begin(), output_names.end(), (*t)->getName()) != output_names.end()) {
+                }else
+                {
+                    if(std::find(output_names.begin(), output_names.end(), (*t)->getName()) != output_names.end())
+                    {
                         // std::cout  << "Network Output. Note: IO Offset not supported by serializer" << std::endl;
                         this->location = BLOB_OUTPUT_LOCATION;
                         this->offset = 0;
-                    }else{
+                    }
+                    else
+                    {
                         // std::cout << "Serialization Error: Tensor Position not resolved" << std::endl;
                         assert(0);
                     }
                 }
-            }else{
+            }
+            else
+            {
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
-                if (!mem->strides.empty()){
-                    for(int i = 0; i != mem->strides.size()-1; i++){
+                if (!mem->strides.empty())
+                {
+                    for(int i = 0; i != mem->strides.size()-1; i++)
+                    {
                         blk_stride = (int)mem->strides[i];
-                    block += (int)mem->block_size;
-                        if (blk_stride != 0){
+                        block += (int)mem->block_size;
+                        if (blk_stride != 0)
+                        {
                             break;
                         }
                     }
-                }else{
+                }
+                else
+                {
                     blk_stride = -1;
                 }
                 int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
@@ -219,24 +242,35 @@ namespace mv
         int local_StrideY = 0;
         int local_StrideZ = 0;
 
-        if (blk_stride <= 0){
+        if (blk_stride <= 0)
+        {
             // Tight or Empty Buffer. Either way no exterior striding
-        }else{
-            if (block == this->dimX) {
+        }
+        else
+        {
+            if (block == this->dimX)
+            {
                 // Striding was on X axis
                 local_StrideX = blk_stride;
-            } else if (block == this->dimX*this->dimY) {
+            }
+            else if (block == this->dimX*this->dimY)
+            {
                 // Striding was on Y axis
                 local_StrideY = blk_stride;
-            } else if ( block == this->dimX*this->dimY*this->dimZ ) {
+            }
+            else if ( block == this->dimX*this->dimY*this->dimZ )
+            {
                 // Striding was on Z axis
                 local_StrideZ = blk_stride;
-            } else {
+            }
+            else
+            {
                 std::cout << "Serialization Error: Cannot figure out stride translation" << std::endl;
             }
         }
 
-        switch ( (*t)->getOrder() ) {
+        switch ( (*t)->getOrder() )
+        {
             case Order::RowMajor:
                 // UPA Shave
                 this->order = 0;
