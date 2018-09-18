@@ -311,7 +311,8 @@ namespace mv
                 padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
             }
 
-            if (! it->hasAttr("NCE1_LinesPerChannel")){
+            if (! it->hasAttr("NCE1_LinesPerChannel"))
+            {
                 printf("Serializer Info: Needs Attribute 'NCE1_LinesPerChannel'. Defaulting to 1\n");
             }
             else
@@ -319,7 +320,8 @@ namespace mv
                 LPC = it->getAttr("NCE1_LinesPerChannel").getContent<mv::UnsignedVector4D>().e0;
             }
 
-            if (! it->hasAttr("NCE1_LocalChannelStride")){
+            if (! it->hasAttr("NCE1_LocalChannelStride"))
+            {
                 printf("Serializer Info: Needs Attribute 'NCE1_LocalChannelStride'. Defaulting to 1\n");
             }
             else
@@ -332,7 +334,8 @@ namespace mv
                 this->descriptors[i] =  cnnConvolutionPoolStructure();
 
                 // Relations to other Descriptors
-                if (i+1 == this->desc_count){
+                if (i+1 == this->desc_count)
+                {
                     this->descriptors[i].Line0.linkAddress = 0; // Last.
                 }else{
                     this->descriptors[i].Line0.linkAddress = 32*4;
