@@ -50,7 +50,9 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         {
             auto stageIt = cm.getStage(0);
 
-            mv::dynamic_vector<size_t> paddings; //TODO: Should be filled
+            mv::dynamic_vector<size_t> paddings;
+            if(tIt->hasAttr("NCE1_Paddings"))
+                paddings = tIt->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
             dm.allocateTensor("ConstantMemory", stageIt, tIt, paddings);
 
         }
@@ -139,7 +141,9 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                 pad = max_pad;
             }
 
-            mv::dynamic_vector<size_t> paddings; //TODO: Should be filled
+            mv::dynamic_vector<size_t> paddings;
+            if(tIt->hasAttr("NCE1_Paddings"))
+                paddings = tIt->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
             dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
         }
     }

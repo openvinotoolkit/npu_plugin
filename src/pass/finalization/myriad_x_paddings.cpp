@@ -39,24 +39,24 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         auto output_tensor = operationIt->getOutputTensor(0);
         auto output_tensor_dimension = output_tensor->getShape();
 
-        unsigned input_width = input_tensor_dimension[0];
-        unsigned input_height = input_tensor_dimension[1];
-        unsigned input_channels = input_tensor_dimension[2];
+        size_t input_width = input_tensor_dimension[0];
+        size_t input_height = input_tensor_dimension[1];
+        size_t input_channels = input_tensor_dimension[2];
 
-        unsigned actual_input_width = nce.getActualInputWidth(input_width);
-        unsigned actual_input_height = nce.getActualInputHeight(input_height);
-        unsigned actual_input_channels = nce.getActualInputChannels(input_channels);
+        size_t actual_input_width = nce.getActualInputWidth(input_width);
+        size_t actual_input_height = nce.getActualInputHeight(input_height);
+        size_t actual_input_channels = nce.getActualInputChannels(input_channels);
 
-        unsigned output_width = output_tensor_dimension[0];
-        unsigned output_height = output_tensor_dimension[1];
-        unsigned output_channels = output_tensor_dimension[2];
+        size_t output_width = output_tensor_dimension[0];
+        size_t output_height = output_tensor_dimension[1];
+        size_t output_channels = output_tensor_dimension[2];
 
-        unsigned actual_output_width = nce.getActualOutputWidth(output_width);
-        unsigned actual_output_height = nce.getActualOutputHeight(output_height);
-        unsigned actual_output_channels = nce.getActualOutputChannels(output_channels);
+        size_t actual_output_width = nce.getActualOutputWidth(output_width);
+        size_t actual_output_height = nce.getActualOutputHeight(output_height);
+        size_t actual_output_channels = nce.getActualOutputChannels(output_channels);
 
-        mv::dynamic_vector<unsigned> input_tensor_paddings(input_tensor_dimension.ndims());
-        mv::dynamic_vector<unsigned> output_tensor_paddings(output_tensor_dimension.ndims());
+        mv::dynamic_vector<size_t> input_tensor_paddings(input_tensor_dimension.ndims());
+        mv::dynamic_vector<size_t> output_tensor_paddings(output_tensor_dimension.ndims());
 
         input_tensor_paddings[0] = actual_input_width - input_width;
         input_tensor_paddings[1] = actual_input_height - input_height;
@@ -69,7 +69,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         if(input_tensor->hasAttr("NCE1_Paddings"))
         {
             //Simple rule: greater padding wins
-            mv::dynamic_vector<unsigned> existing_input_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::UnsignedVector>();
+            mv::dynamic_vector<size_t> existing_input_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
             input_tensor->removeAttr("NCE1_Paddings");
             for(unsigned i = 0; i < existing_input_tensor_paddings.size();++i)
                 input_tensor_paddings[i] = std::max(input_tensor_paddings[i], existing_input_tensor_paddings[i]);
@@ -78,7 +78,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         if(output_tensor->hasAttr("NCE1_Paddings"))
         {
             //Simple rule: greater padding wins
-            mv::dynamic_vector<unsigned> existing_output_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::UnsignedVector>();
+            mv::dynamic_vector<size_t> existing_output_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
             output_tensor->removeAttr("NCE1_Paddings");
             for(unsigned i = 0; i < existing_output_tensor_paddings.size();++i)
                 output_tensor_paddings[i] = std::max(output_tensor_paddings[i], existing_output_tensor_paddings[i]);
