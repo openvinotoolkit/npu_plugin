@@ -14,7 +14,6 @@ namespace mv
     public:
 
         SourceOp(OpType opType, std::size_t outputsCount, const std::string &name);
-        SourceOp(mv::json::Value& value);
         virtual ~SourceOp() = 0;
         virtual bool setOutputTensor(Data::TensorIterator &tensor, std::size_t idx);
         virtual Data::TensorIterator getOutputTensor(std::size_t idx);

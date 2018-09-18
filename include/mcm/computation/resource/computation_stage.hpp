@@ -2,20 +2,18 @@
 #define STAGE_HPP_
 
 #include "include/mcm/computation/model/computation_group.hpp"
+#include "include/mcm/computation/op/op_type.hpp"
 
-/*namespace mv
+namespace mv
 {
 
     class ComputationStage : public ComputationGroup
     {
 
-        std::size_t idx_;
-
     protected:
 
-        virtual bool markMembmer_(ComputationElement &member) override;
-        virtual bool unmarkMembmer_(ComputationElement &member) override;
-        virtual std::string getLogID_() const override;
+        virtual bool markMembmer_(Element &member) override;
+        virtual bool unmarkMembmer_(Element &member) override;
 
     public:
 
@@ -23,9 +21,10 @@
         std::size_t getIdx() const;
         std::string toString() const override;
         bool operator <(ComputationStage &other);
-        
+        virtual std::string getLogID() const override;
+
     };
 
-}*/
+}
 
 #endif // STAGE_HPP_

@@ -2,7 +2,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+/*void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -51,4 +51,4 @@ void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             currentTensorOutputStream.close();
         }
     }
-}
+}*/

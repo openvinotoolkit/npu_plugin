@@ -42,10 +42,10 @@ namespace mv
     bPooling::bPooling(mv::ComputationOp* it)
         :
           Blob_Op_Definition(),
-          kernelRadixX(it->getAttr("kSize").getContent<mv::std::array<unsigned short, 2>>().e0),
-          kernelRadixY(it->getAttr("kSize").getContent<mv::std::array<unsigned short, 2>>().e1),
-          kernelStrideX(it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e0),
-          kernelStrideY(it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e1),
+          kernelRadixX(it->get<std::array<unsigned short, 2>>("kSize")[0]),
+          kernelRadixY(it->get<std::array<unsigned short, 2>>("kSize")[1]),
+          kernelStrideX(it->get<std::array<unsigned short, 2>>("stride")[0]),
+          kernelStrideY(it->get<std::array<unsigned short, 2>>("stride")[1]),
           kernelPadX(0),
           kernelPadY(0),
           kernelPadStyle(2),

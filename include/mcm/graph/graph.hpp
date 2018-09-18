@@ -487,11 +487,15 @@ namespace mv
             
             T_content& operator*() const
             {
+                if (std::weak_ptr<T_iterable>::expired())
+                    throw std::runtime_error("Null pointer dereference");
                 return std::weak_ptr<T_iterable>::lock()->get_content();
             }
 
             T_iterable* operator->() const
             {
+                if (std::weak_ptr<T_iterable>::expired())
+                    throw std::runtime_error("Null pointer dereference");
                 return std::weak_ptr<T_iterable>::lock().operator->();
             }
 

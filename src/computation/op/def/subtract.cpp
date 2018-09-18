@@ -7,13 +7,6 @@ EltwiseOp(OpType::Subtract, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::Subtract::Subtract(mv::json::Value& obj) :
-ComputationOp(obj),
-EltwiseOp(obj)
-{
-
-}*/
-
 bool mv::op::Subtract::isHardwarizeable(json::Object&)
 {
     return false;

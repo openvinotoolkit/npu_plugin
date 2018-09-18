@@ -5,7 +5,7 @@
 TEST(ops, matMul)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
     auto input0 = om.input({256, 512}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(512u * 100u);
     auto input1 = om.constant(weightsData, {512, 100}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);

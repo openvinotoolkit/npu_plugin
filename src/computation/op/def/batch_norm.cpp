@@ -18,6 +18,10 @@ mv::Tensor mv::op::BatchNorm::getOutputDef(std::size_t idx)
     auto input = getInputTensor(0);
     auto inputShape = input->getShape(); 
 
+    if (inputShape.ndims() != 3)
+        throw(OpError(*this, "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
+            " has " + std::to_string(inputShape.ndims())));
+
     auto mean = getInputTensor(1);
     auto meanShape = mean->getShape();
 
@@ -30,24 +34,45 @@ mv::Tensor mv::op::BatchNorm::getOutputDef(std::size_t idx)
     auto scale = getInputTensor(4);
     auto scaleShape = scale->getShape();
 
-    if (!(inputShape == meanShape && inputShape == varianceShape && inputShape == offsetShape && inputShape == scaleShape))
+    if (meanShape != varianceShape || meanShape != offsetShape || meanShape != offsetShape)
+        throw(OpError(*this, "Invalid dimensionality of parameter input tensors - must have an equal dimensionality, recevied"
+            " mean (input 1) " + std::to_string(meanShape.ndims()) + ", variance (input 1) " + std::to_string(varianceShape.ndims()) +
+            ", offset (input 3) " + std::to_string(offsetShape.ndims()) + ", scale (input 4) " + std::to_string(scaleShape.ndims())));
+
+    if (inputShape != meanShape || inputShape != varianceShape || inputShape != offsetShape || inputShape != scaleShape)
     {
 
-        if (meanShape.ndims() != 1  || (meanShape[0] != inputShape[-1]))
-            throw(OpError(*this, "Invalid shape of mean tensor (input 1) - has to be one dimensional tensor of"
-                "dimension equal to " + std::to_string(inputShape[-1])));
+        if (meanShape.ndims() != 1)
+            throw(OpError(*this, "Invalid shape of the mean tensor (input 1) - must have a dimensionality equal to 1 or"
+                " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims())));
+        
+        if (meanShape[0] != inputShape[-1])
+            throw(OpError(*this, "Invalid shape of the mean tensor (input 1) - if it has 1 dimension, it must be equal"
+                " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1])));
 
-        if (varianceShape.ndims() != 1  || (varianceShape[0] != inputShape[-1]))
-            throw(OpError(*this, "Invalid shape of variance tensor (input 2) - has to be one dimensional tensor of"
-                "dimension equal to " + std::to_string(inputShape[-1])));
+        if (varianceShape.ndims() != 1)
+            throw(OpError(*this, "Invalid shape of the variance tensor (input 1) - must have a dimensionality equal to 1 or"
+                " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims())));
+        
+        if (varianceShape[0] != inputShape[-1])
+            throw(OpError(*this, "Invalid shape of the variance tensor (input 1) - if it has 1 dimension, it must be equal"
+                " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1])));
+        
+        if (offsetShape.ndims() != 1)
+            throw(OpError(*this, "Invalid shape of the offset tensor (input 1) - must have a dimensionality equal to 1 or"
+                " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims())));
+        
+        if (offsetShape[0] != inputShape[-1])
+            throw(OpError(*this, "Invalid shape of the offset tensor (input 1) - if it has 1 dimension, it must be equal"
+                " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1])));
 
-        if (offsetShape.ndims() != 1  || (offsetShape[0] != inputShape[-1]))
-            throw(OpError(*this, "Invalid shape of offset tensor (input 3) - has to be one dimensional tensor of"
-                "dimension equal to " + std::to_string(inputShape[-1])));
-
-         if (scaleShape.ndims() != 1  || (scaleShape[0] != inputShape[-1]))
-            throw(OpError(*this, "Invalid shape of scale tensor (input 4) - has to be one dimensional tensor of"
-                "dimension equal to " + std::to_string(inputShape[-1])));
+        if (scaleShape.ndims() != 1)
+            throw(OpError(*this, "Invalid shape of the scale tensor (input 1) - must have a dimensionality equal to 1 or"
+                " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims())));
+        
+        if (scaleShape[0] != inputShape[-1])
+            throw(OpError(*this, "Invalid shape of the scale tensor (input 1) - if it has 1 dimension, it must be equal"
+                " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1])));
 
     }
 

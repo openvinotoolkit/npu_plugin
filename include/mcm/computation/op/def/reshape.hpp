@@ -17,8 +17,6 @@ namespace mv
         public:
 
             Reshape(Shape outputShape, const std::string& name);
-            Reshape(mv::json::Value &obj);
-
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
 

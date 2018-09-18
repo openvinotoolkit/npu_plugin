@@ -1,8 +1,12 @@
 #include "include/mcm/base/element.hpp"
 
+mv::Element::Element(const std::string& name) :
+name_(name)
+{
 
+}
 
-mv::Element::Element(const std::string &name) :
+mv::Element::Element(const char* name) :
 name_(name)
 {
 
@@ -15,16 +19,43 @@ name_(other.name_)
 
 }
 
-mv::Element::Element(const std::string& name, const json::Value& content) :
-name_(name)
+mv::Element::Element(const json::Value& content)
 {
     if (content.valueType() != json::JSONType::Object)
         throw AttributeError(*this, "Unable to construct using non json::Object "
             "value type " + json::Value::typeName(content.valueType()));
-    auto keys = content.getKeys();
+
+    if (!content.hasKey("name"))
+        throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
+            "does not contain 'name' field");
+
+    if (content["name"].valueType() != json::JSONType::String)
+        throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
+            "field 'name' is " + json::Value::typeName(content["name"].valueType()) + ", must be json::String");
+
+    if (!content.hasKey("attrs"))
+        throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
+            "does not contain 'attrs' field");
+
+    if (content["attrs"].valueType() != json::JSONType::Object)
+        throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
+            "field 'attrs' is " + json::Value::typeName(content["attrs"].valueType()) + ", must be json::Object");
+    
+    if (content.size() > 2)
+        throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
+            "too many members specified - must be 2 ('name' and 'attrs'), has " + std::to_string(content.size()));
+
+    name_ = content["name"].get<std::string>();
+
+    auto keys = content["attrs"].getKeys();
     for (auto const &key : keys)
     {
-        attrs_.emplace(key, content[key]);
+        auto it = attrs_.emplace(key, content[key]);
+        if (!it.second)
+            throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
+        log(Logger::MessageType::MessageDebug, "Attriubte '" + key + "' (" + it.first->second.getTypeName() +
+                    ") set to " + it.first->second.toString());
+
     }
 }
 
@@ -42,6 +73,16 @@ mv::Element& mv::Element::operator=(const Element &other)
 {
     name_ = other.name_;
     return *this;
+}
+
+bool mv::Element::operator<(const Element& other) const
+{
+    return name_ < other.name_;
+}
+
+bool mv::Element::operator==(const Element& other) const
+{
+    return name_ == other.name_;
 }
 
 const std::string& mv::Element::getName() const
@@ -87,9 +128,27 @@ std::string mv::Element::attrsToString_() const
 
 }
 
+mv::Attribute& mv::Element::get(const std::string& name)
+{
+    if (attrs_.find(name) == attrs_.end())
+        throw ArgumentError(*this, "name", name, "Undefined attribute");
+    return attrs_[name];
+}
+
 void mv::Element::set(const std::string& name, const Attribute& attr)
 {
-    attrs_.emplace(name, attr);
+    auto it = attrs_.emplace(name, attr);
+    if (!it.second)
+        throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
+    log(Logger::MessageType::MessageDebug, "Attriubte '" + name + "' (" + it.first->second.getTypeName() +
+        ") set to " + it.first->second.toString());
+}
+
+void mv::Element::erase(const std::string& name)
+{
+    if (!hasAttr(name))
+        throw ArgumentError(*this, "attribute identifer", name,  "Undefined identifier");
+    attrs_.erase(name);
 }
 
 std::string mv::Element::toString() const
@@ -101,8 +160,10 @@ mv::json::Value mv::Element::toJSON() const
 {
     
     json::Object result;
+    result["name"] = name_;
+    result.emplace("attrs", json::Object());
     for (auto it = attrs_.cbegin(); it != attrs_.cend(); ++it)
-        result.emplace(it->first, it->second.toJSON());
+        result["attrs"].emplace({it->first, it->second.toJSON()});
     return result;
 
 }

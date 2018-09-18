@@ -7,13 +7,6 @@ outputs_(outputsCount, Data::TensorIterator())
     set<unsigned short>("outputs", outputsCount);
 }
 
-mv::SourceOp::SourceOp(mv::json::Value& value) :
-ComputationOp(value),
-outputs_(get<unsigned short>("outputs"), Data::TensorIterator())
-{
-    //Tensors cannot be filled here
-}
-
 mv::SourceOp::~SourceOp()
 {
 

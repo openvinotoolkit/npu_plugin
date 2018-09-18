@@ -201,26 +201,30 @@ std::string mv::MemoryAllocator::toString() const
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferBegin(std::size_t stageIdx)
 {
+
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
         throw IndexError(*this, stageIdx, "Getting the buffer begin iterator for an undefined stage");
     return it->second.begin();
+
 }
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferEnd(std::size_t stageIdx)
 {
+
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
         throw IndexError(*this, stageIdx, "Getting the buffer end iterator for an undefined stage");
     return it->second.end();
+
 }
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t stageIdx, Data::TensorIterator tensor)
 {
+
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
         throw IndexError(*this, stageIdx, "Finding a buffer iterator for an undefined stage");
-
     return it->second.find(tensor);
 
 }

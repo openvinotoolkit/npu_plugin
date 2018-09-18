@@ -18,8 +18,6 @@ namespace mv
         public:
 
             MatMul(const std::string &name);
-            MatMul(mv::json::Value &obj);
-
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
 

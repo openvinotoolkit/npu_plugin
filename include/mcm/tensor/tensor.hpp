@@ -48,7 +48,7 @@ namespace mv
         bool populate(const std::vector<double>& data, Order order);
         bool unpopulate();
         
-        bool broadcast(const Shape& shape);
+        void broadcast(const Shape& shape);
 
         std::vector<double>& getData();
         void setDType(DType dType);

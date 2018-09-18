@@ -14,7 +14,6 @@ namespace mv
     public:
 
         SinkOp(OpType opType, std::size_t inputsCount, const std::string &name);
-        SinkOp(json::Value& value);
         virtual ~SinkOp() = 0;
         virtual bool setInputTensor(Data::TensorIterator &tensor, std::size_t idx);
         virtual Data::TensorIterator getInputTensor(std::size_t idx);

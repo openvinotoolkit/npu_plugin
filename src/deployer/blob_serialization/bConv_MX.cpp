@@ -145,7 +145,7 @@ namespace mv
 
         if (it->hasAttr("bias"))
         {
-            this->bias_name = it->getAttr("bias").getContent<std::string>();
+            this->bias_name = it->get<std::string>("bias");
         }
         else
         {
@@ -160,7 +160,7 @@ namespace mv
         }
         else
         {
-            mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+            mx_valid = it->get<int>("NCE1_Compatible");
         }
         this->NCE1_Compatible = mx_valid;
 
@@ -176,7 +176,7 @@ namespace mv
             }
             else
             {
-                cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
+                cmxSize = it->get<int>("NCE1_AssignedCMX");
                 printf("Serializer Info: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
                 cmxSize = 256*1024;
             }
@@ -187,7 +187,7 @@ namespace mv
             }
             else
             {
-                descriptors_count = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                descriptors_count = it->get<int>("NCE1_DescriptorSplits");
             }
 
             if (! it->hasAttr("NCE1_StreamingMask"))
@@ -197,7 +197,7 @@ namespace mv
             }
             else
             {
-                this->streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
+                this->streamingMask = it->get<int>("NCE1_StreamingMask");
             }
             if (! it->hasAttr("NCE1_Mode"))
             {
@@ -206,7 +206,7 @@ namespace mv
             }
             else
             {
-                this->opMode = it->getAttr("NCE1_Mode").getContent<int>();
+                this->opMode = it->get<int>("NCE1_Mode");
             }
 
             this->concatOffset = 0; // Concat not supported currently
@@ -240,7 +240,7 @@ namespace mv
             }
             else
             {
-                chPerRamBlock = it->getAttr("NCE1_InputChannelsPerRamBlock").getContent<int>();
+                chPerRamBlock = it->get<int>("NCE1_InputChannelsPerRamBlock");
             }
 
             if (! it->hasAttr("NCE1_TopOutputJunk"))
@@ -249,7 +249,7 @@ namespace mv
             }
             else
             {
-                topJunk = it->getAttr("NCE1_TopOutputJunk").getContent<int>();
+                topJunk = it->get<int>("NCE1_TopOutputJunk");
             }
 
             if (! it->hasAttr("NCE1_BottomOutputJunk"))
@@ -258,7 +258,7 @@ namespace mv
             }
             else
             {
-                bottomJunk = it->getAttr("NCE1_BottomOutputJunk").getContent<int>();
+                bottomJunk = it->get<int>("NCE1_BottomOutputJunk");
             }
 
             if (! it->hasAttr("NCE1_LocalLineStride"))
@@ -267,7 +267,7 @@ namespace mv
             }
             else
             {
-                localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>();
+                localLS = it->get<int>("NCE1_LocalLineStride");
             }
 
             auto weight_4dshape = this->taps->getShape();
@@ -281,7 +281,7 @@ namespace mv
             }
             else
             {
-                minLines = it->getAttr("NCE1_MinLines").getContent<int>() -1;
+                minLines = it->get<int>("NCE1_MinLines") -1;
             }
 
             if (! it->hasAttr("stride"))
@@ -290,7 +290,7 @@ namespace mv
             }
             else
             {
-                stride = it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e0;
+                stride = it->get<std::array<unsigned short, 2>>("stride")[0];
             }
 
             if (! it->hasAttr("padding"))
@@ -299,7 +299,7 @@ namespace mv
             }
             else
             {
-                padEn = it->getAttr("padding").getContent<mv::std::array<unsigned short, 4>>().e0;
+                padEn = it->get<std::array<unsigned short, 4>>("padding")[0];
             }
 
 
@@ -438,10 +438,10 @@ namespace mv
             // printf("Serializing a SW Conv\n");
             this->radixX = it->getInputTensor(1)->getShape()[0];
             this->radixY = it->getInputTensor(1)->getShape()[1];
-            this->strideX = it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e0;
-            this->strideY = it->getAttr("stride").getContent<mv::std::array<unsigned short, 2>>().e1;
-            this->padX = it->getAttr("padding").getContent<mv::std::array<unsigned short, 4>>().e0;
-            this->padY = it->getAttr("padding").getContent<mv::std::array<unsigned short, 4>>().e2;
+            this->strideX = it->get<std::array<unsigned short, 2>>("stride")[0];
+            this->strideY = it->get<std::array<unsigned short, 2>>("stride")[1];
+            this->padX = it->get<std::array<unsigned short, 4>>("padding")[0];
+            this->padY = it->get<std::array<unsigned short, 4>>("padding")[2];
             this->padStyle = 2; // HARDCODED.
             this->dilation = 1; // HARDCODED.
 

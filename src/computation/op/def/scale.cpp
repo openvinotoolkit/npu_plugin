@@ -8,22 +8,11 @@ SinkOp(OpType::Scale, 2, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::Scale::Scale(mv::json::Value& obj) :
-ComputationOp(obj),
-SourceOp(obj),
-SinkOp(obj)
-{
-
-}*/
-
 mv::Tensor mv::op::Scale::getOutputDef(std::size_t idx)
 {
     
-    /*if (idx > 0)
-        return Tensor();
-
-    if (!validOutputDef_())
-        return Tensor();*/
+    // Will throw on error
+    validOutputDef_(idx);
 
     auto input = getInputTensor(0);
     auto inputShape = input->getShape(); 
@@ -34,14 +23,13 @@ mv::Tensor mv::op::Scale::getOutputDef(std::size_t idx)
     if (inputShape != scaleShape)
     {
 
-        if (scaleShape.ndims() != 1 || scaleShape[0] != inputShape[-1])
-        {
-            log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-                "' because of incorrect shape of scale (" + scaleShape.toString() + ") - it needs to be either"
-                " equal to shape of the input (" + inputShape.toString() + ") or to be one dimensional tensors of dimension " +
-                std::to_string(inputShape[-1]));
-            //return Tensor();
-        }
+        if (scaleShape.ndims() != 1)
+            throw(OpError(*this, "Invalid shape of the scale tensor (input 1) - must have a dimensionality equal to 1 or"
+                " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims())));
+        
+        if (scaleShape[0] != inputShape[-1])
+            throw(OpError(*this, "Invalid shape of the scale tensor (input 1) - if it has 1 dimension, it must be equal"
+                " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1])));
 
     }
 

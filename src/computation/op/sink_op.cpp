@@ -7,14 +7,6 @@ inputs_(inputsCount, Data::TensorIterator())
     set<unsigned short>("inputs", inputsCount);
 }
 
-mv::SinkOp::SinkOp(mv::json::Value& value) :
-ComputationOp(value),
-inputs_(get<unsigned short>("inputs"), Data::TensorIterator())
-{
-    //Tensors cannot be filled here
-}
-
-
 mv::SinkOp::~SinkOp()
 {
 

@@ -8,7 +8,7 @@
 TEST(fuse_relu, case_conv)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
@@ -34,6 +34,6 @@ TEST(fuse_relu, case_conv)
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
     ASSERT_TRUE(convOp->hasAttr("postOpType"));
-    ASSERT_EQ(convOp->getAttr("postOpType").getContent<mv::OpType>(), mv::OpType::ReLU);
+    ASSERT_EQ(convOp->get<mv::OpType>("postOpType"), mv::OpType::ReLU);
 
 }

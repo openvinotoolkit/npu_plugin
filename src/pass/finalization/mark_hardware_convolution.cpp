@@ -40,7 +40,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
     {
         if(!opIterator->isHardwarizeable(pobj) || amount_marked >= mark_limit)
         {
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
             continue;
         }
 
@@ -62,31 +62,31 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         if(inputChannels % 8)
         {
             // printf("Incompatible because input channels %% 8 != 0\n");
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
             continue;
         }
         if(outputChannels % noOfBlocks)
         {
             // printf("Incompatible because output channels %% NoOfBlocks != 0\n");
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
             continue;
         }
 
         if(kernelsize[0] != 1 || kernelsize[1] != 1)
         {
             printf("Incompatible because not a 1x1 conv\n");
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
             continue;
         }
         if(inputWidth < 32)
         {
             // printf("Incompatible because input Width < 32 != 0\n");
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
+            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
             continue;
         }
-        om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 1));
-        om.addAttr(opIterator, "NCE1_Mode", mv::Attribute(mv::AttrType::IntegerType, mode));
-        om.addAttr(opIterator, "NCE1_AssignedCMX", mv::Attribute(mv::AttrType::IntegerType, 0));
+        om.addAttr(opIterator, "NCE1_Compatible", (int)1);
+        om.addAttr(opIterator, "NCE1_Mode", (int)mode);
+        om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
 
         int bytesPerInputPixel = sizeof(double)/2; // Assuming FP16 for inputs
         int bytesPerCoefficient = sizeof(double)/2; // Assuming FP16 for coeffiecients
@@ -115,26 +115,26 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
         int descriptorsSplits = splitsOverHeight * splitsOverInputChannels * ceil(doubleOutputChannels / 256); //<- If mode 0 is used for every subtensor.
         //Assuming no split over H (if possible)
-        om.addAttr(opIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::IntegerType, descriptorsSplits));
-        om.addAttr(opIterator, "NCE1_InputChannelsPerRamBlock", mv::Attribute(mv::AttrType::IntegerType, inputChannelsPerRamBlock));
+        om.addAttr(opIterator, "NCE1_DescriptorSplits", (int)descriptorsSplits);
+        om.addAttr(opIterator, "NCE1_InputChannelsPerRamBlock", (int)inputChannelsPerRamBlock);
 
-        om.addAttr(opIterator, "NCE1_TopOutputJunk", mv::Attribute(mv::AttrType::IntegerType, 0));
-        om.addAttr(opIterator, "NCE1_BottomOutputJunk", mv::Attribute(mv::AttrType::IntegerType, 0));
+        om.addAttr(opIterator, "NCE1_TopOutputJunk", (int)0);
+        om.addAttr(opIterator, "NCE1_BottomOutputJunk", (int)0);
 
         int pixelsPerLine = 128 / (bytesPerInputPixel * 8); // RAMs are arranged in lines of 128bits
         int bytesPerLine = pixelsPerLine * bytesPerInputPixel;
         int localLineStride = (inputDimX + (pixelsPerLine - 1)) / pixelsPerLine;
 
-        om.addAttr(opIterator, "NCE1_LocalLineStride", mv::Attribute(mv::AttrType::IntegerType, localLineStride));
+        om.addAttr(opIterator, "NCE1_LocalLineStride", (int)localLineStride);
 
         int sizeOfBlock = (128 * 1024) >> mode; //128KB of total memory
         int chanPerBlock = inputChannels / noOfBlocks;
         int availableBytesPerChan = sizeOfBlock / chanPerBlock;
         int linesPerChan = availableBytesPerChan / bytesPerLine;
-        om.addAttr(opIterator, "NCE1_LinesPerChannel", mv::Attribute(mv::AttrType::IntegerType, linesPerChan));
+        om.addAttr(opIterator, "NCE1_LinesPerChannel", (int)linesPerChan);
 
         int localChanStride = linesPerChan * localLineStride;
-        om.addAttr(opIterator, "NCE1_LocalChannelStride", mv::Attribute(mv::AttrType::IntegerType, localChanStride));
+        om.addAttr(opIterator, "NCE1_LocalChannelStride", (int)localChanStride);
 
         int minLines = 0;
         bool poolEn = false;
@@ -142,10 +142,10 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
             minLines = 0; //TODO
         else
             minLines = std::min(kerDimY+1, linesPerChan);
-        om.addAttr(opIterator, "NCE1_MinLines", mv::Attribute(mv::AttrType::IntegerType, minLines));
+        om.addAttr(opIterator, "NCE1_MinLines", (int)minLines);
 
         int streamingMask = 0; //For DDR streaming
-        om.addAttr(opIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streamingMask));
+        om.addAttr(opIterator, "NCE1_StreamingMask", (int)streamingMask);
         amount_marked++;
     }
 }
@@ -161,15 +161,15 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         bool valid = false;
         if(opIterator->hasAttr("NCE1_Compatible"))
         {
-            valid = opIterator->getAttr("NCE1_Compatible").getContent<int>();
+            valid = opIterator->get<int>("NCE1_Compatible");
         }
         if (valid){
 
             auto weights = opIterator->getInputTensor(1);
             auto wshape = weights->getShape();
 
-            std::cout << mv::Printable::toString(wshape) << std::endl;
-            std::cout << wshape[3]/8 << ",64,1,1,8"<<std::endl;
+            std::cout << wshape.toString() << std::endl;
+            std::cout << wshape[3]/8 << ",64,1,1,8"<< std::endl;
 
             mv::Shape newShape(
                 // (mv::std::size_t)wshape[0],
@@ -217,7 +217,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 newTensor.getShape(),
                 newTensor.getDType(),
                 newTensor.getOrder(),
-                mv::Printable::toString(mv::OpType::Constant) + "_" + mv::Printable::toString(om.opsCount(mv::OpType::Constant)) + "MxWeights"
+                mv::OpType(mv::OpType::Constant).toString() + "_" + std::to_string(om.opsCount(mv::OpType::Constant)) + "MxWeights"
             );
 
             opIterator->setInputTensor(new_op, 1);

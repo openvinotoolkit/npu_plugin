@@ -22,13 +22,9 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         json::Object compilationDescriptor_;
 
-    protected:
-
-        virtual std::string getLogID_() const override;
-
     public:
 
-        CompilationUnit();
+        CompilationUnit(const std::string& modelName);
         ~CompilationUnit();
         
         bool loadTargetDescriptor(const std::string& path);
@@ -43,6 +39,8 @@ namespace mv
         json::Object runStep();
         json::Object run();
         bool completed() const;
+
+        virtual std::string getLogID() const override;
 
     };
 

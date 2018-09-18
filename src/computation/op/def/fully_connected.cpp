@@ -8,41 +8,24 @@ SourceOp(OpType::FullyConnected, 1, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::FullyConnected::FullyConnected(mv::json::Value& obj) :
-ComputationOp(obj),
-SinkOp(obj),
-SourceOp(obj)
-{
-
-}*/
 
 mv::Tensor mv::op::FullyConnected::getOutputDef(std::size_t idx)
 {
     
-    /*if (idx > 0)
-        return Tensor();
-
-    if (!validOutputDef_())
-        return Tensor();*/
+    // Will throw on error
+    validOutputDef_(idx);
 
     auto input0 = getInputTensor(0);
     auto input0Shape = input0->getShape(); 
     auto input1Shape = getInputTensor(1)->getShape();
 
     if (input1Shape.ndims() != 2)
-    {
-        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-            "' because of incorrect shape " + input1Shape.toString() + " of weights matrix");
-        //return Tensor();
-    }
+        throw(OpError(*this, "Invalid shape of the weights tensor (input 1) - must have a dimensionality of 2, "
+            " has " + std::to_string(input1Shape.ndims())));
 
     if (input0Shape.totalSize() != input1Shape[0])
-    {
-        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-            "' because of inconsistent total size of input " + std::to_string(input0Shape.totalSize()) + 
-            " and 1st dimension of weights matrix " + std::to_string(input1Shape[0]));
-        //return Tensor();
-    }
+        throw(OpError(*this, "Inconsistent total size of input tensor (input 0) " + std::to_string(input0Shape.totalSize()) + 
+            " and 1st dimension of weights tensor (input 1) " + std::to_string(input1Shape[0])));
 
     return Tensor(name_ + ":0", {1, input1Shape[1]}, input0->getDType(), input0->getOrder());
     

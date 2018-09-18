@@ -1,6 +1,6 @@
 #include "include/mcm/computation/model/control_model.hpp"
 
-mv::ControlModel::ControlModel(const ComputationModel &other) :
+mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
 {
 
@@ -44,7 +44,7 @@ mv::Control::FlowListIterator mv::ControlModel::flowEnd()
     return *controlFlowEnd_;
 }
 
-/*mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
 {
     std::shared_ptr<ComputationOp> ptr = element;
     return addGroupElement_(ptr, group);
@@ -101,16 +101,6 @@ bool mv::ControlModel::removeStage(Control::StageIterator &stage)
 bool mv::ControlModel::addToStage(Control::StageIterator &stage, Control::OpListIterator &op)
 {
 
-    if (stage != stageEnd())
-    {
-        allocator::owner_ptr<ComputationOp> ptr = op;
-        auto result = stage->addElement(ptr);
-
-        if (result != stage->end())
-            return true;
-    }
-
-    return false;
     Data::OpListIterator it(opsGraph_->get_first_iterator(op));
     return addToStage_(stage, it);
 
@@ -130,7 +120,7 @@ bool mv::ControlModel::removeFromStage(Control::OpListIterator &op)
 
     if (op->hasAttr("stage"))
     {
-        auto stage = getStage(op->getAttr("stage").getContent<std::size_t>());
+        auto stage = getStage(op->get<std::size_t>("stage"));
 
         if (stage != stageEnd())
         {
@@ -189,7 +179,7 @@ mv::Control::StageMemberIterator mv::ControlModel::stageMemberEnd(Control::Stage
     }
     
     return Control::StageMemberIterator();
-}*/
+}
 
 mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp)
 {

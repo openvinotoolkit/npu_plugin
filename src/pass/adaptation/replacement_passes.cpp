@@ -42,7 +42,7 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
             auto inputShape = sourceTensor->getShape();
 
             Tensor weigthsTensor = *(opIt->getInputTensor(1));
-            weigthsTensor.reorder(OrderType::RowMajor);
+            weigthsTensor.setOrder(OrderType::RowMajor);
 
             auto weights = om.constant(weigthsTensor.getData(), {inputShape[0], inputShape[1], inputShape[2], 
                 opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
@@ -51,14 +51,14 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
             auto conv2D = om.conv2D(sourceTensor, weights, {1, 1}, {0, 0, 0, 0});
             if (opIt->hasAttr("bias"))
             {
-                auto biasTensorName = opIt->getAttr("bias").getContent<std::string>();
-                om.addAttr(om.getSourceOp(conv2D), "bias", Attribute(AttrType::StringType, biasTensorName));
+                auto biasTensorName = opIt->get<std::string>("bias");
+                om.addAttr(om.getSourceOp(conv2D), "bias", biasTensorName);
             }
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
-                sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
+                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
                 om.defineFlow(conv2D, sinkFlow.sink(), inputIdx); 
             }
 

@@ -8,7 +8,7 @@
 TEST(fuse_bias, case_conv)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
@@ -36,7 +36,7 @@ TEST(fuse_bias, case_conv)
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
 
-    for (unsigned i = 0; i < dm.findTensor(convOp->getAttr("bias").getContent<std::string>())->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(dm.findTensor(convOp->getAttr("bias").getContent<std::string>())->getData()[i], biasesData[i]);
+    for (unsigned i = 0; i < dm.findTensor(convOp->get<std::string>("bias"))->getData().size(); ++i)
+        ASSERT_FLOAT_EQ(dm.findTensor(convOp->get<std::string>("bias"))->getData()[i], biasesData[i]);
 
 }

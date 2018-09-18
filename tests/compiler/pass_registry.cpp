@@ -6,17 +6,16 @@
 static void setPassReg()
 {
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> foo = 
+    std::function<void(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> foo = 
     [](mv::ComputationModel& model, mv::TargetDescriptor& desc, mv::json::Object&, mv::json::Object&)
     {   
         if (desc.getTarget() == mv::Target::Unknown)
-            throw mv::ArgumentError("target", "unknown", "Test pass does not accept target decriptor"
+            throw mv::ArgumentError(model, "target", "unknown", "Test pass does not accept target decriptor"
                 " with undefined target");
         mv::OpModel om(model);
-        om.clear();
+        //om.clear();
         om.input({1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "customInput");
-        om.addAttr(om.getInput(), "test", mv::Attribute(mv::AttrType::BoolType, true));
-
+        om.addAttr(om.getInput(), "test", (bool)true);
     };
 
     mv::pass::PassRegistry::instance().enter("__TEST_pass1")
@@ -36,7 +35,6 @@ TEST(pass_registry, initialization)
 {
 
     setPassReg();
-    mv::OpModel model;
     auto passList = mv::pass::PassRegistry::instance().list();
     ASSERT_TRUE(std::find(passList.begin(), passList.end(), "__TEST_pass1") != passList.end());
     resetPassReg();
@@ -47,7 +45,7 @@ TEST(pass_registry, run_pass)
 {
 
     setPassReg();
-    mv::OpModel model;
+    mv::OpModel model("testModel");
     
     mv::TargetDescriptor targetDesc;
     mv::json::Object compDesc;
@@ -55,7 +53,7 @@ TEST(pass_registry, run_pass)
     ASSERT_THROW(mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput), mv::ArgumentError);
     targetDesc.setTarget(mv::Target::ma2480);
     mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput);
-    ASSERT_TRUE(model.getInput()->getAttr("test").getContent<bool>());
+    ASSERT_TRUE(model.getInput()->get<bool>("test"));
     resetPassReg();
 
 }

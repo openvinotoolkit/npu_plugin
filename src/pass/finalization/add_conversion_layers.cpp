@@ -47,8 +47,8 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         //2) SW -> HW (Target order is planar)
 
         //Reasonable assumption: this pass is executed after the hw marking pass.
-        int sourceIsHw = source->getAttr("NCE1_Compatible").getContent<int>();
-        int sinkIsHw = sink->getAttr("NCE1_Compatible").getContent<int>();
+        int sourceIsHw = source->get<int>("NCE1_Compatible");
+        int sinkIsHw = sink->get<int>("NCE1_Compatible");
         bool conversionNeeded = false;
         mv::Order targetOrder = mv::OrderType::ColumnMajor;
 
@@ -69,7 +69,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         if(conversionNeeded && source->getOpType() == mv::OpType::Constant)
         {
             //No need for a conversion layer in this case, just reorder the tensor in place
-            flowIt->getTensor()->reorder(targetOrder);
+            flowIt->getTensor()->setOrder(targetOrder);
             ++flowIt;
             continue;
         }
@@ -85,7 +85,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             auto flowToEliminate = flowIt;
             ++flowIt;
             om.undefineFlow(flowToEliminate);
-            sink->removeAttr(std::string("input")+std::to_string(i));
+            sink->erase(std::string("input") + std::to_string(i));
             om.defineFlow(conversionOutputTensor, sink, i);
         }
         else

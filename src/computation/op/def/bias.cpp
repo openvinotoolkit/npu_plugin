@@ -20,16 +20,12 @@ mv::Tensor mv::op::Bias::getOutputDef(std::size_t idx)
     auto biasesShape = biases->getShape();
     
     if (biasesShape.ndims() != 1)
-        throw(OpError(*this, "Unable to define output tensor for '" + name_ + 
-                "' because of incorrect shape " + biasesShape.toString() + " of biases (must be a vector)"));
+        throw(OpError(*this, "Invalid shape of biases tensor (input 1) - has to be 1-dimensional, received "
+            + std::to_string(biasesShape.ndims())));
 
     if (inputShape[-1] != biasesShape[0])
-    {
-        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-            "' because of mismatch in channels dimensions between input (" + std::to_string(inputShape[-1])
-            + ") and biases (" + std::to_string(biasesShape[0]) + ")");
-        //return Tensor();
-    }
+        throw(OpError(*this, "Invalid shape of biases tensor (input 1) - the dimension has to equal to the last dimension"
+            " of the input tensor which is " + std::to_string(inputShape[-1])));
 
     return Tensor(name_ + ":0", inputShape, input->getDType(), input->getOrder());
 

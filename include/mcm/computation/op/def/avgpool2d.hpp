@@ -16,7 +16,6 @@ namespace mv
         public:
 
             AvgPool2D(std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string &name);
-            AvgPool2D(mv::json::Value &obj);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };

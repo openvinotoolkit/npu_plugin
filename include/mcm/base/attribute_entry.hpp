@@ -11,6 +11,7 @@
 #include "include/mcm/base/exception/master_error.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm/base/printable.hpp"
 
 namespace mv
 {
@@ -44,6 +45,7 @@ namespace mv
             std::shared_ptr<GenericFunc> toJSONFunc_;
             std::shared_ptr<GenericFunc> fromJSONFunc_;
             std::shared_ptr<GenericFunc> toStringFunc_;
+            std::set<std::string> typeTraits_;
 
         public:
 
@@ -57,6 +59,7 @@ namespace mv
             inline AttributeEntry& setName(const std::string& typeName)
             {
                 typeName_ = typeName;
+                Printable::replaceSub(typeName_, " , ", ", ");
                 return *this;
             }
 
@@ -176,6 +179,18 @@ namespace mv
                     
                 throw AttributeError(*this, "Invalid types specified for to-string conversion function for type " + typeName_);
 
+            }
+
+            inline AttributeEntry& setTrait(const std::string& trait)
+            {
+                if (typeTraits_.find(trait) != typeTraits_.end())
+                    typeTraits_.insert(trait);
+                return *this;
+            }
+
+            inline bool hasTrait(const std::string& trait)
+            {
+                return typeTraits_.find(trait) != typeTraits_.end();
             }
 
             std::string getLogID() const override

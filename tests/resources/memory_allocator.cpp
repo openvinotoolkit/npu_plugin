@@ -1,6 +1,6 @@
-#include "mcm/computation/tensor/tensor.hpp"
+#include "mcm/tensor/tensor.hpp"
 #include "mcm/computation/resource/memory_allocator.hpp"
-#include "mcm/computation/tensor/order.hpp"
+#include "mcm/tensor/order.hpp"
 #include "gtest/gtest.h"
 
 TEST(memory_allocator, tensor_col_major)

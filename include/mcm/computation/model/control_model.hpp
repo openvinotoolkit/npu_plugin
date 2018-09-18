@@ -14,7 +14,7 @@ namespace mv
 
     public:
 
-        ControlModel(const ComputationModel &ComputationModel);
+        ControlModel(ComputationModel &ComputationModel);
 
         Control::OpListIterator switchContext(Data::OpListIterator other);
 
@@ -25,7 +25,7 @@ namespace mv
         Control::FlowListIterator getOutput();
         Control::FlowListIterator flowEnd();
 
-        /*GroupContext::MemberIterator addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group);
         GroupContext::MemberIterator addGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group);
         bool removeGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group);
         bool removeGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group);
@@ -45,7 +45,7 @@ namespace mv
         Control::StageIterator stageEnd();
 
         Control::StageMemberIterator stageMemberBegin(Control::StageIterator &stage);
-        Control::StageMemberIterator stageMemberEnd(Control::StageIterator &stage);*/
+        Control::StageMemberIterator stageMemberEnd(Control::StageIterator &stage);
 
         Control::FlowListIterator defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp);
         Control::FlowListIterator defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp);

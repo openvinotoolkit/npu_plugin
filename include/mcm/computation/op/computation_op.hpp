@@ -13,9 +13,7 @@ namespace mv
 
     class ComputationOp : public Element
     {
-
-        OpType opType_;
-
+        
     protected:
 
         void validOutputDef_(std::size_t idx);

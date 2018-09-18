@@ -1,7 +1,8 @@
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/attribute.hpp"
-#include <array>
+#include <vector>
+#include <string>
 
 namespace mv
 {
@@ -12,9 +13,9 @@ namespace mv
         static mv::json::Value toJSON(const Attribute& a)
         {
             json::Array output;
-            auto arr = a.get<std::array<unsigned short, 2>>();
-            output.append(static_cast<long long>(arr[0]));
-            output.append(static_cast<long long>(arr[1]));
+            auto vec = a.get<std::vector<std::string>>();
+            for (std::size_t i = 0; i < vec.size(); ++i)
+                output.append(vec[i]);
             return output;
         }
 
@@ -22,19 +23,15 @@ namespace mv
         {
             if (v.valueType() != json::JSONType::Array)
                 throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) + 
-                    " to std::array<unsigned short, 2>");
-
-            if (v.size() != 2)
-                throw AttributeError(v, "Unable to convert json::Array of size " + std::to_string(v.size()) +  
-                    " to std::array<unsigned short, 2>");
+                    " to std::vector<std::string>");
             
-            std::array<unsigned short, 2> output;
+            std::vector<std::string> output;
             for (std::size_t i = 0; i < v.size(); ++i)
             {
-                if (v[i].valueType() != json::JSONType::NumberInteger)
+                if (v[i].valueType() != json::JSONType::String)
                     throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v[i].valueType()) + 
-                    " to unsigned short (during the conversion to std::array<unsigned short, 2>)");
-                output[i] = static_cast<unsigned short>(v[i].get<long long>());
+                    " to std::size_t (during the conversion to vector<std::string>)");
+                output.push_back(v[i].get<std::string>());
             }
 
             return output;
@@ -42,12 +39,19 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            auto arr = a.get<std::array<unsigned short, 2>>();
-            std::string output = "{" + std::to_string(arr[0]) + ", " + std::to_string(arr[1]) + "}";
+            std::string output = "{";
+            auto vec = a.get<std::vector<std::string>>();
+            if (vec.size() > 0)
+            {
+                for (std::size_t i = 0; i < vec.size() - 1; ++i)
+                    output += vec[i] + ", ";
+                output += *vec.rbegin();
+            }
+            output += "}";
             return output;
         }
 
-        MV_REGISTER_ATTR(std::array<unsigned short COMMA 2>)
+        MV_REGISTER_ATTR(std::vector<std::string>)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
             .setToStringFunc(toString);

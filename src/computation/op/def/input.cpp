@@ -12,13 +12,6 @@ SourceOp(OpType::Input, 1, name)
 
 }
 
-/*mv::op::Input::Input(mv::json::Value& obj) :
-ComputationOp(obj),
-SourceOp(obj)
-{
-
-}*/
-
 bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, std::size_t idx)
 {
 
@@ -30,8 +23,8 @@ bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, std::size_t id
 mv::Tensor mv::op::Input::getOutputDef(std::size_t idx)
 {
 
-    /*if (idx > 0)
-        return Tensor();*/
+    // Will throw on error
+    validOutputDef_(idx);
 
     auto outputShape = get<Shape>("shape");
     auto dType = get<DType>("dType");

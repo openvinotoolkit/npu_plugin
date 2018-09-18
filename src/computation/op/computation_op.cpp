@@ -1,16 +1,15 @@
 #include "include/mcm/computation/op/computation_op.hpp"
 
 mv::ComputationOp::ComputationOp(OpType opType, const std::string &name) :
-Element(name),
-opType_(opType)
+Element(name)
 {
-    log(Logger::MessageType::MessageDebug, "Defined");
-    //addAttr("opType", mv::AttrType::OpTypeType, opType);   
+    set<OpType>("opType", opType); 
+    log(Logger::MessageType::MessageInfo, "Initialized");     
 }
 
 mv::ComputationOp::~ComputationOp()
 {
-
+    log(Logger::MessageType::MessageInfo, "Deleted");
 }
 
 void mv::ComputationOp::validOutputDef_(std::size_t idx)
@@ -19,19 +18,19 @@ void mv::ComputationOp::validOutputDef_(std::size_t idx)
     if (!hasInputDef())
         throw(OpError(*this, "Unable to determine the output tensor while inputs are undefined"));
 
-    if (idx > 0)
+    if (idx > outputSlots())
         throw(IndexError(*this, idx, "Exceeds the number of outputs defined for this op type"));
 
 }
 
 mv::OpType mv::ComputationOp::getOpType() const 
 {
-    return opType_;
+    return get<OpType>("opType");
 }
 
 std::string mv::ComputationOp::toString() const
 {
-    return "op " + getOpType().toString() + " '" + name_ + "' " + Element::attrsToString_();
+    return "Op " + getOpType().toString() + " '" + name_ + "' " + Element::attrsToString_();
 }
 
 mv::Data::TensorIterator mv::ComputationOp::getInputTensor(std::size_t)
@@ -56,12 +55,12 @@ bool mv::ComputationOp::setOutputTensor(Data::TensorIterator&, std::size_t)
 
 bool mv::ComputationOp::hasInputDef()
 {
-    return false;
+    return true;
 }
 
 bool mv::ComputationOp::hasInputDef(std::size_t)
 {
-    return false;
+    return true;
 }
 
 std::size_t mv::ComputationOp::inputSlots()
@@ -86,5 +85,5 @@ bool mv::ComputationOp::isExecutable() const
 
 std::string mv::ComputationOp::getLogID() const
 {
-    return "Op " + getOpType().toString() + " '" + getName() + "'";
+    return "Op '" + getName() + "'";
 }

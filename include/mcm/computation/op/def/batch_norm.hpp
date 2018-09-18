@@ -16,8 +16,6 @@ namespace mv
         public:
 
             BatchNorm(double varianceEps, const std::string &name);
-            BatchNorm(mv::json::Value& obj);
-
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
 

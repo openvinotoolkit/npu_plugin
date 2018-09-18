@@ -1,6 +1,7 @@
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/attribute.hpp"
+#include "include/mcm/computation/op/op_type.hpp"
 
 namespace mv
 {
@@ -9,24 +10,26 @@ namespace mv
     {
 
         static mv::json::Value toJSON(const Attribute& a)
-        {
-            return json::Value(a.get<bool>());
+        { 
+            auto t = a.get<OpType>();
+            return json::Value(t.toString());
         }
 
         static Attribute fromJSON(const json::Value& v)
         {
-            if (v.valueType() != json::JSONType::Bool)
+            if (v.valueType() != json::JSONType::String)
                 throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) + 
-                    " to bool");
-            return v.get<bool>();
+                    " to mv::OpType");
+            
+            return OpType(v.get<std::string>());
         }
 
         static std::string toString(const Attribute& a)
         {
-            return json::Value(a.get<bool>()).stringify();
+            return a.get<OpType>().toString();
         }
 
-        MV_REGISTER_ATTR(bool)
+        MV_REGISTER_ATTR(OpType)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
             .setToStringFunc(toString);

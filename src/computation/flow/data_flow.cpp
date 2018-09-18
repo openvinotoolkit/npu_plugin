@@ -5,10 +5,16 @@ mv::DataFlow::DataFlow(const Data::OpListIterator& source, std::size_t outputIdx
 ComputationFlow("df_" + source->getName() + std::to_string(outputIdx) + "_" + sink->getName() + std::to_string(inputIdx)),
 data_(data)
 {
+    log(Logger::MessageType::MessageInfo, "Initialized");
     set<std::string>("sourceOp", source->getName());
     set<std::size_t>("sourceOutput", outputIdx);
     set<std::string>("sinkOp", sink->getName());
     set<std::size_t>("sinkInput", inputIdx);
+}
+
+mv::DataFlow::~DataFlow()
+{
+    log(Logger::MessageType::MessageInfo, "Deleted");
 }
 
 /*mv::DataFlow::DataFlow(mv::json::Value &value):

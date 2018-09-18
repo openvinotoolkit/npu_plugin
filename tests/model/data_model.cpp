@@ -7,7 +7,7 @@
 TEST(data_model, allocate_unpopulated_tensor)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("TestModel");
     mv::ControlModel cm(om);
     mv::DataModel dm(om);
 
@@ -18,7 +18,7 @@ TEST(data_model, allocate_unpopulated_tensor)
     auto pool2Op = om.getSourceOp(pool2);
     om.output(pool2);
 
-    /*auto stage = cm.addStage();
+    auto stage = cm.addStage();
     cm.addToStage(stage, pool1Op);
     cm.addToStage(stage, pool2Op);
     dm.addAllocator("Memory1", 4096, mv::OrderType::ColumnMajor);
@@ -36,14 +36,14 @@ TEST(data_model, allocate_unpopulated_tensor)
         std::cout << bufIt->toString() << std::endl;
     }
 
-    std::cout << dm.getBuffer("Memory1", stage, pool1)->toString() << std::endl;*/
+    std::cout << dm.getBuffer("Memory1", stage, pool1)->toString() << std::endl;
 
 }
 
 TEST(data_model, allocate_populated_tensor)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("TestModel");
     mv::ControlModel cm(om);
     mv::DataModel dm(om);
 
@@ -54,12 +54,12 @@ TEST(data_model, allocate_populated_tensor)
     auto conv1Op = om.getSourceOp(conv1);
     om.output(conv1);
 
-    /*auto stage = cm.addStage();
+    auto stage = cm.addStage();
     cm.addToStage(stage, conv1Op);
     dm.addAllocator("Memory1", 4096, mv::OrderType::ColumnMajor);
     std::vector<size_t> paddings;
     auto buf = dm.allocateTensor("Memory1", stage, weights, paddings);
 
-    std::cout << buf->toString(true) << std::endl;*/
+    std::cout << buf->toString(true) << std::endl;
 
 }

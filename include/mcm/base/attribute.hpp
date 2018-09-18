@@ -11,13 +11,14 @@
 #include "include/mcm/base/json/value.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
+#include "include/mcm/base/printable.hpp"
+#include "include/mcm/base/jsonable.hpp"
 #include "include/mcm/logger/log_sender.hpp"
-
 
 namespace mv
 {
 
-    class Attribute : public LogSender
+    class Attribute : public Printable, public Jsonable, public LogSender
     {
 
         struct AbstractObject
@@ -198,6 +199,7 @@ namespace mv
 
         Attribute& operator=(const Attribute& other)
         {
+
             if (ptr_ == other.ptr_)
                 return *this;
 
@@ -222,7 +224,17 @@ namespace mv
 
         }
 
-        json::Object toJSON() const
+        bool operator<(const Attribute& other) const
+        {
+            return ptr_ < other.ptr_;
+        }
+
+        bool operator==(const Attribute& other) const
+        {
+            return toJSON() == other.toJSON();
+        }
+
+        json::Value toJSON() const override
         {   
             if (!ptr_)
                 throw AttributeError(*this, "Uninitialized (null) attribute dereference called for to-JSON conversion");
@@ -232,7 +244,7 @@ namespace mv
             return result;
         }
 
-        std::string toString() const
+        std::string toString() const override
         {
             if (!ptr_)
                 throw AttributeError(*this, "Uninitialized (null) attribute dereference called for to-string conversion");

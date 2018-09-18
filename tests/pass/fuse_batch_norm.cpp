@@ -2,14 +2,14 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/computation/tensor/math.hpp"
+#include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 
 TEST(fuse_batch_norm_pass, case_ndim_conv)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
     auto input = om.input({64, 64, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3);
     auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
@@ -85,7 +85,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
 TEST(fuse_batch_norm_pass, case_1dim_conv)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
@@ -155,7 +155,7 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
     auto input = om.input({64, 64, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
@@ -229,7 +229,7 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);

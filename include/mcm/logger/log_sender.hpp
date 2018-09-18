@@ -6,7 +6,9 @@
 
 namespace mv
 {
-
+    
+    class Element;
+    
     class LogSender
     {    
 
@@ -15,7 +17,7 @@ namespace mv
         virtual ~LogSender() = 0;
         virtual std::string getLogID() const = 0;
         void log(Logger::MessageType messageType, const std::string &content) const;
-
+        
     };
 
 }

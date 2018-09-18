@@ -150,7 +150,7 @@ namespace mv
             int no_buffers = 0;
             try{
                 mem = dm->getBuffer("IntermediateMemory", stg, *t);
-            }catch(mv::ArgumentError){
+            }catch(mv::IndexError){
                 printf("Serializer Warning: No Intermediary Buffers\n");
                 no_buffers = 1;
             }

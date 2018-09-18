@@ -96,7 +96,7 @@ file(GLOB logger
     "src/logger/log_sender.cpp"
 )
 
-#[[file(GLOB pass
+file(GLOB pass
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
@@ -112,7 +112,7 @@ file(GLOB logger
 
 file(GLOB compiler
     "src/compiler/*"
-)]]
+)
 
 add_subdirectory(contrib/googletest)
 add_subdirectory(tests)

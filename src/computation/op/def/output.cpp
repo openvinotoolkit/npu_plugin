@@ -7,12 +7,6 @@ SinkOp(OpType::Output, 1, name)
     set<bool>("executable", false);
 }
 
-/*mv::op::Output::Output(mv::json::Value& obj) :
-ComputationOp(obj),
-SinkOp(obj)
-{
-
-}*/
 
 bool mv::op::Output::setInputTensor(Data::TensorIterator &tensor, std::size_t idx)
 {
@@ -26,8 +20,7 @@ bool mv::op::Output::setInputTensor(Data::TensorIterator &tensor, std::size_t id
 
 mv::Tensor mv::op::Output::getOutputDef(std::size_t)
 {
-    log(Logger::MessageType::MessageWarning, "Attempt of getting output tensor of model output operation");
-    //return Tensor();
+    throw(OpError(*this, "Attempt of obtaining the output tensor"));
 }
 
 

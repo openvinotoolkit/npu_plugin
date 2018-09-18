@@ -1,7 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/tensor/math.hpp"
+#include "include/mcm/tensor/math.hpp"
 
 static void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
@@ -79,23 +79,22 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasTensor = dm.findTensor(parentOpIt->getAttr("bias").getContent<std::string>());
+                    auto biasTensor = dm.findTensor(parentOpIt->get<std::string>("bias"));
                     biasTensor->add(bias);
                 }
                 else
                 {
                     std::string biasTensorName = parentOpIt->getName() + "_bias";
                     auto biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData());
-                    Attribute biasAttr(AttrType::StringType, biasTensor->getName());
-                    om.addAttr(parentOpIt, "bias", biasAttr);
+                    om.addAttr(parentOpIt, "bias", biasTensor->getName());
                 }
                 
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
                 {
-                    std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
-                    sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                    std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
+                    sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
                     om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
                 }
 
@@ -140,7 +139,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasTensor = dm.findTensor(parentOpIt->getAttr("bias").getContent<std::string>());
+                    auto biasTensor = dm.findTensor(parentOpIt->get<std::string>("bias"));
                     biasTensor->multiply(scale);
                 }
 
@@ -148,8 +147,8 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
                 {
-                    std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
-                    sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                    std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
+                    sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
                     om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
                 }
 
@@ -184,15 +183,14 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         {
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            /*Attribute reluAttr(AttrType::OpTypeType, OpType::ReLU);
-            om.addAttr(parentOpIt, "postOpType", reluAttr);*/
+            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU));
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
-                sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
+                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
                 om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
             }
 
@@ -231,7 +229,7 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             auto bnVar = *opIt->getInputTensor(2);
             auto bnOffset = *opIt->getInputTensor(3);
             auto bnScale = *opIt->getInputTensor(4);
-            double bnEps = opIt->getAttr("varianceEps").getContent<double>();
+            double bnEps = opIt->get<double>("varianceEps");
 
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
@@ -272,8 +270,8 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
 
             for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
-                std::size_t inputIdx = sinkFlow->getAttr("sinkInput").getContent<std::size_t>();
-                sinkFlow.sink()->removeAttr("input" + Printable::toString(inputIdx));
+                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
+                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
                 om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
             }
 

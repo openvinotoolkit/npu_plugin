@@ -6,8 +6,10 @@
 int main()
 {
 
+    mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
+
     // Define blank computation model (op view)
-    mv::OpModel om;
+    mv::OpModel om("Model1");
 
     // Initialize weights data
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
@@ -29,7 +31,7 @@ int main()
     // Obtain ops from tensors and add them to groups
     auto pool1Op = om.getSourceOp(pool1);
     auto pool2Op = om.getSourceOp(pool2);
-    auto group1It = om.addGroup("pools");
+    /*auto group1It = om.addGroup("pools");
     om.addGroupElement(pool1Op, group1It);
     om.addGroupElement(pool2Op, group1It);
 
@@ -53,7 +55,7 @@ int main()
 
     mv::json::Value v = om.toJsonValue();
     mv::OpModel om2(v);
-    mv::json::Value v2 = om2.toJsonValue();
+    mv::json::Value v2 = om2.toJsonValue();*/
 
     /*mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
 

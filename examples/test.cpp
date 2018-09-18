@@ -43,7 +43,7 @@ int main()
     std::cout << e1.toJSON().stringifyPretty() << std::endl;
 
     mv::json::Value j2 = e1.toJSON();
-    mv::Element e2("e2", j2);
+    mv::Element e2(j2);
 
     std::cout << e2.toString() << std::endl;
     std::cout << e2.get<double>("a1") << std::endl;

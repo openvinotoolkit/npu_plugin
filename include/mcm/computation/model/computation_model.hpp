@@ -48,6 +48,7 @@ namespace mv
 
     protected:
 
+        std::string name_;
         /*
         There are two reasons to store all member variables that are non-static members as either references or smart pointers provided by
         the Allocator concept
@@ -66,43 +67,32 @@ namespace mv
         */
         std::shared_ptr<std::map<std::string, std::shared_ptr<Tensor>>> flowTensors_;
         std::shared_ptr<std::map<std::string, Data::OpListIterator>> tensorsSources_;
-        //std::shared_ptr<std::map<std::string, std::shared_ptr<ComputationGroup>>> groups_;
-        //std::shared_ptr<std::map<std::size_t, std::shared_ptr<ComputationStage>>> stages_;
+        std::shared_ptr<std::map<std::string, std::shared_ptr<ComputationGroup>>> groups_;
+        std::shared_ptr<std::map<std::size_t, std::shared_ptr<ComputationStage>>> stages_;
         std::shared_ptr<std::map<std::string, std::shared_ptr<MemoryAllocator>>> memoryAllocators_;
         std::shared_ptr<std::map<OpType, std::size_t>> opsCounter_;
-        static Logger logger_;
-
-        Data::OpListIterator *dataOpEnd_;
-        Data::FlowListIterator *dataFlowEnd_;
-        Control::OpListIterator *controlOpEnd_;
-        Control::FlowListIterator *controlFlowEnd_;
-        Data::OpListIterator *input_;
-        Data::OpListIterator *output_;
-
-        /*std::shared_ptr<Data::OpListIterator> dataOpEnd_;
+        std::shared_ptr<Data::OpListIterator> dataOpEnd_;
         std::shared_ptr<Data::FlowListIterator> dataFlowEnd_;
         std::shared_ptr<Control::OpListIterator> controlOpEnd_;
         std::shared_ptr<Control::FlowListIterator> controlFlowEnd_;
         std::shared_ptr<Data::OpListIterator> input_;
         std::shared_ptr<Data::OpListIterator> output_;
-        std::shared_ptr<Control::OpListIterator> lastOp_;
-        std::shared_ptr<bool> defaultControlFlow_;*/
 
         // Passing as value rather than reference allows to do implicit cast of the pointer type
-        //GroupContext::MemberIterator addGroupElement_(std::shared_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
-        //bool removeGroupElement_(std::weak_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group);
+        GroupContext::MemberIterator addGroupElement_(std::shared_ptr<Element> element, mv::GroupContext::GroupIterator &group);
+        bool removeGroupElement_(std::weak_ptr<Element> element, mv::GroupContext::GroupIterator &group);
         
         // Check if every operation has computation stage assigned
-        /*bool checkOpsStages_() const;
+        bool checkOpsStages_() const;
         Control::StageIterator addStage_();
-        bool addToStage_(Control::StageIterator &stage, Data::OpListIterator &op);*/
+        bool addToStage_(Control::StageIterator &stage, Data::OpListIterator &op);
         Data::TensorIterator defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx);
         Data::TensorIterator findTensor_(const std::string &name);
         Data::OpListIterator findSourceOp_(Data::TensorIterator &tensor);
 
     public:
 
-        ComputationModel();
+        ComputationModel(const std::string& name);
         //ComputationModel(mv::json::Value& model);
 
         /**
@@ -110,7 +100,7 @@ namespace mv
          * 
          * @param other Object that will share all members with the new one
          */
-        ComputationModel(const ComputationModel &other);
+        ComputationModel(ComputationModel &other);
 
         virtual ~ComputationModel() = 0;
         /**
@@ -126,7 +116,7 @@ namespace mv
         bool isValid(const Control::OpListIterator &it) const;
         bool isValid(const Data::FlowListIterator &it) const;
         bool isValid(const Control::FlowListIterator &it) const;
-        /*GroupContext::GroupIterator addGroup(const std::string &name);
+        GroupContext::GroupIterator addGroup(const std::string &name);
         bool hasGroup(const std::string &name);
         GroupContext::GroupIterator getGroup(const std::string &name);
         
@@ -135,7 +125,7 @@ namespace mv
         GroupContext::GroupIterator groupBegin();
         GroupContext::GroupIterator groupEnd();
         GroupContext::MemberIterator memberBegin(GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);*/
+        GroupContext::MemberIterator memberEnd(GroupContext::GroupIterator &group);
         Data::TensorIterator tensorBegin() const;
         Data::TensorIterator tensorEnd() const;
 

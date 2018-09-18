@@ -65,9 +65,8 @@ Order(other.order_)
 
 }
 
-mv::Order::Order(const std::string& value)
-{
-    Order(
+mv::Order::Order(const std::string& value) :
+Order(
         [=]()->OrderType
         {
             for (auto &e : orderStrings_) 
@@ -75,7 +74,9 @@ mv::Order::Order(const std::string& value)
                     return e.first;
             throw OrderError(*this, "Invalid initialization - string value specified as " + value);
         }()
-    );
+)
+{    
+    
 }
 
 std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& sub) const

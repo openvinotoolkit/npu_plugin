@@ -18,8 +18,6 @@ namespace mv
         public:
 
             Concat(const std::string &name);
-            Concat(mv::json::Value &obj);
-
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
 

@@ -5,7 +5,7 @@
 TEST(op_model, validity)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("TestModel");
     ASSERT_FALSE(om.isValid());
     auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     ASSERT_FALSE(om.isValid());
@@ -17,7 +17,7 @@ TEST(op_model, validity)
 TEST(op_model, failure_sanity)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("TestModel");
 
     auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     om.output(input);
@@ -30,7 +30,7 @@ TEST(op_model, failure_sanity)
 TEST(op_model, op_removal)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("TestModel");
 
     auto input = om.input({32, 32, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f,

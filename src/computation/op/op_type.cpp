@@ -101,7 +101,7 @@ bool mv::OpType::operator!=(unsigned short value) const
 
 bool mv::OpType::operator<(const OpType &other) const
 {
-    return opType_ < opType_;
+    return opType_ < other.opType_;
 }
 
 mv::OpType::operator unsigned short() const

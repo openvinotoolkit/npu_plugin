@@ -2,13 +2,13 @@
 
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
 
-mv::CompilationUnit::CompilationUnit() :
-model_(new OpModel())
+mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
+model_(new OpModel(modelName))
 {
 
 }
 
-void mv::CompilationUnit::loadModelFromJson(const std::string &path)
+/*void mv::CompilationUnit::loadModelFromJson(const std::string &path)
 {
     mv::JSONTextParser parser;
     mv::json::Value value;
@@ -33,7 +33,7 @@ void mv::CompilationUnit::loadModelFromJson(const std::string &path)
         }
     }
 
-}
+}*/
 
 mv::CompilationUnit::~CompilationUnit()
 {
@@ -126,7 +126,7 @@ bool mv::CompilationUnit::completed() const
     return passManager_.completed();
 }
 
-std::string mv::CompilationUnit::getLogID_() const
+std::string mv::CompilationUnit::getLogID() const
 {
     return "CompilationUnit";
 }

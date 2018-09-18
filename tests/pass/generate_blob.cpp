@@ -21,12 +21,12 @@ TEST (mv_num_convert, fp32_to_fp16)
 TEST (generate_blob, blob_output_conv_01)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
     auto input1 = test_cm.input({32, 32, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    std::vector<double> weights1Data({ 0.1111, 0.1121, 0.1131, 0.1141, 0.1151, 0.1161, 0.1171, 0.1181, 0.1191f});
+    std::vector<double> weights1Data({ 0.1111, 0.1121, 0.1131, 0.1141, 0.1151, 0.1161, 0.1171, 0.1181, 0.1191});
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv1 = test_cm.conv2D(input1, weights1, {4, 4}, {0, 0, 0, 0});
     auto output1 = test_cm.output(conv1);
@@ -54,7 +54,7 @@ TEST (generate_blob, blob_output_conv_01)
 TEST (generate_blob, blob_output_conv_02)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
@@ -89,7 +89,7 @@ TEST (generate_blob, blob_output_conv_02)
 TEST (generate_blob, blob_output_conv_03)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
@@ -125,7 +125,7 @@ TEST (generate_blob, blob_output_conv_03)
 TEST (generate_blob, blob_output_conv_04)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
@@ -160,7 +160,7 @@ TEST (generate_blob, blob_output_conv_04)
 TEST (generate_blob, blob_blur_edge_05)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 greyscale 256x256 image
@@ -198,7 +198,7 @@ TEST (generate_blob, blob_blur_edge_05)
 TEST (generate_blob, blob_4_ops)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -247,7 +247,7 @@ TEST (generate_blob, blob_4_ops)
 TEST (generate_blob, blob_eltwise_add)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -311,7 +311,7 @@ TEST (generate_blob, blob_eltwise_add)
 TEST (generate_blob, blob_eltwise_multiply)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -374,7 +374,7 @@ TEST (generate_blob, blob_eltwise_multiply)
 TEST (generate_blob, blob_softmax)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -433,7 +433,7 @@ TEST (generate_blob, blob_softmax)
 TEST (generate_blob, blob_convbias_convrelu)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
@@ -490,7 +490,7 @@ TEST (generate_blob, blob_convbias_convrelu)
 TEST (generate_blob, blob_scale)
 {
 
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image

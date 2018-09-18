@@ -7,13 +7,6 @@ ActivationOp(OpType::ReLU, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::ReLU::ReLU(mv::json::Value& obj) :
-ComputationOp(obj),
-ActivationOp(obj)
-{
-
-}*/
-
 bool mv::op::ReLU::isHardwarizeable(json::Object&)
 {
     return false;

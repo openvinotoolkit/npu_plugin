@@ -30,7 +30,7 @@ globalOrder_(OrderType::ColumnMajor)
 
     if (!filePath.empty())
         if (!load(filePath))
-            throw ArgumentError("filePath", filePath,
+            throw ArgumentError(*this, "filePath", filePath,
                 "Unable to parse target descriptor - error reading or invalid");
 
 }
@@ -61,7 +61,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         json::Value jsonRoot;
         if (!parser.parseFile(filePath, jsonRoot))
         {
-            throw ArgumentError("filePath", filePath,
+            throw ArgumentError(*this, "filePath", filePath,
                 "Unable to parse target descriptor - error reading");
         }
         if (jsonRoot.valueType() != json::JSONType::Object)
@@ -326,7 +326,7 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
 void mv::TargetDescriptor::setTarget(Target target)
 {
     if (target == Target::Unknown)
-        throw ArgumentError("target", "unknown", "Defining target as unknown is illegal");
+        throw ArgumentError(*this, "target", "unknown", "Defining target as unknown is illegal");
     target_ = target;
 }
 
@@ -610,4 +610,9 @@ mv::Order mv::TargetDescriptor::getOrder() const
 const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const
 {
     return memoryDefs_;
+}
+
+std::string mv::TargetDescriptor::getLogID() const
+{
+    return "TargetDescriptor";
 }

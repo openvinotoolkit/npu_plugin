@@ -4,17 +4,17 @@
 
 	"ops":
 	[
-		"conv2d",
-		"matmul",
-		"maxpool2d",
-		"avgpool2d",
-		"relu",
-		"softmax",
-		"add",
-		"subtract",
-		"multiply",
-		"divide",
-		"fullyconnected"
+		"Conv2D",
+		"MatMul",
+		"MaxPool2D",
+		"AvgPool2D",
+		"ReLU",
+		"Softmax",
+		"Add",
+		"Subtract",
+		"Multiply",
+		"Divide",
+		"FullyConnected"
 	],
 
 	"order":
@@ -24,7 +24,7 @@
 
 	"dtype":
 	{
-		"global": "fp16"
+		"global": "Float16"
 	},
 
 	"passes":

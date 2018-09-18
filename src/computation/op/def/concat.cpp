@@ -8,31 +8,18 @@ SourceOp(OpType::Concat, 1, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::Concat::Concat(mv::json::Value& obj) :
-ComputationOp(obj),
-SinkOp(obj),
-SourceOp(obj)
-{
-
-}*/
-
 mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
 {
     
-    /*if (idx > 0)
-        return Tensor();
-
-    if (!validOutputDef_())
-        return Tensor();*/
+    // Will throw on error
+    validOutputDef_(idx);
 
     auto input0 = getInputTensor(0);
     auto input0Shape = input0->getShape();
+
     if (input0Shape.ndims() != 3)
-    {
-        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-            "' because of incorrect shape " + input0Shape.toString() + " of input 0");
-        //return Tensor();
-    }
+        throw(OpError(*this, "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
+            " has " + std::to_string(input0Shape.ndims())));
 
     std::size_t lastDim = input0Shape[2];
 
@@ -40,17 +27,12 @@ mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
     {
         auto inputShape = getInputTensor(i)->getShape();
         if (inputShape.ndims() != 3)
-        {
-            log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-                "' because of incorrect shape " + inputShape.toString() + " of input " + std::to_string(i));
-            //return Tensor();
-        }
+            throw(OpError(*this, "Invalid shape of the input tensor (input " + std::to_string(i) + ") - must have a dimensionality of 3, "
+                " has " + std::to_string(inputShape.ndims())));
+
         if (inputShape[0] != input0Shape[0] || inputShape[1] != input0Shape[1])
-        {
-            log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-                "' because of inconsistent inputs shapes " + input0Shape.toString() + " and " + inputShape.toString());
-            //return Tensor();
-        }
+            throw(OpError(*this, "Invalid shape of the input tensor (input " + std::to_string(i) + ") - inconsistent with the dimension of "
+                " the first input (input 0) "));
 
         lastDim += inputShape[2];
 

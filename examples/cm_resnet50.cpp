@@ -31,7 +31,7 @@
  * @param padding Padding of conv2D
  * @return mv::Data::TensorIterator Iterator referencing the created batchnorm output 
  */
-mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::std::array<unsigned short, 2> stride, mv::std::array<unsigned short, 4> padding)
+mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
@@ -89,7 +89,7 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
  * @return mv::Data::TensorIterator Iterator referencing the created residual block output
  */
 mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned intermediateDepth,
-    unsigned outputDepth, mv::std::array<unsigned short, 2> stride)
+    unsigned outputDepth, std::array<unsigned short, 2> stride)
 {
 
     auto inputShape = input->getShape();
@@ -109,7 +109,7 @@ int main()
 {
 
     // Define the primary compilation unit
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("ResNet50");
 
     // Obtain a compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();

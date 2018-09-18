@@ -9,34 +9,19 @@ SinkOp(OpType::Reshape, 1, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::Reshape::Reshape(mv::json::Value& obj) :
-ComputationOp(obj),
-SourceOp(obj),
-SinkOp(obj)
-{
-
-}*/
-
 mv::Tensor mv::op::Reshape::getOutputDef(std::size_t idx)
 {
     
-    /*if (idx > 0)
-        return Tensor();
-
-    if (!validOutputDef_())
-        return Tensor();*/
+    // Will throw on error
+    validOutputDef_(idx);
 
     auto input = getInputTensor(0);
     auto inputShape = input->getShape();
     auto outputShape = get<Shape>("shape");
 
     if (inputShape.totalSize() != outputShape.totalSize())
-    {
-        log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-            "' because conversion of input shape " + inputShape.toString() + " and requested shape " + outputShape.toString() +
-            " is impossible");
-        //return Tensor();
-    }
+        throw(OpError(*this, "Invalid conversino of the original shape " + inputShape.toString() + " and the output shape "
+            + outputShape.toString() + " - must have equal total number of elements"));
 
     return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
 

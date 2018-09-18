@@ -9,13 +9,6 @@ SourceOp(opType, 1, name)
 
 }
 
-mv::KernelOp::KernelOp(mv::json::Value& value) :
-ComputationOp(value),
-SourceOp(value)
-{
-
-}
-
 mv::KernelOp::~KernelOp()
 {
 

@@ -1,11 +1,6 @@
 #include "include/mcm/pass/pass_registry.hpp"
 
-mv::pass::RutimeError::RutimeError(const std::string& whatArg) :
-std::runtime_error(whatArg)
-{
-
-}
-
+MV_DEFINE_REGISTRY(std::string, mv::pass::PassEntry)
 
 mv::pass::PassRegistry& mv::pass::PassRegistry::instance()
 {

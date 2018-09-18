@@ -7,13 +7,6 @@ EltwiseOp(OpType::Divide, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::Divide::Divide(mv::json::Value& obj) :
-ComputationOp(obj),
-EltwiseOp(obj)
-{
-
-}*/
-
 bool mv::op::Divide::isHardwarizeable(json::Object&)
 {
     return false;

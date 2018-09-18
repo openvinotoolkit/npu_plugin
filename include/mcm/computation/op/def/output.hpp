@@ -15,8 +15,6 @@ namespace mv
         public:
 
             Output(const std::string &name);
-            Output(mv::json::Value &obj);
-
             bool setInputTensor(Data::TensorIterator &tensor, std::size_t idx);
             Tensor getOutputDef(std::size_t);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);

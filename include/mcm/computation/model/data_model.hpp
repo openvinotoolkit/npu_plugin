@@ -20,7 +20,7 @@ namespace mv
 
     public:
 
-        DataModel(const ComputationModel& ComputationModel);
+        DataModel(ComputationModel& ComputationModel);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
 
@@ -29,10 +29,10 @@ namespace mv
         Data::FlowListIterator flowBegin();
         Data::FlowListIterator flowEnd();
 
-        /*GroupContext::MemberIterator addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group);
+        GroupContext::MemberIterator addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group);
         bool removeGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group);
         using ComputationModel::addGroupElement;
-        using ComputationModel::removeGroupElement;*/
+        using ComputationModel::removeGroupElement;
 
         Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
@@ -42,12 +42,12 @@ namespace mv
 
         bool addAllocator(const std::string& name, std::size_t size, Order order);
         bool hasAllocator(const std::string& name);
-        /*Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor, std::vector<size_t> pad);
+        Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor, std::vector<size_t> pad);
         bool deallocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
         void deallocateAll(const std::string& allocatorName, Control::StageIterator& stage);
         Data::BufferIterator bufferBegin(const std::string& allocatorName, Control::StageIterator& stage);
         Data::BufferIterator bufferEnd(const std::string& allocatorName, Control::StageIterator& stage);
-        Data::BufferIterator getBuffer(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator tensor);*/
+        Data::BufferIterator getBuffer(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator tensor);
 
         virtual std::string getLogID() const override;
 

@@ -72,6 +72,12 @@ namespace mv
 
             }
 
+            template <class AttrType>
+            inline static std::string getTypeName()
+            {
+                return getTypeName(typeid(AttrType));
+            }
+
             inline static std::type_index getTypeID(const std::string& typeName)
             {
                 for (auto it = instance().reg_.begin(); it != instance().reg_.end(); ++it)
@@ -181,13 +187,39 @@ namespace mv
                     " not found in the attribute registry");
             
             }
+
+            inline static bool hasTrait(std::type_index typeID, const std::string& trait)
+            {
+                if (!checkType(typeID))
+                {
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of checking type trait for an unegistered attribute type " 
+                        + std::string(typeID.name()));
+                }
+
+                AttributeEntry* const attrPtr = instance().find(typeID);
+                
+                if (attrPtr)
+                {
+                    return attrPtr->hasTrait(trait);
+                }
+
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) + 
+                    " not found in the attribute registry");
+            }
+
+            template <class AttrType>
+            inline static bool hasTrait(const std::string& trait)
+            {
+                return hasTrait(typeid(AttrType), trait);
+            }
             
         };
 
-
+        #define STRV(...) #__VA_ARGS__
+        #define COMMA ,
         #define MV_REGISTER_ATTR(Type)                                                                          \
             static ATTRIBUTE_UNUSED AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__) =      \
-                mv::attr::AttributeRegistry::instance().enter<Type >().setName(#Type)
+                mv::attr::AttributeRegistry::instance().enter<Type>().setName(STRV(Type))
                               
     }
 

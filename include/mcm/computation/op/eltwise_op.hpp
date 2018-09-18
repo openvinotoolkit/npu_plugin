@@ -13,7 +13,6 @@ namespace mv
     public:
 
         EltwiseOp(OpType eltwiseType, const std::string &name);
-        EltwiseOp(mv::json::Value& value);
         virtual ~EltwiseOp() = 0;
         Tensor getOutputDef(std::size_t idx);
 

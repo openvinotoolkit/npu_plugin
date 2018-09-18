@@ -1,4 +1,5 @@
 #include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm/base/element.hpp"
 
 mv::LogSender::~LogSender()
 {

@@ -85,7 +85,7 @@ void mv::Tensor::setOrder(Order order)
 
 }
 
-bool mv::Tensor::broadcast(const Shape& shape)
+void mv::Tensor::broadcast(const Shape& shape)
 {
 
     if (!isPopulated())
@@ -361,11 +361,5 @@ const double& mv::Tensor::operator()(const std::vector<std::size_t>& sub) const
 
 std::string mv::Tensor::getLogID() const
 {
-    std::string prefix;
-    if (isPopulated())
-        prefix = "P";
-    else
-        prefix = "U";
-
-    return prefix + "Tensor " + getName();
+    return "Tensor " + getName();
 }

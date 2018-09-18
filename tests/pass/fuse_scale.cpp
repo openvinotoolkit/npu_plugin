@@ -2,14 +2,14 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
-#include "include/mcm/computation/tensor/math.hpp"
+#include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 
 TEST(fuse_scale, case_conv)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
 
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
@@ -50,7 +50,7 @@ TEST(fuse_scale, case_conv)
 TEST(fuse_scale, case_conv_bias_fused)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("testModel");
 
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
@@ -92,7 +92,7 @@ TEST(fuse_scale, case_conv_bias_fused)
     for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
         ASSERT_FLOAT_EQ(convOp->getInputTensor(1)->getData()[i], newWeigths.getData()[i]);
 
-    auto biasVector = dm.findTensor(convOp->getAttr("bias").getContent<std::string>())->getData();
+    auto biasVector = dm.findTensor(convOp->get<std::string>("bias"))->getData();
     for (unsigned i = 0; i < biasVector.size(); ++i)
         ASSERT_FLOAT_EQ(biasVector[i], newBiases.getData()[i]);
 

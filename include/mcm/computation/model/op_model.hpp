@@ -24,11 +24,11 @@ namespace mv
 
     public:
 
-        OpModel();
+        OpModel(const std::string& name);
         OpModel(mv::json::Value& value);
 
-        OpModel(const ComputationModel& model);
-        OpModel(const CompositionalModel& model);
+        OpModel(ComputationModel& model);
+        OpModel(CompositionalModel& model);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
 
@@ -71,10 +71,10 @@ namespace mv
         Data::FlowListIterator defineFlow(Data::OpListIterator sourceOp, std::size_t outputIdx, Data::OpListIterator sinkOp, std::size_t inputIdx);
         bool undefineFlow(Data::FlowListIterator flow);
 
-        /*GroupContext::MemberIterator addGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);
+        GroupContext::MemberIterator addGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);
         bool removeGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);
         using ComputationModel::addGroupElement;
-        using ComputationModel::removeGroupElement;*/
+        using ComputationModel::removeGroupElement;
 
         std::vector<Shape> getInputShapes(Data::OpListIterator& op);
         std::vector<Shape> getOutputShapes(Data::OpListIterator& op);

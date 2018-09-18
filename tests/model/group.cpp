@@ -2,10 +2,10 @@
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-/*TEST(group, op_member_append)
+TEST(group, op_member_append)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("TestModel");
 
     auto input = om.input({8, 8, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto inputOp = om.getSourceOp(input);
@@ -31,8 +31,8 @@
         if (it != poolOp)
         {
             ASSERT_TRUE(it->hasAttr("groups"));
-            ASSERT_EQ(it->getAttr("groups").getContent<std::vector<std::string>>().size(), 1);
-            ASSERT_EQ(it->getAttr("groups").getContent<std::vector<std::string>>()[0], groupName);
+            ASSERT_EQ(it->get<std::vector<std::string>>("groups").size(), 1);
+            ASSERT_EQ(it->get<std::vector<std::string>>("groups")[0], groupName);
         }
     }
     
@@ -48,7 +48,7 @@
 TEST(group, op_member_remove)
 {
 
-    mv::OpModel om;
+    mv::OpModel om("TestModel");
 
     auto input = om.input({8, 8, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto inputOp = om.getSourceOp(input);
@@ -79,4 +79,4 @@ TEST(group, op_member_remove)
     ASSERT_FALSE(inputOp->hasAttr("groups"));
     ASSERT_FALSE(outputOp->hasAttr("groups"));
 
-}*/
+}

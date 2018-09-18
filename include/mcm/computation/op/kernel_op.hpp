@@ -21,7 +21,6 @@ namespace mv
     public:
 
         KernelOp(OpType opType, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string &name);
-        KernelOp(json::Value& value);
         virtual ~KernelOp() = 0;
 
     };

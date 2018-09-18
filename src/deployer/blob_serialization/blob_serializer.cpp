@@ -115,7 +115,7 @@ namespace mv
                             }
                             else
                             {
-                                mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+                                mx_valid = it->get<int>("NCE1_Compatible");
                             }
 
                             if(mx_valid){
@@ -127,7 +127,7 @@ namespace mv
                                 }
                                 else
                                 {
-                                    descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                                    descriptors = it->get<int>("NCE1_DescriptorSplits");
                                 }
                                 blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
                                 blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
@@ -154,7 +154,7 @@ namespace mv
                         // calculate buffer size related to bias
                         if (it->hasAttr("bias"))
                         {
-                            uint32_t buffer_bias_values_len = dm.findTensor(it->getAttr("bias").getContent<std::string>())->getData().size() ;
+                            uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                             blob_stats.data_buffer_count++ ;
                         }
@@ -162,7 +162,7 @@ namespace mv
                         blob_stats.stage_count++ ;
                         if (it->hasAttr("postOpType"))
                         {
-                            if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                             {
                                 blob_stats.stage_section_size += (3*4) ;
                             }
@@ -401,7 +401,7 @@ namespace mv
                         }
                         else
                         {
-                            mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+                            mx_valid = it->get<int>("NCE1_Compatible");
                         }
 
                         if(mx_valid)
@@ -414,7 +414,7 @@ namespace mv
                             }
                             else
                             {
-                                descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                                descriptors = it->get<int>("NCE1_DescriptorSplits");
                             }
                             point0 += (11*4) ; // Header of Descriptors
                             point0 += (descriptors*32*4) ; // Descriptor
@@ -438,7 +438,7 @@ namespace mv
                                     conv_pool_stage.next = 0;
                                     finalstage = 1;
                                 }
-                            }catch(mv::ArgumentError){
+                            }catch(mv::IndexError){
                                 printf("Warning: No Intermediary Buffers\n");
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
@@ -469,7 +469,7 @@ namespace mv
 
                             if (it->hasAttr("postOpType"))
                             {
-                                if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                                if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                                 {
                                     point0 += (5*4) ;
                                 }else{
@@ -496,7 +496,7 @@ namespace mv
                                     conv_pool_stage.next = 0;
                                     finalstage = 1;
                                 }
-                            }catch(mv::ArgumentError){
+                            }catch(mv::IndexError){
                                 printf("Warning: No Intermediary Buffers\n");
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
@@ -517,7 +517,7 @@ namespace mv
                             if (it->hasAttr("postOpType"))
                             {
 
-                                if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                                if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                                 {
 
                                     AddBytes(4, 0x06);    // 0x12c , postop relu
@@ -565,7 +565,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -603,7 +603,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -639,7 +639,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -677,7 +677,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -715,7 +715,7 @@ namespace mv
                                 finalstage = 1;
                                 conv_pool_stage.next = 0;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Serializer Warning: No Intermediary Buffers\n");
                             finalstage = 1;
                             conv_pool_stage.next = 0;
@@ -826,7 +826,7 @@ namespace mv
 
                         try{
                             mem = dm.getBuffer("IntermediateMemory", stg, t);
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                         }
 
@@ -920,7 +920,7 @@ namespace mv
                 running_total += bit.size*2;
 
                 for (int idx = 0; idx != (int)bit.size; idx++){
-                    u_int16_t fp16_val = cvtr.fp32_to_fp16((*bit.data).getData()[idx]) ;  // Convert to fp16.
+                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>((*bit.data).getData()[idx])) ;  // Convert to fp16.
                     AddBytes(2, fp16_val) ;
                 }
 

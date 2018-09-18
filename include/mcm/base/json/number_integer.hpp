@@ -18,7 +18,7 @@ namespace mv
         public:
     
             NumberInteger(long long value);
-            operator long long&() override;
+            explicit operator long long&() override;
             std::string stringify() const override;
             std::string stringifyPretty() const override;
             bool operator==(const NumberInteger& other) const;

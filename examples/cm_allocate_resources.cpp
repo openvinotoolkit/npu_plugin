@@ -4,7 +4,7 @@
 int main()
 {
     // Define the primary compilation unit
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("model1");
 
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();

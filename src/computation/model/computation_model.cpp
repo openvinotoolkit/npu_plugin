@@ -1,24 +1,25 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/op/ops_headers.hpp"
 
-mv::ComputationModel::ComputationModel() :
+mv::ComputationModel::ComputationModel(const std::string& name) :
+name_(name),
 opsGraph_(std::make_shared<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 flowTensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>(std::map<std::string, std::shared_ptr<Tensor>>())),
 tensorsSources_(std::make_shared<std::map<std::string, Data::OpListIterator>>(std::map<std::string, Data::OpListIterator>())),
-//groups_(std::make_shared<std::map<std::string, std::shared_ptr<ComputationGroup>>>(std::map<std::string, std::shared_ptr<ComputationGroup>>())),
-//stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<ComputationStage>>>(std::map<std::size_t, std::shared_ptr<ComputationStage>>())),
+groups_(std::make_shared<std::map<std::string, std::shared_ptr<ComputationGroup>>>(std::map<std::string, std::shared_ptr<ComputationGroup>>())),
+stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<ComputationStage>>>(std::map<std::size_t, std::shared_ptr<ComputationStage>>())),
 memoryAllocators_(std::make_shared<std::map<std::string, std::shared_ptr<MemoryAllocator>>>(std::map<std::string, std::shared_ptr<MemoryAllocator>>())),
 opsCounter_(std::make_shared<std::map<OpType, std::size_t>>(std::map<OpType, std::size_t>())),
-dataOpEnd_(new Data::OpListIterator(dataGraph_.node_end())),
-dataFlowEnd_(new Data::FlowListIterator(dataGraph_.edge_end())),
-controlOpEnd_(new Control::OpListIterator(controlGraph_.node_end())),
-controlFlowEnd_(new Control::FlowListIterator(controlGraph_.edge_end())),
-input_(new Data::OpListIterator(*dataOpEnd_)),
-output_(new Data::OpListIterator(*dataOpEnd_))
+dataOpEnd_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
+controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
+controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
+input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end()))
 {
-
+    log(Logger::MessageType::MessageInfo, "Initialized");
 }
 
 /*void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
@@ -189,9 +190,9 @@ mv::ComputationModel::ComputationModel(json::Value &model) :
     for(auto currentGroupIt = groups_->begin(); currentGroupIt != groups_->end(); ++currentGroupIt)
         handleGroupsForAddedElement<ComputationGroup, mv::GroupContext::GroupIterator>(currentGroupIt);
 
-    // TENSORS
-    json::Value tensors = model["tensors"];
-    for(std::size_t i = 0; i < tensors.size(); ++i)
+    // TENSORSconst std::string& name
+    json::Valuconst std::string& name["tensors"];
+    for(std::sconst std::string& nametensors.size(); ++i)
     {
         auto currentTensor = std::make_shared<Tensor>(tensors[i]);
         auto addedTensor = flowTensors_->emplace(currentTensor->getName(), currentTensor);
@@ -262,14 +263,15 @@ mv::ComputationModel::ComputationModel(json::Value &model) :
 }*/
 
 
-mv::ComputationModel::ComputationModel(const ComputationModel &other) :
+mv::ComputationModel::ComputationModel(ComputationModel &other) :
+name_(other.name_),
 opsGraph_(other.opsGraph_),
 dataGraph_(other.dataGraph_),
 controlGraph_(other.controlGraph_),
 flowTensors_(other.flowTensors_),
 tensorsSources_(other.tensorsSources_),
-//groups_(other.groups_),
-//stages_(other.stages_),
+groups_(other.groups_),
+stages_(other.stages_),
 memoryAllocators_(other.memoryAllocators_),
 opsCounter_(other.opsCounter_),
 dataOpEnd_(other.dataOpEnd_),
@@ -279,20 +281,12 @@ controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_)
 {
-
+    log(Logger::MessageType::MessageInfo, "Bound");
 }
 
 mv::ComputationModel::~ComputationModel()
 {
-    /*
-    delete dataOpEnd_;
-    delete dataFlowEnd_;
-    delete controlOpEnd_;
-    delete controlFlowEnd_;
-    delete input_;
-    delete output_;
-    delete lastOp_;
-    delete defaultControlFlow_;*/
+    log(Logger::MessageType::MessageInfo, "Deleted");
 }
 
 bool mv::ComputationModel::isValid() const
@@ -303,27 +297,29 @@ bool mv::ComputationModel::isValid() const
 bool mv::ComputationModel::isValid(const Data::TensorIterator &it) const
 {
 
-    if (!it)
+    if (it == tensorEnd())
         return false;
     if (flowTensors_->find(it->getName()) != flowTensors_->end())
         return true;
     return false;
+
 }
 
 bool mv::ComputationModel::isValid(const Data::OpListIterator &it) const
 {
     
-    if (!it)
+    if (it == *dataOpEnd_)
         return false;
     if (dataGraph_.node_find(it) != dataGraph_.node_end())
         return true;
     return false;
+
 }
 
 bool mv::ComputationModel::isValid(const Control::OpListIterator &it) const
 {
     
-    if (!it)
+    if (it == *controlOpEnd_)
         return false;
     if (controlGraph_.node_find(it) != controlGraph_.node_end())
         return true;
@@ -333,7 +329,7 @@ bool mv::ComputationModel::isValid(const Control::OpListIterator &it) const
 
 bool mv::ComputationModel::isValid(const Data::FlowListIterator &it) const
 {
-    if (!it)
+    if (it == *dataFlowEnd_)
         return false;
     if (dataGraph_.edge_find(it) != dataGraph_.edge_end())
         return true;
@@ -342,14 +338,14 @@ bool mv::ComputationModel::isValid(const Data::FlowListIterator &it) const
 
 bool mv::ComputationModel::isValid(const Control::FlowListIterator &it) const
 {
-    if (!it)
+    if (it == *controlFlowEnd_)
         return false;
     if (controlGraph_.edge_find(it) != controlGraph_.edge_end())
         return true;
     return false;
 } 
 
-/*mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
+mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
 {
     
     if (getGroup(name) == groupEnd())
@@ -390,7 +386,7 @@ mv::GroupContext::GroupIterator mv::ComputationModel::getGroup(const std::string
 }
 
 
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(std::shared_ptr<ComputationElement> element, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(std::shared_ptr<Element> element, GroupContext::GroupIterator &group)
 {
     if (group != groupEnd())
     {
@@ -407,7 +403,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(std::sha
     
 }
 
-bool mv::ComputationModel::removeGroupElement_(std::weak_ptr<ComputationElement> element, mv::GroupContext::GroupIterator &group)
+bool mv::ComputationModel::removeGroupElement_(std::weak_ptr<Element> element, mv::GroupContext::GroupIterator &group)
 {
 
     if (group != groupEnd())
@@ -434,7 +430,7 @@ bool mv::ComputationModel::checkOpsStages_() const
     
     for (auto opIt = *input_; opIt != *dataOpEnd_; ++opIt)
     {
-        if (!opIt->hasAttr("stage") && opIt->getAttr("executable").getContent<bool>())
+        if (!opIt->hasAttr("stage") && opIt->get<bool>("executable"))
             return false;
     }
 
@@ -461,37 +457,32 @@ bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpLi
         if (result != stage->end())
         {
             log(Logger::MessageType::MessageInfo, "Appended new member '" + result->lock()->getName() + "' to stage " + 
-                result->lock()->getAttr("stage").getContentStr());
+                std::to_string(result->lock()->get<std::size_t>("stage")));
             return true;
         }
     }
 
     return false;
-}*/
+
+}
 
 mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx)
 {
-    if (!source)
-    {
-        log(Logger::MessageType::MessageError, "Unable to define an output tensor - invalid source op");
-        return Data::TensorIterator();
-    }
+    if (!isValid(source))
+        throw ArgumentError(*this, "Source op", "null", "Undefined source op");
 
     auto tensorDef = source->getOutputDef(outputIdx);
 
     if (flowTensors_->find(tensorDef.getName()) == flowTensors_->end())
     {
-        // TODO: handle failure
         auto result = flowTensors_->emplace(tensorDef.getName(), std::make_shared<Tensor>(tensorDef));
         tensorsSources_->emplace(tensorDef.getName(), source);
         log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
         return result.first;
     }
-    else
-    {
-        log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
-        return Data::TensorIterator();
-    }
+
+    throw(ArgumentError(*this, "Tensor name", tensorDef.getName(), "Duplicated tensor identifier"));
+    
 }
 
 mv::Data::TensorIterator mv::ComputationModel::findTensor_(const std::string &name)
@@ -520,7 +511,7 @@ mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterato
 
 }
 
-/*mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
+mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
 {
     std::shared_ptr<ComputationGroup> ptr = element;
     return addGroupElement_(ptr, group);
@@ -566,7 +557,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberEnd(GroupContext::G
 
     return GroupContext::MemberIterator();
 
-}*/
+}
 
 mv::Data::TensorIterator mv::ComputationModel::tensorBegin() const
 {
@@ -583,18 +574,18 @@ void mv::ComputationModel::clear()
 {
     flowTensors_->clear();
     tensorsSources_->clear();
-    //groups_->clear();
-    //stages_->clear();
+    groups_->clear();
+    stages_->clear();
     memoryAllocators_->clear();
     opsCounter_->clear();
+    dataGraph_.clear();
+    controlGraph_.clear();
     *dataOpEnd_ = dataGraph_.node_end();
     *dataFlowEnd_ = dataGraph_.edge_end();
     *controlOpEnd_ = controlGraph_.node_end();
     *controlFlowEnd_ = controlGraph_.edge_end();
-    *input_ = *dataOpEnd_;
-    *output_ = *dataOpEnd_;
-    dataGraph_.clear();
-    controlGraph_.clear();
+    *input_ = dataGraph_.node_end();
+    *output_ = dataGraph_.node_end();
 }
 
 //NOTE: Populated tensors dumping are handled in json pass.
@@ -676,5 +667,5 @@ void mv::ComputationModel::clear()
 
 std::string mv::ComputationModel::getLogID() const
 {
-    return "Model";
+    return "Model " + name_;
 }

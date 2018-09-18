@@ -1,6 +1,7 @@
 #include "include/mcm/computation/model/op_model.hpp"
 
-mv::OpModel::OpModel()
+mv::OpModel::OpModel(const std::string& name) :
+ComputationModel(name)
 {
 
 }
@@ -11,14 +12,14 @@ ComputationModel(value)
 
 }*/
 
-mv::OpModel::OpModel(const ComputationModel& other) :
+mv::OpModel::OpModel(ComputationModel& other) :
 ComputationModel(other)
 {
 
 }
 
-mv::OpModel::OpModel(const CompositionalModel& model) :
-ComputationModel(static_cast<const OpModel&>(model))
+mv::OpModel::OpModel(CompositionalModel& model) :
+ComputationModel(static_cast<OpModel&>(model))
 {
 
 }
@@ -573,7 +574,7 @@ mv::Data::FlowListIterator mv::OpModel::flowEnd() const
     return *dataFlowEnd_;
 }
 
-/*mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
+mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
 {
 
     std::shared_ptr<ComputationOp> ptr = newElement;
@@ -585,7 +586,7 @@ bool mv::OpModel::removeGroupElement(Data::OpListIterator element, GroupContext:
 {
     std::shared_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);
-}*/
+}
 
 std::vector<mv::Shape> mv::OpModel::getInputShapes(Data::OpListIterator& op)
 {

@@ -39,10 +39,10 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
     DataModel dm(model);
 
     if (!dm.hasAllocator("ConstantMemory"))
-        throw ArgumentError("allocator", "ConstantMemory", "Computation model does not have ConstantMemory specified");
+        throw ArgumentError(dm, "allocator", "ConstantMemory", "Computation model does not have ConstantMemory specified");
 
     if (cm.stageSize() == 0)
-        throw ArgumentError("stages count", "0", "Computation model does not have stages specified");
+        throw ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
 
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
@@ -67,16 +67,16 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
     DataModel dm(model);
 
     if (!dm.hasAllocator("IntermediateMemory"))
-        throw ArgumentError("allocator", "IntermediateMemory", "Computation model does not have IntermediateMemory specified");
+        throw ArgumentError(dm, "allocator", "IntermediateMemory", "Computation model does not have IntermediateMemory specified");
 
     if (cm.stageSize() == 0)
-        throw ArgumentError("stages count", "0", "Computation model does not have stages specified");
+        throw ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
 
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
 
         OpModel om(dm) ;
-        bool external = false, fake = false; //, conv_padding = false;
+        bool external = false, fake = false, conv_padding = false;
         std::vector<std::string> input_names, output_names, invalid_names, c_pad_names;
 
         int max_pad = 0;
@@ -119,11 +119,11 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }
         }
 
-        /*if(std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end()) {
+        if(std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end()) {
             conv_padding = true;
         }else {
             // Not conv_padding, dont do anything
-        }*/
+        }
 
         if(std::find(invalid_names.begin(), invalid_names.end(), tIt->getName()) != invalid_names.end()) {
             fake = true;
@@ -134,12 +134,12 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         {
             auto stageIt = cm.getStage(0);
 
-            /*int pad = 0;
+            int pad = 0;
             if (conv_padding){
                 pad = max_pad;
-            }*/
+            }
 
-            std::vector<size_t> paddings; //TODO: Should be filled
+            std::vector<std::size_t> paddings; //TODO: Should be filled
             dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
         }
     }

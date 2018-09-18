@@ -3,36 +3,44 @@
 
 #include <algorithm>
 #include <set>
-#include <memory>
-#include <string>
-#include <vector>
 #include "include/mcm/base/element.hpp"
 
 namespace mv
 {
 
-    /*class ComputationGroup : public ComputationElement
+    class ComputationGroup : public Element
     {
     
+    public:
+
+        struct GroupOrderComparator
+        {
+
+            bool operator()(const std::weak_ptr<Element> &lhs, const std::weak_ptr<Element> &rhs)
+            {
+                return *lhs.lock() < *rhs.lock();
+            }
+
+        };
+
     protected:
 
-        using MemberSet = std::set<std::weak_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
+        using MemberSet = std::set<std::weak_ptr<Element>, GroupOrderComparator>;
         MemberSet members_;
 
-        virtual bool markMembmer_(ComputationElement &member);
-        virtual bool unmarkMembmer_(ComputationElement &member);
-        virtual std::string getLogID_() const override;
+        virtual bool markMembmer_(Element &member);
+        virtual bool unmarkMembmer_(Element &member);
                 
     public:
 
         ComputationGroup(const std::string &name);
-        ComputationGroup(mv::json::Value& value);
         bool erase(MemberSet::iterator &member);
         void clear();
         MemberSet::iterator begin();
         MemberSet::iterator end();
         std::size_t size() const;
-        virtual std::string toString() const override;
+        virtual std::string toString() const;
+        virtual std::string getLogID() const override;
 
         template <class ElementType>
         MemberSet::iterator insert(std::shared_ptr<ElementType> newMember)
@@ -58,12 +66,12 @@ namespace mv
         MemberSet::iterator find(ElementType& member)
         {   
             for (auto it = members_.begin(); it != members_.end(); ++it)
-                if (*it->lock() == member)
+                if (*(it->lock()) == member)
                     return it;
             return members_.end();
         }
         
-    };*/
+    };
 
 }
 

@@ -24,7 +24,7 @@
  * @param padding Padding of conv2D
  * @return mv::Data::TensorIterator Iterator referencing the created batchnorm output 
  */
-mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, mv::std::array<unsigned short, 2> stride, mv::std::array<unsigned short, 4> padding)
+mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
@@ -69,7 +69,7 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
  * @param input Tensor that is an input data for first stages of residual block 
  * @return mv::Data::TensorIterator Iterator referencing the created residual block output
  */
-mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned outputDepth, mv::std::array<unsigned short, 2> stride)
+mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned outputDepth, std::array<unsigned short, 2> stride)
 {
 
     auto inputShape = input->getShape();
@@ -87,7 +87,7 @@ int main()
 {
 
     // Define the primary compilation unit
-    mv::CompilationUnit unit;
+    mv::CompilationUnit unit("ResNet18");
 
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
@@ -121,11 +121,12 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet18.blob");
     
     // Initialize compilation 
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().disablePass(mv::PassGenre::Adaptation);
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().disablePass(mv::PassGenre::Adaptation);
 
     // Run all passes
     unit.run();

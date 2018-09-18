@@ -44,18 +44,17 @@ file(GLOB tensor
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp 
     ${graph_src}
-    #${resources}
+    ${resources}
     ${base_src}
     ${tensor}
-    #${op_src}
-    #${pass_src}
-    #${compiler_src}
+    ${op_src}
+    ${pass_src}
+    ${compiler_src}
     ${model_src}
 )
 
 target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${logger} ${base})
-#target_sources(mcm_unit_tests PUBLIC ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})
+target_sources(mcm_unit_tests PUBLIC ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")

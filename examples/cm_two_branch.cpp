@@ -6,7 +6,7 @@
 int main()
 {
 
-    mv::OpModel om;
+    mv::OpModel om("model1");
     auto input = om.input({128, 128, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
 
     std::vector<double> conv1WeightsData = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
@@ -41,7 +41,7 @@ int main()
     std::size_t i = 0;
     for (auto it = cm.getFirst(); it != cm.opEnd(); ++it)
     {
-        mv::Logger::instance().log(msgType, "cm_two_branch", "Op " + mv::Printable::toString(i) + ": " + it->getName());
+        mv::Logger::instance().log(msgType, "cm_two_branch", "Op " + std::to_string(i) + ": " + it->getName());
         ++i;
     }
     

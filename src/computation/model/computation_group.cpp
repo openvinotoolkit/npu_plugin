@@ -1,40 +1,40 @@
 #include "include/mcm/computation/model/computation_group.hpp"
 
-/*bool mv::ComputationGroup::markMembmer_(ComputationElement &member)
+bool mv::ComputationGroup::markMembmer_(Element &member)
 {
 
     if (!member.hasAttr("groups"))
     {
-        member.addAttr("groups", AttrType::StringVecType, std::vector<std::string>({name_}));
+        member.set<std::vector<std::string>>("groups", {name_});
     }
     else
     {
-        std::vector<std::string> groups = member.getAttr("groups").template getContent<std::vector<std::string>>();
+        std::vector<std::string> groups = member.get<std::vector<std::string>>("groups");
         auto isPresent = std::find(groups.begin(), groups.end(), name_);
         if(isPresent == groups.end())
         {
             groups.push_back(name_);
-            member.getAttr("groups").template setContent<std::vector<std::string>>(groups);
+            member.set<std::vector<std::string>>("groups", groups);
         }
     }
 
-    std::vector<std::string> membersAttr = getAttr("members").getContent<std::vector<std::string>>();
+    std::vector<std::string> membersAttr = get<std::vector<std::string>>("members");
     auto isPresent = std::find(membersAttr.begin(), membersAttr.end(), member.getName());
     if(isPresent == membersAttr.end())
     {
         membersAttr.push_back(member.getName());
-        getAttr("members").setContent<std::vector<std::string>>(membersAttr);
+        set<std::vector<std::string>>("members", membersAttr);
     }
     return true; 
 
 }
 
-bool mv::ComputationGroup::unmarkMembmer_(ComputationElement &member)
+bool mv::ComputationGroup::unmarkMembmer_(Element &member)
 {
 
     if (member.hasAttr("groups"))
     {
-        std::vector<std::string> groups = member.getAttr("groups").template getContent<std::vector<std::string>>();
+        std::vector<std::string> groups = member.get<std::vector<std::string>>("groups");
 
         for (auto it = groups.begin(); it != groups.end(); ++it)
         {
@@ -44,16 +44,16 @@ bool mv::ComputationGroup::unmarkMembmer_(ComputationElement &member)
 
                 if (groups.size() == 1)
                 {
-                    member.removeAttr("groups");
+                    member.erase("groups");
                 }
                 else
                 {
                     groups.erase(it);
-                    member.getAttr("groups").template setContent<std::vector<std::string>>(groups);
-                    std::vector<std::string> membersAttr = getAttr("members").getContent<std::vector<std::string>>();
+                    member.set<std::vector<std::string>>("groups", groups);
+                    std::vector<std::string> membersAttr = get<std::vector<std::string>>("members");
                     auto attrIt = std::find(membersAttr.begin(), membersAttr.end(), *it);
                     membersAttr.erase(attrIt);
-                    getAttr("members").setContent<std::vector<std::string>>(membersAttr);
+                    set<std::vector<std::string>>("members", membersAttr);
                 }
 
                 return true;
@@ -71,17 +71,10 @@ bool mv::ComputationGroup::unmarkMembmer_(ComputationElement &member)
 }
 
 mv::ComputationGroup::ComputationGroup(const std::string &name) :
-ComputationElement(name),
+Element(name),
 members_()
 {
-    addAttr("members", Attribute(AttrType::StringVecType, std::vector<std::string>()));
-}
-
-mv::ComputationGroup::ComputationGroup(mv::json::Value& value):
-ComputationElement(value),
-members_()
-{
-
+    set<std::vector<std::string>>("members", std::vector<std::string>());
 }
 
 bool mv::ComputationGroup::erase(MemberSet::iterator &member)
@@ -127,11 +120,10 @@ std::size_t mv::ComputationGroup::size() const
 
 std::string mv::ComputationGroup::toString() const
 {
-    return "group " + ComputationElement::toString();
+    return "Group '" + name_ + "' " + Element::attrsToString_();
 }
 
-std::string mv::ComputationGroup::getLogID_() const
+std::string mv::ComputationGroup::getLogID() const
 {
-    return "Group " + getName();
+    return "Group '" + getName() + "'";
 }
-*/

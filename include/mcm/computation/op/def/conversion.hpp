@@ -16,8 +16,6 @@ namespace mv
         public:
 
             Conversion(const std::string &name, Order targetOrder);
-            Conversion(mv::json::Value &obj);
-
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
 

@@ -7,8 +7,6 @@
 namespace mv
 {
 
-    MV_DEFINE_REGISTRY(std::string, PassEntry)
-
     class ComputationModel;
     class TargetDescriptor;
 

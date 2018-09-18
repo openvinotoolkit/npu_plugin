@@ -7,13 +7,6 @@ EltwiseOp(OpType::Multiply, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::Multiply::Multiply(mv::json::Value& obj) :
-ComputationOp(obj),
-EltwiseOp(obj)
-{
-
-}*/
-
 bool mv::op::Multiply::isHardwarizeable(json::Object&)
 {
     return false;

@@ -7,14 +7,6 @@ Pool2DOp(OpType::MaxPool2D, kernelSize, stride, padding, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::MaxPool2D::MaxPool2D(mv::json::Value& obj) :
-ComputationOp(obj),
-Pool2DOp(obj)
-{
-
-}*/
-
-
 bool mv::op::MaxPool2D::isHardwarizeable(json::Object&)
 {
     return false;

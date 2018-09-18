@@ -1,11 +1,5 @@
 #include "include/mcm/pass/pass_manager.hpp"
 
-mv::ExecutionError::ExecutionError(const std::string& whatArg) :
-std::runtime_error(whatArg)
-{
-
-}
-
 std::string mv::PassManager::toString(PassGenre passGenre)
 {
     switch(passGenre)
@@ -309,7 +303,7 @@ mv::json::Object& mv::PassManager::step()
     if (!running_)
     {
         if (!validDescriptors())
-            throw ExecutionError("Invalid descriptor");
+            throw RuntimeError(*this, "Invalid descriptor");
         running_ = true;
         currentStage_ = passFlow_.cbegin();
         while (currentStage_->second->begin() == currentStage_->second->end())
@@ -524,7 +518,7 @@ bool mv::PassManager::validDescriptors() const
 
 }
 
-std::string mv::PassManager::getLogID_() const
+std::string mv::PassManager::getLogID() const
 {
     return "PassManager";
 }

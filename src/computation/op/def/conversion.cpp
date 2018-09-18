@@ -9,26 +9,17 @@ SourceOp(mv::OpType::Conversion, 1, name)
     set<bool>("executable", true);
 }
 
-/*mv::op::Conversion::Conversion(mv::json::Value& value):
-ComputationOp(value),
-SinkOp(value),
-SourceOp(value)
-{
-
-}*/
-
 mv::Tensor mv::op::Conversion::getOutputDef(std::size_t idx)
 {
-    /*if (idx > 0)
-        return Tensor();
 
-    if (!validOutputDef_())
-        return Tensor();*/
+    // Will throw on error
+    validOutputDef_(idx);
 
     auto input = getInputTensor(0);
 
     //Target order handled here
     return Tensor(name_ + ":0", input->getShape(), input->getDType(), get<Order>("target_order"));
+
 }
 
 bool mv::op::Conversion::isHardwarizeable(mv::json::Object&)
