@@ -108,6 +108,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int coefficientsForInputChannel = kerDimX * kerDimY;
         int coefficientsForInputChannelRequiredMemory = coefficientsForInputChannel * bytesPerCoefficient;
         int inputDimX = opIterator->getInputTensor(0)->getShape()[0];
+        int inputHeight = opIterator->getInputTensor(0)->getShape()[1];
         int inputChannelsPerRamBlock = inputChannels / noOfBlocks;
         int memoryDPE = 512; //512 bytes for each DPE
         int coefficientsAvailableMemory = memoryDPE * noOfBlocks;
@@ -135,8 +136,8 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         om.addAttr(opIterator, "NCE1_BottomOutputJunk", mv::Attribute(mv::AttrType::IntegerType, 0));
 
         int pixelsPerLine = 128 / (bytesPerInputPixel * 8); // RAMs are arranged in lines of 128bits
-        int bytesPerLine = pixelsPerLine * bytesPerInputPixel;
         int localLineStride = (inputDimX + (pixelsPerLine - 1)) / pixelsPerLine;
+        int bytesPerLine = localLineStride *  pixelsPerLine * bytesPerInputPixel;
 
         om.addAttr(opIterator, "NCE1_LocalLineStride", mv::Attribute(mv::AttrType::IntegerType, localLineStride));
 
@@ -144,9 +145,16 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         int chanPerBlock = inputChannels / noOfBlocks;
         int availableBytesPerChan = sizeOfBlock / chanPerBlock;
         int linesPerChan = availableBytesPerChan / bytesPerLine;
+
+        if(linesPerChan > inputHeight)
+        {
+            linesPerChan = inputHeight;
+        }
+
         om.addAttr(opIterator, "NCE1_LinesPerChannel", mv::Attribute(mv::AttrType::IntegerType, linesPerChan));
 
         int localChanStride = linesPerChan * localLineStride;
+
         om.addAttr(opIterator, "NCE1_LocalChannelStride", mv::Attribute(mv::AttrType::IntegerType, localChanStride));
 
         int minLines = 0;
@@ -229,7 +237,7 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                     upNum = 1.0f;
                 }
             }  // end HW conv
-        }  // end conv                       
+        }  // end conv
     }  // end op loop
 }
 
