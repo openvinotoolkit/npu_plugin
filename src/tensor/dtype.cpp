@@ -1,6 +1,6 @@
 #include "include/mcm/tensor/dtype.hpp"
 
-const std::unordered_map<mv::DTypeType, std::string> mv::DType::dTypeStrings_ =
+const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DType::dTypeStrings_ =
 {
     {DTypeType::Float16, "Float16"}
 };

@@ -19,12 +19,21 @@ namespace mv
         RowMajorPlanar
     };
 
+    struct OrderTypeHash
+    {
+        template <typename T>
+        std::size_t operator()(T t) const
+        {
+            return static_cast<std::size_t>(t);
+        }
+    };
+
     class Order : public LogSender
     {
 
     private:
 
-        static const std::unordered_map<OrderType, std::string> orderStrings_;
+        static const std::unordered_map<OrderType, std::string, OrderTypeHash> orderStrings_;
 
         static const std::function<int(const Shape&, std::size_t)> colMajPrevContiguousDimIdx_;
         static const std::function<int(const Shape&, std::size_t)> colMajNextContiguousDimIdx_;

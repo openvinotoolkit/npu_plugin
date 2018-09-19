@@ -1,6 +1,6 @@
 #include "include/mcm/tensor/order.hpp"
 
-const std::unordered_map<mv::OrderType, std::string> mv::Order::orderStrings_ = 
+const std::unordered_map<mv::OrderType, std::string, mv::OrderTypeHash> mv::Order::orderStrings_ = 
 {
 
     {OrderType::ColumnMajor, "ColumnMajor"},

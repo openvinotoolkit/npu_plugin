@@ -14,12 +14,21 @@ namespace mv
         Float16
     };
 
+    struct DTypeTypeHash
+    {
+        template <typename T>
+        std::size_t operator()(T t) const
+        {
+            return static_cast<std::size_t>(t);
+        }
+    };
+
     class DType : public LogSender
     {
 
     private:
 
-        static const std::unordered_map<DTypeType, std::string> dTypeStrings_;
+        static const std::unordered_map<DTypeType, std::string, DTypeTypeHash> dTypeStrings_;
         DTypeType dType_;
 
     public:
