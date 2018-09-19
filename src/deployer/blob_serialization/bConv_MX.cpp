@@ -154,8 +154,6 @@ namespace mv
           radixY(it->getInputTensor(1)->getShape()[3])
     {
 
-        std::cout << "WHYYYYYYYYYYYYY" << mv::Printable::toString(it->getInputTensor(1)->getShape()) << std::endl;
-
         if (it->hasAttr("bias"))
         {
             this->bias_name = it->getAttr("bias").getContent<std::string>();
@@ -254,22 +252,29 @@ namespace mv
             // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
             this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
 
-            int chPerRamBlock = 1;
+            dynamic_vector<unsigned> chPerRamBlock;
             int topJunk = 0, bottomJunk = 0;
-            int localLS = 1, localCS = 1;
-            int LPC = 1;
-            int minLines = 1;
+            int localLS = 1;
+            dynamic_vector<unsigned> localCS;
+            dynamic_vector<unsigned> LPC;
+            dynamic_vector<unsigned> minLines;
             int stride = 1;
             int padEn = 1;
 
 
-            if (! it->hasAttr("NCE1_InputChannelsPerRamBlock"))
+            if (! it->hasAttr("NCE1_InputChannelsRamBlock"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsPerRamBlock'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsRamBlock'. Defaulting to 1\n");
+
+                chPerRamBlock = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    chPerRamBlock.push_back(0);
+                }
             }
             else
             {
-                chPerRamBlock = it->getAttr("NCE1_InputChannelsPerRamBlock").getContent<int>();
+                chPerRamBlock = it->getAttr("NCE1_InputChannelsRamBlock").getContent<dynamic_vector<unsigned>>();
             }
 
             if (! it->hasAttr("NCE1_TopOutputJunk"))
@@ -302,10 +307,16 @@ namespace mv
             if (! it->hasAttr("NCE1_MinLines"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
+
+                minLines = {1};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    minLines.push_back(1);
+                }
             }
             else
             {
-                minLines = it->getAttr("NCE1_MinLines").getContent<int>() -1;
+                minLines = it->getAttr("NCE1_MinLines").getContent<dynamic_vector<unsigned>>() ;
             }
 
             if (! it->hasAttr("stride"))
@@ -329,19 +340,31 @@ namespace mv
             if (! it->hasAttr("NCE1_LinesPerChannel"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_LinesPerChannel'. Defaulting to 1\n");
+
+                LPC = {1};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    LPC.push_back(1);
+                }
             }
             else
             {
-                LPC = it->getAttr("NCE1_LinesPerChannel").getContent<mv::UnsignedVector4D>().e0;
+                LPC = it->getAttr("NCE1_LinesPerChannel").getContent<dynamic_vector<unsigned>>();
             }
 
             if (! it->hasAttr("NCE1_LocalChannelStride"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_LocalChannelStride'. Defaulting to 1\n");
+
+                localCS = {1};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    localCS.push_back(1);
+                }
             }
             else
             {
-                localCS = it->getAttr("NCE1_LocalChannelStride").getContent<mv::UnsignedVector4D>().e0;
+                localCS = it->getAttr("NCE1_LocalChannelStride").getContent<dynamic_vector<unsigned>>();
             }
 
             for (unsigned i = 0; i != this->desc_count; i++)
@@ -409,7 +432,7 @@ namespace mv
                 this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                 this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
 
-                this->descriptors[i].chPerRamBlock = chPerRamBlock -1;        // Input Channels per Ram Block
+                this->descriptors[i].chPerRamBlock = chPerRamBlock[i] -1;        // Input Channels per Ram Block
 
 
                 // Myriad X Compensation Fields
@@ -417,13 +440,13 @@ namespace mv
                 this->descriptors[i].bottomOutputJunk = bottomJunk;
 
                 this->descriptors[i].localLs =  localLS;
-                this->descriptors[i].localCs =  localCS;
+                this->descriptors[i].localCs =  localCS[i];
 
-                this->descriptors[i].linesPerCh = LPC -1;
+                this->descriptors[i].linesPerCh = LPC[i] -1;
 
                 this->descriptors[i].rud = 0;   // Re-Use bit
 
-                this->descriptors[i].minLines = minLines;     // Minimum lines of data required to carry out function
+                this->descriptors[i].minLines = minLines[i] - 1;     // Minimum lines of data required to carry out function
 
                 this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
                 this->descriptors[i].css = (this->descriptors[i].kernelWidth + 1) * (this->descriptors[i].kernelHeight + 1) -1 ;

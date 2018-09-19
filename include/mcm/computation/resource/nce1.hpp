@@ -280,7 +280,7 @@ namespace mv
             unsigned computeLocalLineStride(unsigned input_width);
             unsigned computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, float actual_output_channels, std::vector<unsigned>& modes);
             unsigned computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode);
-            unsigned computeLinesPerChannel(unsigned channel_per_block, unsigned mode);
+            unsigned computeLinesPerChannel(unsigned channel_per_block, unsigned mode, unsigned local_line_stride);
             unsigned computeBytesPerLine();
     };
 }

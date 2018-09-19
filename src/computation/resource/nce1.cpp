@@ -406,11 +406,12 @@ unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsi
     return input_channels / ram_blocks;
 }
 
-unsigned mv::Nce1::computeLinesPerChannel(unsigned channel_per_block, unsigned mode)
+unsigned mv::Nce1::computeLinesPerChannel(unsigned channel_per_block, unsigned mode, unsigned local_line_stride)
 {
     unsigned ram_blocks = dpe_x_output_channel.at(mode);
-    unsigned block_size = data_storage_dimension / ram_blocks;
-    unsigned bytes_per_channel = block_size / channel_per_block;
-    unsigned bytes_per_line = computeBytesPerLine();
-    return bytes_per_channel / bytes_per_line;
+
+    int MAX_RAM = 8192; // ?? Who knows.
+    auto LPC = MAX_RAM / ram_blocks;
+    LPC /= (local_line_stride * channel_per_block);
+    return LPC;
 }
