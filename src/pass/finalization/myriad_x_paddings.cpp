@@ -22,7 +22,8 @@ namespace mv
     }
 }
 
-
+//ASSUMPTION: This pass must be executed after the Mark Hardware Convolution pass.
+//REASON: There is no need to pad tensors not involved in HW operations at all.
 void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -32,6 +33,10 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
     {
         if(operationIt->getOpType() != mv::OpType::Conv2D)
+            continue;
+        if(!operationIt->hasAttr("NCE1_Compatible"))
+            continue;
+        if(!operationIt->getAttr("NCE1_Compatible").getContent<unsigned>())
             continue;
         auto input_tensor = operationIt->getInputTensor(0);
         auto input_tensor_dimension = input_tensor->getShape();
