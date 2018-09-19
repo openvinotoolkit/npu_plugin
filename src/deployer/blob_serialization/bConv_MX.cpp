@@ -150,9 +150,11 @@ namespace mv
           input((it->getInputTensor(0))),
           output((it->getOutputTensor(0))),
           taps((it->getInputTensor(1))),
-          radixX(it->getInputTensor(1)->getShape()[0]),
-          radixY(it->getInputTensor(1)->getShape()[1])
+          radixX(it->getInputTensor(1)->getShape()[2]),
+          radixY(it->getInputTensor(1)->getShape()[3])
     {
+
+        std::cout << "WHYYYYYYYYYYYYY" << mv::Printable::toString(it->getInputTensor(1)->getShape()) << std::endl;
 
         if (it->hasAttr("bias"))
         {
