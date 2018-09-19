@@ -44,6 +44,9 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         auto output_tensor = operationIt->getOutputTensor(0);
         auto output_tensor_dimension = output_tensor->getShape();
 
+        auto weight_tensor = operationIt->getInputTensor(1);
+        auto weight_tensor_dimension = weight_tensor->getShape();
+
         size_t input_width = input_tensor_dimension[0];
         size_t input_height = input_tensor_dimension[1];
         size_t input_channels = input_tensor_dimension[2];
@@ -62,6 +65,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         mv::dynamic_vector<size_t> input_tensor_paddings(input_tensor_dimension.ndims());
         mv::dynamic_vector<size_t> output_tensor_paddings(output_tensor_dimension.ndims());
+        mv::dynamic_vector<size_t> weight_tensor_paddings(weight_tensor_dimension.ndims());
 
         input_tensor_paddings[0] = actual_input_width - input_width;
         input_tensor_paddings[1] = actual_input_height - input_height;
@@ -71,9 +75,14 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         output_tensor_paddings[1] = actual_output_height - output_height;
         output_tensor_paddings[2] = actual_output_channels - output_channels;
 
+        weight_tensor_paddings[0] = 0;
+        weight_tensor_paddings[1] = 0;
+        weight_tensor_paddings[2] = actual_input_channels - input_channels;
+        weight_tensor_paddings[3] = actual_output_channels - output_channels;
+
         if(input_tensor->hasAttr("NCE1_Paddings"))
         {
-            //Simple rule: greater padding wins
+            //Simple rule: greatest padding wins
             mv::dynamic_vector<size_t> existing_input_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
             input_tensor->removeAttr("NCE1_Paddings");
             for(unsigned i = 0; i < existing_input_tensor_paddings.size();++i)
@@ -82,13 +91,23 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         if(output_tensor->hasAttr("NCE1_Paddings"))
         {
-            //Simple rule: greater padding wins
+            //Simple rule: greatest padding wins
             mv::dynamic_vector<size_t> existing_output_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
             output_tensor->removeAttr("NCE1_Paddings");
             for(unsigned i = 0; i < existing_output_tensor_paddings.size();++i)
                 output_tensor_paddings[i] = std::max(output_tensor_paddings[i], existing_output_tensor_paddings[i]);
         }
+
+        if(weight_tensor->hasAttr("NCE1_Paddings"))
+        {
+            //Simple rule: greatest padding wins
+            mv::dynamic_vector<size_t> existing_weight_tensor_paddings = weight_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
+            weight_tensor->removeAttr("NCE1_Paddings");
+            for(unsigned i = 0; i < existing_weight_tensor_paddings.size();++i)
+                weight_tensor_paddings[i] = std::max(weight_tensor_paddings[i], existing_weight_tensor_paddings[i]);
+        }
         dm.addAttr(input_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVecType, input_tensor_paddings));
         dm.addAttr(output_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVecType, output_tensor_paddings));
+        dm.addAttr(weight_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVecType, weight_tensor_paddings));
     }
 }

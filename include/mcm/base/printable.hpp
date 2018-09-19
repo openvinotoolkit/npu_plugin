@@ -30,6 +30,7 @@ namespace mv
         static string toString(Order value);
         static string toString(const mv::dynamic_vector<float> &value);
         static string toString(const mv::dynamic_vector<std::string> &value);
+        static string toString(const mv::dynamic_vector<unsigned> &value);
         static string toString(AttrType value);
         static string toString(OpType value);
 

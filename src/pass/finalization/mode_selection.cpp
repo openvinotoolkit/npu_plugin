@@ -27,7 +27,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 {
     // ASSUMPTION: all the splits in modes_to_use are are equal (This assumption is true now, and will be routines to assure it's trueness in the future)
 
-    // Non vector attributes first
+    // Scalar attributes first
     auto input_tensor = convIterator->getInputTensor(0);
     auto input_tensor_dimensions = input_tensor->getShape();
 
@@ -93,6 +93,16 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, output_channels, modes);
     om.addAttr(convIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::UnsignedType, descriptor_splits));
 
+    if(splits_over_height == 1)
+    {
+        om.addAttr(convIterator, "NCE1_TopOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, 0));
+        om.addAttr(convIterator, "NCE1_BottomOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, 0));
+    }
+    else
+    {
+        om.addAttr(convIterator, "NCE1_TopOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, kernel_height-1));
+        om.addAttr(convIterator, "NCE1_BottomOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, kernel_height-1));
+    }
     // -------------------VECTOR ATTRIBUTES----------------
     std::vector<unsigned> input_channels_per_ram_block(num_modes_to_use);
     std::vector<unsigned> lines_per_channel(num_modes_to_use);
@@ -111,6 +121,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
         else
             min_lines[i] = std::min(kernel_height+1, lines_per_channel[i]);
     }
+    om.addAttr(convIterator, "NCE1_Modes", mv::Attribute(mv::AttrType::UnsignedVecType, modes));
     om.addAttr(convIterator, "NCE1_InputChannelsRamBlock", mv::Attribute(mv::AttrType::UnsignedVecType, input_channels_per_ram_block));
     om.addAttr(convIterator, "NCE1_LinesPerChannel", mv::Attribute(mv::AttrType::UnsignedVecType, lines_per_channel));
     om.addAttr(convIterator, "NCE1_LocalChannelStride", mv::Attribute(mv::AttrType::UnsignedVecType, local_channel_stride));

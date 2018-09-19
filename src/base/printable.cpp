@@ -75,6 +75,11 @@ mv::string mv::Printable::toString(const mv::dynamic_vector<float> &value)
     return "(" + toString((unsigned_type)value.size()) + ")";
 }
 
+mv::string mv::Printable::toString(const mv::dynamic_vector<unsigned> &value)
+{
+    return "(" + toString((unsigned_type)value.size()) + ")";
+}
+
 mv::string mv::Printable::toString(const mv::dynamic_vector<std::string> &value)
 {
 
