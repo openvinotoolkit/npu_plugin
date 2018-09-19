@@ -1,6 +1,11 @@
 #include "include/mcm/base/attribute_registry.hpp"
 
-MV_DEFINE_REGISTRY(std::type_index, mv::attr::AttributeEntry)
+namespace mv
+{
+
+    MV_DEFINE_REGISTRY(std::type_index, mv::attr::AttributeEntry)
+
+}
 
 mv::attr::AttributeRegistry& mv::attr::AttributeRegistry::instance()
 {

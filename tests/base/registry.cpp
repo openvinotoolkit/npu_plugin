@@ -40,7 +40,12 @@ public:
 
 };
 
-MV_DEFINE_REGISTRY(std::string, StringEntry)
+namespace mv
+{
+
+    MV_DEFINE_REGISTRY(std::string, StringEntry)
+
+}
 
 TEST(registry, add_element)
 {
