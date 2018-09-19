@@ -47,7 +47,7 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == NULL || &t == NULL ) {  // || *t == NULL )
+        if ( t == NULL || &t == NULL )
         {
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
@@ -309,4 +309,5 @@ namespace mv
                 assert(0);
         }
     }
+
 }
