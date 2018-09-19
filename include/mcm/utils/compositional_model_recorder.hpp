@@ -29,7 +29,7 @@ class CompositionalModelRecorder : public ComputationModel, public Compositional
 	unsigned weightsVectorCounter = 0;
 
 public:
-	CompositionalModelRecorder(Logger::VerboseLevel verboseLevel, bool logTime, OpModel& model, string recordingsPath_);
+	CompositionalModelRecorder(OpModel& model, string recordingsPath_);
 	~CompositionalModelRecorder();
 	Data::TensorIterator input(const Shape& shape, DType dType, Order order, const string& name = "") override;
 	Data::TensorIterator output(Data::TensorIterator input, const string& name = "") override;

@@ -7,4 +7,4 @@ copy:
 	cp ../build/lib/libcm.so ./libcm.so
 
 clean:
-	rm ./recorded ./libcm.so ./*.dot ./recorded.blob ./recorded.json
+	rm ./recorded ./libcm.so ./*.dot ./recorded.blob ./recorded.json ./*.svg ./*.cpp

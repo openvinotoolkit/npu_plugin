@@ -1,6 +1,6 @@
 #include "include/mcm/utils/compositional_model_recorder.hpp"
 
-mv::CompositionalModelRecorder::CompositionalModelRecorder(Logger::VerboseLevel verboseLevel, bool logTime, OpModel& model, string recordingsPath = "/recordings/"): modelRef_(model), savedRecordingsPath_(recordingsPath)
+mv::CompositionalModelRecorder::CompositionalModelRecorder(OpModel& model, string recordingsPath = "/recordings/"): modelRef_(model), savedRecordingsPath_(recordingsPath)
 {
 }
 
@@ -135,7 +135,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::maxpool2D(Data::TensorI
 	/*Construct a string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::MaxPool2D) << " =" << " rc.maxpool2D(" << sourceIt0->getName()<< ", " << Printable::toString(kernelSize) << ", " << Printable::toString(stride) << ", " << Printable::toString(padding) << ")" << ";" << "\n";;
 	outputSourceFile << ss.str();
-	ss.str("");https://www.geeksforgeeks.org/new-and-delete-operators-in-cpp-for-dynamic-memory/
+	ss.str("");
 	outputSourceFile.close();
 
 	auto result = modelRef_.maxpool2D(inputTensor, kernelSize, stride, padding, name);
@@ -222,7 +222,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::scale(Data::TensorItera
 
 mv::Data::TensorIterator mv::CompositionalModelRecorder::relu(Data::TensorIterator inputTensor, const string& name)
 {
-	/*get the name of the argument(s)*/https://www.geeksforgeeks.org/new-and-delete-operators-in-cpp-for-dynamic-memory/
+	/*get the name of the argument(s)*/
 	auto sourceIt0 = modelRef_.getSourceOp(inputTensor);
 
 	/*open the recording file*/
@@ -516,8 +516,11 @@ void mv::CompositionalModelRecorder::completeRecordedSourceFile() {
 	ss << "auto result = unit.run();" << "\n";
 
 	ss << "std::cout << result.stringifyPretty() << std::endl;" << "\n";
+	ss << "system(\"dot -Tsvg recorded.dot -o recorded.svg\");" << "\n";
+	ss << "system(\"dot -Tsvg recorded_final.dot -o recorded_final.svg\");" << "\n";
 
-	ss << "return 0;}" << "\n";
+	ss << "return 0;" << "\n";
+	ss << "}" << "\n";
 
 	outputSourceFile << ss.str();
 	ss.str("");

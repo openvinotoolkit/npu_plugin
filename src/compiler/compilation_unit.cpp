@@ -7,7 +7,7 @@ mv::Logger& mv::CompilationUnit::logger_ = mv::ComputationModel::logger();
 
 mv::CompilationUnit::CompilationUnit(mv::Logger::VerboseLevel verboseLevel, bool logTime) :
 model_(new OpModel(verboseLevel, logTime)),
-recordedModel_(new CompositionalModelRecorder(verboseLevel, logTime, *model_,compositionalModelRecordingsPath_))
+recordedModel_(new CompositionalModelRecorder(*model_,compositionalModelRecordingsPath_))
 {
 
 }
