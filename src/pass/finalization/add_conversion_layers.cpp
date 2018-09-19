@@ -73,6 +73,8 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         {
             //No need for a conversion layer in this case, just reorder the tensor in place
             flowIt->getTensor()->reorder(targetOrder);
+            source->removeAttr("order");
+            om.addAttr(source, "order", mv::Attribute(mv::AttrType::OrderType, targetOrder));
             ++flowIt;
             continue;
         }
