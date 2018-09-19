@@ -47,6 +47,7 @@ namespace mv
         Data::TensorIterator batchNorm(Data::TensorIterator input, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, float_type varianceEps, const string& name = "") override;
         Data::TensorIterator scale(Data::TensorIterator input, Data::TensorIterator scale, const string& name = "") override;
         Data::TensorIterator relu(Data::TensorIterator input, const string& name = "") override;
+        Data::TensorIterator prelu(Data::TensorIterator input, Data::TensorIterator negative_slope, const string& name = "") override;
         Data::TensorIterator softmax(Data::TensorIterator input, const string& name = "") override;
         Data::TensorIterator add(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") override;
         Data::TensorIterator subtract(Data::TensorIterator input0, Data::TensorIterator input1, const string& name = "") override;
@@ -81,7 +82,7 @@ namespace mv
         unsigned opsCount(OpType opType) const;
 
         unsigned parametersCount() const;
-       
+
     };
 
 }

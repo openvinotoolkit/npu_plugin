@@ -45,6 +45,7 @@
 			"MarkHardwareConvolution",
 			"MyriadXPaddings",
 			"ModeSelection",
+			"ScaleFission",
 			"FormatMXWeights",
 			"AddConversionLayers",
 			"ArrangeLinearExecution",

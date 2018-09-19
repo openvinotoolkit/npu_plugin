@@ -57,7 +57,7 @@ namespace mv
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */
-            std::size_t block;
+            std::size_t block_size;
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */
@@ -128,15 +128,15 @@ namespace mv
             size_t right_pad = strides.back();
             strides.pop_back();
             size_t left_pad = 0; //No real reason to allocate any left pad at the moment
-            size_t block = s[order_->firstContiguousDimensionIndex(s)];
-            size_t offset = 0;
+            size_t block_size = s[order_->firstContiguousDimensionIndex(s)];
             size_t size = s.totalSize();
-            size_t block_num = size / block;
+            size_t block_num = size / block_size;
+            size_t offset = 0;
             for(size_t stride: strides)
                 size += stride;
             size += right_pad;
             size += left_pad;
-            MemoryBuffer newBuffer = {offset, size, strides, block, block_num, left_pad, right_pad, tensor};
+            MemoryBuffer newBuffer = {offset, size, strides, block_size, block_num, left_pad, right_pad, tensor};
 
             if (entries_.find(stageIdx) == entries_.end())
                 entries_.emplace(stageIdx, std::map<Data::TensorIterator, allocator::owner_ptr<MemoryBuffer>, TensorIteratorComparator>());

@@ -19,6 +19,7 @@
 #include "include/mcm/deployer/blob_serialization/bPooling.hpp"
 #include "include/mcm/deployer/blob_serialization/bSoftmax.hpp"
 #include "include/mcm/deployer/blob_serialization/bRelu.hpp"
+#include "include/mcm/deployer/blob_serialization/bPRelu.hpp"
 #include "include/mcm/deployer/blob_serialization/bScale.hpp"
 #include "include/mcm/deployer/blob_serialization/bEltwise.hpp"
 #include "include/mcm/deployer/blob_serialization/bInnerProduct.hpp"

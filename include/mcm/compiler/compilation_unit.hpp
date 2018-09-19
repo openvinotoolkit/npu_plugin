@@ -16,6 +16,7 @@ namespace mv
     {
 
         static const std::string ma2480DefDescPath_;
+        static const std::string compilationDescPath_;
         static const std::string compositionalModelRecordingsPath_;
 
         static Logger& logger_;
@@ -25,6 +26,7 @@ namespace mv
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
         json::Object compilationDescriptor_;
+        const static unsigned jsonParserBufferLenght_ = 256;
 
     public:
 
@@ -33,6 +35,7 @@ namespace mv
         
         bool loadTargetDescriptor(const std::string& path);
         bool loadTargetDescriptor(Target target);
+        bool loadCompilationDescriptor(const std::string& path);
 
         PassManager& passManager();
         json::Object& compilationDescriptor();

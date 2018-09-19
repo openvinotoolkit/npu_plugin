@@ -93,6 +93,7 @@ file(GLOB ops
     "src/computation/op/def/multiply.cpp"
     "src/computation/op/def/output.cpp"
     "src/computation/op/def/relu.cpp"
+    "src/computation/op/def/prelu.cpp"
     "src/computation/op/def/reshape.cpp"
     "src/computation/op/def/scale.cpp"
     "src/computation/op/def/softmax.cpp"

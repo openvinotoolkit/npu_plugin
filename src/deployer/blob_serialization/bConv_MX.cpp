@@ -13,6 +13,7 @@ namespace mv
         mv::ControlModel cm(*om);
 
         mv::Data::TensorIterator *conv_bias;
+        mv::Data::TensorIterator *conv_scale;
 
         if(this->bias_name != "")
         {
@@ -22,6 +23,16 @@ namespace mv
         else
         {
             conv_bias = NULL ;
+        }
+
+        if(this->scale_name != "")
+        {
+            this->scale = dm.findTensor(this->scale_name);
+            conv_scale = &this->scale;
+        }
+        else
+        {
+            conv_scale = NULL ;
         }
 
 
@@ -46,6 +57,7 @@ namespace mv
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
             Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
+            Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_scale);
 
             for (unsigned i = 0; i != this->desc_count; i++)
             {
@@ -85,22 +97,8 @@ namespace mv
                 }
             }
 
-            // Currently no integrated scale support.
-            Blob_Tensor scaleBlobTensor = Blob_Tensor(
-                0,
-                0,
-                0,
-                0,
-                0,
-                0, // SZ
-                0, // Offset - Memory Manager
-                0, // Location - Memory Manager
-                0,
-                0
-            );
             b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
             b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
-
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
@@ -155,6 +153,17 @@ namespace mv
         else
         {
             this->bias_name = "";
+        }
+
+        if (it->hasAttr("scale"))
+        {
+            this->scale_name = it->getAttr("scale").getContent<std::string>();
+            std::cout << "   in bConvHW contructor : scale tensor name = "<< this->scale_name << std::endl;
+
+        }
+        else
+        {
+            this->scale_name = "";
         }
 
 
@@ -275,11 +284,6 @@ namespace mv
                 localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>();
             }
 
-            auto weight_4dshape = this->taps->getShape();
-            localCS = weight_4dshape[0]*2;
-
-            LPC = weight_4dshape[4];
-
             if (! it->hasAttr("NCE1_MinLines"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
@@ -307,13 +311,31 @@ namespace mv
                 padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
             }
 
+            if (! it->hasAttr("NCE1_LinesPerChannel"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_LinesPerChannel'. Defaulting to 1\n");
+            }
+            else
+            {
+                LPC = it->getAttr("NCE1_LinesPerChannel").getContent<mv::UnsignedVector4D>().e0;
+            }
+
+            if (! it->hasAttr("NCE1_LocalChannelStride"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_LocalChannelStride'. Defaulting to 1\n");
+            }
+            else
+            {
+                localCS = it->getAttr("NCE1_LocalChannelStride").getContent<mv::UnsignedVector4D>().e0;
+            }
 
             for (unsigned i = 0; i != this->desc_count; i++)
             {
                 this->descriptors[i] =  cnnConvolutionPoolStructure();
 
                 // Relations to other Descriptors
-                if (i+1 == this->desc_count){
+                if (i+1 == this->desc_count)
+                {
                     this->descriptors[i].Line0.linkAddress = 0; // Last.
                 }else{
                     this->descriptors[i].Line0.linkAddress = 32*4;
@@ -350,11 +372,16 @@ namespace mv
                 this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
                 unsigned int original_height = this->input->getShape()[1];
                 unsigned int current_height;
-                if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                    int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
-                    current_height = ceil(original_height/(float)this->desc_count) - surplus;
+                if (this->desc_count > 1){
+                    // TODO: Different types of split?
+                    if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
+                        int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
+                        current_height = ceil(original_height/(float)this->desc_count) - surplus;
+                    }else{
+                        current_height = ceil(original_height/(float)this->desc_count);
+                    }
                 }else{
-                    current_height = ceil(original_height/(float)this->desc_count);
+                    current_height = original_height;
                 }
 
                 this->descriptors[i].inputHeight =  current_height - 1;
@@ -375,8 +402,9 @@ namespace mv
                 this->descriptors[i].bottomOutputJunk = bottomJunk;
 
                 this->descriptors[i].localLs =  localLS;
-                this->descriptors[i].localCs =  localCS - 1;
-                this->descriptors[i].linesPerCh = LPC;
+                this->descriptors[i].localCs =  localCS;
+
+                this->descriptors[i].linesPerCh = LPC -1;
 
                 this->descriptors[i].rud = 0;   // Re-Use bit
 

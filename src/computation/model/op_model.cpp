@@ -34,10 +34,10 @@ mv::Data::OpListIterator mv::OpModel::checkInputTensor_(Data::TensorIterator inp
     }
 
     auto sourceIt = findSourceOp_(inputTensor);
-    
+
     if (sourceIt == opEnd())
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + inputTensor->getName() + 
+        logger_.log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + inputTensor->getName() +
             "' does not belong to the computation model");
         return opEnd();
     }
@@ -78,7 +78,7 @@ mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::
 void mv::OpModel::incrementOpsCounter_(OpType opType)
 {
     if (opsCounter_->find(opType) == opsCounter_->end())
-    {  
+    {
         opsCounter_->emplace(opType, 1);
     }
     else
@@ -121,7 +121,7 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
         opName = getOpName_(OpType::Input);
 
     *input_ = dataGraph_.node_insert(allocator_.make_owner<op::Input>(shape, dType, order, opName));
-    
+
     if (*input_ == opEnd())
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to allocate a new input op");
@@ -138,13 +138,13 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
 
 mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, const string& name)
 {
-    
+
     string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Output);
-    
+
     auto outputIt = dataGraph_.node_insert(allocator_.make_owner<op::Output>(opName));
 
     if (outputIt == dataGraph_.node_end())
@@ -303,6 +303,28 @@ mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator inputTensor, con
     return result;
 }
 
+
+mv::Data::TensorIterator mv::OpModel::prelu(Data::TensorIterator inputTensor, Data::TensorIterator negative_slope, const string& name)
+{
+    string opName;
+    if (name != "")
+        opName = name;
+    else
+        opName = getOpName_(OpType::PReLU);
+
+    std::cout << "Create Preluit" << std::endl;
+    Data::OpListIterator preluIt = dataGraph_.node_insert(allocator_.make_owner<op::PReLU>(opName));
+    std::cout << "Create inputs" << std::endl;
+    Data::TensorIterator inputs[] = {inputTensor, negative_slope};
+
+    std::cout << "DEFINE" << std::endl;
+
+    auto result = defineOp_(preluIt, inputs, 2);
+    if (isValid(result))
+        incrementOpsCounter_(OpType::PReLU);
+    return result;
+}
+
 mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, mv::Order targetOrder, const string& name)
 {
     string opName;
@@ -379,7 +401,7 @@ mv::Data::TensorIterator mv::OpModel::multiply(Data::TensorIterator input0Tensor
 }
 
 mv::Data::TensorIterator mv::OpModel::divide(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const string& name)
-{   
+{
     string opName;
     if (name != "")
         opName = name;
@@ -409,7 +431,7 @@ mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator inputTensor, 
 }
 
 mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator inputTensor, Data::TensorIterator biasesTensor, const string& name)
-{   
+{
     string opName;
     if (name != "")
         opName = name;
@@ -437,7 +459,7 @@ mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputT
     if (isValid(result))
         incrementOpsCounter_(OpType::FullyConnected);
     return result;
-    
+
 }
 
 mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)
@@ -470,18 +492,18 @@ bool mv::OpModel::removeOp(Data::OpListIterator op)
         --opCounterIt->second;
         if (opCounterIt->second == 0)
             opsCounter_->erase(opCounterIt);
-            
+
     }
 
     dataGraph_.node_erase(op);
-    
+
     return true;
 
 }
 
 mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, byte_type inputIdx)
 {
-    
+
     if (!isValid(sourceTensor))
     {
         logger_.log(Logger::MessageType::MessageError, "Unable to define source op - undefined input tensor" );
@@ -492,10 +514,10 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
         return flowEnd();
 
     auto sourceOp = findSourceOp_(sourceTensor);
-    
+
     if (!isValid(sourceOp))
     {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + sourceTensor->getName() + 
+        logger_.log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + sourceTensor->getName() +
             "' does not belong to the computation model");
         return flowEnd();
     }
@@ -507,7 +529,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
     }
 
     Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, allocator_.make_owner<DataFlow>(sourceOp, 0, sinkOp, inputIdx, sourceTensor));
-    
+
     if (inputFlow != *dataFlowEnd_)
     {
         logger_.log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
@@ -527,7 +549,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::OpListIterator sourceOp
 
     auto sourceTensor = sourceOp->getOutputTensor(outputIdx);
     return defineFlow(sourceTensor, sinkOp, inputIdx);
-    
+
 }
 
 bool mv::OpModel::undefineFlow(Data::FlowListIterator flow)

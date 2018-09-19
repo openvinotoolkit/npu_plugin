@@ -1,8 +1,12 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/base/json/number_float.hpp"
 
 static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 static void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
@@ -16,6 +20,13 @@ namespace mv
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass marks the convolutions that can be executed in NCE"
+        );
+
+        MV_REGISTER_PASS(ScaleFission)
+        .setFunc(scaleFissionFcn)
+        .setGenre(PassGenre::Finalization)
+        .setDescription(
+            "Adds scales around HW ops to utilize more bits of fixed-point number representation in MAC HW units"
         );
 
         MV_REGISTER_PASS(FormatMXWeights)
@@ -46,11 +57,79 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
         om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 1));
         om.addAttr(opIterator, "NCE1_AssignedCMX", mv::Attribute(mv::AttrType::IntegerType, 0));
-
-        ++amount_marked;
+        ++amount_marked;        
     }
 }
 
+void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+{
+
+    using namespace mv;
+
+    OpModel om(model);
+    DataModel dm(model);
+
+    std::string const PASS_NAME = "ScaleFission";
+    std::string const FACTOR_KEY = "scalefactors";
+    std::string opName = "";
+
+    float upNum = 1.0f;
+
+    if (!compDesc.hasKey("pass"))
+    {
+        return ;
+    }
+    if (!compDesc["pass"].hasKey(PASS_NAME))
+    {
+        return ;
+    }
+    if (!compDesc["pass"][PASS_NAME].hasKey(FACTOR_KEY))
+    {
+        return ;
+    }
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        opName =opIt->getName();
+        if ((opIt->getOpType() == OpType::Conv2D)&&(opIt->hasAttr("NCE1_Compatible")))
+        {
+            if (opIt->getAttr("NCE1_Compatible").getContent<int>()==1)
+            {
+                if (compDesc["pass"][PASS_NAME][FACTOR_KEY].hasKey(opName))
+                {
+                    upNum = compDesc["pass"][PASS_NAME][FACTOR_KEY][opName].get<float>();
+
+                    mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), upNum, 0.0f);
+                    mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/upNum), 0.0f);
+
+                    // scale (up) inputs by multiplying weights and bias
+                    std::string scaleUpWTensorName = opName + "_scale_in";
+                    auto scaleUpWeights = dm.defineTensor(scaleUpWTensorName, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpWData);
+                    opIt->getInputTensor(1)->multiply(*scaleUpWeights);
+
+                    if (opIt->hasAttr("bias"))
+                    {
+                        auto biasTensor = dm.findTensor(opIt->getAttr("bias").getContent<std::string>());
+                        mv::dynamic_vector<mv::float_type> scaleUpBData = mv::utils::generateSequence(biasTensor->getShape().totalSize(), upNum, 0.0f);
+                        std::string scaleUpBTensorName = opName + "_scale_bias";
+                        auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpBData);
+                        biasTensor->multiply(*scaleUpBias);
+                    }
+
+                    // scale (down) output by adding HWscale attributes to conv
+                    std::string scaleTensorName = opName + "_scale";
+                    auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleDnData);
+                    Attribute scaleAttr(AttrType::StringType, scaleTensor->getName());
+                    om.addAttr(opIt, "scale", scaleAttr);
+                }
+                else
+                {
+                    upNum = 1.0f;
+                }
+            }  // end HW conv
+        }  // end conv
+    }  // end op loop
+}
 
 //NOTE: This should not be done in such hardcoded way.
 void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
@@ -125,4 +204,5 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         }
     }
+std::cout << "exiting formatMXweights pass " << std::endl;
 }

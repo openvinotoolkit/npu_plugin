@@ -4,7 +4,7 @@ import argparse
 
 base = os.environ.get('MDK_HOME')
 assert base is not None, "Please set MDK_HOME environment variable"
-sys.path.append(base+"projects/Fathom/src2/")
+sys.path.append(os.path.join(base, "projects/Fathom/src2/"))
 
 import Controllers.Globals as GLOBALS
 from Controllers.Parsers.Caffe import CaffeParser

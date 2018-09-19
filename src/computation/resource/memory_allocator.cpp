@@ -21,7 +21,7 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
     std::string res =  "data: '" + this->data->getName() + "'; offset: " + Printable::toString(this->offset) +
         "; size: " + Printable::toString(this->size) + "; left pad: " + Printable::toString(this->left_pad) +
          + "; right pad: " + Printable::toString(this->right_pad)
-         + "; block: " + Printable::toString(this->block) + "; block num: " + Printable::toString(this->block_num);
+         + "; block size: " + Printable::toString(this->block_size) + "; block num: " + Printable::toString(this->block_num);
 
     res += "; strides:";
 
@@ -32,18 +32,21 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
     {
         res += "\nvalues:\n";
 
-        for (std::size_t i = 0; i < this->left_pad; ++i)
-            res += "0 ";
+        for (unsigned i = 0; i < left_pad; ++i)
+            res += "LP ";
 
         auto values = data->getData();
-        for (std::size_t i = 0; i < values.size(); ++i)
+        for (unsigned current_block, i = 0; current_block < block_num; ++current_block)
         {
-            for(std::size_t j = 0; j < block; j++)
-                res += Printable::toString(values[i]) + " ";
+            for(unsigned j = 0; j < block_size; ++j)
+                res += Printable::toString(values[i++]) + " ";
+            if(current_block != block_num - 1)
+                for(unsigned j = 0; j < strides[current_block]; ++j)
+                    res += "X ";
         }
 
-        for (std::size_t i = 0; i < this->right_pad; ++i)
-            res += "0 ";
+        for (unsigned i = 0; i < right_pad; ++i)
+            res += "RP ";
 
     }
 

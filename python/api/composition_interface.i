@@ -44,7 +44,7 @@ import_array();
     {
         return &unit->recordedModel();
     }
-        
+
     int compile(mv::CompilationUnit *unit)
     {
         unit->initialize();
@@ -259,8 +259,11 @@ import_array();
     mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale){
         return o.scale(input, scale);
     }
-    mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input){
+    mv::Data::TensorIterator relu(mv::CompositionalModel& o, mv::Data::TensorIterator input){
         return o.relu(input);
+    }
+    mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope){
+        return o.prelu(input, negative_slope);
     }
     mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input){
         return o.softmax(input);
@@ -287,7 +290,7 @@ import_array();
     mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values){
         return o.bias(input, bias_values);
     }
-    
+
     bool isValid(mv::CompositionalModel& o){
     	return o.isValid();
     }
@@ -370,6 +373,7 @@ mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIt
 mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, float varianceEps);
 mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
 mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input);
+mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator slope);
 mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);

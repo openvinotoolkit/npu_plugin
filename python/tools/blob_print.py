@@ -652,6 +652,21 @@ blob_format = Struct(
                     "postStrideX" / Int32ul,
                     "postStrideY" / Int32ul,
                 ),
+                # prelu
+                10: Struct(
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[3],
+                ),
                 # eltwise_sum
                 12: Struct(
                     "Buffers..." / Struct(

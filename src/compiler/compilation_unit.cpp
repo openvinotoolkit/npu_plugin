@@ -14,6 +14,7 @@ recordedModel_(new CompositionalModelRecorder(verboseLevel, logTime, *model_,com
 
 void mv::CompilationUnit::loadModelFromJson(const std::string &path)
 {
+
     mv::JSONTextParser parser;
     mv::json::Value value;
     parser.parseFile(path, value);
@@ -57,6 +58,34 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
         return false;
     }
 
+    return true;
+
+}
+
+bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
+{
+
+    JSONTextParser parser(jsonParserBufferLenght_);
+
+    try
+    {
+
+        json::Value jsonRoot;
+        if (!parser.parseFile(filePath, jsonRoot))
+        {
+            throw ArgumentError("filePath", filePath,
+                "Unable to parse compilation descriptor - error reading");
+        }
+        if (jsonRoot.valueType() != json::JSONType::Object)
+            return false;
+        else
+            compilationDescriptor_ = jsonRoot.get<json::Object>();
+
+    }
+    catch (ParsingError& e)
+    {
+        return false;
+    }
     return true;
 
 }

@@ -22,6 +22,7 @@ namespace mv{
             mv::Data::TensorIterator scale;
 
             std::string bias_name;
+            std::string scale_name;
 
             // Hardware Fields
             uint32_t opMode;
