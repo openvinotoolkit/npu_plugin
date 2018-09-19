@@ -258,21 +258,13 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             auto weights = opIterator->getInputTensor(1);
             auto wshape = weights->getShape();
 
-            std::cout << mv::Printable::toString(wshape) << std::endl;
-            std::cout << wshape[3]/8 << ",64,1,1,8"<<std::endl;
-
             mv::Shape newShape = mv::Shape(
-                // (mv::dim_type)wshape[0],
-                // (mv::dim_type)wshape[1],
-                // (mv::dim_type)(wshape[2] * wshape[3]/8),
-                // (mv::dim_type)8
-                32,
-                64,
-                1,
-                1,
+                (mv::dim_type)(wshape[3]/8),
+                (mv::dim_type)(wshape[2]),
+                (mv::dim_type)wshape[1],
+                (mv::dim_type)wshape[0],
                 8
             );
-
             mv::Tensor newTensor = mv::Tensor("MX_Weights",
                                                 newShape,
                                                 weights->getDType(),

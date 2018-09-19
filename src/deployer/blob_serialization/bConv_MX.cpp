@@ -86,8 +86,10 @@ namespace mv
 
                 auto weight_4dshape = this->taps->getShape();
 
-                this->descriptors[i].coeffChStrOut = tapsBlobTensor.strideZ /  weight_4dshape[0];
                 this->descriptors[i].coeffChStrIn = weight_4dshape[4]*2;
+                int inChans = weight_4dshape[1];
+                this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
+                //this->descriptors[i].coeffChStrIn * weight_4dshape[0];
 
                 this->descriptors[i].outLnStr = outputBlobTensor.strideY;
                 this->descriptors[i].outChStr = outputBlobTensor.strideZ;
