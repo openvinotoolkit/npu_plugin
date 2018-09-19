@@ -16,10 +16,10 @@ bool mv::MemoryAllocator::MemoryBuffer::operator<(const MemoryBuffer& other) con
 std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
 {
 
-    std::string res =  "data: '" + this->data->getName() + "'; offset: " + Printable::toString(this->offset) +
-        "; size: " + Printable::toString(this->size) + "; left pad: " + Printable::toString(this->left_pad) +
-         + "; right pad: " + Printable::toString(this->right_pad)
-         + "; block size: " + Printable::toString(this->block_size) + "; block num: " + Printable::toString(this->block_num);
+    std::string res =  "data: '" + this->data->getName() + "'; offset: " + std::to_string(this->offset) +
+        "; size: " + std::to_string(this->size) + "; left pad: " + std::to_string(this->left_pad) +
+         + "; right pad: " + std::to_string(this->right_pad)
+         + "; block size: " + std::to_string(this->block_size) + "; block num: " + std::to_string(this->block_num);
 
     res += "; strides:";
 
@@ -36,16 +36,11 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
         auto values = data->getData();
         for (unsigned current_block, i = 0; current_block < block_num; ++current_block)
         {
-<<<<<<< HEAD
-            for(std::size_t j = 0; j < block; j++)
-                res += std::to_string(values[i]) + " ";
-=======
             for(unsigned j = 0; j < block_size; ++j)
-                res += Printable::toString(values[i++]) + " ";
+                res += std::to_string(values[i++]) + " ";
             if(current_block != block_num - 1)
                 for(unsigned j = 0; j < strides[current_block]; ++j)
                     res += "X ";
->>>>>>> 3fead80... Changed block variable of MemoryBuffer to block_size + Updated MemoryBuffer toString method to take in account strides.
         }
 
         for (unsigned i = 0; i < right_pad; ++i)
@@ -295,11 +290,8 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t s
     return it->second.find(tensor);
 
 }
-<<<<<<< HEAD
 
 std::string mv::MemoryAllocator::getLogID() const
 {
     return "Memory allocator " + name_;
 }
-=======
->>>>>>> 3fead80... Changed block variable of MemoryBuffer to block_size + Updated MemoryBuffer toString method to take in account strides.
