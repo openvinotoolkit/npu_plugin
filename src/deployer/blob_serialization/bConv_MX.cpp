@@ -7,6 +7,9 @@ namespace mv
     void bConv2D::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
     {
 
+
+        std::cout << "RADIX : " << this->radixX << "*" <<  this->radixY << std::endl;
+
         int fp16_size = 2;
 
         mv::DataModel dm(*om);
@@ -88,8 +91,9 @@ namespace mv
 
                 this->descriptors[i].coeffChStrIn = weight_4dshape[4]*2;
                 int inChans = weight_4dshape[1];
+
+                std::cout << "coeffChStrOut: "<< this->radixX << "*"<< this->radixY <<"*"<< inChans<< "*"<<  2<< "*" << 8 << std::endl;
                 this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
-                //this->descriptors[i].coeffChStrIn * weight_4dshape[0];
 
                 this->descriptors[i].outLnStr = outputBlobTensor.strideY;
                 this->descriptors[i].outChStr = outputBlobTensor.strideZ;
@@ -145,7 +149,9 @@ namespace mv
           Blob_Op_Definition(),
           input((it->getInputTensor(0))),
           output((it->getOutputTensor(0))),
-          taps((it->getInputTensor(1)))
+          taps((it->getInputTensor(1))),
+          radixX(it->getInputTensor(1)->getShape()[0]),
+          radixY(it->getInputTensor(1)->getShape()[1])
     {
 
         if (it->hasAttr("bias"))
@@ -215,14 +221,19 @@ namespace mv
             {
                 this->streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
             }
-            if (! it->hasAttr("NCE1_Mode"))
+            if (! it->hasAttr("NCE1_Modes"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_Mode'. Defaulting to 0\n");
-                this->opMode = 0;
+                printf("Serializer Info: Needs Attribute 'NCE1_Modes'. Defaulting to 0\n");
+
+                this->DPUmodeVector = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    this->DPUmodeVector.push_back(0);
+                }
             }
             else
             {
-                this->opMode = it->getAttr("NCE1_Mode").getContent<int>();
+                this->DPUmodeVector = it->getAttr("NCE1_Modes").getContent<dynamic_vector<unsigned>>();
             }
 
             this->concatOffset = 0; // Concat not supported currently
@@ -242,7 +253,7 @@ namespace mv
             this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
 
             int chPerRamBlock = 1;
-            int topJunk = 1, bottomJunk = 1;
+            int topJunk = 0, bottomJunk = 0;
             int localLS = 1, localCS = 1;
             int LPC = 1;
             int minLines = 1;
@@ -261,7 +272,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_TopOutputJunk"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 0\n");
             }
             else
             {
@@ -270,7 +281,7 @@ namespace mv
 
             if (! it->hasAttr("NCE1_BottomOutputJunk"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 0\n");
             }
             else
             {
@@ -392,7 +403,7 @@ namespace mv
                 this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 
                 // Myriad X DPU Assignment & Execution Configuration
-                this->descriptors[i].Line0.mode = 0 ;//this->opMode;
+                this->descriptors[i].Line0.mode = this->DPUmodeVector[i];
                 this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                 this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
 
@@ -471,8 +482,6 @@ namespace mv
             }
         } else {
             // printf("Serializing a SW Conv\n");
-            this->radixX = it->getInputTensor(1)->getShape()[0];
-            this->radixY = it->getInputTensor(1)->getShape()[1];
             this->strideX = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
             this->strideY = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1;
             this->padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
