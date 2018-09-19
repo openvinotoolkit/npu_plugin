@@ -36,7 +36,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             continue;
         if(!operationIt->hasAttr("NCE1_Compatible"))
             continue;
-        if(!operationIt->getAttr("NCE1_Compatible").getContent<unsigned>())
+        if(!operationIt->getAttr("NCE1_Compatible").getContent<int>())
             continue;
         auto input_tensor = operationIt->getInputTensor(0);
         auto input_tensor_dimension = input_tensor->getShape();

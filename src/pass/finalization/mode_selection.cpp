@@ -82,16 +82,16 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 
     // Compute local line stride
     unsigned local_line_stride = nce.computeLocalLineStride(input_width);
-    om.addAttr(convIterator, "NCE1_LocalLineStride", mv::Attribute(mv::AttrType::IntegerType, local_line_stride));
+    om.addAttr(convIterator, "NCE1_LocalLineStride", mv::Attribute(mv::AttrType::UnsignedType, local_line_stride));
 
     // TODO: Streaming mask
-    int streaming_mask = 0; // For DDR streaming
-    om.addAttr(convIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::IntegerType, streaming_mask));
+    unsigned streaming_mask = 0; // For DDR streaming
+    om.addAttr(convIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::UnsignedType, streaming_mask));
 
     // Compute DescriptorsSplits
     unsigned splits_over_height = nce.getSplitsOverH(total_tensor_size);
-    int descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, output_channels, modes);
-    om.addAttr(convIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::IntegerType, descriptor_splits));
+    unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, output_channels, modes);
+    om.addAttr(convIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::UnsignedType, descriptor_splits));
 
     // -------------------VECTOR ATTRIBUTES----------------
     std::vector<unsigned> input_channels_per_ram_block(num_modes_to_use);
