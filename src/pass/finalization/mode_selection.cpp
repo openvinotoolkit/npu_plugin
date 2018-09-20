@@ -91,6 +91,8 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     // Compute DescriptorsSplits
     unsigned splits_over_height = nce.getSplitsOverH(total_tensor_size);
     om.addAttr(convIterator, "NCE1_SplitsOverH", mv::Attribute(mv::AttrType::UnsignedType, splits_over_height));
+    om.addAttr(convIterator, "NCE1_SplitsOverC", mv::Attribute(mv::AttrType::UnsignedType, splits_over_input_channels));
+
     unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, output_channels, modes);
     om.addAttr(convIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::UnsignedType, descriptor_splits));
 
