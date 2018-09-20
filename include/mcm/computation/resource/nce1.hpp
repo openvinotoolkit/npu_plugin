@@ -229,6 +229,9 @@ namespace mv
             unsigned split_by_width_overhead;
             unsigned split_by_output_channel_overhead;
 
+            //Ram features
+            unsigned bits_per_line;
+
             //-----------PRIVATE FUNCTIONS-------------
 
             //Functions for Dijkstra
@@ -282,6 +285,8 @@ namespace mv
             unsigned computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode);
             unsigned computeLinesPerChannel(unsigned channel_per_block, unsigned mode);
             unsigned computeBytesPerLine();
+            unsigned computePixelsPerLine();
+
     };
 }
 
