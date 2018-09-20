@@ -377,20 +377,9 @@ unsigned mv::Nce1::getActualOutputHeight(unsigned output_height)
     return output_height;
 }
 
-unsigned mv::Nce1::computeBytesPerLine()
-{
-    return bits_per_line / 8;
-}
-
-unsigned mv::Nce1::computePixelsPerLine()
-{
-    return computeBytesPerLine() / input_data_size;
-}
-
-
 unsigned mv::Nce1::computeLocalLineStride(unsigned input_width)
 {
-    unsigned pixels_per_line = computeBytesPerLine() / input_data_size;
+    unsigned pixels_per_line = 128 / 8 * input_data_size;
     return (input_width + (pixels_per_line - 1)) / pixels_per_line;
 }
 
@@ -413,11 +402,23 @@ unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsi
     return input_channels / ram_blocks;
 }
 
-unsigned mv::Nce1::computeLinesPerChannel(unsigned input_channels, unsigned mode)
+unsigned mv::Nce1::computeBytesPerLine(unsigned input_width)
 {
+    return mv::round_up(input_width*input_data_size, 16);
+}
+
+unsigned mv::Nce1::computeLinesPerChannel(unsigned input_channels, unsigned input_width, unsigned mode)
+{
+
+    /*
+     *    bytesPerLine = ((iX * BYTES_PER_PIXEL[dataType] + 15) // 16) * 16
+   128K / (128*64)
+   linesPerChannel = min(CNNHW_INTERNAL_MEMORY_SIZE // (bytesPerLine * iZ), iY, 2**9)
+   */
+
     unsigned ram_blocks = dpe_x_output_channel.at(mode);
     unsigned block_size = data_storage_dimension / ram_blocks; //In bytes
     unsigned bytes_per_channel = block_size / input_channels;
-    unsigned pixels_per_line = computePixelsPerLine();
-    return bytes_per_channel / pixels_per_line;
+    unsigned bytes_per_line = computeBytesPerLine(input_width);
+    return bytes_per_channel / bytes_per_line;
 }
