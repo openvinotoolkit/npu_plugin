@@ -60,7 +60,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     //TEMPORARY HACK: Prepass takes care of everything
     if(input_tensor->hasAttr("NCE1_Paddings"))
     {
-        mv::dynamic_vector<size_t> input_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
+        mv::SizeVector input_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
         input_width += input_tensor_paddings[0];
         input_height += input_tensor_paddings[1];
         input_channels += input_tensor_paddings[2];
@@ -68,7 +68,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 
     if(output_tensor->hasAttr("NCE1_Paddings"))
     {
-        mv::dynamic_vector<size_t> output_tensor_paddings = output_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
+        mv::SizeVector output_tensor_paddings = output_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
         output_width += output_tensor_paddings[0];
         output_height += output_tensor_paddings[1];
         output_channels += output_tensor_paddings[2];
@@ -151,7 +151,7 @@ void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convItera
 
     if(input_tensor->hasAttr("NCE1_Paddings")) //The input tensor involved in this convolution has already been padded (probably as output tensor of some other convolution)
     {
-        mv::dynamic_vector<unsigned> paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<unsigned>>();
+        mv::SizeVector paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
         source.parameters.input_width += paddings[0];
         source.parameters.input_height += paddings[1];
         source.parameters.input_channels += paddings[2];
@@ -161,7 +161,7 @@ void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convItera
     //The output tensor involved in this convolution has already been padded (probably as input tensor of some other convolution)
     //NOTE: Maybe this shouldn't happen at all, but it's better to play safe
     {
-        mv::dynamic_vector<unsigned> paddings = output_tensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<unsigned>>();
+        mv::SizeVector paddings = output_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
         source.parameters.output_width += paddings[0];
         source.parameters.output_height += paddings[1];
         source.parameters.output_channels += paddings[2];

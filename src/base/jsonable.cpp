@@ -25,6 +25,11 @@ mv::json::Value mv::Jsonable::toJsonValue(unsigned_type value)
     return mv::json::Value(value);
 }
 
+mv::json::Value mv::Jsonable::toJsonValue(size_t value)
+{
+    return mv::json::Value(value);
+}
+
 mv::json::Value mv::Jsonable::toJsonValue(byte_type value)
 {
     return mv::json::Value((unsigned_type)value);
@@ -82,6 +87,12 @@ mv::unsigned_type mv::Jsonable::constructUnsignedTypeFromJson(mv::json::Value& v
 {
     return v.get<long long>();
 }
+
+size_t mv::Jsonable::constructSizeTypeFromJson(mv::json::Value& v)
+{
+    return v.get<long long>();
+}
+
 
 mv::float_type mv::Jsonable::constructFloatTypeFromJson(mv::json::Value& v)
 {
@@ -233,3 +244,10 @@ mv::dynamic_vector<unsigned> mv::Jsonable::constructUnsignedVectorFromJson(mv::j
     return vec;
 }
 
+mv::dynamic_vector<size_t> mv::Jsonable::constructSizeVectorFromJson(mv::json::Value &v)
+{
+    mv::dynamic_vector<size_t> vec;
+    for(unsigned i = 0; i < v.size(); ++i)
+        vec.push_back(constructSizeTypeFromJson(v[i]));
+    return vec;
+}

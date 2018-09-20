@@ -88,7 +88,25 @@ mv::string mv::Printable::toString(const mv::dynamic_vector<float> &value)
     return output + ")";
 }
 
-mv::string mv::Printable::toString(const mv::dynamic_vector<unsigned> &value)
+mv::string mv::Printable::toString(const mv::UnsignedVector &value)
+{
+    std::string output = "(";
+
+    if (value.size() > 0)
+    {
+        output += std::to_string(value[0]);
+
+        for (std::size_t i = 1; i < value.size(); ++i)
+        {
+            output += ", " + std::to_string(value[i]);
+        }
+
+    }
+
+    return output + ")";
+}
+
+mv::string mv::Printable::toString(const mv::SizeVector &value)
 {
     std::string output = "(";
 

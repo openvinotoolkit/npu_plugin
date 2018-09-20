@@ -125,6 +125,7 @@ namespace mv
         UnsignedVec4DType,
         FloatVecType,
         UnsignedVecType,
+        SizeVecType,
         StringVecType
     };
 
@@ -152,6 +153,7 @@ namespace mv
         {AttrType::UnsignedVec4DType, "unsignedVec4D"},
         {AttrType::FloatVecType, "floatVec"},
         {AttrType::UnsignedVecType, "unsignedVec"},
+        {AttrType::SizeVecType, "sizeVec"},
         {AttrType::StringVecType, "stringVec"}
 
     };
@@ -182,6 +184,7 @@ namespace mv
         {"unsignedVec4D", AttrType::UnsignedVec4DType},
         {"floatVec", AttrType::FloatVecType},
         {"unsignedVec", AttrType::UnsignedVecType},
+        {"sizeVec", AttrType::SizeVecType},
         {"stringVec", AttrType::StringVecType}
     };
 
@@ -222,7 +225,7 @@ namespace mv
     using UnsignedVector4D = Vector4D<unsigned_type>;
 
     using UnsignedVector = dynamic_vector<unsigned>;
-
+    using SizeVector = dynamic_vector<size_t>;
 
 }
 

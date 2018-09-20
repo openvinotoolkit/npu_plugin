@@ -91,8 +91,8 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             {
                 if(originalTensor->hasAttr("NCE1_Paddings"))
                 {
-                    mv::dynamic_vector<size_t> paddings = originalTensor->getAttr("NCE1_Paddings").getContent<mv::dynamic_vector<size_t>>();
-                    dm.addAttr(conversionOutputTensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::UnsignedVecType, paddings));
+                    mv::SizeVector paddings = originalTensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
+                    dm.addAttr(conversionOutputTensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::SizeVecType, paddings));
                     originalTensor->removeAttr("NCE1_Paddings");
                 }
             }
