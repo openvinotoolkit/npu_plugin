@@ -112,7 +112,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     for(unsigned i = 0; i < num_modes_to_use; ++i)
     {
         input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(splitted_input_channels, modes[i]);
-        lines_per_channel[i] = nce.computeLinesPerChannel(input_channels_per_ram_block[i], modes[i], local_line_stride);
+        lines_per_channel[i] = nce.computeLinesPerChannel(splitted_input_channels, modes[i]);
         local_channel_stride[i] = lines_per_channel[i] * local_line_stride;
 
         min_lines[i] = 0;
