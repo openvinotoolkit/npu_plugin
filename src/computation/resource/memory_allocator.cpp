@@ -125,7 +125,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx, BufferIterator first,
             it->second->offset = lastOffset;
             lastOffset += it->second->size;
             // Align slave buffers
-            for (auto itSlave = it->second->slaveBuffers.begin(); itSlave != it->second->slaveBuffers.end(); ++it)
+            for (auto itSlave = it->second->slaveBuffers.begin(); itSlave != it->second->slaveBuffers.end(); ++itSlave)
                 (*itSlave)->second->offset = it->second->offset;
         }
     }
@@ -200,7 +200,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     newBuffer.size = shape.totalSize();
     newBuffer.blockSize = shape[order_.firstContiguousDimensionIndex(shape)];
     newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
-    newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum - 1);
+    newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
     newBuffer.data = tensor;
     newBuffer.stage = stageIdx;
     newBuffer.leftPad = std::vector<std::size_t>(shape.ndims());

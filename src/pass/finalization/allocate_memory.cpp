@@ -83,55 +83,78 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
         for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
         {
-            if (opIterator->getOpType() == OpType::Input){
+            if (opIterator->getOpType() == OpType::Input)
+            {
                 auto b = opIterator->getOutputTensor(0)->getName();
                 input_names.push_back(b);
-            }else if(opIterator->getOpType() == OpType::Output){
+            }
+            else if(opIterator->getOpType() == OpType::Output)
+            {
                 auto b = opIterator->getInputTensor(0)->getName();
                 output_names.push_back(b);
-            }else if(opIterator->getOpType() == OpType::Constant){
+            }
+            else if(opIterator->getOpType() == OpType::Constant)
+            {
                 auto b = opIterator->getOutputTensor(0)->getName();
                 invalid_names.push_back(b);
-            }else if(opIterator->getOpType() == OpType::Conv2D){
+            }
+            else if(opIterator->getOpType() == OpType::Conv2D)
+            {
                 auto ot_name = opIterator->getOutputTensor(0)->getName();
-                if(tIt->getName() == ot_name){
+                if(tIt->getName() == ot_name)
+                {
 
                     c_pad_names.push_back(ot_name);
 
                     int halfksizerounded = ((((opIterator->getInputTensor(1)->getShape()[0])/2)+1)*2);
                     int cpad = halfksizerounded*opIterator->getOutputTensor(0)->getShape()[1]*opIterator->getOutputTensor(0)->getShape()[2]*2;
 
-                    if (cpad > max_pad){
+                    if (cpad > max_pad)
+                    {
                         max_pad = cpad;
                         max_pad = 0; // TODO: Actual Allocation
                     }
+
                 }
+
             }
+
         }
 
-        if(std::find(input_names.begin(), input_names.end(), tIt->getName()) != input_names.end()) {
+        if (std::find(input_names.begin(), input_names.end(), tIt->getName()) != input_names.end())
+        {
             external = true;
-        }else {
-            if(std::find(output_names.begin(), output_names.end(), tIt->getName()) != output_names.end()) {
+        }
+        else
+        {
+            if(std::find(output_names.begin(), output_names.end(), tIt->getName()) != output_names.end())
+            {
                 external = true;
-            }else{
+            }
+            else
+            {
                 // Not external, dont do anything
             }
         }
 
-        if(std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end()) {
+        if (std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end())
+        {
             conv_padding = true;
-        }else {
+        }
+        else
+        {
             // Not conv_padding, dont do anything
         }
 
-        if(std::find(invalid_names.begin(), invalid_names.end(), tIt->getName()) != invalid_names.end()) {
+        if (std::find(invalid_names.begin(), invalid_names.end(), tIt->getName()) != invalid_names.end())
+        {
             fake = true;
         }
 
 
         if (!tIt->isPopulated() and !external and !fake)
         {
+            
             auto stageIt = cm.getStage(0);
 
             int pad = 0;
@@ -141,7 +164,9 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             std::vector<std::size_t> paddings; //TODO: Should be filled
             dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
+
         }
+
     }
 
 }

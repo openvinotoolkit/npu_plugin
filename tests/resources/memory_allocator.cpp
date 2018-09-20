@@ -6,6 +6,33 @@
 #include "mcm/utils/data_generator.hpp"
 #include "gtest/gtest.h"
 
+
+TEST(memory_allocator, concatenate_tensors)
+{
+
+    mv::OpModel om("testModel");
+    mv::DataModel dm(om);
+    mv::Shape outputShape({4, 4, 4});
+    mv::Shape inputShape({4, 4, 2});
+    mv::Order order = mv::OrderType::ColumnMajor;
+    
+    auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
+        mv::utils::generateSequence<double>(outputShape.totalSize()));
+
+    auto inputTensor1 = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
+    auto inputTensor2 = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
+
+    mv::MemoryAllocator m("m1", 10000, order);
+    auto outputBuf = m.allocate(outputTensor, 0);
+    auto input1Buf = m.allocate(inputTensor1, outputBuf, {0, 0, 0}, {0, 0, 2});
+    auto input2Buf = m.allocate(inputTensor2, outputBuf, {0, 0, 2}, {0, 0, 0});
+
+    std::cout << outputBuf->second->toString(true) << std::endl;
+    std::cout << input1Buf->second->toString(true) << std::endl;
+    std::cout << input2Buf->second->toString(true) << std::endl;
+
+}
+
 TEST(memory_allocator, tensor_col_major)
 {
 
