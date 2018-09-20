@@ -8,7 +8,7 @@ namespace mv
 
     class CompositionalModel
     {
-        
+
     public:
 
         virtual ~CompositionalModel() = 0;
@@ -43,6 +43,9 @@ namespace mv
             const std::string& name = "") = 0;
 
         virtual Data::TensorIterator relu(Data::TensorIterator input, const std::string& name = "") = 0;
+
+        virtual Data::TensorIterator prelu(Data::TensorIterator input, Data::TensorIterator negativeSlope,
+            const std::string& name = "") = 0;
 
         virtual Data::TensorIterator softmax(Data::TensorIterator input, const std::string& name = "") = 0;
 

@@ -43,6 +43,7 @@
 		"finalize":
 		[
 			"MarkHardwareConvolution",
+			"ScaleFission",
 			"FormatMXWeights",
 			"AddConversionLayers",
 			"ArrangeLinearExecution",

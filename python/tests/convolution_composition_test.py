@@ -19,7 +19,7 @@ class TestComposition(unittest.TestCase):
     def test_empty_om(self):
         cu = ca.getCompilationUnit()
         om = ca.getModel(cu)
-        self.assertFalse(om.isValid())
+        self.assertFalse(ca.isValid(om))
 
     def test_SWIG_connection(self):
         self.assertEqual(1, ca.testSWIG())
@@ -32,7 +32,7 @@ class TestComposition(unittest.TestCase):
         in_ = ca.input(om, shape)
         ca.output(om, in_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_convolution(self):
         cu = ca.getCompilationUnit()
@@ -49,7 +49,7 @@ class TestComposition(unittest.TestCase):
         cOp_ = ca.getSourceOp(om, c_)
         ca.output(om, c_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
         self.assertEqual(ca.testConv(cOp_, 4, 4, 1, 1), 0)
 
     def test_maxpool(self):
@@ -61,7 +61,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.maxpool2D(om, in_, 2, 2, 2, 2, 0, 0)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_concat(self):
 
@@ -84,7 +84,7 @@ class TestComposition(unittest.TestCase):
         cc_ = ca.concat(om, c1_, c2_)
         ca.output(om, cc_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_avgpool(self):
 
@@ -99,7 +99,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.avgpool2D(om, in_, kernels, stride, padding)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_matMul(self):
 
@@ -113,7 +113,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.matMul(om, in_, weights_)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_fullyConnected(self):
 
@@ -127,7 +127,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.fullyConnected(om, in_, weights_)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_batchNorm(self):
 
@@ -153,7 +153,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.batchNorm(om, in_, mean_, variance_, offset_, scale_, eps_)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_scale(self):
         cu = ca.getCompilationUnit()
@@ -167,7 +167,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.scale(om, in_, scaleMatrix_)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_relu(self):
 
@@ -179,7 +179,23 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.relu(om, in_)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
+
+    def test_prelu(self):
+
+        cu = ca.getCompilationUnit()
+        om = ca.getModel(cu)
+        shape = ca.getShape(32, 32, 3)
+
+        in_ = ca.input(om, shape)
+
+        data = ca.getData(np.arange(3).astype(np.float32))
+        slope_ = ca.constant(om, data, ca.getShape(3))
+
+        pr_ = ca.prelu(om, in_, slope_)
+        ca.output(om, pr_)
+
+        self.assertTrue(ca.isValid(om))
 
     def test_softmax(self):
 
@@ -191,7 +207,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.softmax(om, in_)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_add(self):
         cu = ca.getCompilationUnit()
@@ -204,7 +220,7 @@ class TestComposition(unittest.TestCase):
         ad_ = ca.add(om, in_, mx_)
         ca.output(om, ad_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_bias(self):
         cu = ca.getCompilationUnit()
@@ -219,7 +235,7 @@ class TestComposition(unittest.TestCase):
         bi_ = ca.bias(om, in_, bias)
         ca.output(om, bi_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_subtract(self):
 
@@ -233,7 +249,7 @@ class TestComposition(unittest.TestCase):
         sb_ = ca.subtract(om, in_, mx_)
         ca.output(om, sb_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_multiply(self):
         cu = ca.getCompilationUnit()
@@ -247,7 +263,7 @@ class TestComposition(unittest.TestCase):
         mu_ = ca.multiply(om, in_, mx_)
         ca.output(om, mu_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_divide(self):
 
@@ -261,7 +277,7 @@ class TestComposition(unittest.TestCase):
 
         ca.output(om, mu_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
     def test_reshape(self):
         cu = ca.getCompilationUnit()
@@ -273,7 +289,7 @@ class TestComposition(unittest.TestCase):
         mx_ = ca.reshape(om, in_, new_shape)
         ca.output(om, mx_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
 
     def testDOT(self):
@@ -330,7 +346,7 @@ class TestComposition(unittest.TestCase):
         cOp_ = ca.getSourceOp(om, c_)
         ca.output(om, c_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
         self.assertEqual(ca.testConv(cOp_, 4, 4, 0, 0), 0)
 
         fs = ca.compile(cu)
@@ -361,7 +377,7 @@ class TestComposition(unittest.TestCase):
         cOp_ = ca.getSourceOp(om, c_)
         out_ = ca.output(om, c_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
         self.assertEqual(ca.testConv(cOp_, 4, 4, 0, 0), 0)
 
         fs = ca.compile(cu)
@@ -393,7 +409,7 @@ class TestComposition(unittest.TestCase):
         cOp_ = ca.getSourceOp(om, c_)
         out_ = ca.output(om, c_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
         self.assertEqual(ca.testConv(cOp_, 2, 2, 0, 0), 0)
 
         fs = ca.compile(cu)
@@ -424,7 +440,7 @@ class TestComposition(unittest.TestCase):
         cOp_ = ca.getSourceOp(om, c_)
         ca.output(om, c_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
         self.assertEqual(ca.testConv(cOp_, 2, 2, 0, 0), 0)
 
         fs = ca.compile(cu)
@@ -462,7 +478,7 @@ class TestComposition(unittest.TestCase):
         c2_ = ca.conv2D(om, c1_, eweights, 1, 1, 0, 0)
         ca.output(om, c2_)
 
-        self.assertTrue(om.isValid())
+        self.assertTrue(ca.isValid(om))
 
         ca.compile(cu)
 

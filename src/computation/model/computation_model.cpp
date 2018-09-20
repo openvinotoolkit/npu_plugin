@@ -95,6 +95,11 @@ mv::Data::OpListIterator mv::ComputationModel::addNodeFromJson(json::Value& node
             addInputTensorsJson(toReturn);
             addOutputTensorsJson(toReturn);
             break;
+        case OpType::PReLU:
+            toReturn = dataGraph_.node_insert(allocator_.make_owner<mv::op::PReLU>(node));
+            addInputTensorsJson(toReturn);
+            addOutputTensorsJson(toReturn);
+            break;
         case OpType::Softmax:
             toReturn = dataGraph_.node_insert(std::make_shared<op::Softmax>(node));
             addInputTensorsJson(toReturn);
@@ -208,7 +213,7 @@ mv::ComputationModel::ComputationModel(json::Value &model) :
     for(std::size_t i = 0; i < nodes.size(); ++i)
     {
         auto addedOp = addNodeFromJson(nodes[i]);
-        
+
         if (addedOp->getOpType() == OpType::Input)
         {
             delete input_;
@@ -334,7 +339,7 @@ bool mv::ComputationModel::isValid(const Data::FlowListIterator &it) const
     if (dataGraph_.edge_find(it) != dataGraph_.edge_end())
         return true;
     return false;
-} 
+}
 
 bool mv::ComputationModel::isValid(const Control::FlowListIterator &it) const
 {
@@ -343,11 +348,11 @@ bool mv::ComputationModel::isValid(const Control::FlowListIterator &it) const
     if (controlGraph_.edge_find(it) != controlGraph_.edge_end())
         return true;
     return false;
-} 
+}
 
 mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
 {
-    
+
     if (getGroup(name) == groupEnd())
     {
         
@@ -358,7 +363,7 @@ mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string
             return result.first;
         }
         return groupEnd();
-        
+
     }
 
     return groupEnd();
@@ -400,7 +405,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(std::sha
     }
 
     return group->end();
-    
+
 }
 
 bool mv::ComputationModel::removeGroupElement_(std::weak_ptr<Element> element, mv::GroupContext::GroupIterator &group)
@@ -427,7 +432,7 @@ bool mv::ComputationModel::checkOpsStages_() const
 
     if (*input_ == *dataOpEnd_)
         return false;
-    
+
     for (auto opIt = *input_; opIt != *dataOpEnd_; ++opIt)
     {
         if (!opIt->hasAttr("stage") && opIt->get<bool>("executable"))
@@ -435,16 +440,16 @@ bool mv::ComputationModel::checkOpsStages_() const
     }
 
     return true;
-    
+
 }
 
 mv::Control::StageIterator mv::ComputationModel::addStage_()
-{   
+{
 
     auto it = stages_->emplace(stages_->size(), std::make_shared<ComputationStage>(stages_->size()));
     log(Logger::MessageType::MessageInfo, "Defined " + it.first->second->toString());
     return it.first;
-    
+
 }
 
 bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpListIterator &op)
@@ -541,7 +546,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberBegin(GroupContext:
     {
         return group->begin();
     }
-    
+
     //return memberEnd(group);
     return GroupContext::MemberIterator();
 
@@ -549,7 +554,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberBegin(GroupContext:
 
 mv::GroupContext::MemberIterator mv::ComputationModel::memberEnd(GroupContext::GroupIterator &group)
 {
-    
+
     if (group != groupEnd())
     {
         return group->end();

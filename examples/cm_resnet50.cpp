@@ -111,6 +111,14 @@ int main()
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet50");
 
+    std::string descPath = mv::utils::projectRootPath() + "/config/compilation/resnet50_HW.json";
+    std::ifstream compDescFile(descPath);
+    if (compDescFile.good())
+    {
+        std::cout << "DECLARING COMPILATION UNIT with descriptor json filename: " << descPath << std::endl;
+        unit.loadCompilationDescriptor(descPath);
+    }
+
     // Obtain a compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
 

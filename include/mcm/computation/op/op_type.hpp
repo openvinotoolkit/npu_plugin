@@ -36,6 +36,7 @@ namespace mv
         static constexpr unsigned short Reshape = 17;
         static constexpr unsigned short Bias = 18;
         static constexpr unsigned short FullyConnected = 19;
+        static constexpr unsigned short PReLU = 20;
 
     private:
 

@@ -11,6 +11,7 @@ namespace mv
 
     class OpModel : public ComputationModel, public CompositionalModel
     {
+    	friend class CompositionalModelRecorder;
 
         using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
 
@@ -49,6 +50,7 @@ namespace mv
         Data::TensorIterator batchNorm(Data::TensorIterator input, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, double varianceEps, const std::string& name = "") override;
         Data::TensorIterator scale(Data::TensorIterator input, Data::TensorIterator scale, const std::string& name = "") override;
         Data::TensorIterator relu(Data::TensorIterator input, const std::string& name = "") override;
+        Data::TensorIterator prelu(Data::TensorIterator input, Data::TensorIterator negativeSlope, const std::string& name = "") override;
         Data::TensorIterator softmax(Data::TensorIterator input, const std::string& name = "") override;
         Data::TensorIterator add(Data::TensorIterator input0, Data::TensorIterator input1, const std::string& name = "") override;
         Data::TensorIterator subtract(Data::TensorIterator input0, Data::TensorIterator input1, const std::string& name = "") override;

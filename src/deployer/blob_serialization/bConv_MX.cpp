@@ -13,6 +13,7 @@ namespace mv
         mv::ControlModel cm(*om);
 
         mv::Data::TensorIterator *conv_bias;
+        mv::Data::TensorIterator *conv_scale;
 
         if(this->bias_name != "")
         {
@@ -22,6 +23,16 @@ namespace mv
         else
         {
             conv_bias = NULL ;
+        }
+
+        if(this->scale_name != "")
+        {
+            this->scale = dm.findTensor(this->scale_name);
+            conv_scale = &this->scale;
+        }
+        else
+        {
+            conv_scale = NULL ;
         }
 
 
@@ -46,6 +57,7 @@ namespace mv
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
             Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
+            Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_scale);
 
             for (unsigned i = 0; i != this->desc_count; i++)
             {
@@ -85,22 +97,8 @@ namespace mv
                 }
             }
 
-            // Currently no integrated scale support.
-            Blob_Tensor scaleBlobTensor = Blob_Tensor(
-                0,
-                0,
-                0,
-                0,
-                0,
-                0, // SZ
-                0, // Offset - Memory Manager
-                0, // Location - Memory Manager
-                0,
-                0
-            );
             b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
             b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
-
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
@@ -150,6 +148,17 @@ namespace mv
         else
         {
             this->bias_name = "";
+        }
+
+        if (it->hasAttr("scale"))
+        {   
+            this->scale_name = it->get<std::string>("scale");
+            std::cout << "   in bConvHW contructor : scale tensor name = "<< this->scale_name << std::endl;
+ 
+        }
+        else
+        {
+            this->scale_name = "";
         }
 
 

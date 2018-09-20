@@ -1,15 +1,18 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
+const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
-model_(new OpModel(modelName))
+model_(new OpModel(modelName)),
+recordedModel_(new CompositionalModelRecorder(*model_, compositionalModelRecordingsPath_))
 {
 
 }
 
 /*void mv::CompilationUnit::loadModelFromJson(const std::string &path)
 {
+
     mv::JSONTextParser parser;
     mv::json::Value value;
     parser.parseFile(path, value);
@@ -38,6 +41,7 @@ model_(new OpModel(modelName))
 mv::CompilationUnit::~CompilationUnit()
 {
     delete model_;
+    delete recordedModel_;
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
@@ -52,6 +56,34 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
         return false;
     }
 
+    return true;
+
+}
+
+bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
+{
+
+    JSONTextParser parser(jsonParserBufferLenght_);
+
+    try
+    {
+
+        json::Value jsonRoot;
+        if (!parser.parseFile(filePath, jsonRoot))
+        {
+            throw ArgumentError(*this, "filePath", filePath,
+                "Unable to parse compilation descriptor - error reading");
+        }
+        if (jsonRoot.valueType() != json::JSONType::Object)
+            return false;
+        else
+            compilationDescriptor_ = jsonRoot.get<json::Object>();
+
+    }
+    catch (ParsingError& e)
+    {
+        return false;
+    }
     return true;
 
 }
@@ -90,6 +122,11 @@ mv::json::Object& mv::CompilationUnit::compilationDescriptor()
 mv::CompositionalModel& mv::CompilationUnit::model()
 {
     return *model_;
+}
+
+mv::CompositionalModel& mv::CompilationUnit::recordedModel()
+{
+    return *recordedModel_;
 }
 
 bool mv::CompilationUnit::initialize()
