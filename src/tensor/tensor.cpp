@@ -1,8 +1,6 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
 
-std::vector<std::size_t> mv::Tensor::subsBuffer_;
-
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order) :
 Element(name)
 {
@@ -15,8 +13,7 @@ Element(name)
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data) :
 Tensor(name, shape, dType, order)
 {
-    if (populate(data, order))
-        set<bool>("populated", true);
+    populate(data, order);
 }
 
 mv::Tensor::Tensor(const Tensor &other) :
@@ -31,7 +28,44 @@ mv::Tensor::~Tensor()
 
 }
 
-bool mv::Tensor::populate(const std::vector<double>& data)
+std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
+{
+    return getOrder().indToSub(s, index);
+}
+
+unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const
+{
+
+    if (hasAttr("master"))
+    {
+        Shape correctedShape(s);
+        std::vector<std::size_t> correctedSub(sub);
+        if (hasAttr("leftPadding"))
+        {
+            auto padding = get<std::vector<std::size_t>>("leftPadding");
+            for (std::size_t i = 0; i < padding.size(); ++i)
+            {
+                correctedShape[i] += padding[i];
+                correctedSub[i] += padding[i];
+            }
+        }
+        if (hasAttr("rightPadding"))
+        {
+            auto padding = get<std::vector<std::size_t>>("rightPadding");
+            for (std::size_t i = 0; i < padding.size(); ++i)
+                correctedShape[i] += padding[i];
+            
+        }
+
+        return getOrder().subToInd(correctedShape, correctedSub);
+
+    }
+
+    return getOrder().subToInd(s, sub);
+
+}
+
+void mv::Tensor::populate(const std::vector<double>& data)
 {
 
     if (data.size() != getShape().totalSize())
@@ -40,24 +74,56 @@ bool mv::Tensor::populate(const std::vector<double>& data)
 
     data_ = std::make_shared<std::vector<double>>(data);
     set("populated", true);
-    return true;
 
 }
 
-bool mv::Tensor::populate(const std::vector<double>& data, Order order)
+void mv::Tensor::populate(const std::vector<double>& data, Order order)
 {
     set<Order>("order",  order);
-    return populate(data);
+    populate(data);
 }
 
-bool mv::Tensor::unpopulate()
+void mv::Tensor::unpopulate()
 {
     if (!isPopulated())
-        return false;
+        return;
 
     data_.reset();
     set<bool>("populated", false);
-    return true;
+
+}
+
+void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
+{
+
+    if (!other.isPopulated())
+        throw ArgumentError(*this, "InputTensor::populated", "false", "Unable to bind data from an unpopulated tensor " + other.getName());
+
+    if (leftPadding.size() != other.getShape().ndims() && !leftPadding.empty())
+        throw ArgumentError(*this, "leftPadding::size", std::to_string(leftPadding.size()), "Invalid dimension of the left padding vector,"
+            " must be equal to the dimensionality of the master tensor, which is " + std::to_string(other.getShape().ndims()));
+
+    if (rightPadding.size() != other.getShape().ndims() && !rightPadding.empty())
+        throw ArgumentError(*this, "rightPadding::size", std::to_string(rightPadding.size()), "Invalid dimension of the right padding vector,"
+            " must be equal to the dimensionality of the master tensor, which is " + std::to_string(getShape().ndims()));
+
+    data_ = other.data_;
+    set<bool>("populated", true);
+    if (!leftPadding.empty())
+        set<std::vector<std::size_t>>("leftPadding", leftPadding);
+    if (!rightPadding.empty())
+        set<std::vector<std::size_t>>("rightPadding", rightPadding);
+
+    Shape newShape(other.getShape());
+    
+    for (std::size_t i = 0; i < newShape.ndims(); ++i)
+        newShape[i] -= leftPadding[i] + rightPadding[i];
+
+    set<Shape>("shape", newShape);
+    set<Order>("order", other.getOrder());
+    set<DType>("dType", other.getDType());
+    set<std::string>("master", other.getName());
+    other.set<std::string>("slave", getName());
 
 }
 
@@ -69,6 +135,9 @@ void mv::Tensor::setOrder(Order order)
         set<Order>("order", order);
         return;
     }
+    
+    if (hasAttr("master") || hasAttr("slave"))
+        throw ValueError(*this, "Unable to reorder bound tensor");
 
     auto dataPtr = std::make_shared<std::vector<double>>(data_->size());
 
@@ -89,7 +158,10 @@ void mv::Tensor::broadcast(const Shape& shape)
 {
 
     if (!isPopulated())
-        throw ValueError(*this, "Unable to perfom element-wise operation using unpopulated tensor");
+        throw ValueError(*this, "Broadcastring of an unpopulated tensor is undefined");
+
+    if (hasAttr("master") || hasAttr("slave"))
+        throw ValueError(*this, "Unable to broadcast a bound tensor"); 
 
     Shape s1 = getShape(), s2 = shape;
 
@@ -319,32 +391,39 @@ const double& mv::Tensor::at(const std::vector<std::size_t>& sub) const
     return (*data_)[subToInd(sub)];
 }
 
-double& mv::Tensor::at(unsigned idx)
+double& mv::Tensor::at(std::size_t idx)
+{
+
+    return const_cast<double&>(static_cast<const Tensor*>(this)->at(idx));
+
+}
+
+const double& mv::Tensor::at(std::size_t idx) const
 {
 
     if (!isPopulated())
         throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
 
+    if (idx > data_->size())
+        throw IndexError(*this, idx, "Exceeds the total lenght of data vector");
+
+    if (hasAttr("master"))
+    {
+        std::vector<std::size_t> sub = indToSub(idx);
+        return (*data_)[subToInd(sub)];
+
+    }
+
     return (*data_)[idx];
 
 }
 
-const double& mv::Tensor::at(unsigned idx) const
-{
-
-    if (!isPopulated())
-        throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
-
-    return (*data_)[idx];
-
-}
-
-double& mv::Tensor::operator()(unsigned idx)
+double& mv::Tensor::operator()(std::size_t idx)
 {
     return at(idx);
 }
 
-const double& mv::Tensor::operator()(unsigned idx) const
+const double& mv::Tensor::operator()(std::size_t idx) const
 {
     return at(idx);
 }

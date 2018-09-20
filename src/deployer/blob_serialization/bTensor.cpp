@@ -129,9 +129,9 @@ namespace mv
             this->location = BLOB_INTERNAL_LOCATION;
 
             // blk_stride = (int)mem->strides[0]+ mem->block;
-            block = (int)mem->block_size;
+            block = (int)mem->getBlockSize();
 
-            int offsetValue = mem->offset;
+            int offsetValue = mem->getOffset();
 
             if (offsetValue % 64 != 0){
                 printf("Serializer Warning: Short-term alignment fix, likely cause of device crash. IMPORTANT.\n");
@@ -189,8 +189,8 @@ namespace mv
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
                 // blk_stride = (int)mem->strides[0] + mem->block;
-                block = (int)mem->block_size;
-                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
+                block = (int)mem->getBlockSize();
+                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Variable ));
                 this->offset = rt_entry;
             }
         }

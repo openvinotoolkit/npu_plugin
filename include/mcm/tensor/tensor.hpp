@@ -19,23 +19,11 @@ namespace mv
     {
 
         std::shared_ptr<std::vector<double>> data_;
-        static std::vector<std::size_t> subsBuffer_;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
-        static inline void unfoldSubs_(std::size_t sub)
-        {
-            subsBuffer_.push_back(sub);
-            //output[dim] = sub;
-        }
-
-        template<typename... Subs>
-        static inline void unfoldSubs_(std::size_t sub, Subs... subs)
-        {
-            //output[dim] = sub;
-            subsBuffer_.push_back(sub);
-            unfoldSubs_(subs...);
-        }
+        std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
+        unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
 
     public:
 
@@ -44,10 +32,22 @@ namespace mv
         Tensor(const Tensor& other);
         ~Tensor();
 
-        bool populate(const std::vector<double>& data);
-        bool populate(const std::vector<double>& data, Order order);
-        bool unpopulate();
-        
+        void populate(const std::vector<double>& data);
+        void populate(const std::vector<double>& data, Order order);
+        void unpopulate();
+
+        /**
+         * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
+         * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
+         * to select a fragment of the master tensor. Shape of the calling tensor will be modified accordin to the shape of master tensor
+         * and padding values. Data type and data order will be inherited from the master tensor. Automatically sets populated flag.
+         * Current implementation will disallow any further reordering (setOrder()) and broadcasting (broadcast()) of both master and slave.
+         * 
+         * @param other Master tensor, must be populated
+         * @param leftPadding Vector of values specifing the padding between the bounderies (left-top) of the master tensor and this tensor per dimenision.
+         * @param rightPadding Vector of values specifing the padding between the bounderies (right-bottom) of the master tensor and this tensor per dimenision.
+         */
+        void bindData(Tensor& other, const std::vector<std::size_t>& leftPadding = {}, const std::vector<std::size_t>& rightPadding = {});
         void broadcast(const Shape& shape);
 
         std::vector<double>& getData();
@@ -68,10 +68,10 @@ namespace mv
 
         double& at(const std::vector<std::size_t>& sub);
         const double& at(const std::vector<std::size_t>& sub) const;
-        double& at(unsigned idx);
-        const double& at(unsigned idx) const;
-        double& operator()(unsigned idx);
-        const double& operator()(unsigned idx) const;
+        double& at(std::size_t idx);
+        const double& at(std::size_t idx) const;
+        double& operator()(std::size_t idx);
+        const double& operator()(std::size_t idx) const;
         double& operator()(const std::vector<std::size_t>& sub);
         const double& operator()(const std::vector<std::size_t>& sub) const;
 
@@ -85,7 +85,7 @@ namespace mv
             return get<Shape>("shape");
         }
 
-        inline std::vector<std::size_t> indToSub(unsigned index)
+        inline std::vector<std::size_t> indToSub(unsigned index) const
         {
             return indToSub_(getShape(), index);
         }
@@ -93,55 +93,6 @@ namespace mv
         inline unsigned subToInd(const std::vector<std::size_t>& sub) const
         {
             return subToInd_(getShape(), sub);
-        }
-
-        inline std::vector<std::size_t> indToSub_(const Shape& s, unsigned index)
-        {
-            return getOrder().indToSub(s, index);
-        }
-
-        inline unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const
-        {
-            return getOrder().subToInd(s, sub);
-        }
-
-
-
-        template<typename... Idx>
-        double& at(Idx... indices)
-        {
-
-            return const_cast<double&>(static_cast<const Tensor*>(this)->at(indices...));
-
-        }
-
-        template<typename... Idx>
-        const double& at(Idx... indices) const
-        {
-
-            if (!isPopulated())
-                throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
-
-            subsBuffer_.clear();
-            unfoldSubs_(indices...);
-
-            auto idx = getOrder().subToInd(getShape(), subsBuffer_);
-            if (idx >= data_->size())
-                throw IndexError(*this, idx, "Exceeds dimension of the data vector");
-            return (*data_)[idx];
-
-        }
-
-        template<typename... Idx>
-        double& operator()(Idx... indices)
-        {
-            return at(indices...);
-        }
-
-        template<typename... Idx>
-        double operator()(Idx... indices) const
-        {
-            return at(indices...);
         }
 
         std::string toString() const override;

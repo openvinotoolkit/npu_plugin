@@ -231,16 +231,21 @@ namespace mv
 
         unsigned int totalSize = 0;
 
-        try{
-            for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
-                totalSize += bit->size;
+        try
+        {
+            for (Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
+            {
+                totalSize += bit->getSize();
                 int adjustment = 0;
-                while((bit->size*2 + adjustment*2) % 64 != 0){
+                while((bit->getSize()*2 + adjustment*2) % 64 != 0)
+                {
                     adjustment++;
                 }
                 totalSize += adjustment;
             }
-        }catch(mv::ArgumentError){
+        }
+        catch(mv::ArgumentError)
+        {
             std::cout << "Warning: No Constant Memory Present." << std::endl;
         }
 
@@ -472,7 +477,9 @@ namespace mv
                                 if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                                 {
                                     point0 += (5*4) ;
-                                }else{
+                                }
+                                else
+                                {
                                     printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
                                     assert(0);
                                 }
@@ -898,13 +905,16 @@ namespace mv
             {
                 mv::MemoryAllocator::MemoryBuffer smallest;
                 unsigned long long smallest_val = ULLONG_MAX;   // If this is ever hit we have far, far bigger problems :)
-                for (mv::MemoryAllocator::MemoryBuffer m : buffers_out_of_order) {
-                    if(smallest_val > m.offset){
-                        smallest_val = m.offset;
+                for (mv::MemoryAllocator::MemoryBuffer m : buffers_out_of_order)
+                {
+                    if(smallest_val > m.getOffset())
+                    {
+                        smallest_val = m.getOffset();
                         smallest = m;
                     }
                 }
-                if (smallest_val == ULLONG_MAX){
+                if (smallest_val == ULLONG_MAX)
+                {
                     break;
                 }
                 buffers_in_order.push_back(smallest);
@@ -917,16 +927,17 @@ namespace mv
             unsigned int running_total = 0;
             for(auto bit : buffers_in_order)
             {
-                running_total += bit.size*2;
+                running_total += bit.getSize()*2;
 
-                for (int idx = 0; idx != (int)bit.size; idx++){
-                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>((*bit.data).getData()[idx])) ;  // Convert to fp16.
+                for (int idx = 0; idx != (int)bit.getSize(); idx++){
+                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit.getData()->getData()[idx])) ;  // Convert to fp16.
                     AddBytes(2, fp16_val) ;
                 }
 
                 // TODO: To be removed when allocater takes care of this.
                 int adjustment = 0;
-                while((bit.size*2 + adjustment*2) % 64 != 0){
+                while((bit.getSize()*2 + adjustment*2) % 64 != 0)
+                {
                     AddBytes(2, 0);
                     adjustment++;
                     running_total += 2;

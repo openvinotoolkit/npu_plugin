@@ -28,6 +28,7 @@ TEST (generate_blob, blob_output_conv_01)
     auto input1 = test_cm.input({32, 32, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weights1Data({ 0.1111, 0.1121, 0.1131, 0.1141, 0.1151, 0.1161, 0.1171, 0.1181, 0.1191});
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    weights1->setOrder(mv::OrderType::ColumnMajor);
     auto conv1 = test_cm.conv2D(input1, weights1, {4, 4}, {0, 0, 0, 0});
     auto output1 = test_cm.output(conv1);
 

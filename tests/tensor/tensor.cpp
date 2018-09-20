@@ -14,7 +14,7 @@ TEST(tensor, populating)
 
     for (unsigned j = 0; j < tShape[0]; ++j)
         for (unsigned i = 0; i < tShape[1]; ++i)
-            ASSERT_EQ(t(i, j), i + tShape[0] * j);
+            ASSERT_EQ(t({i, j}), i + tShape[0] * j);
 
 }
 
@@ -438,7 +438,7 @@ TEST(tensor, augment)
     for (unsigned k = 0; k < 4; ++k)
         for (unsigned j = 0; j < 4; ++j)
             for (unsigned i = 0; i < 8; ++i)
-                ASSERT_EQ(t(i,j,k), t(i,0,k));
+                ASSERT_EQ(t({i, j, k}), t({i, 0, k}));
 
 }
 
@@ -460,7 +460,7 @@ TEST(tensor, add)
     for (unsigned i = 0; i < tShape[0]; ++i)
         for (unsigned j = 0; j < tShape[1]; ++j)
             for (unsigned k = 0; k < tShape[2]; ++k)
-                ASSERT_FLOAT_EQ(t3(i, j, k), 0.0f);
+                ASSERT_FLOAT_EQ(t3({i, j, k}), 0.0f);
 
 }
 
@@ -483,7 +483,7 @@ TEST(tensor, add_broadcast_vec)
     for (unsigned i = 0; i < t1Shape[0]; ++i)
         for (unsigned j = 0; j < t1Shape[1]; ++j)
             for (unsigned k = 0; k < t1Shape[2]; ++k)
-                ASSERT_FLOAT_EQ(t3(i, j, k), t1(i, j, k) + t2(k));
+                ASSERT_FLOAT_EQ(t3({i, j, k}), t1({i, j, k}) + t2(k));
 
 
 }
@@ -507,7 +507,7 @@ TEST(tensor, add_broadcast_mat)
     for (unsigned i = 0; i < t1Shape[0]; ++i)
         for (unsigned j = 0; j < t2Shape[0]; ++j)
             for (unsigned k = 0; k < t1Shape[2]; ++k)
-                ASSERT_FLOAT_EQ(t3(i, j, k), t1(i, 0, k) + t2(j, k));
+                ASSERT_FLOAT_EQ(t3({i, j, k}), t1({i, 0, k}) + t2({j, k}));
 
 }
 
@@ -531,7 +531,7 @@ TEST(tensor, add_broadcast_eq)
         for (unsigned j = 0; j < t2Shape[1]; ++j)
             for (unsigned k = 0; k < t1Shape[2]; ++k)
                 for (unsigned l = 0; l < t2Shape[3]; ++l)
-                    ASSERT_FLOAT_EQ(t3(i, j, k, l), t1(i, 0, k, 0) + t2(i, j, 0, l));
+                    ASSERT_FLOAT_EQ(t3({i, j, k, l}), t1({i, 0, k, 0}) + t2({i, j, 0, l}));
 
 }
 
@@ -552,7 +552,7 @@ TEST(tensor, subtract)
     for (unsigned i = 0; i < tShape[0]; ++i)
         for (unsigned j = 0; j < tShape[1]; ++j)
             for (unsigned k = 0; k < tShape[2]; ++k)
-                ASSERT_FLOAT_EQ(t1(i, j, k), 0.0f);
+                ASSERT_FLOAT_EQ(t1({i, j, k}), 0.0f);
 
 }
 
@@ -577,7 +577,7 @@ TEST(tensor, multiply)
     for (unsigned i = 0; i < tShape[0]; ++i)
         for (unsigned j = 0; j < tShape[1]; ++j)
             for (unsigned k = 0; k < tShape[2]; ++k)
-                ASSERT_FLOAT_EQ(t1(i, j, k), 1.0f);
+                ASSERT_FLOAT_EQ(t1({i, j, k}), 1.0f);
 
 }
 
@@ -598,6 +598,6 @@ TEST(tensor, divide)
     for (unsigned i = 0; i < tShape[0]; ++i)
         for (unsigned j = 0; j < tShape[1]; ++j)
             for (unsigned k = 0; k < tShape[2]; ++k)
-                ASSERT_FLOAT_EQ(t1(i, j, k), 1.0f);
+                ASSERT_FLOAT_EQ(t1({i, j, k}), 1.0f);
 
 }

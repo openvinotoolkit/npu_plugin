@@ -11,26 +11,75 @@ TEST(memory_allocator, tensor_col_major)
 
     mv::OpModel om("testModel");
     mv::DataModel dm(om);
-    mv::Shape s({4, 4, 2});
-    mv::Order order = mv::OrderType::ColumnMajor;
+    mv::Shape s({2, 2});
+    mv::Order order = mv::OrderType::RowMajor;
     auto t = dm.defineTensor("testTensor", s, mv::DTypeType::Float16, order, mv::utils::generateSequence<double>(s.totalSize()));
+
     mv::MemoryAllocator m("m1", 10000, order);
-    std::vector<std::size_t> paddings(s.ndims());
-    paddings[0] = 1;
-    paddings[1] = 1;
-    paddings[2] = 1;
-    std::vector<std::size_t> strides;
-    //m.writeStrides(paddings, s, strides);
+    std::vector<std::size_t> padding1(s.ndims()), padding2(s.ndims());
+    padding1[0] = 1;
+    padding1[1] = 1;
+    padding2[0] = 2;
+    padding2[1] = 2;
 
-    m.allocate(t, 0, paddings);
+    auto buf = m.allocate(t, 0);
+    m.padLeft(buf, padding1);
 
-    for (std::size_t i = 0; i < strides.size(); ++i)
-        std::cout << strides[i] << std::endl;
+    for (auto it = m.bufferBegin(0); it != m.bufferEnd(0); ++it)
+        std::cout << it->second->toString(true) << std::endl;
 
-    std::cout << m.bufferBegin(0)->second->toString() << std::endl;
+    /**m.padLeft(buf, padding2);
+
+    for (auto it = m.bufferBegin(0); it != m.bufferEnd(0); ++it)
+        std::cout << it->second->toString(true) << std::endl;*/
+
+    m.padRight(buf, padding2);
+
+    /*for (auto it = m.bufferBegin(0); it != m.bufferEnd(0); ++it)
+        std::cout << it->second->toString(true) << std::endl;
+
+    m.padRight(buf, padding2);*/
+
+    for (auto it = m.bufferBegin(0); it != m.bufferEnd(0); ++it)
+        std::cout << it->second->toString(true) << std::endl;
+    
+}
+
+TEST(memory_allocator, slave_tensor_col_major)
+{
+
+    mv::OpModel om("testModel");
+    mv::DataModel dm(om);
+    mv::Shape masterShape({4, 4});
+    mv::Shape slaveShape({2, 2});
+    mv::Order order = mv::OrderType::RowMajor;
+    auto tMaster = dm.defineTensor("masterTensor", masterShape, mv::DTypeType::Float16, order, 
+        mv::utils::generateSequence<double>(masterShape.totalSize()));
+    auto tSlave = dm.defineTensor("slaveShape", slaveShape, mv::DTypeType::Float16, order,
+        mv::utils::generateSequence<double>(slaveShape.totalSize()));
+
+
+    mv::MemoryAllocator m("m1", 10000, order);
+    auto masterBuf = m.allocate(tMaster, 0);
+    auto slaveBuf = m.allocate(tSlave, masterBuf, {0, 0}, {2, 2});
+    
+    std::cout << masterBuf->second->toString(true) << std::endl;
+    std::cout << slaveBuf->second->toString(true) << std::endl;
+
+    std::cout << tMaster->toString() << std::endl;
+    std::cout << tSlave->toString() << std::endl;
+
+    for (unsigned i = 0; i < tSlave->getShape().totalSize(); ++i)
+        std::cout << tSlave->at(i) << std::endl;
+
+    tSlave->at({1, 1}) = 30.0;
+    
+    std::cout << masterBuf->second->toString(true) << std::endl;
+    std::cout << slaveBuf->second->toString(true) << std::endl;
 
 }
 
+/*
 TEST(memory_allocator, tensor_col_major_planar)
 {
 
@@ -88,3 +137,4 @@ TEST(memory_allocator, tensor_row_major_planar)
 
 }
 
+*/

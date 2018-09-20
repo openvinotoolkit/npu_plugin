@@ -144,7 +144,8 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
     unsigned stageIdx = stage->getIdx();
     if(pad.size() == 0)
         pad = std::vector<size_t>(tensor->getShape().ndims(), 0);
-    auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, stageIdx, pad);
+    auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, stageIdx);
+    (*memoryAllocators_)[allocatorName]->padRight(buf, pad);
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {
         tensor->set<std::string>("allocator", allocatorName);

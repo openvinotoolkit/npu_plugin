@@ -3,6 +3,7 @@
 
 #include <map>
 #include <vector>
+#include <deque>
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
@@ -37,8 +38,14 @@ namespace mv
 
         };
 
-        struct MemoryBuffer
+        struct MemoryBuffer;
+        using BufferIterator = std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>::iterator;
+
+        class MemoryBuffer
         {
+
+            friend class MemoryAllocator;
+
             /**
              * @brief Value specifing the start location of the buffer relatively to the beginning
              * of the whole memory block specified by an allocator
@@ -50,42 +57,64 @@ namespace mv
              */
             std::size_t size;
             /**
-             * @brief Values specifing the displacement between consequent storage memory blocks owned by the buffer
+             * @brief Vector of values specifing lenghts of the gaps between consequent storage memory blocks owned by the buffer. The first
+             * element specifies the lenght of the gap between the beginning of the buffer (specified by the offset) and the beginning of the
+             * first block of data. The last element specifies the lenght of gap between the end of the last memory block and the end of the
+             * buffer (specified by the offest increased by the size).
              */
-            std::vector<size_t> strides;
+            std::deque<size_t> strides;
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */
-            std::size_t block_size;
+            std::size_t blockSize;
             /**
-             * @brief Value specifing the size of the storage memory blocks owned by the buffer
+             * @brief Value specifing the number of the storage memory blocks owned by the buffer
              */
-            std::size_t block_num;
-            /**
-             * @brief Value specifing the displacement between the start location of the buffer and the beginning of
-             * the first memory storage block
-             */
-            std::size_t left_pad;
-            /**
-             * @brief Value specifing the displacement between the end of last memory storage block and the end location of the buffer.
-             */
-            std::size_t right_pad;
+            std::size_t blockNum;
             /**
              * @brief Tensor allocated in the buffer
              */
             Data::TensorIterator data;
+            /**
+             * @brief Index of the stage for which the buffer is defined
+             */
+            std::size_t stage;
+            /**
+             * @brief Left-top padding of the dimensions of the tensor allocted in the buffer
+             */
+            std::vector<std::size_t> leftPad;
+            /**
+             * @brief Right-bottom padding of the dimensions of the tensor allocted in the buffer
+             */
+            std::vector<std::size_t> rightPad;
+            /**
+             * @brief Iterator pointing to the buffer that owns memory space overallocated by this buffer
+             */
+            BufferIterator masterBuffer;
+            /**
+             * @brief List of iterators pointing to buffers that overallocates memory space owned by this buffer
+             */
+            std::vector<BufferIterator> slaveBuffers;
 
+        public:
+
+            std::size_t getOffset() const;
+            std::size_t getSize() const;
+            const std::deque<size_t>& getStrides() const;
+            std::size_t getBlockSize() const;
+            Data::TensorIterator getData() const;
+            std::size_t getStage() const;
+            const std::vector<std::size_t>& getLeftPad() const;
+            const std::vector<std::size_t>& getRightPad() const;
+            BufferIterator getMaster() const;
+            const std::vector<BufferIterator>& getSlaves() const;
             bool operator<(const MemoryBuffer& other) const;
+            bool operator==(const MemoryBuffer& other) const;
             std::string toString(bool printValues = false) const;
-            bool operator==(const MemoryBuffer& other){
-                // TODO: Also check length and other things.
-                return this->offset == other.offset;
-                
-            };
 
         };
 
-        using BufferIterator = std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>::iterator;
+        
 
     private:
 
@@ -112,26 +141,57 @@ namespace mv
         std::map<unsigned, std::map<Data::TensorIterator,  std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>> entries_;
 
         void placeBuffers_(unsigned stageIdx, BufferIterator first, BufferIterator last);
+        std::deque<std::size_t> computeStrides_(const std::vector<std::size_t>& leftPadding, 
+            const std::vector<std::size_t>& rightPadding, const mv::Shape& shape);
+        long computeStrides_(std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding, 
+            const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides);
+        void padBuffer_(BufferIterator buffer);
 
     public:
 
         MemoryAllocator(std::string name, std::size_t size, Order order);
-        mv::MemoryAllocator::BufferIterator allocate(Data::TensorIterator tensor, std::size_t stageIdx, 
-            const std::vector<std::size_t>& paddings);
+        
+        /**
+         * @brief Allocate the tensor in a new buffer for the particular stage
+         * 
+         * @param tensor Tensor to be allocated
+         * @param stageIdx Stage identifier
+         * @return BufferIterator Newly created buffer that contains the tensor
+         */
+        BufferIterator allocate(Data::TensorIterator tensor, std::size_t stageIdx);
+
+        /**
+         * @brief Allocate the tensor in memory space already allocated by another buffer. The input tensor shape padded by values
+         * specified by leftPadding and rightPadding has to match the shape of the tensor that is allocated in this buffer. The shape
+         * dimensionality, data order and data type of newly allocated tensor has to match the tensor already allocated.
+         * 
+         * @param tensor Tensor to be allocated
+         * @param buffer Buffer to be overallocated
+         * @param leftPadding Padding (left-top) between tensor to be allocated and the tensor contained by the given buffer
+         * @param rightPadding Padding (right-bottom) between tensor to be allocated and the tensor contained by the given buffer
+         * @return BufferIterator Newly created buffer of the same offset and size that overlaps the memory space owned by the input buffer
+         */
+        BufferIterator allocate(Data::TensorIterator tensor, BufferIterator buffer, const std::vector<std::size_t>& leftPadding, 
+            const std::vector<std::size_t>& rightPadding);
+
         bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
         void deallocateAll(std::size_t stageIdx);
+
+        void padLeft(BufferIterator buffer, const std::vector<std::size_t>& padding);
+        void padRight(BufferIterator buffer, const std::vector<std::size_t>& padding);
+
         long long unsigned freeSpace(std::size_t stageIdx) const;
         long long unsigned usedSpace(std::size_t stageIdx) const;
+        
         std::string toString() const override;
         //mv::json::Value toJSON() const override;
+        
         BufferIterator bufferBegin(std::size_t stageIdx);
         BufferIterator bufferEnd(std::size_t stageIdx);
         BufferIterator getBuffer(std::size_t stageIdx, Data::TensorIterator tensor);
+        
         virtual std::string getLogID() const override; 
         
-        long writeStrides(const std::vector<std::size_t>& p, const mv::Shape& s, std::vector<std::size_t>& strides);
-        long recursiveWriteStrides(unsigned i, const mv::Shape& d, const std::vector<std::size_t>& p, 
-            std::vector<std::size_t>& strides);
     
     };
 
