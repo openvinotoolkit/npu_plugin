@@ -283,8 +283,11 @@ namespace mv
             unsigned computeLocalLineStride(unsigned input_width);
             unsigned computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, float actual_output_channels, std::vector<unsigned>& modes);
             unsigned computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode);
-            unsigned computeLinesPerChannel(unsigned input_channels, unsigned input_width, unsigned mode);
-            unsigned computeBytesPerLine(unsigned input_width);
+            unsigned computeLinesPerChannel(unsigned input_channels, unsigned local_line_stride, unsigned mode);
+            unsigned getBytesPerLine();
+            unsigned getWordsPerLine();
+            unsigned getMaxNumberOfLinesInDataStorage();
+
     };
 }
 

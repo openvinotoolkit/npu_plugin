@@ -377,10 +377,21 @@ unsigned mv::Nce1::getActualOutputHeight(unsigned output_height)
     return output_height;
 }
 
+unsigned mv::Nce1::getBytesPerLine()
+{
+    return 128 / 8; // Rams are organized in rows of 128bits, courtesy of the docs
+}
+
+unsigned mv::Nce1::getWordsPerLine()
+{
+    return getBytesPerLine() / input_data_size;
+}
+
 unsigned mv::Nce1::computeLocalLineStride(unsigned input_width)
 {
-    unsigned pixels_per_line = 128 / 8 * input_data_size;
-    return (input_width + (pixels_per_line - 1)) / pixels_per_line;
+    unsigned pixels_per_input_line = input_width * input_data_size;
+    unsigned pixels_per_input_line_rounded_up = mv::round_up(pixels_per_input_line, 8);
+    return pixels_per_input_line_rounded_up / 8; // equation courtesy of the docs
 }
 
 unsigned mv::Nce1::computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, float actual_output_channels, std::vector<unsigned>& modes)
@@ -404,23 +415,17 @@ unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsi
     return input_channels / ram_blocks;
 }
 
-unsigned mv::Nce1::computeBytesPerLine(unsigned input_width)
+unsigned mv::Nce1::getMaxNumberOfLinesInDataStorage()
 {
-    return mv::round_up(input_width*input_data_size, 16);
+    return data_storage_dimension / getBytesPerLine(); //both quantities are in bytes, the result is adimensional (# of lines)
 }
 
-unsigned mv::Nce1::computeLinesPerChannel(unsigned input_channels, unsigned input_width, unsigned mode)
+unsigned mv::Nce1::computeLinesPerChannel(unsigned input_channels, unsigned local_line_stride, unsigned mode)
 {
+    unsigned max_lines_in_data_storage = getMaxNumberOfLinesInDataStorage();
+    unsigned max_lines_per_ram_block = max_lines_in_data_storage / dpe_x_output_channel.at(mode);
 
-    /*
-     *    bytesPerLine = ((iX * BYTES_PER_PIXEL[dataType] + 15) // 16) * 16
-   128K / (128*64)
-   linesPerChannel = min(CNNHW_INTERNAL_MEMORY_SIZE // (bytesPerLine * iZ), iY, 2**9)
-   */
+    unsigned channels_per_ram_block = computeInputChannelsPerRamBlock(input_channels, mode);
+    return max_lines_per_ram_block / (local_line_stride * channels_per_ram_block);
 
-    unsigned ram_blocks = dpe_x_output_channel.at(mode);
-    unsigned block_size = data_storage_dimension / ram_blocks; //In bytes
-    unsigned bytes_per_channel = block_size / input_channels;
-    unsigned bytes_per_line = computeBytesPerLine(input_width);
-    return bytes_per_channel / bytes_per_line;
 }
