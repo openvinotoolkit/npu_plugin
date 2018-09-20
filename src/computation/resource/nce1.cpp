@@ -389,8 +389,7 @@ unsigned mv::Nce1::getWordsPerLine()
 
 unsigned mv::Nce1::computeLocalLineStride(unsigned input_width)
 {
-    unsigned pixels_per_input_line = input_width * input_data_size;
-    unsigned pixels_per_input_line_rounded_up = mv::round_up(pixels_per_input_line, 8);
+    unsigned pixels_per_input_line_rounded_up = mv::round_up(input_width, 8);
     return pixels_per_input_line_rounded_up / 8; // equation courtesy of the docs
 }
 
