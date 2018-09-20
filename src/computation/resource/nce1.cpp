@@ -387,12 +387,14 @@ unsigned mv::Nce1::computeDescriptorSplits(unsigned splits_over_height, unsigned
 {
     unsigned to_return = splits_over_height * splits_over_input_channels;
     unsigned n = modes.size();
+    unsigned sum = 0;
     for(unsigned i = 0; i < n; ++i)
     {
         unsigned output_channel_performed = output_channel_performed_one_shot.at(modes[i]);
-        to_return += ceil(actual_output_channels / output_channel_performed);
+        sum += ceil(actual_output_channels / output_channel_performed);
         actual_output_channels -= output_channel_performed;
     }
+    to_return *= sum;
     return to_return;
 }
 
