@@ -253,7 +253,7 @@ namespace mv
                 totalSize += adjustment;
             }
         }
-        catch(mv::ArgumentError)
+        catch(mv::IndexError&)
         {
             std::cout << "Warning: No Constant Memory Present." << std::endl;
         }
@@ -694,7 +694,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError&){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -991,7 +991,7 @@ namespace mv
                     running_total += 2;
                 }
             }
-        }catch(mv::ArgumentError){
+        }catch(mv::IndexError&){
             std::cout << "Warning: No Constant Memory Present." << std::endl;
         }
     }
