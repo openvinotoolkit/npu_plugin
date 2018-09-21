@@ -9,10 +9,10 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        printf("Serialization Warning: Manual Override of PReLU Software layer OrderType\n");
-        this->output->setOrder(OrderType::RowMajor);
-        this->input->setOrder(OrderType::RowMajor);
-        this->neg_slope->setOrder(OrderType::RowMajor);
+        //printf("Serialization Warning: Manual Override of PReLU Software layer OrderType\n");
+        //this->output->setOrder(OrderType::RowMajor);
+        //this->input->setOrder(OrderType::RowMajor);
+        //this->neg_slope->setOrder(OrderType::RowMajor);
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);

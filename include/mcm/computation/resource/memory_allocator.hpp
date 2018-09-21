@@ -133,7 +133,7 @@ namespace mv
         /**
          * @brief Order of 1-dimensional representations of multidimensional tensors allocated by the allocator
          */
-        Order order_;
+        //Order order_;
 
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
@@ -141,9 +141,9 @@ namespace mv
         std::map<unsigned, std::map<Data::TensorIterator,  std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>> entries_;
 
         void placeBuffers_(unsigned stageIdx, BufferIterator first, BufferIterator last);
-        std::deque<std::size_t> computeStrides_(const std::vector<std::size_t>& leftPadding, 
+        std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding, 
             const std::vector<std::size_t>& rightPadding, const mv::Shape& shape);
-        long computeStrides_(std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding, 
+        long computeStrides_(const Order& order, std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding, 
             const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides);
         void padBuffer_(BufferIterator buffer);
 

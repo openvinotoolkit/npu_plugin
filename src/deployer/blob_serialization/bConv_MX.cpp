@@ -455,11 +455,11 @@ namespace mv
             this->dilation = 1; // HARDCODED.
 
 
-            printf("Serializer Info: Manual Override of Convolution Software layer order\n");
-            this->output->setOrder(OrderType::RowMajor);
-            this->input->setOrder(OrderType::RowMajor);
+            //printf("Serializer Info: Manual Override of Convolution Software layer order\n");
+            //this->output->setOrder(OrderType::RowMajor);
+            //this->input->setOrder(OrderType::RowMajor);
             //this->taps->setOrder(Order::TBDLayout);
-            this->taps->setOrder(OrderType::RowMajor);
+            //this->taps->setOrder(OrderType::RowMajor);
         }
     }
 }

@@ -16,14 +16,14 @@ namespace mv
         .setFunc(allocatePopulatedTensorsFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
-            ""
+            "Perform allocation of all populated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateUnpopulatedTensors)
         .setFunc(allocateUnpopulatedTensorsFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
-            ""
+            "Perform allocation of all unpopulated tensors using memory allocator"
         );
 
     }

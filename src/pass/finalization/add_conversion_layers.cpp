@@ -25,8 +25,11 @@ namespace mv
 //NOTE: This should not be done in such hardcoded way.
 void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    mv::DataModel dm(model);
-    mv::OpModel om(model);
+
+    using namespace mv;
+
+    DataModel dm(model);
+    OpModel om(model);
 
     auto flowIt = dm.flowBegin();
 
@@ -36,7 +39,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         auto sink = flowIt.sink();
 
         //Mandatory check, otherwise the loop could be potentially infinite
-        if(source->getOpType() == mv::OpType::Conversion || sink->getOpType() == mv::OpType::Conversion)
+        if(source->getOpType() == OpType::Conversion || sink->getOpType() == OpType::Conversion)
         {
             ++flowIt;
             continue;
@@ -50,23 +53,23 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         int sourceIsHw = source->get<int>("NCE1_Compatible");
         int sinkIsHw = sink->get<int>("NCE1_Compatible");
         bool conversionNeeded = false;
-        mv::Order targetOrder = mv::OrderType::ColumnMajor;
+        Order targetOrder = OrderType::ColumnMajor;
 
         //Case 1
         if(sourceIsHw && !sinkIsHw)
         {
-            targetOrder = mv::OrderType::RowMajor;
+            targetOrder = OrderType::RowMajor;
             conversionNeeded = true;
         }
 
         //Case 2
         if(!sourceIsHw && sinkIsHw)
         {
-            targetOrder = mv::OrderType::RowMajorPlanar;
+            targetOrder = OrderType::RowMajorPlanar;
             conversionNeeded = true;
         }
 
-        if(conversionNeeded && source->getOpType() == mv::OpType::Constant)
+        if(conversionNeeded && source->getOpType() == OpType::Constant)
         {
             //No need for a conversion layer in this case, just reorder the tensor in place
             flowIt->getTensor()->setOrder(targetOrder);
@@ -76,7 +79,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
 
         if(conversionNeeded)
         {
-            mv::Data::TensorIterator conversionOutputTensor = om.conversion(flowIt->getTensor(), targetOrder);
+            Data::TensorIterator conversionOutputTensor = om.conversion(flowIt->getTensor(), targetOrder);
 
             unsigned i = 0;
             for(; i < sink->inputSlots(); ++i)
@@ -90,7 +93,17 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         }
         else
         {
+
+            // Align memory order when no conversion is needed
+            /// Software ops
+            if (!sourceIsHw && !sinkIsHw)
+                flowIt->getTensor()->setOrder(OrderType::RowMajor);
+            // Hardware ops
+            if (sourceIsHw && sinkIsHw)
+                flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+
             ++flowIt;
+        
         }
     }
 
