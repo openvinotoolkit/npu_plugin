@@ -111,7 +111,7 @@ bool mv::Nce1::check_min_lines_constraint_(mv::ConvolutionParameters param)
 
 bool mv::Nce1::check_coefficient_size_constraint(unsigned kernel_x, unsigned kernel_y, unsigned input_channels, unsigned output_channel_performed)
 {
-    unsigned coeff_size = kernel_x * kernel_y * input_channels * getActualOutputChannels(output_channel_performed) * input_data_size;
+    unsigned coeff_size = kernel_x * kernel_y * input_channels * computeActualOutputChannels(output_channel_performed) * input_data_size;
     return coeff_size > coefficients_storage_dimension;
 }
 
@@ -175,7 +175,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     }
 
     // n of input split required (padded to next pow of 2: WHY?)
-    unsigned n_split_c = getActualInputChannelSplits(param.input_channels/max_ic);
+    unsigned n_split_c = computeActualInputChannelSplits(param.input_channels/max_ic);
     unsigned actual_ic_per_split = int(ceil((double)(param.input_channels)/n_split_c));
 
     if((n_split_c < 2) || (actual_ic_per_split % ramBlocks) || (!support_split_over_c))
@@ -294,11 +294,11 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
 
     //Aligning parameters to current mode
     mv::ConvolutionParameters parameters = a.parameters;
-    parameters.input_channels = getActualInputChannels(parameters.input_channels, mode);
+    parameters.input_channels = computeActualInputChannels(parameters.input_channels, mode);
 
     //These two actually can be done also outside of the function since they do not depend on the mode. But for now they are keeping them here.`
-    parameters.output_channels = getActualOutputChannels(parameters.output_channels);
-    parameters.input_width = getActualInputWidth(parameters.input_width);
+    parameters.output_channels = computeActualOutputChannels(parameters.output_channels);
+    parameters.input_width = computeActualInputWidth(parameters.input_width);
 
     bool need_split_by_width_or_input_channel = check_min_lines_constraint_(parameters);
     bool need_split_by_input_channel = check_coefficient_size_constraint_(parameters, output_channel_performed) | check_coefficient_line_constraint_(parameters, mode);
@@ -336,43 +336,43 @@ unsigned mv::Nce1::getSplitsOverH(unsigned total_memory_occupied_by_tensors)
 
 
 //Padding functions
-unsigned mv::Nce1::getActualInputChannels(unsigned input_channels, unsigned mode)
+unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels, unsigned mode)
 {
     return mv::round_up(input_channels, dpe_x_output_channel.at(mode));
 }
 
 //Most lazy and safe overload ever.
-unsigned mv::Nce1::getActualInputChannels(unsigned input_channels)
+unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels)
 {
     return mv::round_up(input_channels, 16);
 }
 
-unsigned mv::Nce1::getActualOutputChannels(unsigned output_channels)
+unsigned mv::Nce1::computeActualOutputChannels(unsigned output_channels)
 {
     return mv::round_up(output_channels, 8);
 }
 
-unsigned mv::Nce1::getActualInputWidth(unsigned input_width)
+unsigned mv::Nce1::computeActualInputWidth(unsigned input_width)
 {
      return mv::round_up(input_width, 8);
 }
 
-unsigned mv::Nce1::getActualInputHeight(unsigned input_height)
+unsigned mv::Nce1::computeActualInputHeight(unsigned input_height)
 {
     return input_height;
 }
 
-unsigned mv::Nce1::getActualInputChannelSplits(unsigned splits)
+unsigned mv::Nce1::computeActualInputChannelSplits(unsigned splits)
 {
      return mv::next_greater_power_of_2(splits);
 }
 
-unsigned mv::Nce1::getActualOutputWidth(unsigned output_width)
+unsigned mv::Nce1::computeActualOutputWidth(unsigned output_width)
 {
     return output_width;
 }
 
-unsigned mv::Nce1::getActualOutputHeight(unsigned output_height)
+unsigned mv::Nce1::computerActualOutputHeight(unsigned output_height)
 {
     return output_height;
 }

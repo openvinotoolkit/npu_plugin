@@ -51,17 +51,17 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         size_t input_height = input_tensor_dimension[1];
         size_t input_channels = input_tensor_dimension[2];
 
-        size_t actual_input_width = nce.getActualInputWidth(input_width);
-        size_t actual_input_height = nce.getActualInputHeight(input_height);
-        size_t actual_input_channels = nce.getActualInputChannels(input_channels);
+        size_t actual_input_width = nce.computeActualInputWidth(input_width);
+        size_t actual_input_height = nce.computeActualInputHeight(input_height);
+        size_t actual_input_channels = nce.computeActualInputChannels(input_channels);
 
         size_t output_width = output_tensor_dimension[0];
         size_t output_height = output_tensor_dimension[1];
         size_t output_channels = output_tensor_dimension[2];
 
-        size_t actual_output_width = nce.getActualOutputWidth(output_width);
-        size_t actual_output_height = nce.getActualOutputHeight(output_height);
-        size_t actual_output_channels = nce.getActualOutputChannels(output_channels);
+        size_t actual_output_width = nce.computeActualOutputWidth(output_width);
+        size_t actual_output_height = nce.computerActualOutputHeight(output_height);
+        size_t actual_output_channels = nce.computeActualOutputChannels(output_channels);
 
         //God please forgive me for the magic numbers
         mv::dynamic_vector<size_t> input_tensor_paddings(3);

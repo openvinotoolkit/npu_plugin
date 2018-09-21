@@ -266,18 +266,16 @@ namespace mv
             bool check_coefficient_size_constraint(unsigned kernel_x, unsigned kernel_y, unsigned input_channels, unsigned output_channel_performed);
             bool check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_x, unsigned kernel_y, int mode);
             bool check_channels_per_ram_block(unsigned input_channels, int mode);
-            unsigned getSplitsOverH(unsigned total_memory_occupied_by_tensors);
 
             //Padding helper functions
-            unsigned getActualInputChannels(unsigned input_channels, unsigned mode);
-            unsigned getActualInputChannels(unsigned input_channels);
-            unsigned getActualInputWidth(unsigned input_width);
-            unsigned getActualInputHeight(unsigned input_height);
-            unsigned getActualInputChannelSplits(unsigned splits);
-
-            unsigned getActualOutputWidth(unsigned output_width);
-            unsigned getActualOutputHeight(unsigned output_height);
-            unsigned getActualOutputChannels(unsigned output_channels);
+            unsigned computeActualInputChannels(unsigned input_channels, unsigned mode);
+            unsigned computeActualInputChannels(unsigned input_channels);
+            unsigned computeActualInputWidth(unsigned input_width);
+            unsigned computeActualInputHeight(unsigned input_height);
+            unsigned computeActualInputChannelSplits(unsigned splits);
+            unsigned computeActualOutputWidth(unsigned output_width);
+            unsigned computerActualOutputHeight(unsigned output_height);
+            unsigned computeActualOutputChannels(unsigned output_channels);
 
             //Other helper functions
             unsigned computeLocalLineStride(unsigned input_width);
