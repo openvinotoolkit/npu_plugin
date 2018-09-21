@@ -92,7 +92,6 @@ namespace mv
                 this->descriptors[i].coeffChStrIn = weight_4dshape[4]*2;
                 int inChans = weight_4dshape[1];
 
-                std::cout << "coeffChStrOut: "<< this->radixX << "*"<< this->radixY <<"*"<< inChans<< "*"<<  2<< "*" << 8 << std::endl;
                 this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
                 this->descriptors[i].outLnStr = outputBlobTensor.strideY;
@@ -190,7 +189,7 @@ namespace mv
             // printf("Serializing a HW Conv\n");
 
             int cmxSize = 256*1024;
-            int descriptors_count = 1;
+            int splits_over_H = 1, splits_over_oC = 1;
 
             if (! it->hasAttr("NCE1_AssignedCMX"))
             {
@@ -203,14 +202,25 @@ namespace mv
                 cmxSize = 256*1024;
             }
 
-            if (! it->hasAttr("NCE1_DescriptorSplits"))
+            if (! it->hasAttr("NCE1_SplitsOverH"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_DescriptorSplits'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverH'. Defaulting to 1\n");
             }
             else
             {
-                descriptors_count = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                splits_over_H = it->getAttr("NCE1_SplitsOverH").getContent<int>();
             }
+
+            if (! it->hasAttr("NCE1_SplitsOverC"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverC'. Defaulting to 1\n");
+            }
+            else
+            {
+                splits_over_oC = it->getAttr("NCE1_SplitsOverC").getContent<int>();
+            }
+
+            int descriptors_count = splits_over_oC * splits_over_H;
 
             if (! it->hasAttr("NCE1_StreamingMask"))
             {
@@ -367,143 +377,156 @@ namespace mv
                 localCS = it->getAttr("NCE1_LocalChannelStride").getContent<dynamic_vector<unsigned>>();
             }
 
-            for (unsigned i = 0; i != this->desc_count; i++)
+
+            int splits_over_iC= 1;
+            int i;
+            for (unsigned oc = 0; oc != splits_over_oC; oc++)
             {
-                this->descriptors[i] =  cnnConvolutionPoolStructure();
-
-                // Relations to other Descriptors
-                if (i+1 == this->desc_count)
+                for (unsigned ic = 0; ic != splits_over_iC; ic++)
                 {
-                    this->descriptors[i].Line0.linkAddress = 0; // Last.
-                }else{
-                    this->descriptors[i].Line0.linkAddress = 32*4;
-                }
-                // printf("linkAddress: %d\n", 32*4);
+                    for (unsigned h = 0; h != splits_over_H; h++)
+                    {
 
-                this->descriptors[i].Line0.id = 0;
+                        i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
 
-                // Layer Meta Information - Layout & DataTypes
-                this->descriptors[i].Line0.type = NCE1_CONV;
-                this->descriptors[i].Line0.interleavedInput = 0;
-                this->descriptors[i].Line0.interleavedOutput = 0;
-                this->descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
-                this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
+                        this->descriptors[i] =  cnnConvolutionPoolStructure();
+
+                        // Relations to other Descriptors
+                        if (i+1 == this->desc_count)
+                        {
+                            this->descriptors[i].Line0.linkAddress = 0; // Last.
+                        }else{
+                            this->descriptors[i].Line0.linkAddress = 32*4;
+                        }
+                        // printf("linkAddress: %d\n", 32*4);
+
+                        this->descriptors[i].Line0.id = 0;
+
+                        // Layer Meta Information - Layout & DataTypes
+                        this->descriptors[i].Line0.type = NCE1_CONV;
+                        this->descriptors[i].Line0.interleavedInput = 0;
+                        this->descriptors[i].Line0.interleavedOutput = 0;
+                        this->descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
+                        this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
 
 
-                // Standard Fields for Convolution
-                this->descriptors[i].kernelWidth = this->taps->getShape()[2] -1;
-                this->descriptors[i].kernelHeight = this->taps->getShape()[3] -1;
+                        // Standard Fields for Convolution
+                        this->descriptors[i].kernelWidth = this->taps->getShape()[2] -1;
+                        this->descriptors[i].kernelHeight = this->taps->getShape()[3] -1;
 
-                this->descriptors[i].chStride = stride -1;  // Stride of Kernel (Square only)
+                        this->descriptors[i].chStride = stride -1;  // Stride of Kernel (Square only)
 
-                if (padEn > 0)
-                {
-                    this->descriptors[i].padEn = 1;
-                }
-                else
-                {
-                    this->descriptors[i].padEn = 0;
-                }
+                        if (padEn > 0)
+                        {
+                            this->descriptors[i].padEn = 1;
+                        }
+                        else
+                        {
+                            this->descriptors[i].padEn = 0;
+                        }
 
-                this->descriptors[i].padType = 0;   // Zero Padding
+                        this->descriptors[i].padType = 0;   // Zero Padding
 
-                this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
-                unsigned int original_height = this->input->getShape()[1];
-                unsigned int current_height;
-                if (this->desc_count > 1){
-                    // TODO: Different types of split?
-                    if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                        int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
-                        current_height = ceil(original_height/(float)this->desc_count) - surplus;
-                    }else{
-                        current_height = ceil(original_height/(float)this->desc_count);
+                        this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
+
+                        unsigned int original_height = this->input->getShape()[1];
+                        unsigned int current_height;
+                        if (splits_over_H > 1){
+                            // TODO: Different types of split?
+                            if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
+                                int surplus = ceil(original_height/(float)splits_over_H)*splits_over_H - original_height;
+                                current_height = ceil(original_height/(float)splits_over_H) - surplus;
+                            }else{
+                                current_height = ceil(original_height/(float)splits_over_H);
+                            }
+                        }else{
+                            current_height = original_height;
+                        }
+
+                        this->descriptors[i].inputHeight =  current_height - 1;
+                        this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
+
+                        this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
+
+                        // Myriad X DPU Assignment & Execution Configuration
+                        this->descriptors[i].Line0.mode = this->DPUmodeVector[i];
+                        this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
+                        this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
+
+                        this->descriptors[i].chPerRamBlock = chPerRamBlock[i] -1;        // Input Channels per Ram Block
+
+
+                        // Myriad X Compensation Fields
+                        this->descriptors[i].topOutputJunk = topJunk;
+                        this->descriptors[i].bottomOutputJunk = bottomJunk;
+
+                        this->descriptors[i].localLs =  localLS;
+                        this->descriptors[i].localCs =  localCS[i];
+
+                        this->descriptors[i].linesPerCh = LPC[i] -1;
+
+                        this->descriptors[i].rud = 0;   // Re-Use bit
+
+                        this->descriptors[i].minLines = minLines[i] - 1;     // Minimum lines of data required to carry out function
+
+                        this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
+                        this->descriptors[i].css = (this->descriptors[i].kernelWidth + 1) * (this->descriptors[i].kernelHeight + 1) -1 ;
+                        this->descriptors[i].outputX = this->output->getShape()[0];
+
+                        // Myriad X - Splitting groups
+                        this->descriptors[i].sohGroup = h;
+                        this->descriptors[i].sodGroup = 0;
+
+                        // Fused ReLU
+                        this->descriptors[i].t0 = 0;
+                        this->descriptors[i].a0 = 0;
+                        this->descriptors[i].a1 = 0;
+                        this->descriptors[i].reluxEn = 0;
+                        this->descriptors[i].reluEn = 0;
+
+                        // Fused Pooling
+                        if (0)
+                        {
+                            this->descriptors[i].Line0.type = NCE1_CONV_POOL;
+                        }
+                        this->descriptors[i].avgPoolX = 0;
+                        this->descriptors[i].poolType = 0;
+                        this->descriptors[i].poolEn = 0;
+                        this->descriptors[i].poolKernelHeight = 0;
+                        this->descriptors[i].poolKernelWidth = 0;
+
+                        // Reserved fields of the hw descriptor. Leave as zero or live in eternal fear.
+                        this->descriptors[i].Line0.rsvd1 = 0;
+                        this->descriptors[i].rsvd2 = 0;
+                        this->descriptors[i].rsvd3 = 0;
+                        this->descriptors[i].rsvd4 = 0;
+                        this->descriptors[i].rsvd5 = 0;
+                        this->descriptors[i].rsvd6 = 0;
+                        this->descriptors[i].rsvd7 = 0;
+                        this->descriptors[i].rsvd9 = 0;
+                        this->descriptors[i].rsvd10 = 0;
+                        this->descriptors[i].rsvd13 = 0;
+                        this->descriptors[i].rsvd8 = 0;
+
+                        // Palette for Weights Lookup (Currently Unsupported).
+                        this->descriptors[i].p0 = 0;
+                        this->descriptors[i].p1 = 0;
+                        this->descriptors[i].p2 = 0;
+                        this->descriptors[i].p3 = 0;
+                        this->descriptors[i].p4 = 0;
+                        this->descriptors[i].p5 = 0;
+                        this->descriptors[i].p6 = 0;
+                        this->descriptors[i].p7 = 0;
+                        this->descriptors[i].p8 = 0;
+                        this->descriptors[i].p9 = 0;
+                        this->descriptors[i].p10 = 0;
+                        this->descriptors[i].p11 = 0;
+                        this->descriptors[i].p12 = 0;
+                        this->descriptors[i].p13 = 0;
+                        this->descriptors[i].p14 = 0;
+                        this->descriptors[i].p15 = 0;
                     }
-                }else{
-                    current_height = original_height;
                 }
-
-                this->descriptors[i].inputHeight =  current_height - 1;
-                this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
-
-                this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
-
-                // Myriad X DPU Assignment & Execution Configuration
-                this->descriptors[i].Line0.mode = this->DPUmodeVector[i];
-                this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
-                this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
-
-                this->descriptors[i].chPerRamBlock = chPerRamBlock[i] -1;        // Input Channels per Ram Block
-
-
-                // Myriad X Compensation Fields
-                this->descriptors[i].topOutputJunk = topJunk;
-                this->descriptors[i].bottomOutputJunk = bottomJunk;
-
-                this->descriptors[i].localLs =  localLS;
-                this->descriptors[i].localCs =  localCS[i];
-
-                this->descriptors[i].linesPerCh = LPC[i] -1;
-
-                this->descriptors[i].rud = 0;   // Re-Use bit
-
-                this->descriptors[i].minLines = minLines[i] - 1;     // Minimum lines of data required to carry out function
-
-                this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
-                this->descriptors[i].css = (this->descriptors[i].kernelWidth + 1) * (this->descriptors[i].kernelHeight + 1) -1 ;
-                this->descriptors[i].outputX = this->output->getShape()[0];
-
-                // Myriad X - Splitting groups
-                this->descriptors[i].sohGroup = i;  // TODO: Looped decisions
-                this->descriptors[i].sodGroup = 0;
-
-                // Fused ReLU
-                this->descriptors[i].t0 = 0;
-                this->descriptors[i].a0 = 0;
-                this->descriptors[i].a1 = 0;
-                this->descriptors[i].reluxEn = 0;
-                this->descriptors[i].reluEn = 0;
-
-                // Fused Pooling
-                if (0)
-                {
-                    this->descriptors[i].Line0.type = NCE1_CONV_POOL;
-                }
-                this->descriptors[i].avgPoolX = 0;
-                this->descriptors[i].poolType = 0;
-                this->descriptors[i].poolEn = 0;
-                this->descriptors[i].poolKernelHeight = 0;
-                this->descriptors[i].poolKernelWidth = 0;
-
-                // Reserved fields of the hw descriptor. Leave as zero or live in eternal fear.
-                this->descriptors[i].Line0.rsvd1 = 0;
-                this->descriptors[i].rsvd2 = 0;
-                this->descriptors[i].rsvd3 = 0;
-                this->descriptors[i].rsvd4 = 0;
-                this->descriptors[i].rsvd5 = 0;
-                this->descriptors[i].rsvd6 = 0;
-                this->descriptors[i].rsvd7 = 0;
-                this->descriptors[i].rsvd9 = 0;
-                this->descriptors[i].rsvd10 = 0;
-                this->descriptors[i].rsvd13 = 0;
-                this->descriptors[i].rsvd8 = 0;
-
-                // Palette for Weights Lookup (Currently Unsupported).
-                this->descriptors[i].p0 = 0;
-                this->descriptors[i].p1 = 0;
-                this->descriptors[i].p2 = 0;
-                this->descriptors[i].p3 = 0;
-                this->descriptors[i].p4 = 0;
-                this->descriptors[i].p5 = 0;
-                this->descriptors[i].p6 = 0;
-                this->descriptors[i].p7 = 0;
-                this->descriptors[i].p8 = 0;
-                this->descriptors[i].p9 = 0;
-                this->descriptors[i].p10 = 0;
-                this->descriptors[i].p11 = 0;
-                this->descriptors[i].p12 = 0;
-                this->descriptors[i].p13 = 0;
-                this->descriptors[i].p14 = 0;
-                this->descriptors[i].p15 = 0;
             }
         } else {
             // printf("Serializing a SW Conv\n");
