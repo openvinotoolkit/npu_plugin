@@ -135,17 +135,15 @@ bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, Orde
 }
 
 mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& allocatorName, Control::StageIterator& stage,
-    Data::TensorIterator& tensor, std::vector<size_t> pad)
+    Data::TensorIterator& tensor)
 {
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
 
     unsigned stageIdx = stage->getIdx();
-    if(pad.size() == 0)
-        pad = std::vector<size_t>(tensor->getShape().ndims(), 0);
     auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, stageIdx);
-    (*memoryAllocators_)[allocatorName]->padRight(buf, pad);
+
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {
         tensor->set<std::string>("allocator", allocatorName);
@@ -157,6 +155,49 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
     log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " +
         std::to_string(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
     return buf;
+
+}
+
+mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& allocatorName, Data::BufferIterator buffer,
+    Data::TensorIterator tensor, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
+{
+
+    if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
+        throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
+
+    auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, buffer, leftPadding, rightPadding);
+
+    if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(buffer->getStage()))
+    {
+        tensor->set<std::string>("allocator", allocatorName);
+        log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " +
+            (*memoryAllocators_)[allocatorName]->toString());
+        return buf;
+    }
+
+    log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " +
+        std::to_string(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
+    return buf;
+
+}
+
+void mv::DataModel::padLeft(const std::string& allocatorName, Data::BufferIterator buffer, const std::vector<std::size_t>& padding)
+{
+
+    if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
+        throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
+    
+    (*memoryAllocators_)[allocatorName]->padLeft(buffer, padding);
+
+}
+
+void mv::DataModel::padRight(const std::string& allocatorName, Data::BufferIterator buffer, const std::vector<std::size_t>& padding)
+{
+
+    if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
+        throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
+    
+    (*memoryAllocators_)[allocatorName]->padRight(buffer, padding);
 
 }
 

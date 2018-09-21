@@ -49,9 +49,7 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         if (tIt->isPopulated())
         {
             auto stageIt = cm.getStage(0);
-
-            std::vector<size_t> paddings; //TODO: Should be filled
-            dm.allocateTensor("ConstantMemory", stageIt, tIt, paddings);
+            dm.allocateTensor("ConstantMemory", stageIt, tIt);
 
         }
     }
@@ -162,8 +160,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                 pad = max_pad;
             }
 
-            std::vector<std::size_t> paddings; //TODO: Should be filled
-            dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
+            dm.allocateTensor("IntermediateMemory", stageIt, tIt);
 
         }
 

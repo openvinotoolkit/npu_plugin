@@ -42,7 +42,11 @@ namespace mv
 
         bool addAllocator(const std::string& name, std::size_t size, Order order);
         bool hasAllocator(const std::string& name);
-        Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor, std::vector<size_t> pad);
+        Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
+        Data::BufferIterator allocateTensor(const std::string& allocatorName, Data::BufferIterator buffer, Data::TensorIterator tensor,
+            const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding);
+        void padLeft(const std::string& allocatorName, Data::BufferIterator buffer, const std::vector<std::size_t>& padding);
+        void padRight(const std::string& allocatorName, Data::BufferIterator buffer, const std::vector<std::size_t>& padding);
         bool deallocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
         void deallocateAll(const std::string& allocatorName, Control::StageIterator& stage);
         Data::BufferIterator bufferBegin(const std::string& allocatorName, Control::StageIterator& stage);
@@ -50,6 +54,9 @@ namespace mv
         Data::BufferIterator getBuffer(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator tensor);
 
         virtual std::string getLogID() const override;
+
+        bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
+        void deallocateAll(std::size_t stageIdx);
 
     };
 
