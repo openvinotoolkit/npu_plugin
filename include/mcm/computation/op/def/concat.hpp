@@ -11,10 +11,9 @@ namespace mv
     namespace op
     {
 
-        /// \todo Add assertions (dimensions)   
+        /// \todo Add assertions (dimensions)
         class Concat : public SinkOp, public SourceOp
         {
-
         public:
 
             Concat(const std::string &name);

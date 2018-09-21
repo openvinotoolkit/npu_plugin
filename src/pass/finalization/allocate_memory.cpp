@@ -91,37 +91,95 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
         {
 
+
+
             if (opIterator->getOpType() == OpType::Concat){
-                auto in0 = opIterator->getInputTensor(0)->getName();
-                auto in1 = opIterator->getInputTensor(1)->getName();
-                auto out = opIterator->getOutputTensor(0)->getName();
+
+                auto stageIt = cm.getStage(0);
+
+                auto in0 = opIterator->getInputTensor(0);
+                auto in1 = opIterator->getInputTensor(1);
+                auto out = opIterator->getOutputTensor(0);
 
                 // If already allocated, must be deallocated so that we can stride properly.
                 // Note: This is probably not a good long term solution as we may have
                 // requirements from two different connections, this approach only resolves one.
                 // Probably restrictions on a tensor should be attributes of that tensor.
-                if (in0.hasAttr("allocated") && in0.get<bool>("allocated") == true){
+                if (in0->hasAttr("allocated") && in0->get<bool>("allocated") == true){
                     dm.deallocateTensor("IntermediateMemory", stageIt, in0);
                 }
-                if (in1.hasAttr("allocated") && in1.get<bool>("allocated") == true){
+                if (in1->hasAttr("allocated") && in1->get<bool>("allocated") == true){
                     dm.deallocateTensor("IntermediateMemory", stageIt, in1);
                 }
-                if (out.hasAttr("allocated") && out.get<bool>("allocated") == true){
+                if (out->hasAttr("allocated") && out->get<bool>("allocated") == true){
                     dm.deallocateTensor("IntermediateMemory", stageIt, out);
                 }
 
-                // auto outputBuf = m.allocate(outputTensor, 0);
-                // auto input1Buf = m.allocate(inputTensor1, outputBuf, {0, 0, 0}, {0, 0, 2});
-                // auto input2Buf = m.allocate(inputTensor2, outputBuf, {0, 0, 2}, {0, 0, 0});
+                auto outRef = dm.allocateTensor("IntermediateMemory", stageIt, out);
 
-                // std::cout << outputBuf->second->toString(true) << std::endl;
-                // std::cout << input1Buf->second->toString(true) << std::endl;
-                // std::cout << input2Buf->second->toString(true) << std::endl;
+                //assert equal amount of dimensions and equal layouts.
 
-                dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
-                dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
-                dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
+                const std::vector<std::size_t> empty_padding = std::vector<std::size_t>(in0->getShape().ndims());
+                std::vector<std::size_t> * lhs_padding = new std::vector<std::size_t>(in0->getShape().ndims());
+                std::vector<std::size_t> * rhs_padding = new std::vector<std::size_t>(in0->getShape().ndims());
+
+
+                auto axis = opIterator->get<int>("axis");
+                unsigned int channel_index = 0;
+
+
+                std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
+
+                // TODO: I think there is a gap in funcitonality here that would make this trivial
+
+                switch(in0->getOrder())
+                {
+                    case OrderType::RowMajor:
+                    {
+                        switch(axis){
+                            case 2: // Channels
+                            {
+                                channel_index = 2;
+                            }
+                            break;
+                            default:
+                            {
+                                std::cout << "Concat not supported for this axis" << std::endl;
+                                assert(0);
+                            }
+                        }
+                    }
+                    break;
+                    default:
+                    {
+                        std::cout << "Concat not supported for this format" << std::endl;
+                        assert(0);
+                    }
+                }
+
+                auto lhs = in0->getShape()[channel_index];
+                auto rhs = in1->getShape()[channel_index];
+                lhs_padding->at(channel_index) = lhs;
+                rhs_padding->at(channel_index) = rhs;
+
+                const std::vector<std::size_t> lhs_padding_const = *lhs_padding;
+                const std::vector<std::size_t> rhs_padding_const = *rhs_padding;
+
+
+                std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
+
+                for (auto i : lhs_padding_const)
+                    if (i != 0)
+                        std::cout << "lhs_padding_const: " << i << std::endl;
+                for (auto i : rhs_padding_const)
+                    if (i != 0)
+                        std::cout << "rhs_padding_const: " << i << std::endl;
+
+                dm.allocateTensor("IntermediateMemory", outRef, in0, lhs_padding_const, empty_padding);
+                dm.allocateTensor("IntermediateMemory", outRef, in1, empty_padding, rhs_padding_const);
+
             }
+
 
 
             if (opIterator->getOpType() == OpType::Input)
@@ -169,12 +227,10 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             auto stageIt = cm.getStage(0);
 
-            int pad = 0;
-            if (conv_padding){
-                pad = max_pad;
+            if (! tIt->hasAttr("allocated") || tIt->get<bool>("allocated") == false)
+            {
+                dm.allocateTensor("IntermediateMemory", stageIt, tIt);
             }
-
-            dm.allocateTensor("IntermediateMemory", stageIt, tIt);
 
         }
 

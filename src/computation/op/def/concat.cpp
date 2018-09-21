@@ -6,11 +6,12 @@ SinkOp(OpType::Concat, 2, name),
 SourceOp(OpType::Concat, 1, name)
 {
     set<bool>("executable", true);
+    set<int>("axis", 2);
 }
 
 mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
 {
-    
+
     // Will throw on error
     validOutputDef_(idx);
 
@@ -30,6 +31,7 @@ mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
             throw(OpError(*this, "Invalid shape of the input tensor (input " + std::to_string(i) + ") - must have a dimensionality of 3, "
                 " has " + std::to_string(inputShape.ndims())));
 
+        // TODO: based on concat axis, the other dimensions should match
         if (inputShape[0] != input0Shape[0] || inputShape[1] != input0Shape[1])
             throw(OpError(*this, "Invalid shape of the input tensor (input " + std::to_string(i) + ") - inconsistent with the dimension of "
                 " the first input (input 0) "));
@@ -39,7 +41,7 @@ mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
     }
 
     return Tensor(name_ + ":0", {input0Shape[0], input0Shape[1], lastDim}, input0->getDType(), input0->getOrder());
-    
+
 }
 
 bool mv::op::Concat::isHardwarizeable(json::Object&)

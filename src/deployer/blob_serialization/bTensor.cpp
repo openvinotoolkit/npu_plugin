@@ -218,6 +218,10 @@ namespace mv
                 {
                     for(int i = 0; i != mem->getStrides().size()-1; i++)
                     {
+                        // print("Mem: ", mem->second->toString(true));
+                        for (auto i : mem->getStrides())
+                            if (i != 0)
+                                std::cout << "Stride: " << i << std::endl;
                         blk_stride = (int)mem->getStrides()[i];
                         block += (int)mem->getBlockSize();
                         if (blk_stride != 0)
@@ -287,7 +291,7 @@ namespace mv
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
-            case OrderType::ColumnMajor: 
+            case OrderType::ColumnMajor:
                 // NCE1 - Option 2
                 // COLUMN MAJOR(INTERLEAVED)
                 // I.E: X, Z, Y
