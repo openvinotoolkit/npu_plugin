@@ -89,7 +89,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     om.addAttr(convIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::UnsignedType, streaming_mask));
 
     // Compute DescriptorsSplits
-    unsigned splits_over_height = nce.getSplitsOverH(total_tensor_size);
+    unsigned splits_over_height = 1; //Until nce.getSplitsOverH(total_tensor_size) is fixed;
     om.addAttr(convIterator, "NCE1_SplitsOverH", mv::Attribute(mv::AttrType::UnsignedType, splits_over_height));
     om.addAttr(convIterator, "NCE1_SplitsOverC", mv::Attribute(mv::AttrType::UnsignedType, splits_over_input_channels));
 
