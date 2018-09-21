@@ -124,8 +124,9 @@ namespace mv
         UnsignedVec3DType,
         UnsignedVec4DType,
         FloatVecType,
+        UnsignedVecType,
+        SizeVecType,
         StringVecType
-
     };
 
     const std::map<AttrType, string> attrTypeStrings
@@ -151,6 +152,8 @@ namespace mv
         {AttrType::UnsignedVec3DType, "unsignedVec3D"},
         {AttrType::UnsignedVec4DType, "unsignedVec4D"},
         {AttrType::FloatVecType, "floatVec"},
+        {AttrType::UnsignedVecType, "unsignedVec"},
+        {AttrType::SizeVecType, "sizeVec"},
         {AttrType::StringVecType, "stringVec"}
 
     };
@@ -180,6 +183,8 @@ namespace mv
         {"unsignedVec3D", AttrType::UnsignedVec3DType},
         {"unsignedVec4D", AttrType::UnsignedVec4DType},
         {"floatVec", AttrType::FloatVecType},
+        {"unsignedVec", AttrType::UnsignedVecType},
+        {"sizeVec", AttrType::SizeVecType},
         {"stringVec", AttrType::StringVecType}
     };
 
@@ -218,6 +223,9 @@ namespace mv
     using UnsignedVector2D = Vector2D<unsigned_type>;
     using UnsignedVector3D = Vector3D<unsigned_type>;
     using UnsignedVector4D = Vector4D<unsigned_type>;
+
+    using UnsignedVector = dynamic_vector<unsigned>;
+    using SizeVector = dynamic_vector<size_t>;
 
 }
 

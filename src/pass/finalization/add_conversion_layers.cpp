@@ -43,24 +43,27 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         }
 
         //A conversion layer is needed in two cases
-        //1) HW -> SW (Target order is columnMajor)
-        //2) SW -> HW (Target order is planar)
+        //-p-> stands for a padded tensor
+        //1) HW -p-> SW (Target order is columnMajor). In this case HW -p-> CONVERSION -> SW
+        //2) SW -p-> HW (Target order is planar). In this case SW -> CONVERSION -p-> HW.
 
         //Reasonable assumption: this pass is executed after the hw marking pass.
         int sourceIsHw = source->getAttr("NCE1_Compatible").getContent<int>();
+        int sourceIsSw = !sourceIsHw;
         int sinkIsHw = sink->getAttr("NCE1_Compatible").getContent<int>();
+        int sinkIsSw = !sinkIsHw;
         bool conversionNeeded = false;
         mv::Order targetOrder = mv::Order::Unknown;
 
         //Case 1
-        if(sourceIsHw && !sinkIsHw)
+        if(sourceIsHw && sinkIsSw)
         {
             targetOrder = mv::Order::RowMajor;
             conversionNeeded = true;
         }
 
         //Case 2
-        if(!sourceIsHw && sinkIsHw)
+        if(sourceIsSw && sinkIsHw)
         {
             targetOrder = mv::Order::RowMajorPlanar;
             conversionNeeded = true;
@@ -70,18 +73,36 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         {
             //No need for a conversion layer in this case, just reorder the tensor in place
             flowIt->getTensor()->reorder(targetOrder);
+            source->removeAttr("order");
+            om.addAttr(source, "order", mv::Attribute(mv::AttrType::OrderType, targetOrder));
             ++flowIt;
             continue;
         }
 
         if(conversionNeeded)
         {
-            mv::Data::TensorIterator conversionOutputTensor = om.conversion(flowIt->getTensor(), targetOrder);
+            mv::Data::TensorIterator originalTensor = flowIt->getTensor();
+            mv::Data::TensorIterator conversionOutputTensor = om.conversion(originalTensor, targetOrder);
+
+            //If the tensor we are "splitting" through the conversion layer has paddings, they must be handled.
+            //Case1 (HW -> SW): Original tensor keeps it's padding, new tensor gets no padding
+            //Case2 (SW -> HW): New tensor needs padding, original tensor doesn't need them anymore -> Paddings must be moved
+            if(sourceIsSw && sinkIsHw)
+            {
+                if(originalTensor->hasAttr("NCE1_Paddings"))
+                {
+                    mv::SizeVector paddings = originalTensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
+                    dm.addAttr(conversionOutputTensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::SizeVecType, paddings));
+                    originalTensor->removeAttr("NCE1_Paddings");
+                }
+            }
 
             unsigned i = 0;
             for(; i < sink->inputSlots(); ++i)
                 if(sink->getInputTensor(i) == flowIt->getTensor())
                     break;
+
+            //Necessary for iterator validity despite remotion
             auto flowToEliminate = flowIt;
             ++flowIt;
             om.undefineFlow(flowToEliminate);

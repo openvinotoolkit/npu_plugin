@@ -63,6 +63,10 @@ mv::Attribute mv::Attribute::JsonAttributeFactory(mv::json::Value& value)
             return Attribute(mv::AttrType::FloatVecType, constructFloatVectorFromJson(value["content"]));
         case mv::AttrType::StringVecType:
             return Attribute(mv::AttrType::StringVecType, constructStringVectorFromJson(value["content"]));
+        case mv::AttrType::UnsignedVecType:
+            return Attribute(mv::AttrType::UnsignedVecType, constructUnsignedVectorFromJson(value["content"]));
+        case mv::AttrType::SizeVecType:
+            return Attribute(mv::AttrType::SizeVecType, constructSizeVectorFromJson(value["content"]));
         case mv::AttrType::UnknownType:
             return Attribute(mv::AttrType::UnknownType, nullptr);
     }
@@ -84,7 +88,6 @@ mv::json::Value mv::Attribute::getContentJson() const
 
     switch (attrType_)
     {
-
         case AttrType::ByteType:
             return Jsonable::toJsonValue(getContent<byte_type>());
 
@@ -141,6 +144,12 @@ mv::json::Value mv::Attribute::getContentJson() const
 
         case AttrType::UnsignedVec4DType:
             return Jsonable::toJsonValue(getContent<UnsignedVector4D>());
+
+        case AttrType::UnsignedVecType:
+            return Jsonable::toJsonValue(getContent<mv::UnsignedVector>());
+
+        case AttrType::SizeVecType:
+            return Jsonable::toJsonValue(getContent<mv::SizeVector>());
 
         case AttrType::FloatVecType:
             return Jsonable::toJsonValue(getContent<mv::dynamic_vector<float_type>>());
@@ -218,17 +227,22 @@ mv::string mv::Attribute::getContentStr() const
         case AttrType::UnsignedVec4DType:
             return Printable::toString(getContent<UnsignedVector4D>());
 
+        case AttrType::UnsignedVecType:
+            return Printable::toString(getContent<UnsignedVector>());
+
+        case AttrType::SizeVecType:
+            return Printable::toString(getContent<SizeVector>());
+
         case AttrType::FloatVecType:
             return Printable::toString(getContent<mv::dynamic_vector<float_type>>());
 
         case AttrType::StringVecType:
             return Printable::toString(getContent<mv::dynamic_vector<std::string>>());
 
-        default:
+        case AttrType::UnknownType:
             return "unknown";
-
     }
-
+    return "unknown";
 }
 
 mv::string mv::Attribute::toString() const

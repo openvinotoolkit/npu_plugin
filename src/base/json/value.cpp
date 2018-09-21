@@ -54,6 +54,13 @@ content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
 
 }
 
+mv::json::Value::Value(size_t value) :
+valueType_(JSONType::NumberInteger),
+content_(std::unique_ptr<NumberInteger>(new NumberInteger(value)))
+{
+
+}
+
 mv::json::Value::Value(const char * value) :
 valueType_(JSONType::String),
 content_(std::unique_ptr<String>(new String(value)))

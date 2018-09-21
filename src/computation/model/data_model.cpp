@@ -135,7 +135,7 @@ bool mv::DataModel::addAllocator(const string &name, std::size_t size, Order ord
 }
 
 mv::Data::BufferIterator mv::DataModel::allocateTensor(const string &allocatorName, Control::StageIterator &stage,
-    Data::TensorIterator &tensor, mv::dynamic_vector<size_t> pad)
+    Data::TensorIterator &tensor, mv::SizeVector pad)
 {
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())

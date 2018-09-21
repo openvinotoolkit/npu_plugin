@@ -43,6 +43,7 @@ namespace mv
             Value(unsigned int value);
             Value(const char * value);
             Value(long long value);
+            Value(size_t value);
             Value(const std::string& value);
             Value(bool value);
             Value(const Object& value);
