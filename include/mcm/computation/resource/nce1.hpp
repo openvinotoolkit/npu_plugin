@@ -23,6 +23,52 @@ namespace mv
         NoSplit
     };
 
+    struct SplitOverHSolution
+    {
+        int input_lines_processed;
+        int output_lines_processed;
+        int junk_output_before;
+        int junk_output_after;
+        int start_input_line;
+        int end_input_line;
+        int start_output_line;
+        int end_output_line;
+
+        friend std::ostream& operator<<(std::ostream& os, const SplitOverHSolution sol)
+        {
+            os << "Input lines processed " << sol.input_lines_processed << std::endl;
+            os << "Output lines processed " << sol.output_lines_processed << std::endl;
+            os << "Junk output lines before " << sol.junk_output_before << std::endl;
+            os << "Junk output lines after " << sol.junk_output_after << std::endl;
+            os << "Start input line " << sol.start_input_line << std::endl;
+            os << "End input line " << sol.end_input_line << std::endl;
+            os << "Start output line " << sol.start_output_line << std::endl;
+            os << "End output line " << sol.end_output_line << std::endl;
+            return os;
+        }
+    };
+
+    struct InputLinesPerOutputLinesSolution
+    {
+        int input_start_index;
+        int input_end_index;
+        int input_lines_before;
+        int input_lines_after;
+        int junk_output_lines_before;
+        int junk_output_lines_after;
+
+        friend std::ostream& operator<<(std::ostream& os, const InputLinesPerOutputLinesSolution sol)
+        {
+            os << "Input start index " << sol.input_start_index << std::endl;
+            os << "Input end index " << sol.input_end_index << std::endl;
+            os << "Input lines before " << sol.input_lines_before << std::endl;
+            os << "Input lines after " << sol.input_lines_after << std::endl;
+            os << "Junk output lines before " << sol.junk_output_lines_before << std::endl;
+            os << "Junk output lines after " << sol.junk_output_lines_after << std::endl;
+            return os;
+        }
+    };
+
     struct ConvolutionParameters
     {
         unsigned kernel_x;
@@ -293,11 +339,15 @@ namespace mv
             unsigned computerActualOutputHeight(unsigned output_height);
             unsigned computeActualOutputChannels(unsigned output_channels);
 
+            //Splits over h
+            std::vector<SplitOverHSolution> computeSplitsOverH(ConvolutionParameters param, unsigned max_output_lines);
+
             //Other helper functions
             unsigned computeLocalLineStride(unsigned input_width);
             unsigned computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, float actual_output_channels, std::vector<unsigned>& modes);
             unsigned computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode);
             unsigned computeLinesPerChannel(unsigned input_channels, unsigned local_line_stride, unsigned mode);
+
             unsigned getBytesPerLine();
             unsigned getWordsPerLine();
             unsigned getMaxNumberOfLinesInDataStorage();

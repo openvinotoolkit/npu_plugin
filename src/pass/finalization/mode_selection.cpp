@@ -89,17 +89,20 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     om.addAttr(convIterator, "NCE1_StreamingMask", mv::Attribute(mv::AttrType::UnsignedType, streaming_mask));
 
     // Compute DescriptorsSplits
-    unsigned splits_over_height = 1; //Until nce.getSplitsOverH(total_tensor_size) is fixed;
+    unsigned splits_over_height = 1; //Until nce.computeSplitsOverH(total_tensor_size) is fixed;
     om.addAttr(convIterator, "NCE1_SplitsOverH", mv::Attribute(mv::AttrType::UnsignedType, splits_over_height));
     om.addAttr(convIterator, "NCE1_SplitsOverC", mv::Attribute(mv::AttrType::UnsignedType, splits_over_input_channels));
 
     unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, output_channels, modes);
     om.addAttr(convIterator, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::UnsignedType, descriptor_splits));
 
+    unsigned top_output_junk = 0;
+    unsigned bottom_output_junk = 0;
+
     if(splits_over_height == 1)
     {
-        om.addAttr(convIterator, "NCE1_TopOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, 0));
-        om.addAttr(convIterator, "NCE1_BottomOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, 0));
+        om.addAttr(convIterator, "NCE1_TopOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, top_output_junk));
+        om.addAttr(convIterator, "NCE1_BottomOutputJunk", mv::Attribute(mv::AttrType::UnsignedType, bottom_output_junk));
     }
     else
     {

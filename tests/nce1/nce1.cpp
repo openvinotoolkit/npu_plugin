@@ -2,6 +2,29 @@
 #include "mcm/algorithms/dijkstra.hpp"
 #include "mcm/computation/resource/nce1.hpp"
 
+//Same test present in SOH.py
+TEST (nce1, split_over_h_1)
+{
+
+    mv::Nce1 nce;
+    mv::ConvolutionParameters parameters;
+
+    int max_output_lines = 30;
+
+    parameters.input_height = 112;
+    parameters.output_height = 56;
+    parameters.kernel_x = 3;
+    parameters.kernel_y = 3;
+    parameters.stride_x = 2;
+    parameters.stride_y = 2;
+    parameters.pad_x_up = 1;
+    parameters.pad_x_down = 1;
+
+    std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(parameters, max_output_lines);
+
+    std::cout << "Finished!" << std::endl;
+}
+
 //This is a simple test case, no splits are involved, 1 step to solve it.
 TEST (nce1, mode_selection_resnet_first_conv)
 {
@@ -46,7 +69,7 @@ TEST (nce1, mode_selection_resnet_first_conv)
 }
 
 //This is a simple test case, no splits are involved, more steps to solve it.
-TEST (dijkstra, mode_selection_resnet_another_conv)
+TEST (nce1, mode_selection_resnet_another_conv)
 {
     mv::Nce1 nce;
     mv::ModeSelectionNode source;
@@ -89,7 +112,7 @@ TEST (dijkstra, mode_selection_resnet_another_conv)
 
 //Splits are involved, more steps to solve it.
 //TODO: find a proper convolution
-TEST (dijkstra, split_convolution)
+TEST (nce1, split_convolution)
 {
     std::cout << "Finished!" << std::endl;
 }

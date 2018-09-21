@@ -329,11 +329,141 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
     return to_return;
 }
 
-unsigned mv::Nce1::getSplitsOverH(unsigned total_memory_occupied_by_tensors)
+mv::InputLinesPerOutputLinesSolution inputLinesForOutputLines(mv::ConvolutionParameters param, int output_start_index, int output_end_index)
 {
-    return (unsigned int) ceil(double(total_memory_occupied_by_tensors)/cmx_stream_size);
-}
+   mv::InputLinesPerOutputLinesSolution to_return;
+   int padding_used;
 
+   int pad_before = param.pad_x_up;
+   int pad_after = param.pad_x_down;
+   int stride = param.stride_x;
+   int kernel_size = param.kernel_x;
+   int input_size = param.input_height;
+
+   to_return.input_start_index = -pad_before + output_start_index * stride;
+   to_return.input_end_index = -pad_before + (output_end_index - 1) * stride + kernel_size;
+
+   if (to_return.input_start_index < 0)
+   {
+       to_return.input_lines_before = 0;
+       to_return.input_start_index = 0;
+       if(output_start_index == 0)
+           to_return.junk_output_lines_before = 0;
+       else
+           to_return.junk_output_lines_before = output_start_index;
+   }
+   else
+   {
+       to_return.input_lines_before = to_return.input_start_index;
+       while(to_return.input_lines_before >= stride)
+           to_return.input_lines_before -= stride;
+
+       to_return.junk_output_lines_before = (to_return.input_lines_before + pad_before) / stride;
+   }
+
+   if (to_return.input_end_index > input_size)
+   {
+       padding_used = to_return.input_end_index - input_size;
+       to_return.input_lines_after = 0;
+       to_return.input_end_index = input_size;
+
+       to_return.junk_output_lines_after = 0;
+       while(padding_used + stride <= pad_after)
+       {
+           padding_used += stride;
+           ++to_return.junk_output_lines_after;
+       }
+   }
+   else
+   {
+       to_return.input_lines_after = 0;
+
+       padding_used = 0;
+       to_return.junk_output_lines_after = 0;
+       while(padding_used + stride <= pad_after)
+       {
+           padding_used += stride;
+           ++to_return.junk_output_lines_after;
+       }
+   }
+
+   return to_return;
+}
+/*
+int maximizeOutput(mv::ConvolutionParameters param, int output_start_index, int output_end_index, int max_output_slice_lines)
+{
+
+    int output_size = param.output_height;
+
+    mv::InputLinesPerOutputLinesSolution sol = inputLinesForOutputLines(param, output_start_index, output_end_index);
+    int total_output_slice = sol.junk_output_before + (output_end_index - output_start_index) + sol.junk_output_after;
+
+    int extra_lines = 0;
+    while(! total_output_slice <= max_output_slice_line && out)
+
+
+        def isValid(totalOutputSlice, maxOutputSliceLines, outputEndIndex, outputSize):
+            return totalOutputSlice <= maxOutputSliceLines and outputEndIndex <= outputSize
+
+        extraLines = 0
+        while not isValid(totalOutputSlice, maxOutputSliceLines, outputEndIndex + extraLines, outputSize):
+            extraLines -= 1
+            _, _, _, _, \
+            junkOutputBefore, junkOutputAfter = inputLinesForOutputLines(inputSize, kernelSize, stride, pad, (outputStartIndex, outputEndIndex + extraLines))
+            totalOutputSlice = junkOutputBefore + (outputEndIndex + extraLines - outputStartIndex) + junkOutputAfter
+
+        return outputEndIndex + extraLines + (not isValid(totalOutputSlice, maxOutputSliceLines, outputEndIndex, outputSize))
+    return 0;
+}
+*/
+
+std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(ConvolutionParameters param, unsigned max_output_lines)
+{
+    std::vector<mv::SplitOverHSolution> to_return;
+
+    int output_start_index = 0;
+
+    while(true)
+    {
+        SplitOverHSolution to_append;
+        int prev_output_start_index = output_start_index;
+        int output_end_index = std::min(param.output_height, output_start_index + max_output_lines);
+
+        if(output_end_index - output_start_index <= 0)
+            break;
+
+        InputLinesPerOutputLinesSolution sol = inputLinesForOutputLines(param, output_start_index, output_end_index);
+        //std::cout << sol << std::endl;
+        //int new_output_end_index = maximizeOutput(param, output_start_index, output_end_index, max_output_lines);
+        //NOTE:This call might be facultative
+        //InputLinesPerOutputLinesSolution sol2 = inputLinesForOutputLines(param, output_start_index, new_output_end_index);
+        InputLinesPerOutputLinesSolution sol2 = sol;
+
+        to_append.input_lines_processed = sol2.input_lines_before + sol2.input_end_index - sol2.input_start_index + sol2.input_lines_after;
+        to_append.output_lines_processed = sol2.junk_output_lines_before + output_end_index - output_start_index + sol2.junk_output_lines_after;
+        to_append.junk_output_before = sol2.junk_output_lines_before;
+        to_append.junk_output_after = sol2.junk_output_lines_after;
+        to_append.start_input_line = sol2.input_start_index - sol2.input_lines_before;
+        to_append.end_input_line = sol2.input_end_index + sol2.input_lines_after;
+        to_append.start_output_line = output_start_index;
+        to_append.end_output_line = output_end_index;
+
+        std::cout << to_append << std::endl;
+
+        to_return.push_back(to_append);
+
+        output_start_index = output_end_index;
+
+        if(prev_output_start_index == output_start_index)
+        {
+            //raise Exception("Available CMX memory is not enough to generate a single proper line of output");
+            //EXPLOSION OF OMEGA!!!
+            break;
+        }
+    }
+
+    return to_return;
+}
 
 //Padding functions
 unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels, unsigned mode)
