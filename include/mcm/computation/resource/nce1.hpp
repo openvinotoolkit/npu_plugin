@@ -35,6 +35,10 @@ namespace mv
         unsigned input_height;
         unsigned output_width;
         unsigned output_height;
+        unsigned pad_x_up;
+        unsigned pad_x_down;
+        unsigned pad_y_left;
+        unsigned pad_y_right;
 
         ConvolutionParameters(
         unsigned kernel_x_param,
@@ -46,7 +50,11 @@ namespace mv
         unsigned input_width_param,
         unsigned input_height_param,
         unsigned output_width_param,
-        unsigned output_height_param)
+        unsigned output_height_param,
+        unsigned pad_x_up_param,
+        unsigned pad_x_down_param,
+        unsigned pad_y_left_param,
+        unsigned pad_y_right_param)
             :kernel_x(kernel_x_param),
              kernel_y(kernel_y_param),
              stride_x(stride_x_param),
@@ -56,7 +64,11 @@ namespace mv
              input_width(input_width_param),
              input_height(input_height_param),
              output_width(output_width_param),
-             output_height(output_height_param)
+             output_height(output_height_param),
+             pad_x_up(pad_x_up_param),
+             pad_x_down(pad_x_down_param),
+             pad_y_left(pad_y_left_param),
+             pad_y_right(pad_y_right_param)
         {
 
         }
@@ -76,7 +88,11 @@ namespace mv
              input_width(other.input_width),
              input_height(other.input_height),
              output_width(other.output_width),
-             output_height(other.output_height)
+             output_height(other.output_height),
+             pad_x_up(other.pad_x_up),
+             pad_x_down(other.pad_x_down),
+             pad_y_left(other.pad_y_left),
+             pad_y_right(other.pad_y_right)
         {
 
         }

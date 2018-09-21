@@ -173,6 +173,12 @@ void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convItera
     source.parameters.stride_x = strides.e0;
     source.parameters.stride_y = strides.e1;
 
+    auto paddings = convIterator->getAttr("padding").getContent<mv::UnsignedVector4D>();
+    source.parameters.pad_x_up = paddings.e0;
+    source.parameters.pad_x_down = paddings.e1;
+    source.parameters.pad_y_left = paddings.e2;
+    source.parameters.pad_y_right = paddings.e3;
+
     source.remaining_output_channels = source.parameters.output_channels;
     mv::ModeSelectionResult modes = nce.optimize_convolution(source);
     write_hardware_attributes(om, convIterator, modes, nce);
