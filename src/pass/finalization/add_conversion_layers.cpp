@@ -97,7 +97,12 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             // Align memory order when no conversion is needed
             /// Software ops
             if (!sourceIsHw && !sinkIsHw)
-                flowIt->getTensor()->setOrder(OrderType::RowMajor);
+            {
+                if (source->getOpType() == OpType::Constant)
+                    flowIt->getTensor()->setOrder(OrderType::ColumnMajorPlanar);
+                else
+                    flowIt->getTensor()->setOrder(OrderType::RowMajor);
+            }
             // Hardware ops
             if (sourceIsHw && sinkIsHw)
                 flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);

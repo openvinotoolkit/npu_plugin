@@ -278,7 +278,7 @@ namespace mv
                 this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 break;
-            case OrderType::RowMajorPlanar: // Column Major
+            case OrderType::RowMajorPlanar:
                 // NCE1 - Option 1
                 // ROW MAJOR PLANAR (PLANAR)
                 // I.E: Z, Y, X
@@ -287,7 +287,7 @@ namespace mv
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
-            case OrderType::ColumnMajor:    //
+            case OrderType::ColumnMajor: 
                 // NCE1 - Option 2
                 // COLUMN MAJOR(INTERLEAVED)
                 // I.E: X, Z, Y
@@ -296,12 +296,12 @@ namespace mv
                 this->strideZ = (this->dimX + local_StrideX)*this->strideX;
                 this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
                 break;
-            /*case Order::TBDLayout:      // Row Major
+            case OrderType::ColumnMajorPlanar:
                 this->order = 3;
                 this->strideZ = fp16_size;
                 this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
                 this->strideX = (this->dimY + local_StrideY)*this->strideY;
-                break;*/
+                break;
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);
