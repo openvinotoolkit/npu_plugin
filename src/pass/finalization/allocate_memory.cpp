@@ -5,6 +5,8 @@
 
 static void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+// static void allocateForImplicitConcat();
+
 
 namespace mv
 {
@@ -56,6 +58,10 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
 
 }
 
+// void allocateForImplicitConcat(){
+//
+// }
+
 void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
@@ -70,17 +76,54 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
     if (cm.stageSize() == 0)
         throw ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
 
+
+    // We iterate through the tensors because some may not be directly attached to an Op
+    // were we to use that iterator instead.
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
 
         OpModel om(dm) ;
-        bool external = false, fake = false, conv_padding = false;
+        bool external = false, fake = false;
         std::vector<std::string> input_names, output_names, invalid_names, c_pad_names;
 
         int max_pad = 0;
 
         for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
         {
+
+            if (opIterator->getOpType() == OpType::Concat){
+                auto in0 = opIterator->getInputTensor(0)->getName();
+                auto in1 = opIterator->getInputTensor(1)->getName();
+                auto out = opIterator->getOutputTensor(0)->getName();
+
+                // If already allocated, must be deallocated so that we can stride properly.
+                // Note: This is probably not a good long term solution as we may have
+                // requirements from two different connections, this approach only resolves one.
+                // Probably restrictions on a tensor should be attributes of that tensor.
+                if (in0.hasAttr("allocated") && in0.get<bool>("allocated") == true){
+                    dm.deallocateTensor("IntermediateMemory", stageIt, in0);
+                }
+                if (in1.hasAttr("allocated") && in1.get<bool>("allocated") == true){
+                    dm.deallocateTensor("IntermediateMemory", stageIt, in1);
+                }
+                if (out.hasAttr("allocated") && out.get<bool>("allocated") == true){
+                    dm.deallocateTensor("IntermediateMemory", stageIt, out);
+                }
+
+                // auto outputBuf = m.allocate(outputTensor, 0);
+                // auto input1Buf = m.allocate(inputTensor1, outputBuf, {0, 0, 0}, {0, 0, 2});
+                // auto input2Buf = m.allocate(inputTensor2, outputBuf, {0, 0, 2}, {0, 0, 0});
+
+                // std::cout << outputBuf->second->toString(true) << std::endl;
+                // std::cout << input1Buf->second->toString(true) << std::endl;
+                // std::cout << input2Buf->second->toString(true) << std::endl;
+
+                dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
+                dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
+                dm.allocateTensor("IntermediateMemory", stageIt, tIt, paddings);
+            }
+
+
             if (opIterator->getOpType() == OpType::Input)
             {
                 auto b = opIterator->getOutputTensor(0)->getName();
@@ -96,27 +139,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                 auto b = opIterator->getOutputTensor(0)->getName();
                 invalid_names.push_back(b);
             }
-            else if(opIterator->getOpType() == OpType::Conv2D)
-            {
-                auto ot_name = opIterator->getOutputTensor(0)->getName();
-                if(tIt->getName() == ot_name)
-                {
-
-                    c_pad_names.push_back(ot_name);
-
-                    int halfksizerounded = ((((opIterator->getInputTensor(1)->getShape()[0])/2)+1)*2);
-                    int cpad = halfksizerounded*opIterator->getOutputTensor(0)->getShape()[1]*opIterator->getOutputTensor(0)->getShape()[2]*2;
-
-                    if (cpad > max_pad)
-                    {
-                        max_pad = cpad;
-                        max_pad = 0; // TODO: Actual Allocation
-                    }
-
-                }
-
-            }
-
         }
 
         if (std::find(input_names.begin(), input_names.end(), tIt->getName()) != input_names.end())
@@ -135,24 +157,16 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }
         }
 
-        if (std::find(c_pad_names.begin(), c_pad_names.end(), tIt->getName()) != c_pad_names.end())
-        {
-            conv_padding = true;
-        }
-        else
-        {
-            // Not conv_padding, dont do anything
-        }
-
         if (std::find(invalid_names.begin(), invalid_names.end(), tIt->getName()) != invalid_names.end())
         {
+            std::cout << "Condition Invalid Hit" << std::endl;
             fake = true;
         }
 
 
         if (!tIt->isPopulated() and !external and !fake)
         {
-            
+
             auto stageIt = cm.getStage(0);
 
             int pad = 0;
