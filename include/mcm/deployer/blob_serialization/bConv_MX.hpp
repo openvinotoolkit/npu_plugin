@@ -25,7 +25,7 @@ namespace mv{
             std::string scale_name;
 
             // Hardware Fields
-            uint32_t opMode;
+            std::vector<std::size_t> DPUmodeVector;
             uint32_t streamingMask;
             uint32_t concatOffset;
             uint32_t unloadCMX;

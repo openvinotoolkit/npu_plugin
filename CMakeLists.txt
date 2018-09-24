@@ -66,6 +66,8 @@ file(GLOB base
     "src/computation/flow/data_flow.cpp"
     "src/computation/resource/memory_allocator.cpp"
     "src/computation/resource/computation_stage.cpp"
+    "src/computation/resource/nce1.cpp"
+    "src/computation/resource/nce1_utils.cpp"
     "src/computation/op/source_op.cpp"
     "src/computation/op/sink_op.cpp"
     "src/computation/op/pool2d_op.cpp"

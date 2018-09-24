@@ -41,8 +41,13 @@ file(GLOB tensor
     "tensor/*.cpp"
 )
 
+file(GLOB nce1
+    "nce1/*.cpp"
+)
+
 add_executable(mcm_unit_tests 
-    mcm_unit_tests.cpp 
+    mcm_unit_tests.cpp
+    ${nce1}
     ${graph_src}
     ${resources}
     ${base_src}

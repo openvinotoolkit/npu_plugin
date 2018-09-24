@@ -73,9 +73,7 @@ bool mv::op::Conv2D::isHardwarizeable(json::Object&)
         return false;
 
 
-    // Should handle dilation here
-
-    // Should run optimizer for mode selection here
+    // Should handle dilation (WTF?) here
 
     return true;
 }

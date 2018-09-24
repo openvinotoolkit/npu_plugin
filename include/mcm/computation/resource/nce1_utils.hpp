@@ -1,0 +1,12 @@
+#ifndef NCE1_UTILS_HPP
+#define NCE1_UTILS_HPP
+
+#include "mcm/computation/resource/nce1.hpp"
+#include "mcm/computation/op/computation_op.hpp"
+
+namespace mv
+{
+    mv::ConvolutionParameters fillConvolutionParameters(mv::Data::OpListIterator convIterator);
+}
+
+#endif

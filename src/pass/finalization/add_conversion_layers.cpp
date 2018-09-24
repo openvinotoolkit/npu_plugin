@@ -46,24 +46,27 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         }
 
         //A conversion layer is needed in two cases
-        //1) HW -> SW (Target order is columnMajor)
-        //2) SW -> HW (Target order is planar)
+        //-p-> stands for a padded tensor
+        //1) HW -p-> SW (Target order is columnMajor). In this case HW -p-> CONVERSION -> SW
+        //2) SW -p-> HW (Target order is planar). In this case SW -> CONVERSION -p-> HW.
 
         //Reasonable assumption: this pass is executed after the hw marking pass.
         int sourceIsHw = source->get<int>("NCE1_Compatible");
+        int sourceIsSw = !sourceIsHw;
         int sinkIsHw = sink->get<int>("NCE1_Compatible");
+        int sinkIsSw = !sinkIsHw;
         bool conversionNeeded = false;
         Order targetOrder = OrderType::ColumnMajor;
 
         //Case 1
-        if(sourceIsHw && !sinkIsHw)
+        if(sourceIsHw && sinkIsSw)
         {
             targetOrder = OrderType::RowMajor;
             conversionNeeded = true;
         }
 
         //Case 2
-        if(!sourceIsHw && sinkIsHw)
+        if(sourceIsSw && sinkIsHw)
         {
             targetOrder = OrderType::RowMajorPlanar;
             conversionNeeded = true;
@@ -79,12 +82,28 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
 
         if(conversionNeeded)
         {
-            Data::TensorIterator conversionOutputTensor = om.conversion(flowIt->getTensor(), targetOrder);
+            mv::Data::TensorIterator originalTensor = flowIt->getTensor();
+            mv::Data::TensorIterator conversionOutputTensor = om.conversion(originalTensor, targetOrder);
+
+            //If the tensor we are "splitting" through the conversion layer has paddings, they must be handled.
+            //Case1 (HW -> SW): Original tensor keeps it's padding, new tensor gets no padding
+            //Case2 (SW -> HW): New tensor needs padding, original tensor doesn't need them anymore -> Paddings must be moved
+            if(sourceIsSw && sinkIsHw)
+            {
+                if(originalTensor->hasAttr("NCE1_Paddings"))
+                {
+                    std::vector<std::size_t> paddings = originalTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                    conversionOutputTensor->set<std::vector<std::size_t>>("NCE1_Paddings", paddings);
+                    originalTensor->erase("NCE1_Paddings");
+                }
+            }
 
             unsigned i = 0;
             for(; i < sink->inputSlots(); ++i)
                 if(sink->getInputTensor(i) == flowIt->getTensor())
                     break;
+
+            //Necessary for iterator validity despite remotion
             auto flowToEliminate = flowIt;
             ++flowIt;
             om.undefineFlow(flowToEliminate);
