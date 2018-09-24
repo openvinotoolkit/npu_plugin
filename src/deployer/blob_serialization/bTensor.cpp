@@ -217,7 +217,7 @@ namespace mv
                 unsigned leading_pad = 0;
                 if (!mem->getStrides().empty())
                 {
-                    std::cout << "Var: " << mem->toString() << std::endl;
+                    // std::cout << "Var: " << mem->toString() << std::endl;
 
                     // Start at 1 and go til -1 because the first and last strides are
                     // leading and trailing "padding"

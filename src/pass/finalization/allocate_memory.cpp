@@ -198,14 +198,14 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             lhs_padding.at(channel_index) = lhs;
             rhs_padding.at(channel_index) = rhs;
 
-            std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
+            // std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
 
             auto b = dm.allocateTensor("IntermediateMemory", outRef, in0, lhs_padding, empty_padding);
             auto a = dm.allocateTensor("IntermediateMemory", outRef, in1, empty_padding, rhs_padding);
 
-            std::cout << "Testing out: " << outRef->toString() << std::endl;
-            std::cout << "Testing in1 : " << b->toString() << std::endl;
-            std::cout << "Testing in2 : " << a->toString() << std::endl;
+            // std::cout << "Testing out: " << outRef->toString() << std::endl;
+            // std::cout << "Testing in1 : " << b->toString() << std::endl;
+            // std::cout << "Testing in2 : " << a->toString() << std::endl;
         }
 
         /*
@@ -219,8 +219,9 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             for ( unsigned x =0; x != opIterator->inputSlots(); x++)
             {
                 auto inTensor = opIterator->getInputTensor(x);
-                if (! inTensor->hasAttr("allocated") ||
-                    inTensor->get<bool>("allocated") == false)
+                if (!inTensor->isPopulated() &&
+                    (! inTensor->hasAttr("allocated") ||
+                    inTensor->get<bool>("allocated") == false))
                 {
                     dm.allocateTensor("IntermediateMemory", stageIt, inTensor);
                 }
@@ -228,8 +229,9 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             for ( unsigned x = 0; x != opIterator->outputSlots(); x++)
             {
                 auto outTensor = opIterator->getOutputTensor(x);
-                if (! outTensor->hasAttr("allocated") ||
-                    outTensor->get<bool>("allocated") == false)
+                if (!outTensor->isPopulated() &&
+                    (! outTensor->hasAttr("allocated") ||
+                    outTensor->get<bool>("allocated") == false))
                 {
                     dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
                 }
