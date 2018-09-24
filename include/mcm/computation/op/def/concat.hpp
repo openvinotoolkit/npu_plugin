@@ -11,17 +11,14 @@ namespace mv
     namespace op
     {
 
-        /// \todo Add assertions (dimensions)   
+        /// \todo Add assertions (dimensions)
         class Concat : public SinkOp, public SourceOp
         {
-
         public:
 
-            Concat(const string &name);
-            Concat(mv::json::Value &obj);
-
-            Tensor getOutputDef(byte_type idx);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            Concat(const std::string &name);
+            Tensor getOutputDef(std::size_t idx);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

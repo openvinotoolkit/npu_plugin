@@ -2,13 +2,13 @@
 #define DIJKSTRA_HPP_
 
 #include "include/mcm/graph/graph.hpp"
-#include "include/mcm/graph/stl_allocator.hpp"
 #include <iostream>
 #include <queue>
 #include <vector>
 #include <functional>
 #include <set>
 #include <algorithm>
+#include <map>
 
 namespace mv
 {

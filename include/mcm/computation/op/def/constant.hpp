@@ -2,7 +2,7 @@
 #define CONSTANT_HPP_
 
 #include "include/mcm/computation/op/source_op.hpp"
-#include "include/mcm/computation/tensor/tensor.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 
 namespace mv
 {
@@ -13,15 +13,13 @@ namespace mv
         class Constant : public SourceOp
         {
 
-            dynamic_vector<float_type> data_;
+            std::vector<double> data_;
 
         public:
 
-            Constant(const dynamic_vector<float_type> &data, const Shape &shape, DType dType, Order order, const string &name);
-            Constant(mv::json::Value &obj);
-            Tensor getOutputDef(byte_type idx);
-            mv::json::Value toJsonValue() const;
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            Constant(const std::vector<double> &data, const Shape &shape, DType dType, Order order, const std::string &name);
+            Tensor getOutputDef(std::size_t idx);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

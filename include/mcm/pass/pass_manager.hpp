@@ -3,25 +3,17 @@
 
 #include <vector>
 #include <algorithm>
-#include <stdexcept>
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/base/json/json.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
 
-    class ExecutionError : public std::runtime_error
-    {
-
-    public:
-
-        explicit ExecutionError(const std::string& whatArg);
-
-    };
-
-    class PassManager
+    class PassManager : public LogSender
     {
 
         bool ready_;
@@ -31,7 +23,6 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         json::Object compDescriptor_;
         ComputationModel *model_;
-        static Logger& logger_;
 
         std::vector<std::string> adaptPassQueue_;
         std::vector<std::string> optPassQueue_;
@@ -59,6 +50,10 @@ namespace mv
 
         static std::string toString(PassGenre passGenre);
 
+    protected:
+
+        
+
     public:
 
         PassManager();
@@ -74,6 +69,7 @@ namespace mv
         bool ready() const;
         bool completed() const;
         json::Object& step();
+        std::string getLogID() const override;
         
     };
 

@@ -3,16 +3,14 @@
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 
-mv::Logger& mv::CompilationUnit::logger_ = mv::ComputationModel::logger();
-
-mv::CompilationUnit::CompilationUnit(mv::Logger::VerboseLevel verboseLevel, bool logTime) :
-model_(new OpModel(verboseLevel, logTime)),
-recordedModel_(new CompositionalModelRecorder(*model_,compositionalModelRecordingsPath_))
+mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
+model_(new OpModel(modelName)),
+recordedModel_(new CompositionalModelRecorder(*model_, compositionalModelRecordingsPath_))
 {
 
 }
 
-void mv::CompilationUnit::loadModelFromJson(const std::string &path)
+/*void mv::CompilationUnit::loadModelFromJson(const std::string &path)
 {
 
     mv::JSONTextParser parser;
@@ -31,14 +29,14 @@ void mv::CompilationUnit::loadModelFromJson(const std::string &path)
                 continue;
             std::string currentTensorInputPath(pathNoExt+"_"+tensorIt->getName());
             std::ifstream currentTensorInputStream(currentTensorInputPath, std::ios::in | std::ios::binary);
-            mv::dynamic_vector<float> tensorData(tensorIt->getShape().totalSize());
+            std::vector<double> tensorData(tensorIt->getShape().totalSize());
             currentTensorInputStream.read(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
             tensorIt->populate(tensorData, tensorIt->getOrder());
             currentTensorInputStream.close();
         }
     }
 
-}
+}*/
 
 mv::CompilationUnit::~CompilationUnit()
 {
@@ -54,7 +52,7 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
     }
     catch (ArgumentError& e)
     {
-        logger_.log(Logger::MessageType::MessageError, e.what());
+        log(Logger::MessageType::MessageError, e.what());
         return false;
     }
 
@@ -73,7 +71,7 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
         json::Value jsonRoot;
         if (!parser.parseFile(filePath, jsonRoot))
         {
-            throw ArgumentError("filePath", filePath,
+            throw ArgumentError(*this, "filePath", filePath,
                 "Unable to parse compilation descriptor - error reading");
         }
         if (jsonRoot.valueType() != json::JSONType::Object)
@@ -140,7 +138,7 @@ bool mv::CompilationUnit::initialize()
     for (auto it = targetDescriptor_.memoryDefs().begin(); it != targetDescriptor_.memoryDefs().end(); ++it)
     {
         mv::DataModel dm(*model_);
-        dm.addAllocator(it->first, it->second.size, it->second.order);
+        dm.addAllocator(it->first, it->second.size);
     }
 
     return true;
@@ -163,4 +161,9 @@ mv::json::Object mv::CompilationUnit::run()
 bool mv::CompilationUnit::completed() const
 {
     return passManager_.completed();
+}
+
+std::string mv::CompilationUnit::getLogID() const
+{
+    return "CompilationUnit";
 }

@@ -14,9 +14,8 @@ namespace mv
 
         public:
 
-            Subtract(const string &name);
-            Subtract(mv::json::Value &obj);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            Subtract(const std::string &name);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

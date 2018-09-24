@@ -47,8 +47,7 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == NULL || &t == NULL )
-        {
+        if ( t == nullptr) {  // || *t == NULL ){
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
             this->dimY = 0;
@@ -132,12 +131,12 @@ namespace mv
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
-            if (!mem->strides.empty())
+            if (!mem->getStrides().empty())
             {
-                for(int i = 0; i != mem->strides.size()-1; i++)
+                for(int i = 0; i != mem->getStrides().size()-1; i++)
                 {
-                    blk_stride = (int)mem->strides[i];
-                    block += (int)mem->block_size;
+                    blk_stride = (int)mem->getStrides()[i];
+                    block += (int)mem->getBlockSize();
                     if (blk_stride != 0)
                     {
                         break;
@@ -149,15 +148,14 @@ namespace mv
                 blk_stride = -1;
             }
 
-            int offset = mem->offset;
+            int offsetValue = mem->getOffset();
 
-
-            if (offset % 64 != 0)
+            if (offsetValue % 64 != 0)
             {
                 printf("Serializer Warning: Short-term alignment fix, likely cause of device crash. IMPORTANT.\n");
-                offset = 64+(offset/64)*64 ;
+                offsetValue = 64+(offsetValue/64)*64 ;
             }
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(offset, bLocation::Constant ));
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(offsetValue, bLocation::Constant ));
             this->offset = rt_entry;
         }
         else
@@ -170,7 +168,7 @@ namespace mv
             int no_buffers = 0;
             try{
                 mem = dm->getBuffer("IntermediateMemory", stg, *t);
-            }catch(mv::ArgumentError){
+            }catch(mv::IndexError){
                 printf("Serializer Warning: No Intermediary Buffers\n");
                 no_buffers = 1;
             }
@@ -179,7 +177,7 @@ namespace mv
             {
 
                 // Not Found - In or Output
-                std::vector<mv::string> input_names, output_names;
+                std::vector<std::string> input_names, output_names;
 
                 for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
                 {
@@ -216,23 +214,30 @@ namespace mv
             {
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
-                if (!mem->strides.empty())
+                unsigned leading_pad = 0;
+                if (!mem->getStrides().empty())
                 {
-                    for(int i = 0; i != mem->strides.size()-1; i++)
+                    // std::cout << "Var: " << mem->toString() << std::endl;
+
+                    // Start at 1 and go til -1 because the first and last strides are
+                    // leading and trailing "padding"
+                    for(int i = 1; i != mem->getStrides().size()-2; i++)
                     {
-                        blk_stride = (int)mem->strides[i];
-                        block += (int)mem->block_size;
+                        blk_stride = (int)mem->getStrides()[i];
+                        block += (int)mem->getBlockSize();
                         if (blk_stride != 0)
                         {
                             break;
                         }
                     }
+                    leading_pad = mem->getStrides()[1];
                 }
                 else
                 {
                     blk_stride = -1;
                 }
-                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->offset, bLocation::Variable ));
+
+                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable ));
                 this->offset = rt_entry;
             }
         }
@@ -244,34 +249,80 @@ namespace mv
 
         if (blk_stride <= 0)
         {
+            std::cout << "Tight" << std::endl;
             // Tight or Empty Buffer. Either way no exterior striding
         }
         else
         {
-            if (block == this->dimX)
+            switch ( (*t)->getOrder() )
             {
-                // Striding was on X axis
-                local_StrideX = blk_stride;
+                case OrderType::ColumnMajor:
+                {
+                    if (block == this->dimX)
+                        local_StrideX = blk_stride;
+                    else if (block == this->dimX*this->dimY)
+                        local_StrideY = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideZ = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
+                }
+                break;
+                case OrderType::RowMajor:
+                {
+                    if (block == this->dimZ)
+                        local_StrideZ = blk_stride;
+                    else if (block == this->dimY*this->dimZ)
+                        local_StrideY = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideX = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << std::endl;
+                }
+                break;
+                case OrderType::RowMajorPlanar:
+                {
+                    if (block == this->dimZ)
+                        local_StrideZ = blk_stride;
+                    else if (block == this->dimX*this->dimY)
+                        local_StrideX = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideY = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajorPlanar)" << std::endl;
+                }
+                break;
+                case OrderType::ColumnMajorPlanar:
+                {
+                    if (block == this->dimY)
+                        local_StrideY = blk_stride;
+                    else if (block == this->dimX*this->dimY)
+                        local_StrideX = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideZ = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
+                }
+                break;
+                default:
+                {
+
+                }
             }
-            else if (block == this->dimX*this->dimY)
-            {
-                // Striding was on Y axis
-                local_StrideY = blk_stride;
-            }
-            else if ( block == this->dimX*this->dimY*this->dimZ )
-            {
-                // Striding was on Z axis
-                local_StrideZ = blk_stride;
-            }
-            else
-            {
-                std::cout << "Serialization Error: Cannot figure out stride translation" << std::endl;
-            }
+            std::cout << "local_StrideX: " << local_StrideX << std::endl;
+            std::cout << "local_StrideY: " << local_StrideY << std::endl;
+            std::cout << "local_StrideZ: " << local_StrideZ << std::endl;
+            std::cout << "this->dimX: " << this->dimX << std::endl;
+            std::cout << "this->dimY: " << this->dimY << std::endl;
+            std::cout << "this->dimZ: " << this->dimZ << std::endl;
+            std::cout << "Block size: " << block << std::endl;
+            std::cout << "Block stride: " << blk_stride << std::endl;
+
         }
 
         switch ( (*t)->getOrder() )
         {
-            case Order::RowMajor:
+            case OrderType::RowMajor:
                 // UPA Shave
                 this->order = 0;
                 // ROW MAJOR (CHANNEL MINOR)
@@ -280,7 +331,7 @@ namespace mv
                 this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 break;
-            case Order::RowMajorPlanar:  // Column Major
+            case OrderType::RowMajorPlanar:
                 // NCE1 - Option 1
                 // ROW MAJOR PLANAR (PLANAR)
                 // I.E: Z, Y, X
@@ -289,7 +340,7 @@ namespace mv
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
-            case Order::ColumnMajor:    //
+            case OrderType::ColumnMajor:
                 // NCE1 - Option 2
                 // COLUMN MAJOR(INTERLEAVED)
                 // I.E: X, Z, Y
@@ -298,7 +349,7 @@ namespace mv
                 this->strideZ = (this->dimX + local_StrideX)*this->strideX;
                 this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
                 break;
-            case Order::TBDLayout:      // Row Major
+            case OrderType::ColumnMajorPlanar:
                 this->order = 3;
                 this->strideZ = fp16_size;
                 this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;

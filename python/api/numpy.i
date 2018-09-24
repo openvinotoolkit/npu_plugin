@@ -116,7 +116,7 @@
     if (PyCallable_Check(py_obj)) return "callable"    ;
     if (PyString_Check(  py_obj)) return "string"      ;
     if (PyInt_Check(     py_obj)) return "int"         ;
-    if (PyFloat_Check(   py_obj)) return "float"       ;
+    if (PyFloat_Check(   py_obj)) return "double"       ;
     if (PyDict_Check(    py_obj)) return "dict"        ;
     if (PyList_Check(    py_obj)) return "list"        ;
     if (PyTuple_Check(   py_obj)) return "tuple"       ;
@@ -144,10 +144,10 @@
                                          "unsigned long",
                                          "long long",
                                          "unsigned long long",
-                                         "float",
+                                         "double",
                                          "double",
                                          "long double",
-                                         "complex float",
+                                         "complex double",
                                          "complex double",
                                          "complex long double",
                                          "object",
@@ -576,56 +576,56 @@
  * of the form
  *
  *    1. (DATA_TYPE IN_ARRAY1[ANY])
- *    2. (DATA_TYPE* IN_ARRAY1, DIM_TYPE DIM1)
- *    3. (DIM_TYPE DIM1, DATA_TYPE* IN_ARRAY1)
+ *    2. (DATA_TYPE* IN_ARRAY1, std::size_t DIM1)
+ *    3. (std::size_t DIM1, DATA_TYPE* IN_ARRAY1)
  *
  *    4. (DATA_TYPE IN_ARRAY2[ANY][ANY])
- *    5. (DATA_TYPE* IN_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
- *    6. (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_ARRAY2)
- *    7. (DATA_TYPE* IN_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
- *    8. (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_FARRAY2)
+ *    5. (DATA_TYPE* IN_ARRAY2, std::size_t DIM1, std::size_t DIM2)
+ *    6. (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_ARRAY2)
+ *    7. (DATA_TYPE* IN_FARRAY2, std::size_t DIM1, std::size_t DIM2)
+ *    8. (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_FARRAY2)
  *
  *    9. (DATA_TYPE IN_ARRAY3[ANY][ANY][ANY])
- *   10. (DATA_TYPE* IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
- *   11. (DATA_TYPE** IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
- *   12. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_ARRAY3)
- *   13. (DATA_TYPE* IN_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
- *   14. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_FARRAY3)
+ *   10. (DATA_TYPE* IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
+ *   11. (DATA_TYPE** IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
+ *   12. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_ARRAY3)
+ *   13. (DATA_TYPE* IN_FARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
+ *   14. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_FARRAY3)
  *
  *   15. (DATA_TYPE IN_ARRAY4[ANY][ANY][ANY][ANY])
- *   16. (DATA_TYPE* IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
- *   17. (DATA_TYPE** IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
- *   18. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, , DIM_TYPE DIM4, DATA_TYPE* IN_ARRAY4)
- *   19. (DATA_TYPE* IN_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
- *   20. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* IN_FARRAY4)
+ *   16. (DATA_TYPE* IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
+ *   17. (DATA_TYPE** IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
+ *   18. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, , std::size_t DIM4, DATA_TYPE* IN_ARRAY4)
+ *   19. (DATA_TYPE* IN_FARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
+ *   20. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* IN_FARRAY4)
  *
  *   21. (DATA_TYPE INPLACE_ARRAY1[ANY])
- *   22. (DATA_TYPE* INPLACE_ARRAY1, DIM_TYPE DIM1)
- *   23. (DIM_TYPE DIM1, DATA_TYPE* INPLACE_ARRAY1)
+ *   22. (DATA_TYPE* INPLACE_ARRAY1, std::size_t DIM1)
+ *   23. (std::size_t DIM1, DATA_TYPE* INPLACE_ARRAY1)
  *
  *   24. (DATA_TYPE INPLACE_ARRAY2[ANY][ANY])
- *   25. (DATA_TYPE* INPLACE_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
- *   26. (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_ARRAY2)
- *   27. (DATA_TYPE* INPLACE_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
- *   28. (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_FARRAY2)
+ *   25. (DATA_TYPE* INPLACE_ARRAY2, std::size_t DIM1, std::size_t DIM2)
+ *   26. (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_ARRAY2)
+ *   27. (DATA_TYPE* INPLACE_FARRAY2, std::size_t DIM1, std::size_t DIM2)
+ *   28. (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_FARRAY2)
  *
  *   29. (DATA_TYPE INPLACE_ARRAY3[ANY][ANY][ANY])
- *   30. (DATA_TYPE* INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
- *   31. (DATA_TYPE** INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
- *   32. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* INPLACE_ARRAY3)
- *   33. (DATA_TYPE* INPLACE_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
- *   34. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* INPLACE_FARRAY3)
+ *   30. (DATA_TYPE* INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
+ *   31. (DATA_TYPE** INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
+ *   32. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* INPLACE_ARRAY3)
+ *   33. (DATA_TYPE* INPLACE_FARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
+ *   34. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* INPLACE_FARRAY3)
  *
  *   35. (DATA_TYPE INPLACE_ARRAY4[ANY][ANY][ANY][ANY])
- *   36. (DATA_TYPE* INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
- *   37. (DATA_TYPE** INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
- *   38. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* INPLACE_ARRAY4)
- *   39. (DATA_TYPE* INPLACE_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
- *   40. (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* INPLACE_FARRAY4)
+ *   36. (DATA_TYPE* INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
+ *   37. (DATA_TYPE** INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
+ *   38. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* INPLACE_ARRAY4)
+ *   39. (DATA_TYPE* INPLACE_FARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
+ *   40. (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* INPLACE_FARRAY4)
  *
  *   41. (DATA_TYPE ARGOUT_ARRAY1[ANY])
- *   42. (DATA_TYPE* ARGOUT_ARRAY1, DIM_TYPE DIM1)
- *   43. (DIM_TYPE DIM1, DATA_TYPE* ARGOUT_ARRAY1)
+ *   42. (DATA_TYPE* ARGOUT_ARRAY1, std::size_t DIM1)
+ *   43. (std::size_t DIM1, DATA_TYPE* ARGOUT_ARRAY1)
  *
  *   44. (DATA_TYPE ARGOUT_ARRAY2[ANY][ANY])
  *
@@ -633,46 +633,46 @@
  *
  *   46. (DATA_TYPE ARGOUT_ARRAY4[ANY][ANY][ANY][ANY])
  *
- *   47. (DATA_TYPE** ARGOUTVIEW_ARRAY1, DIM_TYPE* DIM1)
- *   48. (DIM_TYPE* DIM1, DATA_TYPE** ARGOUTVIEW_ARRAY1)
+ *   47. (DATA_TYPE** ARGOUTVIEW_ARRAY1, std::size_t* DIM1)
+ *   48. (std::size_t* DIM1, DATA_TYPE** ARGOUTVIEW_ARRAY1)
  *
- *   49. (DATA_TYPE** ARGOUTVIEW_ARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
- *   50. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEW_ARRAY2)
- *   51. (DATA_TYPE** ARGOUTVIEW_FARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
- *   52. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEW_FARRAY2)
+ *   49. (DATA_TYPE** ARGOUTVIEW_ARRAY2, std::size_t* DIM1, std::size_t* DIM2)
+ *   50. (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEW_ARRAY2)
+ *   51. (DATA_TYPE** ARGOUTVIEW_FARRAY2, std::size_t* DIM1, std::size_t* DIM2)
+ *   52. (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEW_FARRAY2)
  *
- *   53. (DATA_TYPE** ARGOUTVIEW_ARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
- *   54. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEW_ARRAY3)
- *   55. (DATA_TYPE** ARGOUTVIEW_FARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
- *   56. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEW_FARRAY3)
+ *   53. (DATA_TYPE** ARGOUTVIEW_ARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
+ *   54. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEW_ARRAY3)
+ *   55. (DATA_TYPE** ARGOUTVIEW_FARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
+ *   56. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEW_FARRAY3)
  *
- *   57. (DATA_TYPE** ARGOUTVIEW_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
- *   58. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEW_ARRAY4)
- *   59. (DATA_TYPE** ARGOUTVIEW_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
- *   60. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEW_FARRAY4)
+ *   57. (DATA_TYPE** ARGOUTVIEW_ARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
+ *   58. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEW_ARRAY4)
+ *   59. (DATA_TYPE** ARGOUTVIEW_FARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
+ *   60. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEW_FARRAY4)
  *
- *   61. (DATA_TYPE** ARGOUTVIEWM_ARRAY1, DIM_TYPE* DIM1)
- *   62. (DIM_TYPE* DIM1, DATA_TYPE** ARGOUTVIEWM_ARRAY1)
+ *   61. (DATA_TYPE** ARGOUTVIEWM_ARRAY1, std::size_t* DIM1)
+ *   62. (std::size_t* DIM1, DATA_TYPE** ARGOUTVIEWM_ARRAY1)
  *
- *   63. (DATA_TYPE** ARGOUTVIEWM_ARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
- *   64. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEWM_ARRAY2)
- *   65. (DATA_TYPE** ARGOUTVIEWM_FARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
- *   66. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEWM_FARRAY2)
+ *   63. (DATA_TYPE** ARGOUTVIEWM_ARRAY2, std::size_t* DIM1, std::size_t* DIM2)
+ *   64. (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEWM_ARRAY2)
+ *   65. (DATA_TYPE** ARGOUTVIEWM_FARRAY2, std::size_t* DIM1, std::size_t* DIM2)
+ *   66. (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEWM_FARRAY2)
  *
- *   67. (DATA_TYPE** ARGOUTVIEWM_ARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
- *   68. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEWM_ARRAY3)
- *   69. (DATA_TYPE** ARGOUTVIEWM_FARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
- *   70. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEWM_FARRAY3)
+ *   67. (DATA_TYPE** ARGOUTVIEWM_ARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
+ *   68. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEWM_ARRAY3)
+ *   69. (DATA_TYPE** ARGOUTVIEWM_FARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
+ *   70. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEWM_FARRAY3)
  *
- *   71. (DATA_TYPE** ARGOUTVIEWM_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
- *   72. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEWM_ARRAY4)
- *   73. (DATA_TYPE** ARGOUTVIEWM_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
- *   74. (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEWM_FARRAY4)
+ *   71. (DATA_TYPE** ARGOUTVIEWM_ARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
+ *   72. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEWM_ARRAY4)
+ *   73. (DATA_TYPE** ARGOUTVIEWM_FARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
+ *   74. (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEWM_FARRAY4)
  *
- *   75. (DATA_TYPE* INPLACE_ARRAY_FLAT, DIM_TYPE DIM_FLAT)
+ *   75. (DATA_TYPE* INPLACE_ARRAY_FLAT, std::size_t DIM_FLAT)
  *
  * where "DATA_TYPE" is any type supported by the NumPy module, and
- * "DIM_TYPE" is any int-like type suitable for specifying dimensions.
+ * "std::size_t" is any int-like type suitable for specifying dimensions.
  * The difference between "ARRAY" typemaps and "FARRAY" typemaps is
  * that the "FARRAY" typemaps expect Fortran ordering of
  * multidimensional arrays.  In python, the dimensions will not need
@@ -748,17 +748,17 @@
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE* IN_ARRAY1, DIM_TYPE DIM1)
+/* Typemap suite for (DATA_TYPE* IN_ARRAY1, std::size_t DIM1)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* IN_ARRAY1, DIM_TYPE DIM1)
+  (DATA_TYPE* IN_ARRAY1, std::size_t DIM1)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* IN_ARRAY1, DIM_TYPE DIM1)
+  (DATA_TYPE* IN_ARRAY1, std::size_t DIM1)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[1] = { -1 };
@@ -768,26 +768,26 @@
   if (!array || !require_dimensions(array, 1) ||
       !require_size(array, size, 1)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
+  $2 = (std::size_t) array_size(array,0);
 }
 %typemap(freearg)
-  (DATA_TYPE* IN_ARRAY1, DIM_TYPE DIM1)
+  (DATA_TYPE* IN_ARRAY1, std::size_t DIM1)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DATA_TYPE* IN_ARRAY1)
+/* Typemap suite for (std::size_t DIM1, DATA_TYPE* IN_ARRAY1)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DATA_TYPE* IN_ARRAY1)
+  (std::size_t DIM1, DATA_TYPE* IN_ARRAY1)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DATA_TYPE* IN_ARRAY1)
+  (std::size_t DIM1, DATA_TYPE* IN_ARRAY1)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[1] = {-1};
@@ -796,11 +796,11 @@
                                                    &is_new_object);
   if (!array || !require_dimensions(array, 1) ||
       !require_size(array, size, 1)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
+  $1 = (std::size_t) array_size(array,0);
   $2 = (DATA_TYPE*) array_data(array);
 }
 %typemap(freearg)
-  (DIM_TYPE DIM1, DATA_TYPE* IN_ARRAY1)
+  (std::size_t DIM1, DATA_TYPE* IN_ARRAY1)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
@@ -834,17 +834,17 @@
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE* IN_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+/* Typemap suite for (DATA_TYPE* IN_ARRAY2, std::size_t DIM1, std::size_t DIM2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* IN_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* IN_ARRAY2, std::size_t DIM1, std::size_t DIM2)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* IN_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* IN_ARRAY2, std::size_t DIM1, std::size_t DIM2)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[2] = { -1, -1 };
@@ -853,27 +853,27 @@
   if (!array || !require_dimensions(array, 2) ||
       !require_size(array, size, 2)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
 }
 %typemap(freearg)
-  (DATA_TYPE* IN_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* IN_ARRAY2, std::size_t DIM1, std::size_t DIM2)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_ARRAY2)
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_ARRAY2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_ARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_ARRAY2)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_ARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_ARRAY2)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[2] = { -1, -1 };
@@ -882,28 +882,28 @@
                                                    &is_new_object);
   if (!array || !require_dimensions(array, 2) ||
       !require_size(array, size, 2)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
   $3 = (DATA_TYPE*) array_data(array);
 }
 %typemap(freearg)
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_ARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_ARRAY2)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE* IN_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+/* Typemap suite for (DATA_TYPE* IN_FARRAY2, std::size_t DIM1, std::size_t DIM2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* IN_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* IN_FARRAY2, std::size_t DIM1, std::size_t DIM2)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* IN_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* IN_FARRAY2, std::size_t DIM1, std::size_t DIM2)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[2] = { -1, -1 };
@@ -913,27 +913,27 @@
   if (!array || !require_dimensions(array, 2) ||
       !require_size(array, size, 2) || !require_fortran(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
 }
 %typemap(freearg)
-  (DATA_TYPE* IN_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* IN_FARRAY2, std::size_t DIM1, std::size_t DIM2)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_FARRAY2)
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_FARRAY2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_FARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_FARRAY2)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_FARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_FARRAY2)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[2] = { -1, -1 };
@@ -942,12 +942,12 @@
                                                    &is_new_object);
   if (!array || !require_dimensions(array, 2) ||
       !require_size(array, size, 2) || !require_fortran(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
   $3 = (DATA_TYPE*) array_data(array);
 }
 %typemap(freearg)
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* IN_FARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* IN_FARRAY2)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
@@ -981,18 +981,18 @@
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE* IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3)
+/* Typemap suite for (DATA_TYPE* IN_ARRAY3, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[3] = { -1, -1, -1 };
@@ -1001,30 +1001,30 @@
   if (!array || !require_dimensions(array, 3) ||
       !require_size(array, size, 3)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
 }
 %typemap(freearg)
-  (DATA_TYPE* IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE** IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3)
+/* Typemap suite for (DATA_TYPE** IN_ARRAY3, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE** IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE** IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   /* for now, only concerned with lists */
   $1 = PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE** IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE** IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
   (DATA_TYPE** array=NULL, PyArrayObject** object_array=NULL, int* is_new_object_array=NULL)
 {
   npy_intp size[2] = { -1, -1 };
@@ -1068,11 +1068,11 @@
   }
 
   $1 = (DATA_TYPE**) array;
-  $3 = (DIM_TYPE) size[0];
-  $4 = (DIM_TYPE) size[1];
+  $3 = (std::size_t) size[0];
+  $4 = (std::size_t) size[1];
 }
 %typemap(freearg)
-  (DATA_TYPE** IN_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE** IN_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   Py_ssize_t i;
 
@@ -1094,18 +1094,18 @@
   }
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3,
  *                    DATA_TYPE* IN_ARRAY3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_ARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_ARRAY3)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_ARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_ARRAY3)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[3] = { -1, -1, -1 };
@@ -1113,30 +1113,30 @@
                                                    &is_new_object);
   if (!array || !require_dimensions(array, 3) ||
       !require_size(array, size, 3)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
   $4 = (DATA_TYPE*) array_data(array);
 }
 %typemap(freearg)
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_ARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_ARRAY3)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE* IN_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3)
+/* Typemap suite for (DATA_TYPE* IN_FARRAY3, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* IN_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* IN_FARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* IN_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* IN_FARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[3] = { -1, -1, -1 };
@@ -1145,29 +1145,29 @@
   if (!array || !require_dimensions(array, 3) ||
       !require_size(array, size, 3) | !require_fortran(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
 }
 %typemap(freearg)
-  (DATA_TYPE* IN_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* IN_FARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3,
  *                    DATA_TYPE* IN_FARRAY3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_FARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_FARRAY3)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_FARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_FARRAY3)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[3] = { -1, -1, -1 };
@@ -1176,13 +1176,13 @@
                                                    &is_new_object);
   if (!array || !require_dimensions(array, 3) ||
       !require_size(array, size, 3) || !require_fortran(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
   $4 = (DATA_TYPE*) array_data(array);
 }
 %typemap(freearg)
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* IN_FARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* IN_FARRAY3)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
@@ -1215,18 +1215,18 @@
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE* IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3, DIM_TYPE DIM4)
+/* Typemap suite for (DATA_TYPE* IN_ARRAY4, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3, std::size_t DIM4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[4] = { -1, -1, -1, -1 };
@@ -1235,31 +1235,31 @@
   if (!array || !require_dimensions(array, 4) ||
       !require_size(array, size, 4)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
-  $5 = (DIM_TYPE) array_size(array,3);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
+  $5 = (std::size_t) array_size(array,3);
 }
 %typemap(freearg)
-  (DATA_TYPE* IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE** IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3, DIM_TYPE DIM4)
+/* Typemap suite for (DATA_TYPE** IN_ARRAY4, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3, std::size_t DIM4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE** IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE** IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   /* for now, only concerned with lists */
   $1 = PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE** IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE** IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
   (DATA_TYPE** array=NULL, PyArrayObject** object_array=NULL, int* is_new_object_array=NULL)
 {
   npy_intp size[3] = { -1, -1, -1 };
@@ -1304,12 +1304,12 @@
   }
 
   $1 = (DATA_TYPE**) array;
-  $3 = (DIM_TYPE) size[0];
-  $4 = (DIM_TYPE) size[1];
-  $5 = (DIM_TYPE) size[2];
+  $3 = (std::size_t) size[0];
+  $4 = (std::size_t) size[1];
+  $5 = (std::size_t) size[2];
 }
 %typemap(freearg)
-  (DATA_TYPE** IN_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE** IN_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   Py_ssize_t i;
 
@@ -1331,18 +1331,18 @@
   }
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4,
  *                    DATA_TYPE* IN_ARRAY4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* IN_ARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* IN_ARRAY4)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* IN_ARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* IN_ARRAY4)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[4] = { -1, -1, -1 , -1};
@@ -1350,31 +1350,31 @@
                                                    &is_new_object);
   if (!array || !require_dimensions(array, 4) ||
       !require_size(array, size, 4)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
-  $4 = (DIM_TYPE) array_size(array,3);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
+  $4 = (std::size_t) array_size(array,3);
   $5 = (DATA_TYPE*) array_data(array);
 }
 %typemap(freearg)
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* IN_ARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* IN_ARRAY4)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DATA_TYPE* IN_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3, DIM_TYPE DIM4)
+/* Typemap suite for (DATA_TYPE* IN_FARRAY4, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3, std::size_t DIM4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* IN_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* IN_FARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* IN_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* IN_FARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[4] = { -1, -1, -1, -1 };
@@ -1383,30 +1383,30 @@
   if (!array || !require_dimensions(array, 4) ||
       !require_size(array, size, 4) | !require_fortran(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
-  $5 = (DIM_TYPE) array_size(array,3);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
+  $5 = (std::size_t) array_size(array,3);
 }
 %typemap(freearg)
-  (DATA_TYPE* IN_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* IN_FARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4,
  *                    DATA_TYPE* IN_FARRAY4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* IN_FARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* IN_FARRAY4)
 {
   $1 = is_array($input) || PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* IN_FARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* IN_FARRAY4)
   (PyArrayObject* array=NULL, int is_new_object=0)
 {
   npy_intp size[4] = { -1, -1, -1 , -1 };
@@ -1414,14 +1414,14 @@
                                                    &is_new_object);
   if (!array || !require_dimensions(array, 4) ||
       !require_size(array, size, 4) || !require_fortran(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
-  $4 = (DIM_TYPE) array_size(array,3);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
+  $4 = (std::size_t) array_size(array,3);
   $5 = (DATA_TYPE*) array_data(array);
 }
 %typemap(freearg)
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* IN_FARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* IN_FARRAY4)
 {
   if (is_new_object$argnum && array$argnum)
     { Py_DECREF(array$argnum); }
@@ -1452,18 +1452,18 @@
   $1 = ($1_ltype) array_data(array);
 }
 
-/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY1, DIM_TYPE DIM1)
+/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY1, std::size_t DIM1)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_ARRAY1, DIM_TYPE DIM1)
+  (DATA_TYPE* INPLACE_ARRAY1, std::size_t DIM1)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_ARRAY1, DIM_TYPE DIM1)
+  (DATA_TYPE* INPLACE_ARRAY1, std::size_t DIM1)
   (PyArrayObject* array=NULL, int i=1)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
@@ -1474,18 +1474,18 @@
   for (i=0; i < array_numdims(array); ++i) $2 *= array_size(array,i);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DATA_TYPE* INPLACE_ARRAY1)
+/* Typemap suite for (std::size_t DIM1, DATA_TYPE* INPLACE_ARRAY1)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DATA_TYPE* INPLACE_ARRAY1)
+  (std::size_t DIM1, DATA_TYPE* INPLACE_ARRAY1)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DATA_TYPE* INPLACE_ARRAY1)
+  (std::size_t DIM1, DATA_TYPE* INPLACE_ARRAY1)
   (PyArrayObject* array=NULL, int i=0)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
@@ -1517,91 +1517,91 @@
   $1 = ($1_ltype) array_data(array);
 }
 
-/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY2, std::size_t DIM1, std::size_t DIM2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* INPLACE_ARRAY2, std::size_t DIM1, std::size_t DIM2)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_ARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* INPLACE_ARRAY2, std::size_t DIM1, std::size_t DIM2)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,2) || !require_contiguous(array)
       || !require_native(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_ARRAY2)
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_ARRAY2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_ARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_ARRAY2)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_ARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_ARRAY2)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,2) || !require_contiguous(array) ||
       !require_native(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
   $3 = (DATA_TYPE*) array_data(array);
 }
 
-/* Typemap suite for (DATA_TYPE* INPLACE_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+/* Typemap suite for (DATA_TYPE* INPLACE_FARRAY2, std::size_t DIM1, std::size_t DIM2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* INPLACE_FARRAY2, std::size_t DIM1, std::size_t DIM2)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_FARRAY2, DIM_TYPE DIM1, DIM_TYPE DIM2)
+  (DATA_TYPE* INPLACE_FARRAY2, std::size_t DIM1, std::size_t DIM2)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,2) || !require_contiguous(array)
       || !require_native(array) || !require_fortran(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_FARRAY2)
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_FARRAY2)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_FARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_FARRAY2)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DATA_TYPE* INPLACE_FARRAY2)
+  (std::size_t DIM1, std::size_t DIM2, DATA_TYPE* INPLACE_FARRAY2)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,2) || !require_contiguous(array) ||
       !require_native(array) || !require_fortran(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
   $3 = (DATA_TYPE*) array_data(array);
 }
 
@@ -1626,42 +1626,42 @@
   $1 = ($1_ltype) array_data(array);
 }
 
-/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3)
+/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,3) || !require_contiguous(array) ||
       !require_native(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
 }
 
-/* Typemap suite for (DATA_TYPE** INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3)
+/* Typemap suite for (DATA_TYPE** INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE** INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE** INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   $1 = PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE** INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE** INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
   (DATA_TYPE** array=NULL, PyArrayObject** object_array=NULL)
 {
   npy_intp size[2] = { -1, -1 };
@@ -1706,85 +1706,85 @@
   }
 
   $1 = (DATA_TYPE**) array;
-  $3 = (DIM_TYPE) size[0];
-  $4 = (DIM_TYPE) size[1];
+  $3 = (std::size_t) size[0];
+  $4 = (std::size_t) size[1];
 }
 %typemap(freearg)
-  (DATA_TYPE** INPLACE_ARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE** INPLACE_ARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   if (array$argnum!=NULL) free(array$argnum);
   if (object_array$argnum!=NULL) free(object_array$argnum);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3,
  *                    DATA_TYPE* INPLACE_ARRAY3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* INPLACE_ARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* INPLACE_ARRAY3)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* INPLACE_ARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* INPLACE_ARRAY3)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,3) || !require_contiguous(array)
       || !require_native(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
   $4 = (DATA_TYPE*) array_data(array);
 }
 
-/* Typemap suite for (DATA_TYPE* INPLACE_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3)
+/* Typemap suite for (DATA_TYPE* INPLACE_FARRAY3, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* INPLACE_FARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_FARRAY3, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3)
+  (DATA_TYPE* INPLACE_FARRAY3, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,3) || !require_contiguous(array) ||
       !require_native(array) || !require_fortran(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3,
  *                    DATA_TYPE* INPLACE_FARRAY3)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* INPLACE_FARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* INPLACE_FARRAY3)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DATA_TYPE* INPLACE_FARRAY3)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, DATA_TYPE* INPLACE_FARRAY3)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,3) || !require_contiguous(array)
       || !require_native(array) || !require_fortran(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
   $4 = (DATA_TYPE*) array_data(array);
 }
 
@@ -1809,43 +1809,43 @@
   $1 = ($1_ltype) array_data(array);
 }
 
-/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3, DIM_TYPE DIM4)
+/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3, std::size_t DIM4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,4) || !require_contiguous(array) ||
       !require_native(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
-  $5 = (DIM_TYPE) array_size(array,3);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
+  $5 = (std::size_t) array_size(array,3);
 }
 
-/* Typemap suite for (DATA_TYPE** INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3, DIM_TYPE DIM4)
+/* Typemap suite for (DATA_TYPE** INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3, std::size_t DIM4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE** INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE** INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   $1 = PySequence_Check($input);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE** INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE** INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
   (DATA_TYPE** array=NULL, PyArrayObject** object_array=NULL)
 {
   npy_intp size[3] = { -1, -1, -1 };
@@ -1891,89 +1891,89 @@
   }
 
   $1 = (DATA_TYPE**) array;
-  $3 = (DIM_TYPE) size[0];
-  $4 = (DIM_TYPE) size[1];
-  $5 = (DIM_TYPE) size[2];
+  $3 = (std::size_t) size[0];
+  $4 = (std::size_t) size[1];
+  $5 = (std::size_t) size[2];
 }
 %typemap(freearg)
-  (DATA_TYPE** INPLACE_ARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE** INPLACE_ARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   if (array$argnum!=NULL) free(array$argnum);
   if (object_array$argnum!=NULL) free(object_array$argnum);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4,
  *                    DATA_TYPE* INPLACE_ARRAY4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* INPLACE_ARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* INPLACE_ARRAY4)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* INPLACE_ARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* INPLACE_ARRAY4)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,4) || !require_contiguous(array)
       || !require_native(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
-  $4 = (DIM_TYPE) array_size(array,3);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
+  $4 = (std::size_t) array_size(array,3);
   $5 = (DATA_TYPE*) array_data(array);
 }
 
-/* Typemap suite for (DATA_TYPE* INPLACE_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2,
- *                    DIM_TYPE DIM3, DIM_TYPE DIM4)
+/* Typemap suite for (DATA_TYPE* INPLACE_FARRAY4, std::size_t DIM1, std::size_t DIM2,
+ *                    std::size_t DIM3, std::size_t DIM4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* INPLACE_FARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_FARRAY4, DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4)
+  (DATA_TYPE* INPLACE_FARRAY4, std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,4) || !require_contiguous(array) ||
       !require_native(array) || !require_fortran(array)) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
-  $2 = (DIM_TYPE) array_size(array,0);
-  $3 = (DIM_TYPE) array_size(array,1);
-  $4 = (DIM_TYPE) array_size(array,2);
-  $5 = (DIM_TYPE) array_size(array,3);
+  $2 = (std::size_t) array_size(array,0);
+  $3 = (std::size_t) array_size(array,1);
+  $4 = (std::size_t) array_size(array,2);
+  $5 = (std::size_t) array_size(array,3);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3,
+/* Typemap suite for (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3,
  *                    DATA_TYPE* INPLACE_FARRAY4)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* INPLACE_FARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* INPLACE_FARRAY4)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DIM_TYPE DIM2, DIM_TYPE DIM3, DIM_TYPE DIM4, DATA_TYPE* INPLACE_FARRAY4)
+  (std::size_t DIM1, std::size_t DIM2, std::size_t DIM3, std::size_t DIM4, DATA_TYPE* INPLACE_FARRAY4)
   (PyArrayObject* array=NULL)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
   if (!array || !require_dimensions(array,4) || !require_contiguous(array)
       || !require_native(array) || !require_fortran(array)) SWIG_fail;
-  $1 = (DIM_TYPE) array_size(array,0);
-  $2 = (DIM_TYPE) array_size(array,1);
-  $3 = (DIM_TYPE) array_size(array,2);
-  $4 = (DIM_TYPE) array_size(array,3);
+  $1 = (std::size_t) array_size(array,0);
+  $2 = (std::size_t) array_size(array,1);
+  $3 = (std::size_t) array_size(array,2);
+  $4 = (std::size_t) array_size(array,3);
   $5 = (DATA_TYPE*) array_data(array);
 }
 
@@ -1999,11 +1999,11 @@
   $result = SWIG_Python_AppendOutput($result,(PyObject*)array$argnum);
 }
 
-/* Typemap suite for (DATA_TYPE* ARGOUT_ARRAY1, DIM_TYPE DIM1)
+/* Typemap suite for (DATA_TYPE* ARGOUT_ARRAY1, std::size_t DIM1)
  */
 %typemap(in,numinputs=1,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* ARGOUT_ARRAY1, DIM_TYPE DIM1)
+  (DATA_TYPE* ARGOUT_ARRAY1, std::size_t DIM1)
   (PyObject* array = NULL)
 {
   npy_intp dims[1];
@@ -2015,23 +2015,23 @@
                  typestring);
     SWIG_fail;
   }
-  $2 = (DIM_TYPE) PyInt_AsLong($input);
+  $2 = (std::size_t) PyInt_AsLong($input);
   dims[0] = (npy_intp) $2;
   array = PyArray_SimpleNew(1, dims, DATA_TYPECODE);
   if (!array) SWIG_fail;
   $1 = (DATA_TYPE*) array_data(array);
 }
 %typemap(argout)
-  (DATA_TYPE* ARGOUT_ARRAY1, DIM_TYPE DIM1)
+  (DATA_TYPE* ARGOUT_ARRAY1, std::size_t DIM1)
 {
   $result = SWIG_Python_AppendOutput($result,(PyObject*)array$argnum);
 }
 
-/* Typemap suite for (DIM_TYPE DIM1, DATA_TYPE* ARGOUT_ARRAY1)
+/* Typemap suite for (std::size_t DIM1, DATA_TYPE* ARGOUT_ARRAY1)
  */
 %typemap(in,numinputs=1,
          fragment="NumPy_Fragments")
-  (DIM_TYPE DIM1, DATA_TYPE* ARGOUT_ARRAY1)
+  (std::size_t DIM1, DATA_TYPE* ARGOUT_ARRAY1)
   (PyObject* array = NULL)
 {
   npy_intp dims[1];
@@ -2043,14 +2043,14 @@
                  typestring);
     SWIG_fail;
   }
-  $1 = (DIM_TYPE) PyInt_AsLong($input);
+  $1 = (std::size_t) PyInt_AsLong($input);
   dims[0] = (npy_intp) $1;
   array = PyArray_SimpleNew(1, dims, DATA_TYPECODE);
   if (!array) SWIG_fail;
   $2 = (DATA_TYPE*) array_data(array);
 }
 %typemap(argout)
-  (DIM_TYPE DIM1, DATA_TYPE* ARGOUT_ARRAY1)
+  (std::size_t DIM1, DATA_TYPE* ARGOUT_ARRAY1)
 {
   $result = SWIG_Python_AppendOutput($result,(PyObject*)array$argnum);
 }
@@ -2113,18 +2113,18 @@
 /* Argoutview Array Typemaps */
 /*****************************/
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY1, DIM_TYPE* DIM1)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY1, std::size_t* DIM1)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEW_ARRAY1, DIM_TYPE* DIM1    )
-  (DATA_TYPE*  data_temp = NULL , DIM_TYPE  dim_temp)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY1, std::size_t* DIM1    )
+  (DATA_TYPE*  data_temp = NULL , std::size_t  dim_temp)
 {
   $1 = &data_temp;
   $2 = &dim_temp;
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DATA_TYPE** ARGOUTVIEW_ARRAY1, DIM_TYPE* DIM1)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY1, std::size_t* DIM1)
 {
   npy_intp dims[1] = { *$2 };
   PyObject* obj = PyArray_SimpleNewFromData(1, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2134,18 +2134,18 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DATA_TYPE** ARGOUTVIEW_ARRAY1)
+/* Typemap suite for (std::size_t* DIM1, DATA_TYPE** ARGOUTVIEW_ARRAY1)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DATA_TYPE** ARGOUTVIEW_ARRAY1)
-  (DIM_TYPE  dim_temp, DATA_TYPE*  data_temp = NULL )
+  (std::size_t* DIM1    , DATA_TYPE** ARGOUTVIEW_ARRAY1)
+  (std::size_t  dim_temp, DATA_TYPE*  data_temp = NULL )
 {
   $1 = &dim_temp;
   $2 = &data_temp;
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DIM_TYPE* DIM1, DATA_TYPE** ARGOUTVIEW_ARRAY1)
+  (std::size_t* DIM1, DATA_TYPE** ARGOUTVIEW_ARRAY1)
 {
   npy_intp dims[1] = { *$1 };
   PyObject* obj = PyArray_SimpleNewFromData(1, dims, DATA_TYPECODE, (void*)(*$2));
@@ -2155,11 +2155,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY2, std::size_t* DIM1, std::size_t* DIM2)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEW_ARRAY2, DIM_TYPE* DIM1     , DIM_TYPE* DIM2     )
-  (DATA_TYPE*  data_temp = NULL , DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY2, std::size_t* DIM1     , std::size_t* DIM2     )
+  (DATA_TYPE*  data_temp = NULL , std::size_t  dim1_temp, std::size_t  dim2_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2167,7 +2167,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DATA_TYPE** ARGOUTVIEW_ARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY2, std::size_t* DIM1, std::size_t* DIM2)
 {
   npy_intp dims[2] = { *$2, *$3 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2177,11 +2177,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEW_ARRAY2)
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEW_ARRAY2)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1     , DIM_TYPE* DIM2     , DATA_TYPE** ARGOUTVIEW_ARRAY2)
-  (DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp, DATA_TYPE*  data_temp = NULL )
+  (std::size_t* DIM1     , std::size_t* DIM2     , DATA_TYPE** ARGOUTVIEW_ARRAY2)
+  (std::size_t  dim1_temp, std::size_t  dim2_temp, DATA_TYPE*  data_temp = NULL )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2189,7 +2189,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEW_ARRAY2)
+  (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEW_ARRAY2)
 {
   npy_intp dims[2] = { *$1, *$2 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$3));
@@ -2199,11 +2199,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_FARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_FARRAY2, std::size_t* DIM1, std::size_t* DIM2)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEW_FARRAY2, DIM_TYPE* DIM1     , DIM_TYPE* DIM2     )
-  (DATA_TYPE*  data_temp = NULL  , DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp)
+  (DATA_TYPE** ARGOUTVIEW_FARRAY2, std::size_t* DIM1     , std::size_t* DIM2     )
+  (DATA_TYPE*  data_temp = NULL  , std::size_t  dim1_temp, std::size_t  dim2_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2211,7 +2211,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements")
-  (DATA_TYPE** ARGOUTVIEW_FARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+  (DATA_TYPE** ARGOUTVIEW_FARRAY2, std::size_t* DIM1, std::size_t* DIM2)
 {
   npy_intp dims[2] = { *$2, *$3 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2221,11 +2221,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEW_FARRAY2)
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEW_FARRAY2)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1     , DIM_TYPE* DIM2     , DATA_TYPE** ARGOUTVIEW_FARRAY2)
-  (DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp, DATA_TYPE*  data_temp = NULL  )
+  (std::size_t* DIM1     , std::size_t* DIM2     , DATA_TYPE** ARGOUTVIEW_FARRAY2)
+  (std::size_t  dim1_temp, std::size_t  dim2_temp, DATA_TYPE*  data_temp = NULL  )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2233,7 +2233,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEW_FARRAY2)
+  (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEW_FARRAY2)
 {
   npy_intp dims[2] = { *$1, *$2 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$3));
@@ -2243,12 +2243,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY3, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEW_ARRAY3, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    )
-  (DATA_TYPE* data_temp = NULL  , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY3, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    )
+  (DATA_TYPE* data_temp = NULL  , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2257,7 +2257,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DATA_TYPE** ARGOUTVIEW_ARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
 {
   npy_intp dims[3] = { *$2, *$3, *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2267,12 +2267,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3,
                       DATA_TYPE** ARGOUTVIEW_ARRAY3)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEW_ARRAY3)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DATA_TYPE* data_temp = NULL)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEW_ARRAY3)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, DATA_TYPE* data_temp = NULL)
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2281,7 +2281,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEW_ARRAY3)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEW_ARRAY3)
 {
   npy_intp dims[3] = { *$1, *$2, *$3 };
   PyObject* obj = PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$4));
@@ -2291,12 +2291,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_FARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_FARRAY3, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEW_FARRAY3, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    )
-  (DATA_TYPE* data_temp = NULL   , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp)
+  (DATA_TYPE** ARGOUTVIEW_FARRAY3, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    )
+  (DATA_TYPE* data_temp = NULL   , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2305,7 +2305,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements")
-  (DATA_TYPE** ARGOUTVIEW_FARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
+  (DATA_TYPE** ARGOUTVIEW_FARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
 {
   npy_intp dims[3] = { *$2, *$3, *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2315,12 +2315,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3,
                       DATA_TYPE** ARGOUTVIEW_FARRAY3)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DATA_TYPE** ARGOUTVIEW_FARRAY3)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DATA_TYPE* data_temp = NULL   )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , DATA_TYPE** ARGOUTVIEW_FARRAY3)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, DATA_TYPE* data_temp = NULL   )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2329,7 +2329,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEW_FARRAY3)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEW_FARRAY3)
 {
   npy_intp dims[3] = { *$1, *$2, *$3 };
   PyObject* obj = PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$4));
@@ -2339,12 +2339,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_ARRAY4, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3, std::size_t* DIM4)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEW_ARRAY4, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    )
-  (DATA_TYPE* data_temp = NULL  , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY4, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    )
+  (DATA_TYPE* data_temp = NULL  , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2354,7 +2354,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DATA_TYPE** ARGOUTVIEW_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+  (DATA_TYPE** ARGOUTVIEW_ARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
 {
   npy_intp dims[4] = { *$2, *$3, *$4 , *$5 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2364,12 +2364,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4,
                       DATA_TYPE** ARGOUTVIEW_ARRAY4)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    , DATA_TYPE** ARGOUTVIEW_ARRAY4)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp, DATA_TYPE* data_temp = NULL  )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    , DATA_TYPE** ARGOUTVIEW_ARRAY4)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp, DATA_TYPE* data_temp = NULL  )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2379,7 +2379,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEW_ARRAY4)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEW_ARRAY4)
 {
   npy_intp dims[4] = { *$1, *$2, *$3 , *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$5));
@@ -2389,12 +2389,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEW_FARRAY4, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3, std::size_t* DIM4)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEW_FARRAY4, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    )
-  (DATA_TYPE* data_temp = NULL   , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp)
+  (DATA_TYPE** ARGOUTVIEW_FARRAY4, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    )
+  (DATA_TYPE* data_temp = NULL   , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2404,7 +2404,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements")
-  (DATA_TYPE** ARGOUTVIEW_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+  (DATA_TYPE** ARGOUTVIEW_FARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
 {
   npy_intp dims[4] = { *$2, *$3, *$4 , *$5 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2414,12 +2414,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4,
                       DATA_TYPE** ARGOUTVIEW_FARRAY4)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    , DATA_TYPE** ARGOUTVIEW_FARRAY4)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp, DATA_TYPE* data_temp = NULL   )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    , DATA_TYPE** ARGOUTVIEW_FARRAY4)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp, DATA_TYPE* data_temp = NULL   )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2429,7 +2429,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEW_FARRAY4)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEW_FARRAY4)
 {
   npy_intp dims[4] = { *$1, *$2, *$3 , *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$5));
@@ -2443,18 +2443,18 @@
 /* Managed Argoutview Array Typemaps */
 /*************************************/
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY1, DIM_TYPE* DIM1)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY1, std::size_t* DIM1)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY1, DIM_TYPE* DIM1    )
-  (DATA_TYPE*  data_temp = NULL  , DIM_TYPE  dim_temp)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY1, std::size_t* DIM1    )
+  (DATA_TYPE*  data_temp = NULL  , std::size_t  dim_temp)
 {
   $1 = &data_temp;
   $2 = &dim_temp;
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY1, DIM_TYPE* DIM1)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY1, std::size_t* DIM1)
 {
   npy_intp dims[1] = { *$2 };
   PyObject* obj = PyArray_SimpleNewFromData(1, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2477,18 +2477,18 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DATA_TYPE** ARGOUTVIEWM_ARRAY1)
+/* Typemap suite for (std::size_t* DIM1, DATA_TYPE** ARGOUTVIEWM_ARRAY1)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DATA_TYPE** ARGOUTVIEWM_ARRAY1)
-  (DIM_TYPE  dim_temp, DATA_TYPE*  data_temp = NULL  )
+  (std::size_t* DIM1    , DATA_TYPE** ARGOUTVIEWM_ARRAY1)
+  (std::size_t  dim_temp, DATA_TYPE*  data_temp = NULL  )
 {
   $1 = &dim_temp;
   $2 = &data_temp;
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DATA_TYPE** ARGOUTVIEWM_ARRAY1)
+  (std::size_t* DIM1, DATA_TYPE** ARGOUTVIEWM_ARRAY1)
 {
   npy_intp dims[1] = { *$1 };
   PyObject* obj = PyArray_SimpleNewFromData(1, dims, DATA_TYPECODE, (void*)(*$2));
@@ -2511,11 +2511,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY2, std::size_t* DIM1, std::size_t* DIM2)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY2, DIM_TYPE* DIM1     , DIM_TYPE* DIM2     )
-  (DATA_TYPE*  data_temp = NULL  , DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY2, std::size_t* DIM1     , std::size_t* DIM2     )
+  (DATA_TYPE*  data_temp = NULL  , std::size_t  dim1_temp, std::size_t  dim2_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2523,7 +2523,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY2, std::size_t* DIM1, std::size_t* DIM2)
 {
   npy_intp dims[2] = { *$2, *$3 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2546,11 +2546,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEWM_ARRAY2)
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEWM_ARRAY2)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1     , DIM_TYPE* DIM2     , DATA_TYPE** ARGOUTVIEWM_ARRAY2)
-  (DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp, DATA_TYPE*  data_temp = NULL  )
+  (std::size_t* DIM1     , std::size_t* DIM2     , DATA_TYPE** ARGOUTVIEWM_ARRAY2)
+  (std::size_t  dim1_temp, std::size_t  dim2_temp, DATA_TYPE*  data_temp = NULL  )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2558,7 +2558,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEWM_ARRAY2)
+  (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEWM_ARRAY2)
 {
   npy_intp dims[2] = { *$1, *$2 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$3));
@@ -2581,11 +2581,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY2, std::size_t* DIM1, std::size_t* DIM2)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY2, DIM_TYPE* DIM1     , DIM_TYPE* DIM2     )
-  (DATA_TYPE*  data_temp = NULL   , DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY2, std::size_t* DIM1     , std::size_t* DIM2     )
+  (DATA_TYPE*  data_temp = NULL   , std::size_t  dim1_temp, std::size_t  dim2_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2593,7 +2593,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY2, DIM_TYPE* DIM1, DIM_TYPE* DIM2)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY2, std::size_t* DIM1, std::size_t* DIM2)
 {
   npy_intp dims[2] = { *$2, *$3 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2616,11 +2616,11 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEWM_FARRAY2)
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEWM_FARRAY2)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1     , DIM_TYPE* DIM2     , DATA_TYPE** ARGOUTVIEWM_FARRAY2)
-  (DIM_TYPE  dim1_temp, DIM_TYPE  dim2_temp, DATA_TYPE*  data_temp = NULL   )
+  (std::size_t* DIM1     , std::size_t* DIM2     , DATA_TYPE** ARGOUTVIEWM_FARRAY2)
+  (std::size_t  dim1_temp, std::size_t  dim2_temp, DATA_TYPE*  data_temp = NULL   )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2628,7 +2628,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DATA_TYPE** ARGOUTVIEWM_FARRAY2)
+  (std::size_t* DIM1, std::size_t* DIM2, DATA_TYPE** ARGOUTVIEWM_FARRAY2)
 {
   npy_intp dims[2] = { *$1, *$2 };
   PyObject* obj = PyArray_SimpleNewFromData(2, dims, DATA_TYPECODE, (void*)(*$3));
@@ -2651,12 +2651,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY3, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY3, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    )
-  (DATA_TYPE* data_temp = NULL   , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY3, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    )
+  (DATA_TYPE* data_temp = NULL   , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2665,7 +2665,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
 {
   npy_intp dims[3] = { *$2, *$3, *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2688,12 +2688,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3,
                       DATA_TYPE** ARGOUTVIEWM_ARRAY3)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DATA_TYPE** ARGOUTVIEWM_ARRAY3)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DATA_TYPE* data_temp = NULL   )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , DATA_TYPE** ARGOUTVIEWM_ARRAY3)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, DATA_TYPE* data_temp = NULL   )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2702,7 +2702,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEWM_ARRAY3)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEWM_ARRAY3)
 {
   npy_intp dims[3] = { *$1, *$2, *$3 };
   PyObject* obj= PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$4));
@@ -2725,12 +2725,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY3, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY3, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    )
-  (DATA_TYPE* data_temp = NULL    , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY3, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    )
+  (DATA_TYPE* data_temp = NULL    , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2739,7 +2739,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY3, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY3, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
 {
   npy_intp dims[3] = { *$2, *$3, *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2762,12 +2762,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3,
                       DATA_TYPE** ARGOUTVIEWM_FARRAY3)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DATA_TYPE** ARGOUTVIEWM_FARRAY3)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DATA_TYPE* data_temp = NULL    )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , DATA_TYPE** ARGOUTVIEWM_FARRAY3)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, DATA_TYPE* data_temp = NULL    )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2776,7 +2776,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DATA_TYPE** ARGOUTVIEWM_FARRAY3)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, DATA_TYPE** ARGOUTVIEWM_FARRAY3)
 {
   npy_intp dims[3] = { *$1, *$2, *$3 };
   PyObject* obj = PyArray_SimpleNewFromData(3, dims, DATA_TYPECODE, (void*)(*$4));
@@ -2799,12 +2799,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY4, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3, std::size_t* DIM4)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    )
-  (DATA_TYPE* data_temp = NULL   , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    )
+  (DATA_TYPE* data_temp = NULL   , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2814,7 +2814,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
 {
   npy_intp dims[4] = { *$2, *$3, *$4 , *$5 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2837,12 +2837,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4,
                       DATA_TYPE** ARGOUTVIEWM_ARRAY4)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    , DATA_TYPE** ARGOUTVIEWM_ARRAY4)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp, DATA_TYPE* data_temp = NULL   )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    , DATA_TYPE** ARGOUTVIEWM_ARRAY4)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp, DATA_TYPE* data_temp = NULL   )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2852,7 +2852,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEWM_ARRAY4)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEWM_ARRAY4)
 {
   npy_intp dims[4] = { *$1, *$2, *$3 , *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$5));
@@ -2875,12 +2875,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY4, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3, std::size_t* DIM4)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    )
-  (DATA_TYPE* data_temp = NULL    , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    )
+  (DATA_TYPE* data_temp = NULL    , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2890,7 +2890,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3)
 {
   npy_intp dims[4] = { *$2, *$3, *$4 , *$5 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2913,12 +2913,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4,
                       DATA_TYPE** ARGOUTVIEWM_FARRAY4)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    , DATA_TYPE** ARGOUTVIEWM_FARRAY4)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp, DATA_TYPE* data_temp = NULL    )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    , DATA_TYPE** ARGOUTVIEWM_FARRAY4)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp, DATA_TYPE* data_temp = NULL    )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -2928,7 +2928,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEWM_FARRAY4)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEWM_FARRAY4)
 {
   npy_intp dims[4] = { *$1, *$2, *$3 , *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$5));
@@ -2951,12 +2951,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_ARRAY4, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3, std::size_t* DIM4)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    )
-  (DATA_TYPE* data_temp = NULL   , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    )
+  (DATA_TYPE* data_temp = NULL   , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -2966,7 +2966,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+  (DATA_TYPE** ARGOUTVIEWM_ARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
 {
   npy_intp dims[4] = { *$2, *$3, *$4 , *$5 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$1));
@@ -2989,12 +2989,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4,
                       DATA_TYPE** ARGOUTVIEWM_ARRAY4)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    , DATA_TYPE** ARGOUTVIEWM_ARRAY4)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp, DATA_TYPE* data_temp = NULL   )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    , DATA_TYPE** ARGOUTVIEWM_ARRAY4)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp, DATA_TYPE* data_temp = NULL   )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -3004,7 +3004,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEWM_ARRAY4)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEWM_ARRAY4)
 {
   npy_intp dims[4] = { *$1, *$2, *$3 , *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$5));
@@ -3027,12 +3027,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2,
-                      DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+/* Typemap suite for (DATA_TYPE** ARGOUTVIEWM_FARRAY4, std::size_t* DIM1, std::size_t* DIM2,
+                      std::size_t* DIM3, std::size_t* DIM4)
  */
 %typemap(in,numinputs=0)
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    )
-  (DATA_TYPE* data_temp = NULL    , DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    )
+  (DATA_TYPE* data_temp = NULL    , std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp)
 {
   $1 = &data_temp;
   $2 = &dim1_temp;
@@ -3042,7 +3042,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4)
+  (DATA_TYPE** ARGOUTVIEWM_FARRAY4, std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4)
 {
   npy_intp dims[4] = { *$2, *$3, *$4 , *$5 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$1));
@@ -3065,12 +3065,12 @@
   $result = SWIG_Python_AppendOutput($result,obj);
 }
 
-/* Typemap suite for (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4,
+/* Typemap suite for (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4,
                       DATA_TYPE** ARGOUTVIEWM_FARRAY4)
  */
 %typemap(in,numinputs=0)
-  (DIM_TYPE* DIM1    , DIM_TYPE* DIM2    , DIM_TYPE* DIM3    , DIM_TYPE* DIM4    , DATA_TYPE** ARGOUTVIEWM_FARRAY4)
-  (DIM_TYPE dim1_temp, DIM_TYPE dim2_temp, DIM_TYPE dim3_temp, DIM_TYPE dim4_temp, DATA_TYPE* data_temp = NULL    )
+  (std::size_t* DIM1    , std::size_t* DIM2    , std::size_t* DIM3    , std::size_t* DIM4    , DATA_TYPE** ARGOUTVIEWM_FARRAY4)
+  (std::size_t dim1_temp, std::size_t dim2_temp, std::size_t dim3_temp, std::size_t dim4_temp, DATA_TYPE* data_temp = NULL    )
 {
   $1 = &dim1_temp;
   $2 = &dim2_temp;
@@ -3080,7 +3080,7 @@
 }
 %typemap(argout,
          fragment="NumPy_Backward_Compatibility,NumPy_Array_Requirements,NumPy_Utilities")
-  (DIM_TYPE* DIM1, DIM_TYPE* DIM2, DIM_TYPE* DIM3, DIM_TYPE* DIM4, DATA_TYPE** ARGOUTVIEWM_FARRAY4)
+  (std::size_t* DIM1, std::size_t* DIM2, std::size_t* DIM3, std::size_t* DIM4, DATA_TYPE** ARGOUTVIEWM_FARRAY4)
 {
   npy_intp dims[4] = { *$1, *$2, *$3 , *$4 };
   PyObject* obj = PyArray_SimpleNewFromData(4, dims, DATA_TYPECODE, (void*)(*$5));
@@ -3107,18 +3107,18 @@
 /* In-Place Array Typemap - flattened */
 /**************************************/
 
-/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY_FLAT, DIM_TYPE DIM_FLAT)
+/* Typemap suite for (DATA_TYPE* INPLACE_ARRAY_FLAT, std::size_t DIM_FLAT)
  */
 %typecheck(SWIG_TYPECHECK_DOUBLE_ARRAY,
            fragment="NumPy_Macros")
-  (DATA_TYPE* INPLACE_ARRAY_FLAT, DIM_TYPE DIM_FLAT)
+  (DATA_TYPE* INPLACE_ARRAY_FLAT, std::size_t DIM_FLAT)
 {
   $1 = is_array($input) && PyArray_EquivTypenums(array_type($input),
                                                  DATA_TYPECODE);
 }
 %typemap(in,
          fragment="NumPy_Fragments")
-  (DATA_TYPE* INPLACE_ARRAY_FLAT, DIM_TYPE DIM_FLAT)
+  (DATA_TYPE* INPLACE_ARRAY_FLAT, std::size_t DIM_FLAT)
   (PyArrayObject* array=NULL, int i=1)
 {
   array = obj_to_array_no_conversion($input, DATA_TYPECODE);
@@ -3145,7 +3145,7 @@
 %numpy_typemaps(unsigned long     , NPY_ULONG    , int)
 %numpy_typemaps(long long         , NPY_LONGLONG , int)
 %numpy_typemaps(unsigned long long, NPY_ULONGLONG, int)
-%numpy_typemaps(float             , NPY_FLOAT    , int)
+%numpy_typemaps(double             , NPY_FLOAT    , int)
 %numpy_typemaps(double            , NPY_DOUBLE   , int)
 %numpy_typemaps(int8_t            , NPY_INT8     , int)
 %numpy_typemaps(int16_t           , NPY_INT16    , int)
@@ -3175,7 +3175,7 @@
 
 %include <std_complex.i>
 
-%numpy_typemaps(std::complex<float>,  NPY_CFLOAT , int)
+%numpy_typemaps(std::complex<double>,  NPY_CFLOAT , int)
 %numpy_typemaps(std::complex<double>, NPY_CDOUBLE, int)
 
 #endif

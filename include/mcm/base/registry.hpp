@@ -12,11 +12,13 @@ namespace mv
     //namespace base
     //{
 
-        template <class EntryType>
+        template <class KeyType, class EntryType>
         class Registry
         {
+            
+        protected:
 
-            std::unordered_map<std::string, EntryType*> reg_;
+            std::unordered_map<KeyType, EntryType*> reg_;
 
             Registry()
             {
@@ -34,37 +36,37 @@ namespace mv
         public:
 
             static Registry& instance();
-            inline EntryType& enter(const std::string& name)
+            inline EntryType& enter(const KeyType& key)
             {
-                assert(find(name) == nullptr && ("Duplicated registry entry " + name).c_str());
-                EntryType *e = new EntryType(name);
-                reg_.emplace(name, e);
+                assert(find(key) == nullptr && "Duplicated registry entry");
+                EntryType *e = new EntryType(key);
+                reg_.emplace(key, e);
                 return *e;
             }
 
-            inline void remove(const std::string& name)
+            inline void remove(const KeyType& key)
             {
-                assert(find(name) != nullptr && ("Attempt of removal of non-existing entry  " + name).c_str());
-                delete reg_[name];
-                reg_.erase(name);
+                assert(find(key) != nullptr && "Attempt of removal of non-existing entry");
+                delete reg_[key];
+                reg_.erase(key);
             }
 
-            inline bool hasEntry(const std::string& name)
+            inline bool hasEntry(const KeyType& key)
             {
-                return find(name) != nullptr;
+                return find(key) != nullptr;
             }
             
-            inline EntryType* find(const std::string& name)
+            inline EntryType* find(const KeyType& key)
             {
-                auto it = reg_.find(name);
+                auto it = reg_.find(key);
                 if (it != reg_.end())
                     return &(*it->second);
                 return nullptr; 
             }
 
-            inline std::vector<std::string> list()
+            inline std::vector<KeyType> list()
             {
-                std::vector<std::string> result;
+                std::vector<KeyType> result;
                 for (auto entry : reg_)
                     result.push_back(entry.first);
                 return result;
@@ -84,17 +86,20 @@ namespace mv
 
         #define ATTRIBUTE_UNUSED __attribute__((unused))
 
-        #define MV_DEFINE_REGISTRY(EntryType)                                           \
-            template <class EntryType>                                                  \
-            mv::Registry<EntryType >& mv::Registry<EntryType >::instance()  \
-            {                                                                           \
-                static Registry instance_;                                              \
-                return instance_;                                                       \
-            }                                                                           
+        #define MV_DEFINE_REGISTRY(KeyType, EntryType)                                              \
+            template <>                                                                             \
+            mv::Registry<KeyType, EntryType >& mv::Registry<KeyType, EntryType >::instance()        \
+            {                                                                                       \
+                static Registry instance_;                                                          \
+                return instance_;                                                                   \
+            }                     
 
-        #define MV_REGISTER_ENTRY(EntryType, Name)                                      \
-            static ATTRIBUTE_UNUSED EntryType& __ ## EntryType ## Name ## __ =          \
-                mv::Registry<EntryType>::instance().enter(#Name)                 
+        #define CONCATENATE_DETAIL(x, y) x##y
+        #define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)                                                      
+
+        #define MV_REGISTER_ENTRY(KeyType, EntryType, key)                                          \
+            static ATTRIBUTE_UNUSED EntryType& CONCATENATE(__ ## EntryType ## __, __COUNTER__) =    \
+                mv::Registry<KeyType, EntryType >::instance().enter(key)                 
 
     //}
 

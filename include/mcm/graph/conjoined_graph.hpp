@@ -7,14 +7,14 @@
 namespace mv
 {
     
-    template <class T_node, class T_edge1, class T_edge2, class T_allocator, class T_size = uint32_t>
-    class conjoined_graph : private virtual graph<T_node, T_edge1, T_allocator, T_size>, private virtual graph<T_node, T_edge2, T_allocator, T_size>
+    template <class T_node, class T_edge1, class T_edge2>
+    class conjoined_graph : private virtual graph<T_node, T_edge1>, private virtual graph<T_node, T_edge2>
     {
 
     public:
 
-        using first_graph = graph<T_node, T_edge1, T_allocator, T_size>;
-        using second_graph = graph<T_node, T_edge2, T_allocator, T_size>;
+        using first_graph = graph<T_node, T_edge1>;
+        using second_graph = graph<T_node, T_edge2>;
 
     private:
 
@@ -98,10 +98,7 @@ namespace mv
         using second_graph::edge_lower_bound;
         using second_graph::edge_equal_range;
 
-        template <class T>
-        using owner_ptr = typename T_allocator::template owner_ptr<T>;
-
-        bool make_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename first_graph::node> &new_node)
+        bool make_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename first_graph::node> &new_node)
         {   
 
             bool result = first_graph::make_node_(b_node, new_node);
@@ -109,7 +106,7 @@ namespace mv
             if (!result)
                 return false;
             
-            owner_ptr<typename second_graph::node> dummy;
+            std::shared_ptr<typename second_graph::node> dummy;
             result = second_graph::make_node_(b_node, dummy);
 
             if (!result)
@@ -122,7 +119,7 @@ namespace mv
 
         }
 
-        bool make_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename second_graph::node> &new_node)
+        bool make_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename second_graph::node> &new_node)
         {   
 
             bool result = second_graph::make_node_(b_node, new_node);
@@ -130,7 +127,7 @@ namespace mv
             if (!result)
                 return false;
             
-            owner_ptr<typename first_graph::node> dummy;
+            std::shared_ptr<typename first_graph::node> dummy;
             result = first_graph::make_node_(b_node, dummy);
 
             if (!result)
@@ -143,14 +140,14 @@ namespace mv
 
         }
 
-        void terminate_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename first_graph::node> &del_node)
+        void terminate_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename first_graph::node> &del_node)
         {
             first_graph::terminate_node_(b_node, del_node);
             auto second_del_node = second_graph::get_node_(b_node);
             second_graph::terminate_node_(b_node, second_del_node);
         }
 
-        void terminate_node_(owner_ptr<detail::base_node_class<T_node, T_size>> &b_node, owner_ptr<typename second_graph::node> &del_node)
+        void terminate_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename second_graph::node> &del_node)
         {
             second_graph::terminate_node_(b_node, del_node);
             auto second_del_node = first_graph::get_node_(b_node);
@@ -166,8 +163,8 @@ namespace mv
     public:
     
         conjoined_graph() :
-        graph<T_node, T_edge1, T_allocator, T_size>(),
-        graph<T_node, T_edge2, T_allocator, T_size>(first_graph::base_nodes_, first_graph::node_id_)
+        graph<T_node, T_edge1>(),
+        graph<T_node, T_edge2>(first_graph::base_nodes_, first_graph::node_id_)
         {
             //second_graph::base_nodes_ = first_graph::base_nodes_;
         }

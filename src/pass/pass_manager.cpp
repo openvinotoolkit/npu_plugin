@@ -1,11 +1,5 @@
 #include "include/mcm/pass/pass_manager.hpp"
 
-mv::ExecutionError::ExecutionError(const std::string& whatArg) :
-std::runtime_error(whatArg)
-{
-
-}
-
 std::string mv::PassManager::toString(PassGenre passGenre)
 {
     switch(passGenre)
@@ -27,8 +21,6 @@ std::string mv::PassManager::toString(PassGenre passGenre)
     return "";
 
 }
-
-mv::Logger& mv::PassManager::logger_ = mv::ComputationModel::logger();
 
 mv::PassManager::PassManager() :
 ready_(false),
@@ -311,7 +303,7 @@ mv::json::Object& mv::PassManager::step()
     if (!running_)
     {
         if (!validDescriptors())
-            throw ExecutionError("Invalid descriptor");
+            throw RuntimeError(*this, "Invalid descriptor");
         running_ = true;
         currentStage_ = passFlow_.cbegin();
         while (currentStage_->second->begin() == currentStage_->second->end())
@@ -443,25 +435,13 @@ bool mv::PassManager::validDescriptors() const
 
     if (!ready())
     {
-        logger_.log(Logger::MessageType::MessageError, "Pass manager not initialized");
+        log(Logger::MessageType::MessageError, "Pass manager not initialized");
         return false;
     }
 
     if (targetDescriptor_.getTarget() == Target::Unknown)
     {
-        logger_.log(Logger::MessageType::MessageError, "Target descriptor has an undefined target");
-        return false;
-    }
-
-    if (targetDescriptor_.getDType() == DType::Unknown)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Target descriptor has an undefined global data type");
-        return false;
-    }
-
-    if (targetDescriptor_.getOrder() == Order::Unknown)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Target descriptor has an undefined global data order");
+        log(Logger::MessageType::MessageError, "Target descriptor has an undefined target");
         return false;
     }
 
@@ -479,14 +459,14 @@ bool mv::PassManager::validDescriptors() const
                 {
                     if (compDescriptor_[passPtr->getName()].valueType() != json::JSONType::Object)
                     {
-                        logger_.log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid "
+                        log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid "
                             "arguments definition for the pass " + passPtr->getName());
                         return false;
                     }
                 }
                 else
                 {
-                    logger_.log(Logger::MessageType::MessageError, "Compilation descriptor misses "
+                    log(Logger::MessageType::MessageError, "Compilation descriptor misses "
                             "arguments definition for the pass " + passPtr->getName());
                     return false;
                 }
@@ -498,14 +478,14 @@ bool mv::PassManager::validDescriptors() const
                     {
                         if (compDescriptor_[passPtr->getName()][argIt->first].valueType() != argIt->second)
                         {
-                            logger_.log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid value "
+                            log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid value "
                                 "for the argument " + argIt->first + " from the pass " + passPtr->getName());
                             return false;
                         }
                     }
                     else
                     {
-                        logger_.log(Logger::MessageType::MessageError, "Compilation descriptor misses a value "
+                        log(Logger::MessageType::MessageError, "Compilation descriptor misses a value "
                             "for the argument " + argIt->first + " from the pass " + passPtr->getName());
                         return false;
                     }
@@ -536,4 +516,9 @@ bool mv::PassManager::validDescriptors() const
 
     return true;
 
+}
+
+std::string mv::PassManager::getLogID() const
+{
+    return "PassManager";
 }

@@ -1,5 +1,5 @@
-#ifndef MV_PASS_PASS_HPP_
-#define MV_PASS_PASS_HPP_
+#ifndef MV_PASS_PASS_ENTRY_HPP_
+#define MV_PASS_PASS_ENTRY_HPP_
 
 #include <string>
 #include <functional>
@@ -116,4 +116,4 @@ namespace mv
 
 }
 
-#endif // MV_PASS_PASS_HPP_
+#endif // MV_PASS_PASS_ENTRY_HPP_

@@ -1,6 +1,5 @@
 #include <iostream>
 #include <string>
-#include "include/mcm/graph/stl_allocator.hpp"
 #include "include/mcm/graph/conjoined_graph.hpp"
 #include "include/mcm/graph/visualizer.hpp"
 
@@ -33,78 +32,78 @@ public:
 int main()
 {
     
-	 mv::conjoined_graph<std::string, string_1, string_2, mv::stl_allocator> cg;
+    mv::conjoined_graph<std::string, string_1, string_2> cg;
 
-	    mv::graph<std::string, string_1, mv::stl_allocator> &g1 = cg.get_first();
-	    mv::graph<std::string, string_2, mv::stl_allocator> &g2 = cg.get_second();
+    mv::graph<std::string, string_1> &g1 = cg.get_first();
+    mv::graph<std::string, string_2> &g2 = cg.get_second();
 
-	    auto g1n1It = g1.node_insert("g1_n1");
-	    auto g1n2It = g1.node_insert(g1n1It, "g1_n2", "g1_e1");
-	    auto g1n3It = g1.node_insert(g1n1It, "g1_n3", "g1_e2");
-	    auto g1n4It = g1.node_insert(g1n2It, "g1_n4", "g1_e3");
-	    auto g1n5It = g1.node_insert(g1n2It, "g1_n5", "g1_e4");
-
-
-	    auto g2n1It = g2.node_insert("g2_n1");
-	    auto g2n2It = g2.node_insert(g2n1It, "g2_n2", "g2_e1");
-	    auto g2n3It = g2.node_insert(g2n1It, "g2_n3", "g2_e2");
+	auto g1n1It = g1.node_insert("g1_n1");
+	auto g1n2It = g1.node_insert(g1n1It, "g1_n2", "g1_e1");
+	auto g1n3It = g1.node_insert(g1n1It, "g1_n3", "g1_e2");
+	auto g1n4It = g1.node_insert(g1n2It, "g1_n4", "g1_e3");
+	auto g1n5It = g1.node_insert(g1n2It, "g1_n5", "g1_e4");
 
 
-	    auto g1g2n1It = cg.get_first_iterator(g2n1It);
-	    auto g1g2n2It = cg.get_first_iterator(g2n2It);
-	    auto g1g2n3It = cg.get_first_iterator(g2n3It);
-	    auto g1e5It = g1.edge_insert(g1n1It, g1g2n1It, "g1_e5");
-	    auto g1e6It = g1.edge_insert(g1n3It, g1g2n2It, "g1_e6");
-	    auto g1e7It = g1.edge_insert(g1n5It, g1g2n3It, "g1_e7");
+	auto g2n1It = g2.node_insert("g2_n1");
+	auto g2n2It = g2.node_insert(g2n1It, "g2_n2", "g2_e1");
+	auto g2n3It = g2.node_insert(g2n1It, "g2_n3", "g2_e2");
 
 
-	    auto g2g1n1It = g2.node_find(*g1n1It);
-	    auto g2g1n2It = g2.node_find(*g1n2It);
-	    auto g2g1n3It = g2.node_find(*g1n3It);
-	    auto g2g1n4It = g2.node_find(*g1n4It);
-	    auto g2g1n5It = g2.node_find(*g1n5It);
+	auto g1g2n1It = cg.get_first_iterator(g2n1It);
+	auto g1g2n2It = cg.get_first_iterator(g2n2It);
+	auto g1g2n3It = cg.get_first_iterator(g2n3It);
+	auto g1e5It = g1.edge_insert(g1n1It, g1g2n1It, "g1_e5");
+	auto g1e6It = g1.edge_insert(g1n3It, g1g2n2It, "g1_e6");
+	auto g1e7It = g1.edge_insert(g1n5It, g1g2n3It, "g1_e7");
 
-	    auto g2e3It = g2.edge_insert(g2g1n1It, g2g1n2It, "g2_e3");
-	    auto g2e4It = g2.edge_insert(g2g1n2It, g2g1n3It, "g2_e4");
-	    auto g2e5It = g2.edge_insert(g2g1n3It, g2g1n4It, "g2_e5");
-	    auto g2e6It = g2.edge_insert(g2g1n4It, g2g1n5It, "g2_e6");
-	    auto g2e7It = g2.edge_insert(g2g1n5It, g2n1It, "g2_e7");
 
-	    auto itA = g1.node_begin();
-	    std::cout << *itA << std::endl;
+	auto g2g1n1It = g2.node_find(*g1n1It);
+	auto g2g1n2It = g2.node_find(*g1n2It);
+	auto g2g1n3It = g2.node_find(*g1n3It);
+	auto g2g1n4It = g2.node_find(*g1n4It);
+	auto g2g1n5It = g2.node_find(*g1n5It);
 
-	    std::cout << g1.node_size() << std::endl;
-	    std::cout << g2.node_size() << std::endl;
+	auto g2e3It = g2.edge_insert(g2g1n1It, g2g1n2It, "g2_e3");
+	auto g2e4It = g2.edge_insert(g2g1n2It, g2g1n3It, "g2_e4");
+	auto g2e5It = g2.edge_insert(g2g1n3It, g2g1n4It, "g2_e5");
+	auto g2e6It = g2.edge_insert(g2g1n4It, g2g1n5It, "g2_e6");
+	auto g2e7It = g2.edge_insert(g2g1n5It, g2n1It, "g2_e7");
 
-	    for (auto it = g1.node_begin(); it != g1.node_end(); ++it)
-	        std::cout << *it << std::endl;
+	auto itA = g1.node_begin();
+	std::cout << *itA << std::endl;
 
-	    for (auto it = g2.node_begin(); it != g2.node_end(); ++it)
-	        std::cout << *it << std::endl;
+	std::cout << g1.node_size() << std::endl;
+	std::cout << g2.node_size() << std::endl;
 
-	    mv::Visualizer gv(mv::node_content, mv::edge_content);
-	    gv.print_dot(g1);
+	for (auto it = g1.node_begin(); it != g1.node_end(); ++it)
+		std::cout << *it << std::endl;
 
-	    gv.print_dot(g2);
+	for (auto it = g2.node_begin(); it != g2.node_end(); ++it)
+		std::cout << *it << std::endl;
 
-	    g2.node_erase(g2g1n2It);
+	mv::Visualizer gv(mv::node_content, mv::edge_content);
+	gv.print_dot(g1);
 
-	    auto g1n6It = g1.node_insert(g1n4It, "g1_n6", "g1_e8");
+	gv.print_dot(g2);
 
-	    std::cout << g1.node_size() << std::endl;
-	    std::cout << g1.edge_size() << std::endl;
-	    std::cout << g2.node_size() << std::endl;
-	    std::cout << g2.edge_size() << std::endl;
+	g2.node_erase(g2g1n2It);
 
-	    gv.print_dot(g1);
+	auto g1n6It = g1.node_insert(g1n4It, "g1_n6", "g1_e8");
 
-	    gv.print_dot(g2);
+	std::cout << g1.node_size() << std::endl;
+	std::cout << g1.edge_size() << std::endl;
+	std::cout << g2.node_size() << std::endl;
+	std::cout << g2.edge_size() << std::endl;
 
-	    g1.clear();
+	gv.print_dot(g1);
 
-	    std::cout << g1.node_size() << std::endl;
-	    std::cout << g1.edge_size() << std::endl;
-	    std::cout << g2.node_size() << std::endl;
-	    std::cout << g2.edge_size() << std::endl;
+	gv.print_dot(g2);
+
+	g1.clear();
+
+	std::cout << g1.node_size() << std::endl;
+	std::cout << g1.edge_size() << std::endl;
+	std::cout << g2.node_size() << std::endl;
+	std::cout << g2.edge_size() << std::endl;
 
 }

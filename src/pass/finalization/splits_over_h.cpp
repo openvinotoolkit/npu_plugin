@@ -4,8 +4,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
-#include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+
 
 static void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
@@ -33,7 +33,7 @@ unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator convIt)
         return input_tensor_shape[1];
 
     //Assuming split over H is always possible from this point on
-    unsigned max_output_channels_performed = convIt->getAttr("NCE1_MaxOutputChannelsPerformed").getContent<unsigned>();
+    unsigned max_output_channels_performed = convIt->get("NCE1_MaxOutputChannelsPerformed").get<unsigned>();
     return nce.computeMaxOutputLines(input_tensor_shape[0], max_output_channels_performed);
 }
 
@@ -63,7 +63,7 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
             continue;
         if(!operationIt->hasAttr("NCE1_Compatible"))
             continue;
-        if(!operationIt->getAttr("NCE1_Compatible").getContent<int>())
+        if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
 
         std::vector<mv::SplitOverHSolution> splits = computeSplitsOverH(nce, operationIt);
@@ -73,14 +73,14 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         for(unsigned i = 0; i < splits_over_height; ++i)
             std::cout << splits[i] << std::endl;
         */
-        om.addAttr(operationIt, "NCE1_SplitsOverHeight", mv::Attribute(mv::AttrType::UnsignedType, splits_over_height));
+        om.addAttr(operationIt, "NCE1_SplitsOverHeight", mv::Attribute(splits_over_height));
 
         // Compute DescriptorsSplits
-        unsigned splits_over_input_channels = operationIt->getAttr("NCE1_SplitsOverInputChannels").getContent<unsigned>();
-        std::vector<unsigned> modes = operationIt->getAttr("NCE1_Modes").getContent<std::vector<unsigned>>();
+        unsigned splits_over_input_channels = operationIt->get("NCE1_SplitsOverInputChannels").get<unsigned>();
+        std::vector<unsigned> modes = operationIt->get("NCE1_Modes").get<std::vector<unsigned>>();
 
         unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, modes.size());
-        om.addAttr(operationIt, "NCE1_DescriptorSplits", mv::Attribute(mv::AttrType::UnsignedType, descriptor_splits));
+        om.addAttr(operationIt, "NCE1_DescriptorSplits", mv::Attribute(descriptor_splits));
 
         std::vector<unsigned> input_lines_processed(splits_over_height);
         std::vector<unsigned> output_lines_processed(splits_over_height);
@@ -106,15 +106,15 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
             end_output_line[i] = split.end_output_line;
         }
 
-        om.addAttr(operationIt, "NCE1_InputLinesProcessed", mv::Attribute(mv::AttrType::UnsignedVecType, input_lines_processed));
-        om.addAttr(operationIt, "NCE1_OutputLinesProcessed", mv::Attribute(mv::AttrType::UnsignedVecType, output_lines_processed));
-        om.addAttr(operationIt, "NCE1_JunkOutputBefore", mv::Attribute(mv::AttrType::UnsignedVecType, junk_output_before));
-        om.addAttr(operationIt, "NCE1_JunkOutputAfter", mv::Attribute(mv::AttrType::UnsignedVecType, junk_output_after));
+        om.addAttr(operationIt, "NCE1_InputLinesProcessed", mv::Attribute(input_lines_processed));
+        om.addAttr(operationIt, "NCE1_OutputLinesProcessed", mv::Attribute(output_lines_processed));
+        om.addAttr(operationIt, "NCE1_JunkOutputBefore", mv::Attribute(junk_output_before));
+        om.addAttr(operationIt, "NCE1_JunkOutputAfter", mv::Attribute(junk_output_after));
 
-        om.addAttr(operationIt, "NCE1_StartInputLine", mv::Attribute(mv::AttrType::UnsignedVecType, start_input_line));
-        om.addAttr(operationIt, "NCE1_EndInputLine", mv::Attribute(mv::AttrType::UnsignedVecType, end_input_line));
-        om.addAttr(operationIt, "NCE1_StartOutputLine", mv::Attribute(mv::AttrType::UnsignedVecType, start_output_line));
-        om.addAttr(operationIt, "NCE1_EndOutputLine", mv::Attribute(mv::AttrType::UnsignedVecType, end_output_line));
+        om.addAttr(operationIt, "NCE1_StartInputLine", mv::Attribute(start_input_line));
+        om.addAttr(operationIt, "NCE1_EndInputLine", mv::Attribute(end_input_line));
+        om.addAttr(operationIt, "NCE1_StartOutputLine", mv::Attribute(start_output_line));
+        om.addAttr(operationIt, "NCE1_EndOutputLine", mv::Attribute(end_output_line));
     }
 
 }

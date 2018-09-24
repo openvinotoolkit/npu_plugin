@@ -32,8 +32,12 @@ namespace mv
             Value& operator[](const std::string& key);
             const Value& operator[](const std::string& key) const;
             Object& operator=(const Object& other);
+            bool operator==(const Object& other) const;
+            bool operator!=(const Object& other) const;
             std::string stringify() const override;
             std::string stringifyPretty() const override;
+
+            virtual std::string getLogID() const;
 
         };  
 

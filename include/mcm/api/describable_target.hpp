@@ -38,7 +38,7 @@ namespace mv
         virtual bool defineCompResourceArg(const std::string& argName, DType argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, Order argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, const std::string& argValue) = 0;
-        virtual bool defineCompResourceArg(const std::string& argName, float argValue) = 0;
+        virtual bool defineCompResourceArg(const std::string& argName, double argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, int argValue) = 0;
         virtual bool undefineCompResourceArg(const std::string& argName) = 0;
         virtual bool addCompResourceOp(const std::string& resource, OpType op) = 0;

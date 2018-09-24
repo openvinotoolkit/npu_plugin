@@ -1,8 +1,17 @@
 #ifndef MODEL_ITERATOR_HPP_
 #define MODEL_ITERATOR_HPP_
 
+#include <memory>
+#include "include/mcm/graph/conjoined_graph.hpp"
+
 namespace mv
-{
+{   
+
+    class ComputationOp;
+    class DataFlow;
+    class ControlFlow;
+
+    using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
 
     namespace IteratorDetail
     {
@@ -119,7 +128,7 @@ namespace mv
                 return (*this->it_).operator->();
             }
 
-            operator allocator::owner_ptr<ContentType>()
+            operator std::shared_ptr<ContentType>()
             {
                 return *this->it_;
             }
@@ -178,7 +187,7 @@ namespace mv
                 return this->it_->second.operator->();
             }
 
-            operator allocator::owner_ptr<ContentType>()
+            operator std::shared_ptr<ContentType>()
             {
                 return this->it_->second;
             }
@@ -217,17 +226,17 @@ namespace mv
 
             }
 
-            size_type childrenSize()
+            std::size_t childrenSize()
             {
                 return this->it_->children_size();
             }
 
-            size_type siblingsSize()
+            std::size_t siblingsSize()
             {
                 return this->it_->siblings_size();
             }
 
-            size_type parentsSize()
+            std::size_t parentsSize()
             {
                 return this->it_->parents_size();
             }
@@ -283,27 +292,27 @@ namespace mv
                 return *this;
             }
 
-            size_type inputsSize()
+            std::size_t inputsSize()
             {
                 return this->it_->inputs_size();
             }
 
-            size_type outputsSize()
+            std::size_t outputsSize()
             {
                 return this->it_->outputs_size();
             }
 
-            operator allocator::owner_ptr<NodeContentType>&()
+            operator std::shared_ptr<NodeContentType>&()
             {
                 return *this->it_;
             }
 
-            operator const allocator::owner_ptr<NodeContentType>&() const
+            operator const std::shared_ptr<NodeContentType>&() const
             {
                 return *this->it_;
             }
 
-            operator const allocator::owner_ptr<NodeContentType>() const
+            operator const std::shared_ptr<NodeContentType>() const
             {
                 return *this->it_;
             }
@@ -363,17 +372,17 @@ namespace mv
                 return (*this->it_).operator->();
             }
 
-            operator allocator::owner_ptr<EdgeContentType>&()
+            operator std::shared_ptr<EdgeContentType>&()
             {
                 return *this->it_;
             }
 
-            operator const allocator::owner_ptr<EdgeContentType>&() const
+            operator const std::shared_ptr<EdgeContentType>&() const
             {
                 return *this->it_;
             }
 
-            operator const allocator::owner_ptr<EdgeContentType>() const
+            operator const std::shared_ptr<EdgeContentType>() const
             {
                 return *this->it_;
             }

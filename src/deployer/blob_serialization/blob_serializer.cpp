@@ -10,7 +10,7 @@ namespace mv
         /***
          *  Mapping of C++ OpTypes to Blob Enumerations
          ***/
-        switch (o) {
+        switch ((unsigned short)o) {
             case OpType::Conv2D:
                 {
                     if (NCE1) {
@@ -44,7 +44,7 @@ namespace mv
                 return 37;
             default:
                 {
-                    std::cout << "Serialization Error: No Blob Enum Defined for layer" << mv::Printable::toString(o) << std::endl;
+                    std::cout << "Serialization Error: No Blob Enum Defined for layer" << o.toString() << std::endl;
                     assert(0);
                 }
         }
@@ -84,7 +84,7 @@ namespace mv
 
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
-            switch(it->getOpType()){
+            switch((unsigned short)it->getOpType()){
                 case OpType::Conv2D:
                 case OpType::FullyConnected:
                     {
@@ -117,7 +117,7 @@ namespace mv
                             }
                             else
                             {
-                                mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+                                mx_valid = it->get<int>("NCE1_Compatible");
                             }
 
                             if(mx_valid){
@@ -129,7 +129,7 @@ namespace mv
                                 }
                                 else
                                 {
-                                    descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                                    descriptors = it->get<std::size_t>("NCE1_DescriptorSplits");
                                 }
                                 blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
                                 blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
@@ -156,7 +156,7 @@ namespace mv
                         // calculate buffer size related to bias
                         if (it->hasAttr("bias"))
                         {
-                            uint32_t buffer_bias_values_len = dm.findTensor(it->getAttr("bias").getContent<std::string>())->getData().size() ;
+                            uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                             blob_stats.data_buffer_count++ ;
                         }
@@ -164,7 +164,7 @@ namespace mv
                         blob_stats.stage_count++ ;
                         if (it->hasAttr("postOpType"))
                         {
-                            if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                             {
                                 blob_stats.stage_section_size += (3*4) ;
                             }
@@ -227,7 +227,7 @@ namespace mv
                     break;
 
                 default:
-                    std::cout << "Serialization Warning : The layer has not been used in calculation:" << Printable::toString(it->getOpType()) << std::endl;
+                    std::cout << "Serialization Warning : The layer has not been used in calculation:" << it->getOpType().toString() << std::endl;
                     break;
             }
         }
@@ -239,18 +239,22 @@ namespace mv
         mv::Control::StageIterator stg = cm.getStage(0);
 
         unsigned int totalSize = 0;
-        unsigned int amount_const = 0;
 
-        try{
-            for(Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit){
-                totalSize += bit->size;
+        try
+        {
+            for (Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
+            {
+                totalSize += bit->getSize();
                 int adjustment = 0;
-                while((bit->size*2 + adjustment*2) % 64 != 0){
+                while((bit->getSize()*2 + adjustment*2) % 64 != 0)
+                {
                     adjustment++;
                 }
                 totalSize += adjustment;
             }
-        }catch(mv::ArgumentError){
+        }
+        catch(mv::IndexError&)
+        {
             std::cout << "Warning: No Constant Memory Present." << std::endl;
         }
 
@@ -384,14 +388,14 @@ namespace mv
         Blob_stage conv_pool_stage ;
         uint32_t next_offset = 4*3 + 4*5 ;
         mv::OpModel om(cm);
-
+        mv::DataModel dm(cm);
 
         // Write each stage as we encounter it.
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
 
             auto ltype = it->getOpType();
-            switch(ltype){
+            switch((unsigned short)ltype){
                 case OpType::Input:
                     {
                         AddBytes(4, 0x20);     // include input NoOp stage for compatibility with python compiler
@@ -411,7 +415,7 @@ namespace mv
                         }
                         else
                         {
-                            mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+                            mx_valid = it->get<int>("NCE1_Compatible");
                         }
 
                         if(mx_valid)
@@ -424,7 +428,7 @@ namespace mv
                             }
                             else
                             {
-                                descriptors = it->getAttr("NCE1_DescriptorSplits").getContent<int>();
+                                descriptors = it->get<std::size_t>("NCE1_DescriptorSplits");
                             }
                             point0 += (11*4) ; // Header of Descriptors
                             point0 += (descriptors*32*4) ; // Descriptor
@@ -437,8 +441,6 @@ namespace mv
 
 
                             // No more layers (last)
-                            mv::DataModel dm(om);
-                            mv::ControlModel cm(om);
                             Data::BufferIterator mem;
                             mv::Control::StageIterator stg = cm.getStage(0);
 
@@ -450,7 +452,7 @@ namespace mv
                                     conv_pool_stage.next = 0;
                                     finalstage = 1;
                                 }
-                            }catch(mv::ArgumentError){
+                            }catch(mv::IndexError){
                                 printf("Warning: No Intermediary Buffers\n");
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
@@ -473,8 +475,6 @@ namespace mv
                         else
                         {
                             // Serialize for S/W
-
-                            int descriptors = 1;
                             int point0 = 0;
                             point0 += (8*4) ; // Fields
                             point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
@@ -483,10 +483,12 @@ namespace mv
 
                             if (it->hasAttr("postOpType"))
                             {
-                                if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                                if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                                 {
                                     point0 += (5*4) ;
-                                }else{
+                                }
+                                else
+                                {
                                     printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
                                     assert(0);
                                 }
@@ -500,8 +502,6 @@ namespace mv
 
 
                             // No more layers (last)
-                            mv::DataModel dm(om);
-                            mv::ControlModel cm(om);
                             Data::BufferIterator mem;
                             mv::Control::StageIterator stg = cm.getStage(0);
                             int finalstage = 0;
@@ -512,7 +512,7 @@ namespace mv
                                     conv_pool_stage.next = 0;
                                     finalstage = 1;
                                 }
-                            }catch(mv::ArgumentError){
+                            }catch(mv::IndexError){
                                 printf("Warning: No Intermediary Buffers\n");
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
@@ -533,7 +533,7 @@ namespace mv
                             if (it->hasAttr("postOpType"))
                             {
 
-                                if (it->getAttr("postOpType").getContent<mv::OpType>() == mv::OpType::ReLU)
+                                if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                                 {
 
                                     AddBytes(4, 0x06);    // 0x12c , postop relu
@@ -571,8 +571,6 @@ namespace mv
                         next_offset += point0*4 ;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -583,7 +581,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -611,8 +609,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -623,7 +619,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -649,8 +645,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -661,7 +655,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -700,7 +694,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError&){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -728,8 +722,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -740,7 +732,7 @@ namespace mv
                                 conv_pool_stage.next = 0;
                                 finalstage = 1;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                             conv_pool_stage.next = 0;
                             finalstage = 1;
@@ -768,8 +760,6 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -780,7 +770,7 @@ namespace mv
                                 finalstage = 1;
                                 conv_pool_stage.next = 0;
                             }
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Serializer Warning: No Intermediary Buffers\n");
                             finalstage = 1;
                             conv_pool_stage.next = 0;
@@ -885,15 +875,13 @@ namespace mv
                         bCompatibility c = bCompatibility(&(*it));
                         next_offset += c.getSerializedSize() + 5*4 ;
 
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         auto t = it->getOutputTensor(0);
 
                         try{
                             mem = dm.getBuffer("IntermediateMemory", stg, t);
-                        }catch(mv::ArgumentError){
+                        }catch(mv::IndexError){
                             printf("Warning: No Intermediary Buffers\n");
                         }
 
@@ -960,19 +948,21 @@ namespace mv
                 buffers_out_of_order.push_back(*bbit);
             }
 
-            int xx = 0;
             int tsize = buffers_out_of_order.size();
             for(int i = 0; i != tsize; i++)
             {
                 mv::MemoryAllocator::MemoryBuffer smallest;
                 unsigned long long smallest_val = ULLONG_MAX;   // If this is ever hit we have far, far bigger problems :)
-                for (mv::MemoryAllocator::MemoryBuffer m : buffers_out_of_order) {
-                    if(smallest_val > m.offset){
-                        smallest_val = m.offset;
+                for (mv::MemoryAllocator::MemoryBuffer m : buffers_out_of_order)
+                {
+                    if(smallest_val > m.getOffset())
+                    {
+                        smallest_val = m.getOffset();
                         smallest = m;
                     }
                 }
-                if (smallest_val == ULLONG_MAX){
+                if (smallest_val == ULLONG_MAX)
+                {
                     break;
                 }
                 buffers_in_order.push_back(smallest);
@@ -982,26 +972,26 @@ namespace mv
 
             }
 
-            int c = 0;
             unsigned int running_total = 0;
             for(auto bit : buffers_in_order)
             {
-                running_total += bit.size*2;
+                running_total += bit.getSize()*2;
 
-                for (int idx = 0; idx != (int)bit.size; idx++){
-                    u_int16_t fp16_val = cvtr.fp32_to_fp16((*bit.data).getData()[idx]) ;  // Convert to fp16.
+                for (int idx = 0; idx != (int)bit.getSize(); idx++){
+                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit.getData()->getData()[idx])) ;  // Convert to fp16.
                     AddBytes(2, fp16_val) ;
                 }
 
                 // TODO: To be removed when allocater takes care of this.
                 int adjustment = 0;
-                while((bit.size*2 + adjustment*2) % 64 != 0){
+                while((bit.getSize()*2 + adjustment*2) % 64 != 0)
+                {
                     AddBytes(2, 0);
                     adjustment++;
                     running_total += 2;
                 }
             }
-        }catch(mv::ArgumentError){
+        }catch(mv::IndexError&){
             std::cout << "Warning: No Constant Memory Present." << std::endl;
         }
     }
@@ -1010,7 +1000,7 @@ namespace mv
         return this->blob_stats;
     }
 
-    void Blob_buffer::write_relocation_section(mv::ControlModel& cm)
+    void Blob_buffer::write_relocation_section(mv::ControlModel&)
     {
         this->reloc_table.write(this);
     }

@@ -1,18 +1,11 @@
 #include "include/mcm/computation/op/kernel_op.hpp"
 
-mv::KernelOp::KernelOp(OpType opType, UnsignedVector2D stride, UnsignedVector4D padding, const string &name) :
+mv::KernelOp::KernelOp(OpType opType, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string &name) :
 ComputationOp(opType, name),
 SourceOp(opType, 1, name)
 {
-    addAttr("stride", AttrType::UnsignedVec2DType, stride);
-    addAttr("padding", AttrType::UnsignedVec4DType, padding);
-
-}
-
-mv::KernelOp::KernelOp(mv::json::Value& value) :
-ComputationOp(value),
-SourceOp(value)
-{
+    set<std::array<short unsigned, 2>>("stride", stride);
+    set<std::array<short unsigned, 4>>("padding", padding);
 
 }
 

@@ -2,36 +2,48 @@
 #define GROUP_HPP_
 
 #include <algorithm>
-#include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/model/computation_element.hpp"
+#include <set>
+#include "include/mcm/base/element.hpp"
 
 namespace mv
 {
 
-    class ComputationGroup : public ComputationElement
+    class ComputationGroup : public Element
     {
     
+    public:
+
+        struct GroupOrderComparator
+        {
+
+            bool operator()(const std::weak_ptr<Element> &lhs, const std::weak_ptr<Element> &rhs)
+            {
+                return *lhs.lock() < *rhs.lock();
+            }
+
+        };
+
     protected:
 
-        using MemberSet = allocator::set<allocator::access_ptr<ComputationElement>, ComputationElement::ElementOrderComparator>;
+        using MemberSet = std::set<std::weak_ptr<Element>, GroupOrderComparator>;
         MemberSet members_;
 
-        virtual bool markMembmer_(ComputationElement &member);
-        virtual bool unmarkMembmer_(ComputationElement &member);
+        virtual bool markMembmer_(Element &member);
+        virtual bool unmarkMembmer_(Element &member);
                 
     public:
 
-        ComputationGroup(const string &name);
-        ComputationGroup(mv::json::Value& value);
+        ComputationGroup(const std::string &name);
         bool erase(MemberSet::iterator &member);
         void clear();
         MemberSet::iterator begin();
         MemberSet::iterator end();
         std::size_t size() const;
-        virtual string toString() const;
+        virtual std::string toString() const;
+        virtual std::string getLogID() const override;
 
         template <class ElementType>
-        MemberSet::iterator insert(allocator::owner_ptr<ElementType> newMember)
+        MemberSet::iterator insert(std::shared_ptr<ElementType> newMember)
         {
             
             if (markMembmer_(*newMember))
@@ -54,7 +66,7 @@ namespace mv
         MemberSet::iterator find(ElementType& member)
         {   
             for (auto it = members_.begin(); it != members_.end(); ++it)
-                if (**it == member)
+                if (*(it->lock()) == member)
                     return it;
             return members_.end();
         }

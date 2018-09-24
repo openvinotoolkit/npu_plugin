@@ -14,9 +14,8 @@ namespace mv
 
         public:
 
-            Multiply(const string &name);
-            Multiply(mv::json::Value &obj);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            Multiply(const std::string &name);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

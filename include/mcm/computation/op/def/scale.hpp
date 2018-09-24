@@ -16,11 +16,9 @@ namespace mv
 
         public:
 
-            Scale(const string &name);
-            Scale(mv::json::Value &obj);
-
-            Tensor getOutputDef(byte_type idx);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            Scale(const std::string &name);
+            Tensor getOutputDef(std::size_t idx);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

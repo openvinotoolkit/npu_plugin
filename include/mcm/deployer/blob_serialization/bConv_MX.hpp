@@ -4,7 +4,7 @@
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
 #include "include/mcm/deployer/blob_serialization/myriadX_hardware_descriptors.hpp"
 #include "include/mcm/utils/serializer/file_buffer.h"
-#include "include/mcm/computation/tensor/tensor.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/op/computation_op.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 
@@ -25,7 +25,7 @@ namespace mv{
             std::string scale_name;
 
             // Hardware Fields
-            dynamic_vector<unsigned> DPUmodeVector;
+            std::vector<std::size_t> DPUmodeVector;
             uint32_t streamingMask;
             uint32_t concatOffset;
             uint32_t unloadCMX;

@@ -2,7 +2,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+/*void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -46,9 +46,9 @@ void generateJSONFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 continue;
             std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
             std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out | std::ios::binary);
-            mv::dynamic_vector<float> tensorData(tensorIt->getData());
+            std::vector<double> tensorData(tensorIt->getData());
             currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
             currentTensorOutputStream.close();
         }
     }
-}
+}*/

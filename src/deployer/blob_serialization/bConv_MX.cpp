@@ -68,10 +68,10 @@ namespace mv
                 unsigned int original_height = this->input->getShape()[1];
                 unsigned int current_height;
                 if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                    int surplus = ceil(original_height/(float)this->desc_count)*this->desc_count - original_height;
-                    current_height = ceil(original_height/(float)this->desc_count) - surplus;
+                    int surplus = ceil(original_height/(double)this->desc_count)*this->desc_count - original_height;
+                    current_height = ceil(original_height/(double)this->desc_count) - surplus;
                 }else{
-                    current_height = ceil(original_height/(float)this->desc_count);
+                    current_height = ceil(original_height/(double)this->desc_count);
                 }
 
 
@@ -125,11 +125,6 @@ namespace mv
             b->AddBytes(4, this->padStyle);   // 0x80
             b->AddBytes(4, this->dilation);
 
-
-            int fp16_size = 2;
-            mv::DataModel dm(*om);
-            mv::ControlModel cm(*om);
-
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
@@ -155,7 +150,7 @@ namespace mv
 
         if (it->hasAttr("bias"))
         {
-            this->bias_name = it->getAttr("bias").getContent<std::string>();
+            this->bias_name = it->get<std::string>("bias");
         }
         else
         {
@@ -163,8 +158,8 @@ namespace mv
         }
 
         if (it->hasAttr("scale"))
-        {
-            this->scale_name = it->getAttr("scale").getContent<std::string>();
+        {   
+            this->scale_name = it->get<std::string>("scale");
             std::cout << "   in bConvHW contructor : scale tensor name = "<< this->scale_name << std::endl;
 
         }
@@ -181,7 +176,7 @@ namespace mv
         }
         else
         {
-            mx_valid = it->getAttr("NCE1_Compatible").getContent<int>();
+            mx_valid = it->get<int>("NCE1_Compatible");
         }
         this->NCE1_Compatible = mx_valid;
 
@@ -197,7 +192,7 @@ namespace mv
             }
             else
             {
-                cmxSize = it->getAttr("NCE1_AssignedCMX").getContent<int>();
+                cmxSize = it->get<int>("NCE1_AssignedCMX");
                 printf("Serializer Info: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
                 cmxSize = 256*1024;
             }
@@ -208,7 +203,7 @@ namespace mv
             }
             else
             {
-                splits_over_H = it->getAttr("NCE1_SplitsOverH").getContent<int>();
+                splits_over_H = it->get<std::size_t>("NCE1_SplitsOverH");
             }
 
             if (! it->hasAttr("NCE1_SplitsOverC"))
@@ -217,7 +212,7 @@ namespace mv
             }
             else
             {
-                splits_over_oC = it->getAttr("NCE1_SplitsOverC").getContent<int>();
+                splits_over_oC = it->get<std::size_t>("NCE1_SplitsOverC");
             }
 
             int descriptors_count = splits_over_oC * splits_over_H;
@@ -229,7 +224,7 @@ namespace mv
             }
             else
             {
-                this->streamingMask = it->getAttr("NCE1_StreamingMask").getContent<int>();
+                this->streamingMask = it->get<std::size_t>("NCE1_StreamingMask");
             }
             if (! it->hasAttr("NCE1_Modes"))
             {
@@ -243,7 +238,7 @@ namespace mv
             }
             else
             {
-                this->DPUmodeVector = it->getAttr("NCE1_Modes").getContent<dynamic_vector<unsigned>>();
+                this->DPUmodeVector = it->get<std::vector<std::size_t>>("NCE1_Modes");
             }
 
             this->concatOffset = 0; // Concat not supported currently
@@ -252,8 +247,8 @@ namespace mv
 
             this->CMXSize = cmxSize;
             this->reluSHVAcc = 0;
-            float val = 0;
-            float val2 = 1;
+            double val = 0;
+            double val2 = 1;
             this->shvNegSlope = *(int * )(&val);
             this->shvPosSlope = *(int * )(&val2);
 
@@ -262,12 +257,12 @@ namespace mv
             // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
             this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
 
-            dynamic_vector<unsigned> chPerRamBlock;
+            std::vector<std::size_t> chPerRamBlock;
             int topJunk = 0, bottomJunk = 0;
             int localLS = 1;
-            dynamic_vector<unsigned> localCS;
-            dynamic_vector<unsigned> LPC;
-            dynamic_vector<unsigned> minLines;
+            std::vector<std::size_t> localCS;
+            std::vector<std::size_t> LPC;
+            std::vector<std::size_t> minLines;
             int stride = 1;
             int padEn = 1;
 
@@ -284,7 +279,7 @@ namespace mv
             }
             else
             {
-                chPerRamBlock = it->getAttr("NCE1_InputChannelsRamBlock").getContent<dynamic_vector<unsigned>>();
+                chPerRamBlock = it->get<std::vector<std::size_t>>("NCE1_InputChannelsRamBlock");
             }
 
             if (! it->hasAttr("NCE1_TopOutputJunk"))
@@ -293,7 +288,7 @@ namespace mv
             }
             else
             {
-                topJunk = it->getAttr("NCE1_TopOutputJunk").getContent<int>();
+                topJunk = it->get<std::size_t>("NCE1_TopOutputJunk");
             }
 
             if (! it->hasAttr("NCE1_BottomOutputJunk"))
@@ -302,7 +297,7 @@ namespace mv
             }
             else
             {
-                bottomJunk = it->getAttr("NCE1_BottomOutputJunk").getContent<int>();
+                bottomJunk = it->get<std::size_t>("NCE1_BottomOutputJunk");
             }
 
             if (! it->hasAttr("NCE1_LocalLineStride"))
@@ -311,7 +306,7 @@ namespace mv
             }
             else
             {
-                localLS = it->getAttr("NCE1_LocalLineStride").getContent<int>();
+                localLS = it->get<std::size_t>("NCE1_LocalLineStride");
             }
 
             if (! it->hasAttr("NCE1_MinLines"))
@@ -326,7 +321,7 @@ namespace mv
             }
             else
             {
-                minLines = it->getAttr("NCE1_MinLines").getContent<dynamic_vector<unsigned>>() ;
+                minLines = it->get<std::vector<std::size_t>>("NCE1_MinLines");
             }
 
             if (! it->hasAttr("stride"))
@@ -335,7 +330,7 @@ namespace mv
             }
             else
             {
-                stride = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
+                stride = it->get<std::array<unsigned short, 2>>("stride")[0];
             }
 
             if (! it->hasAttr("padding"))
@@ -344,7 +339,7 @@ namespace mv
             }
             else
             {
-                padEn = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
+                padEn = it->get<std::array<unsigned short, 4>>("padding")[0];
             }
 
             if (! it->hasAttr("NCE1_LinesPerChannel"))
@@ -359,7 +354,7 @@ namespace mv
             }
             else
             {
-                LPC = it->getAttr("NCE1_LinesPerChannel").getContent<dynamic_vector<unsigned>>();
+                LPC = it->get<std::vector<std::size_t>>("NCE1_LinesPerChannel");
             }
 
             if (! it->hasAttr("NCE1_LocalChannelStride"))
@@ -374,7 +369,7 @@ namespace mv
             }
             else
             {
-                localCS = it->getAttr("NCE1_LocalChannelStride").getContent<dynamic_vector<unsigned>>();
+                localCS = it->get<std::vector<std::size_t>>("NCE1_LocalChannelStride");
             }
 
 
@@ -530,18 +525,21 @@ namespace mv
             }
         } else {
             // printf("Serializing a SW Conv\n");
-            this->strideX = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0;
-            this->strideY = it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1;
-            this->padX = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e0;
-            this->padY = it->getAttr("padding").getContent<mv::UnsignedVector4D>().e2;
+            this->radixX = it->getInputTensor(1)->getShape()[0];
+            this->radixY = it->getInputTensor(1)->getShape()[1];
+            this->strideX = it->get<std::array<unsigned short, 2>>("stride")[0];
+            this->strideY = it->get<std::array<unsigned short, 2>>("stride")[1];
+            this->padX = it->get<std::array<unsigned short, 4>>("padding")[0];
+            this->padY = it->get<std::array<unsigned short, 4>>("padding")[2];
             this->padStyle = 2; // HARDCODED.
             this->dilation = 1; // HARDCODED.
 
 
-            printf("Serializer Info: Manual Override of Convolution Software layer order\n");
-            this->output->setOrder(Order::RowMajor);
-            this->input->setOrder(Order::RowMajor);
-            this->taps->setOrder(Order::TBDLayout);
+            //printf("Serializer Info: Manual Override of Convolution Software layer order\n");
+            //this->output->setOrder(OrderType::RowMajor);
+            //this->input->setOrder(OrderType::RowMajor);
+            //this->taps->setOrder(Order::TBDLayout);
+            //this->taps->setOrder(OrderType::RowMajor);
         }
     }
 }

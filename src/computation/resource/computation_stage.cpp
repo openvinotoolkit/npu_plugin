@@ -1,42 +1,45 @@
 #include "include/mcm/computation/resource/computation_stage.hpp"
 
-bool mv::ComputationStage::markMembmer_(ComputationElement &member)
+bool mv::ComputationStage::markMembmer_(Element &member)
 {
     if (member.hasAttr("opType"))
     {
-        if (member.getAttr("executable").getContent<bool>())
+        if (member.get<bool>("executable"))
         {
             if (!member.hasAttr("stage"))
             {
-                member.addAttr("stage", AttrType::UnsignedType, getAttr("idx").getContent<unsigned_type>());
+                member.set<std::size_t>("stage", getIdx());
                 return true;
             }
             else
             {
-                logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' that was already assigned to the stage 'stage_" + Printable::toString(member.getAttr("stage").getContent<unsigned_type>()) + "'");
+                log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + 
+                    "' that was already assigned to this stage");
             }
         }
         else
         {
-            logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + "' of invalid type '" + member.getAttr("opType").getContentStr() + "'");
+            log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + 
+                "' of invalid type '" + member.get<OpType>("opType").toString() + "'");
         }
     }    
     else
     {
-        logger_.log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending non-op member '" + member.getName() + "'");
+        log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending non-op member '" + 
+            member.getName() + "'");
     }
     
     return false;
     
 }
 
-bool mv::ComputationStage::unmarkMembmer_(ComputationElement &member)
+bool mv::ComputationStage::unmarkMembmer_(Element &member)
 {
 
     if (member.hasAttr("stage"))
     {
 
-        member.removeAttr("stage");
+        member.erase("stage");
         return true;
         
     }
@@ -45,26 +48,36 @@ bool mv::ComputationStage::unmarkMembmer_(ComputationElement &member)
 
 }
 
-mv::ComputationStage::ComputationStage(unsigned_type idx) :
-ComputationGroup("stage_" + Printable::toString(idx))
+mv::ComputationStage::ComputationStage(std::size_t idx) :
+ComputationGroup("stage_" + std::to_string(idx))
 {
-    addAttr("idx", AttrType::UnsignedType, idx);
+    set<std::size_t>("idx", idx);
 }
 
-mv::string mv::ComputationStage::toString() const
+std::size_t mv::ComputationStage::getIdx() const
+{
+    return get<std::size_t>("idx");
+}
+
+std::string mv::ComputationStage::toString() const
 {
 
-    string result = "stage '" + name_ + "'";
+    std::string result = "stage '" + name_ + "'";
 
-    unsigned_type idx = 0;
+    std::size_t idx = 0;
     for (auto it = members_.begin(); it != members_.end(); ++it)
-        result += "\n'member_" + Printable::toString(idx++) + "': " + (*it)->getName();
+        result += "\n'member_" + std::to_string(idx++) + "': " + it->lock()->getName();
 
-    return result + ComputationElement::toString();
+    return result + Element::attrsToString_();
 
 }
 
-bool mv::ComputationStage::operator <(ComputationElement &other)
+bool mv::ComputationStage::operator <(ComputationStage &other)
 {
-    return getAttr("idx").getContent<unsigned_type>() < other.getAttr("idx").getContent<unsigned_type>();
+    return getIdx() < other.getIdx();
+}
+
+std::string mv::ComputationStage::getLogID() const
+{
+    return "Stage " + std::to_string(getIdx());
 }

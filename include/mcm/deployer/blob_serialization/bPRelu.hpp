@@ -3,7 +3,7 @@
 
 #include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
-#include "include/mcm/computation/tensor/tensor.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/op/computation_op.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 // #include "include/mcm/deployer/blob_serialization/blob_serializer.hpp"

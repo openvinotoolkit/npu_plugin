@@ -14,7 +14,7 @@ namespace mv
 
     public:
 
-        ControlModel(const ComputationModel &ComputationModel);
+        ControlModel(ComputationModel &ComputationModel);
 
         Control::OpListIterator switchContext(Data::OpListIterator other);
 
@@ -33,13 +33,13 @@ namespace mv
         using ComputationModel::removeGroupElement;
 
         Control::StageIterator addStage();
-        Control::StageIterator getStage(unsigned_type stageIdx);
+        Control::StageIterator getStage(std::size_t stageIdx);
         bool removeStage(Control::StageIterator &stage);
         bool addToStage(Control::StageIterator &stage, Control::OpListIterator &op);
         bool addToStage(Control::StageIterator &stage, Data::OpListIterator &op);
         bool removeFromStage(Control::OpListIterator &op);
         bool removeFromStage(Data::OpListIterator &op);
-        unsigned_type stageSize() const;
+        std::size_t stageSize() const;
 
         Control::StageIterator stageBegin();
         Control::StageIterator stageEnd();
@@ -51,6 +51,8 @@ namespace mv
         Control::FlowListIterator defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp);
         bool undefineFlow(Control::FlowListIterator flow);
         bool undefineFlow(Data::FlowListIterator flow);
+
+        virtual std::string getLogID() const override;
 
     };
 

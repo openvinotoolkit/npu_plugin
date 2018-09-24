@@ -1,9 +1,8 @@
 #ifndef MV_BLOB_MX_BTENSOR_HPP_
 #define MV_BLOB_MX_BTENSOR_HPP_
 
-#include "include/mcm/computation/model/types.hpp"
 #include "include/mcm/utils/serializer/file_buffer.h"
-#include "include/mcm/computation/tensor/tensor.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"

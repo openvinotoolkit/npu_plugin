@@ -22,7 +22,7 @@ mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator
 
     if(input_tensor->hasAttr("NCE1_Paddings")) //The input tensor involved in this convolution has already been padded (probably as output tensor of some other convolution)
     {
-        mv::SizeVector paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
+        std::vector<std::size_t> paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
         to_return.input_width += paddings[0];
         to_return.input_height += paddings[1];
         to_return.input_channels += paddings[2];
@@ -32,21 +32,21 @@ mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator
     //The output tensor involved in this convolution has already been padded (probably as input tensor of some other convolution)
     //NOTE: Maybe this shouldn't happen at all, but it's better to play safe
     {
-        mv::SizeVector paddings = output_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
+        std::vector<std::size_t> paddings = output_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
         to_return.output_width += paddings[0];
         to_return.output_height += paddings[1];
         to_return.output_channels += paddings[2];
     }
 
-    auto strides = convIterator->getAttr("stride").getContent<mv::UnsignedVector2D>();
-    to_return.stride_x = strides.e0;
-    to_return.stride_y = strides.e1;
+    auto strides = convIterator->get<std::array<unsigned short, 2>>("stride");
+    to_return.stride_x = strides[0];
+    to_return.stride_y = strides[1];
 
-    auto paddings = convIterator->getAttr("padding").getContent<mv::UnsignedVector4D>();
-    to_return.pad_x_up = paddings.e0;
-    to_return.pad_x_down = paddings.e1;
-    to_return.pad_y_left = paddings.e2;
-    to_return.pad_y_right = paddings.e3;
+    auto paddings = convIterator->get<std::array<unsigned short, 4>>("padding");
+    to_return.pad_x_up = paddings[0];
+    to_return.pad_x_down = paddings[1];
+    to_return.pad_y_left = paddings[2];
+    to_return.pad_y_right = paddings[3];
 
     return to_return;
 }

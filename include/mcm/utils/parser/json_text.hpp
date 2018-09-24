@@ -15,7 +15,7 @@
 namespace mv
 {
 
-    class JSONTextParser
+    class JSONTextParser : public LogSender
     {
 
         enum class JSONSymbol
@@ -64,6 +64,8 @@ namespace mv
 
         JSONTextParser(unsigned bufferLength = 64);
         bool parseFile(const std::string& fileName, json::Value& outputObject);
+
+        std::string getLogID() const override;
 
     };
 

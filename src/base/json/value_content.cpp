@@ -5,32 +5,32 @@ mv::json::detail::ValueContent::~ValueContent()
 
 }
 
-mv::json::detail::ValueContent::operator float&()
+mv::json::detail::ValueContent::operator double&()
 {
-    throw ValueError("Unable to obtain a float content from a JSON value");
+    throw ValueError(*this, "Unable to obtain a double content");
 }
 
 mv::json::detail::ValueContent::operator long long&()
 {
-    throw ValueError("Unable to obtain an int content from a JSON value");
+    throw ValueError(*this, "Unable to obtain an long long content");
 }
 
 mv::json::detail::ValueContent::operator std::string&()
 {
-    throw ValueError("Unable to obtain a string content from a JSON value");
+    throw ValueError(*this, "Unable to obtain a std::string content");
 }
 
 mv::json::detail::ValueContent::operator bool&()
 {
-    throw ValueError("Unable to obtain a bool content from a JSON value");
+    throw ValueError(*this, "Unable to obtain a bool content");
 }
 
 mv::json::detail::ValueContent::operator Object&()
 {
-    throw ValueError("Unable to obtain a JSON object content from a JSON value");
+    throw ValueError(*this, "Unable to obtain a json::Object content");
 }
 
 mv::json::detail::ValueContent::operator Array&()
 {
-    throw ValueError("Unable to obtain a JSON array content from a JSON value");
+    throw ValueError(*this, "Unable to obtain a json::Array content");
 }

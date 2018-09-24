@@ -1,29 +1,18 @@
 #include "include/mcm/computation/op/def/conv2d.hpp"
 
-mv::op::Conv2D::Conv2D(UnsignedVector2D stride, UnsignedVector4D padding, const string& name) :
+mv::op::Conv2D::Conv2D(std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name) :
 ComputationOp(OpType::Conv2D, name),
 KernelOp(OpType::Conv2D, stride, padding, name),
 SinkOp(OpType::Conv2D, 2, name)
 {
-    addAttr("executable", AttrType::BoolType, true);
+    set<bool>("executable", true);
 }
 
-mv::op::Conv2D::Conv2D(mv::json::Value& obj) :
-ComputationOp(obj),
-KernelOp(obj),
-SinkOp(obj)
+mv::Tensor mv::op::Conv2D::getOutputDef(std::size_t idx)
 {
 
-}
-
-mv::Tensor mv::op::Conv2D::getOutputDef(byte_type idx)
-{
-
-    if (idx > 0)
-        return Tensor();
-
-    if (!validOutputDef_())
-        return Tensor();
+    // Will throw on error
+    validOutputDef_(idx);
 
     auto input = getInputTensor(0);
     auto inputShape = input->getShape();
@@ -31,62 +20,40 @@ mv::Tensor mv::op::Conv2D::getOutputDef(byte_type idx)
     auto weightsShape = weights->getShape();
 
     if (inputShape.ndims() != 3)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-            "' because of incorrect shape " + inputShape.toString() + " of input");
-        return Tensor();
-    }
+        throw(OpError(*this, "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
+            " has " + std::to_string(inputShape.ndims())));
     
     if (weightsShape.ndims() != 4)
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-                "' because of incorrect shape " + weightsShape.toString() + " of weights");
-        return Tensor();
-    }
+        throw(OpError(*this, "Invalid shape of the weights tensor (input 1) - must have a dimensionality of 4, "
+            " has " + std::to_string(inputShape.ndims())));
 
     if (inputShape[2] != weightsShape[2])
-    {
-        logger_.log(Logger::MessageType::MessageError, "Unable to define output tensor for '" + name_ + 
-            "' because of mismatch in channels dimensions between input (" + Printable::toString(inputShape[3])
-            + ") and weights (" + Printable::toString(weightsShape[2]) + ")");
-        return Tensor();
-    }
+        throw(OpError(*this, "Mismatch in channels dimensions between input tensor (input 0) and weights tensor (input 1) - "
+            " input" + std::to_string(inputShape[3]) + ", weights " + std::to_string(weightsShape[2])));
+    
+    auto padding = get<std::array<unsigned short, 4>>("padding");
+    auto stride = get<std::array<unsigned short, 2>>("stride");
 
-    auto padding = getAttr("padding").getContent<UnsignedVector4D>();
-    auto stride = getAttr("stride").getContent<UnsignedVector2D>();
+    if (inputShape[0] + padding[0] + padding[1] < weightsShape[0])
+        throw(OpError(*this, "Filter kernel width (" + std::to_string(weightsShape[0]) + ") exceeds the padded input width ("
+            + std::to_string(inputShape[0] + padding[0] + padding[1]) + ")"));
 
-    if (inputShape[0] + padding.e0 + padding.e1 < weightsShape[0])
-    {
-        logger_.log(Logger::MessageType::MessageError, 
-            "Unable to define output tensor for '" + name_ + 
-            "' because of filter kernel width (" + Printable::toString(weightsShape[0]) + 
-            ") larger than padded input width (" + Printable::toString(inputShape[0] + padding.e0 + padding.e1) + ")");
-
-        return Tensor();
-    }
-
-    if (inputShape[1] + padding.e2 + padding.e3 < weightsShape[1])
-    {
-        logger_.log(Logger::MessageType::MessageError, 
-            "Unable to define output tensor for '" + name_ + 
-            "' because of filter kernel height (" + Printable::toString(weightsShape[1]) + 
-            ") larger than padded input height (" + Printable::toString(inputShape[1] + padding.e2 + padding.e3) + ")");
-
-        return Tensor();
-    }
+    if (inputShape[1] + padding[2] + padding[3] < weightsShape[1])
+        throw(OpError(*this, "Filter kernel height (" + std::to_string(weightsShape[1]) + ") exceeds the padded input height ("
+            + std::to_string(inputShape[1] + padding[2] + padding[3]) + ")"));
     
     // Make sure that the result of subtract will not be negative
-    Shape outputShape((inputShape[0] + padding.e0 + padding.e1 - weightsShape[0]) / stride.e0 + 1, (
-        inputShape[1] + padding.e2 + padding.e3 - weightsShape[1]) / stride.e1 + 1, weightsShape[3]);
+    Shape outputShape({(inputShape[0] + padding[0] + padding[1] - weightsShape[0]) / stride[0] + 1, (
+        inputShape[1] + padding[2] + padding[3] - weightsShape[1]) / stride[1] + 1, weightsShape[3]});
 
     return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
 
 }
 
-bool mv::op::Conv2D::isHardwarizeable(json::Object &TargetDescriptor)
+bool mv::op::Conv2D::isHardwarizeable(json::Object&)
 {
-    auto padding = getAttr("padding").getContent<UnsignedVector4D>();
-    auto stride = getAttr("stride").getContent<UnsignedVector2D>();
+    auto padding = get<std::array<unsigned short, 4>>("padding");
+    auto stride = get<std::array<unsigned short, 2>>("stride");
 
     auto input = getInputTensor(0);
     auto inputShape = input->getShape();
@@ -94,7 +61,7 @@ bool mv::op::Conv2D::isHardwarizeable(json::Object &TargetDescriptor)
     auto weightsShape = weights->getShape();
 
     // Check for supported padding
-    if((padding.e0 != 0 && padding.e0 != weightsShape[0]/2) || (padding.e2 != 0 && padding.e2 != weightsShape[1]/2))
+    if((padding[0] != 0 && padding[0] != weightsShape[0]/2) || (padding[2] != 0 && padding[2] != weightsShape[1]/2))
         return false;
 
     // Check for supported kernel sizes
@@ -102,7 +69,7 @@ bool mv::op::Conv2D::isHardwarizeable(json::Object &TargetDescriptor)
         return false;
 
     // Check for supported strides
-    if(stride.e0 > 8 || stride.e1 > 8)
+    if(stride[0] > 8 || stride[1] > 8)
         return false;
 
 

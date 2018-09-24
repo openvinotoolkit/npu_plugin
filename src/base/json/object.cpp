@@ -61,6 +61,27 @@ std::vector<std::string> mv::json::Object::getKeys() const
     return keys;
 }
 
+bool mv::json::Object::operator==(const Object& other) const
+{
+    if (size() != other.size())
+        return false;
+
+    auto e1 = members_.begin();
+    for (auto e2 = other.members_.begin(); e2 != other.members_.end(); ++e2)
+    {
+        if (*e1 != *e2)
+            return false;
+        ++e1;
+    }
+
+    return true;
+}
+
+bool mv::json::Object::operator!=(const Object& other) const
+{
+    return !operator==(other);
+}
+
 std::string mv::json::Object::stringify() const
 {
 
@@ -131,9 +152,7 @@ mv::json::Value& mv::json::Object::operator[](const std::string& key)
 {
 
     if (members_.find(key) == members_.end())
-    {
         emplace(key, Value());
-    }
 
     return members_[key];
 
@@ -142,7 +161,7 @@ mv::json::Value& mv::json::Object::operator[](const std::string& key)
 const mv::json::Value& mv::json::Object::operator[](const std::string& key) const
 {
     if (members_.find(key) == members_.end())
-        throw ValueError("Undefined value for key" + key);
+        throw ArgumentError(*this, "key", key, "Not a memeber of the object");
     return members_.at(key);
 }
 
@@ -150,4 +169,9 @@ mv::json::Object& mv::json::Object::operator=(const Object& other)
 {
     members_ = other.members_;
     return *this;
+}
+
+std::string mv::json::Object::getLogID() const
+{
+    return "json::Object (" + std::to_string(size()) + " members)";
 }

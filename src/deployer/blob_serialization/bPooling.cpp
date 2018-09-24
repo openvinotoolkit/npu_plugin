@@ -15,14 +15,13 @@ namespace mv
 
     void bPooling::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
-        int fp16_size = 2;
 
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
         printf("Serialization Warning: Manual Override of Pooling Software layer order\n");
-        this->output->setOrder(Order::RowMajor);
-        this->input->setOrder(Order::RowMajor);
+        //this->output->setOrder(OrderType::RowMajor);
+        //this->input->setOrder(OrderType::RowMajor);
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
@@ -43,15 +42,15 @@ namespace mv
     bPooling::bPooling(mv::ComputationOp* it)
         :
           Blob_Op_Definition(),
-          input((it->getInputTensor(0))),
-          output((it->getOutputTensor(0))),
-          kernelRadixX(it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e0),
-          kernelRadixY(it->getAttr("kSize").getContent<mv::UnsignedVector2D>().e1),
-          kernelStrideX(it->getAttr("stride").getContent<mv::UnsignedVector2D>().e0),
-          kernelStrideY(it->getAttr("stride").getContent<mv::UnsignedVector2D>().e1),
+          kernelRadixX(it->get<std::array<unsigned short, 2>>("kSize")[0]),
+          kernelRadixY(it->get<std::array<unsigned short, 2>>("kSize")[1]),
+          kernelStrideX(it->get<std::array<unsigned short, 2>>("stride")[0]),
+          kernelStrideY(it->get<std::array<unsigned short, 2>>("stride")[1]),
           kernelPadX(0),
           kernelPadY(0),
-          kernelPadStyle(2)
+          kernelPadStyle(2),
+          input((it->getInputTensor(0))),
+          output((it->getOutputTensor(0)))
     {
 
     }

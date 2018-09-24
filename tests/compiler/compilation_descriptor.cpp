@@ -4,11 +4,8 @@
 TEST (compilation_descriptor, load_from_file)
 {
 
-    // Verbose level - change to mv::Logger::VerboseLevel::VerboseSilent to disable log messages
-    mv::Logger::VerboseLevel verboseLevel = mv::Logger::VerboseLevel::VerboseInfo;
-
     // Define the primary compilation unit
-    mv::CompilationUnit unit(verboseLevel);
+    mv::CompilationUnit unit("testModel");
 
     std::string const PASS_NAME = "ScaleFission";
     std::string const FACTOR_KEY = "scalefactors";
@@ -36,16 +33,16 @@ TEST (compilation_descriptor, load_from_file)
                     if (unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY].hasKey("conv2d_2"))
                     {
 
-                        float param2= unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY]["conv2d_2"].get<float>();
-                        EXPECT_EQ (7.6f, param2) << "ERROR: Incorrect compilation descriptor read from json file";
+                        double param2= unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY]["conv2d_2"].get<double>();
+                        EXPECT_FLOAT_EQ(7.6, param2) << "ERROR: Incorrect compilation descriptor read from json file";
                     }
 
                     EXPECT_TRUE(unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY].hasKey("conv2d_4")) << "ERROR: json file missing conv2d_4 factor";
                     if (unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY].hasKey("conv2d_4"))
                     {
 
-                        float param4= unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY]["conv2d_4"].get<float>();
-                        EXPECT_EQ (8.0f, param4) << "ERROR: Incorrect compilation descriptor read from json file";
+                        double param4= unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY]["conv2d_4"].get<double>();
+                        EXPECT_FLOAT_EQ(8.0, param4) << "ERROR: Incorrect compilation descriptor read from json file";
                     }
                 }
             }

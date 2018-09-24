@@ -12,10 +12,9 @@ namespace mv
 
     public:
 
-        EltwiseOp(OpType eltwiseType, const string &name);
-        EltwiseOp(mv::json::Value& value);
+        EltwiseOp(OpType eltwiseType, const std::string &name);
         virtual ~EltwiseOp() = 0;
-        Tensor getOutputDef(byte_type idx);
+        Tensor getOutputDef(std::size_t idx);
 
     };
 

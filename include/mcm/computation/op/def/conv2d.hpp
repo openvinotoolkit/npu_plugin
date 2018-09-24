@@ -16,11 +16,9 @@ namespace mv
 
         public:
 
-            Conv2D(UnsignedVector2D stride, UnsignedVector4D padding, const string& name);
-            Conv2D(mv::json::Value &obj);
-
-            Tensor getOutputDef(byte_type idx);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            Conv2D(std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name);
+            Tensor getOutputDef(std::size_t idx);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

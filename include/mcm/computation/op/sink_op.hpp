@@ -9,18 +9,17 @@ namespace mv
     class SinkOp : public virtual ComputationOp
     {
         
-        dynamic_vector<Data::TensorIterator> inputs_;
+        std::vector<Data::TensorIterator> inputs_;
 
     public:
 
-        SinkOp(OpType opType, byte_type inputsCount, const string &name);
-        SinkOp(mv::json::Value& value);
+        SinkOp(OpType opType, std::size_t inputsCount, const std::string &name);
         virtual ~SinkOp() = 0;
-        virtual bool setInputTensor(Data::TensorIterator &tensor, byte_type idx);
-        virtual Data::TensorIterator getInputTensor(byte_type idx);
+        virtual bool setInputTensor(Data::TensorIterator &tensor, std::size_t idx);
+        virtual Data::TensorIterator getInputTensor(std::size_t idx);
         bool hasInputDef();
-        bool hasInputDef(byte_type idx);
-        byte_type inputSlots();
+        bool hasInputDef(std::size_t idx);
+        std::size_t inputSlots();
 
     };
 

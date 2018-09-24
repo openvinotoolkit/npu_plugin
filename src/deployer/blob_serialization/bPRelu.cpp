@@ -5,15 +5,14 @@ namespace mv
 {
     void bPRelu::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
     {
-        int fp16_size = 2;
 
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        printf("Serialization Warning: Manual Override of PReLU Software layer order\n");
-        this->output->setOrder(Order::RowMajor);
-        this->input->setOrder(Order::RowMajor);
-        this->neg_slope->setOrder(Order::RowMajor);
+        //printf("Serialization Warning: Manual Override of PReLU Software layer OrderType\n");
+        //this->output->setOrder(OrderType::RowMajor);
+        //this->input->setOrder(OrderType::RowMajor);
+        //this->neg_slope->setOrder(OrderType::RowMajor);
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
@@ -25,13 +24,13 @@ namespace mv
 
     }
 
-    bPRelu::bPRelu(mv::ComputationOp* it)
-        :
-          Blob_Op_Definition(),
-          input((it->getInputTensor(0))),
-          neg_slope((it->getInputTensor(1))),
-          output((it->getOutputTensor(0)))
+    bPRelu::bPRelu(mv::ComputationOp* it) :
+    Blob_Op_Definition(),
+    input((it->getInputTensor(0))),
+    neg_slope((it->getInputTensor(1))),
+    output((it->getOutputTensor(0)))
     {
+        
     }
 
     int bPRelu::getSerializedSize(){

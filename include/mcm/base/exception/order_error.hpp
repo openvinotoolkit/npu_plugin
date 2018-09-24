@@ -1,17 +1,17 @@
 #ifndef MV_ORDER_ERROR_HPP_
 #define MV_ORDER_ERROR_HPP_
 
-#include <stdexcept>
+#include "include/mcm/base/exception/logged_error.hpp"
 
 namespace mv
 {
 
-    class OrderError : public std::logic_error
+    class OrderError : public LoggedError
     {
 
     public:
             
-        explicit OrderError(const std::string& whatArg);
+        explicit OrderError(const LogSender& sender, const std::string& whatArg);
         
     };
 

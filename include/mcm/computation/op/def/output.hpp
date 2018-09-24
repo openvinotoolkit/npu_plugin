@@ -14,12 +14,10 @@ namespace mv
 
         public:
 
-            Output(const string &name);
-            Output(mv::json::Value &obj);
-
-            bool setInputTensor(Data::TensorIterator &tensor, byte_type idx);
-            Tensor getOutputDef(byte_type);
-            bool isHardwarizeable(mv::json::Object& TargetDescriptor);
+            Output(const std::string &name);
+            bool setInputTensor(Data::TensorIterator &tensor, std::size_t idx);
+            Tensor getOutputDef(std::size_t);
+            bool isHardwarizeable(mv::json::Object& targetDescriptor);
 
         };
 

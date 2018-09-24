@@ -23,10 +23,13 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    mv::DataModel dm(model);
-    mv::OpModel om(model);
+
+    using namespace mv;
+
+    DataModel dm(model);
+    OpModel om(model);
 
     auto flowIt = dm.flowBegin();
 
@@ -36,7 +39,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         auto sink = flowIt.sink();
 
         //Mandatory check, otherwise the loop could be potentially infinite
-        if(source->getOpType() == mv::OpType::Conversion || sink->getOpType() == mv::OpType::Conversion)
+        if(source->getOpType() == OpType::Conversion || sink->getOpType() == OpType::Conversion)
         {
             ++flowIt;
             continue;
@@ -48,33 +51,31 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         //2) SW -p-> HW (Target order is planar). In this case SW -> CONVERSION -p-> HW.
 
         //Reasonable assumption: this pass is executed after the hw marking pass.
-        int sourceIsHw = source->getAttr("NCE1_Compatible").getContent<int>();
+        int sourceIsHw = source->get<int>("NCE1_Compatible");
         int sourceIsSw = !sourceIsHw;
-        int sinkIsHw = sink->getAttr("NCE1_Compatible").getContent<int>();
+        int sinkIsHw = sink->get<int>("NCE1_Compatible");
         int sinkIsSw = !sinkIsHw;
         bool conversionNeeded = false;
-        mv::Order targetOrder = mv::Order::Unknown;
+        Order targetOrder = OrderType::ColumnMajor;
 
         //Case 1
         if(sourceIsHw && sinkIsSw)
         {
-            targetOrder = mv::Order::RowMajor;
+            targetOrder = OrderType::RowMajor;
             conversionNeeded = true;
         }
 
         //Case 2
         if(sourceIsSw && sinkIsHw)
         {
-            targetOrder = mv::Order::RowMajorPlanar;
+            targetOrder = OrderType::RowMajorPlanar;
             conversionNeeded = true;
         }
 
-        if(conversionNeeded && source->getOpType() == mv::OpType::Constant)
+        if(conversionNeeded && source->getOpType() == OpType::Constant)
         {
             //No need for a conversion layer in this case, just reorder the tensor in place
-            flowIt->getTensor()->reorder(targetOrder);
-            source->removeAttr("order");
-            om.addAttr(source, "order", mv::Attribute(mv::AttrType::OrderType, targetOrder));
+            flowIt->getTensor()->setOrder(targetOrder);
             ++flowIt;
             continue;
         }
@@ -91,9 +92,9 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             {
                 if(originalTensor->hasAttr("NCE1_Paddings"))
                 {
-                    mv::SizeVector paddings = originalTensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
-                    dm.addAttr(conversionOutputTensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::SizeVecType, paddings));
-                    originalTensor->removeAttr("NCE1_Paddings");
+                    std::vector<std::size_t> paddings = originalTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                    conversionOutputTensor->set<std::vector<std::size_t>>("NCE1_Paddings", paddings);
+                    originalTensor->erase("NCE1_Paddings");
                 }
             }
 
@@ -106,12 +107,27 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             auto flowToEliminate = flowIt;
             ++flowIt;
             om.undefineFlow(flowToEliminate);
-            sink->removeAttr(std::string("input")+std::to_string(i));
+            sink->erase(std::string("input") + std::to_string(i));
             om.defineFlow(conversionOutputTensor, sink, i);
         }
         else
         {
+
+            // Align memory order when no conversion is needed
+            /// Software ops
+            if (!sourceIsHw && !sinkIsHw)
+            {
+                if (source->getOpType() == OpType::Constant)
+                    flowIt->getTensor()->setOrder(OrderType::ColumnMajorPlanar);
+                else
+                    flowIt->getTensor()->setOrder(OrderType::RowMajor);
+            }
+            // Hardware ops
+            if (sourceIsHw && sinkIsHw)
+                flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+
             ++flowIt;
+        
         }
     }
 

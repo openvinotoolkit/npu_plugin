@@ -9,7 +9,7 @@ static void setPassReg()
         [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
-        om.addAttr(om.getInput(), "adapt1", mv::Attribute(mv::AttrType::BoolType, true));
+        om.addAttr(om.getInput(), "adapt1", (bool)true);
 
     };
 
@@ -17,7 +17,7 @@ static void setPassReg()
         [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
-        om.addAttr(om.getInput(), "adapt2", mv::Attribute(mv::AttrType::BoolType, true));
+        om.addAttr(om.getInput(), "adapt2", (bool)true);
 
     };
 
@@ -26,12 +26,9 @@ static void setPassReg()
     {   
         mv::OpModel om(model);
         if (!om.getInput()->hasAttr("valid"))
-            om.addAttr(om.getInput(), "valid", mv::Attribute(mv::AttrType::UnsignedType, 1U));
+            om.addAttr(om.getInput(), "valid", (std::size_t)1);
         else
-        {
-            auto attr = om.getInput()->getAttr("valid");
-            attr.setContent<unsigned>(attr.getContent<unsigned>() + 1);
-        }
+            om.getInput()->set<std::size_t>("valid", om.getInput()->get<std::size_t>("valid") + 1);
 
     };
 
@@ -39,7 +36,7 @@ static void setPassReg()
         [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
-        om.addAttr(om.getInput(), "opt1", mv::Attribute(mv::AttrType::BoolType, true));
+        om.addAttr(om.getInput(), "opt1", (bool)true);
 
     };
 
@@ -47,7 +44,7 @@ static void setPassReg()
         [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
-        om.addAttr(om.getInput(), "final1", mv::Attribute(mv::AttrType::BoolType, true));
+        om.addAttr(om.getInput(), "final1", (bool)true);
 
     };
 
@@ -55,7 +52,7 @@ static void setPassReg()
         [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
-        om.addAttr(om.getInput(), "serial1", mv::Attribute(mv::AttrType::BoolType, true));
+        om.addAttr(om.getInput(), "serial1", (bool)true);
 
     };
 
@@ -119,8 +116,8 @@ TEST(pass_manager, invalid_execution)
 {
 
     setPassReg();
-    mv::OpModel model;
-    auto input = model.input(mv::Shape(1), mv::DType::Unknown, mv::Order::ColumnMajor);
+    mv::OpModel model("testModel");
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     model.output(input);
 
     mv::PassManager pm;
@@ -136,8 +133,8 @@ TEST(pass_manager, invalid_execution)
     ASSERT_ANY_THROW(pm.step());
 
     targetDesc.setTarget(mv::Target::ma2480);
-    targetDesc.setDType(mv::DType::Float);
-    targetDesc.setOrder(mv::Order::ColumnMajor);
+    targetDesc.setDType(mv::DTypeType::Float16);
+    targetDesc.setOrder(mv::OrderType::ColumnMajor);
     pm.initialize(model, targetDesc, compDesc);
     pm.enablePass(mv::PassGenre::Adaptation, "__TEST_PassWithArg");
     ASSERT_TRUE(pm.ready());
@@ -157,8 +154,8 @@ TEST(pass_manager, execution)
 {
 
     setPassReg();
-    mv::OpModel model;
-    auto input = model.input(mv::Shape(1), mv::DType::Unknown, mv::Order::ColumnMajor);
+    mv::OpModel model("testModel");
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     model.output(input);
 
     mv::PassManager pm;
@@ -166,8 +163,8 @@ TEST(pass_manager, execution)
     mv::TargetDescriptor targetDesc;
     mv::json::Object compDesc;
     targetDesc.setTarget(mv::Target::ma2480);
-    targetDesc.setDType(mv::DType::Float);
-    targetDesc.setOrder(mv::Order::ColumnMajor);
+    targetDesc.setDType(mv::DTypeType::Float16);
+    targetDesc.setOrder(mv::OrderType::ColumnMajor);
     targetDesc.appendAdaptPass("__TEST_AdaptPass1");
     targetDesc.appendAdaptPass("__TEST_AdaptPass2");
     targetDesc.appendOptPass("__TEST_OptPass1");
@@ -185,12 +182,12 @@ TEST(pass_manager, execution)
     }
 
     ASSERT_TRUE(pm.completed());
-    ASSERT_TRUE(model.getInput()->getAttr("adapt1").getContent<bool>());
-    ASSERT_TRUE(model.getInput()->getAttr("adapt2").getContent<bool>());
-    ASSERT_TRUE(model.getInput()->getAttr("opt1").getContent<bool>());
-    ASSERT_TRUE(model.getInput()->getAttr("final1").getContent<bool>());
-    ASSERT_TRUE(model.getInput()->getAttr("serial1").getContent<bool>());
-    ASSERT_EQ(model.getInput()->getAttr("valid").getContent<unsigned>(), 4);
+    ASSERT_TRUE(model.getInput()->get<bool>("adapt1"));
+    ASSERT_TRUE(model.getInput()->get<bool>("adapt2"));
+    ASSERT_TRUE(model.getInput()->get<bool>("opt1"));
+    ASSERT_TRUE(model.getInput()->get<bool>("final1"));
+    ASSERT_TRUE(model.getInput()->get<bool>("serial1"));
+    ASSERT_EQ(model.getInput()->get<std::size_t>("valid"), 4);
     resetPassReg();
 
 }

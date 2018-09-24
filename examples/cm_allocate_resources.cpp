@@ -4,24 +4,24 @@
 int main()
 {
     // Define the primary compilation unit
-    mv::CompilationUnit unit(mv::Logger::VerboseLevel::VerboseInfo);
+    mv::CompilationUnit unit("model1");
 
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
     // Initialize weights data
-    mv::dynamic_vector<mv::float_type> weights1Data = mv::utils::generateSequence<mv::float_type>(3u * 3u * 3u * 8u);
-    mv::dynamic_vector<mv::float_type> weights2Data = mv::utils::generateSequence<mv::float_type>(5u * 5u * 8u * 16u);
-    mv::dynamic_vector<mv::float_type> weights3Data = mv::utils::generateSequence<mv::float_type>(4u * 4u * 16u * 32u);
+    std::vector<double> weights1Data = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
+    std::vector<double> weights2Data = mv::utils::generateSequence<double>(5u * 5u * 8u * 16u);
+    std::vector<double> weights3Data = mv::utils::generateSequence<double>(4u * 4u * 16u * 32u);
 
     // Compose model - use Composition API to create ops and obtain tensors
-    auto input = cm.input(mv::Shape(128, 128, 3), mv::DType::Float, mv::Order::ColumnMajor);
-    auto weights1 = cm.constant(weights1Data, mv::Shape(3, 3, 3, 8), mv::DType::Float, mv::Order::ColumnMajor);
+    auto input = cm.input({128, 128, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto weights1 = cm.constant(weights1Data, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv1 = cm.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
     auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto weights2 = cm.constant(weights2Data, mv::Shape(5, 5, 8, 16), mv::DType::Float, mv::Order::ColumnMajor);
+    auto weights2 = cm.constant(weights2Data, {5, 5, 8, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv2 = cm.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
     auto pool2 = cm.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
-    auto weights3 = cm.constant(weights3Data, mv::Shape(4, 4, 16, 32), mv::DType::Float, mv::Order::ColumnMajor);
+    auto weights3 = cm.constant(weights3Data, {4, 4, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto conv3 = cm.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
     cm.output(conv3);
 

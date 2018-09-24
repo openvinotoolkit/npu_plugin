@@ -1,17 +1,17 @@
 #ifndef MV_VALUE_ERROR_HPP_
 #define MV_VALUE_ERROR_HPP_
 
-#include <stdexcept>
+#include "include/mcm/base/exception/logged_error.hpp"
 
 namespace mv
 {
 
-    class ValueError : public std::runtime_error
+    class ValueError : public LoggedError
     {
 
     public:
 
-        explicit ValueError(const std::string& whatArg);
+        explicit ValueError(const LogSender& sender, const std::string& whatArg);
 
     };
 

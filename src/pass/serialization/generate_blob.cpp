@@ -28,7 +28,7 @@ void generateBlobFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     using namespace mv;
 
     if (compDesc["GenerateBlob"]["output"].get<std::string>().empty())
-        throw ArgumentError("output", "", "Unspecified output name for generate dot pass");
+        throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
 
     mv::ControlModel cm(model);
     mv::Serializer serializer(mv::mvblob_mode);

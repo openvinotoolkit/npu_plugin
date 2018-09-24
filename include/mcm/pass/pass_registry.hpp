@@ -7,8 +7,6 @@
 namespace mv
 {
 
-    MV_DEFINE_REGISTRY(PassEntry)
-
     class ComputationModel;
     class TargetDescriptor;
 
@@ -25,7 +23,7 @@ namespace mv
         };
 
 
-        class PassRegistry : public Registry<PassEntry>
+        class PassRegistry : public Registry<std::string, PassEntry>
         {
             
 
@@ -44,8 +42,8 @@ namespace mv
 
         };
 
-        #define MV_REGISTER_PASS(Name)          \
-            MV_REGISTER_ENTRY(PassEntry, Name)  
+        #define MV_REGISTER_PASS(Name)                          \
+            MV_REGISTER_ENTRY(std::string, PassEntry, #Name)    \
                               
     }
 

@@ -6,7 +6,7 @@ namespace mv
 
     void bScale::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
     {
-        int fp16_size = 2;
+
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
@@ -37,16 +37,17 @@ namespace mv
 
         if (it->hasAttr("bias"))
         {
-            this->bias_name = it->getAttr("bias").getContent<std::string>();
+            this->bias_name = it->get<std::string>("bias");
         }
         else
         {
             this->bias_name = "";
         }
 
-        printf("Serialization Warning: Manual Override of Scale Software layer order\n");
-        this->output->setOrder(Order::RowMajor);
-        this->input->setOrder(Order::RowMajor);
-        this->taps->setOrder(Order::TBDLayout);
+        //printf("Serialization Warning: Manual Override of Scale Software layer order\n");
+        //this->output->setOrder(OrderType::RowMajor);
+        //this->input->setOrder(OrderType::RowMajor);
+        //this->taps->setOrder(OrderType::RowMajor);
+        //this->taps->setOrder(OrderType::TBDLayout);
     }
 }

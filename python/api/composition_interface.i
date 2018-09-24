@@ -26,7 +26,7 @@ import_array();
     mv::CompilationUnit* getCompilationUnit()
     {
 
-        auto unit = new mv::CompilationUnit();
+        auto unit = new mv::CompilationUnit("pySwigCU");
         unit->loadTargetDescriptor(mv::Target::ma2480);
 
         // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
@@ -52,50 +52,50 @@ import_array();
         return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
 
-    mv::UnsignedVector2D * get2DVector(int x, int y){
-        mv::UnsignedVector2D *a = new mv::UnsignedVector2D();
-        a->e0 = x;
-        a->e1 = y;
-        return a;
+    // TODO: Create Generic Vector Calls
+    std::array<unsigned short, 2> * get2DVector(int x, int y){
+        std::array<unsigned short, 2> *arr = new std::array<unsigned short, 2>();
+        arr->at(0) = x;
+        arr->at(1) = y;
+        return arr;
     }
 
-
-    mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z){
-        mv::UnsignedVector4D *a = new mv::UnsignedVector4D();
-        a->e0 = w;
-        a->e1 = x;
-        a->e2 = y;
-        a->e3 = z;
-        return a;
+    std::array<unsigned short, 4> * get4DVector(int w, int x, int y, int z){
+        std::array<unsigned short, 4> *arr = new std::array<unsigned short, 4>();
+        arr->at(0) = w;
+        arr->at(1) = x;
+        arr->at(2) = y;
+        arr->at(3) = z;
+        return arr;
     }
 
-    mv::Shape * getShape(int x){
+    mv::Shape * getShape(std::size_t x){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(x);
+        mv::Shape* a = new mv::Shape({x});
         return a;
     }
 
-    mv::Shape * getShape(int x, int y){
+    mv::Shape * getShape(std::size_t x, std::size_t y){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(x, y);
+        mv::Shape* a = new mv::Shape({x, y});
         return a;
     }
 
-    mv::Shape * getShape(int x, int y, int z){
+    mv::Shape * getShape(std::size_t x, std::size_t y, std::size_t z){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(x, y, z);
+        mv::Shape* a = new mv::Shape({x, y, z});
         return a;
     }
 
-    mv::Shape * getShape(int b, int x, int y, int z){
+    mv::Shape * getShape(std::size_t b, std::size_t x, std::size_t y, std::size_t z){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::Shape* a = new mv::Shape(b, x, y, z);
+        mv::Shape* a = new mv::Shape({b, x, y, z});
         return a;
     }
 
-    mv::dynamic_vector<mv::float_type> * getData(float * d, size_t len){
+    std::vector<double> * getData(double * d, std::size_t len){
         /// Populate a Vector with a numpy array.
-        mv::dynamic_vector<mv::float_type> * weightsData = new mv::dynamic_vector<mv::float_type>(d, d + len);
+        std::vector<double> * weightsData = new std::vector<double>(d, d + len);
         return weightsData;
     }
 
@@ -109,15 +109,15 @@ import_array();
         /// A couple of simple checks to ensure we have loaded the items correctly.
 
         int ret_val = 0;    // Success
-        mv::UnsignedVector2D stride = target->getAttr("stride").getContent<mv::UnsignedVector2D>();
-        mv::UnsignedVector4D pad = target->getAttr("padding").getContent<mv::UnsignedVector4D>();
-        if(stride.e0 != exp_strideX)
+        std::array<unsigned short, 2> stride = target->get<std::array<unsigned short, 2>>("stride");
+        std::array<unsigned short, 4> pad = target->get<std::array<unsigned short, 4>>("padding");
+        if(stride.at(0) != exp_strideX)
             ret_val = 1;
-        if(stride.e1 != exp_strideY)
+        if(stride.at(1) != exp_strideY)
             ret_val = 2;
-        if(pad.e1 != exp_padX)
+        if(pad.at(1) != exp_padX)
             ret_val = 3;
-        if(pad.e3 != exp_padY)
+        if(pad.at(3) != exp_padY)
             ret_val = 4;
         // TODO Consider assymetric padding
 
@@ -126,7 +126,7 @@ import_array();
 
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o.input(shape, mv::DType::Float, mv::Order::RowMajorPlanar);
+        return o.input(shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
@@ -134,38 +134,38 @@ import_array();
         return o.output(input);
     }
 
-    mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
-        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+    mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
         /// Add a Max Pooling Layer to the OpModel and return the relevant iterator
         return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, padX, padY, padY});
     }
 
-    mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
-        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+    mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
 
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
         /// See: https://github.com/BVLC/caffe/issues/1318
 
-        int adj_X = 0, adj_Y = 0;
+        short unsigned int adj_X = 0, adj_Y = 0;
 
         mv::Shape i = input->getShape();
 
-        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
-        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
+        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
 
-        float caffe_x = ceil(inner_x_calc / strideX) + 1;
-        float caffe_y = ceil(inner_y_calc / strideX) + 1;
+        double caffe_x = ceil(inner_x_calc / strideX) + 1;
+        double caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
+        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
 
         return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, padX+ adj_X, padY, padY + adj_Y});
+            {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)});
     }
 
     mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
@@ -175,17 +175,17 @@ import_array();
     }
 
     mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
         /// Add a Convolutional Layer to the OpModel and return the relevant iterator
         return o.conv2D(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
     }
 
     mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
 
-        int adj_X = 0, adj_Y = 0;
+        short unsigned int adj_X = 0, adj_Y = 0;
 
         mv::Shape i = input->getShape();
         mv::Shape k = filters->getShape();
@@ -193,24 +193,24 @@ import_array();
         int kernelSizeX =  k[0];
         int kernelSizeY =  k[1];
 
-        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
-        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
+        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
 
-        float caffe_x = ceil(inner_x_calc / strideX) + 1;
-        float caffe_y = ceil(inner_y_calc / strideX) + 1;
+        double caffe_x = ceil(inner_x_calc / strideX) + 1;
+        double caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
+        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
 
-        return o.conv2D(input, filters, {strideX, strideY}, {padX , padX- adj_X, padY, padY - adj_Y});
+        return o.conv2D(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
     }
 
-    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape){
-        /// Add a Constant Layer to the OpModel and return the relevant iterator
-        return o.constant(data, shape, mv::DType::Float, mv::Order::RowMajorPlanar);
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape){
+        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
+        return o.constant(data, shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     }
 
     mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
@@ -222,38 +222,38 @@ import_array();
         return o.matMul(input, weights);
     }
 
-    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding){
+    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding){
         return o.avgpool2D(input, kernelSize, stride, padding);
     }
 
-    mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
-        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY){
+    mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
 
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
         /// See: https://github.com/BVLC/caffe/issues/1318
 
-        int adj_X = 0, adj_Y = 0;
+        short unsigned int adj_X = 0, adj_Y = 0;
 
         mv::Shape i = input->getShape();
 
-        float inner_x_calc = float(i[0] + padX + padX - kernelSizeX);
-        float inner_y_calc = float(i[1] + padY + padY - kernelSizeY);
+        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
 
-        float caffe_x = ceil(inner_x_calc / strideX) + 1;
-        float caffe_y = ceil(inner_y_calc / strideX) + 1;
+        double caffe_x = ceil(inner_x_calc / strideX) + 1;
+        double caffe_y = ceil(inner_y_calc / strideX) + 1;
 
-        float tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        float tensorflow_y = ceil((inner_y_calc +1) / strideX);
+        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
 
         return o.avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, padX+ adj_X, padY, padY+ adj_Y});
+            {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)});
     }
 
-    mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, mv::float_type varianceEps){
+    mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps){
         return o.batchNorm(input, mean, variance, offset, scale, varianceEps);
     }
     mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale){
@@ -295,20 +295,6 @@ import_array();
     	return o.isValid();
     }
 
-    /*void produceDOT(mv::OpModel *o, const char *fileName){
-        mv::TargetDescriptor dummyTargetDesc;
-        mv::json::Object compDesc;
-        mv::json::Object compOutput;
-        std::string fileNameStr(fileName);
-        compDesc["GenerateDot"]["output"] = fileNameStr + ".dot";
-        compDesc["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
-        compDesc["GenerateDot"]["content"] = std::string("full");
-        compDesc["GenerateDot"]["html"] = true;
-        mv::pass::PassRegistry::instance().find("GenerateDot")->run(*o, dummyTargetDesc, compDesc, compOutput);
-        std::string cmd = "dot -Tsvg " + fileNameStr + ".dot -o " + fileNameStr + ".svg";
-        system(cmd.c_str());
-    }*/
-
  %}
 
 #include <include/mcm/computation/model/control_model.hpp>
@@ -344,36 +330,35 @@ mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
 mv::Shape * getShape(int b, int x, int y, int z);
-mv::UnsignedVector2D * get2DVector(int x, int y);
-mv::UnsignedVector4D * get4DVector(int w, int x, int y, int z);
+std::array<unsigned short, 2> * get2DVector(int x, int y);
+std::array<unsigned short, 4> * get4DVector(int w, int x, int y, int z);
 
 // Expand a numpy array to a data pointer and a length
 %include "stdint.i"
-%apply (float* INPLACE_ARRAY1, int DIM1) {(float* d, int len)}
-mv::dynamic_vector<mv::float_type> * getData(float * d, int len);
+%apply (double* INPLACE_ARRAY1, std::size_t DIM1) {(double* d, std::size_t len)}
+std::vector<double> * getData(double * d, std::size_t len);
 
 
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape);
 mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input);
 mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
-    unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
-    unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
-mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, unsigned kernelSizeX,
-        unsigned kernelSizeY, unsigned strideX, unsigned strideY, unsigned padX, unsigned padY);
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
+    short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor);
+mv::Data::OpListIterator getSourceOp(mv::OpModel& o, mv::Data::TensorIterator tensor);
 
 mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
-mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::UnsignedVector2D kernelSize, mv::UnsignedVector2D stride, mv::UnsignedVector4D padding);
-mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, float varianceEps);
+mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding);
+mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
 mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input);
-mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator slope);
 mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
@@ -382,8 +367,7 @@ mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterat
 mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape);
 mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
 mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::TensorIterator constant(mv::CompositionalModel& o, const mv::dynamic_vector<mv::float_type>& data, const mv::Shape &shape);
-bool isValid(mv::CompositionalModel& o);
+mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
 
 int testConv(
     mv::Data::OpListIterator &target,

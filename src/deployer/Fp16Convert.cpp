@@ -1,7 +1,7 @@
 
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 
-unsigned short int mv_num_convert::fp32_to_fp16(float value)
+uint16_t mv_num_convert::fp32_to_fp16(float value)
 {
         bit_field32 v, s;                   // operate on a 32 bit union of types
         v.fp = value;                       // original FP32 value to convert
@@ -29,4 +29,11 @@ unsigned short int mv_num_convert::fp32_to_fp16(float value)
         }
 
         return v.ui | sign;
+}
+
+uint16_t mv_num_convert::fp32_to_fp16(double value)
+{
+
+    return fp32_to_fp16(static_cast<float>(value));
+
 }

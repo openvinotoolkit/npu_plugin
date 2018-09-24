@@ -39,25 +39,36 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
 
     int amount_marked = 0;
     int mark_limit = 3;
 
+    bool disableHardware = false;
+    if (compDesc.hasKey("MarkHardwareConvolution"))
+        if (compDesc["MarkHardwareConvolution"].hasKey("disableHardware"))
+            if (compDesc["MarkHardwareConvolution"]["disableHardware"].get<bool>())
+                disableHardware = true;
+
     mv::OpModel om(model);
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if(!opIterator->isHardwarizeable(pobj) || amount_marked >= mark_limit)
+        if (!disableHardware)
         {
-            om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 0));
-            continue;
-        }
+            if(!opIterator->isHardwarizeable(compDesc) || amount_marked >= mark_limit)
+            {
+                om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                continue;
+            }
 
-        om.addAttr(opIterator, "NCE1_Compatible", mv::Attribute(mv::AttrType::IntegerType, 1));
-        om.addAttr(opIterator, "NCE1_AssignedCMX", mv::Attribute(mv::AttrType::IntegerType, 0));
-        ++amount_marked;        
+            om.addAttr(opIterator, "NCE1_Compatible", (int)1);
+            om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
+            ++amount_marked;
+        }
+        else
+            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
     }
 }
 
@@ -73,7 +84,7 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     std::string const FACTOR_KEY = "scalefactors";
     std::string opName = "";
 
-    float upNum = 1.0f;
+    double upNum = 1.0;
 
     if (!compDesc.hasKey("pass"))
     {
@@ -93,38 +104,38 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         opName =opIt->getName();
         if ((opIt->getOpType() == OpType::Conv2D)&&(opIt->hasAttr("NCE1_Compatible")))
         {
-            if (opIt->getAttr("NCE1_Compatible").getContent<int>()==1)
+            if (opIt->get<int>("NCE1_Compatible") == 1)
             {
                 if (compDesc["pass"][PASS_NAME][FACTOR_KEY].hasKey(opName))
                 {
-                    upNum = compDesc["pass"][PASS_NAME][FACTOR_KEY][opName].get<float>();
+                    upNum = compDesc["pass"][PASS_NAME][FACTOR_KEY][opName].get<double>();
 
-                    mv::dynamic_vector<mv::float_type> scaleUpWData = mv::utils::generateSequence<mv::float_type>(opIt->getInputTensor(1)->getShape().totalSize(), upNum, 0.0f);
-                    mv::dynamic_vector<mv::float_type> scaleDnData = mv::utils::generateSequence<mv::float_type>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/upNum), 0.0f);
+                    std::vector<double> scaleUpWData = mv::utils::generateSequence<double>(opIt->getInputTensor(1)->getShape().totalSize(), upNum, 0.0f);
+                    std::vector<double> scaleDnData = mv::utils::generateSequence<double>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/upNum), 0.0f);
 
                     // scale (up) inputs by multiplying weights and bias
                     std::string scaleUpWTensorName = opName + "_scale_in";
-                    auto scaleUpWeights = dm.defineTensor(scaleUpWTensorName, opIt->getInputTensor(1)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpWData);
+                    auto scaleUpWeights = dm.defineTensor(scaleUpWTensorName, opIt->getInputTensor(1)->getShape(), mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar, scaleUpWData);
                     opIt->getInputTensor(1)->multiply(*scaleUpWeights);
 
                     if (opIt->hasAttr("bias"))
                     {
-                        auto biasTensor = dm.findTensor(opIt->getAttr("bias").getContent<std::string>());
-                        mv::dynamic_vector<mv::float_type> scaleUpBData = mv::utils::generateSequence(biasTensor->getShape().totalSize(), upNum, 0.0f);
+                        auto biasTensor = dm.findTensor(opIt->get<std::string>("bias"));
+                        std::vector<double> scaleUpBData = mv::utils::generateSequence<double>(biasTensor->getShape().totalSize(), upNum, 0.0f);
                         std::string scaleUpBTensorName = opName + "_scale_bias";
-                        auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleUpBData);
+                        auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar, scaleUpBData);
                         biasTensor->multiply(*scaleUpBias);
                     }
 
                     // scale (down) output by adding HWscale attributes to conv
                     std::string scaleTensorName = opName + "_scale";
-                    auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DType::Float, mv::Order::RowMajorPlanar, scaleDnData);
-                    Attribute scaleAttr(AttrType::StringType, scaleTensor->getName());
+                    auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar, scaleDnData);
+                    Attribute scaleAttr(scaleTensor->getName());
                     om.addAttr(opIt, "scale", scaleAttr);
                 }
                 else
                 {
-                    upNum = 1.0f;
+                    upNum = 1.0;
                 }
             }  // end HW conv
         }  // end conv
@@ -132,7 +143,7 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -141,35 +152,30 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         bool valid = false;
         if(opIterator->hasAttr("NCE1_Compatible"))
         {
-            valid = opIterator->getAttr("NCE1_Compatible").getContent<int>();
+            valid = opIterator->get<int>("NCE1_Compatible");
         }
         if (valid){
 
             auto weights = opIterator->getInputTensor(1);
             auto wshape = weights->getShape();
 
-            mv::Shape newShape = mv::Shape(
-                (mv::dim_type)(wshape[3]/8),
-                (mv::dim_type)(wshape[2]),
-                (mv::dim_type)wshape[1],
-                (mv::dim_type)wshape[0],
-                8
-            );
+            mv::Shape newShape = mv::Shape({wshape[3]/8, wshape[2], wshape[1], wshape[0], 8});
+
             mv::Tensor newTensor = mv::Tensor("MX_Weights",
                                                 newShape,
                                                 weights->getDType(),
                                                 weights->getOrder());
 
-            mv::dynamic_vector<mv::float_type> new_data;
+            std::vector<double> new_data;
             auto data = weights->getData();
 
-            unsigned int o_iC = wshape[2], o_oC = wshape[3], o_fh = wshape[0], o_fw = wshape[1];
+            unsigned int o_iC = wshape[2], o_oC = wshape[3], o_fw = wshape[1];
 
-            for(int i = 0; i != newShape[0]; i++){
-                for(int j = 0; j != newShape[1]; j++){
-                    for(int x = 0; x != newShape[2]; x++){
-                        for(int y = 0; y != newShape[3]; y++){
-                            for(int z = 0; z != newShape[4]; z++){
+            for(std::size_t i = 0; i != newShape[0]; i++){
+                for(std::size_t j = 0; j != newShape[1]; j++){
+                    for(std::size_t x = 0; x != newShape[2]; x++){
+                        for(std::size_t y = 0; y != newShape[3]; y++){
+                            for(std::size_t z = 0; z != newShape[4]; z++){
                                 new_data.push_back(data[
                                     x*o_fw*o_iC*o_oC +  // Kernel Height is largest Dim in original matrix.
                                     y*o_iC*o_oC +       // Followed by Width
@@ -182,14 +188,14 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 }
             }
 
-            newTensor.populate(new_data);
+            newTensor.populate(new_data, weights->getOrder());
 
             auto new_op = om.constant(
                 newTensor.getData(),
                 newTensor.getShape(),
                 newTensor.getDType(),
                 newTensor.getOrder(),
-                mv::Printable::toString(mv::OpType::Constant) + "_" + mv::Printable::toString(om.opsCount(mv::OpType::Constant)) + "MxWeights"
+                mv::OpType(mv::OpType::Constant).toString() + "_" + std::to_string(om.opsCount(mv::OpType::Constant)) + "MxWeights"
             );
 
             opIterator->setInputTensor(new_op, 1);

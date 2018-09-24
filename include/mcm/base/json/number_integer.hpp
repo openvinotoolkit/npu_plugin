@@ -16,11 +16,15 @@ namespace mv
             long long value_;
 
         public:
-
+    
             NumberInteger(long long value);
             explicit operator long long&() override;
             std::string stringify() const override;
             std::string stringifyPretty() const override;
+            bool operator==(const NumberInteger& other) const;
+            bool operator!=(const NumberInteger& other) const;
+
+            virtual std::string getLogID() const;
 
         };  
 

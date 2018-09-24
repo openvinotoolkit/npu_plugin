@@ -9,9 +9,11 @@
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/utils/parser/json_text.hpp"
 #include "include/mcm/base/json/string.hpp"
-#include "include/mcm/computation/model/types.hpp"
-#include "include/mcm/computation/op/ops_register.hpp"
+#include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/base/printable.hpp"
+#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
@@ -22,22 +24,19 @@ namespace mv
         Unknown
     };
 
-    class TargetDescriptor
+    class TargetDescriptor : public LogSender
     {
 
         struct MemoryDescriptor
         {
 
             long long size;
-            Order order;
 
         };
 
         static std::string toString(Target target);
         static Target toTarget(const std::string& str);
-        static DType toDType(const std::string& str);
         static OpType toOpType(const std::string str);
-        static Order toOrder(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
         Target target_;
@@ -79,7 +78,7 @@ namespace mv
         bool undefineOp(OpType op);
         bool opSupported(OpType op) const;
 
-        bool defineMemory(const std::string& name, long long size, Order order);
+        bool defineMemory(const std::string& name, long long size);
         bool undefineMemory(const std::string& name);
 
         std::size_t adaptPassesCount() const;
@@ -99,6 +98,8 @@ namespace mv
         DType getDType() const;
 
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
+        
+        std::string getLogID() const override;
 
     };
 

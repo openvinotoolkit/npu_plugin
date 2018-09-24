@@ -40,7 +40,7 @@ class TestComposition(unittest.TestCase):
 
         shape = ca.getShape(32, 32, 3)
 
-        weightData = ca.getData(np.arange(3 * 3 * 3 * 3).astype(np.float32))
+        weightData = ca.getData(np.arange(3 * 3 * 3 * 3).astype(np.float64))
         weights = ca.constant(om, weightData, ca.getShape(3, 3, 3, 3))
 
         in_ = ca.input(om, shape)
@@ -71,12 +71,12 @@ class TestComposition(unittest.TestCase):
         in_ = ca.input(om, shape)
 
         k1data = [ 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ]
-        k1blurData = ca.getData(np.array(k1data).astype(np.float32))
+        k1blurData = ca.getData(np.array(k1data).astype(np.float64))
         bweights = ca.constant(om, k1blurData, ca.getShape(3, 3, 1, 1))
 
 
         k2data = [ 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 ]
-        k2edgeData = ca.getData(np.array(k2data).astype(np.float32))
+        k2edgeData = ca.getData(np.array(k2data).astype(np.float64))
         eweights = ca.constant(om, k2edgeData, ca.getShape(3, 3, 1, 1))
 
         c1_ = ca.conv2D(om, in_, bweights, 1, 1, 0, 0)
@@ -108,7 +108,7 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(4, 100)
 
         in_ = ca.input(om, shape)
-        weightData = ca.getData(np.arange(100 * 100).astype(np.float32))
+        weightData = ca.getData(np.arange(100 * 100).astype(np.float64))
         weights_ = ca.constant(om, weightData, ca.getShape(100, 100))
         mx_ = ca.matMul(om, in_, weights_)
         ca.output(om, mx_)
@@ -122,7 +122,7 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(1, 1, 100)
 
         in_ = ca.input(om, shape)
-        weightData = ca.getData(np.arange(100 * 100).astype(np.float32))
+        weightData = ca.getData(np.arange(100 * 100).astype(np.float64))
         weights_ = ca.constant(om, weightData, ca.getShape(100, 100))
         mx_ = ca.fullyConnected(om, in_, weights_)
         ca.output(om, mx_)
@@ -136,16 +136,16 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(28, 28, 4)
 
         in_ = ca.input(om, shape)
-        meanData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
+        meanData = ca.getData(np.arange(28 * 28 * 4).astype(np.float64))
         mean_ = ca.constant(om, meanData, ca.getShape(28, 28, 4))
 
-        varData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
+        varData = ca.getData(np.arange(28 * 28 * 4).astype(np.float64))
         variance_ = ca.constant(om, varData, ca.getShape(28, 28, 4))
 
-        offsetData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
+        offsetData = ca.getData(np.arange(28 * 28 * 4).astype(np.float64))
         offset_ = ca.constant(om, offsetData, ca.getShape(28, 28, 4))
 
-        scaleData = ca.getData(np.arange(28 * 28 * 4).astype(np.float32))
+        scaleData = ca.getData(np.arange(28 * 28 * 4).astype(np.float64))
         scale_ = ca.constant(om, scaleData, ca.getShape(28, 28, 4))
 
         eps_ = 2
@@ -161,7 +161,7 @@ class TestComposition(unittest.TestCase):
         shape = ca.getShape(32, 32, 3)
 
         in_ = ca.input(om, shape)
-        weightData = ca.getData(np.arange(32 * 32 * 3).astype(np.float32))
+        weightData = ca.getData(np.arange(32 * 32 * 3).astype(np.float64))
 
         scaleMatrix_ = ca.constant(om, weightData, ca.getShape(32, 32, 3))
         mx_ = ca.scale(om, in_, scaleMatrix_)
@@ -230,7 +230,7 @@ class TestComposition(unittest.TestCase):
 
         in_ = ca.input(om, shape)
 
-        data = ca.getData(np.arange(3).astype(np.float32))
+        data = ca.getData(np.arange(3).astype(np.float64))
         bias = ca.constant(om, data, ca.getShape(3))
         bi_ = ca.bias(om, in_, bias)
         ca.output(om, bi_)
@@ -300,12 +300,12 @@ class TestComposition(unittest.TestCase):
         in_ = ca.input(om, shape)
 
         k1data = [ 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ]
-        k1blurData = ca.getData(np.array(k1data).astype(np.float32))
+        k1blurData = ca.getData(np.array(k1data).astype(np.float64))
         bweights = ca.constant(om, k1blurData, ca.getShape(3, 3, 1, 1))
 
 
         k2data = [ 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 ]
-        k2edgeData = ca.getData(np.array(k2data).astype(np.float32))
+        k2edgeData = ca.getData(np.array(k2data).astype(np.float64))
         eweights = ca.constant(om, k2edgeData, ca.getShape(3, 3, 1, 1))
 
         c1_ = ca.conv2D(om, in_, bweights, 1, 1, 0, 0)
@@ -336,7 +336,7 @@ class TestComposition(unittest.TestCase):
         arr = [
             0.1111, 0.1121, 0.1131, 0.1141, 0.1151, 0.1161, 0.1171, 0.1181, 0.1191
         ]
-        weightData = ca.getData(np.array(arr).astype(np.float32))
+        weightData = ca.getData(np.array(arr).astype(np.float64))
 
         weights = ca.constant(om, weightData, ca.getShape(3, 3, 1, 1))
 
@@ -367,7 +367,7 @@ class TestComposition(unittest.TestCase):
 
         shape = ca.getShape(32, 32, 3)
 
-        weightData = ca.getData(np.linspace(0.101, 0.101 + (3 * 3 * 3 * 3 - 1) * 0.001, 3 * 3 * 3 * 3).astype(np.float32))
+        weightData = ca.getData(np.linspace(0.101, 0.101 + (3 * 3 * 3 * 3 - 1) * 0.001, 3 * 3 * 3 * 3).astype(np.float64))
 
         weights = ca.constant(om, weightData, ca.getShape(3, 3, 3, 3))
 
@@ -399,7 +399,7 @@ class TestComposition(unittest.TestCase):
 
         shape = ca.getShape(256, 256, 3)
 
-        weightData = ca.getData(np.linspace(0.101, 0.101 + (3 * 3 * 3 * 3 - 1) * 0.001, 3 * 3 * 3 * 3).astype(np.float32))
+        weightData = ca.getData(np.linspace(0.101, 0.101 + (3 * 3 * 3 * 3 - 1) * 0.001, 3 * 3 * 3 * 3).astype(np.float64))
 
         weights = ca.constant(om, weightData, ca.getShape(3, 3, 3, 3))
 
@@ -430,7 +430,7 @@ class TestComposition(unittest.TestCase):
         om = ca.getModel(cu)
         shape = ca.getShape(256, 256, 3)
 
-        weightData = ca.getData(np.linspace(0.101, 0.101 + (5 * 5 * 3 * 3 - 1) * 0.001, 5 * 5 * 3 * 3).astype(np.float32))
+        weightData = ca.getData(np.linspace(0.101, 0.101 + (5 * 5 * 3 * 3 - 1) * 0.001, 5 * 5 * 3 * 3).astype(np.float64))
 
         weights = ca.constant(om, weightData, ca.getShape(5, 5, 3, 3))
 
@@ -466,12 +466,12 @@ class TestComposition(unittest.TestCase):
         in_ = ca.input(om, shape)
 
         k1data = [ 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 ]
-        k1blurData = ca.getData(np.array(k1data).astype(np.float32))
+        k1blurData = ca.getData(np.array(k1data).astype(np.float64))
         bweights = ca.constant(om, k1blurData, ca.getShape(3, 3, 1, 1))
 
 
         k2data = [ 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 ]
-        k2edgeData = ca.getData(np.array(k2data).astype(np.float32))
+        k2edgeData = ca.getData(np.array(k2data).astype(np.float64))
         eweights = ca.constant(om, k2edgeData, ca.getShape(3, 3, 1, 1))
 
         c1_ = ca.conv2D(om, in_, bweights, 1, 1, 0, 0)

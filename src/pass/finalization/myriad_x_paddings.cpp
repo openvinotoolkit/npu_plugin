@@ -3,7 +3,6 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
-#include "include/mcm/computation/model/types.hpp"
 
 static void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
@@ -36,7 +35,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             continue;
         if(!operationIt->hasAttr("NCE1_Compatible"))
             continue;
-        if(!operationIt->getAttr("NCE1_Compatible").getContent<int>())
+        if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
         auto input_tensor = operationIt->getInputTensor(0);
         auto input_tensor_dimension = input_tensor->getShape();
@@ -64,9 +63,9 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         size_t actual_output_channels = nce.computeActualOutputChannels(output_channels);
 
         //God please forgive me for the magic numbers
-        mv::dynamic_vector<size_t> input_tensor_paddings(3);
-        mv::dynamic_vector<size_t> output_tensor_paddings(3);
-        mv::dynamic_vector<size_t> weight_tensor_paddings(4);
+        std::vector<size_t> input_tensor_paddings(3);
+        std::vector<size_t> output_tensor_paddings(3);
+        std::vector<size_t> weight_tensor_paddings(4);
 
         input_tensor_paddings[0] = actual_input_width - input_width;
         input_tensor_paddings[1] = actual_input_height - input_height;
@@ -84,8 +83,8 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         if(input_tensor->hasAttr("NCE1_Paddings"))
         {
             //Simple rule: greatest padding wins
-            mv::SizeVector existing_input_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
-            input_tensor->removeAttr("NCE1_Paddings");
+            std::vector<size_t> existing_input_tensor_paddings = input_tensor->get<std::vector<size_t>>("NCE1_Paddings");
+            input_tensor->erase("NCE1_Paddings");
             for(unsigned i = 0; i < existing_input_tensor_paddings.size();++i)
                 input_tensor_paddings[i] = std::max(input_tensor_paddings[i], existing_input_tensor_paddings[i]);
         }
@@ -93,8 +92,8 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         if(output_tensor->hasAttr("NCE1_Paddings"))
         {
             //Simple rule: greatest padding wins
-            mv::SizeVector existing_output_tensor_paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
-            output_tensor->removeAttr("NCE1_Paddings");
+            std::vector<size_t> existing_output_tensor_paddings = input_tensor->get<std::vector<size_t>>("NCE1_Paddings");
+            output_tensor->erase("NCE1_Paddings");
             for(unsigned i = 0; i < existing_output_tensor_paddings.size();++i)
                 output_tensor_paddings[i] = std::max(output_tensor_paddings[i], existing_output_tensor_paddings[i]);
         }
@@ -102,13 +101,13 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         if(weight_tensor->hasAttr("NCE1_Paddings"))
         {
             //Simple rule: greatest padding wins
-            mv::SizeVector existing_weight_tensor_paddings = weight_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
-            weight_tensor->removeAttr("NCE1_Paddings");
+            std::vector<size_t> existing_weight_tensor_paddings = weight_tensor->get<std::vector<size_t>>("NCE1_Paddings");
+            weight_tensor->erase("NCE1_Paddings");
             for(unsigned i = 0; i < existing_weight_tensor_paddings.size();++i)
                 weight_tensor_paddings[i] = std::max(weight_tensor_paddings[i], existing_weight_tensor_paddings[i]);
         }
-        dm.addAttr(input_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::SizeVecType, input_tensor_paddings));
-        dm.addAttr(output_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::SizeVecType, output_tensor_paddings));
-        dm.addAttr(weight_tensor, "NCE1_Paddings", mv::Attribute(mv::AttrType::SizeVecType, weight_tensor_paddings));
+        input_tensor->set<std::vector<size_t>>("NCE1_Paddings", input_tensor_paddings);
+        output_tensor->set<std::vector<size_t>>("NCE1_Paddings", output_tensor_paddings);
+        weight_tensor->set<std::vector<size_t>>("NCE1_Paddings", weight_tensor_paddings);
     }
 }
