@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
+#include "include/mcm/computation/resource/nce1_utils.hpp"
 #include "include/mcm/computation/model/types.hpp"
 
 static void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
@@ -137,50 +138,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
 {
     mv::ModeSelectionNode source;
-    auto weigth_tensor = convIterator->getInputTensor(1);
-    auto input_tensor = convIterator->getInputTensor(0);
-    auto output_tensor = convIterator->getOutputTensor(0);
-
-    auto kernel_dimensions = weigth_tensor->getShape();
-    auto input_dimensions = input_tensor->getShape();
-    auto output_dimensions = output_tensor->getShape();
-
-    source.parameters.kernel_x = kernel_dimensions[0];
-    source.parameters.kernel_y = kernel_dimensions[1];
-    source.parameters.input_width = input_dimensions[0];
-    source.parameters.input_height = input_dimensions[1];
-    source.parameters.input_channels = input_dimensions[2];
-    source.parameters.output_width = output_dimensions[0];
-    source.parameters.output_height = output_dimensions[1];
-    source.parameters.output_channels = output_dimensions[2];
-
-    if(input_tensor->hasAttr("NCE1_Paddings")) //The input tensor involved in this convolution has already been padded (probably as output tensor of some other convolution)
-    {
-        mv::SizeVector paddings = input_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
-        source.parameters.input_width += paddings[0];
-        source.parameters.input_height += paddings[1];
-        source.parameters.input_channels += paddings[2];
-    }
-
-    if(output_tensor->hasAttr("NCE1_Paddings"))
-    //The output tensor involved in this convolution has already been padded (probably as input tensor of some other convolution)
-    //NOTE: Maybe this shouldn't happen at all, but it's better to play safe
-    {
-        mv::SizeVector paddings = output_tensor->getAttr("NCE1_Paddings").getContent<mv::SizeVector>();
-        source.parameters.output_width += paddings[0];
-        source.parameters.output_height += paddings[1];
-        source.parameters.output_channels += paddings[2];
-    }
-
-    auto strides = convIterator->getAttr("stride").getContent<mv::UnsignedVector2D>();
-    source.parameters.stride_x = strides.e0;
-    source.parameters.stride_y = strides.e1;
-
-    auto paddings = convIterator->getAttr("padding").getContent<mv::UnsignedVector4D>();
-    source.parameters.pad_x_up = paddings.e0;
-    source.parameters.pad_x_down = paddings.e1;
-    source.parameters.pad_y_left = paddings.e2;
-    source.parameters.pad_y_right = paddings.e3;
+    source.parameters = mv::fillConvolutionParameters(convIterator);
 
     source.remaining_output_channels = source.parameters.output_channels;
     mv::ModeSelectionResult modes = nce.optimize_convolution(source);
