@@ -169,6 +169,7 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(buffer->getStage()))
     {
         tensor->set<std::string>("allocator", allocatorName);
+        tensor->set<bool>("allocated", true);
         log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " +
             (*memoryAllocators_)[allocatorName]->toString());
         return buf;
@@ -185,7 +186,7 @@ void mv::DataModel::padLeft(const std::string& allocatorName, Data::BufferIterat
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
-    
+
     (*memoryAllocators_)[allocatorName]->padLeft(buffer, padding);
 
 }
@@ -195,7 +196,7 @@ void mv::DataModel::padRight(const std::string& allocatorName, Data::BufferItera
 
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
         throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
-    
+
     (*memoryAllocators_)[allocatorName]->padRight(buffer, padding);
 
 }

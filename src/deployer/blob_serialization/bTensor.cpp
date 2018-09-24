@@ -214,6 +214,7 @@ namespace mv
             {
                 // Found
                 this->location = BLOB_EXTERNAL_LOCATION;
+                unsigned leading_pad = 0;
                 if (!mem->getStrides().empty())
                 {
                     std::cout << "Var: " << mem->toString() << std::endl;
@@ -229,12 +230,14 @@ namespace mv
                             break;
                         }
                     }
+                    leading_pad = mem->getStrides()[1];
                 }
                 else
                 {
                     blk_stride = -1;
                 }
-                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Variable ));
+
+                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable ));
                 this->offset = rt_entry;
             }
         }

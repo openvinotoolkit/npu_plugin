@@ -111,15 +111,13 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             auto outRef = dm.allocateTensor("IntermediateMemory", stageIt, out);
 
             //TODO: assert equal amount of dimensions and equal layouts.
-            const std::vector<std::size_t> empty_padding = std::vector<std::size_t>(in0->getShape().ndims());
-            std::vector<std::size_t> * lhs_padding = new std::vector<std::size_t>(in0->getShape().ndims());
-            std::vector<std::size_t> * rhs_padding = new std::vector<std::size_t>(in0->getShape().ndims());
+            std::vector<std::size_t> empty_padding(in0->getShape().ndims());
+            std::vector<std::size_t> lhs_padding(in0->getShape().ndims());
+            std::vector<std::size_t> rhs_padding(in0->getShape().ndims());
 
 
             auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;
-
-            std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
 
             // TODO: I think there is a gap in funcitonality here that would make this trivial
 
@@ -141,8 +139,55 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     }
                 }
                 break;
+                case OrderType::RowMajorPlanar:
+                {
+                    switch(axis){
+                        case 2: // Channels
+                        {
+                            channel_index = 2;
+                        }
+                        break;
+                        default:
+                        {
+                            std::cout << "Concat not supported for this axis" << std::endl;
+                            assert(0);
+                        }
+                    }
+                }
+                case OrderType::ColumnMajorPlanar:
+                {
+                    switch(axis){
+                        case 2: // Channels
+                        {
+                            channel_index = 0;
+                        }
+                        break;
+                        default:
+                        {
+                            std::cout << "Concat not supported for this axis" << std::endl;
+                            assert(0);
+                        }
+                    }
+                }
+                case OrderType::ColumnMajor:
+                {
+                    switch(axis){
+                        case 2: // Channels
+                        {
+                            channel_index = 0;
+                        }
+                        break;
+                        default:
+                        {
+                            std::cout << "Concat not supported for this axis" << std::endl;
+                            assert(0);
+                        }
+                    }
+                }
+                break;
                 default:
                 {
+                    std::cout << "Order: "<< in0->getOrder().toString() << std::endl;
                     std::cout << "Concat not supported for this format" << std::endl;
                     assert(0);
                 }
@@ -150,23 +195,13 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             auto lhs = in0->getShape()[channel_index];
             auto rhs = in1->getShape()[channel_index];
-            lhs_padding->at(channel_index) = lhs;
-            rhs_padding->at(channel_index) = rhs;
+            lhs_padding.at(channel_index) = lhs;
+            rhs_padding.at(channel_index) = rhs;
 
-            const std::vector<std::size_t> lhs_padding_const = *lhs_padding;
-            const std::vector<std::size_t> rhs_padding_const = *rhs_padding;
+            std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
 
-            // std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
-
-            // for (auto i : lhs_padding_const)
-            //     if (i != 0)
-            //         std::cout << "lhs_padding_const: " << i << std::endl;
-            // for (auto i : rhs_padding_const)
-            //     if (i != 0)
-            //         std::cout << "rhs_padding_const: " << i << std::endl;
-
-            auto b = dm.allocateTensor("IntermediateMemory", outRef, in0, lhs_padding_const, empty_padding);
-            auto a = dm.allocateTensor("IntermediateMemory", outRef, in1, empty_padding, rhs_padding_const);
+            auto b = dm.allocateTensor("IntermediateMemory", outRef, in0, lhs_padding, empty_padding);
+            auto a = dm.allocateTensor("IntermediateMemory", outRef, in1, empty_padding, rhs_padding);
 
             std::cout << "Testing out: " << outRef->toString() << std::endl;
             std::cout << "Testing in1 : " << b->toString() << std::endl;
@@ -201,32 +236,4 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }
         }
     }
-
-    // if (std::find(input_names.begin(), input_names.end(), tIt->getName()) != input_names.end())
-    // {
-    //     external = true;
-    // }
-    // else
-    // {
-    //     if(std::find(output_names.begin(), output_names.end(), tIt->getName()) != output_names.end())
-    //     {
-    //         external = true;
-    //     }
-    // }
-
-
-    // if (!tIt->isPopulated() and !external)
-    // {
-
-    //     auto stageIt = cm.getStage(0);
-
-    //     if (! tIt->hasAttr("allocated") || tIt->get<bool>("allocated") == false)
-    //     {
-    //         dm.allocateTensor("IntermediateMemory", stageIt, tIt);
-    //     }
-
-    // }
-
-    // }
-
 }
