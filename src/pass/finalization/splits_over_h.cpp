@@ -68,8 +68,11 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
         std::vector<mv::SplitOverHSolution> splits = computeSplitsOverH(nce, operationIt);
         unsigned splits_over_height = splits.size();
+
+        /*
         for(unsigned i = 0; i < splits_over_height; ++i)
             std::cout << splits[i] << std::endl;
+        */
         om.addAttr(operationIt, "NCE1_SplitsOverHeight", mv::Attribute(mv::AttrType::UnsignedType, splits_over_height));
 
         // Compute DescriptorsSplits
