@@ -389,33 +389,31 @@ mv::InputLinesPerOutputLinesSolution inputLinesForOutputLines(mv::ConvolutionPar
 
    return to_return;
 }
-/*
+
+int isValid(int total_output_slice, int max_output_slice_lines, int output_end_index, int output_size)
+{
+    return total_output_slice <= max_output_slice_lines && output_end_index <= output_size;
+}
+
 int maximizeOutput(mv::ConvolutionParameters param, int output_start_index, int output_end_index, int max_output_slice_lines)
 {
-
     int output_size = param.output_height;
 
     mv::InputLinesPerOutputLinesSolution sol = inputLinesForOutputLines(param, output_start_index, output_end_index);
-    int total_output_slice = sol.junk_output_before + (output_end_index - output_start_index) + sol.junk_output_after;
+    int total_output_slice = sol.junk_output_lines_before + (output_end_index - output_start_index) + sol.junk_output_lines_after;
 
     int extra_lines = 0;
-    while(! total_output_slice <= max_output_slice_line && out)
 
+    while(!isValid(total_output_slice, max_output_slice_lines, output_end_index + extra_lines, output_size))
+    {
+            extra_lines -= 1;
 
-        def isValid(totalOutputSlice, maxOutputSliceLines, outputEndIndex, outputSize):
-            return totalOutputSlice <= maxOutputSliceLines and outputEndIndex <= outputSize
-
-        extraLines = 0
-        while not isValid(totalOutputSlice, maxOutputSliceLines, outputEndIndex + extraLines, outputSize):
-            extraLines -= 1
-            _, _, _, _, \
-            junkOutputBefore, junkOutputAfter = inputLinesForOutputLines(inputSize, kernelSize, stride, pad, (outputStartIndex, outputEndIndex + extraLines))
-            totalOutputSlice = junkOutputBefore + (outputEndIndex + extraLines - outputStartIndex) + junkOutputAfter
-
-        return outputEndIndex + extraLines + (not isValid(totalOutputSlice, maxOutputSliceLines, outputEndIndex, outputSize))
-    return 0;
+            mv::InputLinesPerOutputLinesSolution sol2 = inputLinesForOutputLines(param, output_start_index, output_end_index + extra_lines);
+            total_output_slice = sol2.junk_output_lines_before + (output_end_index + extra_lines - output_start_index) + sol2.junk_output_lines_after;
+    }
+    return output_end_index + extra_lines + (!isValid(total_output_slice, max_output_slice_lines, output_end_index, output_size));
 }
-*/
+
 
 std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(ConvolutionParameters param, unsigned max_output_lines)
 {
@@ -432,27 +430,26 @@ std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(ConvolutionPara
         if(output_end_index - output_start_index <= 0)
             break;
 
-        InputLinesPerOutputLinesSolution sol = inputLinesForOutputLines(param, output_start_index, output_end_index);
+        //InputLinesPerOutputLinesSolution sol = inputLinesForOutputLines(param, output_start_index, output_end_index);
         //std::cout << sol << std::endl;
-        //int new_output_end_index = maximizeOutput(param, output_start_index, output_end_index, max_output_lines);
         //NOTE:This call might be facultative
-        //InputLinesPerOutputLinesSolution sol2 = inputLinesForOutputLines(param, output_start_index, new_output_end_index);
-        InputLinesPerOutputLinesSolution sol2 = sol;
+        int new_output_end_index = maximizeOutput(param, output_start_index, output_end_index, max_output_lines);
+        InputLinesPerOutputLinesSolution sol2 = inputLinesForOutputLines(param, output_start_index, new_output_end_index);
 
         to_append.input_lines_processed = sol2.input_lines_before + sol2.input_end_index - sol2.input_start_index + sol2.input_lines_after;
-        to_append.output_lines_processed = sol2.junk_output_lines_before + output_end_index - output_start_index + sol2.junk_output_lines_after;
+        to_append.output_lines_processed = sol2.junk_output_lines_before + new_output_end_index - output_start_index + sol2.junk_output_lines_after;
         to_append.junk_output_before = sol2.junk_output_lines_before;
         to_append.junk_output_after = sol2.junk_output_lines_after;
         to_append.start_input_line = sol2.input_start_index - sol2.input_lines_before;
         to_append.end_input_line = sol2.input_end_index + sol2.input_lines_after;
         to_append.start_output_line = output_start_index;
-        to_append.end_output_line = output_end_index;
+        to_append.end_output_line = new_output_end_index;
 
         std::cout << to_append << std::endl;
 
         to_return.push_back(to_append);
 
-        output_start_index = output_end_index;
+        output_start_index = new_output_end_index;
 
         if(prev_output_start_index == output_start_index)
         {
