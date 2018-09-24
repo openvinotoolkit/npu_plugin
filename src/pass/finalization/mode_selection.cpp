@@ -142,7 +142,7 @@ void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convItera
     write_hardware_attributes(om, convIterator, modes, nce);
 }
 
-void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::Nce1 nce;
