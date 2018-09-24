@@ -144,8 +144,6 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
     unsigned stageIdx = stage->getIdx();
     auto buf = (*memoryAllocators_)[allocatorName]->allocate(tensor, stageIdx);
 
-    tensor->set<std::string>("allocator", allocatorName);
-    tensor->set<bool>("allocated", true);
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {
         log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " +
@@ -170,8 +168,6 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
 
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(buffer->getStage()))
     {
-        tensor->set<std::string>("allocator", allocatorName);
-        tensor->set<bool>("allocated", true);
         log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " +
             (*memoryAllocators_)[allocatorName]->toString());
         return buf;

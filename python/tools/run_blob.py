@@ -79,7 +79,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
             device.open()
         except:
             throw_error(ErrorTable.USBError, 'Error opening device')
-    #net.inputTensor = net.inputTensor.astype(dtype=np.double16)
+    #net.inputTensor = net.inputTensor.astype(dtype=np.float16)
     #input_image = net.inputTensor
 
     if ".npy" in image_path:
@@ -89,7 +89,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
 
 
     elif image_path is None or image_path == "Debug":
-        input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.double16)
+        input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.float16)
         if (hw):
             # assume data in ZYX
             if (len(inputTensorShape) == 4):
@@ -115,8 +115,8 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
                             int(inputTensorShape[2])],
                            raw_scale=arguments.raw_scale,
                            mean=arguments.mean,
-                           channel_swap=(2, 1, 0)).astype(np.double16)
-        #input_image = plt.imread(image_path).astype(np.double16)
+                           channel_swap=(2, 1, 0)).astype(np.float16)
+        #input_image = plt.imread(image_path).astype(np.float16)
         #input_image = input_image.reshape((1, input_image.shape[0], input_image.shape[1], input_image.shape[2]))
         input_image = input_image.transpose([0, 2, 3, 1])
 
@@ -144,7 +144,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
                                 1,
                                 input_image.shape[2],
                                 input_image.shape[3]),
-                                dtype=double).astype(dtype=np.double16)
+                                dtype=float).astype(dtype=np.float16)
         input_image = np.append(input_image, padded_slice, axis=1)
 
         if GLOBALS.INPUT_IN_INTERLEAVED:
@@ -264,7 +264,7 @@ def parse_args():
     parser.add_argument('out_s', type=str, help='Output tensor shape, format (w,h,c)')
     parser.add_argument('-res', type=str, default='output', help='Output file name')
     parser.add_argument('-i', dest='image', type=str, default='Debug', help='Image to process')
-    parser.add_argument('-S', dest='scale', type=double, help='Scale the input by this amount, before mean')
+    parser.add_argument('-S', dest='scale', type=float, help='Scale the input by this amount, before mean')
     parser.add_argument('-M', dest='mean', type=str, help='Numpy file or constant to subtract from the image, after scaling')
     parser.add_argument('-id', dest='expectedid', type=int, help='Expected output id for validation')
     parser.add_argument('-cs', dest='channel_swap', type=coords, default=(2,1,0), help="default: 2,1,0 for RGB-to-BGR; no swap: 0,1,2", nargs='?')
@@ -316,7 +316,7 @@ class Arguments:
             pairs = args.accuracy_adjust.split(',')
             for pair in pairs:
                 layer, value = pair.split(':')
-                self.accuracy_table[layer] = double(value)
+                self.accuracy_table[layer] = float(value)
 
 
 def check_net(blob_path, image_path, input_shape_str, output_shape_str, output_filename):
