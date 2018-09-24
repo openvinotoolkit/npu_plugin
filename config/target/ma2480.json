@@ -69,14 +69,12 @@
 		[
 			{
 				"name": "ConstantMemory",
-				"size": 1024000000,
-				"order": "RowMajorPlanar"
+				"size": 1024000000
 			},
 
 			{
 				"name": "IntermediateMemory",
-				"size": 1024000000,
-				"order": "RowMajorPlanar"
+				"size": 1024000000
 			}
 		]
 	}
