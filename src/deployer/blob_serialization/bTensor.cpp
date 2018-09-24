@@ -216,12 +216,12 @@ namespace mv
                 this->location = BLOB_EXTERNAL_LOCATION;
                 if (!mem->getStrides().empty())
                 {
-                    for(int i = 0; i != mem->getStrides().size()-1; i++)
+                    std::cout << "Var: " << mem->toString() << std::endl;
+
+                    // Start at 1 and go til -1 because the first and last strides are
+                    // leading and trailing "padding"
+                    for(int i = 1; i != mem->getStrides().size()-2; i++)
                     {
-                        // print("Mem: ", mem->second->toString(true));
-                        for (auto i : mem->getStrides())
-                            if (i != 0)
-                                std::cout << "Stride: " << i << std::endl;
                         blk_stride = (int)mem->getStrides()[i];
                         block += (int)mem->getBlockSize();
                         if (blk_stride != 0)
@@ -246,29 +246,75 @@ namespace mv
 
         if (blk_stride <= 0)
         {
+            std::cout << "Tight" << std::endl;
             // Tight or Empty Buffer. Either way no exterior striding
         }
         else
         {
-            if (block == this->dimX)
+            switch ( (*t)->getOrder() )
             {
-                // Striding was on X axis
-                local_StrideX = blk_stride;
+                case OrderType::ColumnMajor:
+                {
+                    if (block == this->dimX)
+                        local_StrideX = blk_stride;
+                    else if (block == this->dimX*this->dimY)
+                        local_StrideY = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideZ = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
+                }
+                break;
+                case OrderType::RowMajor:
+                {
+                    if (block == this->dimZ)
+                        local_StrideZ = blk_stride;
+                    else if (block == this->dimY*this->dimZ)
+                        local_StrideY = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideX = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << std::endl;
+                }
+                break;
+                case OrderType::RowMajorPlanar:
+                {
+                    if (block == this->dimZ)
+                        local_StrideZ = blk_stride;
+                    else if (block == this->dimX*this->dimY)
+                        local_StrideX = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideY = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajorPlanar)" << std::endl;
+                }
+                break;
+                case OrderType::ColumnMajorPlanar:
+                {
+                    if (block == this->dimY)
+                        local_StrideY = blk_stride;
+                    else if (block == this->dimX*this->dimY)
+                        local_StrideX = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideZ = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
+                }
+                break;
+                default:
+                {
+
+                }
             }
-            else if (block == this->dimX*this->dimY)
-            {
-                // Striding was on Y axis
-                local_StrideY = blk_stride;
-            }
-            else if ( block == this->dimX*this->dimY*this->dimZ )
-            {
-                // Striding was on Z axis
-                local_StrideZ = blk_stride;
-            }
-            else
-            {
-                std::cout << "Serialization Error: Cannot figure out stride translation" << std::endl;
-            }
+            std::cout << "local_StrideX: " << local_StrideX << std::endl;
+            std::cout << "local_StrideY: " << local_StrideY << std::endl;
+            std::cout << "local_StrideZ: " << local_StrideZ << std::endl;
+            std::cout << "this->dimX: " << this->dimX << std::endl;
+            std::cout << "this->dimY: " << this->dimY << std::endl;
+            std::cout << "this->dimZ: " << this->dimZ << std::endl;
+            std::cout << "Block size: " << block << std::endl;
+            std::cout << "Block stride: " << blk_stride << std::endl;
+
         }
 
         switch ( (*t)->getOrder() )
