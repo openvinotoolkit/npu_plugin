@@ -520,25 +520,21 @@ unsigned mv::Nce1::computeLocalLineStride(unsigned input_width)
     return pixels_per_input_line_rounded_up / 8; // equation courtesy of the docs
 }
 
-unsigned mv::Nce1::computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, float actual_output_channels, std::vector<unsigned>& modes)
+unsigned mv::Nce1::computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, unsigned num_modes)
 {
-    unsigned to_return = splits_over_height * splits_over_input_channels;
-    unsigned n = modes.size();
-    unsigned sum = 0;
-    for(unsigned i = 0; i < n; ++i)
-    {
-        unsigned output_channel_performed = output_channel_performed_one_shot.at(modes[i]);
-        sum += ceil(actual_output_channels / output_channel_performed);
-        actual_output_channels -= output_channel_performed;
-    }
-    to_return *= sum;
-    return to_return;
+    return splits_over_height * splits_over_input_channels * num_modes;
 }
 
 unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode)
 {
     int ram_blocks = dpe_x_output_channel.at(mode);
     return input_channels / ram_blocks;
+}
+
+unsigned mv::Nce1::computeMaxOutputLines(unsigned input_width, unsigned output_channel_performed)
+{
+    unsigned bytes_per_full_depth_slice = input_data_size * output_channel_performed * mv::round_up(input_width, 8);
+    return cmx_stream_size / bytes_per_full_depth_slice;
 }
 
 unsigned mv::Nce1::getMaxNumberOfLinesInDataStorage()
