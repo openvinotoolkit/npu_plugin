@@ -244,19 +244,14 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 }
 
                 if (jsonDescriptor["resources"]["memory"][i]["name"].valueType() != json::JSONType::String ||
-                    jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger ||
-                    jsonDescriptor["resources"]["memory"][i]["order"].valueType() != json::JSONType::String)
+                    jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger)
                 {
                     reset();
                     return false;
                 }
 
-
-
                 name = jsonDescriptor["resources"]["memory"][i]["name"].get<std::string>();
                 size = jsonDescriptor["resources"]["memory"][i]["size"].get<long long>();
-                orderStr = jsonDescriptor["resources"]["memory"][i]["order"].get<std::string>();
-                Order order(orderStr);
 
                 if (size < 0)
                 {
@@ -264,7 +259,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                     return false;
                 }
 
-                memoryDefs_[name] = {size, order};
+                memoryDefs_[name] = {size};
 
             }
 
@@ -518,14 +513,14 @@ bool mv::TargetDescriptor::opSupported(OpType op) const
     return false;
 }
 
-bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size, Order order)
+bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size)
 {
     if (size < 0)
         return false;
 
     if (memoryDefs_.find(name) == memoryDefs_.end())
     {
-        memoryDefs_[name] = {size, order};
+        memoryDefs_[name] = {size};
         return true;
     }
     return false;

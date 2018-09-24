@@ -11,7 +11,7 @@ add_executable(cm_linear cm_linear.cpp)
 target_sources(cm_linear PUBLIC ${base} ${computation_model} ${ops} ${logger} ${tensor})
 
 add_executable(cm_two_branch cm_two_branch.cpp)
-target_sources(cm_two_branch PUBLIC ${base} ${computation_model} ${ops} ${logger} ${tensor})
+target_sources(cm_two_branch PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
 
 add_executable(cm_resnet18 cm_resnet18.cpp)
 target_sources(cm_resnet18 PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})

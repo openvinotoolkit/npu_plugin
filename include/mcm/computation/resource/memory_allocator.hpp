@@ -131,11 +131,6 @@ namespace mv
         long long unsigned size_;
 
         /**
-         * @brief Order of 1-dimensional representations of multidimensional tensors allocated by the allocator
-         */
-        //Order order_;
-
-        /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */
         std::map<unsigned, std::map<Data::TensorIterator,  std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>> entries_;
@@ -149,7 +144,7 @@ namespace mv
 
     public:
 
-        MemoryAllocator(std::string name, std::size_t size, Order order);
+        MemoryAllocator(std::string name, std::size_t size);
         
         /**
          * @brief Allocate the tensor in a new buffer for the particular stage

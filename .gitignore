@@ -5,3 +5,6 @@ build/
 *.dot
 *.json
 *:*
+*.svg
+*.txt
+recordings/

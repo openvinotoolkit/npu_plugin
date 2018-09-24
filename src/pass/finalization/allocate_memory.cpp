@@ -80,15 +80,14 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
 
     OpModel om(dm) ;
-    bool external = false;
+    //bool external = false;
     std::vector<std::string> external_names;
     auto stageIt = cm.getStage(0);
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == OpType::Concat){
-
-            auto stageIt = cm.getStage(0);
+        if (opIterator->getOpType() == OpType::Concat)
+        {
 
             auto in0 = opIterator->getInputTensor(0);
             auto in1 = opIterator->getInputTensor(1);

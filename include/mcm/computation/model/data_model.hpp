@@ -40,7 +40,7 @@ namespace mv
         Data::TensorIterator findTensor(const std::string& name);
         unsigned tensorsCount() const;
 
-        bool addAllocator(const std::string& name, std::size_t size, Order order);
+        bool addAllocator(const std::string& name, std::size_t size);
         bool hasAllocator(const std::string& name);
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Data::BufferIterator buffer, Data::TensorIterator tensor,

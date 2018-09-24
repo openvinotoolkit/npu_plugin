@@ -123,9 +123,9 @@ unsigned mv::DataModel::tensorsCount() const
     return flowTensors_->size();
 }
 
-bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, Order order)
+bool mv::DataModel::addAllocator(const std::string& name, std::size_t size)
 {
-    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size, order));
+    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size));
     if (result.second)
     {
         log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
@@ -146,7 +146,6 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
 
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {
-        tensor->set<std::string>("allocator", allocatorName);
         log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " +
             (*memoryAllocators_)[allocatorName]->toString());
         return buf;

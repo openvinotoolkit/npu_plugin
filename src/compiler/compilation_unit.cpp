@@ -138,7 +138,7 @@ bool mv::CompilationUnit::initialize()
     for (auto it = targetDescriptor_.memoryDefs().begin(); it != targetDescriptor_.memoryDefs().end(); ++it)
     {
         mv::DataModel dm(*model_);
-        dm.addAllocator(it->first, it->second.size, it->second.order);
+        dm.addAllocator(it->first, it->second.size);
     }
 
     return true;

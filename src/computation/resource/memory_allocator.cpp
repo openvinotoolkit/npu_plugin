@@ -132,10 +132,9 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx, BufferIterator first,
 
 }
 
-mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, Order order) :
+mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size) :
 name_(name),
 size_(size)
-//order_(order)
 {
 
 }
@@ -193,6 +192,10 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     if (entries_.find(stageIdx) == entries_.end())
         entries_.emplace(stageIdx, std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>());
 
+    if (tensor->hasAttr("allocator"))
+        throw ArgumentError(*this, "tensor", tensor->getName(), "Already allocated in " + tensor->get<std::string>("allocator") + 
+            ", deallocate first to allocate again");
+
     Shape shape(tensor->getShape());
     
     MemoryBuffer newBuffer;
@@ -215,6 +218,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     if (entries_[stageIdx].size() != 0)
         newBuffer.offset = entries_[stageIdx].rbegin()->second->offset + entries_[stageIdx].rbegin()->second->size;
 
+    tensor->set<std::string>("allocator", name_);
     return entries_[stageIdx].emplace(tensor, std::make_shared<MemoryBuffer>(newBuffer)).first;
 
 }
@@ -280,6 +284,7 @@ bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, std::size_t st
         nextIt++;
         entries_[stageIdx].erase(it);
         placeBuffers_(stageIdx, nextIt, entries_[stageIdx].end());
+        tensor->erase("allocator");
         return true;
     }
 
@@ -292,6 +297,9 @@ void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
 
     if (entries_.find(stageIdx) == entries_.end())
         throw IndexError(*this, stageIdx, "Deallocation of all tensors for an undefined stage");
+
+    for (auto it = entries_[stageIdx].begin(); it != entries_[stageIdx].end(); ++it)
+        it->first->erase("allocator");
 
     entries_[stageIdx].clear();
 

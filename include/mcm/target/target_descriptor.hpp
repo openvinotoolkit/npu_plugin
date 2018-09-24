@@ -31,7 +31,6 @@ namespace mv
         {
 
             long long size;
-            Order order;
 
         };
 
@@ -79,7 +78,7 @@ namespace mv
         bool undefineOp(OpType op);
         bool opSupported(OpType op) const;
 
-        bool defineMemory(const std::string& name, long long size, Order order);
+        bool defineMemory(const std::string& name, long long size);
         bool undefineMemory(const std::string& name);
 
         std::size_t adaptPassesCount() const;
