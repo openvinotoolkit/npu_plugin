@@ -11,8 +11,8 @@ namespace mv
 
     namespace Data
     {
-        using BufferIterator = IteratorDetail::ModelValueIterator<std::map<TensorIterator, std::shared_ptr<MemoryAllocator::MemoryBuffer>,
-            MemoryAllocator::TensorIteratorComparator>::iterator, MemoryAllocator::MemoryBuffer>;
+        using BufferIterator = IteratorDetail::ModelLinearIterator<std::set<std::shared_ptr<MemoryAllocator::MemoryBuffer>,
+            MemoryAllocator::BufferOrderComparator>::iterator, MemoryAllocator::MemoryBuffer>;
     }
 
     class DataModel : public ComputationModel

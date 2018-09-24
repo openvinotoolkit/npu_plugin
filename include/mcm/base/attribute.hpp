@@ -270,7 +270,7 @@ namespace mv
             return ptr_ != nullptr;
         }
 
-        std::string getLogID() const
+        std::string getLogID() const override
         {
             if (!ptr_)
                 return "Attribute NULL";

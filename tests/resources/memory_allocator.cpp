@@ -27,9 +27,34 @@ TEST(memory_allocator, concatenate_tensors)
     auto input1Buf = m.allocate(inputTensor1, outputBuf, {0, 0, 0}, {0, 0, 2});
     auto input2Buf = m.allocate(inputTensor2, outputBuf, {0, 0, 2}, {0, 0, 0});
 
-    std::cout << outputBuf->second->toString(true) << std::endl;
-    std::cout << input1Buf->second->toString(true) << std::endl;
-    std::cout << input2Buf->second->toString(true) << std::endl;
+    std::cout << (*outputBuf)->toString(true) << std::endl;
+    std::cout << (*input1Buf)->toString(true) << std::endl;
+    std::cout << (*input2Buf)->toString(true) << std::endl;
+
+    std::cout << m.toString() << std::endl;
+
+}
+
+TEST(memory_allocator, mulitple)
+{
+
+    mv::OpModel om("testModel");
+    mv::DataModel dm(om);
+    mv::Shape s1({4, 4, 4});
+    mv::Shape s2({4, 8, 2});
+    mv::Shape s3({32, 2, 2});
+    mv::Order order = mv::OrderType::ColumnMajor;
+    
+    auto t1 = dm.defineTensor("t1", s1, mv::DTypeType::Float16, order);
+    auto t2 = dm.defineTensor("a2", s2, mv::DTypeType::Float16, order);
+    auto t3 = dm.defineTensor("t3", s3, mv::DTypeType::Float16, order);
+
+    mv::MemoryAllocator m("m1", 10000);
+    auto b1 = m.allocate(t1, 0);
+    auto b2 = m.allocate(t2, 0);
+    auto b3 = m.allocate(t3, 0);
+
+    std::cout << m.toString() << std::endl;
 
 }
 
@@ -53,7 +78,7 @@ TEST(memory_allocator, tensor_col_major)
     m.padLeft(buf, padding1);
 
     for (auto it = m.bufferBegin(0); it != m.bufferEnd(0); ++it)
-        std::cout << it->second->toString(true) << std::endl;
+        std::cout << (*it)->toString(true) << std::endl;
 
     /**m.padLeft(buf, padding2);
 
@@ -68,7 +93,7 @@ TEST(memory_allocator, tensor_col_major)
     m.padRight(buf, padding2);*/
 
     for (auto it = m.bufferBegin(0); it != m.bufferEnd(0); ++it)
-        std::cout << it->second->toString(true) << std::endl;
+        std::cout << (*it)->toString(true) << std::endl;
     
 }
 
@@ -90,8 +115,8 @@ TEST(memory_allocator, slave_tensor_col_major)
     auto masterBuf = m.allocate(tMaster, 0);
     auto slaveBuf = m.allocate(tSlave, masterBuf, {0, 0}, {2, 2});
     
-    std::cout << masterBuf->second->toString(true) << std::endl;
-    std::cout << slaveBuf->second->toString(true) << std::endl;
+    std::cout << (*masterBuf)->toString(true) << std::endl;
+    std::cout << (*slaveBuf)->toString(true) << std::endl;
 
     std::cout << tMaster->toString() << std::endl;
     std::cout << tSlave->toString() << std::endl;
@@ -101,8 +126,8 @@ TEST(memory_allocator, slave_tensor_col_major)
 
     tSlave->at({1, 1}) = 30.0;
     
-    std::cout << masterBuf->second->toString(true) << std::endl;
-    std::cout << slaveBuf->second->toString(true) << std::endl;
+    std::cout << (*masterBuf)->toString(true) << std::endl;
+    std::cout << (*masterBuf)->toString(true) << std::endl;
 
 }
 

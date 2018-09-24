@@ -36,7 +36,7 @@ namespace mv
             bool operator==(const Array& other) const;
             bool operator!=(const Array& other) const;
 
-            virtual std::string getLogID() const;
+            virtual std::string getLogID() const override;
 
         };  
 

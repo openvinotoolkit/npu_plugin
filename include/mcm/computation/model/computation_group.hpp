@@ -39,7 +39,7 @@ namespace mv
         MemberSet::iterator begin();
         MemberSet::iterator end();
         std::size_t size() const;
-        virtual std::string toString() const;
+        virtual std::string toString() const override;
         virtual std::string getLogID() const override;
 
         template <class ElementType>

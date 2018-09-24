@@ -4,6 +4,7 @@
 #include <map>
 #include <vector>
 #include <deque>
+#include <set>
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
@@ -38,8 +39,19 @@ namespace mv
 
         };
 
-        struct MemoryBuffer;
-        using BufferIterator = std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>::iterator;
+        class MemoryBuffer;
+
+        struct BufferOrderComparator
+        {
+
+            bool operator()(const std::shared_ptr<MemoryBuffer> &lhs, const std::shared_ptr<MemoryBuffer> &rhs)
+            {
+                return lhs < rhs;
+            }
+
+        };
+
+        using BufferIterator = std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>::iterator;
 
         class MemoryBuffer
         {
@@ -121,8 +133,6 @@ namespace mv
 
     private:
 
-        friend struct MemoryBuffer;
-
         /**
          * @brief Allocator's identifier
          */
@@ -136,9 +146,9 @@ namespace mv
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */
-        std::map<unsigned, std::map<Data::TensorIterator,  std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>> entries_;
+        std::map<unsigned, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>> entries_;
 
-        void placeBuffers_(unsigned stageIdx, BufferIterator first, BufferIterator last);
+        void placeBuffers_(unsigned stageIdx);
         std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding, 
             const std::vector<std::size_t>& rightPadding, const mv::Shape& shape);
         long computeStrides_(const Order& order, std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding, 

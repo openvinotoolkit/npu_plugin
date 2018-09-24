@@ -298,10 +298,14 @@ TEST (generate_blob, blob_eltwise_add)
 
     std::string blobName = "test_add_07.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_add.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Validation);
+    //unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
@@ -363,10 +367,14 @@ TEST (generate_blob, blob_eltwise_multiply)
 
     std::string blobName = "test_multiply_08.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Validation);
+    //unit.passManager().disablePass(mv::PassGenre::Validation);
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
