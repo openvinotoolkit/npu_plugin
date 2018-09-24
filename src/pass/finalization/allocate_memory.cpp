@@ -273,6 +273,8 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     )
                 {
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
+                    std::cout << "[" << outTensor->getName() << "]" << std::endl;
+                    std::cout << "allocate B: " << buf->getOffset() << std::endl;
                     if(outTensor->hasAttr("NCE1_Paddings"))
                     {
                         

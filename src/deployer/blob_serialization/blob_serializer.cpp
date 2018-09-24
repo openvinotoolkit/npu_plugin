@@ -129,7 +129,7 @@ namespace mv
                                 }
                                 else
                                 {
-                                    descriptors = it->get<int>("NCE1_DescriptorSplits");
+                                    descriptors = it->get<std::size_t>("NCE1_DescriptorSplits");
                                 }
                                 blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
                                 blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
@@ -428,7 +428,7 @@ namespace mv
                             }
                             else
                             {
-                                descriptors = it->get<int>("NCE1_DescriptorSplits");
+                                descriptors = it->get<std::size_t>("NCE1_DescriptorSplits");
                             }
                             point0 += (11*4) ; // Header of Descriptors
                             point0 += (descriptors*32*4) ; // Descriptor

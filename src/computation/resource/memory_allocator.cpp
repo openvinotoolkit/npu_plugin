@@ -1,6 +1,48 @@
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include <iostream>
 
+mv::MemoryAllocator::MemoryBuffer::MemoryBuffer() :
+offset(0),
+size(0),
+blockSize(0),
+blockNum(0),
+stage(0)
+{
+
+}
+
+mv::MemoryAllocator::MemoryBuffer::MemoryBuffer(const MemoryBuffer& other) :
+offset(other.offset),
+size(other.size),
+strides(other.strides),
+blockSize(other.blockSize),
+blockNum(other.blockNum),
+data(other.data),
+stage(other.stage),
+leftPad(other.leftPad),
+rightPad(other.rightPad),
+masterBuffer(other.masterBuffer),
+slaveBuffers(other.slaveBuffers)
+{
+
+}
+
+mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(const MemoryBuffer& other) 
+{
+    offset = other.offset;
+    size = other.size;
+    strides = other.strides;
+    blockSize = other.blockSize;
+    blockNum = other.blockNum;
+    data = other.data;
+    stage = other.stage;
+    leftPad = other.leftPad;
+    rightPad = other.rightPad;
+    masterBuffer = other.masterBuffer;
+    slaveBuffers = other.slaveBuffers;
+    return *this;
+}
+
 std::size_t mv::MemoryAllocator::MemoryBuffer::getOffset() const
 {
     return offset;
@@ -215,9 +257,11 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     std::fill(newBuffer.leftPad.begin(), newBuffer.leftPad.end(), 0);
     std::fill(newBuffer.rightPad.begin(), newBuffer.rightPad.end(), 0);
 
-    if (entries_[stageIdx].size() != 0)
+    if (entries_[stageIdx].size() > 0)
+    {
         newBuffer.offset = entries_[stageIdx].rbegin()->second->offset + entries_[stageIdx].rbegin()->second->size;
-
+        std::cout << newBuffer.offset << " " << entries_[stageIdx].rbegin()->second->offset << " " <<  entries_[stageIdx].rbegin()->second->size << std::endl;
+    }
     tensor->set<std::string>("allocator", name_);
     return entries_[stageIdx].emplace(tensor, std::make_shared<MemoryBuffer>(newBuffer)).first;
 

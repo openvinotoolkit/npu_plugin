@@ -39,25 +39,36 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
 
     int amount_marked = 0;
     int mark_limit = 3;
 
+    bool disableHardware = false;
+    if (compDesc.hasKey("MarkHardwareConvolution"))
+        if (compDesc["MarkHardwareConvolution"].hasKey("disableHardware"))
+            if (compDesc["MarkHardwareConvolution"]["disableHardware"].get<bool>())
+                disableHardware = true;
+
     mv::OpModel om(model);
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if(!opIterator->isHardwarizeable(pobj) || amount_marked >= mark_limit)
+        if (!disableHardware)
         {
-            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
-            continue;
-        }
+            if(!opIterator->isHardwarizeable(compDesc) || amount_marked >= mark_limit)
+            {
+                om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                continue;
+            }
 
-        om.addAttr(opIterator, "NCE1_Compatible", (int)1);
-        om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
-        ++amount_marked;        
+            om.addAttr(opIterator, "NCE1_Compatible", (int)1);
+            om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
+            ++amount_marked;
+        }
+        else
+            om.addAttr(opIterator, "NCE1_Compatible", (int)0);
     }
 }
 

@@ -38,11 +38,11 @@ mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator
         to_return.output_channels += paddings[2];
     }
 
-    auto strides = convIterator->get<std::array<std::size_t, 2>>("stride");
+    auto strides = convIterator->get<std::array<unsigned short, 2>>("stride");
     to_return.stride_x = strides[0];
     to_return.stride_y = strides[1];
 
-    auto paddings = convIterator->get<std::array<std::size_t, 4>>("padding");
+    auto paddings = convIterator->get<std::array<unsigned short, 4>>("padding");
     to_return.pad_x_up = paddings[0];
     to_return.pad_x_down = paddings[1];
     to_return.pad_y_left = paddings[2];

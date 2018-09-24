@@ -203,7 +203,7 @@ namespace mv
             }
             else
             {
-                splits_over_H = it->get<int>("NCE1_SplitsOverH");
+                splits_over_H = it->get<std::size_t>("NCE1_SplitsOverH");
             }
 
             if (! it->hasAttr("NCE1_SplitsOverC"))
@@ -212,7 +212,7 @@ namespace mv
             }
             else
             {
-                splits_over_oC = it->get<int>("NCE1_SplitsOverC");
+                splits_over_oC = it->get<std::size_t>("NCE1_SplitsOverC");
             }
 
             int descriptors_count = splits_over_oC * splits_over_H;
@@ -224,7 +224,7 @@ namespace mv
             }
             else
             {
-                this->streamingMask = it->get<int>("NCE1_StreamingMask");
+                this->streamingMask = it->get<std::size_t>("NCE1_StreamingMask");
             }
             if (! it->hasAttr("NCE1_Modes"))
             {
@@ -288,7 +288,7 @@ namespace mv
             }
             else
             {
-                topJunk = it->get<int>("NCE1_TopOutputJunk");
+                topJunk = it->get<std::size_t>("NCE1_TopOutputJunk");
             }
 
             if (! it->hasAttr("NCE1_BottomOutputJunk"))
@@ -297,7 +297,7 @@ namespace mv
             }
             else
             {
-                bottomJunk = it->get<int>("NCE1_BottomOutputJunk");
+                bottomJunk = it->get<std::size_t>("NCE1_BottomOutputJunk");
             }
 
             if (! it->hasAttr("NCE1_LocalLineStride"))
@@ -306,7 +306,7 @@ namespace mv
             }
             else
             {
-                localLS = it->get<int>("NCE1_LocalLineStride");
+                localLS = it->get<std::size_t>("NCE1_LocalLineStride");
             }
 
             if (! it->hasAttr("NCE1_MinLines"))
@@ -525,6 +525,8 @@ namespace mv
             }
         } else {
             // printf("Serializing a SW Conv\n");
+            this->radixX = it->getInputTensor(1)->getShape()[0];
+            this->radixY = it->getInputTensor(1)->getShape()[1];
             this->strideX = it->get<std::array<unsigned short, 2>>("stride")[0];
             this->strideY = it->get<std::array<unsigned short, 2>>("stride")[1];
             this->padX = it->get<std::array<unsigned short, 4>>("padding")[0];

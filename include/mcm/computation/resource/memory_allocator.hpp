@@ -98,6 +98,8 @@ namespace mv
 
         public:
 
+            MemoryBuffer();
+            MemoryBuffer(const MemoryBuffer& other);
             std::size_t getOffset() const;
             std::size_t getSize() const;
             const std::deque<size_t>& getStrides() const;
@@ -110,6 +112,7 @@ namespace mv
             const std::vector<BufferIterator>& getSlaves() const;
             bool operator<(const MemoryBuffer& other) const;
             bool operator==(const MemoryBuffer& other) const;
+            MemoryBuffer& operator=(const MemoryBuffer& other);
             std::string toString(bool printValues = false) const;
 
         };
