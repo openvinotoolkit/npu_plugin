@@ -352,7 +352,7 @@ mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::Te
 mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
     short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
-mv::Data::OpListIterator getSourceOp(mv::OpModel& o, mv::Data::TensorIterator tensor);
+mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor);
 
 mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
 mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding);
@@ -368,6 +368,8 @@ mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorItera
 mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
 mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
+mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
+bool isValid(mv::CompositionalModel& o);
 
 int testConv(
     mv::Data::OpListIterator &target,
