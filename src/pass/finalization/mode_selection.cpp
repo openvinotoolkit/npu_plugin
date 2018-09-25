@@ -64,6 +64,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     std::size_t kernel_height = weight_tensor_dimensions[0];
 
     //TEMPORARY HACK: Prepass takes care of everything (mode selection with re optimization routine should take care of this)
+    std::size_t original_input_channels = input_channels;
     if(input_tensor->hasAttr("NCE1_Paddings"))
     {
         std::vector<std::size_t> input_tensor_paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
@@ -83,7 +84,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     // Check if any split over input channel is needed
     unsigned splits_over_input_channels = modes_to_use.distances[0].num_splits; //num_splits MUST be equal for every mode, see above assumption
     unsigned splitted_input_channels = input_channels / splits_over_input_channels;
-    om.addAttr(convIterator, "NCE1_SplitsOverInputChannels", mv::Attribute(splits_over_input_channels));
+    om.addAttr(convIterator, "NCE1_SplitsOverInputChannels", splits_over_input_channels);
 
     // Compute local line stride
     unsigned local_line_stride = nce.computeLocalLineStride(input_width);
@@ -103,8 +104,10 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     std::vector<std::size_t> min_lines(num_modes_to_use);
     for(unsigned i = 0; i < num_modes_to_use; ++i)
     {
-        input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(splitted_input_channels, modes[i]);
-        lines_per_channel[i] = nce.computeLinesPerChannel(splitted_input_channels, local_line_stride, modes[i]);
+        // input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(splitted_input_channels, modes[i]);
+        input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(original_input_channels, modes[i]);
+        // lines_per_channel[i] = nce.computeLinesPerChannel(splitted_input_channels, local_line_stride, modes[i]);
+        lines_per_channel[i] = nce.computeLinesPerChannel(original_input_channels, local_line_stride, modes[i]);
         local_channel_stride[i] = lines_per_channel[i] * local_line_stride;
 
         min_lines[i] = 0;

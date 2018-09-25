@@ -122,14 +122,14 @@ namespace mv
 
                             if(mx_valid){
 
-                                int descriptors = 1;
+                                unsigned descriptors = 1;
                                 if (! it->hasAttr("NCE1_DescriptorSplits"))
                                 {
                                     printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
                                 }
                                 else
                                 {
-                                    descriptors = it->get<std::size_t>("NCE1_DescriptorSplits");
+                                    descriptors = it->get<unsigned>("NCE1_DescriptorSplits");
                                 }
                                 blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
                                 blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
@@ -420,7 +420,7 @@ namespace mv
 
                         if(mx_valid)
                         {
-                            int descriptors = 1;
+                            unsigned descriptors = 1;
                             int point0 = 0;
                             if (! it->hasAttr("NCE1_DescriptorSplits"))
                             {
@@ -428,7 +428,7 @@ namespace mv
                             }
                             else
                             {
-                                descriptors = it->get<std::size_t>("NCE1_DescriptorSplits");
+                                descriptors = it->get<unsigned>("NCE1_DescriptorSplits");
                             }
                             point0 += (11*4) ; // Header of Descriptors
                             point0 += (descriptors*32*4) ; // Descriptor

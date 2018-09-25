@@ -14,14 +14,14 @@ namespace mv
 {
 
     namespace attr
-    {   
+    {
 
         class AttributeRegistry : public Registry<std::type_index, AttributeEntry>
         {
 
             class AttributeRegLogSender : public LogSender
             {
-            
+
             public:
 
                 std::string getLogID() const override
@@ -56,18 +56,18 @@ namespace mv
 
                 if (!checkType(typeID))
                 {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining the name of an unegistered attribute type " 
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining the name of an unregistered attribute type "
                         + std::string(typeID.name()));
                 }
 
                 AttributeEntry* const attrPtr = instance().find(typeID);
-                
+
                 if (attrPtr)
                 {
                     return attrPtr->getTypeName();
                 }
 
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) + 
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
                     " not found in the attribute registry");
 
             }
@@ -83,7 +83,7 @@ namespace mv
                 for (auto it = instance().reg_.begin(); it != instance().reg_.end(); ++it)
                     if (it->second->getTypeName() == typeName)
                         return it->first;
-                throw AttributeError(AttributeRegLogSender(), "Type ID undefined for an unregistered attribute type " 
+                throw AttributeError(AttributeRegLogSender(), "Type ID undefined for an unregistered attribute type "
                         + typeName);
             }
 
@@ -95,15 +95,15 @@ namespace mv
 
             inline static bool checkValue(std::type_index typeID, const Attribute& val, std::string& msg)
             {
-                
+
                 if (!checkType(typeID))
                 {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of checking the value for an unregistered attribute type " 
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of checking the value for an unregistered attribute type "
                         + std::string(typeID.name()));
                 }
 
                 AttributeEntry* const attrPtr = instance().find(typeID);
-                
+
                 if (attrPtr)
                 {
                     if (!attrPtr->hasCheckFunc())
@@ -112,7 +112,7 @@ namespace mv
                     return fcnPtr(val, msg);
                 }
 
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) + 
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
                     " not found in the attribute registry");
 
             }
@@ -128,18 +128,18 @@ namespace mv
 
                 if (!checkType(typeID))
                 {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-JSON conversion function for an unegistered attribute type " 
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-JSON conversion function for an unregistered attribute type "
                         + std::string(typeID.name()));
                 }
 
                 AttributeEntry* const attrPtr = instance().find(typeID);
-                
+
                 if (attrPtr)
                 {
                     return attrPtr->getToJSONFunc();
                 }
 
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) + 
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
                     " not found in the attribute registry");
             }
 
@@ -147,18 +147,18 @@ namespace mv
             {
                 if (!checkType(typeID))
                 {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining from-JSON conversion function for an unegistered attribute type " 
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining from-JSON conversion function for an unregistered attribute type "
                         + std::string(typeID.name()));
                 }
 
                 AttributeEntry* const attrPtr = instance().find(typeID);
-                
+
                 if (attrPtr)
                 {
                     return attrPtr->getFromJSONFunc();
                 }
 
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) + 
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
                     " not found in the attribute registry");
             }
 
@@ -172,38 +172,38 @@ namespace mv
 
                 if (!checkType(typeID))
                 {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-string conversion function for an unegistered attribute type " 
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-string conversion function for an unregistered attribute type "
                         + std::string(typeID.name()));
                 }
 
                 AttributeEntry* const attrPtr = instance().find(typeID);
-                
+
                 if (attrPtr)
                 {
                     return attrPtr->getToStringFunc();
                 }
 
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) + 
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
                     " not found in the attribute registry");
-            
+
             }
 
             inline static bool hasTrait(std::type_index typeID, const std::string& trait)
             {
                 if (!checkType(typeID))
                 {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of checking type trait for an unegistered attribute type " 
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of checking type trait for an unregistered attribute type "
                         + std::string(typeID.name()));
                 }
 
                 AttributeEntry* const attrPtr = instance().find(typeID);
-                
+
                 if (attrPtr)
                 {
                     return attrPtr->hasTrait(trait);
                 }
 
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) + 
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
                     " not found in the attribute registry");
             }
 
@@ -212,7 +212,7 @@ namespace mv
             {
                 return hasTrait(typeid(AttrType), trait);
             }
-            
+
         };
 
         #define STRV(...) #__VA_ARGS__
@@ -220,7 +220,7 @@ namespace mv
         #define MV_REGISTER_ATTR(Type)                                                                          \
             static ATTRIBUTE_UNUSED AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__) =      \
                 mv::attr::AttributeRegistry::instance().enter<Type>().setName(STRV(Type))
-                              
+
     }
 
 }

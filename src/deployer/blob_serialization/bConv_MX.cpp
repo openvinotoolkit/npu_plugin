@@ -89,7 +89,8 @@ namespace mv
 
                 auto weight_4dshape = this->taps->getShape();
 
-                this->descriptors[i].coeffChStrIn = weight_4dshape[4]*2;
+
+                this->descriptors[i].coeffChStrIn = weight_4dshape[2]*weight_4dshape[3]*weight_4dshape[4]*2;
                 int inChans = weight_4dshape[1];
 
                 this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
@@ -158,7 +159,7 @@ namespace mv
         }
 
         if (it->hasAttr("scale"))
-        {   
+        {
             this->scale_name = it->get<std::string>("scale");
             std::cout << "   in bConvHW contructor : scale tensor name = "<< this->scale_name << std::endl;
 
@@ -184,7 +185,7 @@ namespace mv
             // printf("Serializing a HW Conv\n");
 
             int cmxSize = 256*1024;
-            int splits_over_H = 1, splits_over_oC = 1;
+            unsigned splits_over_H = 1, splits_over_oC = 1;
 
             if (! it->hasAttr("NCE1_AssignedCMX"))
             {
@@ -196,23 +197,22 @@ namespace mv
                 printf("Serializer Info: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
                 cmxSize = 256*1024;
             }
-
-            if (! it->hasAttr("NCE1_SplitsOverH"))
+            if (! it->hasAttr("NCE1_SplitsOverHeight"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverH'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverHeight'. Defaulting to 1\n");
             }
             else
             {
-                splits_over_H = it->get<std::size_t>("NCE1_SplitsOverH");
+                splits_over_H = it->get<unsigned>("NCE1_SplitsOverHeight");
             }
 
-            if (! it->hasAttr("NCE1_SplitsOverC"))
+            if (! it->hasAttr("NCE1_SplitsOverInputChannels"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverC'. Defaulting to 1\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverInputChannels'. Defaulting to 1\n");
             }
             else
             {
-                splits_over_oC = it->get<std::size_t>("NCE1_SplitsOverC");
+                splits_over_oC = it->get<unsigned>("NCE1_SplitsOverInputChannels");
             }
 
             int descriptors_count = splits_over_oC * splits_over_H;
@@ -238,7 +238,7 @@ namespace mv
             }
             else
             {
-                this->DPUmodeVector = it->get<std::vector<std::size_t>>("NCE1_Modes");
+                this->DPUmodeVector = it->get<std::vector<unsigned>>("NCE1_Modes");
             }
 
             this->concatOffset = 0; // Concat not supported currently
@@ -375,7 +375,7 @@ namespace mv
 
             int splits_over_iC= 1;
             int i;
-            for (unsigned oc = 0; oc != splits_over_oC; oc++)
+            for (unsigned oc = 0; oc != DPUmodeVector.size(); oc++)
             {
                 for (unsigned ic = 0; ic != splits_over_iC; ic++)
                 {
@@ -444,11 +444,11 @@ namespace mv
                         this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 
                         // Myriad X DPU Assignment & Execution Configuration
-                        this->descriptors[i].Line0.mode = this->DPUmodeVector[i];
+                        this->descriptors[i].Line0.mode = this->DPUmodeVector[oc];
                         this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                         this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
 
-                        this->descriptors[i].chPerRamBlock = chPerRamBlock[i] -1;        // Input Channels per Ram Block
+                        this->descriptors[i].chPerRamBlock = chPerRamBlock[ic] -1;        // Input Channels per Ram Block
 
 
                         // Myriad X Compensation Fields
@@ -456,13 +456,13 @@ namespace mv
                         this->descriptors[i].bottomOutputJunk = bottomJunk;
 
                         this->descriptors[i].localLs =  localLS;
-                        this->descriptors[i].localCs =  localCS[i];
+                        this->descriptors[i].localCs =  localCS[ic];
 
-                        this->descriptors[i].linesPerCh = LPC[i] -1;
+                        this->descriptors[i].linesPerCh = LPC[ic] -1;
 
                         this->descriptors[i].rud = 0;   // Re-Use bit
 
-                        this->descriptors[i].minLines = minLines[i] - 1;     // Minimum lines of data required to carry out function
+                        this->descriptors[i].minLines = minLines[ic] - 1;     // Minimum lines of data required to carry out function
 
                         this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
                         this->descriptors[i].css = (this->descriptors[i].kernelWidth + 1) * (this->descriptors[i].kernelHeight + 1) -1 ;

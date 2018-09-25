@@ -80,7 +80,7 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         std::vector<unsigned> modes = operationIt->get("NCE1_Modes").get<std::vector<unsigned>>();
 
         unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, modes.size());
-        om.addAttr(operationIt, "NCE1_DescriptorSplits", mv::Attribute(descriptor_splits));
+        om.addAttr(operationIt, "NCE1_DescriptorSplits", descriptor_splits);
 
         std::vector<unsigned> input_lines_processed(splits_over_height);
         std::vector<unsigned> output_lines_processed(splits_over_height);
