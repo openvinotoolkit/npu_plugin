@@ -1,6 +1,53 @@
 #include "gtest/gtest.h"
 #include "mcm/algorithms/dijkstra.hpp"
 #include "mcm/computation/resource/nce1.hpp"
+#include "tests/include/MCMtest.hpp"
+
+
+TEST (nce1, HWconv_op_parameters)
+{
+
+   int no_index_lo = 72 ;
+   int no_index_hi = 72 ;
+
+   for( int no_index = no_index_lo; no_index <= no_index_hi; no_index = no_index + 1 )
+   {
+       MCMtest test("HWConv2D") ;
+
+
+       test.addParam("input_tensor_shape","ih","224");
+       test.addParam("input_tensor_shape","iw","224");
+       test.addParam("input_tensor_shape","ic","3");
+       test.addParam("input_tensor_shape","ib","1");
+       test.addParam("convolution_operation","kh","3");
+       test.addParam("convolution_operation","kw","3");
+       test.addParam("convolution_operation","kf","3");
+       test.addParam("convolution_operation","ph","0");
+       test.addParam("convolution_operation","pw","0");
+       test.addParam("convolution_operation","sh","2");
+       test.addParam("convolution_operation","sw","2");
+       test.addParam("convolution_operation","no", std::to_string(no_index));
+       test.addParam("convolution_operation","wf","xavier");
+       test.addParam("convolution_operation","ws","0.1");
+       test.addParam("convolution_operation","bt","constant");
+       test.addParam("convolution_operation","bv","2");
+       std::cout << "current test descriptor is : "<< std::endl << test.descriptor.stringifyPretty() << std::endl;
+
+       test.generatePrototxt();
+
+       std::string command1 = "$MDK_HOME/projects/Fathom/src2/mvNCCompile.py ./test.prototxt --new-parser --cpp";
+       EXPECT_EQ (0, system(command1.c_str())) << "ERROR: non 0 return from compile";
+
+       std::string command2 = "$MCM_HOME/python/tools/mcmCheck.sh -b ./cpp.blob -e ./Fathom_expected.npy -i ./test.png";
+       EXPECT_EQ (0, system(command2.c_str())) << "ERROR: non 0 return from mcmCheck";
+
+       test.saveResult();
+    }
+}
+
+
+
+
 
 //Same tests present in SOH.py
 TEST (nce1, split_over_h_1)
