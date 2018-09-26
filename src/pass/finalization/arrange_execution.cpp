@@ -24,6 +24,8 @@ namespace mv
 void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
+    std::cout << "Arrange execution" << std::endl;
+
     using namespace mv;
     OpModel om(model);
     ControlModel cm(model);
@@ -74,4 +76,7 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
             }
         }
     }
+
+    std::cout << "Exiting arrange execution" << std::endl;
+
 } 

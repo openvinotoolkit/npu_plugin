@@ -35,6 +35,8 @@ namespace mv
 void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
+    std::cout << "Allocate populated" << std::endl;
+
     using namespace mv;
 
     ControlModel cm(model);
@@ -68,6 +70,8 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
 
     }
 
+    std::cout << "Exiting allocate unpopulated" << std::endl;
+
 }
 
 // void allocateForImplicitConcat(){
@@ -76,6 +80,8 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
 
 void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
+
+    std::cout << "Allocate unpopulated" << std::endl;
 
     using namespace mv;
 
@@ -217,7 +223,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         }
         else if (opIterator->getOpType() == OpType::Input)
         {
-
+            std::cout << "Input" << std::endl;
             auto outTensor = opIterator->getOutputTensor(0);
             outTensor->set<bool>("modelInput", true);
             if(outTensor->hasAttr("allocator"))
@@ -229,7 +235,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         }
         else if (opIterator->getOpType() == OpType::Output)
         {
-
+            std::cout << "Output" << std::endl;
             auto inTensor = opIterator->getInputTensor(0);
             inTensor->set<bool>("modelOutput", true);
             if(inTensor->hasAttr("allocator"))
@@ -246,43 +252,58 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         */
         else 
         {
-
-            for ( unsigned x =0; x != opIterator->inputSlots(); x++)
+            std::cout << opIterator->getOpType().toString() << std::endl;
+            for (unsigned x = 0; x < opIterator->inputSlots(); x++)
             {
+
                 auto inTensor = opIterator->getInputTensor(x);
                 if (!inTensor->isPopulated() &&
                     (! inTensor->hasAttr("allocator")) &&
-                    (! inTensor->hasAttr("external") || ! inTensor->get<bool>("external"))
+                    (! inTensor->hasAttr("modelInput") || ! inTensor->get<bool>("modelInput")) &&
+                    (! inTensor->hasAttr("modelOutput") || ! inTensor->get<bool>("modelOutput"))
                     )
                 {
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, inTensor);
-                    if(inTensor->hasAttr("NCE1_Paddings"))
+                    if (inTensor->hasAttr("NCE1_Compatible"))
                     {
-                        
-                        auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-                        dm.padRight("IntermediateMemory", buf, paddings);
+                        if (inTensor->get<int>("NCE1_Compatible"))
+                        {
+                            if (inTensor->hasAttr("NCE1_Paddings"))
+                            {
+                                std::cout << "Padding for hardware" << std::endl;
+                                auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                                dm.padRight("IntermediateMemory", buf, paddings);
 
+                            }
+                        }
                     }
 
                 }
 
             }
-            for ( unsigned x = 0; x != opIterator->outputSlots(); x++)
+            for (unsigned x = 0; x < opIterator->outputSlots(); x++)
             {
 
                 auto outTensor = opIterator->getOutputTensor(x);
                 if (!outTensor->isPopulated() &&
                     (! outTensor->hasAttr("allocator")) &&
-                    (! outTensor->hasAttr("external") || outTensor->get<bool>("external") == false)
+                    (! outTensor->hasAttr("modelInput") || ! outTensor->get<bool>("modelInput")) &&
+                    (! outTensor->hasAttr("modelOutput") || ! outTensor->get<bool>("modelOutput"))
                     )
                 {
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
-                    if(outTensor->hasAttr("NCE1_Paddings"))
+                    if (outTensor->hasAttr("NCE1_Compatible"))
                     {
-                        
-                        auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-                        dm.padRight("IntermediateMemory", buf, paddings);
+                        if (outTensor->get<int>("NCE1_Compatible"))
+                        {
+                            if(outTensor->hasAttr("NCE1_Paddings"))
+                            {
+                                std::cout << "Padding for hardware" << std::endl;
+                                auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                                dm.padRight("IntermediateMemory", buf, paddings);
 
+                            }
+                        }
                     }
 
                 }
@@ -292,5 +313,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         }
 
     }
+
+    std::cout << "Exiting allocate unpopulated" << std::endl;
 
 }

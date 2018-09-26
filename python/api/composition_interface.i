@@ -36,6 +36,7 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
+        //unit->compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
         return unit;
 
     }
@@ -126,7 +127,7 @@ import_array();
 
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o.input(shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+        return o.input(shape, mv::DTypeType::Float16, mv::OrderType::RowMajor);
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
@@ -148,7 +149,7 @@ import_array();
         /// To compensate, we add values to pad.
         /// See: https://github.com/BVLC/caffe/issues/1318
 
-        short unsigned int adj_X = 0, adj_Y = 0;
+        int adj_X = 0, adj_Y = 0;
 
         mv::Shape i = input->getShape();
 
@@ -163,6 +164,11 @@ import_array();
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
+
+        if (adj_X < 0)
+            adj_X = 0;
+        if (adj_Y < 0)
+            adj_Y = 0;
 
         return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)});
@@ -185,7 +191,7 @@ import_array();
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
 
-        short unsigned int adj_X = 0, adj_Y = 0;
+        int adj_X = 0, adj_Y = 0;
 
         mv::Shape i = input->getShape();
         mv::Shape k = filters->getShape();
@@ -204,6 +210,11 @@ import_array();
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
+
+        if (adj_X < 0)
+            adj_X = 0;
+        if (adj_Y < 0)
+            adj_Y = 0;
 
         return o.conv2D(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
     }
@@ -233,7 +244,7 @@ import_array();
         /// To compensate, we add values to pad.
         /// See: https://github.com/BVLC/caffe/issues/1318
 
-        short unsigned int adj_X = 0, adj_Y = 0;
+        int adj_X = 0, adj_Y = 0;
 
         mv::Shape i = input->getShape();
 
@@ -248,6 +259,11 @@ import_array();
 
         adj_X = caffe_x - tensorflow_x;
         adj_Y = caffe_y - tensorflow_y;
+
+        if (adj_X < 0)
+            adj_X = 0;
+        if (adj_Y < 0)
+            adj_Y = 0;
 
         return o.avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)});

@@ -202,5 +202,5 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         }
     }
-std::cout << "exiting formatMXweights pass " << std::endl;
+    std::cout << "exiting formatMXweights pass " << std::endl;
 }

@@ -8,7 +8,7 @@ int main()
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajor);
+    auto inIt6 = test_cm.input({24, 24, 20}, mv::DTypeType::Float16, mv::OrderType::RowMajor);
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
