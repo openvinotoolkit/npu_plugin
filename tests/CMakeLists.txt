@@ -3,6 +3,7 @@ project(mcmComplier VERSION 0.0.1)
 
 enable_testing()
 include_directories(${GTEST_INCLUDE_DIRS})
+include_directories(${PROJECT_SOURCE_DIR}/tests/include)
 
 #set(CMAKE_BINARY_DIR ${CMAKE_SOURCE_DIR}/bin)
 #set(EXECUTABLE_OUTPUT_PATH ${CMAKE_BINARY_DIR})

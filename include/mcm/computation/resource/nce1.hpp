@@ -3,6 +3,7 @@
 
 #include <map>
 #include "mcm/algorithms/dijkstra.hpp"
+#include "tests/include/MCMtest.hpp"
 
 namespace mv
 {
