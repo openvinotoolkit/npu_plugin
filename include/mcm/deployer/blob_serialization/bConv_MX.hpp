@@ -28,6 +28,8 @@ namespace mv{
             std::vector<unsigned> DPUmodeVector;
             std::vector<unsigned> input_lines_processed;
             std::vector<unsigned> output_lines_processed;
+            std::vector<unsigned> input_line_start;
+            std::vector<unsigned> output_line_start;
             unsigned int splits_over_H;
             unsigned int splits_over_iC;
 

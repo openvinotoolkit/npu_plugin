@@ -78,16 +78,19 @@ namespace mv
                     {
                         i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
 
-                        unsigned int current_height;
+                        unsigned int current_height, output_height;
                         current_height = this->input_lines_processed[i];
-                        current_height = this->output_lines_processed[i];
+                        output_height = this->output_lines_processed[i];
+
+                        auto output_width = output_shape[1];
+                        auto input_width = input_shape[1];
 
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
-                        this->descriptors[i].dataBaseAddr = i*2*input_shape[1]*current_height;    // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].dataBaseAddr = 2*input_width*this->input_line_start[i];    // TODO: Calculate 3f0 (1008)
                         this->descriptors[i].coeffBaseAddr = 0;
                         this->descriptors[i].biasBaseAddr = 0;
                         this->descriptors[i].scaleBaseAddr = 0;
-                        this->descriptors[i].outBaseAddr = i*2*output_shape[1]*current_height;  // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].outBaseAddr = 2*output_width*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
 
                         this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
                         this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
@@ -276,9 +279,37 @@ namespace mv
             }
             else
             {
-                this->output_lines_processed = it->get<std::vector<unsigned>>("NCE1_OutputLinesProcessed");
+                this->output_lines_processed = it->get<std::vector<unsigned>>("NCE1_StartOutputLine");
             }
 
+            if (! it->hasAttr("NCE1_StartOutputLine"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_StartOutputLine'. Defaulting to 0\n");
+
+                this->output_line_start = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    this->output_line_start.push_back(0);
+                }
+            }
+            else
+            {
+                this->output_line_start = it->get<std::vector<unsigned>>("NCE1_StartOutputLine");
+            }
+            if (! it->hasAttr("NCE1_StartInputLine"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_StartInputLine'. Defaulting to 0\n");
+
+                this->input_line_start = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    this->input_line_start.push_back(0);
+                }
+            }
+            else
+            {
+                this->input_line_start = it->get<std::vector<unsigned>>("NCE1_StartInputLine");
+            }
             this->concatOffset = 0; // Concat not supported currently
             this->unloadCMX = 0;
             this->overwriteInput = 0;
