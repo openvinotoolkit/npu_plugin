@@ -2,44 +2,53 @@
 #include <iostream>
 
 mv::MemoryAllocator::MemoryBuffer::MemoryBuffer() :
+id(0),
 offset(0),
 size(0),
 blockSize(0),
 blockNum(0),
-stage(0)
+postAlign(0),
+stage(0),
+dataTypeSize(1)
 {
 
 }
 
 mv::MemoryAllocator::MemoryBuffer::MemoryBuffer(const MemoryBuffer& other) :
+id(other.id),
 offset(other.offset),
 size(other.size),
 strides(other.strides),
 blockSize(other.blockSize),
 blockNum(other.blockNum),
+postAlign(other.postAlign),
 data(other.data),
 stage(other.stage),
 leftPad(other.leftPad),
 rightPad(other.rightPad),
 masterBuffer(other.masterBuffer),
-slaveBuffers(other.slaveBuffers)
+slaveBuffers(other.slaveBuffers),
+dataTypeSize(other.dataTypeSize)
 {
 
 }
 
 mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(const MemoryBuffer& other) 
 {
+    id = other.id;
     offset = other.offset;
     size = other.size;
     strides = other.strides;
     blockSize = other.blockSize;
     blockNum = other.blockNum;
+    postAlign = other.postAlign;
     data = other.data;
     stage = other.stage;
     leftPad = other.leftPad;
     rightPad = other.rightPad;
     masterBuffer = other.masterBuffer;
     slaveBuffers = other.slaveBuffers;
+    dataTypeSize = other.dataTypeSize;
     return *this;
 }
 
@@ -61,6 +70,16 @@ const std::deque<size_t>& mv::MemoryAllocator::MemoryBuffer::getStrides() const
 std::size_t mv::MemoryAllocator::MemoryBuffer::getBlockSize() const
 {
     return blockSize;
+}
+
+std::size_t mv::MemoryAllocator::MemoryBuffer::getBlockNum() const
+{
+    return blockNum;
+}
+
+std::size_t mv::MemoryAllocator::MemoryBuffer::getPostAlign() const
+{
+    return postAlign;
 }
 
 mv::Data::TensorIterator mv::MemoryAllocator::MemoryBuffer::getData() const
@@ -116,7 +135,7 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
 
     std::string res =  "data: '" + this->data->getName() + "'; offset: " + std::to_string(this->offset) +
         "; size: " + std::to_string(this->size) + "; block size: " + std::to_string(this->blockSize) +
-        "; block num: " + std::to_string(this->blockNum);
+        "; block num: " + std::to_string(this->blockNum) + "; post align: " + std::to_string(this->postAlign);
 
     res += "; strides:";
 
@@ -131,11 +150,11 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
         for (auto &stride: strides)
         {
 
-            for (std::size_t i = 0; i < stride; ++i)
+            for (std::size_t i = 0; i < stride / dataTypeSize; ++i)
                 res += "X ";
 
             if (blockIdx < blockNum)
-                for (std::size_t i = 0; i < blockSize; ++i)
+                for (std::size_t i = 0; i < blockSize / dataTypeSize; ++i)
                     res += std::to_string(data->at(dataIdx++)) + " ";
 
             ++blockIdx;
@@ -148,35 +167,46 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
 
 }
 
-void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx, BufferIterator first, BufferIterator last)
+void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
 {
 
     if (entries_.find(stageIdx) == entries_.end())
         return;
 
-    if (first == last || first == entries_[stageIdx].end())
-        return;
+    long long lastOffset = 0;
 
-    long long lastOffset = first->second->offset;
-
-    for (auto it = ++first; it != last; ++it)
+    for (auto it = entries_[stageIdx].begin(); it != entries_[stageIdx].end(); ++it)
     {
         // Move only master buffers
-        if (it->second->masterBuffer == bufferEnd(stageIdx))
+        if ((*it)->masterBuffer == bufferEnd(stageIdx))
         {
-            it->second->offset = lastOffset;
-            lastOffset += it->second->size;
+            (*it)->offset = lastOffset;
+            lastOffset += (*it)->size;
+
+            if (alignment_ > 0)
+            {
+                if(lastOffset % alignment_ != 0)
+                {
+                    (*it)->postAlign = alignment_ - lastOffset % alignment_ ;
+                    lastOffset += (*it)->postAlign;
+                }
+            }
             // Align slave buffers
-            for (auto itSlave = it->second->slaveBuffers.begin(); itSlave != it->second->slaveBuffers.end(); ++itSlave)
-                (*itSlave)->second->offset = it->second->offset;
+            for (auto itSlave = (*it)->slaveBuffers.begin(); itSlave != (*it)->slaveBuffers.end(); ++itSlave)
+                (**itSlave)->offset = (*it)->offset;
+    
         }
+
     }
 
 }
 
-mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size) :
+mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize) :
 name_(name),
-size_(size)
+size_(size),
+alignment_(alignment),
+dataTypeSize_(dataTypeSize),
+currentID_(1)
 {
 
 }
@@ -189,13 +219,13 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order,
     computeStrides_(order, order.lastContiguousDimensionIndex(shape), shape, leftPadding, rightPadding, leftStrides, rightStrides);
     std::deque<std::size_t> strides;
 
-    strides.push_back(leftStrides.back());
+    strides.push_back(leftStrides.back() * dataTypeSize_);
     leftStrides.pop_back();
 
     for (std::size_t i = 0; i < leftStrides.size(); ++i)
-        strides.push_back(leftStrides[i] + rightStrides[i]);
+        strides.push_back((leftStrides[i] + rightStrides[i]) * dataTypeSize_);
 
-    strides.push_back(rightStrides.back());
+    strides.push_back(rightStrides.back() * dataTypeSize_);
 
     return strides;
 }
@@ -232,7 +262,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
 {
 
     if (entries_.find(stageIdx) == entries_.end())
-        entries_.emplace(stageIdx, std::map<Data::TensorIterator, std::shared_ptr<MemoryBuffer>, TensorIteratorComparator>());
+        entries_.emplace(stageIdx, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>());
 
     if (tensor->hasAttr("allocator"))
         throw ArgumentError(*this, "tensor", tensor->getName(), "Already allocated in " + tensor->get<std::string>("allocator") +
@@ -241,10 +271,12 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     Shape shape(tensor->getShape());
 
     MemoryBuffer newBuffer;
+    newBuffer.id = currentID_++;
     newBuffer.offset = 0;
-    newBuffer.size = shape.totalSize();
-    newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex(shape)];
+    newBuffer.size = shape.totalSize() * dataTypeSize_;
+    newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex(shape)] * dataTypeSize_;
     newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
+    newBuffer.postAlign= 0;
     newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
     newBuffer.data = tensor;
     newBuffer.stage = stageIdx;
@@ -252,18 +284,17 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
     newBuffer.masterBuffer = bufferEnd(stageIdx);
     newBuffer.slaveBuffers = {};
+    newBuffer.dataTypeSize = dataTypeSize_;
 
     std::fill(newBuffer.strides.begin(), newBuffer.strides.end(), 0);
     std::fill(newBuffer.leftPad.begin(), newBuffer.leftPad.end(), 0);
     std::fill(newBuffer.rightPad.begin(), newBuffer.rightPad.end(), 0);
 
-    if (entries_[stageIdx].size() > 0)
-    {
-        newBuffer.offset = entries_[stageIdx].rbegin()->second->offset + entries_[stageIdx].rbegin()->second->size;
-        std::cout << newBuffer.offset << " " << entries_[stageIdx].rbegin()->second->offset << " " <<  entries_[stageIdx].rbegin()->second->size << std::endl;
-    }
+    auto buffer = entries_[stageIdx].emplace(std::make_shared<MemoryBuffer>(newBuffer)).first;
+    placeBuffers_(stageIdx);
     tensor->set<std::string>("allocator", name_);
-    return entries_[stageIdx].emplace(tensor, std::make_shared<MemoryBuffer>(newBuffer)).first;
+
+    return buffer;
 
 }
 
@@ -271,20 +302,20 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
 {
 
-    if (tensor->getDType() != masterBuffer->first->getDType())
+    if (tensor->getDType() != (*masterBuffer)->getData()->getDType())
         throw ArgumentError(*this, tensor->getName() + "::DType", tensor->getDType().toString(), "Does not match the DType " +
-            masterBuffer->first->getDType().toString() + " of the tensor " + masterBuffer->first->getName() + " already allocated in the given buffer");
+           (*masterBuffer)->getData()->getDType().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
-    if (tensor->getOrder() != masterBuffer->first->getOrder())
+    if (tensor->getOrder() != (*masterBuffer)->getData()->getOrder())
         throw ArgumentError(*this, tensor->getName() + "::Order", tensor->getOrder().toString(), "Does not match the Order " +
-            masterBuffer->first->getOrder().toString() + " of the tensor " + masterBuffer->first->getName() + " already allocated in the given buffer");
+            (*masterBuffer)->getData()->getOrder().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
     Shape shape(tensor->getShape());
-    Shape allocatedShape(masterBuffer->first->getShape());
+    Shape allocatedShape((*masterBuffer)->getData()->getShape());
 
     if (shape.ndims() != allocatedShape.ndims())
         throw ArgumentError(*this, tensor->getName() + "::Shape", tensor->getShape().toString(), "Does not match the dimensionality of the shape " +
-            masterBuffer->first->getShape().toString() + " of the tensor " + masterBuffer->first->getName() + " already allocated in the given buffer");
+            (*masterBuffer)->getData()->getShape().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
     if (shape.ndims() != leftPadding.size())
         throw ArgumentError(*this, "leftPadding::size", std::to_string(leftPadding.size()), "Does not match the dimensionality of the shape " +
@@ -298,18 +329,20 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
         if (shape[i] + leftPadding[i] + rightPadding[i] != allocatedShape[i])
             throw ArgumentError(*this, tensor->getName() + "::paddedShape[" + std::to_string(i) + "]",
                 std::to_string(shape[i] + leftPadding[i] + rightPadding[i]), "Does not match the dimension " + std::to_string(allocatedShape[i]) +
-                " of the tensor " + masterBuffer->first->getName() + " already allocated in the given buffer");
+                " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
-    auto slaveBuffer = allocate(tensor, masterBuffer->second->stage);
+    auto masterTensor = (*masterBuffer)->getData();
+    auto slaveBuffer = allocate(tensor, (*masterBuffer)->getStage());
     padLeft(slaveBuffer, leftPadding);
     padRight(slaveBuffer, rightPadding);
-    slaveBuffer->second->offset = masterBuffer->second->offset;
-    slaveBuffer->second->masterBuffer = masterBuffer;
-    masterBuffer->second->slaveBuffers.push_back(slaveBuffer);
 
-    if (masterBuffer->first->isPopulated())
-        slaveBuffer->first->bindData(*masterBuffer->first, leftPadding, rightPadding);
+    (*slaveBuffer)->offset = (*masterBuffer)->offset;
+    (*slaveBuffer)->masterBuffer = masterBuffer;
+    (*masterBuffer)->slaveBuffers.push_back(slaveBuffer);
 
+    if ((*masterBuffer)->getData()->isPopulated())
+        (*slaveBuffer)->getData()->bindData(*masterTensor, leftPadding, rightPadding);
+    
     return slaveBuffer;
 
 }
@@ -320,16 +353,18 @@ bool mv::MemoryAllocator::deallocate(Data::TensorIterator tensor, std::size_t st
     if (entries_.find(stageIdx) == entries_.end())
         throw IndexError(*this, stageIdx, "Deallocation of tensor for an undefined stage");
 
-    auto it = entries_[stageIdx].find(tensor);
+    auto it = entries_[stageIdx].begin();
+    while (it != entries_[stageIdx].end() && (*it)->getData() != tensor)
+        ++it;
+
     if (it != entries_[stageIdx].end())
     {
 
-        auto nextIt = it;
-        nextIt++;
         entries_[stageIdx].erase(it);
-        placeBuffers_(stageIdx, nextIt, entries_[stageIdx].end());
+        placeBuffers_(stageIdx);
         tensor->erase("allocator");
         return true;
+
     }
 
     return false;
@@ -343,7 +378,7 @@ void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
         throw IndexError(*this, stageIdx, "Deallocation of all tensors for an undefined stage");
 
     for (auto it = entries_[stageIdx].begin(); it != entries_[stageIdx].end(); ++it)
-        it->first->erase("allocator");
+        (*it)->getData()->erase("allocator");
 
     entries_[stageIdx].clear();
 
@@ -352,37 +387,37 @@ void mv::MemoryAllocator::deallocateAll(std::size_t stageIdx)
 void mv::MemoryAllocator::padBuffer_(BufferIterator buffer)
 {
 
-    Shape shape(buffer->second->data->getShape());
+    Shape shape((*buffer)->getData()->getShape());
 
-    std::deque<size_t> strides = computeStrides_(buffer->second->data->getOrder(), buffer->second->leftPad,
-        buffer->second->rightPad, shape);
+    std::deque<size_t> strides = computeStrides_((*buffer)->getData()->getOrder(), (*buffer)->leftPad,
+        (*buffer)->rightPad, shape);
 
-    buffer->second->strides = strides;
-    buffer->second->size = shape.totalSize();
+    (*buffer)->strides = strides;
+    (*buffer)->size = shape.totalSize() * dataTypeSize_;
 
     for (auto& stride : strides)
-        buffer->second->size += stride;
+        (*buffer)->size += stride;
 
-    for (auto it = buffer->second->slaveBuffers.begin(); it != buffer->second->slaveBuffers.end(); ++it)
+    for (auto it = (*buffer)->slaveBuffers.begin(); it != (*buffer)->slaveBuffers.end(); ++it)
         padBuffer_(*it);
 
-    placeBuffers_(buffer->second->stage, buffer, entries_[buffer->second->stage].end());
+    placeBuffers_((*buffer)->stage);
 
 }
 
 void mv::MemoryAllocator::padLeft(BufferIterator buffer, const std::vector<std::size_t>& padding)
 {
 
-    if (padding.size() != buffer->second->data->getShape().ndims())
+    if (padding.size() != (*buffer)->getData()->getShape().ndims())
         throw ArgumentError(*this, "padding::size", std::to_string(padding.size()), "Does not match the dimensionality of the shape " +
-            buffer->second->data->getShape().toString() + " of the allocated tensor " + buffer->second->data->getName());
+            (*buffer)->getData()->getShape().toString() + " of the allocated tensor " + (*buffer)->getData()->getName());
 
-    for (std::size_t i = 0; i < buffer->second->leftPad.size(); ++i)
-        buffer->second->leftPad[i] += padding[i];
+    for (std::size_t i = 0; i < (*buffer)->leftPad.size(); ++i)
+        (*buffer)->leftPad[i] += padding[i];
 
-    for (auto it = buffer->second->slaveBuffers.begin(); it != buffer->second->slaveBuffers.end(); ++it)
-        for (std::size_t i = 0; i < buffer->second->leftPad.size(); ++i)
-            (*it)->second->leftPad[i] += padding[i];
+    for (auto it = (*buffer)->slaveBuffers.begin(); it != (*buffer)->slaveBuffers.end(); ++it)
+        for (std::size_t i = 0; i < (*buffer)->leftPad.size(); ++i)
+            (**it)->leftPad[i] += padding[i];
 
     padBuffer_(buffer);
 
@@ -391,16 +426,16 @@ void mv::MemoryAllocator::padLeft(BufferIterator buffer, const std::vector<std::
 void mv::MemoryAllocator::padRight(BufferIterator buffer, const std::vector<std::size_t>& padding)
 {
 
-    if (padding.size() != buffer->second->data->getShape().ndims())
+    if (padding.size() != (*buffer)->getData()->getShape().ndims())
         throw ArgumentError(*this, "padding::size", std::to_string(padding.size()), "Does not match the dimensionality of the shape " +
-            buffer->second->data->getShape().toString() + " of the allocated tensor " + buffer->second->data->getName());
+            (*buffer)->getData()->getShape().toString() + " of the allocated tensor " + (*buffer)->getData()->getName());
 
-    for (std::size_t i = 0; i < buffer->second->rightPad.size(); ++i)
-        buffer->second->rightPad[i] += padding[i];
+    for (std::size_t i = 0; i < (*buffer)->rightPad.size(); ++i)
+        (*buffer)->rightPad[i] += padding[i];
 
-    for (auto it = buffer->second->slaveBuffers.begin(); it != buffer->second->slaveBuffers.end(); ++it)
-        for (std::size_t i = 0; i < buffer->second->rightPad.size(); ++i)
-            (*it)->second->rightPad[i] += padding[i];
+    for (auto it = (*buffer)->slaveBuffers.begin(); it != (*buffer)->slaveBuffers.end(); ++it)
+        for (std::size_t i = 0; i < (*buffer)->rightPad.size(); ++i)
+            (**it)->rightPad[i] += padding[i];
 
     padBuffer_(buffer);
 
@@ -412,7 +447,7 @@ long long unsigned mv::MemoryAllocator::usedSpace(std::size_t stageIdx) const
     if (entries_.find(stageIdx) == entries_.cend())
         throw IndexError(*this, stageIdx, "Check of used space for an undefined stage");
 
-    return entries_.at(stageIdx).rbegin()->second->offset + entries_.at(stageIdx).rbegin()->second->size;
+    return (*entries_.at(stageIdx).rbegin())->offset + (*entries_.at(stageIdx).rbegin())->size;
 
 }
 
@@ -426,7 +461,7 @@ long long unsigned mv::MemoryAllocator::freeSpace(std::size_t stageIdx) const
 
     for (auto itEntry = entries_.at(stageIdx).cbegin(); itEntry != entries_.at(stageIdx).cend(); ++itEntry)
     {
-        freeSpaceValue -= itEntry->second->size;
+        freeSpaceValue -= (*itEntry)->size;
     }
 
     return freeSpaceValue;
@@ -443,7 +478,7 @@ std::string mv::MemoryAllocator::toString() const
         result += "\nStage '" + std::to_string(it->first) + "'" + "(" + std::to_string(usedSpace(it->first)) + " used " +
             std::to_string(freeSpace(it->first)) + " free " + std::to_string(size_) + " total)";
         for (auto itEntry = it->second.cbegin(); itEntry != it->second.cend(); ++itEntry)
-            result += "\n\t" + itEntry->second->toString();
+            result += "\n\t" + (*itEntry)->toString();
 
     }
 
@@ -522,7 +557,10 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t s
     auto it = entries_.find(stageIdx);
     if (it == entries_.end())
         throw IndexError(*this, stageIdx, "Finding a buffer iterator for an undefined stage");
-    return it->second.find(tensor);
+    auto bufIt = entries_[stageIdx].begin();
+    while (bufIt != entries_[stageIdx].end() && (*bufIt)->getData() != tensor)
+        ++bufIt;
+    return bufIt;
 
 }
 

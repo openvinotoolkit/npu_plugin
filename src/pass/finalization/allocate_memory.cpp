@@ -46,13 +46,15 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
     if (cm.stageSize() == 0)
         throw ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
 
+    auto stageIt = cm.getStage(0);
+
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
 
         if (tIt->isPopulated())
         {
 
-            auto stageIt = cm.getStage(0);
+            
             auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
             if(tIt->hasAttr("NCE1_Paddings"))
             {
@@ -96,6 +98,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
+
         if (opIterator->getOpType() == OpType::Concat)
         {
 
@@ -208,42 +211,42 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             lhs_padding.at(channel_index) = lhs;
             rhs_padding.at(channel_index) = rhs;
 
-            // std::cout << "Shape: "<< in0->getShape().toString() << std::endl;
-
             auto b = dm.allocateTensor("IntermediateMemory", outRef, in0, lhs_padding, empty_padding);
             auto a = dm.allocateTensor("IntermediateMemory", outRef, in1, empty_padding, rhs_padding);
 
-            // std::cout << "Testing out: " << outRef->toString() << std::endl;
-            // std::cout << "Testing in1 : " << b->toString() << std::endl;
-            // std::cout << "Testing in2 : " << a->toString() << std::endl;
         }
+        else if (opIterator->getOpType() == OpType::Input)
+        {
 
-        if (opIterator->getOpType() == OpType::Input){
             auto outTensor = opIterator->getOutputTensor(0);
-            if(outTensor->hasAttr("allocator")){
+            outTensor->set<bool>("modelInput", true);
+            if(outTensor->hasAttr("allocator"))
+            {
                 std::cout << "Deallocate Input" << std::endl;
                 dm.deallocateTensor("IntermediateMemory", stageIt, outTensor);
             }
-            outTensor->set<bool>("external", true);
+
         }
-        if (opIterator->getOpType() == OpType::Output){
+        else if (opIterator->getOpType() == OpType::Output)
+        {
+
             auto inTensor = opIterator->getInputTensor(0);
-            std::cout << inTensor->toString() << std::endl;
-            if(inTensor->hasAttr("allocator")){
+            inTensor->set<bool>("modelOutput", true);
+            if(inTensor->hasAttr("allocator"))
+            {
                 std::cout << "Deallocate Output" << std::endl;
                 dm.deallocateTensor("IntermediateMemory", stageIt, inTensor);
             }
-            inTensor->set<bool>("external", true);
+
         }
 
         /*
             For each input and output, allocate if it has not already been done.
             Don't allocate for Concat or I/O layers as they are already accounted for.
         */
-        if (opIterator->getOpType() != OpType::Input &&         // Alternative Storage
-            opIterator->getOpType() != OpType::Output &&        // Alternative Storage
-            opIterator->getOpType() != OpType::Concat)          // Already Accounted for.
+        else 
         {
+
             for ( unsigned x =0; x != opIterator->inputSlots(); x++)
             {
                 auto inTensor = opIterator->getInputTensor(x);
@@ -261,11 +264,12 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
                     }
 
-                    std::cout << "allocate A: " << buf->getOffset() << std::endl;
                 }
+
             }
             for ( unsigned x = 0; x != opIterator->outputSlots(); x++)
             {
+
                 auto outTensor = opIterator->getOutputTensor(x);
                 if (!outTensor->isPopulated() &&
                     (! outTensor->hasAttr("allocator")) &&
@@ -273,8 +277,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     )
                 {
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
-                    std::cout << "[" << outTensor->getName() << "]" << std::endl;
-                    std::cout << "allocate B: " << buf->getOffset() << std::endl;
                     if(outTensor->hasAttr("NCE1_Paddings"))
                     {
                         
@@ -282,9 +284,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                         dm.padRight("IntermediateMemory", buf, paddings);
 
                     }
-
-                    std::cout << "[" << outTensor->getName() << "]" << std::endl;
-                    std::cout << "allocate B: " << buf->getOffset() << std::endl;
 
                 }
 

@@ -23,7 +23,7 @@ namespace mv
             bool operator==(const Bool& other) const;
             bool operator!=(const Bool& other) const;
 
-            virtual std::string getLogID() const;
+            virtual std::string getLogID() const override;
 
         }; 
         

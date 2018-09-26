@@ -11,8 +11,8 @@ namespace mv
 
     namespace Data
     {
-        using BufferIterator = IteratorDetail::ModelValueIterator<std::map<TensorIterator, std::shared_ptr<MemoryAllocator::MemoryBuffer>,
-            MemoryAllocator::TensorIteratorComparator>::iterator, MemoryAllocator::MemoryBuffer>;
+        using BufferIterator = IteratorDetail::ModelLinearIterator<std::set<std::shared_ptr<MemoryAllocator::MemoryBuffer>,
+            MemoryAllocator::BufferOrderComparator>::iterator, MemoryAllocator::MemoryBuffer>;
     }
 
     class DataModel : public ComputationModel
@@ -40,7 +40,7 @@ namespace mv
         Data::TensorIterator findTensor(const std::string& name);
         unsigned tensorsCount() const;
 
-        bool addAllocator(const std::string& name, std::size_t size);
+        bool addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize);
         bool hasAllocator(const std::string& name);
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Data::BufferIterator buffer, Data::TensorIterator tensor,
@@ -52,6 +52,7 @@ namespace mv
         Data::BufferIterator bufferBegin(const std::string& allocatorName, Control::StageIterator& stage);
         Data::BufferIterator bufferEnd(const std::string& allocatorName, Control::StageIterator& stage);
         Data::BufferIterator getBuffer(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator tensor);
+        std::vector<Data::BufferIterator> buffers(Control::StageIterator& stage);
 
         virtual std::string getLogID() const override;
 

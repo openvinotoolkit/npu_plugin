@@ -235,16 +235,22 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
                 std::string name, orderStr;
                 long long size;
+                std::size_t alignment;
+                std::size_t dataTypeSize;
 
                 if (!jsonDescriptor["resources"]["memory"][i].hasKey("name") ||
-                    !jsonDescriptor["resources"]["memory"][i].hasKey("size"))
+                    !jsonDescriptor["resources"]["memory"][i].hasKey("size") ||
+                    !jsonDescriptor["resources"]["memory"][i].hasKey("alignment") ||
+                    !jsonDescriptor["resources"]["memory"][i].hasKey("dataTypeSize"))
                 {
                     reset();
                     return false;
                 }
 
                 if (jsonDescriptor["resources"]["memory"][i]["name"].valueType() != json::JSONType::String ||
-                    jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger)
+                    jsonDescriptor["resources"]["memory"][i]["size"].valueType() != json::JSONType::NumberInteger ||
+                    jsonDescriptor["resources"]["memory"][i]["alignment"].valueType() != json::JSONType::NumberInteger ||
+                    jsonDescriptor["resources"]["memory"][i]["dataTypeSize"].valueType() != json::JSONType::NumberInteger)
                 {
                     reset();
                     return false;
@@ -252,6 +258,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
                 name = jsonDescriptor["resources"]["memory"][i]["name"].get<std::string>();
                 size = jsonDescriptor["resources"]["memory"][i]["size"].get<long long>();
+                alignment = jsonDescriptor["resources"]["memory"][i]["alignment"].get<long long>();
+                dataTypeSize = jsonDescriptor["resources"]["memory"][i]["dataTypeSize"].get<long long>();
 
                 if (size < 0)
                 {
@@ -259,7 +267,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                     return false;
                 }
 
-                memoryDefs_[name] = {size};
+                memoryDefs_[name] = {size, alignment, dataTypeSize};
 
             }
 
@@ -513,14 +521,14 @@ bool mv::TargetDescriptor::opSupported(OpType op) const
     return false;
 }
 
-bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size)
+bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size, std::size_t alignment, std::size_t dataTypeSize)
 {
     if (size < 0)
         return false;
 
     if (memoryDefs_.find(name) == memoryDefs_.end())
     {
-        memoryDefs_[name] = {size};
+        memoryDefs_[name] = {size, alignment, dataTypeSize};
         return true;
     }
     return false;

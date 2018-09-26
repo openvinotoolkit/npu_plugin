@@ -23,7 +23,7 @@ namespace mv
             std::string stringify() const override;
             std::string stringifyPretty() const override;
 
-            virtual std::string getLogID() const;
+            virtual std::string getLogID() const override;
 
         }; 
         

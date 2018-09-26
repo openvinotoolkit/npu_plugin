@@ -1,53 +1,40 @@
-#include <iostream>
-#include "include/mcm/base/attribute.hpp"
-#include "include/mcm/base/element.hpp"
-#include <vector>
+#include "include/mcm/compiler/compilation_unit.hpp"
+#include "include/mcm/utils/data_generator.hpp"
 
 int main()
 {
 
-    mv::Attribute v1;
-    if (!v1.valid())
-        std::cout << "NULL" << std::endl;
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
 
-    mv::Attribute v2 = 9.0;
-    std::cout << v2.getTypeName() << std::endl;
-    std::cout << v2.get<double>() << std::endl;
-    std::cout << v2.toString() << std::endl;
-    std::cout << v2.toJSON().stringifyPretty() << std::endl;
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajor);
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
+    auto convIt61 = test_cm.conv2D(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    // define first maxpool
+    auto maxpoolIt61 = test_cm.maxpool2D(convIt61,{5,5}, {3, 3}, {1, 1, 1, 1});
+    // define second convolution
+    std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 1.000, 0.010);
+    auto weightsIt62 = test_cm.constant(weightsData62, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
+    auto convIt62 = test_cm.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
+    // define second maxpool
+    auto maxpoolIt62 = test_cm.maxpool2D(convIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
+    // define output
+    auto outIt6 = test_cm.output(maxpoolIt62);
 
-    mv::Attribute v3 = 1.0;
 
-    std::cout << v3.toString() << std::endl;
+    std::string blobName = "test_conv_06.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
+    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+    unit.passManager().disablePass(mv::PassGenre::Validation);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    mv::json::Value j1 = v3.toJSON();
-    std::cout << j1.stringifyPretty() << std::endl;
+    auto compOutput = unit.run();
 
-    mv::Attribute v4 = j1;
-
-    std::cout << v4.toString() << std::endl;
-    std::cout << v4.toJSON().stringifyPretty() << std::endl;
-
-    //mv::json::Value j2((long long)1);
-    //mv::Attribute v5 = j2;
-
-    mv::Element e1("e1");
-    e1.set<double>("a1", 1.0);
-    e1.set<double>("a2", 2.0);
-    e1.set<std::string>("a3", "str1");
-    e1.set<std::vector<std::size_t>>("a4", {1, 2 ,3});
-    e1.set<int>("a5", -1);
-    e1.set<std::size_t>("a6", 10);
-
-    std::cout << e1.toString() << std::endl;
-    std::cout << e1.toJSON().stringifyPretty() << std::endl;
-
-    mv::json::Value j2 = e1.toJSON();
-    mv::Element e2(j2);
-
-    std::cout << e2.toString() << std::endl;
-    std::cout << e2.get<double>("a1") << std::endl;
-    std::cout << e2.get<std::string>("a3") << std::endl;
-    std::cout << e2.get<std::size_t>("a6") << std::endl;
 
 }

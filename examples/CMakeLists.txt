@@ -23,4 +23,4 @@ add_executable(cm_allocate_resources cm_allocate_resources.cpp)
 target_sources(cm_allocate_resources PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
 
 add_executable(test_f test.cpp)
-target_sources(test_f PUBLIC ${base} ${logger} ${tensor})
+target_sources(test_f PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})

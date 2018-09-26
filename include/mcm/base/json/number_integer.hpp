@@ -24,7 +24,7 @@ namespace mv
             bool operator==(const NumberInteger& other) const;
             bool operator!=(const NumberInteger& other) const;
 
-            virtual std::string getLogID() const;
+            virtual std::string getLogID() const override;
 
         };  
 

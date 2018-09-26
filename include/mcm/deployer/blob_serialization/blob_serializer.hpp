@@ -165,7 +165,8 @@ namespace mv
             }
     };
 
-    struct blob_summary {
+    struct blob_summary
+    {
         uint32_t elf_header_size;
         uint32_t mv_header_size;
         uint32_t header_pad_size;

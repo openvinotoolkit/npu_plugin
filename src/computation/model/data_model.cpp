@@ -123,9 +123,9 @@ unsigned mv::DataModel::tensorsCount() const
     return flowTensors_->size();
 }
 
-bool mv::DataModel::addAllocator(const std::string& name, std::size_t size)
+bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize)
 {
-    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size));
+    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size, alignment, dataTypeSize));
     if (result.second)
     {
         log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
@@ -153,6 +153,7 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
 
     log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " +
         std::to_string(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
+
     return buf;
 
 }
@@ -206,7 +207,19 @@ bool mv::DataModel::deallocateTensor(const std::string& allocatorName, Control::
         throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
 
     unsigned stageIdx = stage->getIdx();
-    return (*memoryAllocators_)[allocatorName]->deallocate(tensor, stageIdx);
+    auto result = (*memoryAllocators_)[allocatorName]->deallocate(tensor, stageIdx);
+
+    if (result)
+    {
+        log(Logger::MessageType::MessageInfo, "Unallocated memory for '" + tensor->getName() + "' in '" +
+            allocatorName + "'");
+        return true;
+    }
+
+    log(Logger::MessageType::MessageInfo, "Unable to unallocated memory for '" + tensor->getName() + "' in '" +
+            allocatorName + "'");
+
+    return false;
 
 }
 
