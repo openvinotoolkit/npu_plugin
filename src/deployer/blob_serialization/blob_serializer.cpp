@@ -245,12 +245,13 @@ namespace mv
             for (Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
             {
                 totalSize += bit->getSize();
-                int adjustment = 0;
+                totalSize += bit->getPostAlign();
+                /*int adjustment = 0;
                 while((bit->getSize()*2 + adjustment*2) % 64 != 0)
                 {
                     adjustment++;
                 }
-                totalSize += adjustment;
+                totalSize += adjustment;*/
             }
         }
         catch(mv::IndexError&)
@@ -258,11 +259,22 @@ namespace mv
             std::cout << "Warning: No Constant Memory Present." << std::endl;
         }
 
-        blob_stats.buffer_data_size = totalSize*2 ;
+        blob_stats.buffer_data_size = totalSize;
 
-        blob_stats.relocation_section_size = 20 + 8*blob_stats.data_buffer_count + 16*(blob_stats.stage_count-2) + (8*blob_stats.elt_count) + additional_buf*8;
+        blob_stats.relocation_section_size = 
+            20 +
+            8 * blob_stats.data_buffer_count + 
+            16 * (blob_stats.stage_count - 2) +
+            (8 * blob_stats.elt_count) + 
+            additional_buf * 8;
 
-        blob_stats.blob_file_size = headers_data_size+blob_stats.header_pad_size+blob_stats.stage_section_size+blob_stats.buffer_header_size+blob_stats.buffer_data_size+blob_stats.relocation_section_size ;
+        blob_stats.blob_file_size =
+            headers_data_size +
+            blob_stats.header_pad_size + 
+            blob_stats.stage_section_size +
+            blob_stats.buffer_header_size + 
+            blob_stats.buffer_data_size +
+            blob_stats.relocation_section_size;
     }
 
     void Blob_buffer::write_elf_header(){
@@ -682,8 +694,8 @@ namespace mv
                         next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
-                        mv::DataModel dm(om);
-                        mv::ControlModel cm(om);
+                        //mv::DataModel dm(om);
+                        //mv::ControlModel cm(om);
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
@@ -906,8 +918,8 @@ namespace mv
 
                 default:
                     break;
-                    //std::cout << "Serialization Error: No Available Write Methods for layer:" << Printable::toString(it->getOpType()) << std::endl;
-                    //assert(0);
+                    std::cout << "Serialization Error: No Available Write Methods for layer:" << it->getOpType().toString() << std::endl;
+                    assert(0);
             }
         }
 
@@ -941,10 +953,10 @@ namespace mv
         }
 
         try{
-            std::vector<mv::MemoryAllocator::MemoryBuffer> buffers_out_of_order, buffers_in_order;
+            //std::vector<mv::MemoryAllocator::MemoryBuffer> buffers_out_of_order, buffers_in_order;
 
             // TODO: Needs an iterator that goes through items in ascending offset order.
-            for(Data::BufferIterator bbit = dm.bufferBegin("ConstantMemory", stg); bbit != dm.bufferEnd("ConstantMemory", stg); ++bbit){
+            /*for(Data::BufferIterator bbit = dm.bufferBegin("ConstantMemory", stg); bbit != dm.bufferEnd("ConstantMemory", stg); ++bbit){
                 buffers_out_of_order.push_back(*bbit);
             }
 
@@ -970,26 +982,34 @@ namespace mv
 
                 buffers_out_of_order.erase(buffers_out_of_order.begin() + pos);
 
-            }
+            }*/
 
-            unsigned int running_total = 0;
-            for(auto bit : buffers_in_order)
+            //unsigned int running_total = 0;
+            for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
             {
-                running_total += bit.getSize()*2;
 
-                for (int idx = 0; idx != (int)bit.getSize(); idx++){
-                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit.getData()->getData()[idx])) ;  // Convert to fp16.
-                    AddBytes(2, fp16_val) ;
+                std::cout << bit->toString() << std::endl;
+
+                //running_total += bit->getSize()*2;
+
+                for (std::size_t idx = 0; idx != bit->getSize(); idx++)
+                {
+                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                    AddBytes(2, fp16_val);
                 }
+        
+                std::cout << "ALIGN: " << bit->getPostAlign() << std::endl;
+                for (std::size_t i = 0; i < bit->getPostAlign(); ++i)
+                    AddBytes(1, 0);
 
                 // TODO: To be removed when allocater takes care of this.
-                int adjustment = 0;
-                while((bit.getSize()*2 + adjustment*2) % 64 != 0)
+                /*int adjustment = 0;
+                while((bit->getSize()*2 + adjustment*2) % 64 != 0)
                 {
                     AddBytes(2, 0);
                     adjustment++;
                     running_total += 2;
-                }
+                }*/
             }
         }catch(mv::IndexError&){
             std::cout << "Warning: No Constant Memory Present." << std::endl;

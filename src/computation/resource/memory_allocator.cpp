@@ -6,6 +6,7 @@ offset(0),
 size(0),
 blockSize(0),
 blockNum(0),
+postAlign(0),
 stage(0)
 {
 
@@ -17,6 +18,7 @@ size(other.size),
 strides(other.strides),
 blockSize(other.blockSize),
 blockNum(other.blockNum),
+postAlign(other.postAlign),
 data(other.data),
 stage(other.stage),
 leftPad(other.leftPad),
@@ -34,6 +36,7 @@ mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(
     strides = other.strides;
     blockSize = other.blockSize;
     blockNum = other.blockNum;
+    postAlign = other.postAlign;
     data = other.data;
     stage = other.stage;
     leftPad = other.leftPad;
@@ -61,6 +64,16 @@ const std::deque<size_t>& mv::MemoryAllocator::MemoryBuffer::getStrides() const
 std::size_t mv::MemoryAllocator::MemoryBuffer::getBlockSize() const
 {
     return blockSize;
+}
+
+std::size_t mv::MemoryAllocator::MemoryBuffer::getBlockNum() const
+{
+    return blockNum;
+}
+
+std::size_t mv::MemoryAllocator::MemoryBuffer::getPostAlign() const
+{
+    return postAlign;
 }
 
 mv::Data::TensorIterator mv::MemoryAllocator::MemoryBuffer::getData() const
@@ -163,6 +176,15 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
         {
             (*it)->offset = lastOffset;
             lastOffset += (*it)->size;
+
+            if (alignment_ > 0)
+            {
+                if(lastOffset % alignment_ != 0)
+                {
+                    (*it)->postAlign = alignment_ - lastOffset % alignment_ ;
+                    lastOffset += (*it)->postAlign;
+                }
+            }
             // Align slave buffers
             for (auto itSlave = (*it)->slaveBuffers.begin(); itSlave != (*it)->slaveBuffers.end(); ++itSlave)
                 (**itSlave)->offset = (*it)->offset;
@@ -171,9 +193,11 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
 
 }
 
-mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size) :
+mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize) :
 name_(name),
-size_(size)
+size_(size),
+alignment_(alignment),
+dataTypeSize_(dataTypeSize)
 {
 
 }
@@ -239,9 +263,10 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
 
     MemoryBuffer newBuffer;
     newBuffer.offset = 0;
-    newBuffer.size = shape.totalSize();
-    newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex(shape)];
+    newBuffer.size = shape.totalSize() * dataTypeSize_;
+    newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex(shape)] * dataTypeSize_;
     newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
+    newBuffer.postAlign= 0;
     newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
     newBuffer.data = tensor;
     newBuffer.stage = stageIdx;

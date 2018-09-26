@@ -43,10 +43,7 @@
 		"finalize":
 		[
 			"MarkHardwareConvolution",
-			"MyriadXPaddings",
-			"ModeSelection",
-			"ScaleFission",
-			"FormatMXWeights",
+			
 			"AddConversionLayers",
 			"ArrangeLinearExecution",
 			"AllocatePopulatedTensors",
@@ -71,11 +68,15 @@
 		[
 			{
 				"name": "ConstantMemory",
+				"alignment": 64,
+				"dataTypeSize": 2,
 				"size": 1024000000
 			},
 
 			{
 				"name": "IntermediateMemory",
+				"alignment": 0,
+				"dataTypeSize": 2,
 				"size": 1024000000
 			}
 		]

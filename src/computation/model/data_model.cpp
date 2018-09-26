@@ -123,9 +123,9 @@ unsigned mv::DataModel::tensorsCount() const
     return flowTensors_->size();
 }
 
-bool mv::DataModel::addAllocator(const std::string& name, std::size_t size)
+bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize)
 {
-    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size));
+    auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size, alignment, dataTypeSize));
     if (result.second)
     {
         log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());

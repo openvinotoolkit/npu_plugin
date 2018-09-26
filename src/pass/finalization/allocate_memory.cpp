@@ -46,13 +46,15 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
     if (cm.stageSize() == 0)
         throw ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
 
+    auto stageIt = cm.getStage(0);
+
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
 
         if (tIt->isPopulated())
         {
 
-            auto stageIt = cm.getStage(0);
+            
             auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
             if(tIt->hasAttr("NCE1_Paddings"))
             {
@@ -65,6 +67,11 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         }
 
     }
+
+    std::cout << "CONSTANT" << std::endl;
+    for (auto it = dm.bufferBegin("ConstantMemory", stageIt); it != dm.bufferEnd("ConstantMemory", stageIt); ++it)
+        std::cout << it->toString() << std::endl;
+    std::cout << std::endl;
 
 }
 
@@ -291,5 +298,10 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         }
 
     }
+
+    std::cout << "INTERMEDIATE" << std::endl;
+    for (auto it = dm.bufferBegin("IntermediateMemory", stageIt); it != dm.bufferEnd("IntermediateMemory", stageIt); ++it)
+        std::cout << it->toString() << std::endl;
+    std::cout << std::endl;
 
 }

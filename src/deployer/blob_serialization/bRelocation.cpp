@@ -21,19 +21,19 @@ namespace mv
 
 
         b->AddBytes(4, mv_relocation_offset + 20);
-        b->AddBytes(4, 8*this->constant_entries.size()); // blob_buffer_reloc_size
+        b->AddBytes(4, 8*this->constant_entries.size()); // blob_buffer_reloc_size, 
         b->AddBytes(4, mv_relocation_offset+20+8*this->constant_entries.size());  // Unknown - work_buffer_reloc_offset
         b->AddBytes(4, 8*this->variable_entries.size()); // work_buffer_reloc_size
 
         std::vector<std::pair<int, bLocation>>::iterator c_it;
         for(c_it = constant_entries.begin(); c_it != constant_entries.end(); c_it++ )    {
-            b->AddBytes(4, c_it->first*2);
+            b->AddBytes(4, c_it->first);
             b->AddBytes(4, (int)c_it->second);
         }
 
         std::vector<std::pair<int, bLocation>>::iterator v_it;
         for(v_it = variable_entries.begin(); v_it != variable_entries.end(); v_it++ )    {
-            b->AddBytes(4, v_it->first*2);
+            b->AddBytes(4, v_it->first);
             b->AddBytes(4, (int)v_it->second);
         }
     }

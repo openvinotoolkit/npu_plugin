@@ -31,6 +31,8 @@ namespace mv
         {
 
             long long size;
+            std::size_t alignment;
+            std::size_t dataTypeSize;
 
         };
 
@@ -78,7 +80,7 @@ namespace mv
         bool undefineOp(OpType op);
         bool opSupported(OpType op) const;
 
-        bool defineMemory(const std::string& name, long long size);
+        bool defineMemory(const std::string& name, long long size, std::size_t alignment, std::size_t dataTypeSize);
         bool undefineMemory(const std::string& name);
 
         std::size_t adaptPassesCount() const;

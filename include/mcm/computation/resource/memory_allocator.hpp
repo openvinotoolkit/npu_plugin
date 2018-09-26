@@ -63,11 +63,13 @@ namespace mv
              * of the whole memory block specified by an allocator
              */
             std::size_t offset;
+
             /**
              * @brief Value specifing the size of the buffer, added to the offset represents
              * the end location of the buffer in an allocator
              */
             std::size_t size;
+
             /**
              * @brief Vector of values specifing lenghts of the gaps between consequent storage memory blocks owned by the buffer. The first
              * element specifies the lenght of the gap between the beginning of the buffer (specified by the offset) and the beginning of the
@@ -75,34 +77,47 @@ namespace mv
              * buffer (specified by the offest increased by the size).
              */
             std::deque<size_t> strides;
+
             /**
              * @brief Value specifing the size of the storage memory blocks owned by the buffer
              */
             std::size_t blockSize;
+
             /**
              * @brief Value specifing the number of the storage memory blocks owned by the buffer
              */
             std::size_t blockNum;
+
+            /**
+             * @brief Lenght of trailing, empty block of memory used for aligment
+             */
+            std::size_t postAlign;
+
             /**
              * @brief Tensor allocated in the buffer
              */
             Data::TensorIterator data;
+
             /**
              * @brief Index of the stage for which the buffer is defined
              */
             std::size_t stage;
+
             /**
              * @brief Left-top padding of the dimensions of the tensor allocted in the buffer
              */
             std::vector<std::size_t> leftPad;
+
             /**
              * @brief Right-bottom padding of the dimensions of the tensor allocted in the buffer
              */
             std::vector<std::size_t> rightPad;
+
             /**
              * @brief Iterator pointing to the buffer that owns memory space overallocated by this buffer
              */
             BufferIterator masterBuffer;
+
             /**
              * @brief List of iterators pointing to buffers that overallocates memory space owned by this buffer
              */
@@ -116,6 +131,8 @@ namespace mv
             std::size_t getSize() const;
             const std::deque<size_t>& getStrides() const;
             std::size_t getBlockSize() const;
+            std::size_t getBlockNum() const;
+            std::size_t getPostAlign() const;
             Data::TensorIterator getData() const;
             std::size_t getStage() const;
             const std::vector<std::size_t>& getLeftPad() const;
@@ -144,6 +161,16 @@ namespace mv
         long long unsigned size_;
 
         /**
+         * @brief Global memory alignment (offset value must be divisible), 0 means none
+         */
+        unsigned short alignment_;
+
+        /**
+         * @brief Size of type of data stored
+         */
+        unsigned short dataTypeSize_;
+
+        /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */
         std::map<unsigned, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>> entries_;
@@ -157,7 +184,7 @@ namespace mv
 
     public:
 
-        MemoryAllocator(std::string name, std::size_t size);
+        MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize);
         
         /**
          * @brief Allocate the tensor in a new buffer for the particular stage

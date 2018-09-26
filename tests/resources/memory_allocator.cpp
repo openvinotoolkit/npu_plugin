@@ -22,7 +22,7 @@ TEST(memory_allocator, concatenate_tensors)
     auto inputTensor1 = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
     auto inputTensor2 = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
 
-    mv::MemoryAllocator m("m1", 10000);
+    mv::MemoryAllocator m("m1", 10000, 0, 2);
     auto outputBuf = m.allocate(outputTensor, 0);
     auto input1Buf = m.allocate(inputTensor1, outputBuf, {0, 0, 0}, {0, 0, 2});
     auto input2Buf = m.allocate(inputTensor2, outputBuf, {0, 0, 2}, {0, 0, 0});
@@ -49,7 +49,7 @@ TEST(memory_allocator, mulitple)
     auto t2 = dm.defineTensor("a2", s2, mv::DTypeType::Float16, order);
     auto t3 = dm.defineTensor("t3", s3, mv::DTypeType::Float16, order);
 
-    mv::MemoryAllocator m("m1", 10000);
+    mv::MemoryAllocator m("m1", 10000, 0, 2);
     auto b1 = m.allocate(t1, 0);
     auto b2 = m.allocate(t2, 0);
     auto b3 = m.allocate(t3, 0);
@@ -67,7 +67,7 @@ TEST(memory_allocator, tensor_col_major)
     mv::Order order = mv::OrderType::RowMajor;
     auto t = dm.defineTensor("testTensor", s, mv::DTypeType::Float16, order, mv::utils::generateSequence<double>(s.totalSize()));
 
-    mv::MemoryAllocator m("m1", 10000);
+    mv::MemoryAllocator m("m1", 10000, 0, 2);
     std::vector<std::size_t> padding1(s.ndims()), padding2(s.ndims());
     padding1[0] = 1;
     padding1[1] = 1;
@@ -111,7 +111,7 @@ TEST(memory_allocator, slave_tensor_col_major)
         mv::utils::generateSequence<double>(slaveShape.totalSize()));
 
 
-    mv::MemoryAllocator m("m1", 10000);
+    mv::MemoryAllocator m("m1", 10000, 0, 2);
     auto masterBuf = m.allocate(tMaster, 0);
     auto slaveBuf = m.allocate(tSlave, masterBuf, {0, 0}, {2, 2});
     

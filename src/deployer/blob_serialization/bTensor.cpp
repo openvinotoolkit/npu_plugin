@@ -133,7 +133,7 @@ namespace mv
 
             if (!mem->getStrides().empty())
             {
-                for(int i = 0; i != mem->getStrides().size()-1; i++)
+                for(int i = 1; i != mem->getStrides().size()-2; i++)
                 {
                     blk_stride = (int)mem->getStrides()[i];
                     block += (int)mem->getBlockSize();
@@ -150,11 +150,11 @@ namespace mv
 
             int offsetValue = mem->getOffset();
 
-            if (offsetValue % 64 != 0)
+            /*if (offsetValue % 64 != 0)
             {
                 printf("Serializer Warning: Short-term alignment fix, likely cause of device crash. IMPORTANT.\n");
                 offsetValue = 64+(offsetValue/64)*64 ;
-            }
+            }*/
             int rt_entry = rt->push_entry(std::pair<int, bLocation>(offsetValue, bLocation::Constant ));
             this->offset = rt_entry;
         }
@@ -168,6 +168,8 @@ namespace mv
             int no_buffers = 0;
             try{
                 mem = dm->getBuffer("IntermediateMemory", stg, *t);
+                /*if (mem != dm->bufferEnd("IntermediateMemory", stg))
+                    std::cout << mem->toString() << std::endl;*/
             }catch(mv::IndexError){
                 printf("Serializer Warning: No Intermediary Buffers\n");
                 no_buffers = 1;
@@ -175,7 +177,8 @@ namespace mv
 
             if (no_buffers || mem == dm->bufferEnd("IntermediateMemory", stg) )
             {
-
+                
+                std::cout << "NOT ALLOCATED " << (*t)->getName() << std::endl;
                 // Not Found - In or Output
                 std::vector<std::string> input_names, output_names;
 
@@ -221,7 +224,7 @@ namespace mv
 
                     // Start at 1 and go til -1 because the first and last strides are
                     // leading and trailing "padding"
-                    for(int i = 1; i != mem->getStrides().size()-2; i++)
+                    for(int i = 1; i != mem->getStrides().size() - 2; i++)
                     {
                         blk_stride = (int)mem->getStrides()[i];
                         block += (int)mem->getBlockSize();
@@ -230,7 +233,7 @@ namespace mv
                             break;
                         }
                     }
-                    leading_pad = mem->getStrides()[1];
+                    leading_pad = mem->getStrides()[0];
                 }
                 else
                 {
@@ -239,6 +242,9 @@ namespace mv
 
                 int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable ));
                 this->offset = rt_entry;
+
+                std::cout << "OFFSET IDX: " << rt_entry << "; OFFSET: " << mem->getOffset() << "; SIZE: " << mem->getSize() << "; TENSOR: " << mem->getData()->getName() << std::endl << std::endl;
+            
             }
         }
 

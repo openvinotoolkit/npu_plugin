@@ -21,7 +21,7 @@ TEST(data_model, allocate_unpopulated_tensor)
     auto stage = cm.addStage();
     cm.addToStage(stage, pool1Op);
     cm.addToStage(stage, pool2Op);
-    dm.addAllocator("Memory1", 4096);
+    dm.addAllocator("Memory1", 4096, 0, 2);
     auto buf1 = dm.allocateTensor("Memory1", stage, pool1);
     auto buf2 = dm.allocateTensor("Memory1", stage, pool2);
     std::cout << buf1->toString() << std::endl;
@@ -54,7 +54,7 @@ TEST(data_model, allocate_populated_tensor)
 
     auto stage = cm.addStage();
     cm.addToStage(stage, conv1Op);
-    dm.addAllocator("Memory1", 4096);
+    dm.addAllocator("Memory1", 4096, 0, 2);
     auto buf = dm.allocateTensor("Memory1", stage, weights);
 
     std::cout << buf->toString(true) << std::endl;

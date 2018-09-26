@@ -9,10 +9,10 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        if (this->input->getOrder() == this->output->getOrder()){
+        /*if (this->input->getOrder() == this->output->getOrder()){
             printf("Serialization Warning: Manual Override of Conversion layer due to non-difference\n");
             this->input->setOrder(OrderType::ColumnMajor);
-        }
+        }*/
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
