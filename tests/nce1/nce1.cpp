@@ -4,7 +4,8 @@
 #include "tests/include/MCMtest.hpp"
 
 
-TEST (nce1, HWconv_op_parameters)
+/*disabling test until mvNCCompile is working on master*/
+TEST (nce1, DISABLED_HWconv_op_parameters)
 {
 
    int no_index_lo = 72 ;
@@ -32,19 +33,16 @@ TEST (nce1, HWconv_op_parameters)
        test.addParam("convolution_operation","bt","constant");
        test.addParam("convolution_operation","bv","2");
 
-       /*disabling test until mvNCCompile is working on master*/
+       test.generatePrototxt();
 
-       //test.generatePrototxt();
+       std::string command1 = "$MDK_HOME/projects/Fathom/src2/mvNCCompile.py ./test.prototxt --new-parser --cpp";
+       EXPECT_EQ (0, system(command1.c_str())) << "ERROR: non 0 return from compile";
 
-       //std::string command1 = "$MDK_HOME/projects/Fathom/src2/mvNCCompile.py ./test.prototxt --new-parser --cpp";
-       //EXPECT_EQ (0, system(command1.c_str())) << "ERROR: non 0 return from compile";
+       std::string command2 = "$MCM_HOME/python/tools/mcmCheck.sh -b ./cpp.blob -e ./Fathom_expected.npy -i ./test.png";
+       EXPECT_EQ (0, system(command2.c_str())) << "ERROR: non 0 return from mcmCheck";
 
-       //std::string command2 = "$MCM_HOME/python/tools/mcmCheck.sh -b ./cpp.blob -e ./Fathom_expected.npy -i ./test.png";
-       //EXPECT_EQ (0, system(command2.c_str())) << "ERROR: non 0 return from mcmCheck";
+       test.saveResult();
 
-       //test.saveResult();
-
-       EXPECT_EQ (0, 0);
     }
 }
 
