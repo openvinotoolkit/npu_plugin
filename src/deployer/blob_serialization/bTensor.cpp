@@ -47,7 +47,8 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == nullptr) {  // || *t == NULL ){
+        if ( t == nullptr) 
+        {
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
             this->dimY = 0;
@@ -111,12 +112,8 @@ namespace mv
         }
 
 
-        try{
-            if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
-                assert(0);
-        }catch(mv::ArgumentError){
-            printf("Serializer Warning: Allocator Missing\n");
-        }
+        if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
+            throw RuntimeError(*dm, "Required allocators missing");
 
         Data::BufferIterator mem;
         mv::Control::StageIterator stg = cm->getStage(0);
@@ -126,14 +123,13 @@ namespace mv
 
         if ((*t)->isPopulated())
         {
-            // std::cout << "Populated Tensor: " << (*t)->getName() << std::endl;
 
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
             if (!mem->getStrides().empty())
             {
-                for(int i = 1; i != mem->getStrides().size()-2; i++)
+                for(std::size_t i = 1; i != mem->getStrides().size() - 2; i++)
                 {
                     blk_stride = (int)mem->getStrides()[i];
                     block += (int)mem->getBlockSize();
@@ -148,104 +144,72 @@ namespace mv
                 blk_stride = -1;
             }
 
-            int offsetValue = mem->getOffset();
-
-            /*if (offsetValue % 64 != 0)
-            {
-                printf("Serializer Warning: Short-term alignment fix, likely cause of device crash. IMPORTANT.\n");
-                offsetValue = 64+(offsetValue/64)*64 ;
-            }*/
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(offsetValue, bLocation::Constant ));
+            // CAUTION - non-tight tensors not considered here
+            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Constant ));
             this->offset = rt_entry;
+
         }
         else
         {
 
             mv::OpModel om(*cm);
 
-            // std::cout << "UnPopulated Tensor: " << (*t)->getName() << std::endl;
-
-            int no_buffers = 0;
-            try{
-                mem = dm->getBuffer("IntermediateMemory", stg, *t);
-                /*if (mem != dm->bufferEnd("IntermediateMemory", stg))
-                    std::cout << mem->toString() << std::endl;*/
-            }catch(mv::IndexError){
-                printf("Serializer Warning: No Intermediary Buffers\n");
-                no_buffers = 1;
-            }
-
-            if (no_buffers || mem == dm->bufferEnd("IntermediateMemory", stg) )
+            if ((*t)->hasAttr("modelInput"))
             {
-                
-                std::cout << "NOT ALLOCATED " << (*t)->getName() << std::endl;
-                // Not Found - In or Output
-                std::vector<std::string> input_names, output_names;
-
-                for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+                if ((*t)->get<bool>("modelInput"))
                 {
-                    if (opIterator->getOpType() == OpType::Input){
-                        auto b = opIterator->getOutputTensor(0)->getName();
-                        input_names.push_back(b);
-                    }else if(opIterator->getOpType() == OpType::Output){
-                        auto b = opIterator->getInputTensor(0)->getName();
-                        output_names.push_back(b);
-                    }
-                }
-
-                if(std::find(input_names.begin(), input_names.end(), (*t)->getName()) != input_names.end())
-                {
-                    // std::cout  << "Network Input. Note: IO Offset not supported by serializer" << std::endl;
+                    // Input tensor, non allocated in the blob
                     this->location = BLOB_INPUT_LOCATION;
                     this->offset = 0;
-                }else
-                {
-                    if(std::find(output_names.begin(), output_names.end(), (*t)->getName()) != output_names.end())
-                    {
-                        // std::cout  << "Network Output. Note: IO Offset not supported by serializer" << std::endl;
-                        this->location = BLOB_OUTPUT_LOCATION;
-                        this->offset = 0;
-                    }
-                    else
-                    {
-                        // std::cout << "Serialization Error: Tensor Position not resolved" << std::endl;
-                        assert(0);
-                    }
                 }
+                else
+                    throw RuntimeError(**t, "Unallocated tensor marked as non input passed for serialization");
+            }
+            else if ((*t)->hasAttr("modelOutput"))
+            {
+                if ((*t)->get<bool>("modelOutput"))
+                {
+                    // Output tensor, non allocated in the blob
+                    this->location = BLOB_OUTPUT_LOCATION;
+                    this->offset = 0;
+                }
+                else
+                    throw RuntimeError(**t, "Unallocated tensor marked as non output passed for serialization");
             }
             else
             {
-                // Found
+                // Will throw IndexError on incorrect stage
+                mem = dm->getBuffer("IntermediateMemory", stg, *t);
+                if (mem == dm->bufferEnd("IntermediateMemory", stg))
+                    throw RuntimeError(**t, "Unallocated tensor found during the serialization");
+
                 this->location = BLOB_EXTERNAL_LOCATION;
                 unsigned leading_pad = 0;
                 if (!mem->getStrides().empty())
                 {
-                    // std::cout << "Var: " << mem->toString() << std::endl;
 
                     // Start at 1 and go til -1 because the first and last strides are
                     // leading and trailing "padding"
-                    for(int i = 1; i != mem->getStrides().size() - 2; i++)
+                    for(std::size_t i = 1; i != mem->getStrides().size() - 2; i++)
                     {
+
                         blk_stride = (int)mem->getStrides()[i];
                         block += (int)mem->getBlockSize();
                         if (blk_stride != 0)
-                        {
                             break;
-                        }
+
                     }
+
                     leading_pad = mem->getStrides()[0];
+
                 }
                 else
-                {
                     blk_stride = -1;
-                }
 
-                int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable ));
-                this->offset = rt_entry;
-
-                std::cout << "OFFSET IDX: " << rt_entry << "; OFFSET: " << mem->getOffset() << "; SIZE: " << mem->getSize() << "; TENSOR: " << mem->getData()->getName() << std::endl << std::endl;
+                this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
             
             }
+
         }
 
 

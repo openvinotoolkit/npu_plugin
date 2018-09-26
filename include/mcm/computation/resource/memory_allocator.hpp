@@ -59,6 +59,11 @@ namespace mv
             friend class MemoryAllocator;
 
             /**
+             * @brief Unique ID
+             */
+            std::size_t id;
+
+            /**
              * @brief Value specifing the start location of the buffer relatively to the beginning
              * of the whole memory block specified by an allocator
              */
@@ -170,6 +175,11 @@ namespace mv
          */
         unsigned short dataTypeSize_;
 
+        /**
+         * @brief Current ID for new buffer
+         */
+        std::size_t currentID_;
+    
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */

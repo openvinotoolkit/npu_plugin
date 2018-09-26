@@ -2,6 +2,7 @@
 #include <iostream>
 
 mv::MemoryAllocator::MemoryBuffer::MemoryBuffer() :
+id(0),
 offset(0),
 size(0),
 blockSize(0),
@@ -13,6 +14,7 @@ stage(0)
 }
 
 mv::MemoryAllocator::MemoryBuffer::MemoryBuffer(const MemoryBuffer& other) :
+id(other.id),
 offset(other.offset),
 size(other.size),
 strides(other.strides),
@@ -31,6 +33,7 @@ slaveBuffers(other.slaveBuffers)
 
 mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(const MemoryBuffer& other) 
 {
+    id = other.id;
     offset = other.offset;
     size = other.size;
     strides = other.strides;
@@ -188,7 +191,9 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
             // Align slave buffers
             for (auto itSlave = (*it)->slaveBuffers.begin(); itSlave != (*it)->slaveBuffers.end(); ++itSlave)
                 (**itSlave)->offset = (*it)->offset;
+    
         }
+
     }
 
 }
@@ -197,7 +202,8 @@ mv::MemoryAllocator::MemoryAllocator(std::string name, std::size_t size, unsigne
 name_(name),
 size_(size),
 alignment_(alignment),
-dataTypeSize_(dataTypeSize)
+dataTypeSize_(dataTypeSize),
+currentID_(1)
 {
 
 }
@@ -210,13 +216,13 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order,
     computeStrides_(order, order.lastContiguousDimensionIndex(shape), shape, leftPadding, rightPadding, leftStrides, rightStrides);
     std::deque<std::size_t> strides;
 
-    strides.push_back(leftStrides.back());
+    strides.push_back(leftStrides.back() * dataTypeSize_);
     leftStrides.pop_back();
 
     for (std::size_t i = 0; i < leftStrides.size(); ++i)
-        strides.push_back(leftStrides[i] + rightStrides[i]);
+        strides.push_back((leftStrides[i] + rightStrides[i]) * dataTypeSize_);
 
-    strides.push_back(rightStrides.back());
+    strides.push_back(rightStrides.back() * dataTypeSize_);
 
     return strides;
 }
@@ -262,6 +268,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     Shape shape(tensor->getShape());
 
     MemoryBuffer newBuffer;
+    newBuffer.id = currentID_++;
     newBuffer.offset = 0;
     newBuffer.size = shape.totalSize() * dataTypeSize_;
     newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex(shape)] * dataTypeSize_;

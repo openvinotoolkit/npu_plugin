@@ -21,7 +21,7 @@ namespace mv
 
 
         b->AddBytes(4, mv_relocation_offset + 20);
-        b->AddBytes(4, 8*this->constant_entries.size()); // blob_buffer_reloc_size, 
+        b->AddBytes(4, 8*this->constant_entries.size()); // blob_buffer_reloc_size
         b->AddBytes(4, mv_relocation_offset+20+8*this->constant_entries.size());  // Unknown - work_buffer_reloc_offset
         b->AddBytes(4, 8*this->variable_entries.size()); // work_buffer_reloc_size
 
@@ -38,7 +38,8 @@ namespace mv
         }
     }
 
-    unsigned int RelocationTable::push_entry(std::pair<int, bLocation> ol){
+    unsigned int RelocationTable::push_entry(std::pair<int, bLocation> ol)
+    {
         /**
          *  Returns index of entry after pushed into relevant table.
          *

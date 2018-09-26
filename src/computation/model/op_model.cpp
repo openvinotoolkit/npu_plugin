@@ -168,7 +168,8 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
 
 }
 
-mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape, DType dType, Order order, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape, 
+    DType dType, Order order, const std::string& name)
 {
     std::string opName;
     if (name != "")
@@ -183,7 +184,8 @@ mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, 
     return outputTensor;
 }
 
-mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, 
+    std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
 {
     std::string opName;
     if (name != "")

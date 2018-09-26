@@ -223,7 +223,7 @@ TEST (generate_blob, blob_4_ops)
     // define first maxpool
     auto maxpoolIt61 = test_cm.maxpool2D(convIt61,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
-    std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
+    std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 1.000, 0.010);
     auto weightsIt62 = test_cm.constant(weightsData62, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
     auto convIt62 = test_cm.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
     // define second maxpool
@@ -274,19 +274,19 @@ TEST (generate_blob, blob_eltwise_add)
     // define first avgpool
     auto avgpoolIt71 = test_cm.avgpool2D(convIt71,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
-    std::vector<double> weightsData72 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 6550.0, 0.000);
+    std::vector<double> weightsData72 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 10.000, 0.010);
     auto weightsIt72 = test_cm.constant(weightsData72, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
     auto convIt72 = test_cm.conv2D(avgpoolIt71, weightsIt72, {1, 1}, {0, 0, 0, 0});
     // define second avgpool
     auto avgpoolIt72 = test_cm.avgpool2D(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define first convolution branch a
-    std::vector<double> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    std::vector<double> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 1.000, 0.010);
     auto weightsIt7a = test_cm.constant(weightsData7a, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
     auto convIt7a = test_cm.conv2D(inIt7, weightsIt7a, {2, 2}, {0, 0, 0, 0});
     // define first maxpool branch a
     auto maxpoolIt7a = test_cm.maxpool2D(convIt7a,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
-    std::vector<double> weightsData7b = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
+    std::vector<double> weightsData7b = mv::utils::generateSequence(3u * 3u * 1u * 1u, 20.000, 0.010);
     auto weightsIt7b = test_cm.constant(weightsData7b, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
     auto convIt7b = test_cm.conv2D(maxpoolIt7a, weightsIt7b, {1, 1}, {0, 0, 0, 0});
     // define second maxpool

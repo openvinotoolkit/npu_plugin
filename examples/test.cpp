@@ -16,7 +16,7 @@ int main()
     // define first maxpool
     auto maxpoolIt61 = test_cm.maxpool2D(convIt61,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
-    std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
+    std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 1.000, 0.010);
     auto weightsIt62 = test_cm.constant(weightsData62, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);   // kh, kw, ins, outs
     auto convIt62 = test_cm.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
     // define second maxpool
@@ -35,5 +35,6 @@ int main()
     unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
+
 
 }
