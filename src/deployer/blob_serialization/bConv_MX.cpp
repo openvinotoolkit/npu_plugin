@@ -62,46 +62,56 @@ namespace mv
             Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
             Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_scale);
 
-            for (unsigned i = 0; i != this->desc_count; i++)
+
+            auto input_shape = this->input->getShape();
+            auto output_shape = this->output->getShape();
+
+            unsigned int original_height = this->input->getShape()[1];
+
+
+            unsigned i;
+            for (unsigned oc = 0; oc != this->DPUmodeVector.size(); oc++)
             {
+                for (unsigned ic = 0; ic != splits_over_iC; ic++)
+                {
+                    for (unsigned h = 0; h != splits_over_H; h++)
+                    {
+                        i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
 
-                unsigned int original_height = this->input->getShape()[1];
-                unsigned int current_height;
-                if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                    int surplus = ceil(original_height/(double)this->desc_count)*this->desc_count - original_height;
-                    current_height = ceil(original_height/(double)this->desc_count) - surplus;
-                }else{
-                    current_height = ceil(original_height/(double)this->desc_count);
-                }
+                        unsigned int current_height;
+                        current_height = this->input_lines_processed[i];
+                        current_height = this->output_lines_processed[i];
 
+                        // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].dataBaseAddr = i*2*input_shape[1]*current_height;    // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].coeffBaseAddr = 0;
+                        this->descriptors[i].biasBaseAddr = 0;
+                        this->descriptors[i].scaleBaseAddr = 0;
+                        this->descriptors[i].outBaseAddr = i*2*output_shape[1]*current_height;  // TODO: Calculate 3f0 (1008)
 
-                auto input_shape = this->input->getShape();
-                auto output_shape = this->output->getShape();
-                // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
-                this->descriptors[i].dataBaseAddr = i*2*input_shape[1]*current_height;    // TODO: Calculate 3f0 (1008)
-                this->descriptors[i].coeffBaseAddr = 0;
-                this->descriptors[i].biasBaseAddr = 0;
-                this->descriptors[i].scaleBaseAddr = 0;
-                this->descriptors[i].outBaseAddr = i*2*output_shape[1]*current_height;  // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
+                        this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
 
-                this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
-                this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
-
-                auto weight_4dshape = this->taps->getShape();
+                        auto weight_4dshape = this->taps->getShape();
 
 
-                this->descriptors[i].coeffChStrIn = weight_4dshape[2]*weight_4dshape[3]*weight_4dshape[4]*2;
-                int inChans = weight_4dshape[1];
+                        this->descriptors[i].coeffChStrIn = weight_4dshape[2]*weight_4dshape[3]*weight_4dshape[4]*2;
+                        int inChans = weight_4dshape[1];
 
-                this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
+                        this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
-                this->descriptors[i].outLnStr = outputBlobTensor.strideY;
-                this->descriptors[i].outChStr = outputBlobTensor.strideZ;
+                        this->descriptors[i].outLnStr = outputBlobTensor.strideY;
+                        this->descriptors[i].outChStr = outputBlobTensor.strideZ;
 
-                for(unsigned j = 0; j != 32; j++){
-                    b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
+                        for(unsigned j = 0; j != 32; j++){
+                            b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
+                        }
+
+                    }
                 }
             }
+
+
 
             b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
             b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
@@ -185,7 +195,6 @@ namespace mv
             // printf("Serializing a HW Conv\n");
 
             int cmxSize = 256*1024;
-            unsigned splits_over_H = 1, splits_over_oC = 1;
 
             if (! it->hasAttr("NCE1_AssignedCMX"))
             {
@@ -203,7 +212,7 @@ namespace mv
             }
             else
             {
-                splits_over_H = it->get<unsigned>("NCE1_SplitsOverHeight");
+                this->splits_over_H = it->get<unsigned>("NCE1_SplitsOverHeight");
             }
 
             if (! it->hasAttr("NCE1_SplitsOverInputChannels"))
@@ -212,10 +221,10 @@ namespace mv
             }
             else
             {
-                splits_over_oC = it->get<unsigned>("NCE1_SplitsOverInputChannels");
+                this->splits_over_iC = it->get<unsigned>("NCE1_SplitsOverInputChannels");
             }
 
-            int descriptors_count = splits_over_oC * splits_over_H;
+            int descriptors_count = this->splits_over_iC * this->splits_over_H;
 
             if (! it->hasAttr("NCE1_StreamingMask"))
             {
@@ -241,6 +250,35 @@ namespace mv
                 this->DPUmodeVector = it->get<std::vector<unsigned>>("NCE1_Modes");
             }
 
+            if (! it->hasAttr("NCE1_InputLinesProcessed"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_InputLinesProcessed'. Defaulting to 0\n");
+
+                this->input_lines_processed = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    this->input_lines_processed.push_back(0);
+                }
+            }
+            else
+            {
+                this->input_lines_processed = it->get<std::vector<unsigned>>("NCE1_InputLinesProcessed");
+            }
+            if (! it->hasAttr("NCE1_OutputLinesProcessed"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_OutputLinesProcessed'. Defaulting to 0\n");
+
+                this->output_lines_processed = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    this->output_lines_processed.push_back(0);
+                }
+            }
+            else
+            {
+                this->output_lines_processed = it->get<std::vector<unsigned>>("NCE1_OutputLinesProcessed");
+            }
+
             this->concatOffset = 0; // Concat not supported currently
             this->unloadCMX = 0;
             this->overwriteInput = 0;
@@ -258,7 +296,7 @@ namespace mv
             this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
 
             std::vector<std::size_t> chPerRamBlock;
-            int topJunk = 0, bottomJunk = 0;
+            std::vector<unsigned> topJunk, bottomJunk;
             int localLS = 1;
             std::vector<std::size_t> localCS;
             std::vector<std::size_t> LPC;
@@ -282,22 +320,34 @@ namespace mv
                 chPerRamBlock = it->get<std::vector<std::size_t>>("NCE1_InputChannelsRamBlock");
             }
 
-            if (! it->hasAttr("NCE1_TopOutputJunk"))
+            if (! it->hasAttr("NCE1_JunkOutputAfter"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_TopOutputJunk'. Defaulting to 0\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_JunkOutputAfter'. Defaulting to 0\n");
+
+                bottomJunk = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    bottomJunk.push_back(0);
+                }
             }
             else
             {
-                topJunk = it->get<std::size_t>("NCE1_TopOutputJunk");
+                bottomJunk = it->get<std::vector<unsigned>>("NCE1_JunkOutputAfter");
             }
 
-            if (! it->hasAttr("NCE1_BottomOutputJunk"))
+            if (! it->hasAttr("NCE1_JunkOutputBefore"))
             {
-                printf("Serializer Info: Needs Attribute 'NCE1_BottomOutputJunk'. Defaulting to 0\n");
+                printf("Serializer Info: Needs Attribute 'NCE1_JunkOutputBefore'. Defaulting to 0\n");
+
+                topJunk = {0};
+                for( int i = 1; i != descriptors_count - 1; i++)
+                {
+                    topJunk.push_back(0);
+                }
             }
             else
             {
-                bottomJunk = it->get<std::size_t>("NCE1_BottomOutputJunk");
+                topJunk = it->get<std::vector<unsigned>>("NCE1_JunkOutputBefore");
             }
 
             if (! it->hasAttr("NCE1_LocalLineStride"))
@@ -373,8 +423,7 @@ namespace mv
             }
 
 
-            int splits_over_iC= 1;
-            int i;
+            unsigned i;
             for (unsigned oc = 0; oc != DPUmodeVector.size(); oc++)
             {
                 for (unsigned ic = 0; ic != splits_over_iC; ic++)
@@ -426,17 +475,7 @@ namespace mv
 
                         unsigned int original_height = this->input->getShape()[1];
                         unsigned int current_height;
-                        if (splits_over_H > 1){
-                            // TODO: Different types of split?
-                            if (i+1 == this->desc_count){   // Last Descriptor may be an unequal height to the rest.
-                                int surplus = ceil(original_height/(float)splits_over_H)*splits_over_H - original_height;
-                                current_height = ceil(original_height/(float)splits_over_H) - surplus;
-                            }else{
-                                current_height = ceil(original_height/(float)splits_over_H);
-                            }
-                        }else{
-                            current_height = original_height;
-                        }
+                        current_height = this->input_lines_processed[i];
 
                         this->descriptors[i].inputHeight =  current_height - 1;
                         this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
@@ -452,8 +491,8 @@ namespace mv
 
 
                         // Myriad X Compensation Fields
-                        this->descriptors[i].topOutputJunk = topJunk;
-                        this->descriptors[i].bottomOutputJunk = bottomJunk;
+                        this->descriptors[i].topOutputJunk = topJunk[i];
+                        this->descriptors[i].bottomOutputJunk = bottomJunk[i];
 
                         this->descriptors[i].localLs =  localLS;
                         this->descriptors[i].localCs =  localCS[ic];

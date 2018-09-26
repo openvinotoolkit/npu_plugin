@@ -104,10 +104,15 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     std::vector<std::size_t> min_lines(num_modes_to_use);
     for(unsigned i = 0; i < num_modes_to_use; ++i)
     {
-        // input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(splitted_input_channels, modes[i]);
-        input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(original_input_channels, modes[i]);
-        // lines_per_channel[i] = nce.computeLinesPerChannel(splitted_input_channels, local_line_stride, modes[i]);
-        lines_per_channel[i] = nce.computeLinesPerChannel(original_input_channels, local_line_stride, modes[i]);
+        int hack_enable = 0;
+        if (hack_enable)
+            input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(splitted_input_channels, modes[i]);
+        else
+            input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(original_input_channels, modes[i]);
+        if (hack_enable)
+            lines_per_channel[i] = nce.computeLinesPerChannel(splitted_input_channels, local_line_stride, modes[i]);
+        else
+            lines_per_channel[i] = nce.computeLinesPerChannel(original_input_channels, local_line_stride, modes[i]);
         local_channel_stride[i] = lines_per_channel[i] * local_line_stride;
 
         min_lines[i] = 0;

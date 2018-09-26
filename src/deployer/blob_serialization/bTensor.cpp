@@ -121,8 +121,8 @@ namespace mv
         Data::BufferIterator mem;
         mv::Control::StageIterator stg = cm->getStage(0);
 
-        int blk_stride = 0;
-        int block = 0;
+        unsigned blk_stride = 0;
+        unsigned block = 0;
 
         if ((*t)->isPopulated())
         {
@@ -133,7 +133,7 @@ namespace mv
 
             if (!mem->getStrides().empty())
             {
-                for(int i = 0; i != mem->getStrides().size()-1; i++)
+                for(unsigned i = 0; i != mem->getStrides().size()-1; i++)
                 {
                     blk_stride = (int)mem->getStrides()[i];
                     block += (int)mem->getBlockSize();
@@ -221,7 +221,7 @@ namespace mv
 
                     // Start at 1 and go til -1 because the first and last strides are
                     // leading and trailing "padding"
-                    for(int i = 1; i != mem->getStrides().size()-2; i++)
+                    for(unsigned i = 1; i != mem->getStrides().size()-2; i++)
                     {
                         blk_stride = (int)mem->getStrides()[i];
                         block += (int)mem->getBlockSize();

@@ -26,6 +26,11 @@ namespace mv{
 
             // Hardware Fields
             std::vector<unsigned> DPUmodeVector;
+            std::vector<unsigned> input_lines_processed;
+            std::vector<unsigned> output_lines_processed;
+            unsigned int splits_over_H;
+            unsigned int splits_over_iC;
+
             uint32_t streamingMask;
             uint32_t concatOffset;
             uint32_t unloadCMX;
@@ -35,6 +40,8 @@ namespace mv{
             uint32_t shvNegSlope;
             uint32_t shvPosSlope;
             uint32_t desc_count;
+
+
 
             // Software Fields
             uint32_t radixX;

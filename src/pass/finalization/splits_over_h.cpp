@@ -108,8 +108,8 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
         om.addAttr(operationIt, "NCE1_InputLinesProcessed", mv::Attribute(input_lines_processed));
         om.addAttr(operationIt, "NCE1_OutputLinesProcessed", mv::Attribute(output_lines_processed));
-        om.addAttr(operationIt, "NCE1_JunkOutputBefore", mv::Attribute(junk_output_before));
-        om.addAttr(operationIt, "NCE1_JunkOutputAfter", mv::Attribute(junk_output_after));
+        om.addAttr(operationIt, "NCE1_JunkOutputBefore", junk_output_before);
+        om.addAttr(operationIt, "NCE1_JunkOutputAfter", junk_output_after);
 
         om.addAttr(operationIt, "NCE1_StartInputLine", mv::Attribute(start_input_line));
         om.addAttr(operationIt, "NCE1_EndInputLine", mv::Attribute(end_input_line));
