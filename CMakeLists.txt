@@ -121,8 +121,8 @@ file(GLOB compiler
 )
 
 add_subdirectory(contrib/googletest)
-add_subdirectory(tests)
-add_subdirectory(examples)
+#add_subdirectory(tests)
+#add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
 add_subdirectory(python/api)
 

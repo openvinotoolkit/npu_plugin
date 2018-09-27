@@ -780,7 +780,7 @@ blob_format = Struct(
     "size_of_buffer_section" / Computed(this.paduntil[-1]),
     "Post_Pad" / Padded(3, Byte),
 
-    "buffers" / Array(this.size_of_buffer_section - 7, Byte, discard=True),
+    "buffers" / Array(this.size_of_buffer_section - 7, Byte, discard=False),
     "relocation_buffer_size" / Int32ul,
     "blob_buffer_reloc_offset" / Int32ul,
     "blob_buffer_reloc_size" / Int32ul,

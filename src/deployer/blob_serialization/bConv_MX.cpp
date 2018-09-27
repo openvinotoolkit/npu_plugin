@@ -99,7 +99,7 @@ namespace mv
 
 
                         this->descriptors[i].coeffChStrIn = weight_4dshape[2]*weight_4dshape[3]*weight_4dshape[4]*2;
-                        int inChans = weight_4dshape[1];
+                        int inChans = inputChannelsPadded;
 
                         this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 

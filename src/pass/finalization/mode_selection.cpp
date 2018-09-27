@@ -104,7 +104,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     std::vector<std::size_t> min_lines(num_modes_to_use);
     for(unsigned i = 0; i < num_modes_to_use; ++i)
     {
-        int hack_enable = 0;
+        int hack_enable = 1;
         if (hack_enable)
             input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(splitted_input_channels, modes[i]);
         else
@@ -128,6 +128,8 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     om.addAttr(convIterator, "NCE1_LinesPerChannel", mv::Attribute(lines_per_channel));
     om.addAttr(convIterator, "NCE1_LocalChannelStride", mv::Attribute(local_channel_stride));
     om.addAttr(convIterator, "NCE1_MinLines", mv::Attribute(min_lines));
+    om.addAttr(convIterator, "NCE1_InputChannelsPadded", splitted_input_channels);
+
 }
 
 void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
