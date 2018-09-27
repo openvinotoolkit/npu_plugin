@@ -32,6 +32,7 @@ namespace mv{
             std::vector<unsigned> output_line_start;
             unsigned int splits_over_H;
             unsigned int splits_over_iC;
+            unsigned inputChannelsPadded;
 
             uint32_t streamingMask;
             uint32_t concatOffset;
