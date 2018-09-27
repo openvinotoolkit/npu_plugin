@@ -79,4 +79,4 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
 
     std::cout << "Exiting arrange execution" << std::endl;
 
-} 
+}

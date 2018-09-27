@@ -56,16 +56,42 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
         if (tIt->isPopulated())
         {
 
-            
-            auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
+
             if(tIt->hasAttr("NCE1_Paddings"))
             {
-                
-                auto paddings = tIt->get<std::vector<std::size_t>>("NCE1_Paddings");
-                dm.padRight("ConstantMemory", buf, paddings);
 
+                std::vector<std::size_t> rhs_paddings = tIt->get<std::vector<std::size_t>>("NCE1_Paddings");
+
+                // dm.padRight("ConstantMemory", buf, paddings);
+                std::vector<std::size_t> empty_padding(tIt->getShape().ndims());
+
+                mv::Shape original_shape = tIt->getShape();
+                std::vector<std::size_t> original_shape_v = original_shape;
+                std::vector<std::size_t> padded_shape_v = std::vector<std::size_t>(original_shape.ndims());
+                for(int i =0; i< original_shape_v.size();i++)
+                    padded_shape_v[i] += original_shape_v[i] + rhs_paddings[i];
+
+                for(auto v : rhs_paddings)
+                    std::cout << "rhs: " << v << std::endl;
+
+                std::cout << "SHAPE: " << tIt->getShape().toString() << std::endl;
+
+
+                mv::Shape padded_shape = mv::Shape(padded_shape_v);
+
+                std::vector<double> zeros = std::vector<double>(padded_shape.totalSize());
+                std::cout << "Allocate Container" << std::endl;
+                auto master_tensor = dm.defineTensor("ConstantMemory", padded_shape, tIt->getDType(), tIt->getOrder(), zeros);
+                auto master_container = dm.allocateTensor("ConstantMemory", stageIt, master_tensor);
+
+                std::cout << "Allocate tIt" << std::endl;
+                auto buf = dm.allocateTensor("ConstantMemory", master_container, tIt, empty_padding, rhs_paddings);
+                // auto a = dm.allocateTensor("ConstantMemory", NULL, tIt, empty_padding, rhs_padding);
+
+            }else{
+                auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
             }
-            
+
         }
 
     }
@@ -73,10 +99,6 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
     std::cout << "Exiting allocate unpopulated" << std::endl;
 
 }
-
-// void allocateForImplicitConcat(){
-//
-// }
 
 void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
@@ -250,7 +272,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             For each input and output, allocate if it has not already been done.
             Don't allocate for Concat or I/O layers as they are already accounted for.
         */
-        else 
+        else
         {
             std::cout << opIterator->getOpType().toString() << std::endl;
             for (unsigned x = 0; x < opIterator->inputSlots(); x++)
@@ -309,7 +331,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                 }
 
             }
-            
+
         }
 
     }

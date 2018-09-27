@@ -144,6 +144,7 @@ void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convItera
 
 void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
+    std::cout << "mode " << std::endl;
     mv::OpModel om(model);
     mv::Nce1 nce;
     std::queue<mv::Data::OpListIterator> to_be_optimized;

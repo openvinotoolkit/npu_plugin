@@ -47,8 +47,8 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 {
     unsigned max_lines = computeMaxLines(nce, convIterator);
     mv::SplitOverHSolution a;
-    // a.input_lines_processed = 112; //224;
-    // a.output_lines_processed = 112; //224;
+    a.input_lines_processed = 112; //224;
+    a.output_lines_processed = 112; //224;
     a.input_lines_processed = 224;
     a.output_lines_processed = 112;
     a.junk_output_before = 0;
@@ -78,6 +78,7 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 //REASON: Paddings (and possibly modes) for each HW operation are needed.
 void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
+    std::cout << "soh " << std::endl;
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::Nce1 nce;

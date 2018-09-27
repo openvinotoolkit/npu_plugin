@@ -56,12 +56,17 @@ namespace mv
             b->AddBytes(4, this->desc_count);
 
 
+            std::cout << "in" << std::endl;
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             std::cout << "Warning: forced Input Layout" << std::endl;
             this->output->setOrder(OrderType::RowMajorPlanar);
+            std::cout << "out" << std::endl;
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+            std::cout << "taps" << std::endl;
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+            std::cout << "bias" << std::endl;
             Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
+            std::cout << "scale" << std::endl;
             Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_scale);
 
 
@@ -521,7 +526,7 @@ namespace mv
                         current_height = this->input_lines_processed[i];
 
                         this->descriptors[i].inputHeight =  current_height - 1;
-                        this->descriptors[i].inputChannels = this->input->getShape()[2] -1;
+                        this->descriptors[i].inputChannels = this->inputChannelsPadded -1;
 
                         this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 

@@ -18,6 +18,7 @@ namespace mv
     public:
 
         Shape(std::initializer_list<std::size_t> dims);
+        Shape(std::vector<std::size_t> dims);
         Shape(std::size_t ndims);
         Shape(const Shape& other);
 
@@ -31,6 +32,9 @@ namespace mv
         Shape& operator=(const Shape& other);
         bool operator==(const Shape& other) const;
         bool operator!=(const Shape& other) const;
+        operator std::vector<std::size_t>() const{
+            return dims_;
+        };
 
         std::string toString() const override;
         virtual std::string getLogID() const override;

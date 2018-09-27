@@ -4,6 +4,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/base/json/number_float.hpp"
+#include "mcm/utils/custom_math.hpp"
+#include <math.h>
 
 static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
@@ -146,20 +148,60 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
-    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    // for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    // {
+
+    auto flowIt = dm.flowBegin();
+    while (flowIt != dm.flowEnd())
     {
-        bool valid = false;
-        if(opIterator->hasAttr("NCE1_Compatible"))
-        {
-            valid = opIterator->get<int>("NCE1_Compatible");
-        }
-        if (valid){
+        auto source = flowIt.source();
+        auto sink = flowIt.sink();
 
-            auto weights = opIterator->getInputTensor(1);
+        bool valid = false;
+        if(source->hasAttr("NCE1_Compatible"))
+        {
+            valid = source->get<int>("NCE1_Compatible");
+        }
+        if(source->getOpType() == mv::OpType::Constant && sink->getOpType() == mv::OpType::Conv2D && valid)
+        {
+            auto weights = sink->getInputTensor(1);
             auto wshape = weights->getShape();
 
-            mv::Shape newShape = mv::Shape({wshape[3]/8, wshape[2], wshape[1], wshape[0], 8});
+            auto padding = weights->get<std::vector<size_t>>("NCE1_Paddings");
+
+            for (auto v : padding)
+                std::cout << "PAD: " << v << std::endl;
+
+            unsigned pad_oCalpha = (wshape[3]+padding[3])/8;
+            unsigned oCalpha = mv::round_up(wshape[3],8)/8;
+
+            unsigned iC = wshape[2];
+            unsigned pad_iC = wshape[2]+padding[2];
+
+            mv::Shape padShape = mv::Shape({pad_oCalpha, pad_iC, wshape[1], wshape[0], 8});
+            mv::Shape newShape = mv::Shape({oCalpha, iC, wshape[1], wshape[0], 8});
+
+            weights->set<std::vector<size_t>>("NCE1_Paddings",
+                {pad_oCalpha - oCalpha,
+                 pad_iC - iC,
+                 0,
+                 0,
+                 0
+                });
+            std::cout << "Set stride of weights: " << mv::Shape({pad_oCalpha - oCalpha,
+                 pad_iC - iC,
+                 0,
+                 0,
+                 0
+                }).toString() << std::endl;
+
+            std::cout << (wshape[3]+padding[3]) << "/8 = " << (wshape[3]+padding[3])/8 << std::endl;
+
+            std::cout << "oldShape: " << wshape.toString() << std::endl;
+            std::cout << "newShape: " << newShape.toString() << std::endl;
+            std::cout << "padShape: " << padShape.toString() << std::endl;
 
             mv::Tensor newTensor = mv::Tensor("MX_Weights",
                                                 newShape,
@@ -176,12 +218,20 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                     for(std::size_t x = 0; x != newShape[2]; x++){
                         for(std::size_t y = 0; y != newShape[3]; y++){
                             for(std::size_t z = 0; z != newShape[4]; z++){
-                                new_data.push_back(data[
-                                    x*o_fw*o_iC*o_oC +  // Kernel Height is largest Dim in original matrix.
-                                    y*o_iC*o_oC +       // Followed by Width
-                                    j*o_oC +            // then Input Channels
-                                    i*8 + z             // Output Channels are written in blocks of 8
-                                ]);
+                                if(newShape[0]*newShape[4] > wshape[3] &&
+                                    i+1 == newShape[0] &&   // Last line
+                                    z >= 8 - (padding[3] % 8)
+                                    ){
+                                    // Pad Zeros
+                                    new_data.push_back(0);
+                                }else{
+                                    new_data.push_back(data[
+                                        x*o_fw*o_iC*o_oC +  // Kernel Height is largest Dim in original matrix.
+                                        y*o_iC*o_oC +       // Followed by Width
+                                        j*o_oC +            // then Input Channels
+                                        i*8 + z             // Output Channels are written in blocks of 8
+                                    ]);
+                                }
                             }
                         }
                     }
@@ -198,8 +248,22 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 mv::OpType(mv::OpType::Constant).toString() + "_" + std::to_string(om.opsCount(mv::OpType::Constant)) + "MxWeights"
             );
 
-            opIterator->setInputTensor(new_op, 1);
 
+            unsigned i = 0;
+            for(; i < sink->inputSlots(); ++i)
+                if(sink->getInputTensor(i) == flowIt->getTensor())
+                    break;
+
+            auto flowToEliminate = flowIt;
+            ++flowIt;
+
+            om.undefineFlow(flowToEliminate);
+            sink->erase(std::string("input") + std::to_string(i));
+            om.defineFlow(new_op, sink, i);
+            om.removeOp(source);
+
+        }else{
+            ++flowIt;
         }
     }
     std::cout << "exiting formatMXweights pass " << std::endl;
