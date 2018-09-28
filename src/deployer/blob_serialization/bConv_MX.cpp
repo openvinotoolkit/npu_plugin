@@ -223,7 +223,7 @@ namespace mv
             }
             else
             {
-                this->splits_over_H = it->get<unsigned>("NCE1_SplitsOverHeight");
+                this->splits_over_H = it->get<size_t>("NCE1_SplitsOverHeight");
             }
 
             if (! it->hasAttr("NCE1_SplitsOverInputChannels"))
@@ -232,7 +232,7 @@ namespace mv
             }
             else
             {
-                this->splits_over_iC = it->get<unsigned>("NCE1_SplitsOverInputChannels");
+                this->splits_over_iC = it->get<size_t>("NCE1_SplitsOverInputChannels");
             }
 
             int descriptors_count = this->splits_over_iC * this->splits_over_H;
@@ -258,7 +258,7 @@ namespace mv
             }
             else
             {
-                this->DPUmodeVector = it->get<std::vector<unsigned>>("NCE1_Modes");
+                this->DPUmodeVector = it->get<std::vector<size_t>>("NCE1_Modes");
             }
 
             if (! it->hasAttr("NCE1_InputLinesProcessed"))
@@ -273,7 +273,7 @@ namespace mv
             }
             else
             {
-                this->input_lines_processed = it->get<std::vector<unsigned>>("NCE1_InputLinesProcessed");
+                this->input_lines_processed = it->get<std::vector<size_t>>("NCE1_InputLinesProcessed");
             }
             if (! it->hasAttr("NCE1_OutputLinesProcessed"))
             {
@@ -287,7 +287,7 @@ namespace mv
             }
             else
             {
-                this->output_lines_processed = it->get<std::vector<unsigned>>("NCE1_StartOutputLine");
+                this->output_lines_processed = it->get<std::vector<size_t>>("NCE1_StartOutputLine");
             }
 
             if (! it->hasAttr("NCE1_StartOutputLine"))
@@ -302,7 +302,7 @@ namespace mv
             }
             else
             {
-                this->output_line_start = it->get<std::vector<unsigned>>("NCE1_StartOutputLine");
+                this->output_line_start = it->get<std::vector<size_t>>("NCE1_StartOutputLine");
             }
             if (! it->hasAttr("NCE1_StartInputLine"))
             {
@@ -316,7 +316,7 @@ namespace mv
             }
             else
             {
-                this->input_line_start = it->get<std::vector<unsigned>>("NCE1_StartInputLine");
+                this->input_line_start = it->get<std::vector<size_t>>("NCE1_StartInputLine");
             }
             this->concatOffset = 0; // Concat not supported currently
             this->unloadCMX = 0;
@@ -335,7 +335,7 @@ namespace mv
             this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
 
             std::vector<std::size_t> chPerRamBlock;
-            std::vector<unsigned> topJunk, bottomJunk;
+            std::vector<size_t> topJunk, bottomJunk;
             int localLS = 1;
             std::vector<std::size_t> localCS;
             std::vector<std::size_t> LPC;
@@ -371,7 +371,7 @@ namespace mv
             }
             else
             {
-                bottomJunk = it->get<std::vector<unsigned>>("NCE1_JunkOutputAfter");
+                bottomJunk = it->get<std::vector<size_t>>("NCE1_JunkOutputAfter");
             }
 
             if (! it->hasAttr("NCE1_JunkOutputBefore"))
@@ -386,7 +386,7 @@ namespace mv
             }
             else
             {
-                topJunk = it->get<std::vector<unsigned>>("NCE1_JunkOutputBefore");
+                topJunk = it->get<std::vector<size_t>>("NCE1_JunkOutputBefore");
             }
 
             if (! it->hasAttr("NCE1_LocalLineStride"))

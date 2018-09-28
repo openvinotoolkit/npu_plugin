@@ -25,14 +25,14 @@ namespace mv{
             std::string scale_name;
 
             // Hardware Fields
-            std::vector<unsigned> DPUmodeVector;
-            std::vector<unsigned> input_lines_processed;
-            std::vector<unsigned> output_lines_processed;
-            std::vector<unsigned> input_line_start;
-            std::vector<unsigned> output_line_start;
-            unsigned int splits_over_H;
-            unsigned int splits_over_iC;
-            unsigned inputChannelsPadded;
+            std::vector<size_t> DPUmodeVector;
+            std::vector<size_t> input_lines_processed;
+            std::vector<size_t> output_lines_processed;
+            std::vector<size_t> input_line_start;
+            std::vector<size_t> output_line_start;
+            size_t splits_over_H;
+            size_t splits_over_iC;
+            size_t inputChannelsPadded;
 
             uint32_t streamingMask;
             uint32_t concatOffset;

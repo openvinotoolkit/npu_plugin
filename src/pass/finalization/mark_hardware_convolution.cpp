@@ -247,7 +247,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 newTensor.getShape(),
                 newTensor.getDType(),
                 newTensor.getOrder(),
-                mv::OpType(mv::OpType::Constant).toString() + "_" + std::to_string(om.opsCount(mv::OpType::Constant)) + "MxWeights"
+                source->getName() + "_MxWeights"
             );
 
             new_op->set<bool>("NCE1_WeightTransformed", true);
