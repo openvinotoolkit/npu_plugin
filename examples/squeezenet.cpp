@@ -22,7 +22,7 @@
 #include "include/mcm/utils/data_generator.hpp"
 
 /**
- * @brief Helper function creates a simple conv2D+In place relu block block
+ * @brief Helper function creates a simple conv2D+In place relu block block - 4D kernel version
  * 
  * @param model Master compositional model
  * @param input Tensor that is an input data for the conv2D
@@ -40,7 +40,7 @@ mv::Data::TensorIterator convReluBlock(mv::CompositionalModel& model, mv::Data::
 }
 
 /**
- * @brief Helper function creates a simple conv2D+In place relu block block
+ * @brief Helper function that creates a simple conv2D+In place relu block block - 2D kernel version
  *
  * @param model Master compositional model
  * @param input Tensor that is an input data for the conv2D
@@ -51,7 +51,7 @@ mv::Data::TensorIterator convReluBlock(mv::CompositionalModel& model, mv::Data::
  */
 mv::Data::TensorIterator convReluBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, unsigned output_channels)
 {
-    //Shape for weights is (kernel_height, kernel_width, number of input channel, number of output channels)
+    //4D Shape for weights is (kernel_height, kernel_width, number of input channel, number of output channels)
     mv::Shape actual_kernel_shape({kernelShape[0], kernelShape[1], input->getShape()[2], output_channels});
     return convReluBlock(model, input, actual_kernel_shape, stride, padding);
 }
@@ -66,7 +66,7 @@ mv::Data::TensorIterator convReluBlock(mv::CompositionalModel& model, mv::Data::
  * @param padding Padding of conv2D
  * @return mv::Data::TensorIterator Iterator referencing the created conv2D output
  */
-mv::Data::TensorIterator squeezeNetBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned output_channel_squeeze1x1, unsigned output_channel_expand1x1)
+mv::Data::TensorIterator fireBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned output_channel_squeeze1x1, unsigned output_channel_expand1x1)
 {
     mv::Shape squeeze1x1_kernel_shape({1, 1});
     std::array<unsigned short, 2> squeeze1x1_stride = {1, 1};
@@ -113,29 +113,29 @@ int main()
     auto pool1 = cm.maxpool2D(block1, {3, 3}, {2, 2}, {0,0,0,0});
 
     //Two squeezeblocks
-    auto block2 = squeezeNetBlock(cm, pool1, 16, 64);
-    auto block3 = squeezeNetBlock(cm, block2, 16, 64);
+    auto fire2 = fireBlock(cm, pool1, 16, 64);
+    auto fire3 = fireBlock(cm, fire2, 16, 64);
 
     //One pooling
-    auto pool3 = cm.maxpool2D(block3, {3, 3}, {2, 2}, {0,0,0,0});
+    auto pool3 = cm.maxpool2D(fire3, {3, 3}, {2, 2}, {0,0,0,0});
 
     //Two squeezeblocks
-    auto block4 = squeezeNetBlock(cm, pool3, 32, 128);
-    auto block5 = squeezeNetBlock(cm, block4, 32, 128);
+    auto fire4 = fireBlock(cm, pool3, 32, 128);
+    auto fire5 = fireBlock(cm, fire4, 32, 128);
 
     //One pooling
-    auto pool5 = cm.maxpool2D(block5, {3, 3}, {2, 2}, {0,0,0,0});
+    auto pool5 = cm.maxpool2D(fire5, {3, 3}, {2, 2}, {0,0,0,0});
 
     //Four squeezeblocks
-    auto block6 = squeezeNetBlock(cm, pool5, 48, 192);
-    auto block7 = squeezeNetBlock(cm, block6, 48, 192);
-    auto block8 = squeezeNetBlock(cm, block7, 64, 256);
-    auto block9 = squeezeNetBlock(cm, block8, 64, 256);
+    auto fire6 = fireBlock(cm, pool5, 48, 192);
+    auto fire7 = fireBlock(cm, fire6, 48, 192);
+    auto fire8 = fireBlock(cm, fire7, 64, 256);
+    auto fire9 = fireBlock(cm, fire8, 64, 256);
 
     //Final convolution
-    auto conv10 = convReluBlock(cm, block9, {1,1}, {1,1}, {0,0,0,0}, 1000);
+    auto conv10 = convReluBlock(cm, fire9, {1,1}, {1,1}, {0,0,0,0}, 1000);
     //Final pooling
-    auto pool10 = cm.avgpool2D(conv10, {conv10->getShape()[0], conv10->getShape()[1]}, {1, 1}, {0,0,0,0}); //Global pooling?
+    auto pool10 = cm.avgpool2D(conv10, {conv10->getShape()[0], conv10->getShape()[1]}, {1, 1}, {0,0,0,0}); //Global pooling
     //Softmax
     auto prob = cm.softmax(pool10);
 
