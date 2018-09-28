@@ -1,53 +1,6 @@
 #include "gtest/gtest.h"
 #include "mcm/algorithms/dijkstra.hpp"
 #include "mcm/computation/resource/nce1.hpp"
-#include "tests/include/MCMtest.hpp"
-
-
-/*disabling test until mvNCCompile is working on master*/
-TEST (nce1, DISABLED_HWconv_op_parameters)
-{
-
-   int no_index_lo = 72 ;
-   int no_index_hi = 72 ;
-
-   for( int no_index = no_index_lo; no_index <= no_index_hi; no_index = no_index + 1 )
-   {
-       MCMtest test("HWConv2D") ;
-
-
-       test.addParam("input_tensor_shape","ih","224");
-       test.addParam("input_tensor_shape","iw","224");
-       test.addParam("input_tensor_shape","ic","3");
-       test.addParam("input_tensor_shape","ib","1");
-       test.addParam("convolution_operation","kh","3");
-       test.addParam("convolution_operation","kw","3");
-       test.addParam("convolution_operation","kf","3");
-       test.addParam("convolution_operation","ph","0");
-       test.addParam("convolution_operation","pw","0");
-       test.addParam("convolution_operation","sh","2");
-       test.addParam("convolution_operation","sw","2");
-       test.addParam("convolution_operation","no", std::to_string(no_index));
-       test.addParam("convolution_operation","wf","xavier");
-       test.addParam("convolution_operation","ws","0.1");
-       test.addParam("convolution_operation","bt","constant");
-       test.addParam("convolution_operation","bv","2");
-
-       test.generatePrototxt();
-
-       std::string command1 = "$MDK_HOME/projects/Fathom/src2/mvNCCompile.py ./test.prototxt --new-parser --cpp";
-       EXPECT_EQ (0, system(command1.c_str())) << "ERROR: non 0 return from compile";
-
-       std::string command2 = "$MCM_HOME/python/tools/mcmCheck.sh -b ./cpp.blob -e ./Fathom_expected.npy -i ./test.png";
-       EXPECT_EQ (0, system(command2.c_str())) << "ERROR: non 0 return from mcmCheck";
-
-       test.saveResult();
-
-    }
-}
-
-
-
 
 
 //Same tests present in SOH.py
@@ -300,6 +253,108 @@ TEST (nce1, split_over_h_2)
     std::cout << "Finished!" << std::endl;
 
 }
+
+//1x1p0s1
+TEST (nce1, split_over_h_3)
+{
+    mv::Nce1 nce;
+    mv::ConvolutionParameters param;
+
+    param.input_height = 224;
+    param.input_width = 224;
+    param.kernel_x = 1;
+    param.kernel_y = 1;
+    param.stride_x = 1;
+    param.stride_y = 1;
+    param.pad_x_down = 0;
+    param.pad_x_up = 0;
+    param.pad_y_left = 0;
+    param.pad_y_right = 0;
+    param.output_width = 224;
+    param.output_height = 224;
+    param.input_channels = 3;
+    param.output_channels = 64;
+
+    unsigned max_output_lines = 9;
+
+    std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
+
+    for(int i = 0; i < result.size(); ++i)
+    {
+        std::cout << i << " - " << result[i] << std::endl;
+    }
+
+    std::cout << "Finished!" << std::endl;
+
+}
+
+//3x3p0s1
+TEST (nce1, split_over_h_4)
+{
+    mv::Nce1 nce;
+    mv::ConvolutionParameters param;
+
+    param.input_height = 224;
+    param.input_width = 224;
+    param.kernel_x = 3;
+    param.kernel_y = 3;
+    param.stride_x = 1;
+    param.stride_y = 1;
+    param.pad_x_down = 0;
+    param.pad_x_up = 0;
+    param.pad_y_left = 0;
+    param.pad_y_right = 0;
+    param.output_width = 222;
+    param.output_height = 222;
+    param.input_channels = 3;
+    param.output_channels = 64;
+
+    unsigned max_output_lines = 9;
+
+    std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
+
+    for(int i = 0; i < result.size(); ++i)
+    {
+        std::cout << i << " - " << result[i] << std::endl;
+    }
+
+    std::cout << "Finished!" << std::endl;
+}
+
+//3x3p1s1
+TEST (nce1, split_over_h_5)
+{
+    mv::Nce1 nce;
+    mv::ConvolutionParameters param;
+
+    param.input_height = 224;
+    param.input_width = 224;
+    param.kernel_x = 3;
+    param.kernel_y = 3;
+    param.stride_x = 1;
+    param.stride_y = 1;
+    param.pad_x_down = 1;
+    param.pad_x_up = 1;
+    param.pad_y_left = 1;
+    param.pad_y_right = 1;
+    param.output_width = 224;
+    param.output_height = 224;
+    param.input_channels = 3;
+    param.output_channels = 64;
+
+    unsigned max_output_lines = 9;
+
+    std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
+
+    for(int i = 0; i < result.size(); ++i)
+    {
+        std::cout << i << " - " << result[i] << std::endl;
+    }
+
+    std::cout << "Finished!" << std::endl;
+
+}
+
 
 //This is a simple test case, no splits are involved, 1 step to solve it.
 TEST (nce1, mode_selection_resnet_first_conv)
