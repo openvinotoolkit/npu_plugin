@@ -37,14 +37,14 @@ namespace mv
 
         friend std::ostream& operator<<(std::ostream& os, const SplitOverHSolution sol)
         {
-            os << "Input lines processed " << sol.input_lines_processed << std::endl;
-            os << "Output lines processed " << sol.output_lines_processed << std::endl;
-            os << "Junk output lines before " << sol.junk_output_before << std::endl;
-            os << "Junk output lines after " << sol.junk_output_after << std::endl;
-            os << "Start input line " << sol.start_input_line << std::endl;
-            os << "End input line " << sol.end_input_line << std::endl;
-            os << "Start output line " << sol.start_output_line << std::endl;
-            os << "End output line " << sol.end_output_line << std::endl;
+            os << "(" << sol.input_lines_processed << ", "
+                         << sol.output_lines_processed << ", "
+                         << sol.junk_output_before << ", "
+                         << sol.junk_output_after << ", "
+                         << sol.start_input_line << ", "
+                         << sol.end_input_line << ", "
+                         << sol.start_output_line << ", "
+                         << sol.end_output_line << ")";
             return os;
         }
     };

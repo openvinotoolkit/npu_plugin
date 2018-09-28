@@ -301,6 +301,108 @@ TEST (nce1, split_over_h_2)
 
 }
 
+//1x1p0s1
+TEST (nce1, split_over_h_3)
+{
+    mv::Nce1 nce;
+    mv::ConvolutionParameters param;
+
+    param.input_height = 224;
+    param.input_width = 224;
+    param.kernel_x = 1;
+    param.kernel_y = 1;
+    param.stride_x = 1;
+    param.stride_y = 1;
+    param.pad_x_down = 0;
+    param.pad_x_up = 0;
+    param.pad_y_left = 0;
+    param.pad_y_right = 0;
+    param.output_width = 224;
+    param.output_height = 224;
+    param.input_channels = 3;
+    param.output_channels = 64;
+
+    unsigned max_output_lines = 9;
+
+    std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
+
+    for(int i = 0; i < result.size(); ++i)
+    {
+        std::cout << i << " - " << result[i] << std::endl;
+    }
+
+    std::cout << "Finished!" << std::endl;
+
+}
+
+//3x3p0s1
+TEST (nce1, split_over_h_4)
+{
+    mv::Nce1 nce;
+    mv::ConvolutionParameters param;
+
+    param.input_height = 224;
+    param.input_width = 224;
+    param.kernel_x = 3;
+    param.kernel_y = 3;
+    param.stride_x = 1;
+    param.stride_y = 1;
+    param.pad_x_down = 0;
+    param.pad_x_up = 0;
+    param.pad_y_left = 0;
+    param.pad_y_right = 0;
+    param.output_width = 222;
+    param.output_height = 222;
+    param.input_channels = 3;
+    param.output_channels = 64;
+
+    unsigned max_output_lines = 9;
+
+    std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
+
+    for(int i = 0; i < result.size(); ++i)
+    {
+        std::cout << i << " - " << result[i] << std::endl;
+    }
+
+    std::cout << "Finished!" << std::endl;
+}
+
+//3x3p1s1
+TEST (nce1, split_over_h_5)
+{
+    mv::Nce1 nce;
+    mv::ConvolutionParameters param;
+
+    param.input_height = 224;
+    param.input_width = 224;
+    param.kernel_x = 3;
+    param.kernel_y = 3;
+    param.stride_x = 1;
+    param.stride_y = 1;
+    param.pad_x_down = 1;
+    param.pad_x_up = 1;
+    param.pad_y_left = 1;
+    param.pad_y_right = 1;
+    param.output_width = 224;
+    param.output_height = 224;
+    param.input_channels = 3;
+    param.output_channels = 64;
+
+    unsigned max_output_lines = 9;
+
+    std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
+
+    for(int i = 0; i < result.size(); ++i)
+    {
+        std::cout << i << " - " << result[i] << std::endl;
+    }
+
+    std::cout << "Finished!" << std::endl;
+
+}
+
+
 //This is a simple test case, no splits are involved, 1 step to solve it.
 TEST (nce1, mode_selection_resnet_first_conv)
 {
