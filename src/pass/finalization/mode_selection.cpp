@@ -128,6 +128,7 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     convIterator->set<std::vector<std::size_t>>("NCE1_LinesPerChannel", lines_per_channel);
     convIterator->set<std::vector<std::size_t>>("NCE1_LocalChannelStride", local_channel_stride);
     convIterator->set<std::vector<std::size_t>>("NCE1_MinLines", min_lines);
+    convIterator->set<std::size_t>("NCE1_InputChannelsPadded", splitted_input_channels);
 }
 
 void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)

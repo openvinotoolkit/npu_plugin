@@ -468,7 +468,7 @@ namespace mv
             }
             else
             {
-                this->inputChannelsPadded = it->get<unsigned>("NCE1_InputChannelsPadded");
+                this->inputChannelsPadded = it->get<std::size_t>("NCE1_InputChannelsPadded");
             }
 
 
