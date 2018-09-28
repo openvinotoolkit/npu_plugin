@@ -159,14 +159,20 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         auto source = flowIt.source();
         auto sink = flowIt.sink();
 
+
+
         bool valid = false;
-        if(source->hasAttr("NCE1_Compatible"))
+        if(sink->hasAttr("NCE1_Compatible"))
         {
-            valid = source->get<int>("NCE1_Compatible");
+            valid = sink->get<int>("NCE1_Compatible");
         }
         if(source->getOpType() == mv::OpType::Constant && sink->getOpType() == mv::OpType::Conv2D && valid)
         {
             auto weights = sink->getInputTensor(1);
+            if(weights->hasAttr("NCE1_WeightTransformed") && weights->get<bool>("NCE1_WeightTransformed") == true){
+                ++flowIt;
+                continue;
+            }
             auto wshape = weights->getShape();
 
             auto padding = weights->get<std::vector<size_t>>("NCE1_Paddings");
@@ -183,13 +189,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             mv::Shape padShape = mv::Shape({pad_oCalpha, pad_iC, wshape[1], wshape[0], 8});
             mv::Shape newShape = mv::Shape({oCalpha, iC, wshape[1], wshape[0], 8});
 
-            weights->set<std::vector<size_t>>("NCE1_Paddings",
-                {pad_oCalpha - oCalpha,
-                 pad_iC - iC,
-                 0,
-                 0,
-                 0
-                });
+
             std::cout << "Set stride of weights: " << mv::Shape({pad_oCalpha - oCalpha,
                  pad_iC - iC,
                  0,
@@ -206,7 +206,9 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             mv::Tensor newTensor = mv::Tensor("MX_Weights",
                                                 newShape,
                                                 weights->getDType(),
-                                                weights->getOrder());
+                                                mv::OrderType::ColumnMajor);
+                                                // weights->getOrder());
+
 
             std::vector<double> new_data;
             auto data = weights->getData();
@@ -238,7 +240,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 }
             }
 
-            newTensor.populate(new_data, weights->getOrder());
+            newTensor.populate(new_data, newTensor.getOrder());
 
             auto new_op = om.constant(
                 newTensor.getData(),
@@ -248,6 +250,14 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
                 mv::OpType(mv::OpType::Constant).toString() + "_" + std::to_string(om.opsCount(mv::OpType::Constant)) + "MxWeights"
             );
 
+            new_op->set<bool>("NCE1_WeightTransformed", true);
+            new_op->set<std::vector<size_t>>("NCE1_Paddings",
+                {pad_oCalpha - oCalpha,
+                 pad_iC - iC,
+                 0,
+                 0,
+                 0
+                });
 
             unsigned i = 0;
             for(; i < sink->inputSlots(); ++i)

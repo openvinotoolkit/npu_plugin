@@ -52,8 +52,11 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         //2) SW -p-> HW (Target order is planar). In this case SW -> CONVERSION -p-> HW.
 
         //Reasonable assumption: this pass is executed after the hw marking pass.
-        if(!source->hasAttr("NCE1_Compatible") || !sink->hasAttr("NCE1_Compatible"))
+        if(!source->hasAttr("NCE1_Compatible") || !sink->hasAttr("NCE1_Compatible")){
+            ++flowIt;
             continue;
+
+        }
         int sourceIsHw = source->get<int>("NCE1_Compatible");
         int sourceIsSw = !sourceIsHw;
         int sinkIsHw = sink->get<int>("NCE1_Compatible");

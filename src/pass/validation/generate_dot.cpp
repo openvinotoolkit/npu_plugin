@@ -54,21 +54,21 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
 
     if (outputScope != "DataModel")
     {
-        
+
         OpModel opModel(model);
 
         for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
         {
-            
-            if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output))
+            if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output
+                || opIt->getOpType() == OpType::Constant))
             {
-                std::string nodeDef = "\t\"" + opIt->getName() + "\" [shape=box,"; 
-                
+                std::string nodeDef = "\t\"" + opIt->getName() + "\" [shape=box,";
+
                 if (htmlLike)
                 {
                     nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + opIt->getName() + "</B></FONT></TD></TR>";
                     if (contentLevel == "full")
-                    {   
+                    {
                         std::vector<std::string> attrKeys(opIt->attrsKeys());
                         for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                             nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + opIt->get(*attrIt).toString() + "</FONT></TD></TR>";
@@ -83,14 +83,14 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                 {
                     nodeDef += " label=\"" + opIt->getName() + "\\n";
                     if (contentLevel == "full")
-                    {   
+                    {
                         std::vector<std::string> attrKeys(opIt->attrsKeys());
                         for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                             nodeDef += *attrIt + ": " + opIt->get(*attrIt).toString() + "\\n";
                     }
                     nodeDef += "\"";
                 }
-                
+
                 ostream << nodeDef << "];\n";
 
             }
@@ -99,12 +99,13 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
 
         if (outputScope == "OpModel" || outputScope == "ExecOpModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
-            
+
             DataModel dataModel(model);
 
             for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
             {
-                if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output))
+                if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output
+                || opIt->getOpType() == OpType::Constant))
                 {
                     for (auto dataIt = opIt.leftmostOutput(); dataIt != dataModel.flowEnd(); ++dataIt)
                     {
@@ -114,7 +115,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                         {
                             edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + dataIt->getTensor()->getName() + "</B></FONT></TD></TR>";
                             if (contentLevel == "full")
-                            {   
+                            {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                                     edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + dataIt->getTensor()->get(*attrIt).toString() + "</FONT></TD></TR>";
@@ -129,7 +130,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                         {
                             edgeDef += " [label=\"" + dataIt->getTensor()->getName() + "\\n";
                             if (contentLevel == "full")
-                            {   
+                            {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                                     edgeDef += *attrIt + ": " + dataIt->getTensor()->get(*attrIt).toString() + "\\n";
@@ -166,7 +167,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
             }
 
         }
-    
+
     }
     else
     {
@@ -176,13 +177,13 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
         for (auto tIt = dataModel.tensorBegin(); tIt != dataModel.tensorEnd(); ++tIt)
         {
 
-            std::string nodeDef = "\t\"" + tIt->getName() + "\" [shape=box,"; 
-                
+            std::string nodeDef = "\t\"" + tIt->getName() + "\" [shape=box,";
+
             if (htmlLike)
             {
                 nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + tIt->getName() + "</B></FONT></TD></TR>";
                 if (contentLevel == "full")
-                {   
+                {
                     std::vector<std::string> attrKeys(tIt->attrsKeys());
                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                         nodeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + tIt->get(*attrIt).toString() + "</FONT></TD></TR>";
@@ -197,16 +198,16 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
             {
                 nodeDef += " label=\"" + tIt->getName() + "\\n";
                 if (contentLevel == "full")
-                {   
+                {
                     std::vector<std::string> attrKeys(tIt->attrsKeys());
                     for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                         nodeDef += *attrIt + ": " + tIt->get(*attrIt).toString() + "\\n";
                 }
                 nodeDef += "\"";
             }
-            
+
             ostream << nodeDef << "];\n";
-        
+
         }
 
         for (auto flowIt = dataModel.flowBegin(); flowIt != dataModel.flowEnd(); ++flowIt)
@@ -220,7 +221,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                 {
                     edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + flowIt.sink()->getName() + "</B></FONT></TD></TR>";
                     if (contentLevel == "full")
-                    {   
+                    {
                         std::vector<std::string> attrKeys(flowIt.sink()->attrsKeys());
                         for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                             edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + flowIt.sink()->get(*attrIt).toString() + "</FONT></TD></TR>";
@@ -236,7 +237,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                 {
                     edgeDef += " [label=\"" + flowIt.sink()->getName() + "\\n";
                     if (contentLevel == "full")
-                    {   
+                    {
                         std::vector<std::string> attrKeys(flowIt.sink()->attrsKeys());
                         for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                             edgeDef += *attrIt + ": " + flowIt.sink()->get(*attrIt).toString() + "\\n";
