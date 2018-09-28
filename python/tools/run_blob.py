@@ -62,6 +62,9 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     debug = True
     hw = False
 
+    np.random.seed(19)
+
+
     f = open(blob_path, 'rb')
     blob_file = f.read()
     if device is None:
@@ -82,11 +85,12 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     #net.inputTensor = net.inputTensor.astype(dtype=np.float16)
     #input_image = net.inputTensor
 
+    image_path = "Debug"
+
     if ".npy" in image_path:
         print("NUMPY")
         input_image = np.load("test.npy")
         input_data_layout = StorageOrder.orderZYX
-
 
     elif image_path is None or image_path == "Debug":
         input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.float16)
@@ -122,22 +126,21 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
 
     if GLOBALS.INPUT_IN_INTERLEAVED:
         # Convert to planar, pad, and then convert back to interleaved.
-            s = input_image.shape
+        s = input_image.shape
 
-            # We reshape to the original dimensions to avoid errors
-            # in different parts of the code.
-            if len(s) == 4:
-                # Recover interleaved shape and convert to planar
-                si = (s[0], s[2], s[1], s[3])
-                if si[2] == 3:
-                    input_image = input_image.reshape(si).transpose(0, 2, 1, 3)
+        # We reshape to the original dimensions to avoid errors
+        # in different parts of the code.
+        if len(s) == 4:
+            # Recover interleaved shape and convert to planar
+            si = (s[0], s[2], s[1], s[3])
+            if si[2] == 3:
+                input_image = input_image.reshape(si).transpose(0, 2, 1, 3)
 
-            if len(s) == 3:
-                # Recover interleaved shape and convert to planar
-                si = (s[1], s[0], s[2])
-                if si[1] == 3:
-                    input_image = input_image.reshape(si).transpose(1, 0, 2)
-
+        if len(s) == 3:
+            # Recover interleaved shape and convert to planar
+            si = (s[1], s[0], s[2])
+            if si[1] == 3:
+                input_image = input_image.reshape(si).transpose(1, 0, 2)
 
     if input_image.shape[1] == 3:
         padded_slice = np.zeros((input_image.shape[0],
@@ -201,6 +204,8 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     descOut = graph.get_option(mvncapi.GraphOption.RO_OUTPUT_TENSOR_DESCRIPTORS)
     fifoIn.allocate(device, descIn[0], 2)
     fifoOut.allocate(device, descOut[0], 2)
+
+    input_image.fill(1)
 
     for y in range(arguments.stress_full_run):
         if arguments.timer:

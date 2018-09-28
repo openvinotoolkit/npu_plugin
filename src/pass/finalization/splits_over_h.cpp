@@ -46,6 +46,31 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::OpListIterator convIterator)
 {
     unsigned max_lines = computeMaxLines(nce, convIterator);
+    mv::SplitOverHSolution a;
+    // a.input_lines_processed = 112; //224;
+    // a.output_lines_processed = 112; //224;
+    a.input_lines_processed = 224;
+    a.output_lines_processed = 112;
+    a.junk_output_before = 0;
+    a.junk_output_after =0;
+    a.start_input_line = 0;
+    a.end_input_line = a.input_lines_processed;
+    a.start_output_line = 0;
+    a.end_output_line = a.output_lines_processed;
+
+    // mv::SplitOverHSolution b;
+    // b.input_lines_processed = 112;
+    // b.output_lines_processed = 112;
+    // b.junk_output_before = 0;
+    // b.junk_output_after = 0;
+    // b.start_input_line = a.input_lines_processed;
+    // b.end_input_line = a.input_lines_processed + b.input_lines_processed;
+    // b.start_output_line = a.output_lines_processed;
+    // b.end_output_line = a.output_lines_processed + b.output_lines_processed;
+
+    // // std::vector<mv::SplitOverHSolution> g = {a, b};
+    std::vector<mv::SplitOverHSolution> g = {a};
+    return g;
     return computeSplitsOverH(nce, convIterator, max_lines);
 }
 

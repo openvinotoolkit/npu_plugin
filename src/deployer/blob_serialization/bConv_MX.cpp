@@ -57,6 +57,8 @@ namespace mv
 
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
+            std::cout << "Warning: forced Input Layout" << std::endl;
+            this->output->setOrder(OrderType::RowMajorPlanar);
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
             Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
@@ -99,7 +101,7 @@ namespace mv
 
 
                         this->descriptors[i].coeffChStrIn = weight_4dshape[2]*weight_4dshape[3]*weight_4dshape[4]*2;
-                        int inChans = weight_4dshape[1];
+                        int inChans = this->inputChannelsPadded;
 
                         this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
@@ -452,6 +454,16 @@ namespace mv
             {
                 localCS = it->get<std::vector<std::size_t>>("NCE1_LocalChannelStride");
             }
+            if (! it->hasAttr("NCE1_InputChannelsPadded"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsPadded'. Defaulting to 1\n");
+
+                this->inputChannelsPadded = 1;
+            }
+            else
+            {
+                this->inputChannelsPadded = it->get<unsigned>("NCE1_InputChannelsPadded");
+            }
 
 
             unsigned i;
@@ -606,7 +618,6 @@ namespace mv
 
 
             //printf("Serializer Info: Manual Override of Convolution Software layer order\n");
-            //this->output->setOrder(OrderType::RowMajor);
             //this->input->setOrder(OrderType::RowMajor);
             //this->taps->setOrder(Order::TBDLayout);
             //this->taps->setOrder(OrderType::RowMajor);
