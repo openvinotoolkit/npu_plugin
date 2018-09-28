@@ -242,24 +242,24 @@ namespace mv
 
         for (Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
         {
-            totalSize += bit->getSize();
+            totalSize += bit->getSize() ;
             totalSize += bit->getPostAlign();
         }
 
         blob_stats.buffer_data_size = totalSize;
 
-        blob_stats.relocation_section_size = 
+        blob_stats.relocation_section_size =
             20 +
-            8 * blob_stats.data_buffer_count + 
+            8 * blob_stats.data_buffer_count +
             16 * (blob_stats.stage_count - 2) +
-            (8 * blob_stats.elt_count) + 
+            (8 * blob_stats.elt_count) +
             additional_buf * 8;
 
         blob_stats.blob_file_size =
             headers_data_size +
-            blob_stats.header_pad_size + 
+            blob_stats.header_pad_size +
             blob_stats.stage_section_size +
-            blob_stats.buffer_header_size + 
+            blob_stats.buffer_header_size +
             blob_stats.buffer_data_size +
             blob_stats.relocation_section_size;
     }
@@ -566,7 +566,7 @@ namespace mv
                         Data::BufferIterator mem;
                         mv::Control::StageIterator stg = cm.getStage(0);
                         int finalstage = 0;
-                    
+
                         auto t = it->getOutputTensor(0);
                         mem = dm.getBuffer("IntermediateMemory", stg, t);
                         if (mem == dm.bufferEnd("IntermediateMemory", stg))
@@ -635,13 +635,13 @@ namespace mv
 
                         auto t = it->getOutputTensor(0);
                         mem = dm.getBuffer("IntermediateMemory", stg, t);
-                        
+
                         if (mem == dm.bufferEnd("IntermediateMemory", stg))
                         {
                             conv_pool_stage.next = 0;
                             finalstage = 1;
                         }
-    
+
                         if (!finalstage){
                             conv_pool_stage.next = next_offset;
                         }
@@ -856,7 +856,7 @@ namespace mv
                             conv_pool_stage.next = 0;
                         else
                             conv_pool_stage.next = next_offset ;
-                    
+
                         AddBytes(4, conv_pool_stage.next);
                         AddBytes(4, get_blob_enum(ltype));                                // 0x60
                         AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
@@ -904,13 +904,49 @@ namespace mv
 
         for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
         {
-            
+
+            std::cout << "Tensor: " << bit->toString() << std::endl;
+            bool tight = true;
+            for ( auto s : bit->getStrides() )
+                if (s != 0)
+                    tight = false;
+
+
             // Push tensor's data
-            for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
-            {
-                u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
-                AddBytes(2, fp16_val);
+            if (tight)
+                for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
+                {
+                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                    AddBytes(2, fp16_val);
+                }
+            else{
+                u_int16_t fp16_val;
+                for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
+                {
+                    // TODO: lhs stride
+                    for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
+                    {
+                        std::cout << "x" ;
+                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                        AddBytes(2, fp16_val);
+                    }
+                    for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
+                    {
+                        std::cout << "o" ;
+                        u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
+                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                        AddBytes(2, fp16_val);
+                    }
+                    std::cout << std::endl;
+                }
+                for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
+                {
+                    fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                    AddBytes(2, fp16_val);
+                }
             }
+
+
 
             // Push alignment
             for (std::size_t i = 0; i < bit->getPostAlign(); ++i)

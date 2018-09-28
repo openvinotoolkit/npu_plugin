@@ -58,8 +58,9 @@ namespace mv
 
             std::cout << "in" << std::endl;
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-            std::cout << "Warning: forced Input Layout" << std::endl;
+            std::cout << "Warning: forced Output, Taps Layout" << std::endl;
             this->output->setOrder(OrderType::RowMajorPlanar);
+            // this->taps->setOrder(OrderType::RowMajorPlanar);
             std::cout << "out" << std::endl;
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             std::cout << "taps" << std::endl;

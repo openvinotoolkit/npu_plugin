@@ -62,8 +62,6 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
 
                 std::vector<std::size_t> rhs_paddings = tIt->get<std::vector<std::size_t>>("NCE1_Paddings");
 
-                // dm.padRight("ConstantMemory", buf, paddings);
-                std::vector<std::size_t> empty_padding(tIt->getShape().ndims());
 
                 mv::Shape original_shape = tIt->getShape();
                 std::vector<std::size_t> original_shape_v = original_shape;
@@ -71,22 +69,8 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
                 for(int i =0; i< original_shape_v.size();i++)
                     padded_shape_v[i] += original_shape_v[i] + rhs_paddings[i];
 
-                for(auto v : rhs_paddings)
-                    std::cout << "rhs: " << v << std::endl;
-
-                std::cout << "SHAPE: " << tIt->getShape().toString() << std::endl;
-
-
-                mv::Shape padded_shape = mv::Shape(padded_shape_v);
-
-                std::vector<double> zeros = std::vector<double>(padded_shape.totalSize());
-                std::cout << "Allocate Container" << std::endl;
-                auto master_tensor = dm.defineTensor("ConstantMemory", padded_shape, tIt->getDType(), tIt->getOrder(), zeros);
-                auto master_container = dm.allocateTensor("ConstantMemory", stageIt, master_tensor);
-
-                std::cout << "Allocate tIt" << std::endl;
-                auto buf = dm.allocateTensor("ConstantMemory", master_container, tIt, empty_padding, rhs_paddings);
-                // auto a = dm.allocateTensor("ConstantMemory", NULL, tIt, empty_padding, rhs_padding);
+                auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
+                dm.padRight("ConstantMemory",  buf, rhs_paddings);
 
             }else{
                 auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
@@ -99,6 +83,8 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
     std::cout << "Exiting allocate unpopulated" << std::endl;
 
 }
+
+
 
 void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
