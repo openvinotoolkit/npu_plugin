@@ -33,7 +33,7 @@ unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator convIt)
         return input_tensor_shape[1];
 
     //Assuming split over H is always possible from this point on
-    unsigned max_output_channels_performed = convIt->get("NCE1_MaxOutputChannelsPerformed").get<unsigned>();
+    unsigned max_output_channels_performed = (unsigned)convIt->get("NCE1_MaxOutputChannelsPerformed").get<std::size_t>();
     return nce.computeMaxOutputLines(input_tensor_shape[0], max_output_channels_performed);
 }
 
@@ -99,24 +99,24 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         for(unsigned i = 0; i < splits_over_height; ++i)
             std::cout << splits[i] << std::endl;
         */
-        om.addAttr(operationIt, "NCE1_SplitsOverHeight", mv::Attribute(splits_over_height));
+        operationIt->set<std::size_t>("NCE1_SplitsOverHeight", (std::size_t)splits_over_height);
 
         // Compute DescriptorsSplits
-        unsigned splits_over_input_channels = operationIt->get("NCE1_SplitsOverInputChannels").get<unsigned>();
-        std::vector<unsigned> modes = operationIt->get("NCE1_Modes").get<std::vector<unsigned>>();
+        size_t splits_over_input_channels = operationIt->get<size_t>("NCE1_SplitsOverInputChannels");
+        std::vector<size_t> modes = operationIt->get("NCE1_Modes").get<std::vector<std::size_t>>();
 
         unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, modes.size());
-        om.addAttr(operationIt, "NCE1_DescriptorSplits", descriptor_splits);
+        operationIt->set<std::size_t>("NCE1_DescriptorSplits", (std::size_t)descriptor_splits);
 
-        std::vector<unsigned> input_lines_processed(splits_over_height);
-        std::vector<unsigned> output_lines_processed(splits_over_height);
-        std::vector<unsigned> junk_output_before(splits_over_height);
-        std::vector<unsigned> junk_output_after(splits_over_height);
+        std::vector<std::size_t> input_lines_processed(splits_over_height);
+        std::vector<std::size_t> output_lines_processed(splits_over_height);
+        std::vector<std::size_t> junk_output_before(splits_over_height);
+        std::vector<std::size_t> junk_output_after(splits_over_height);
 
-        std::vector<unsigned> start_input_line(splits_over_height);
-        std::vector<unsigned> end_input_line(splits_over_height);
-        std::vector<unsigned> start_output_line(splits_over_height);
-        std::vector<unsigned> end_output_line(splits_over_height);
+        std::vector<std::size_t> start_input_line(splits_over_height);
+        std::vector<std::size_t> end_input_line(splits_over_height);
+        std::vector<std::size_t> start_output_line(splits_over_height);
+        std::vector<std::size_t> end_output_line(splits_over_height);
 
 
         for(unsigned i = 0; i < splits_over_height; ++i)
@@ -132,15 +132,15 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
             end_output_line[i] = split.end_output_line;
         }
 
-        om.addAttr(operationIt, "NCE1_InputLinesProcessed", mv::Attribute(input_lines_processed));
-        om.addAttr(operationIt, "NCE1_OutputLinesProcessed", mv::Attribute(output_lines_processed));
-        om.addAttr(operationIt, "NCE1_JunkOutputBefore", junk_output_before);
-        om.addAttr(operationIt, "NCE1_JunkOutputAfter", junk_output_after);
+        operationIt->set<std::vector<std::size_t>>("NCE1_InputLinesProcessed", input_lines_processed);
+        operationIt->set<std::vector<std::size_t>>("NCE1_OutputLinesProcessed", output_lines_processed);
+        operationIt->set<std::vector<std::size_t>>("NCE1_JunkOutputBefore", junk_output_before);
+        operationIt->set<std::vector<std::size_t>>("NCE1_JunkOutputAfter", junk_output_after);
 
-        om.addAttr(operationIt, "NCE1_StartInputLine", mv::Attribute(start_input_line));
-        om.addAttr(operationIt, "NCE1_EndInputLine", mv::Attribute(end_input_line));
-        om.addAttr(operationIt, "NCE1_StartOutputLine", mv::Attribute(start_output_line));
-        om.addAttr(operationIt, "NCE1_EndOutputLine", mv::Attribute(end_output_line));
+        operationIt->set<std::vector<std::size_t>>("NCE1_StartInputLine", start_input_line);
+        operationIt->set<std::vector<std::size_t>>("NCE1_EndInputLine", end_input_line);
+        operationIt->set<std::vector<std::size_t>>("NCE1_StartOutputLine", start_output_line);
+        operationIt->set<std::vector<std::size_t>>("NCE1_EndOutputLine", end_output_line);
     }
 
 }

@@ -39,8 +39,8 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 
     // Take biggest mode, necessary for getting the actual input channels
     unsigned num_modes_to_use = modes_to_use.distances.size();
-    std::vector<unsigned> modes(num_modes_to_use);
-    std::vector<unsigned> output_channels_performed(num_modes_to_use);
+    std::vector<size_t> modes(num_modes_to_use);
+    std::vector<size_t> output_channels_performed(num_modes_to_use);
 
     unsigned max_mode = modes_to_use.distances[0].mode;
     unsigned max_output_channels_performed = modes_to_use.distances[0].performed_output_channels;
@@ -84,18 +84,18 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     // Check if any split over input channel is needed
     unsigned splits_over_input_channels = modes_to_use.distances[0].num_splits; //num_splits MUST be equal for every mode, see above assumption
     unsigned splitted_input_channels = input_channels / splits_over_input_channels;
-    om.addAttr(convIterator, "NCE1_SplitsOverInputChannels", splits_over_input_channels);
+    convIterator->set<std::size_t>("NCE1_SplitsOverInputChannels", (std::size_t)splits_over_input_channels);
 
     // Compute local line stride
     unsigned local_line_stride = nce.computeLocalLineStride(input_width);
-    om.addAttr(convIterator, "NCE1_LocalLineStride", (std::size_t)local_line_stride);
+    convIterator->set<std::size_t>("NCE1_LocalLineStride", (std::size_t)local_line_stride);
 
     // TODO: Streaming mask
     unsigned streaming_mask = 0; // For DDR streaming
-    om.addAttr(convIterator, "NCE1_StreamingMask", (std::size_t)streaming_mask);
+    convIterator->set<std::size_t>("NCE1_StreamingMask", (std::size_t)streaming_mask);
 
     // Max performed output channels
-    om.addAttr(convIterator, "NCE1_MaxOutputChannelsPerformed", mv::Attribute(max_output_channels_performed));
+    convIterator->set<std::size_t>("NCE1_MaxOutputChannelsPerformed", (std::size_t)max_output_channels_performed);
 
     // -------------------VECTOR ATTRIBUTES----------------
     std::vector<std::size_t> input_channels_per_ram_block(num_modes_to_use);
@@ -122,14 +122,12 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
         else
             min_lines[i] = std::min(kernel_height + 1, lines_per_channel[i]);
     }
-    om.addAttr(convIterator, "NCE1_Modes", mv::Attribute(modes));
-    om.addAttr(convIterator, "NCE1_OutputChannelsPerformed", mv::Attribute(output_channels_performed));
-    om.addAttr(convIterator, "NCE1_InputChannelsRamBlock", mv::Attribute(input_channels_per_ram_block));
-    om.addAttr(convIterator, "NCE1_LinesPerChannel", mv::Attribute(lines_per_channel));
-    om.addAttr(convIterator, "NCE1_LocalChannelStride", mv::Attribute(local_channel_stride));
-    om.addAttr(convIterator, "NCE1_MinLines", mv::Attribute(min_lines));
-    om.addAttr(convIterator, "NCE1_InputChannelsPadded", splitted_input_channels);
-
+    convIterator->set<std::vector<std::size_t>>("NCE1_Modes", modes);
+    convIterator->set<std::vector<std::size_t>>("NCE1_OutputChannelsPerformed", output_channels_performed);
+    convIterator->set<std::vector<std::size_t>>("NCE1_InputChannelsRamBlock", input_channels_per_ram_block);
+    convIterator->set<std::vector<std::size_t>>("NCE1_LinesPerChannel", lines_per_channel);
+    convIterator->set<std::vector<std::size_t>>("NCE1_LocalChannelStride", local_channel_stride);
+    convIterator->set<std::vector<std::size_t>>("NCE1_MinLines", min_lines);
 }
 
 void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
