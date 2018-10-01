@@ -47,7 +47,7 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == nullptr) 
+        if ( t == nullptr)
         {
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
@@ -138,6 +138,8 @@ namespace mv
                         break;
                     }
                 }
+                this->dimY = this->dimY + 1;
+
             }
             else
             {
@@ -207,7 +209,7 @@ namespace mv
                     blk_stride = -1;
 
                 this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
-            
+
             }
 
         }
@@ -292,7 +294,7 @@ namespace mv
 
         switch ( (*t)->getOrder() )
         {
-            case OrderType::RowMajor:
+            case OrderType::RowMajorPlanar:
                 // UPA Shave
                 this->order = 0;
                 // ROW MAJOR (CHANNEL MINOR)
@@ -301,23 +303,20 @@ namespace mv
                 this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 break;
-            case OrderType::RowMajorPlanar:
-                // NCE1 - Option 1
-                // ROW MAJOR PLANAR (PLANAR)
-                // I.E: Z, Y, X
-                this->order = 1;
+            case OrderType::RowMajor:
+                this->order = 2;
                 this->strideX = fp16_size;
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
             case OrderType::ColumnMajor:
-                // NCE1 - Option 2
-                // COLUMN MAJOR(INTERLEAVED)
-                // I.E: X, Z, Y
-                this->order = 2;
+                // NCE1 - Option 1
+                // COLUMN MAJOR(NCE1 Planar)
+                // I.E: X, Y, Z
+                this->order = 1;
                 this->strideX = fp16_size;
-                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
-                this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
+                this->strideY = (this->dimX + local_StrideX)*this->strideX;
+                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
             case OrderType::ColumnMajorPlanar:
                 this->order = 3;

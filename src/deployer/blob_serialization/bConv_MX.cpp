@@ -20,21 +20,27 @@ namespace mv
 
         if(this->bias_name != "")
         {
+            std::cout << "Has Bias" << std::endl;
             this->bias = dm.findTensor(this->bias_name);
             conv_bias = &this->bias;
+            conv_bias = NULL ;
         }
         else
         {
+            std::cout << "Has No Bias" << std::endl;
             conv_bias = NULL ;
         }
 
         if(this->scale_name != "")
         {
+            std::cout << "Has Bias" << std::endl;
             this->scale = dm.findTensor(this->scale_name);
             conv_scale = &this->scale;
+            conv_scale = NULL ;
         }
         else
         {
+            std::cout << "Has No Bias" << std::endl;
             conv_scale = NULL ;
         }
 
@@ -44,7 +50,10 @@ namespace mv
 
             // Hardware
             b->AddBytes(4, this->streamingMask);
-            b->AddBytes(4, this->input->getShape().totalSize()*fp16_size);
+            std::size_t total_size = this->input->getShape().totalSize();
+            total_size /= this->input->getShape()[2];
+            total_size *= this->inputChannelsPadded;
+            b->AddBytes(4, total_size*fp16_size);
             b->AddBytes(4, this->output->getShape().totalSize()*fp16_size);
             b->AddBytes(4, this->concatOffset);
             b->AddBytes(4, this->unloadCMX);
@@ -59,8 +68,6 @@ namespace mv
             std::cout << "in" << std::endl;
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
             std::cout << "Warning: forced Output, Taps Layout" << std::endl;
-            this->output->setOrder(OrderType::RowMajorPlanar);
-            // this->taps->setOrder(OrderType::RowMajorPlanar);
             std::cout << "out" << std::endl;
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             std::cout << "taps" << std::endl;
@@ -622,11 +629,6 @@ namespace mv
             this->padStyle = 2; // HARDCODED.
             this->dilation = 1; // HARDCODED.
 
-
-            //printf("Serializer Info: Manual Override of Convolution Software layer order\n");
-            //this->input->setOrder(OrderType::RowMajor);
-            //this->taps->setOrder(Order::TBDLayout);
-            //this->taps->setOrder(OrderType::RowMajor);
         }
     }
 }

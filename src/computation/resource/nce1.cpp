@@ -471,7 +471,7 @@ unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels, unsigned 
 //Most lazy and safe overload ever.
 unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels)
 {
-    return mv::round_up(input_channels, 16);
+    return mv::round_up(input_channels, 4);
 }
 
 unsigned mv::Nce1::computeActualOutputChannels(unsigned output_channels)

@@ -205,7 +205,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     fifoIn.allocate(device, descIn[0], 2)
     fifoOut.allocate(device, descOut[0], 2)
 
-    input_image.fill(1)
+    # input_image.fill(1)
 
     for y in range(arguments.stress_full_run):
         if arguments.timer:

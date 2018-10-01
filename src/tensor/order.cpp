@@ -1,6 +1,6 @@
 #include "include/mcm/tensor/order.hpp"
 
-const std::unordered_map<mv::OrderType, std::string, mv::OrderTypeHash> mv::Order::orderStrings_ = 
+const std::unordered_map<mv::OrderType, std::string, mv::OrderTypeHash> mv::Order::orderStrings_ =
 {
 
     {OrderType::ColumnMajor, "ColumnMajor"},
@@ -69,14 +69,14 @@ mv::Order::Order(const std::string& value) :
 Order(
         [=]()->OrderType
         {
-            for (auto &e : orderStrings_) 
-                if (e.second == value) 
+            for (auto &e : orderStrings_)
+                if (e.second == value)
                     return e.first;
             throw OrderError(*this, "Invalid initialization - string value specified as " + value);
         }()
 )
-{    
-    
+{
+
 }
 
 std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& sub) const
@@ -86,7 +86,7 @@ std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& 
         throw ShapeError(*this, "subToInd: Cannot compute subscripts for 0-dimensional shape");
 
     if (sub.size() != s.ndims())
-        throw ShapeError(*this, "subToInd: Mismatch between subscript vector (length " + std::to_string(sub.size()) + 
+        throw ShapeError(*this, "subToInd: Mismatch between subscript vector (length " + std::to_string(sub.size()) +
             ") and number of dimensions in shape (" + std::to_string(s.ndims()) + ")");
 
     unsigned currentMul = 1;
@@ -96,7 +96,7 @@ std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& 
     {
 
         if (sub[i] >=  s[i])
-            throw ShapeError(*this, "subToInd: Subscript " + std::to_string(sub[i]) + " exceeds the dimension " + 
+            throw ShapeError(*this, "subToInd: Subscript " + std::to_string(sub[i]) + " exceeds the dimension " +
                 std::to_string(s[i]));
 
         currentResult += currentMul * sub[i];
