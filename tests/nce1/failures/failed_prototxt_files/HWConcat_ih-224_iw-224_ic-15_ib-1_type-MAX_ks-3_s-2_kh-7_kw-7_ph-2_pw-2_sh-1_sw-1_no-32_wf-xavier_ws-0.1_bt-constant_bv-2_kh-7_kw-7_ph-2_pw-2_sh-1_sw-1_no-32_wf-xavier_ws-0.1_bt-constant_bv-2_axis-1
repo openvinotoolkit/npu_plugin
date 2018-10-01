@@ -1,0 +1,85 @@
+name: "Test1"
+input: "data"
+ input_shape {
+dim:1
+dim:15
+dim:224
+dim:224
+}
+layer {
+name: "pool1"
+type: "Pooling"
+bottom: "data"
+top: "pool1"
+pooling_param {
+pool:MAX
+kernel_size:3
+stride:2
+}
+}
+layer {
+name: "conv1"
+type: "Convolution"
+bottom: "pool1"
+top: "conv1"
+param { lr_mult: 1 decay_mult: 1 }
+param { lr_mult: 2 decay_mult: 0 }
+convolution_param {
+num_output: 32
+kernel_h:7
+kernel_w:7
+stride_h:1
+stride_w:1
+pad_h:2
+pad_w:2
+weight_filler {
+type: "xavier"
+std:0.1
+}
+bias_filler {
+type: "constant"
+value:2
+}
+}
+}
+layer {
+name: "conv2"
+type: "Convolution"
+bottom: "pool1"
+top: "conv2"
+param { lr_mult: 1 decay_mult: 1 }
+param { lr_mult: 2 decay_mult: 0 }
+convolution_param {
+num_output: 32
+kernel_h:7
+kernel_w:7
+stride_h:1
+stride_w:1
+pad_h:2
+pad_w:2
+weight_filler {
+type: "xavier"
+std:0.1
+}
+bias_filler {
+type: "constant"
+value:2
+}
+}
+}
+layer {
+name: "concat1"
+bottom: "conv1"
+bottom: "conv2"
+top: "concat1"
+type: "Concat"
+concat_param {
+axis:1
+}
+}
+layer {
+name: "prob"
+type: "Softmax"
+bottom: "concat1"
+top: "prob"
+}

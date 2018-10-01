@@ -2,7 +2,6 @@
 #include "mcm/algorithms/dijkstra.hpp"
 #include "mcm/computation/resource/nce1.hpp"
 
-
 //Same tests present in SOH.py
 TEST (nce1, split_over_h_1)
 {

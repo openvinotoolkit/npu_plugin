@@ -1,6 +1,8 @@
 import os, sys
 import numpy as np
 import argparse
+import subprocess
+from _dummy_thread import exit
 
 base = os.environ.get('MDK_HOME')
 assert base is not None, "Please set MDK_HOME environment variable"
@@ -48,5 +50,18 @@ out_x = str(out_x)
 out_y = str(out_y)
 out_z = str(out_z)
 
+
 GLOBALS.USING_MA2480 = True
-os.system('python3 ./run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res)
+#os.system('python3 $MCM_HOME/python/tools/run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res)
+#Using Subprocess() as it returns better error codes
+result = subprocess.call('python3 $MCM_HOME/python/tools/run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res, shell=True)
+
+if result != 0:
+    sys.exit(-1) #return -1 on error running on hardware
+
+sys.exit(0) #else return 0
+
+
+
+
+

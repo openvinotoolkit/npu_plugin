@@ -353,4 +353,5 @@ if __name__ == "__main__":
     print("Blob deploy tool\n")
     args = parse_args()
     quit_code = check_net(args.blob, args.image, args.in_s, args.out_s, args.res)
+    print("Quit code is ", quit_code)
     quit(quit_code)

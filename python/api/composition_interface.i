@@ -52,6 +52,11 @@ import_array();
         auto compOutput = unit->run();
         return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
+    
+    int compilationUnitDestructor(mv::CompilationUnit *unit)
+    {
+        unit->~CompilationUnit();
+    }
 
     // TODO: Create Generic Vector Calls
     std::array<unsigned short, 2> * get2DVector(int x, int y){
@@ -342,6 +347,7 @@ int testSWIG();
 mv::CompilationUnit* getCompilationUnit();
 mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
+int compilationUnitDestructor(mv::CompilationUnit *unit);
 mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
