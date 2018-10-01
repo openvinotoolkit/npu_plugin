@@ -161,7 +161,7 @@ TEST (nce1, DISABLE_HWconv_op_parameters)
 }
 
 
-TEST (nce1, DISABLE_Parallel_network_concat)
+TEST (nce1, Parallel_network_concat)
 {
 
 	/*input channel dimensions*/

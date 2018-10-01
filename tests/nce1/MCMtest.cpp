@@ -251,7 +251,7 @@ void MCMtest::generatePrototxt_diamond_concat()
     ss << "bias_filler {" << "\n";
     ss << "type: \"" << descriptor["conv1"]["bt"].get<std::string>()  << "\"\n";
     ss << "value:" << descriptor["conv1"]["bv"].get<std::string>()  << "\n";
-    ss << "}" << "\n";hardware_accuracy_test.txt
+    ss << "}" << "\n";
     ss << "}" << "\n";
     ss << "}" << "\n";
 
