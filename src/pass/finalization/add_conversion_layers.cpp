@@ -124,8 +124,6 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             if (!sourceIsHw && !sinkIsHw)
             {
                 if (source->getOpType() == OpType::Constant)
-                    flowIt->getTensor()->setOrder(OrderType::ColumnMajorPlanar);
-                else
                     flowIt->getTensor()->setOrder(OrderType::RowMajor);
             }
             // Hardware ops

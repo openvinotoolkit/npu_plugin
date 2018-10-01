@@ -17,6 +17,9 @@ import_array();
     #include <math.h>
     #include <iostream>
 
+    mv::CompilationUnit* getCompilationUnit();
+    mv::CompilationUnit* getCompilationUnit(bool disableHardware);
+
     int testSWIG(){
         /// A simple test to ensure the connection between Python and C++ is working
         int test = 1;
@@ -24,6 +27,11 @@ import_array();
     }
 
     mv::CompilationUnit* getCompilationUnit()
+    {
+        return getCompilationUnit(false);
+    }
+
+    mv::CompilationUnit* getCompilationUnit(bool disableHardware)
     {
 
         auto unit = new mv::CompilationUnit("pySwigCU");
@@ -36,7 +44,7 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
-        //unit->compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+        unit->compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = disableHardware;
         return unit;
 
     }
@@ -148,35 +156,35 @@ import_array();
     }
 
     mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+    {
 
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
         /// See: https://github.com/BVLC/caffe/issues/1318
 
         int adj_X = 0, adj_Y = 0;
-
         mv::Shape i = input->getShape();
 
-        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
-        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+        if (padX > 0)
+        {
+            double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+            adj_X = caffe_x - tensorflow_x;
+        }
 
-        double caffe_x = ceil(inner_x_calc / strideX) + 1;
-        double caffe_y = ceil(inner_y_calc / strideX) + 1;
-
-        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-
-        adj_X = caffe_x - tensorflow_x;
-        adj_Y = caffe_y - tensorflow_y;
-
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
-
+        if (padY > 0)
+        {
+            double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+            adj_Y = caffe_y - tensorflow_y;
+        }
+        
         return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)});
+
     }
 
     mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
@@ -192,7 +200,8 @@ import_array();
     }
 
     mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+    {
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
 
@@ -204,22 +213,21 @@ import_array();
         int kernelSizeX =  k[0];
         int kernelSizeY =  k[1];
 
-        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
-        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+        if (padX > 0)
+        {
+            double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+            adj_X = caffe_x - tensorflow_x;
+        }
 
-        double caffe_x = ceil(inner_x_calc / strideX) + 1;
-        double caffe_y = ceil(inner_y_calc / strideX) + 1;
-
-        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-
-        adj_X = caffe_x - tensorflow_x;
-        adj_Y = caffe_y - tensorflow_y;
-
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
+        if (padY > 0)
+        {
+            double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+            adj_Y = caffe_y - tensorflow_y;
+        }
 
         return o.conv2D(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
     }
@@ -243,32 +251,31 @@ import_array();
     }
 
     mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
-        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+    {
 
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
         /// See: https://github.com/BVLC/caffe/issues/1318
 
         int adj_X = 0, adj_Y = 0;
-
         mv::Shape i = input->getShape();
 
-        double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
-        double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+        if (padX > 0)
+        {
+            double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+            adj_X = caffe_x - tensorflow_x;
+        }
 
-        double caffe_x = ceil(inner_x_calc / strideX) + 1;
-        double caffe_y = ceil(inner_y_calc / strideX) + 1;
-
-        double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-        double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-
-        adj_X = caffe_x - tensorflow_x;
-        adj_Y = caffe_y - tensorflow_y;
-
-        if (adj_X < 0)
-            adj_X = 0;
-        if (adj_Y < 0)
-            adj_Y = 0;
+        if (padY > 0)
+        {
+            double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+            adj_Y = caffe_y - tensorflow_y;
+        }
 
         return o.avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)});
@@ -345,6 +352,7 @@ namespace mv
 
 int testSWIG();
 mv::CompilationUnit* getCompilationUnit();
+mv::CompilationUnit* getCompilationUnit(bool disableHardware);
 mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
 int compilationUnitDestructor(mv::CompilationUnit *unit);
