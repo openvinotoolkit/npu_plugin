@@ -330,7 +330,7 @@ int MCMtest::execute(const char* cmd) {
 void MCMtest::createResultsFiles() {
 
 	projectRootPath_ = mv::utils::projectRootPath();
-	std::string savedTestsPath_ = mv::utils::projectRootPath() + "/tests/nce1/failures/";
+	std::string savedTestsPath_ = mv::utils::projectRootPath() + "/tests/nce1/automated_results/";
 	failedHardwareRunFileName_ = savedTestsPath_ + "hardware_run_test.txt";
 	hardwareResults.open(failedHardwareRunFileName_.c_str(),std::ofstream::out | std::ofstream::trunc); /*open the source file with the truncate-option to delete previous content*/
 	hardwareResults.close();
