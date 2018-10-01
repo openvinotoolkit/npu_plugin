@@ -161,7 +161,7 @@ TEST (nce1, DISABLE_HWconv_op_parameters)
 }
 
 
-TEST (nce1, DISABLE_Parallel_network_concat)
+TEST (nce1, Parallel_network_concat)
 {
 
 	/*input channel dimensions*/
@@ -177,7 +177,7 @@ TEST (nce1, DISABLE_Parallel_network_concat)
 	std::vector<int>::iterator outputChannelsIt;
 
 	/*Stride dimensions*/
-	std::vector<int> stride{1, 2}; //Squeezenet
+	std::vector<int> stride{1, 2, 3}; //Squeezenet
 	std::vector<int>::iterator strideIt;
 
 	/*Pad  dimensions*/
