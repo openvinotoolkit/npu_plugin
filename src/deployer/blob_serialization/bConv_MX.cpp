@@ -354,6 +354,7 @@ namespace mv
 
             std::vector<std::size_t> chPerRamBlock;
             std::vector<size_t> topJunk, bottomJunk;
+            std::vector<size_t> input_lines_processed;
             int localLS = 1;
             std::vector<std::size_t> localCS;
             std::vector<std::size_t> LPC;
@@ -361,7 +362,20 @@ namespace mv
             int stride = 1;
             int padEn = 1;
 
+            if (! it->hasAttr("NCE1_InputLinesProcessed"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_InputLinesProcessed'. Defaulting to 1\n");
 
+                input_lines_processed = {0};
+                for( int i = 1; i != splits_over_H - 1; i++)
+                {
+                    input_lines_processed.push_back(0);
+                }
+            }
+            else
+            {
+                input_lines_processed = it->get<std::vector<std::size_t>>("NCE1_InputLinesProcessed");
+            }
             if (! it->hasAttr("NCE1_InputChannelsRamBlock"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsRamBlock'. Defaulting to 1\n");
@@ -572,9 +586,9 @@ namespace mv
                         this->descriptors[i].bottomOutputJunk = bottomJunk[i];
 
                         this->descriptors[i].localLs =  localLS;
-                        this->descriptors[i].localCs =  localCS[ic];
 
-                        this->descriptors[i].linesPerCh = LPC[ic] -1;
+                        this->descriptors[i].linesPerCh = std::min(LPC[oc] - 1, input_lines_processed[h] - 1);
+                        this->descriptors[i].localCs = (this->descriptors[i].linesPerCh + 1) * this->descriptors[i].localLs;
 
                         this->descriptors[i].rud = 0;   // Re-Use bit
 

@@ -528,8 +528,7 @@ unsigned mv::Nce1::computeDescriptorSplits(unsigned splits_over_height, unsigned
 unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode)
 {
     unsigned ram_blocks = dpe_x_output_channel.at(mode);
-    auto ret = input_channels / ram_blocks;
-    return ret;
+    return input_channels / ram_blocks;
 }
 
 unsigned mv::Nce1::computeMaxOutputLines(unsigned width, unsigned output_channel_performed)
@@ -549,6 +548,5 @@ unsigned mv::Nce1::computeLinesPerChannel(unsigned input_channels, unsigned loca
     unsigned max_lines_per_ram_block = max_lines_in_data_storage / dpe_x_output_channel.at(mode);
 
     unsigned channels_per_ram_block = computeInputChannelsPerRamBlock(input_channels, mode);
-    auto ret =  max_lines_per_ram_block / (local_line_stride * channels_per_ram_block);
-    return ret;
+    return max_lines_per_ram_block / (local_line_stride * channels_per_ram_block);
 }
