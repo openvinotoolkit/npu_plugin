@@ -347,7 +347,7 @@ namespace mv
             unsigned computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, unsigned num_modes);
             unsigned computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode);
             unsigned computeLinesPerChannel(unsigned input_channels, unsigned local_line_stride, unsigned mode);
-            unsigned computeMaxOutputLines(unsigned input_width, unsigned output_channel_performed);
+            unsigned computeMaxOutputLines(unsigned width, unsigned output_channel_performed);
 
             //Getter methods
             unsigned getBytesPerLine();

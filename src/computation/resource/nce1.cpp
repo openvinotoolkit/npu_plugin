@@ -532,9 +532,9 @@ unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsi
     return ret;
 }
 
-unsigned mv::Nce1::computeMaxOutputLines(unsigned input_width, unsigned output_channel_performed)
+unsigned mv::Nce1::computeMaxOutputLines(unsigned width, unsigned output_channel_performed)
 {
-    unsigned bytes_per_full_depth_slice = input_data_size * output_channel_performed * mv::round_up(input_width, 8);
+    unsigned bytes_per_full_depth_slice = input_data_size * output_channel_performed * mv::round_up(width, 8);
     return cmx_stream_size / bytes_per_full_depth_slice;
 }
 

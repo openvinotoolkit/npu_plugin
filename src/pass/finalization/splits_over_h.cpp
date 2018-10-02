@@ -28,13 +28,17 @@ unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator convIt)
 {
     auto input_tensor = convIt->getInputTensor(0);
     auto input_tensor_shape = input_tensor->getShape();
+    auto output_tensor = convIt->getOutputTensor(0);
+    auto output_tensor_shape = output_tensor->getShape();
+    auto output_width = output_tensor_shape[1];
 
     if(convIt->hasAttr("NCE1_CMX2CMX"))
-        return input_tensor_shape[1];
+        return output_width;
 
     //Assuming split over H is always possible from this point on
     unsigned max_output_channels_performed = (unsigned)convIt->get("NCE1_MaxOutputChannelsPerformed").get<std::size_t>();
-    return nce.computeMaxOutputLines(input_tensor_shape[0], max_output_channels_performed);
+    std::cout << "Max output channels performed " << max_output_channels_performed << std::endl;
+    return nce.computeMaxOutputLines(output_width, max_output_channels_performed);
 }
 
 std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::OpListIterator convIterator, unsigned max_lines)
@@ -46,17 +50,18 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::OpListIterator convIterator)
 {
     unsigned max_lines = computeMaxLines(nce, convIterator);
-    mv::SplitOverHSolution a;
-    a.input_lines_processed = 112; //224;
-    a.output_lines_processed = 112; //224;
-    a.input_lines_processed = 224;
-    a.output_lines_processed = 112;
-    a.junk_output_before = 0;
-    a.junk_output_after =0;
-    a.start_input_line = 0;
-    a.end_input_line = a.input_lines_processed;
-    a.start_output_line = 0;
-    a.end_output_line = a.output_lines_processed;
+    std::cout << "Max lines " << max_lines << std::endl;
+//    mv::SplitOverHSolution a;
+//    a.input_lines_processed = 112; //224;
+//    a.output_lines_processed = 112; //224;
+//    a.input_lines_processed = 224;
+//    a.output_lines_processed = 112;
+//    a.junk_output_before = 0;
+//    a.junk_output_after =0;
+//    a.start_input_line = 0;
+//    a.end_input_line = a.input_lines_processed;
+//    a.start_output_line = 0;
+//    a.end_output_line = a.output_lines_processed;
 
     // mv::SplitOverHSolution b;
     // b.input_lines_processed = 112;
@@ -69,8 +74,6 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
     // b.end_output_line = a.output_lines_processed + b.output_lines_processed;
 
     // // std::vector<mv::SplitOverHSolution> g = {a, b};
-    std::vector<mv::SplitOverHSolution> g = {a};
-    //return g;
     return computeSplitsOverH(nce, convIterator, max_lines);
 }
 
@@ -78,7 +81,7 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 //REASON: Paddings (and possibly modes) for each HW operation are needed.
 void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
-    std::cout << "soh " << std::endl;
+    std::cout << "Split over H pass " << std::endl;
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::Nce1 nce;
@@ -95,10 +98,10 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         std::vector<mv::SplitOverHSolution> splits = computeSplitsOverH(nce, operationIt);
         unsigned splits_over_height = splits.size();
 
-        /*
+
         for(unsigned i = 0; i < splits_over_height; ++i)
-            std::cout << splits[i] << std::endl;
-        */
+            std::cout << i << " - " << splits[i] << std::endl;
+
         operationIt->set<std::size_t>("NCE1_SplitsOverHeight", (std::size_t)splits_over_height);
 
         // Compute DescriptorsSplits
