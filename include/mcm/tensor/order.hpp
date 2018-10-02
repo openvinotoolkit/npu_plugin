@@ -16,7 +16,8 @@ namespace mv
         ColumnMajor,
         ColumnMajorPlanar,
         RowMajor,
-        RowMajorPlanar
+        RowMajorPlanar,
+        RowInterleaved
     };
 
     struct OrderTypeHash
@@ -55,13 +56,18 @@ namespace mv
         static const std::function<std::size_t(const Shape&)> rowMajPlanFirstContiguousDimIdx_;
         static const std::function<std::size_t(const Shape&)> rowMajPlanLastContiguousDimIdx_;
 
+        static const std::function<int(const Shape&, std::size_t)> RowInterleaved_PrevContiguousDimIdx_;
+        static const std::function<int(const Shape&, std::size_t)> RowInterleaved_NextContiguousDimIdx_;
+        static const std::function<std::size_t(const Shape&)> RowInterleaved_FirstContiguousDimIdx_;
+        static const std::function<std::size_t(const Shape&)> RowInterleaved_LastContiguousDimIdx_;
+
         std::function<int(const Shape&, std::size_t)> prevContiguousDimIdx_;
         std::function<int(const Shape&, std::size_t)> nextContiguousDimIdx_;
         std::function<std::size_t(const Shape&)> firstContiguousDimIdx_;
         std::function<std::size_t(const Shape&)> lastContiguousDimIdx_;
 
         void setFuncs_();
-        
+
         OrderType order_;
 
     public:
@@ -75,7 +81,7 @@ namespace mv
         int nextContiguousDimensionIndex(const Shape& s, std::size_t dim) const;
         std::size_t firstContiguousDimensionIndex(const Shape &s) const;
         std::size_t lastContiguousDimensionIndex(const Shape &s) const;
-        
+
         bool isFirstContiguousDimensionIndex(const Shape &s, std::size_t index) const;
         bool isLastContiguousDimensionIndex(const Shape &s, std::size_t index) const;
 

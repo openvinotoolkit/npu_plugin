@@ -38,7 +38,8 @@ typedef struct
     uint32_t inputChannels      : 11;   // Known
     uint32_t rsvd2              : 5;    // N/A
     uint32_t outputChannels     : 11;   // Known
-    uint32_t rsvd3              : 5;    // N/A
+    uint32_t rsvd3              : 3;    // N/A
+    uint32_t rsvd3_interleaved              : 2;    // N/A
     uint32_t chPerRamBlock      : 11;   // Needs Calculation ( Mode )
     uint32_t rsvd4              : 5;    // N/A
     uint32_t chStride           : 4;    // Known?

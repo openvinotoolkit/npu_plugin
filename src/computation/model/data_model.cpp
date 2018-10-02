@@ -234,6 +234,17 @@ void mv::DataModel::deallocateAll(const std::string& allocatorName, Control::Sta
 
 }
 
+
+bool mv::DataModel::iterable(const std::string& allocatorName, Control::StageIterator& stage)
+{
+
+    if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
+        throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
+
+    unsigned stageIdx = stage->getIdx();
+    return (*memoryAllocators_)[allocatorName]->iterable(stageIdx);
+}
+
 mv::Data::BufferIterator mv::DataModel::bufferBegin(const std::string& allocatorName, Control::StageIterator& stage)
 {
     if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())

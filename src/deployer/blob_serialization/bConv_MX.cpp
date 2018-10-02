@@ -100,15 +100,33 @@ namespace mv
                         auto output_width = output_shape[1];
                         auto input_width = input_shape[1];
 
+                        auto input_channels = input_shape[2];
+                        auto output_channels = output_shape[2];
+
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
                         this->descriptors[i].dataBaseAddr = 2*input_width*this->input_line_start[i];    // TODO: Calculate 3f0 (1008)
+
+                        if( this->input->getOrder() == mv::OrderType::RowInterleaved ){
+                            this->descriptors[i].dataBaseAddr *= input_channels;    // TODO: Calculate 3f0 (1008)
+                            this->descriptors[i].dataLnStr = inputBlobTensor.strideX;
+                            this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
+                        }else{
+                            this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
+                            this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
+                        }
                         this->descriptors[i].coeffBaseAddr = 0;
                         this->descriptors[i].biasBaseAddr = 0;
                         this->descriptors[i].scaleBaseAddr = 0;
                         this->descriptors[i].outBaseAddr = 2*output_width*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
+                        if( this->output->getOrder() == mv::OrderType::RowInterleaved ){
+                            this->descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
+                            this->descriptors[i].outLnStr = outputBlobTensor.strideX;
+                            this->descriptors[i].outChStr = outputBlobTensor.strideZ;
+                        }else{
+                            this->descriptors[i].outLnStr = outputBlobTensor.strideY;
+                            this->descriptors[i].outChStr = outputBlobTensor.strideZ;
+                        }
 
-                        this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
-                        this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
 
                         auto weight_4dshape = this->taps->getShape();
 
@@ -118,8 +136,6 @@ namespace mv
 
                         this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
-                        this->descriptors[i].outLnStr = outputBlobTensor.strideY;
-                        this->descriptors[i].outChStr = outputBlobTensor.strideZ;
 
                         for(unsigned j = 0; j != 32; j++){
                             b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
@@ -128,11 +144,6 @@ namespace mv
                     }
                 }
             }
-
-
-
-            b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
-            b->reloc_table.push_entry(std::pair<int, bLocation>(0, bLocation::Constant ));
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
@@ -334,7 +345,7 @@ namespace mv
             double val = 0;
             double val2 = 1;
             this->shvNegSlope = *(int * )(&val);
-            this->shvPosSlope = *(int * )(&val2);
+            this->shvPosSlope = 1065353216; //*(int * )(&val2);
 
             this->desc_count = descriptors_count;
 
@@ -498,14 +509,24 @@ namespace mv
                         }else{
                             this->descriptors[i].Line0.linkAddress = 32*4;
                         }
-                        // printf("linkAddress: %d\n", 32*4);
 
                         this->descriptors[i].Line0.id = 0;
 
                         // Layer Meta Information - Layout & DataTypes
                         this->descriptors[i].Line0.type = NCE1_CONV;
-                        this->descriptors[i].Line0.interleavedInput = 0;
-                        this->descriptors[i].Line0.interleavedOutput = 0;
+
+                        if( this->input->getOrder() == mv::OrderType::RowInterleaved )
+                            this->descriptors[i].Line0.interleavedInput = 1;
+                        else
+                            this->descriptors[i].Line0.interleavedInput = 0;
+
+                        if( this->output->getOrder() == mv::OrderType::RowInterleaved ){
+                            this->descriptors[i].Line0.interleavedOutput = 1;
+                            this->descriptors[i].rsvd3_interleaved = 1;
+                        }
+                        else
+                            this->descriptors[i].Line0.interleavedOutput = 0;
+
                         this->descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
                         this->descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
 

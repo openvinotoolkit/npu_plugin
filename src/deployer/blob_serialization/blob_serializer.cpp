@@ -240,10 +240,13 @@ namespace mv
 
         unsigned int totalSize = 0;
 
-        for (Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
-        {
-            totalSize += bit->getSize() ;
-            totalSize += bit->getPostAlign();
+
+        if (dm.iterable("ConstantMemory", stg)){
+            for (Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
+            {
+                totalSize += bit->getSize() ;
+                totalSize += bit->getPostAlign();
+            }
         }
 
         blob_stats.buffer_data_size = totalSize;
@@ -261,7 +264,8 @@ namespace mv
             blob_stats.stage_section_size +
             blob_stats.buffer_header_size +
             blob_stats.buffer_data_size +
-            blob_stats.relocation_section_size;
+            // blob_stats.relocation_section_size;
+            28;
     }
 
     void Blob_buffer::write_elf_header(){
@@ -902,57 +906,60 @@ namespace mv
         for (unsigned i=0; i<buffer_header_pad_size; i++)
             AddBytes(4, buffer_header_pad_val);
 
-        for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
-        {
 
-            std::cout << "Tensor: " << bit->toString() << std::endl;
-            bool tight = true;
-            for ( auto s : bit->getStrides() )
-                if (s != 0)
-                    tight = false;
-
-
-            // Push tensor's data
-            if (tight)
-                for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
+            if (dm.iterable("ConstantMemory", stg)){
+                for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
                 {
-                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
-                    AddBytes(2, fp16_val);
-                }
-            else{
-                u_int16_t fp16_val;
-                for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
-                {
-                    // TODO: lhs stride
-                    for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
-                    {
-                        std::cout << "x" ;
-                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
-                        AddBytes(2, fp16_val);
+
+                    std::cout << "Tensor: " << bit->toString() << std::endl;
+                    bool tight = true;
+                    for ( auto s : bit->getStrides() )
+                        if (s != 0)
+                            tight = false;
+
+
+                    // Push tensor's data
+                    if (tight)
+                        for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
+                        {
+                            u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                            AddBytes(2, fp16_val);
+                        }
+                    else{
+                        u_int16_t fp16_val;
+                        for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
+                        {
+                            // TODO: lhs stride
+                            for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
+                            {
+                                std::cout << "x" ;
+                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                                AddBytes(2, fp16_val);
+                            }
+                            for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
+                            {
+                                std::cout << "o" ;
+                                u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
+                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                                AddBytes(2, fp16_val);
+                            }
+                            std::cout << std::endl;
+                        }
+                        for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
+                        {
+                            fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                            AddBytes(2, fp16_val);
+                        }
                     }
-                    for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
-                    {
-                        std::cout << "o" ;
-                        u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
-                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
-                        AddBytes(2, fp16_val);
-                    }
-                    std::cout << std::endl;
-                }
-                for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
-                {
-                    fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
-                    AddBytes(2, fp16_val);
+
+
+
+                    // Push alignment
+                    for (std::size_t i = 0; i < bit->getPostAlign(); ++i)
+                        AddBytes(1, 0);
+
                 }
             }
-
-
-
-            // Push alignment
-            for (std::size_t i = 0; i < bit->getPostAlign(); ++i)
-                AddBytes(1, 0);
-
-        }
 
     }
 

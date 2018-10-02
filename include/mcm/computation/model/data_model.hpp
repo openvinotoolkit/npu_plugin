@@ -54,6 +54,8 @@ namespace mv
         Data::BufferIterator getBuffer(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator tensor);
         std::vector<Data::BufferIterator> buffers(Control::StageIterator& stage);
 
+        bool iterable(const std::string& allocatorName, Control::StageIterator& stage);
+
         virtual std::string getLogID() const override;
 
         bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);

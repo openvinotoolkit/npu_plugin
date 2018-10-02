@@ -6,7 +6,8 @@ const std::unordered_map<mv::OrderType, std::string, mv::OrderTypeHash> mv::Orde
     {OrderType::ColumnMajor, "ColumnMajor"},
     {OrderType::ColumnMajorPlanar, "ColumnMajorPlanar"},
     {OrderType::RowMajor, "RowMajor"},
-    {OrderType::RowMajorPlanar, "RowMajorPlanar"}
+    {OrderType::RowMajorPlanar, "RowMajorPlanar"},
+    {OrderType::RowInterleaved, "RowInterleaved"}
 
 };
 
@@ -41,6 +42,13 @@ void mv::Order::setFuncs_()
             nextContiguousDimIdx_ = rowMajPlanNextContiguousDimIdx_;
             firstContiguousDimIdx_ = rowMajPlanFirstContiguousDimIdx_;
             lastContiguousDimIdx_ = rowMajPlanLastContiguousDimIdx_;
+            break;
+
+        case OrderType::RowInterleaved:
+            prevContiguousDimIdx_ = RowInterleaved_PrevContiguousDimIdx_;
+            nextContiguousDimIdx_ = RowInterleaved_NextContiguousDimIdx_;
+            firstContiguousDimIdx_ = RowInterleaved_FirstContiguousDimIdx_;
+            lastContiguousDimIdx_ = RowInterleaved_LastContiguousDimIdx_;
             break;
 
     }

@@ -73,10 +73,13 @@ else:
     test_inputB = "nps_mugB.png"
 
 
+test_inputB = test_inputA = "Debug"
+
 os.system('python3 ./run_blob.py ' + blob1_path + ' \(1,' +Ain_y+','+Ain_x+','+Ain_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+test_inputA+' -res ' + blob1_res)
 os.system('python3 ./run_blob.py ' + blob2_path + ' \(1,' +Bin_y+','+Bin_x+','+Bin_z+'\) \('+out_y+','+out_x+','+out_z+'\)  -i '+test_inputB+' -res ' + blob2_res)
 
 blob1_np = np.load('./' + blob1_res + '.npy')
 blob2_np = np.load('./' + blob2_res + '.npy')
+
 
 validation(blob1_np, blob2_np, "NA", ValidationStatistic.accuracy_metrics, "NA", "NA")

@@ -196,6 +196,21 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                         }
                     }
                 }
+                case OrderType::RowInterleaved:
+                {
+                    switch(axis){
+                        case 2: // Channels
+                        {
+                            channel_index = 0;
+                        }
+                        break;
+                        default:
+                        {
+                            std::cout << "Concat not supported for this axis" << std::endl;
+                            assert(0);
+                        }
+                    }
+                }
                 case OrderType::ColumnMajor:
                 {
                     switch(axis){

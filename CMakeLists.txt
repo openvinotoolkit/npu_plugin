@@ -51,6 +51,7 @@ file(GLOB base
     "src/tensor/order/column_major.cpp"
     "src/tensor/order/row_major_planar.cpp"
     "src/tensor/order/row_major.cpp"
+    "src/tensor/order/row_interleaved.cpp"
     "src/tensor/dtype.cpp"
     "src/computation/model/computation_model.cpp"
     "src/api/compositional_model.cpp"
