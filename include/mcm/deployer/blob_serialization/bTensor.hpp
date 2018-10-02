@@ -24,6 +24,7 @@ namespace mv
             uint32_t location;
             uint32_t dataType;
             uint32_t order;
+            std::string allocator_name;
 
             Blob_Tensor(int x, int y, int z,
                 int sx, int sy, int sz,

@@ -5,6 +5,8 @@
 
 static void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void allocateInputOutputTensors(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+
 // static void allocateForImplicitConcat();
 
 
@@ -13,6 +15,13 @@ namespace mv
 
     namespace pass
     {
+
+        MV_REGISTER_PASS(AllocateInputOutputTensors)
+        .setFunc(allocateInputOutputTensors)
+        .setGenre(PassGenre::Finalization)
+        .setDescription(
+            "Perform allocation of all input and output tensors using memory allocator"
+        );
 
         MV_REGISTER_PASS(AllocatePopulatedTensors)
         .setFunc(allocatePopulatedTensorsFcn)
@@ -30,6 +39,99 @@ namespace mv
 
     }
 
+}
+
+
+
+
+void allocateInputOutputTensors(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+{
+    std::cout << "Allocate input/output tensors" << std::endl;
+
+    using namespace mv;
+
+    ControlModel cm(model);
+    DataModel dm(model);
+
+    if (!dm.hasAllocator("ProgrammableInput")){
+        throw ArgumentError(dm, "allocator", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
+    }
+
+    if (!dm.hasAllocator("ProgrammableOutput")){
+        throw ArgumentError(dm, "allocator", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
+    }
+
+    if (cm.stageSize() == 0){
+        throw ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
+    }
+
+
+    OpModel om(dm) ;
+    //bool external = false;
+    std::vector<std::string> external_names;
+    auto stageIt = cm.getStage(0);
+
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    {
+        std::cout << opIterator->getOpType().toString() << std::endl;
+        for (unsigned x = 0; x < opIterator->inputSlots(); x++)
+        {
+            auto inTensor = opIterator->getInputTensor(x);
+            if (!inTensor->isPopulated() &&
+                (! inTensor->hasAttr("allocator")) &&
+                (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
+            {
+                auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
+                if (opIterator->hasAttr("NCE1_Compatible"))
+                {
+                    if (opIterator->get<int>("NCE1_Compatible"))
+                    {
+                        if (inTensor->hasAttr("NCE1_Paddings"))
+                        {
+                            std::cout << "Padding for hardware" << std::endl;
+                            auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                            dm.padRight("ProgrammableInput", buf, paddings);
+
+                        }
+                    }
+                }
+
+            }
+
+        }
+        for (unsigned x = 0; x < opIterator->outputSlots(); x++)
+        {
+
+            auto outTensor = opIterator->getOutputTensor(x);
+            if (!outTensor->isPopulated() &&
+                (! outTensor->hasAttr("allocator")) &&
+                (outTensor->hasAttr("modelOutput") && outTensor->get<bool>("modelOutput"))
+                )
+            {
+                auto buf = dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
+                if (opIterator->hasAttr("NCE1_Compatible"))
+                {
+                    if (opIterator->get<int>("NCE1_Compatible"))
+                    {
+                        if(outTensor->hasAttr("NCE1_Paddings"))
+                        {
+                            std::cout << "Padding for hardware" << std::endl;
+                            auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                            dm.padRight("ProgrammableOutput", buf, paddings);
+
+                        }
+                    }
+                }
+
+            }
+
+        }
+
+
+
+    }
+
+    std::cout << "Exiting allocate input and output" << std::endl;
 }
 
 void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)

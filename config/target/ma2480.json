@@ -51,7 +51,8 @@
 			"AddConversionLayers",
 			"ArrangeLinearExecution",
 			"AllocatePopulatedTensors",
-			"AllocateUnpopulatedTensors"
+			"AllocateUnpopulatedTensors",
+			"AllocateInputOutputTensors"
 		],
 
 		"serialize":
@@ -79,7 +80,21 @@
 
 			{
 				"name": "IntermediateMemory",
-				"alignment": 0,
+				"alignment": 64,
+				"dataTypeSize": 2,
+				"size": 1024000000
+			},
+
+			{
+				"name": "ProgrammableInput",
+				"alignment": 64,
+				"dataTypeSize": 2,
+				"size": 1024000000
+			},
+
+			{
+				"name": "ProgrammableOutput",
+				"alignment": 64,
 				"dataTypeSize": 2,
 				"size": 1024000000
 			}

@@ -107,7 +107,7 @@ namespace mv
                         this->descriptors[i].dataBaseAddr = 2*input_width*this->input_line_start[i];    // TODO: Calculate 3f0 (1008)
 
                         if( this->input->getOrder() == mv::OrderType::RowInterleaved ){
-                            this->descriptors[i].dataBaseAddr *= input_channels;    // TODO: Calculate 3f0 (1008)
+                            this->descriptors[i].dataBaseAddr *= this->inputChannelsPadded;    // TODO: Calculate 3f0 (1008)
                             this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
                             this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
                         }else{
