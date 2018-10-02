@@ -10,7 +10,7 @@ GENREFERENCE="true"
 RUNHW="true"
 COMPAREBLOBS="false"
 MULTIBLOB="false"
-
+DISABLEHARDWARE="false"
 
 BLOB="cpp.blob"
 EXPECTED="Fathom_expected.npy"
@@ -57,6 +57,10 @@ do
   if [ "$1" == "-v" ]
   then
     VERBOSE="true"
+  fi
+  if [ "$1" == "-software" ]
+  then
+    DISABLEHARDWARE="true"
   fi
   #if [ "$1" == "-b" -a $MULTIBLOB == "true" ] 
   #then
@@ -118,12 +122,22 @@ then
 fi
 
 #---------------- compile blob from prototxt
-if [ "$COMPILE" == "true" ]
+if [ "$COMPILE" == "true" ] && [ "$DISABLEHARDWARE" == "false" ]
 then
   rm -f cpp.blob
+  echo "compiling for hardware"
 #  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
-  $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
+  $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp 
 fi
+#----------------
+if [ "$DISABLEHARDWARE" == "true" ] && [ "$COMPILE" == "true" ]
+then
+  rm -f cpp.blob
+  echo "compiling for software only"
+#  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
+  $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp --ma2480
+fi
+
 #---------------- generate reference/expected .npy outout
 if [ "$GENREFERENCE" == "true" ]
 then
