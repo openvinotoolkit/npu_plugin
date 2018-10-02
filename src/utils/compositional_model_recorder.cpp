@@ -42,7 +42,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::input(const Shape& shap
 
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::Input) << " =" << " rc.input(mv::Shape"
-		<< shape.toString() << ", " << "mv::DType::" << dType.toString() << ", " << "mv::Order::"
+		<< shape.toString() << ", " << "mv::DTypeType::" << dType.toString() << ", " << "mv::OrderType::"
 		<< order.toString() << ")" << ";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
@@ -86,7 +86,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vec
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(), std::ofstream::out | std::ofstream::app);
 
 	/*Weights are defined in a separate source file, declared as 'extern in the source file*/
-	ss << "extern mv::dynamic_vector<mv::float_type> " << weightsVectorName << ";" << "\n";
+	ss << "extern std::vector<double> " << weightsVectorName << ";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
@@ -98,7 +98,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vec
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::Constant) << " =" << " rc.constant(" 
 		<< weightsVectorName << ", " << "mv::Shape" << shape.toString() << ", " 
-		<< "mv::DType::" << dType.toString() << ", " <<"mv::Order::" << order.toString() << ")" << ";" << "\n";;
+		<< "mv::DTypeType::" << dType.toString() << ", " <<"mv::OrderType::" << order.toString() << ")" << ";" << "\n";;
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
@@ -543,9 +543,7 @@ void mv::CompositionalModelRecorder::createRecordedSourceFiles() {
 	ss << "#include " << "\"include/mcm/utils/data_generator.hpp\"" << "\n" << "\n";
 	ss << "int main() {" << "\n" << "\n";
 
-	ss << "mv::Logger::VerboseLevel verboseLevel = mv::Logger::VerboseLevel::VerboseInfo;" <<  "\n";
-
-	ss << "mv::CompilationUnit unit(verboseLevel);" << "\n";
+	ss << "mv::CompilationUnit unit(\"recordedNetwork\");" << "\n";
 	ss << "mv::CompositionalModel& rc = unit.model();" << "\n" << "\n";
 
 	outputSourceFile << ss.str();
@@ -565,17 +563,17 @@ void mv::CompositionalModelRecorder::completeRecordedSourceFile() {
 	ss << "if (!unit.loadTargetDescriptor(mv::Target::ma2480))" << "\n";
 	ss << "exit(1);" << "\n" << "\n";
 
-	ss << "unit.compilationDescriptor()[\"GenerateDot\"][\"output\"] = std::std::string(\"" << recordedSourceFileName <<".dot\");" << "\n";
-	ss << "unit.compilationDescriptor()[\"GenerateDot\"][\"scope\"] = std::std::string(\"ExecOpControlModel\");" << "\n";
-	ss << "unit.compilationDescriptor()[\"GenerateDot\"][\"content\"] = std::std::string(\"full\");" << "\n";
+	ss << "unit.compilationDescriptor()[\"GenerateDot\"][\"output\"] = std::string(\"" << recordedSourceFileName <<".dot\");" << "\n";
+	ss << "unit.compilationDescriptor()[\"GenerateDot\"][\"scope\"] = std::string(\"ExecOpControlModel\");" << "\n";
+	ss << "unit.compilationDescriptor()[\"GenerateDot\"][\"content\"] = std::string(\"full\");" << "\n";
 	ss << "unit.compilationDescriptor()[\"GenerateDot\"][\"html\"] = true;" <<  "\n";
-	ss << "unit.compilationDescriptor()[\"GenerateBlob\"][\"output\"] = std::std::string(\"" << recordedSourceFileName  << ".blob\");" << "\n";
-	ss << "unit.compilationDescriptor()[\"GenerateJson\"][\"output\"] = std::std::string(\"" << recordedSourceFileName  << ".json\");" << "\n";
+	ss << "unit.compilationDescriptor()[\"GenerateBlob\"][\"output\"] = std::string(\"" << recordedSourceFileName  << ".blob\");" << "\n";
+	ss << "unit.compilationDescriptor()[\"GenerateJson\"][\"output\"] = std::string(\"" << recordedSourceFileName  << ".json\");" << "\n";
 
 	ss << "unit.initialize();" << "\n";
 	ss << "auto result = unit.run();" << "\n";
 
-	ss << "std::cout << result.std::stringifyPretty() << std::endl;" << "\n";
+	ss << "std::cout << result.stringifyPretty() << std::endl;" << "\n";
 	ss << "system(\"dot -Tsvg recorded.dot -o recorded.svg\");" << "\n";
 	ss << "system(\"dot -Tsvg recorded_final.dot -o recorded_final.svg\");" << "\n";
 
@@ -595,7 +593,7 @@ void mv::CompositionalModelRecorder::writeWeightsToFile(const std::vector<double
 	outputWeightsFile.open(recordedWeghtsFileName.c_str(),std::ofstream::out | std::ofstream::app);
 
 	/*Create start of vector definition*/
-	ws << "mv::dynamic_vector<mv::float_type> " << weightsVectorName << "{";
+	ws << "std::vector<double> " << weightsVectorName << "{";
 	outputWeightsFile << ws.str();
 	ws.str("");
 
