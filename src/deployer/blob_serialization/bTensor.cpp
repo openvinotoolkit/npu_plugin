@@ -163,6 +163,7 @@ namespace mv
                     // Input tensor, non allocated in the blob
                     this->location = BLOB_INPUT_LOCATION;
                     this->offset = 0;
+                    this->allocator_name = "ProgrammableInput";
                 }
                 else
                     throw RuntimeError(**t, "Unallocated tensor marked as non input passed for serialization");
@@ -174,43 +175,47 @@ namespace mv
                     // Output tensor, non allocated in the blob
                     this->location = BLOB_OUTPUT_LOCATION;
                     this->offset = 0;
+                    this->allocator_name = "ProgrammableOutput";
                 }
                 else
                     throw RuntimeError(**t, "Unallocated tensor marked as non output passed for serialization");
             }
             else
             {
-                // Will throw IndexError on incorrect stage
-                mem = dm->getBuffer("IntermediateMemory", stg, *t);
-                if (mem == dm->bufferEnd("IntermediateMemory", stg))
-                    throw RuntimeError(**t, "Unallocated tensor found during the serialization");
-
                 this->location = BLOB_EXTERNAL_LOCATION;
-                unsigned leading_pad = 0;
-                if (!mem->getStrides().empty())
+                this->offset = -1;
+                this->allocator_name = "IntermediateMemory";
+            }
+
+            // Will throw IndexError on incorrect stage
+            mem = dm->getBuffer(allocator_name, stg, *t);
+            if (mem == dm->bufferEnd(allocator_name, stg))
+                throw RuntimeError(**t, "Unallocated tensor found during the serialization");
+
+            unsigned leading_pad = 0;
+            if (!mem->getStrides().empty())
+            {
+
+                // Start at 1 and go til -1 because the first and last strides are
+                // leading and trailing "padding"
+                for(std::size_t i = 1; i < mem->getStrides().size() - 2; i++)
                 {
 
-                    // Start at 1 and go til -1 because the first and last strides are
-                    // leading and trailing "padding"
-                    for(std::size_t i = 1; i < mem->getStrides().size() - 2; i++)
-                    {
-
-                        blk_stride = (int)mem->getStrides()[i];
-                        block += (int)mem->getBlockSize();
-                        if (blk_stride != 0)
-                            break;
-
-                    }
-
-                    leading_pad = mem->getStrides()[0];
+                    blk_stride = (int)mem->getStrides()[i];
+                    block += (int)mem->getBlockSize();
+                    if (blk_stride != 0)
+                        break;
 
                 }
-                else
-                    blk_stride = -1;
 
-                this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
+                leading_pad = mem->getStrides()[0];
 
             }
+            else
+                blk_stride = -1;
+
+            if(this->offset == -1)
+                this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
 
         }
 
@@ -226,15 +231,16 @@ namespace mv
         }
         else
         {
+            std::cout << "Not Tight" << std::endl;
             switch ( (*t)->getOrder() )
             {
-                case OrderType::ColumnMajor:
+                case OrderType::ColumnMajor: //*2 because of data_size
                 {
-                    if (block == this->dimX)
+                    if (block == this->dimX * 2)
                         local_StrideX = blk_stride;
-                    else if (block == this->dimX*this->dimY)
+                    else if (block == this->dimX*this->dimY * 2)
                         local_StrideY = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
                         local_StrideZ = blk_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
@@ -276,13 +282,13 @@ namespace mv
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
                 }
                 break;
-                case OrderType::RowInterleaved:
+                case OrderType::RowInterleaved: //*2 because of input_data size
                 {
-                    if (block == this->dimY)
+                    if (block == this->dimY * 2)
                         local_StrideY = blk_stride;
-                    else if (block == this->dimZ*this->dimY)
+                    else if (block == this->dimZ*this->dimY * 2)
                         local_StrideZ = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                    else if ( block == this->dimX*this->dimY*this->dimZ * 2 )
                         local_StrideX = blk_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved)" << std::endl;
@@ -344,8 +350,8 @@ namespace mv
              case OrderType::RowInterleaved:
                 this->order = 2;
                 this->strideX = fp16_size;
-                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
-                this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
+                this->strideZ = (this->dimX *this->strideX) + local_StrideX;
+                this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
                 break;
 
             default:

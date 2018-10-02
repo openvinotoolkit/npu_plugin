@@ -907,7 +907,7 @@ namespace mv
             AddBytes(4, buffer_header_pad_val);
 
 
-            if (dm.iterable("ConstantMemory", stg)){
+        if (dm.iterable("ConstantMemory", stg)){
                 for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
                 {
 
@@ -932,18 +932,18 @@ namespace mv
                             // TODO: lhs stride
                             for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
                             {
-                                std::cout << "x" ;
+                                //std::cout << "x" ;
                                 fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
                                 AddBytes(2, fp16_val);
                             }
                             for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
                             {
-                                std::cout << "o" ;
+                                //std::cout << "o" ;
                                 u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
                                 fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
                                 AddBytes(2, fp16_val);
                             }
-                            std::cout << std::endl;
+                            //std::cout << std::endl;
                         }
                         for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
                         {
