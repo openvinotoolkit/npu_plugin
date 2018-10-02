@@ -70,7 +70,7 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 
     // // std::vector<mv::SplitOverHSolution> g = {a, b};
     std::vector<mv::SplitOverHSolution> g = {a};
-    return g;
+    //return g;
     return computeSplitsOverH(nce, convIterator, max_lines);
 }
 

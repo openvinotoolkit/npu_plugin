@@ -146,7 +146,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;
 
-            // TODO: I think there is a gap in funcitonality here that would make this trivial
+            // TODO: I think there is a gap in functionality here that would make this trivial
 
             switch(in0->getOrder())
             {
@@ -182,6 +182,21 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     }
                 }
                 case OrderType::ColumnMajorPlanar:
+                {
+                    switch(axis){
+                        case 2: // Channels
+                        {
+                            channel_index = 0;
+                        }
+                        break;
+                        default:
+                        {
+                            std::cout << "Concat not supported for this axis" << std::endl;
+                            assert(0);
+                        }
+                    }
+                }
+                case OrderType::RowInterleaved:
                 {
                     switch(axis){
                         case 2: // Channels
@@ -272,9 +287,9 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     )
                 {
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, inTensor);
-                    if (inTensor->hasAttr("NCE1_Compatible"))
+                    if (opIterator->hasAttr("NCE1_Compatible"))
                     {
-                        if (inTensor->get<int>("NCE1_Compatible"))
+                        if (opIterator->get<int>("NCE1_Compatible"))
                         {
                             if (inTensor->hasAttr("NCE1_Paddings"))
                             {
@@ -300,9 +315,9 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     )
                 {
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
-                    if (outTensor->hasAttr("NCE1_Compatible"))
+                    if (opIterator->hasAttr("NCE1_Compatible"))
                     {
-                        if (outTensor->get<int>("NCE1_Compatible"))
+                        if (opIterator->get<int>("NCE1_Compatible"))
                         {
                             if(outTensor->hasAttr("NCE1_Paddings"))
                             {

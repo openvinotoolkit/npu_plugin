@@ -140,7 +140,7 @@ import_array();
 
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o.input(shape, mv::DTypeType::Float16, mv::OrderType::RowMajor);
+        return o.input(shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){

@@ -19,10 +19,10 @@ const std::function<int(const mv::Shape&, std::size_t)> mv::Order::colMajPlanPre
 
     if(dim == 1)
         return -1;
-        
+
     if(dim == 2)
         return 0;
-    
+
     return dim - 1;
 
 };
@@ -66,7 +66,7 @@ const std::function<std::size_t(const mv::Shape&)> mv::Order::colMajPlanFirstCon
 
     if(s.ndims() == 1)
         return 0;
-    
+
     return 1;
 
 };

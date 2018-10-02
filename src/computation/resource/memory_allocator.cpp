@@ -33,7 +33,7 @@ dataTypeSize(other.dataTypeSize)
 
 }
 
-mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(const MemoryBuffer& other) 
+mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(const MemoryBuffer& other)
 {
     id = other.id;
     offset = other.offset;
@@ -194,7 +194,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
             // Align slave buffers
             for (auto itSlave = (*it)->slaveBuffers.begin(); itSlave != (*it)->slaveBuffers.end(); ++itSlave)
                 (**itSlave)->offset = (*it)->offset;
-    
+
         }
 
     }
@@ -342,7 +342,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
 
     if ((*masterBuffer)->getData()->isPopulated())
         (*slaveBuffer)->getData()->bindData(*masterTensor, leftPadding, rightPadding);
-    
+
     return slaveBuffer;
 
 }
@@ -530,6 +530,17 @@ std::string mv::MemoryAllocator::toString() const
     return mv::json::Value(obj);
 
 }*/
+
+bool mv::MemoryAllocator::iterable(std::size_t stageIdx)
+{
+
+    auto it = entries_.find(stageIdx);
+    if (it == entries_.end()){
+        return false;
+    }else{
+        return true;
+    }
+}
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::bufferBegin(std::size_t stageIdx)
 {

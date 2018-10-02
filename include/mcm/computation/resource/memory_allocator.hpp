@@ -156,7 +156,7 @@ namespace mv
 
         };
 
-        
+
 
     private:
 
@@ -184,26 +184,26 @@ namespace mv
          * @brief Current ID for new buffer
          */
         std::size_t currentID_;
-    
+
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */
         std::map<unsigned, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>> entries_;
 
         void placeBuffers_(unsigned stageIdx);
-        std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding, 
+        std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, const mv::Shape& shape);
-        long computeStrides_(const Order& order, std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding, 
+        long computeStrides_(const Order& order, std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides);
         void padBuffer_(BufferIterator buffer);
 
     public:
 
         MemoryAllocator(std::string name, std::size_t size, unsigned short alignment, unsigned short dataTypeSize);
-        
+
         /**
          * @brief Allocate the tensor in a new buffer for the particular stage
-         * 
+         *
          * @param tensor Tensor to be allocated
          * @param stageIdx Stage identifier
          * @return BufferIterator Newly created buffer that contains the tensor
@@ -214,14 +214,14 @@ namespace mv
          * @brief Allocate the tensor in memory space already allocated by another buffer. The input tensor shape padded by values
          * specified by leftPadding and rightPadding has to match the shape of the tensor that is allocated in this buffer. The shape
          * dimensionality, data order and data type of newly allocated tensor has to match the tensor already allocated.
-         * 
+         *
          * @param tensor Tensor to be allocated
          * @param buffer Buffer to be overallocated
          * @param leftPadding Padding (left-top) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN DATA UNITS
          * @param rightPadding Padding (right-bottom) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN DATA UNITS
          * @return BufferIterator Newly created buffer of the same offset and size that overlaps the memory space owned by the input buffer
          */
-        BufferIterator allocate(Data::TensorIterator tensor, BufferIterator buffer, const std::vector<std::size_t>& leftPadding, 
+        BufferIterator allocate(Data::TensorIterator tensor, BufferIterator buffer, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding);
 
         bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
@@ -232,17 +232,18 @@ namespace mv
 
         long long unsigned freeSpace(std::size_t stageIdx) const;
         long long unsigned usedSpace(std::size_t stageIdx) const;
-        
+
         std::string toString() const override;
         //mv::json::Value toJSON() const override;
-        
+
         BufferIterator bufferBegin(std::size_t stageIdx);
         BufferIterator bufferEnd(std::size_t stageIdx);
         BufferIterator getBuffer(std::size_t stageIdx, Data::TensorIterator tensor);
-        
-        virtual std::string getLogID() const override; 
-        
-    
+
+        bool iterable(std::size_t stageIdx);
+        virtual std::string getLogID() const override;
+
+
     };
 
 }

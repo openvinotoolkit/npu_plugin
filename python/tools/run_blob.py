@@ -64,9 +64,11 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
 
     np.random.seed(19)
 
-
     f = open(blob_path, 'rb')
     blob_file = f.read()
+    import binascii
+    print("CRC blob_file: ", binascii.crc32(blob_file))
+
     if device is None:
         devices = mvncapi.enumerate_devices()
         if len(devices) == 0:
@@ -205,7 +207,10 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     fifoIn.allocate(device, descIn[0], 2)
     fifoOut.allocate(device, descOut[0], 2)
 
-    input_image.fill(1)
+    # input_image.fill(1)
+    import binascii
+    print("CRC IMAGE: ", binascii.crc32(input_image))
+
 
     for y in range(arguments.stress_full_run):
         if arguments.timer:

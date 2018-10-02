@@ -47,7 +47,7 @@ namespace mv
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == nullptr) 
+        if ( t == nullptr)
         {
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
@@ -70,7 +70,7 @@ namespace mv
                 // Hardware Weights
                 this->dimX = (*t)->getShape()[0] * (*t)->getShape()[4];
                 this->dimY = (*t)->getShape()[1];
-                this->dimZ = (*t)->getShape()[2] * (*t)->getShape()[3];
+                this->dimZ = (*t)->getShape()[3] * (*t)->getShape()[2];
             }
             break;
             case 4:
@@ -138,6 +138,8 @@ namespace mv
                         break;
                     }
                 }
+                // this->dimY = this->dimY + 1;
+
             }
             else
             {
@@ -207,7 +209,7 @@ namespace mv
                     blk_stride = -1;
 
                 this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
-            
+
             }
 
         }
@@ -274,6 +276,19 @@ namespace mv
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
                 }
                 break;
+                case OrderType::RowInterleaved:
+                {
+                    if (block == this->dimY)
+                        local_StrideY = blk_stride;
+                    else if (block == this->dimZ*this->dimY)
+                        local_StrideZ = blk_stride;
+                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                        local_StrideX = blk_stride;
+                    else
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved)" << std::endl;
+                }
+                break;
+
                 default:
                 {
 
@@ -292,7 +307,7 @@ namespace mv
 
         switch ( (*t)->getOrder() )
         {
-            case OrderType::RowMajor:
+            case OrderType::RowMajorPlanar:
                 // UPA Shave
                 this->order = 0;
                 // ROW MAJOR (CHANNEL MINOR)
@@ -301,30 +316,38 @@ namespace mv
                 this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 break;
-            case OrderType::RowMajorPlanar:
-                // NCE1 - Option 1
-                // ROW MAJOR PLANAR (PLANAR)
-                // I.E: Z, Y, X
-                this->order = 1;
+            case OrderType::RowMajor:
+                // NOT USED
+                this->order = 2;
                 this->strideX = fp16_size;
                 this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
             case OrderType::ColumnMajor:
-                // NCE1 - Option 2
-                // COLUMN MAJOR(INTERLEAVED)
-                // I.E: X, Z, Y
-                this->order = 2;
+                // NCE1 - Option 1
+                // COLUMN MAJOR(NCE1 Planar)
+                // I.E: X, Y, Z
+                this->order = 1;    // THIS ENUM IS WRONG
                 this->strideX = fp16_size;
-                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
-                this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
+                this->strideY = (this->dimX + local_StrideX)*this->strideX;
+                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
             case OrderType::ColumnMajorPlanar:
-                this->order = 3;
-                this->strideZ = fp16_size;
-                this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
+                this->order = 1;
+                this->strideY = fp16_size;
                 this->strideX = (this->dimY + local_StrideY)*this->strideY;
+                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
+                // this->strideX = fp16_size;
+                // this->strideY = (this->dimX + local_StrideX)*this->strideX;
+                // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 break;
+             case OrderType::RowInterleaved:
+                this->order = 2;
+                this->strideY = fp16_size;
+                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+                this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
+                break;
+
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);

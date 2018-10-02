@@ -48,7 +48,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
 
         //A conversion layer is needed in two cases
         //-p-> stands for a padded tensor
-        //1) HW -p-> SW (Target order is columnMajor). In this case HW -p-> CONVERSION -> SW
+        //1) HW -p-> SW (Target order is RowInterleaved). In this case HW -p-> CONVERSION -> SW
         //2) SW -p-> HW (Target order is planar). In this case SW -> CONVERSION -p-> HW.
 
         //Reasonable assumption: this pass is executed after the hw marking pass.
@@ -62,19 +62,19 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         int sinkIsHw = sink->get<int>("NCE1_Compatible");
         int sinkIsSw = !sinkIsHw;
         bool conversionNeeded = false;
-        Order targetOrder = OrderType::ColumnMajor;
+        Order targetOrder = OrderType::RowInterleaved;
 
         //Case 1
         if(sourceIsHw && sinkIsSw)
         {
-            targetOrder = OrderType::RowMajor;
+            targetOrder = OrderType::RowMajorPlanar;
             conversionNeeded = true;
         }
 
         //Case 2
         if(sourceIsSw && sinkIsHw)
         {
-            targetOrder = OrderType::RowMajorPlanar;
+            targetOrder = OrderType::RowInterleaved;
             conversionNeeded = true;
         }
 
@@ -86,7 +86,7 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             continue;
         }
 
-        if(conversionNeeded)
+        if(conversionNeeded && !(source->getOpType() == OpType::Input) && !(sink->getOpType() == OpType::Output))
         {
             mv::Data::TensorIterator originalTensor = flowIt->getTensor();
             mv::Data::TensorIterator conversionOutputTensor = om.conversion(originalTensor, targetOrder);
@@ -115,20 +115,25 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             om.undefineFlow(flowToEliminate);
             sink->erase(std::string("input") + std::to_string(i));
             om.defineFlow(conversionOutputTensor, sink, i);
+
+            for(; i < sink->outputSlots(); ++i)
+                sink->getOutputTensor(i)->setOrder(targetOrder);
         }
         else
         {
 
             // Align memory order when no conversion is needed
             /// Software ops
-            if (!sourceIsHw && !sinkIsHw)
+            if (sourceIsSw && sinkIsSw)
             {
                 if (source->getOpType() == OpType::Constant)
-                    flowIt->getTensor()->setOrder(OrderType::RowMajor);
+                    flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
+                else
+                    flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
             }
             // Hardware ops
             if (sourceIsHw && sinkIsHw)
-                flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
 
             ++flowIt;
 
