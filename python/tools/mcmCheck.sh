@@ -122,18 +122,18 @@ then
 fi
 
 #---------------- compile blob from prototxt
-if [ "$COMPILE" == "true" ] && [ "$DISABLEHARDWARE" == "false" ]
+if [ "$COMPILE" == "true" ] && [ "$DISABLEHARDWARE" == "true" ]
 then
   rm -f cpp.blob
-  echo "compiling for hardware"
+  echo "compiling for software"
 #  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp 
 fi
 #----------------
-if [ "$DISABLEHARDWARE" == "true" ] && [ "$COMPILE" == "true" ]
+if [ "$DISABLEHARDWARE" == "false" ] && [ "$COMPILE" == "true" ]
 then
   rm -f cpp.blob
-  echo "compiling for software only"
+  echo "compiling for harware"
 #  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp --ma2480
 fi
