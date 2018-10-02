@@ -62,4 +62,10 @@ namespace mv
         printf("Relocation Table Entry cannot exist\n");
         assert(0);
     }
+    unsigned int RelocationTable::total_entries(){
+        return input_entries.size() +
+        output_entries.size() +
+        constant_entries.size() +
+        variable_entries.size();
+    }
 }

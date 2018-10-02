@@ -108,7 +108,7 @@ namespace mv
 
                         if( this->input->getOrder() == mv::OrderType::RowInterleaved ){
                             this->descriptors[i].dataBaseAddr *= input_channels;    // TODO: Calculate 3f0 (1008)
-                            this->descriptors[i].dataLnStr = inputBlobTensor.strideX;
+                            this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
                             this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
                         }else{
                             this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
@@ -120,7 +120,7 @@ namespace mv
                         this->descriptors[i].outBaseAddr = 2*output_width*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
                         if( this->output->getOrder() == mv::OrderType::RowInterleaved ){
                             this->descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
-                            this->descriptors[i].outLnStr = outputBlobTensor.strideX;
+                            this->descriptors[i].outLnStr = outputBlobTensor.strideY;
                             this->descriptors[i].outChStr = outputBlobTensor.strideZ;
                         }else{
                             this->descriptors[i].outLnStr = outputBlobTensor.strideY;
@@ -264,6 +264,11 @@ namespace mv
             {
                 this->streamingMask = it->get<std::size_t>("NCE1_StreamingMask");
             }
+            printf("Serializer Info: Forcing Attribute 'NCE1_StreamingMask' to 1\n");
+            this->streamingMask = 1;
+
+
+
             if (! it->hasAttr("NCE1_Modes"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_Modes'. Defaulting to 0\n");

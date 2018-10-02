@@ -64,6 +64,6 @@ const std::function<std::size_t(const mv::Shape&)> mv::Order::RowInterleaved_Las
     if (s.ndims() == 0)
         throw OrderError(Order(OrderType::RowInterleaved), "0-dimensional shapes have no last contiguous dimension");
 
-    return s.ndims() - 1;
+    return 1;
 
 };

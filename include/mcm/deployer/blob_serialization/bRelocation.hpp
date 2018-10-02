@@ -28,6 +28,7 @@ namespace mv
         public:
             void write(Blob_buffer* b);
             unsigned int push_entry(std::pair<int, bLocation> ol );
+            unsigned total_entries();
     };
 }
 
