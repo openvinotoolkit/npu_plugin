@@ -61,11 +61,6 @@ import_array();
         return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
     
-    int compilationUnitDestructor(mv::CompilationUnit *unit)
-    {
-        unit->~CompilationUnit();
-    }
-
     // TODO: Create Generic Vector Calls
     std::array<unsigned short, 2> * get2DVector(int x, int y){
         std::array<unsigned short, 2> *arr = new std::array<unsigned short, 2>();
@@ -322,17 +317,19 @@ import_array();
     bool isValid(mv::CompositionalModel& o){
     	return o.isValid();
     }
-
+      
  %}
 
 #include <include/mcm/computation/model/control_model.hpp>
 #include <include/mcm/deployer/serializer.hpp>
+#include <include/mcm/compiler/compilation_unit.hpp>
 
 // The section below is exposing the functions within the included files,
 // or the ones defined above in the module.
 
 namespace mv
 {
+	
     namespace Data
     {
         class TensorIterator
@@ -346,7 +343,6 @@ namespace mv
         public:
             ~OpListIterator();
         };
-
     }
 }
 
@@ -355,7 +351,7 @@ mv::CompilationUnit* getCompilationUnit();
 mv::CompilationUnit* getCompilationUnit(bool disableHardware);
 mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
-int compilationUnitDestructor(mv::CompilationUnit *unit);
+//int compilationUnitDestructor(mv::CompilationUnit *unit);
 mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
