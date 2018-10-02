@@ -343,9 +343,9 @@ namespace mv
                 break;
              case OrderType::RowInterleaved:
                 this->order = 2;
-                this->strideY = fp16_size;
-                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
-                this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
+                this->strideX = fp16_size;
+                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
+                this->strideY = (this->dimZ + local_StrideZ)*this->strideZ;
                 break;
 
             default:
