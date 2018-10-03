@@ -319,15 +319,15 @@ namespace mv
                 // ROW MAJOR (CHANNEL MINOR)
                 // I.E: Y, X, Z
                 this->strideZ = fp16_size;
-                this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
-                this->strideY = (this->dimX + local_StrideX)*this->strideX;
+                this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
+                this->strideY = (this->dimX * this->strideX) + local_StrideX;
                 break;
             case OrderType::RowMajor:
                 // NOT USED
                 this->order = 2;
                 this->strideX = fp16_size;
-                this->strideY = (this->dimX + local_StrideX)*this->strideX;
-                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+                this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                this->strideZ = (this->dimY * this->strideY) + local_StrideY;
                 break;
             case OrderType::ColumnMajor:
                 // NCE1 - Option 1
@@ -335,14 +335,14 @@ namespace mv
                 // I.E: X, Y, Z
                 this->order = 1;    // THIS ENUM IS WRONG
                 this->strideX = fp16_size;
-                this->strideY = (this->dimX + local_StrideX)*this->strideX;
-                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+                this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                this->strideZ = (this->dimY * this->strideY) + local_StrideY;
                 break;
             case OrderType::ColumnMajorPlanar:
                 this->order = 1;
                 this->strideY = fp16_size;
-                this->strideX = (this->dimY + local_StrideY)*this->strideY;
-                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
+                this->strideX = (this->dimY * this->strideY) + local_StrideY;
+                this->strideZ = (this->dimX * this->strideX) + local_StrideX;
                 // this->strideX = fp16_size;
                 // this->strideY = (this->dimX + local_StrideX)*this->strideX;
                 // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
@@ -350,7 +350,7 @@ namespace mv
              case OrderType::RowInterleaved:
                 this->order = 2;
                 this->strideX = fp16_size;
-                this->strideZ = (this->dimX *this->strideX) + local_StrideX;
+                this->strideZ = (this->dimX * this->strideX) + local_StrideX;
                 this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
                 break;
 
