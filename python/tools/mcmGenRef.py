@@ -66,7 +66,7 @@ class netArgs:
         self.accuracy_table = {}
 
 # define command line arguments
-parser = argparse.ArgumentParser(description="mcmCheck.py compares HW output results from blob compiled by MCM compiler against its Caffe or tensorflow SW model.\n")
+parser = argparse.ArgumentParser(description="mcmGenRef.py produces a Fathom_expected.npy by performing inference on image supplied in the provided caffe model.\n")
 parser.add_argument('--weights', dest='weights', type=str, help='Weights file, e.g. ./resnet.caffemodel')
 parser.add_argument('--network', dest='network', type=str, help='Network model file, e.g. ./resnet.prototxt')
 parser.add_argument('--image', dest='image', type=str, help='input image file, e.g. ./picture.png')
