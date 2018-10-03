@@ -59,8 +59,6 @@ import_array();
         delete unit;
     }
     
-    
-
     int compile(mv::CompilationUnit *unit)
     {
         unit->initialize();
