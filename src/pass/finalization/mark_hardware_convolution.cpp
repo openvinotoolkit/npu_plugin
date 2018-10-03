@@ -9,7 +9,6 @@
 
 static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
-static void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -29,13 +28,6 @@ namespace mv
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "Adds scales around HW ops to utilize more bits of fixed-point number representation in MAC HW units"
-        );
-
-        MV_REGISTER_PASS(FormatMXWeights)
-        .setFunc(formatMXWeights)
-        .setGenre(PassGenre::Finalization)
-        .setDescription(
-            "This pass reshapes relevant Convolution weights for the MyriadX NCE"
         );
     }
 }
@@ -142,139 +134,4 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             }  // end HW conv
         }  // end conv
     }  // end op loop
-}
-
-//NOTE: This should not be done in such hardcoded way.
-void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    // for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
-    // {
-
-    auto flowIt = dm.flowBegin();
-    while (flowIt != dm.flowEnd())
-    {
-        auto source = flowIt.source();
-        auto sink = flowIt.sink();
-
-
-
-        bool valid = false;
-        if(sink->hasAttr("NCE1_Compatible"))
-        {
-            valid = sink->get<int>("NCE1_Compatible");
-        }
-        if(source->getOpType() == mv::OpType::Constant && sink->getOpType() == mv::OpType::Conv2D && valid)
-        {
-            auto weights = sink->getInputTensor(1);
-            if(weights->hasAttr("NCE1_WeightTransformed") && weights->get<bool>("NCE1_WeightTransformed") == true){
-                ++flowIt;
-                continue;
-            }
-            auto wshape = weights->getShape();
-
-            auto padding = weights->get<std::vector<size_t>>("NCE1_Paddings");
-
-            for (auto v : padding)
-                std::cout << "PAD: " << v << std::endl;
-
-            unsigned pad_oCalpha = (wshape[3]+padding[3])/8;
-            unsigned oCalpha = mv::round_up(wshape[3],8)/8;
-
-            unsigned iC = wshape[2];
-            unsigned pad_iC = wshape[2]+padding[2];
-
-            mv::Shape padShape = mv::Shape({pad_oCalpha, pad_iC, wshape[1], wshape[0], 8});
-            mv::Shape newShape = mv::Shape({oCalpha, iC, wshape[1], wshape[0], 8});
-
-
-            std::cout << "Set stride of weights: " << mv::Shape({pad_oCalpha - oCalpha,
-                 pad_iC - iC,
-                 0,
-                 0,
-                 0
-                }).toString() << std::endl;
-
-            std::cout << (wshape[3]+padding[3]) << "/8 = " << (wshape[3]+padding[3])/8 << std::endl;
-
-            std::cout << "oldShape: " << wshape.toString() << std::endl;
-            std::cout << "newShape: " << newShape.toString() << std::endl;
-            std::cout << "padShape: " << padShape.toString() << std::endl;
-
-            mv::Tensor newTensor = mv::Tensor("MX_Weights",
-                                                newShape,
-                                                weights->getDType(),
-                                                mv::OrderType::ColumnMajor);
-                                                // weights->getOrder());
-
-
-            std::vector<double> new_data;
-            auto data = weights->getData();
-
-            unsigned int o_iC = wshape[2], o_oC = wshape[3], o_fw = wshape[1];
-
-            for(std::size_t i = 0; i != newShape[0]; i++){
-                for(std::size_t j = 0; j != newShape[1]; j++){
-                    for(std::size_t x = 0; x != newShape[2]; x++){
-                        for(std::size_t y = 0; y != newShape[3]; y++){
-                            for(std::size_t z = 0; z != newShape[4]; z++){
-                                if(newShape[0]*newShape[4] > wshape[3] &&
-                                    i+1 == newShape[0] &&   // Last line
-                                    z >= 8 - (padding[3] % 8)
-                                    ){
-                                    // Pad Zeros
-                                    new_data.push_back(0);
-                                }else{
-                                    new_data.push_back(data[
-                                        x*o_fw*o_iC*o_oC +  // Kernel Height is largest Dim in original matrix.
-                                        y*o_iC*o_oC +       // Followed by Width
-                                        j*o_oC +            // then Input Channels
-                                        i*8 + z             // Output Channels are written in blocks of 8
-                                    ]);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            newTensor.populate(new_data, newTensor.getOrder());
-
-            auto new_op = om.constant(
-                newTensor.getData(),
-                newTensor.getShape(),
-                newTensor.getDType(),
-                newTensor.getOrder(),
-                source->getName() + "_MxWeights"
-            );
-
-            new_op->set<bool>("NCE1_WeightTransformed", true);
-            new_op->set<std::vector<size_t>>("NCE1_Paddings",
-                {pad_oCalpha - oCalpha,
-                 pad_iC - iC,
-                 0,
-                 0,
-                 0
-                });
-
-            unsigned i = 0;
-            for(; i < sink->inputSlots(); ++i)
-                if(sink->getInputTensor(i) == flowIt->getTensor())
-                    break;
-
-            auto flowToEliminate = flowIt;
-            ++flowIt;
-
-            om.undefineFlow(flowToEliminate);
-            sink->erase(std::string("input") + std::to_string(i));
-            om.defineFlow(new_op, sink, i);
-            om.removeOp(source);
-
-        }else{
-            ++flowIt;
-        }
-    }
-    std::cout << "exiting formatMXweights pass " << std::endl;
 }
