@@ -40,7 +40,7 @@ recordedModel_(new CompositionalModelRecorder(*model_, compositionalModelRecordi
 
 mv::CompilationUnit::~CompilationUnit()
 {
-    delete model_;
+	delete model_;
     delete recordedModel_;
 }
 
