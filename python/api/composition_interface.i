@@ -308,6 +308,9 @@ import_array();
     mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o.fullyConnected(input0, input1);
     }
+    mv::Data::TensorIterator dropOut(mv::CompositionalModel& o,mv::Data::TensorIterator input){
+        return o.dropOut(input);
+    }
 
     mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o.divide(input0, input1);
@@ -400,6 +403,7 @@ mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterato
 mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
+mv::Data::TensorIterator dropOut(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 bool isValid(mv::CompositionalModel& o);
 
 int testConv(
