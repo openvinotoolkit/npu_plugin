@@ -898,7 +898,6 @@ namespace mv
                 for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
                 {
 
-                    std::cout << "Tensor: " << bit->toString() << std::endl;
                     bool tight = true;
                     for ( auto s : bit->getStrides() )
                         if (s != 0)

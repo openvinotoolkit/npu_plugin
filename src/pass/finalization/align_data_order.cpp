@@ -3,7 +3,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
-static void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -12,7 +13,14 @@ namespace mv
     {
 
         MV_REGISTER_PASS(AddConversionLayers)
-        .setFunc(addConversionLayers)
+        .setFunc(addConversionLayersFcn)
+        .setGenre(PassGenre::Finalization)
+        .setDescription(
+            "This pass adds conversion layers where needed."
+        );
+
+        MV_REGISTER_PASS(AlignConstOrder)
+        .setFunc(alignConstOrderFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass adds conversion layers where needed."
@@ -22,9 +30,49 @@ namespace mv
 
 }
 
-//NOTE: This should not be done in such hardcoded way.
-void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
+
+    using namespace mv;
+
+    DataModel dm(model);
+    OpModel om(model);
+
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+
+        if (opIt->getOpType() == OpType::Constant)
+        {
+
+            if (opIt.childrenSize() > 1)
+                throw OpError(*opIt, "Constant has more than 1 children, currently unsupported");
+
+            // Constant is a parameter tensor for a hardware layer
+            if (opIt.leftmostChild()->hasAttr("NCE1_Compatible"))
+            {
+                if (opIt.leftmostChild()->get<int>("NCE1_Compatible") == 1)
+                {
+                    //opIt->set<Order>("order", OrderType::RowMajorPlanar);
+                    opIt.leftmostOutput()->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                    continue;
+                }
+
+            }
+
+            // Constant is a parameter tensor for a software layer
+            //opIt->set<Order>("order", OrderType::RowMajorPlanar);
+            opIt->getOutputTensor(0)->setOrder(OrderType::RowMajorPlanar);
+
+        }
+
+    }
+
+}
+
+//NOTE: This should not be done in such hardcoded way.
+void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+{
+
     std::cout << "addConversionLayers " << std::endl;
 
     using namespace mv;
@@ -52,11 +100,20 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         //2) SW -p-> HW (Target order is planar). In this case SW -> CONVERSION -p-> HW.
 
         //Reasonable assumption: this pass is executed after the hw marking pass.
-        if(!source->hasAttr("NCE1_Compatible") || !sink->hasAttr("NCE1_Compatible")){
+        if(!source->hasAttr("NCE1_Compatible") || !sink->hasAttr("NCE1_Compatible"))
+        {
             ++flowIt;
             continue;
 
         }
+
+        // Separate pass for alignment of constant
+        if (source->getOpType() == OpType::Constant)
+        {
+            ++flowIt;
+            continue;
+        }
+
         int sourceIsHw = source->get<int>("NCE1_Compatible");
         int sourceIsSw = !sourceIsHw;
         int sinkIsHw = sink->get<int>("NCE1_Compatible");
@@ -76,14 +133,6 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
         {
             targetOrder = OrderType::RowInterleaved;
             conversionNeeded = true;
-        }
-
-        if(conversionNeeded && source->getOpType() == OpType::Constant)
-        {
-            //No need for a conversion layer in this case, just reorder the tensor in place
-            flowIt->getTensor()->setOrder(targetOrder);
-            ++flowIt;
-            continue;
         }
 
         if(conversionNeeded && !(source->getOpType() == OpType::Input) && !(sink->getOpType() == OpType::Output))
@@ -125,19 +174,15 @@ void addConversionLayers(mv::ComputationModel& model, mv::TargetDescriptor&, mv:
             // Align memory order when no conversion is needed
             /// Software ops
             if (sourceIsSw && sinkIsSw)
-            {
-                if (source->getOpType() == OpType::Constant)
-                    flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
-                else
-                    flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
-            }
+                flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
             // Hardware ops
-            if (sourceIsHw && sinkIsHw)
+            else if (sourceIsHw && sinkIsHw)
                 flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
 
             ++flowIt;
 
         }
+
     }
 
 }
