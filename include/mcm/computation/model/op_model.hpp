@@ -59,6 +59,7 @@ namespace mv
         Data::TensorIterator reshape(Data::TensorIterator input, const Shape& shape, const std::string& name = "") override;
         Data::TensorIterator bias(Data::TensorIterator input, Data::TensorIterator biases, const std::string& name = "") override;
         Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, const std::string& name = "") override;
+        Data::TensorIterator dropOut(Data::TensorIterator inputTensor, const std::string& name) override;
         Data::TensorIterator conversion(Data::TensorIterator input, Order targetOrder, const std::string& name = "");
 
         bool isValid() const override;

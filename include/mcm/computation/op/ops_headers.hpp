@@ -22,5 +22,6 @@
 #include "include/mcm/computation/op/def/reshape.hpp"
 #include "include/mcm/computation/op/def/bias.hpp"
 #include "include/mcm/computation/op/def/fully_connected.hpp"
+#include "include/mcm/computation/op/def/drop_out.hpp"
 
 #endif // OPS_HEADERS_

@@ -464,6 +464,26 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::fullyConnected(Data::Te
 	return result;
 }
 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::dropOut(Data::TensorIterator inputTensor,
+	const std::string& name)
+{
+	/*get the name of the argument(s)*/
+	auto sourceIt0 = modelRef_.getSourceOp(inputTensor);
+
+	/*open the recording file*/
+	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
+
+	/*Construct a std::string and write to file*/
+	ss << "auto " << modelRef_.getOpName_(OpType::DropOut) << " =" << " rc.dropOut("
+		<< sourceIt0->getName() << ")" << ";" << "\n";;
+	outputSourceFile << ss.str();
+	ss.str("");
+	outputSourceFile.close();
+
+	auto result = modelRef_.dropOut(inputTensor, name);
+	return result;
+}
+
 mv::Data::OpListIterator mv::CompositionalModelRecorder::getSourceOp(Data::TensorIterator tensor)
 {
 	auto result = modelRef_.getSourceOp(tensor);

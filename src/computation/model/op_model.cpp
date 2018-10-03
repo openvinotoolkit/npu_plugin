@@ -464,6 +464,23 @@ mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputT
 
 }
 
+mv::Data::TensorIterator mv::OpModel::dropOut(Data::TensorIterator inputTensor, const std::string& name)
+{
+    std::string opName;
+    if (name != "")
+        opName = name;
+    else
+        opName = getOpName_(OpType::DropOut);
+
+    Data::OpListIterator dropOutIt = dataGraph_.node_insert(std::make_shared<op::DropOut>(opName));
+    Data::TensorIterator inputs[] = {inputTensor};
+    auto result = defineOp_(dropOutIt, inputs, 1);
+    if (isValid(result))
+        incrementOpsCounter_(OpType::DropOut);
+    return result;
+
+}
+
 mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)
 {
     return findSourceOp_(tensor);
