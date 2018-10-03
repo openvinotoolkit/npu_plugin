@@ -211,8 +211,9 @@ namespace mv
                 leading_pad = mem->getStrides()[0];
 
             }
-            else
+            else{
                 blk_stride = -1;
+            }
 
             if(this->offset == -1)
                 this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
@@ -248,11 +249,11 @@ namespace mv
                 break;
                 case OrderType::RowMajor:
                 {
-                    if (block == this->dimZ)
+                    if (block == this->dimZ* 2)
                         local_StrideZ = blk_stride;
-                    else if (block == this->dimY*this->dimZ)
+                    else if (block == this->dimY*this->dimZ* 2)
                         local_StrideY = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
                         local_StrideX = blk_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << std::endl;
@@ -260,11 +261,11 @@ namespace mv
                 break;
                 case OrderType::RowMajorPlanar:
                 {
-                    if (block == this->dimZ)
+                    if (block == this->dimZ * 2)
                         local_StrideZ = blk_stride;
-                    else if (block == this->dimX*this->dimY)
+                    else if (block == this->dimX*this->dimY* 2)
                         local_StrideX = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
                         local_StrideY = blk_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (RowMajorPlanar)" << std::endl;
@@ -272,11 +273,11 @@ namespace mv
                 break;
                 case OrderType::ColumnMajorPlanar:
                 {
-                    if (block == this->dimY)
+                    if (block == this->dimY* 2)
                         local_StrideY = blk_stride;
-                    else if (block == this->dimX*this->dimY)
+                    else if (block == this->dimX*this->dimY* 2)
                         local_StrideX = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
+                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
                         local_StrideZ = blk_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
