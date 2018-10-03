@@ -742,6 +742,35 @@ blob_format = Struct(
                         "order" / Int32ul,
                     )[5]
                 ),
+                # Hardware Pooling
+                34: Struct(
+                    "OpMode" / Int32ul,
+                    "inputSize" / Int32ul,
+                    "outputSize" / Int32ul,
+                    "concatOffset" / Int32ul,
+                    "unloadCMX" / Int32ul,
+                    "overwriteInput" / Int32ul,
+                    "CMXSize" / Int32ul,
+                    "ReluSHVAccum" / Int32ul,
+                    "ShvNegSlope" / Int32ul,
+                    "ShvPosSlope" / Int32ul,
+                    "DescrAmount" / Int32ul,
+                    "Descriptors" / Struct(
+                        "Half-Line" / Bytes(4)[32] # Int32ul[32]
+                    )[this.DescrAmount],
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[5]
+                ),
                 # conversion
                 37: Struct(
                     "Buffers..." / Struct(
@@ -780,23 +809,23 @@ blob_format = Struct(
     "size_of_buffer_section" / Computed(this.paduntil[-1]),
     "Post_Pad" / Padded(3, Byte),
 
-    "buffers" / Array(this.size_of_buffer_section - 7, Byte, discard=True),
-    "relocation_buffer_size" / Int32ul,
-    "blob_buffer_reloc_offset" / Int32ul,
-    "blob_buffer_reloc_size" / Int32ul,
-    "work_buffer_reloc_offset" / Int32ul,
-    "work_buffer_reloc_size" / Int32ul,
+    # "buffers" / Array(this.size_of_buffer_section - 7, Byte, discard=False),
+    # "relocation_buffer_size" / Int32ul,
+    # "blob_buffer_reloc_offset" / Int32ul,
+    # "blob_buffer_reloc_size" / Int32ul,
+    # "work_buffer_reloc_offset" / Int32ul,
+    # "work_buffer_reloc_size" / Int32ul,
 
-    "blob_reloc_entries" /  Struct(
-        "offset" / Int32ul,
-        "location" / Int32ul,
-    )[this.blob_buffer_reloc_size // 8],
+    # "blob_reloc_entries" /  Struct(
+    #     "offset" / Int32ul,
+    #     "location" / Int32ul,
+    # )[this.blob_buffer_reloc_size // 8],
 
 
-    "work_reloc_entries" /  Struct(
-        "offset" / Int32ul,
-        "location" / Int32ul,
-    )[this.work_buffer_reloc_size // 8],
+    # "work_reloc_entries" /  Struct(
+    #     "offset" / Int32ul,
+    #     "location" / Int32ul,
+    # )[this.work_buffer_reloc_size // 8],
 
 )
 
