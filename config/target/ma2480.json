@@ -42,6 +42,7 @@
 
 		"finalize":
 		[
+			"AlignConstOrder",
 			"MarkHardwareConvolution",
 			"MyriadXPaddings",
 			"ModeSelection",
