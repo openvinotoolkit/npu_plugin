@@ -53,6 +53,13 @@ import_array();
     {
         return &unit->recordedModel();
     }
+    
+    void deleteCompilationUnitObject(mv::CompilationUnit *unit)
+    {
+        delete unit;
+    }
+    
+    
 
     int compile(mv::CompilationUnit *unit)
     {
@@ -351,7 +358,7 @@ mv::CompilationUnit* getCompilationUnit();
 mv::CompilationUnit* getCompilationUnit(bool disableHardware);
 mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
-//int compilationUnitDestructor(mv::CompilationUnit *unit);
+void deleteCompilationUnitObject(mv::CompilationUnit *unit);
 mv::Shape * getShape(int x);
 mv::Shape * getShape(int x, int y);
 mv::Shape * getShape(int x, int y, int z);
