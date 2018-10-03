@@ -283,6 +283,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                         }
                     }
                 }
+                break;
                 case OrderType::ColumnMajorPlanar:
                 {
                     switch(axis){
@@ -298,6 +299,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                         }
                     }
                 }
+                break;
                 case OrderType::RowInterleaved:
                 {
                     switch(axis){
@@ -313,6 +315,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                         }
                     }
                 }
+                break;
                 case OrderType::ColumnMajor:
                 {
                     switch(axis){
