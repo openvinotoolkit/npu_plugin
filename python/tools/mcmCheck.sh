@@ -11,6 +11,7 @@ RUNHW="true"
 COMPAREBLOBS="false"
 MULTIBLOB="false"
 DISABLEHARDWARE="false"
+WEIGHTSPROVIDED="false"
 
 BLOB="cpp.blob"
 EXPECTED="Fathom_expected.npy"
@@ -28,6 +29,7 @@ do
   if [ "$1" == "-w" ]
   then
     WEIGHTS=$2
+    WEIGHTSPROVIDED="true"
   fi
   if [ "$1" == "-i" ]
   then
@@ -121,19 +123,39 @@ then
   return 2
 fi
 
-#---------------- compile blob from prototxt
-if [ "$COMPILE" == "true" ] && [ "$DISABLEHARDWARE" == "true" ]
+#----------------
+if [ "$COMPILE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
 then
   rm -f cpp.blob
   echo "compiling for software"
+  echo "weights not provided - generating weights"
+#  ./mvNCCompile.py $NETWORK --new-parser --cpp
+  $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser --cpp 
+fi
+#---------------- compile blob from prototxt
+if [ "$COMPILE" == "true" ] && [ "$DISABLEHARDWARE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ]
+then
+  rm -f cpp.blob
+  echo "compiling for software"
+  echo "using weight provided"
 #  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp 
 fi
 #----------------
-if [ "$DISABLEHARDWARE" == "false" ] && [ "$COMPILE" == "true" ]
+if [ "$DISABLEHARDWARE" == "false" ] && [ "$COMPILE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
 then
   rm -f cpp.blob
   echo "compiling for harware"
+  echo "weights not provided - generating weights"
+#  ./mvNCCompile.py $NETWORK --new-parser --cpp
+  $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser --cpp --ma2480
+fi
+#----------------
+if [ "$DISABLEHARDWARE" == "false" ] && [ "$COMPILE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ]
+then
+  rm -f cpp.blob
+  echo "compiling for harware"
+  echo "using weight provided"
 #  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp --ma2480
 fi
