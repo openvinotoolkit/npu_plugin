@@ -555,6 +555,10 @@ void mv::CompositionalModelRecorder::createRecordedSourceFiles() {
 
 void mv::CompositionalModelRecorder::completeRecordedSourceFile() {
 
+
+	std::string projectRootPath = utils::projectRootPath();
+	std::string savedPath = utils::projectRootPath() + savedRecordingsPath_;
+	
 	/*Populate the 'compilation passes' and end of the source file i.e. return 0*/
 
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
@@ -574,8 +578,9 @@ void mv::CompositionalModelRecorder::completeRecordedSourceFile() {
 	ss << "auto result = unit.run();" << "\n";
 
 	ss << "std::cout << result.stringifyPretty() << std::endl;" << "\n";
-	ss << "system(\"dot -Tsvg recorded.dot -o recorded.svg\");" << "\n";
-	ss << "system(\"dot -Tsvg recorded_final.dot -o recorded_final.svg\");" << "\n";
+	ss << "system(\"dot -Tsvg " << savedPath << "recorded.dot -o recorded.svg\");" << "\n";
+    ss << "system(\"dot -Tsvg " << savedPath << "recorded_adapt.dot -o recorded_adapt.svg\");" << "\n";
+	ss << "system(\"dot -Tsvg " << savedPath << "recorded_final.dot -o recorded_final.svg\");" << "\n";
 
 	ss << "return 0;" << "\n";
 	ss << "}" << "\n";
