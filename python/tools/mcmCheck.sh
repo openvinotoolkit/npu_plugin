@@ -104,7 +104,8 @@ then
   echo " "
   echo "Usage: source ./mcmCheck.sh -n <prototxt_file> -w <caffemodel_file> -i <image_file> -b <blob_file> -r <result_file> -e <expected_file> -v -h -p"
   echo " "
-  echo "    -w and -n are needed for compilation and generation of expected reference results"
+  echo "    -n is needed for compilation and generation of expected reference results"
+  echo "    -w is optional, if you do not supply weights then caffe generated weights will be used"
   echo "    -b inhibit compilation and use blob file supplied"
   echo "    -r inhibit compilation, inhibit running on hardware and use <results_file> for checking. DO NOT APPEND .npy to <results_file>"
   echo "    -e inhibit running caffe to get expected results and use <expected_file> for checking reference."
@@ -112,8 +113,13 @@ then
   echo "    -b <file1> -b <file2> if you specify 2 blobs then mcmcheck will run them and compare their outputs"
   echo "    -v report all flags and variables controlling script behavior"
   echo "    -p pause between running of multiple blobs for manual movidebug restart"
+  echo "    -software run operations in software only"
   echo "    -h print this help message"
   echo " "
+  echo "Example: source ./mcmCheck.sh -n ./ResNet-50-deploy.prototxt -i ./mug.png -software "
+  echo "   -compiles a new blob (to run in software only) from prototxt and uses caffe generated wights, compares result of blob against Caffe expected numpy output"
+  echo "Example: source ./mcmCheck.sh -n ./ResNet-50-deploy.prototxt -i ./mug.png"
+  echo "   -compiles a new blob from prototxt and uses caffe generated wights, compares result of blob against Caffe expected numpy output"
   echo "Example: source ./mcmCheck.sh -n ./ResNet-50-deploy.prototxt -w ./ResNet-50-model.caffemodel -i ./mug.png"
   echo "   -compiles a new blob from prototxt and caffemodel, compares result of blob against Caffe expected numpy output"
   echo "Example: source ./mcmCheck.sh -b new.blob -b old.blob -i ./mug.png -v"
@@ -129,15 +135,15 @@ then
   rm -f cpp.blob
   echo "compiling for software"
   echo "weights not provided - generating weights"
-#  ./mvNCCompile.py $NETWORK --new-parser --cpp
-  $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser --cpp 
+  #note: this produces a Fathom_expected.npy file during compilation using an random array of data passed through the caffe model
+  $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --cpp    
 fi
 #---------------- compile blob from prototxt
 if [ "$COMPILE" == "true" ] && [ "$DISABLEHARDWARE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ]
 then
   rm -f cpp.blob
   echo "compiling for software"
-  echo "using weight provided"
+  echo "using weights provided"
 #  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp 
 fi
@@ -155,16 +161,25 @@ if [ "$DISABLEHARDWARE" == "false" ] && [ "$COMPILE" == "true" ] && [ "$WEIGHTSP
 then
   rm -f cpp.blob
   echo "compiling for harware"
-  echo "using weight provided"
+  echo "using weights provided"
 #  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp --ma2480
 fi
 
-#---------------- generate reference/expected .npy outout
-if [ "$GENREFERENCE" == "true" ]
+#---------------- generate reference/expected .npy outout with provided weights and provided image for inference
+if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ]
 then
-  rm -f Fathom_expected.npy
+  echo "executing mcmGenRef.py with provided weights"
+  rm -f Fathom_expected.npy # delete the results file generated during compilation, inference on provided image will be saved to Fathom_expected.npy file now
   python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --weights $WEIGHTS --image $IMAGE
+  exit
+fi
+#---------------- generate reference/expected .npy outout without provided weights and provided image for inference
+if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
+then
+  echo "executing mcmGenRef.py without provided weights"
+  rm -f Fathom_expected.npy
+  python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --image $IMAGE 
 fi
 #---------------- run blob on HW
 if [ "$RUNHW" == "true" ]
