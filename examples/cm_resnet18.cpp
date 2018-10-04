@@ -100,13 +100,13 @@ int main()
 	auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
 	auto res2a = residualConvBlock(cm, pool1, 64, {1, 1});
 	auto res2b = residualBlock(cm, res2a);
-	//auto res3a = residualConvBlock(cm, res2b, 128, {2, 2});
-	//auto res3b = residualBlock(cm, res3a);
-	//auto res4a = residualConvBlock(cm, res3b, 256, {2, 2});
-	//auto res4b = residualBlock(cm, res4a);
-	//auto res5a = residualConvBlock(cm, res4b, 512, {2, 2});
-	//auto res5b = residualBlock(cm, res5a);
-	auto pool5 = cm.avgpool2D(res2b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
+	auto res3a = residualConvBlock(cm, res2b, 128, {2, 2});
+	auto res3b = residualBlock(cm, res3a);
+	auto res4a = residualConvBlock(cm, res3b, 256, {2, 2});
+	auto res4b = residualBlock(cm, res4a);
+	auto res5a = residualConvBlock(cm, res4b, 512, {2, 2});
+	auto res5b = residualBlock(cm, res5a);
+	auto pool5 = cm.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
 	std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
 	auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);
 	auto fc1000 = cm.fullyConnected(pool5, weights);
@@ -133,9 +133,9 @@ int main()
 	// Run all passes
 	unit.run();
 
-	system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
-	system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
-	system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
+	//system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+	//system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
+	//system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
 	return 0;
 
 }
