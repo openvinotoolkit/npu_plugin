@@ -182,8 +182,8 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         if (opIt->getOpType() == OpType::ReLU)
         {
 
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU));
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0)); 
+            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU)); 
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 

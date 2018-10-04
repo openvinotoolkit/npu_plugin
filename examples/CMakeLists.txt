@@ -13,8 +13,11 @@ project(mcmComplier VERSION 0.0.1)
 #add_executable(cm_two_branch cm_two_branch.cpp)
 #target_sources(cm_two_branch PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
 
-add_executable(cm_resnet18 cm_resnet18.cpp)
-target_sources(cm_resnet18 PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
+#add_executable(cm_resnet18 cm_resnet18.cpp)
+#target_sources(cm_resnet18 PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
+
+add_executable(dropout cm_dropOut_test.cpp)
+target_sources(dropout PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})
 
 #add_executable(cm_resnet50 cm_resnet50.cpp)
 #target_sources(cm_resnet50 PUBLIC ${base} ${computation_model} ${ops} ${logger} ${pass} ${tensor} ${compiler})

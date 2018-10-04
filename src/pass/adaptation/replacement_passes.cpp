@@ -37,10 +37,13 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto sourceTensor = parentOpIt->getOutputTensor(0);
+            std::cout << "parentOp name is" << parentOpIt->getName() << std::endl;
+            std::cout << "source tesnor name is" << sourceTensor->getName() << std::endl;
 
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
-
+            std::cout << "weightsData name is" << opIt->getInputTensor(1)->getName() << std::endl;
+            
             Tensor weigthsTensor = *(opIt->getInputTensor(1));
             weigthsTensor.setOrder(OrderType::RowMajor);
 
