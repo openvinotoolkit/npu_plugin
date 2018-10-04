@@ -20,23 +20,23 @@ mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator
     to_return.output_height = output_dimensions[1];
     to_return.output_channels = output_dimensions[2];
 
-    if(input_tensor->hasAttr("NCE1_Paddings")) //The input tensor involved in this convolution has already been padded (probably as output tensor of some other convolution)
-    {
-        std::vector<std::size_t> paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-        to_return.input_width += paddings[0];
-        to_return.input_height += paddings[1];
-        to_return.input_channels += paddings[2];
-    }
+//    if(input_tensor->hasAttr("NCE1_Paddings")) //The input tensor involved in this convolution has already been padded (probably as output tensor of some other convolution)
+//    {
+//        std::vector<std::size_t> paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+//        to_return.input_width += paddings[0];
+//        to_return.input_height += paddings[1];
+//        to_return.input_channels += paddings[2];
+//    }
 
-    if(output_tensor->hasAttr("NCE1_Paddings"))
-    //The output tensor involved in this convolution has already been padded (probably as input tensor of some other convolution)
-    //NOTE: Maybe this shouldn't happen at all, but it's better to play safe
-    {
-        std::vector<std::size_t> paddings = output_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-        to_return.output_width += paddings[0];
-        to_return.output_height += paddings[1];
-        to_return.output_channels += paddings[2];
-    }
+//    if(output_tensor->hasAttr("NCE1_Paddings"))
+//    //The output tensor involved in this convolution has already been padded (probably as input tensor of some other convolution)
+//    //NOTE: Maybe this shouldn't happen at all, but it's better to play safe
+//    {
+//        std::vector<std::size_t> paddings = output_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+//        to_return.output_width += paddings[0];
+//        to_return.output_height += paddings[1];
+//        to_return.output_channels += paddings[2];
+//    }
 
     auto strides = convIterator->get<std::array<unsigned short, 2>>("stride");
     to_return.stride_x = strides[0];

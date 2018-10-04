@@ -73,13 +73,14 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         std::vector<size_t> output_tensor_paddings(3);
         std::vector<size_t> weight_tensor_paddings(4);
 
+        //Channels need to be physically padded just for weights
         input_tensor_paddings[0] = actual_input_width - input_width;
         input_tensor_paddings[1] = actual_input_height - input_height;
-        input_tensor_paddings[2] = actual_input_channels - input_channels;
+        input_tensor_paddings[2] = 0;
 
         output_tensor_paddings[0] = actual_output_width - output_width;
         output_tensor_paddings[1] = actual_output_height - output_height;
-        output_tensor_paddings[2] = actual_output_channels - output_channels;
+        output_tensor_paddings[2] = 0;
 
         weight_tensor_paddings[0] = 0;
         weight_tensor_paddings[1] = 0;

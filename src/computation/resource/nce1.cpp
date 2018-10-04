@@ -174,7 +174,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
         to_return.mode = mode;
     }
 
-    // n of input split required (padded to next pow of 2: WHY?)
+    // n of input split required (padded to next pow of 2: WHY? Firmware)
     unsigned n_split_c = computeActualInputChannelSplits(param.input_channels/max_ic);
     unsigned actual_ic_per_split = int(ceil((double)(param.input_channels)/n_split_c));
 
@@ -468,10 +468,9 @@ unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels, unsigned 
     return mv::round_up(input_channels, dpe_x_output_channel.at(mode));
 }
 
-//Most lazy and safe overload ever.
 unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels)
 {
-    return mv::round_up(input_channels, 4);
+    return input_channels;
 }
 
 unsigned mv::Nce1::computeActualOutputChannels(unsigned output_channels)
