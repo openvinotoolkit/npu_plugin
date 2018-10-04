@@ -578,9 +578,9 @@ void mv::CompositionalModelRecorder::completeRecordedSourceFile() {
 	ss << "auto result = unit.run();" << "\n";
 
 	ss << "std::cout << result.stringifyPretty() << std::endl;" << "\n";
-	ss << "system(\"dot -Tsvg " << savedPath << "recorded.dot -o recorded.svg\");" << "\n";
-    ss << "system(\"dot -Tsvg " << savedPath << "recorded_adapt.dot -o recorded_adapt.svg\");" << "\n";
-	ss << "system(\"dot -Tsvg " << savedPath << "recorded_final.dot -o recorded_final.svg\");" << "\n";
+	ss << "system(\"dot -Tsvg " << savedPath << "recorded.dot -o " << savedPath << "recorded.svg\");" << "\n";
+    ss << "system(\"dot -Tsvg " << savedPath << "recorded_adapt.dot -o " << savedPath << "recorded_adapt.svg\");" << "\n";
+	ss << "system(\"dot -Tsvg " << savedPath << "recorded_final.dot -o " << savedPath << "recorded_final.svg\");" << "\n";
 
 	ss << "return 0;" << "\n";
 	ss << "}" << "\n";
