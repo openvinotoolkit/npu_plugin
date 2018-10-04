@@ -88,28 +88,15 @@ namespace mv
                 case OpType::Conv2D:
                 case OpType::FullyConnected:
                     {
-                        uint32_t kernel_sizeX = 0 ;
-                        uint32_t kernel_sizeY = 0 ;
-                        uint32_t kernel_sizeZ = 0 ;
-                        uint32_t kernel_sizeN = 0 ;
+                        uint32_t total_weight_size = 0 ;
+                        auto weight_tensor = it->getInputTensor(1);
+                        auto weight_tensor_shape = weight_tensor->getShape();
 
                         if ( it->getOpType() == OpType::FullyConnected )
-                        {
-                            kernel_sizeX = it->getInputTensor(1)->getShape().totalSize() ;
-                            kernel_sizeY = 1 ;
-                            kernel_sizeZ = 1 ;
-                            kernel_sizeN = 1 ;
-                            blob_stats.stage_section_size += (45*4) ;
-                        }
+                            total_weight_size = weight_tensor_shape.totalSize();
                         else
                         {
-
-                            kernel_sizeX = it->getInputTensor(1)->getShape()[0] ;
-                            kernel_sizeY = it->getInputTensor(1)->getShape()[1] ;
-                            kernel_sizeZ = it->getInputTensor(1)->getShape()[2] ;
-                            kernel_sizeN = it->getInputTensor(1)->getShape()[3] ;
-
-
+                            total_weight_size = weight_tensor_shape.totalSize();
                             int mx_valid = 0;
                             if (! it->hasAttr("NCE1_Compatible"))
                             {
@@ -149,7 +136,7 @@ namespace mv
 
                         // TAPS region
                         // calculate buffer sizes etc related to weights
-                        uint32_t weights_region_size = kernel_sizeN*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size;
+                        uint32_t weights_region_size = total_weight_size*blob_stats.weights_number_size;
                         blob_stats.weights_region_size += weights_region_size ;
                         blob_stats.data_buffer_count++ ;
 
