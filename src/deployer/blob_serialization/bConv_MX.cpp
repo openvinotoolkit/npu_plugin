@@ -81,19 +81,32 @@ namespace mv
 
             unsigned int original_height = this->input->getShape()[1];
 
+            /*
+            std::cout << "Serializing a convolution performed in "
+                       << this->DPUmodeVector.size()
+                       << " shots, using "
+                       << splits_over_iC
+                       << " splits over IC and "
+                       << splits_over_H
+                       << " splits over H "
+                       << std::endl;
+            */
 
-            unsigned i;
-            for (unsigned oc = 0; oc != this->DPUmodeVector.size(); oc++)
+            //NOTE/TODO: This part probably has to be changed when split over IC come really into play.
+            unsigned i = 0;
+            for (unsigned oc = 0; oc != this->DPUmodeVector.size(); ++oc)
             {
-                for (unsigned ic = 0; ic != splits_over_iC; ic++)
+                for (unsigned ic = 0; ic != splits_over_iC; ++ic)
                 {
-                    for (unsigned h = 0; h != splits_over_H; h++)
+                    for (unsigned h = 0; h != splits_over_H; ++h)
                     {
                         i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
 
+                        //std::cout << "Filling descriptor " << i << std::endl;
+
                         unsigned int current_height, output_height;
-                        current_height = this->input_lines_processed[i];
-                        output_height = this->output_lines_processed[i];
+                        current_height = this->input_lines_processed[h];
+                        output_height = this->output_lines_processed[h];
 
                         auto output_width = output_shape[1];
                         auto input_width = input_shape[1];
@@ -142,6 +155,8 @@ namespace mv
                     }
                 }
             }
+
+            std::cout << "Finished convolution serialization" << std::endl;
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
