@@ -40,6 +40,7 @@ do
     BLOB=$2
     COMPILE="false"
     MULTIBLOB="true"
+    shift  
   fi
   if [ "$1" == "-r" ]
   then
@@ -54,7 +55,7 @@ do
   fi
   if [ "$1" == "-h" ]
   then
-    HELP="true"MULTIBLOB
+    HELP="true"
   fi
   if [ "$1" == "-v" ]
   then
@@ -64,14 +65,14 @@ do
   then
     DISABLEHARDWARE="true"
   fi
-  #if [ "$1" == "-b" -a $MULTIBLOB == "true" ] 
-  #then
-  #  BLOB2=$2
-  #  COMPAREBLOBS="true"
-  #  COMPILE="false"
-  #  GENREFERENCE="false"
-  #  EXPECTED=$COMPAREEXPECTEDNPY
-  #fi
+  if [ "$1" == "-b" -a $MULTIBLOB == "true" ] 
+  then
+    BLOB2=$2
+    COMPAREBLOBS="true"
+    COMPILE="false"
+    GENREFERENCE="false"
+    EXPECTED=$COMPAREEXPECTEDNPY
+  fi
   if [ "$1" == "-p" ]
   then
     PAUSE="true"
@@ -79,7 +80,7 @@ do
   shift
 done
 
-if [ "$VERBOSE" == "--blob $BLOB --image $IMAGE --result $RESULTtrue" ]
+if [ "$VERBOSE" == "true" ]
 then
   echo "Running mcmCheck with: "
   echo "   network= $NETWORK"
@@ -95,6 +96,7 @@ then
   echo "   compareBlobsFlag= $BLOBCOMPARE"
   echo "   helpflag= $HELP"
   echo "   verbose= $VERBOSE"
+  echo "   pause= $PAUSE"
   echo " "
 fi
 
