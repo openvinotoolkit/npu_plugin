@@ -283,12 +283,12 @@ namespace mv
                 break;
                 case OrderType::RowInterleaved: //*2 because of input_data size
                 {
-                    if (block == this->dimY * 2)
-                        local_StrideY = blk_stride;
-                    else if (block == this->dimZ*this->dimY * 2)
+                    if (block == this->dimX * 2)
+                        local_StrideX = blk_stride;
+                    else if (block == this->dimZ*this->dimX * 2)
                         local_StrideZ = blk_stride;
                     else if ( block == this->dimX*this->dimY*this->dimZ * 2 )
-                        local_StrideX = blk_stride;
+                        local_StrideY = blk_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved)" << std::endl;
                 }

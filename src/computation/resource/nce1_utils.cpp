@@ -11,13 +11,13 @@ mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator
     auto input_dimensions = input_tensor->getShape();
     auto output_dimensions = output_tensor->getShape();
 
-    to_return.kernel_width = kernel_dimensions[1];
-    to_return.kernel_height = kernel_dimensions[0];
-    to_return.input_width = input_dimensions[1];
-    to_return.input_height = input_dimensions[0];
+    to_return.kernel_width = kernel_dimensions[0];
+    to_return.kernel_height = kernel_dimensions[1];
+    to_return.input_width = input_dimensions[0];
+    to_return.input_height = input_dimensions[1];
     to_return.input_channels = input_dimensions[2];
-    to_return.output_width = output_dimensions[1];
-    to_return.output_height = output_dimensions[0];
+    to_return.output_width = output_dimensions[0];
+    to_return.output_height = output_dimensions[1];
     to_return.output_channels = output_dimensions[2];
 
     auto strides = convIterator->get<std::array<unsigned short, 2>>("stride");

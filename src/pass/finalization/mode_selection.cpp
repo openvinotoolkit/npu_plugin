@@ -55,15 +55,15 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     }
 
     // Getting real dimensions
-    std::size_t input_height = input_tensor_dimensions[0];
-    std::size_t input_width = input_tensor_dimensions[1];
+    std::size_t input_width = input_tensor_dimensions[0];
+    std::size_t input_height = input_tensor_dimensions[1];
     std::size_t input_channels = input_tensor_dimensions[2];
 
-    std::size_t output_height = output_tensor_dimensions[0];
-    std::size_t output_width = output_tensor_dimensions[1];
+    std::size_t output_width = output_tensor_dimensions[0];
+    std::size_t output_height = output_tensor_dimensions[1];
     std::size_t output_channels = output_tensor_dimensions[2];
 
-    std::size_t kernel_height = weight_tensor_dimensions[0];
+    std::size_t kernel_height = weight_tensor_dimensions[1];
 
     //ASSUMPTION: Mode selection always takes place after MX paddings pass.
     //CONSEQUENCE: There is no need to check for NCE1_Paddings, as each tensor involved in HW convolution
@@ -74,8 +74,8 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     //Prepass also takes care of padding of output channels for weight tensor.
 
     std::vector<std::size_t> input_tensor_paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-    input_height += input_tensor_paddings[0];
-    input_width += input_tensor_paddings[1];
+    input_width += input_tensor_paddings[0];
+    input_height += input_tensor_paddings[1];
     input_channels += input_tensor_paddings[2];
     input_tensor->erase("NCE1_Paddings");
 
@@ -84,8 +84,8 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 
     //MARCO: Question to myself: why output tensor paddings are not rewritten?
     std::vector<std::size_t> output_tensor_paddings = output_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-    output_height += output_tensor_paddings[0];
-    output_width += output_tensor_paddings[1];
+    output_width += output_tensor_paddings[0];
+    output_height += output_tensor_paddings[1];
     output_channels += output_tensor_paddings[2];
 
     //We must take care of any additional padding that might be needed for input channels due to the maximum mode selected

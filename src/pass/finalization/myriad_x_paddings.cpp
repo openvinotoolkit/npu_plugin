@@ -51,16 +51,16 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         auto weight_tensor = operationIt->getInputTensor(1);
 
-        size_t input_height = input_tensor_dimension[0];
-        size_t input_width = input_tensor_dimension[1];
+        size_t input_width = input_tensor_dimension[0];
+        size_t input_height = input_tensor_dimension[1];
         size_t input_channels = input_tensor_dimension[2];
 
         size_t actual_input_height = nce.computeActualInputHeight(input_height);
         size_t actual_input_width = nce.computeActualInputWidth(input_width);
         size_t actual_input_channels = nce.computeActualInputChannels(input_channels);
 
-        size_t output_height = output_tensor_dimension[0];
-        size_t output_width = output_tensor_dimension[1];
+        size_t output_width = output_tensor_dimension[0];
+        size_t output_height = output_tensor_dimension[1];
         size_t output_channels = output_tensor_dimension[2];
 
         size_t actual_output_width = nce.computeActualOutputWidth(output_width);
@@ -73,12 +73,12 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         std::vector<size_t> weight_tensor_paddings(4);
 
         //Channels need to be physically padded just for weights apparentely
-        input_tensor_paddings[0] = actual_input_height - input_height;
-        input_tensor_paddings[1] = actual_input_width - input_width;
+        input_tensor_paddings[0] = actual_input_width - input_width;
+        input_tensor_paddings[1] = actual_input_height - input_height;
         input_tensor_paddings[2] = 0;
 
-        output_tensor_paddings[0] = actual_output_height - output_height;
-        output_tensor_paddings[1] = actual_output_width - output_width;
+        output_tensor_paddings[0] = actual_output_width - output_width;
+        output_tensor_paddings[1] = actual_output_height - output_height;
         output_tensor_paddings[2] = 0;
 
         weight_tensor_paddings[0] = 0;

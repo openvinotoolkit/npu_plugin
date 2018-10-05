@@ -504,7 +504,7 @@ unsigned mv::Nce1::computeActualInputChannelSplits(unsigned splits)
 
 unsigned mv::Nce1::computeActualOutputWidth(unsigned output_width)
 {
-    return output_width;
+    return mv::round_up(output_width, 8);
 }
 
 unsigned mv::Nce1::computerActualOutputHeight(unsigned output_height)

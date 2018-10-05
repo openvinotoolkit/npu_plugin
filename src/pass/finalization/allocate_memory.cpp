@@ -182,7 +182,7 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
 
     }
 
-    std::cout << "Exiting allocate unpopulated" << std::endl;
+    std::cout << "Exiting allocate populated" << std::endl;
 
 }
 
