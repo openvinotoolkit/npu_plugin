@@ -228,15 +228,12 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             // Probably restrictions on a tensor should be attributes of that tensor.
 
             if (!in0->hasAttr("allocator")){
-                std::cout <<"Input A already allocated..." << std::endl;
                 dm.allocateTensor("IntermediateMemory", stageIt, in0);
             }
             if (!in1->hasAttr("allocator")){
-                std::cout <<"Input B already allocated..." << std::endl;
                 dm.allocateTensor("IntermediateMemory", stageIt, in1);
             }
             if (out->hasAttr("allocator")){
-                std::cout <<"Output already allocated..." << std::endl;
                 dm.deallocateTensor("IntermediateMemory", stageIt, out);
             }
 
@@ -352,8 +349,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             auto in0buf = dm.getBuffer("IntermediateMemory", stageIt, in0);
             auto in1buf = dm.getBuffer("IntermediateMemory", stageIt, in1);
 
-            // auto b = dm.allocateTensor("IntermediateMemory", outRef, in0, lhs_padding, empty_padding);
-            // auto a = dm.allocateTensor("IntermediateMemory", outRef, in1, empty_padding, rhs_padding);
             dm.moveTensor("IntermediateMemory", in0buf, outRef, empty_padding, rhs_padding);
             dm.moveTensor("IntermediateMemory", in1buf, outRef, lhs_padding, empty_padding);
 
@@ -383,13 +378,8 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
         }
 
-        /*
-            For each input and output, allocate if it has not already been done.
-            Don't allocate for Concat or I/O layers as they are already accounted for.
-        */
         else if(opIterator->getOpType() == mv::OpType::ReLU)
         {
-            std::cout << "ReLU" << std::endl;
             auto inTensor = opIterator->getInputTensor(0);
             auto outTensor = opIterator->getOutputTensor(0);
             std::vector<std::size_t> empty_padding(outTensor->getShape().ndims());
@@ -398,6 +388,10 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             auto outBuf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
             dm.allocateTensor("IntermediateMemory", outBuf, inTensor, empty_padding, empty_padding);
         }
+        /*
+            For each input and output, allocate if it has not already been done.
+            Don't allocate for Concat or I/O layers as they are already accounted for.
+        */
         else
         {
             std::cout << opIterator->getOpType().toString() << std::endl;
@@ -407,7 +401,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
                 auto inTensor = opIterator->getInputTensor(x);
 
-                auto parentOp = om.getSourceOp(inTensor);
                 if (!inTensor->isPopulated() &&
                     (! inTensor->hasAttr("allocator")) &&
                     (! inTensor->hasAttr("modelInput") || ! inTensor->get<bool>("modelInput")) &&
