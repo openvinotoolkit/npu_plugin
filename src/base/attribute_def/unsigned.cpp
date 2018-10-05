@@ -26,7 +26,7 @@ namespace mv
             return std::to_string(a.get<unsigned>());
         }
 
-        MV_REGISTER_ATTR(unsigned)
+        MV_REGISTER_DUPLICATE_ATTR(unsigned)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
             .setToStringFunc(toString);

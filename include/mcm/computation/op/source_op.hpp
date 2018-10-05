@@ -1,6 +1,7 @@
 #ifndef SOURCE_OP_HPP_
 #define SOURCE_OP_HPP_
 
+#include <map>
 #include "include/mcm/computation/op/computation_op.hpp"
 
 namespace mv
@@ -9,7 +10,7 @@ namespace mv
     class SourceOp : public virtual ComputationOp
     {
         
-        std::vector<Data::TensorIterator> outputs_;
+        std::map<std::size_t, Data::TensorIterator> outputs_;
 
     public:
 

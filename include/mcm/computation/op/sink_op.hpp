@@ -1,6 +1,7 @@
 #ifndef MULTISINK_OP_HPP_
 #define MULTISINK_OP_HPP_
 
+#include <map>
 #include "include/mcm/computation/op/computation_op.hpp"
 
 namespace mv
@@ -9,7 +10,7 @@ namespace mv
     class SinkOp : public virtual ComputationOp
     {
         
-        std::vector<Data::TensorIterator> inputs_;
+        std::map<std::size_t, Data::TensorIterator> inputs_;
 
     public:
 
