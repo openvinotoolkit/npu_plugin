@@ -93,6 +93,13 @@ namespace mv
                 return Registry<std::type_index, AttributeEntry>::enter(typeid(AttrType));
             }
 
+            // Enter or replace if the key is already present in the registry
+            template <class AttrType>
+            inline AttributeEntry& enterReplace()
+            {
+                return Registry<std::type_index, AttributeEntry>::enterReplace(typeid(AttrType));
+            }
+
             inline static bool checkValue(std::type_index typeID, const Attribute& val, std::string& msg)
             {
 
@@ -217,9 +224,15 @@ namespace mv
 
         #define STRV(...) #__VA_ARGS__
         #define COMMA ,
+        
         #define MV_REGISTER_ATTR(Type)                                                                          \
             static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =     \
                 mv::attr::AttributeRegistry::instance().enter<Type>().setName(STRV(Type))
+
+        #define MV_REGISTER_DUPLICATE_ATTR(Type)                                                                          \
+            static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =     \
+                mv::attr::AttributeRegistry::instance().enterReplace<Type>().setName(STRV(Type))
+
 
     }
 

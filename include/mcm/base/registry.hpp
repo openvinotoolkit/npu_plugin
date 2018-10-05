@@ -44,6 +44,15 @@ namespace mv
                 return *e;
             }
 
+            inline EntryType& enterReplace(const KeyType& key)
+            {
+                if (find(key) != nullptr)
+                    remove(key);
+                EntryType *e = new EntryType(key);
+                reg_.emplace(key, e);
+                return *e;
+            }
+
             inline void remove(const KeyType& key)
             {
                 assert(find(key) != nullptr && "Attempt of removal of non-existing entry");
@@ -86,9 +95,7 @@ namespace mv
 
 		#ifdef ATTRIBUTE_UNUSED
 		#elif defined(__GNUC__)
-			# define ATTRIBUTE_UNUSED(x) UNUSED_ ## x __attribute__((unused))
-		#elif defined(__LCLINT__)
-			# define ATTRIBUTE_UNUSED(x) /*@unused@*/ x
+			# define ATTRIBUTE_UNUSED(x) x __attribute__((unused))
 		#else
 			# define ATTRIBUTE_UNUSED(x) x
 		#endif
