@@ -385,6 +385,8 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             {
 
                 auto inTensor = opIterator->getInputTensor(x);
+
+                auto parentOp = om.getSourceOp(inTensor);
                 if (!inTensor->isPopulated() &&
                     (! inTensor->hasAttr("allocator")) &&
                     (! inTensor->hasAttr("modelInput") || ! inTensor->get<bool>("modelInput")) &&
@@ -407,7 +409,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     }
 
                 }
-
             }
             for (unsigned x = 0; x < opIterator->outputSlots(); x++)
             {
@@ -419,17 +420,24 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     (! outTensor->hasAttr("modelOutput") || ! outTensor->get<bool>("modelOutput"))
                     )
                 {
-                    auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
-                    if (opIterator->hasAttr("NCE1_Compatible"))
-                    {
-                        if (opIterator->get<int>("NCE1_Compatible"))
+                    if(opIterator->getOpType() == mv::OpType::ReLU){
+                        auto inTensor = opIterator->getInputTensor(0);
+                        std::vector<std::size_t> empty_padding(outTensor->getShape().ndims());
+                        auto inBuf = dm.getBuffer("IntermediateMemory", stageIt, inTensor);
+                        dm.allocateTensor("IntermediateMemory", inBuf, outTensor, empty_padding, empty_padding);
+                    }else{
+                        auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
+                        if (opIterator->hasAttr("NCE1_Compatible"))
                         {
-                            if(outTensor->hasAttr("NCE1_Paddings"))
+                            if (opIterator->get<int>("NCE1_Compatible"))
                             {
-                                std::cout << "Padding for hardware" << std::endl;
-                                auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-                                dm.padRight("IntermediateMemory", buf, paddings);
+                                if(outTensor->hasAttr("NCE1_Paddings"))
+                                {
+                                    std::cout << "Padding for hardware" << std::endl;
+                                    auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                                    dm.padRight("IntermediateMemory", buf, paddings);
 
+                                }
                             }
                         }
                     }
