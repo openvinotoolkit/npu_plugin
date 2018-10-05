@@ -25,12 +25,12 @@ mv::json::detail::ValueContent::operator bool&()
     throw ValueError(*this, "Unable to obtain a bool content");
 }
 
-mv::json::detail::ValueContent::operator Object&()
+mv::json::detail::ValueContent::operator mv::json::Object&()
 {
     throw ValueError(*this, "Unable to obtain a json::Object content");
 }
 
-mv::json::detail::ValueContent::operator Array&()
+mv::json::detail::ValueContent::operator mv::json::Array&()
 {
     throw ValueError(*this, "Unable to obtain a json::Array content");
 }

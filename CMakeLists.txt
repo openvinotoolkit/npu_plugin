@@ -9,21 +9,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Wall -Wextra -Wshadow -Wnon-virtual-dtor -pedantic")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ")
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-set(MCM_HOME "$ENV{MCM_HOME}")
-if(NOT MCM_HOME)
-    message(STATUS "MCM_HOME at ${MCM_HOME}")
-    message(FATAL_ERROR "Undefined MCM_HOME env variable")
-endif()
 
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
-    if (NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
-    endif()
-endif()
 
 file(GLOB base
     "src/base/attribute_registry.cpp"
@@ -121,10 +111,10 @@ file(GLOB compiler
     "src/compiler/*"
 )
 
-add_subdirectory(contrib/googletest)
+#add_subdirectory(contrib/googletest)
 #add_subdirectory(tests)
-#add_subdirectory(examples)
+add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
-add_subdirectory(python/api)
+#add_subdirectory(python/api)
 
 add_library(cm SHARED ${logger} ${pass} ${base} ${compiler})

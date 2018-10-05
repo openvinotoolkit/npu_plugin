@@ -908,11 +908,11 @@ namespace mv
                     if (tight)
                         for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
                         {
-                            u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                            uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
                             AddBytes(2, fp16_val);
                         }
                     else{
-                        u_int16_t fp16_val;
+                        uint16_t fp16_val;
                         for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
                         {
                             // TODO: lhs stride
@@ -925,7 +925,7 @@ namespace mv
                             for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
                             {
                                 //std::cout << "o" ;
-                                u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
+                                uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
                                 fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
                                 AddBytes(2, fp16_val);
                             }

@@ -218,7 +218,7 @@ namespace mv
         #define STRV(...) #__VA_ARGS__
         #define COMMA ,
         #define MV_REGISTER_ATTR(Type)                                                                          \
-            static ATTRIBUTE_UNUSED AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__) =      \
+            static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =     \
                 mv::attr::AttributeRegistry::instance().enter<Type>().setName(STRV(Type))
 
     }

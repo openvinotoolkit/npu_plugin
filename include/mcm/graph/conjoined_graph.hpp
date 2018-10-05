@@ -6,9 +6,21 @@
 
 namespace mv
 {
+
+	namespace detail
+	{
+
+		template <class T>
+		struct __ID__
+		{
+			using type = T;
+		};
+
+	}
     
     template <class T_node, class T_edge1, class T_edge2>
-    class conjoined_graph : private virtual graph<T_node, T_edge1>, private virtual graph<T_node, T_edge2>
+    class conjoined_graph : private virtual detail::__ID__<graph<T_node, T_edge1>>::type, 
+		private virtual detail::__ID__<graph<T_node, T_edge2>>::type
     {
 
     public:

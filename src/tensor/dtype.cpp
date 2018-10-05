@@ -75,7 +75,7 @@ bool mv::DType::operator!=(const DTypeType &other) const
     return !operator==(other);
 }
 
-mv::DType::operator DTypeType() const
+mv::DType::operator mv::DTypeType() const
 {
     return dType_;
 }

@@ -84,7 +84,14 @@ namespace mv
 
         };
 
-        #define ATTRIBUTE_UNUSED __attribute__((unused))
+		#ifdef ATTRIBUTE_UNUSED
+		#elif defined(__GNUC__)
+			# define ATTRIBUTE_UNUSED(x) UNUSED_ ## x __attribute__((unused))
+		#elif defined(__LCLINT__)
+			# define ATTRIBUTE_UNUSED(x) /*@unused@*/ x
+		#else
+			# define ATTRIBUTE_UNUSED(x) x
+		#endif
 
         #define MV_DEFINE_REGISTRY(KeyType, EntryType)                                              \
             template <>                                                                             \
@@ -98,7 +105,7 @@ namespace mv
         #define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)                                                      
 
         #define MV_REGISTER_ENTRY(KeyType, EntryType, key)                                          \
-            static ATTRIBUTE_UNUSED EntryType& CONCATENATE(__ ## EntryType ## __, __COUNTER__) =    \
+            static ATTRIBUTE_UNUSED(EntryType& CONCATENATE(__ ## EntryType ## __, __COUNTER__)) =   \
                 mv::Registry<KeyType, EntryType >::instance().enter(key)                 
 
     //}

@@ -85,7 +85,7 @@ namespace mv
              * @return true If rhs has greater ID than lhs
              * @return false If lhs has greater or equal ID to rhs
              */
-            bool operator()(const typename std::weak_ptr<T_unique>& lhs, const typename std::weak_ptr<T_unique>& rhs)
+            bool operator()(const typename std::weak_ptr<T_unique>& lhs, const typename std::weak_ptr<T_unique>& rhs) const
             {
                 return lhs.lock()->getID() < rhs.lock()->getID();
             }
@@ -98,7 +98,7 @@ namespace mv
              * @return true If rhs has greater ID than lhs
              * @return false If lhs has greater or equal ID to rhs
              */
-            bool operator()(const typename std::shared_ptr<T_unique>& lhs, const typename std::shared_ptr<T_unique>& rhs)
+            bool operator()(const typename std::shared_ptr<T_unique>& lhs, const typename std::shared_ptr<T_unique>& rhs) const
             {
                 return lhs->getID() < rhs->getID();
             }
@@ -532,7 +532,7 @@ namespace mv
         class list_iterator : public base_iterator<T_iterable, T_content>
         {
 
-            friend reverse_list_iterator<T_iterable, T_content>::reverse_list_iterator(const list_iterator<T_iterable, T_content>& other);
+            friend reverse_list_iterator<T_iterable, T_content>;
 
             typename iterable_owner_set<T_iterable>::iterator it_;
 
@@ -1168,10 +1168,7 @@ namespace mv
 
             friend sibling_iterator iterable<T_iterable, T_content>::leftmost_sibling();
             friend sibling_iterator iterable<T_iterable, T_content>::rightmost_sibling();
-            friend sibling_iterator<edge, T_edge> node::leftmost_output();
-            friend sibling_iterator<edge, T_edge> node::rightmost_output();
-            friend sibling_iterator<edge, T_edge> node::leftmost_input();
-            friend sibling_iterator<edge, T_edge> node::rightmost_input(); 
+            friend class node;
 
         protected:
 

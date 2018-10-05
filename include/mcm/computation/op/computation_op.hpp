@@ -2,6 +2,7 @@
 #define COMPUTATION_OP_HPP_
 
 #include <string>
+#include <array>
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/tensor.hpp"
