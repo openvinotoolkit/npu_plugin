@@ -227,11 +227,11 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             // requirements from two different connections, this approach only resolves one.
             // Probably restrictions on a tensor should be attributes of that tensor.
 
-            if (in0->hasAttr("allocator")){
-                dm.deallocateTensor("IntermediateMemory", stageIt, in0);
+            if (!in0->hasAttr("allocator")){
+                dm.allocateTensor("IntermediateMemory", stageIt, in0);
             }
-            if (in1->hasAttr("allocator")){
-                dm.deallocateTensor("IntermediateMemory", stageIt, in1);
+            if (!in1->hasAttr("allocator")){
+                dm.allocateTensor("IntermediateMemory", stageIt, in1);
             }
             if (out->hasAttr("allocator")){
                 dm.deallocateTensor("IntermediateMemory", stageIt, out);
@@ -345,8 +345,12 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             lhs_padding.at(channel_index) = lhs;
             rhs_padding.at(channel_index) = rhs;
 
-            auto b = dm.allocateTensor("IntermediateMemory", outRef, in0, lhs_padding, empty_padding);
-            auto a = dm.allocateTensor("IntermediateMemory", outRef, in1, empty_padding, rhs_padding);
+
+            auto in0buf = dm.getBuffer("IntermediateMemory", stageIt, in0);
+            auto in1buf = dm.getBuffer("IntermediateMemory", stageIt, in1);
+
+            dm.moveTensor("IntermediateMemory", in0buf, outRef, empty_padding, rhs_padding);
+            dm.moveTensor("IntermediateMemory", in1buf, outRef, lhs_padding, empty_padding);
 
         }
         else if (opIterator->getOpType() == OpType::Input)
@@ -374,6 +378,16 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
         }
 
+        else if(opIterator->getOpType() == mv::OpType::ReLU)
+        {
+            auto inTensor = opIterator->getInputTensor(0);
+            auto outTensor = opIterator->getOutputTensor(0);
+            std::vector<std::size_t> empty_padding(outTensor->getShape().ndims());
+
+            dm.deallocateTensor("IntermediateMemory", stageIt, inTensor);
+            auto outBuf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
+            dm.allocateTensor("IntermediateMemory", outBuf, inTensor, empty_padding, empty_padding);
+        }
         /*
             For each input and output, allocate if it has not already been done.
             Don't allocate for Concat or I/O layers as they are already accounted for.
@@ -381,10 +395,12 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         else
         {
             std::cout << opIterator->getOpType().toString() << std::endl;
+
             for (unsigned x = 0; x < opIterator->inputSlots(); x++)
             {
 
                 auto inTensor = opIterator->getInputTensor(x);
+
                 if (!inTensor->isPopulated() &&
                     (! inTensor->hasAttr("allocator")) &&
                     (! inTensor->hasAttr("modelInput") || ! inTensor->get<bool>("modelInput")) &&
@@ -407,7 +423,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     }
 
                 }
-
             }
             for (unsigned x = 0; x < opIterator->outputSlots(); x++)
             {
@@ -419,6 +434,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     (! outTensor->hasAttr("modelOutput") || ! outTensor->get<bool>("modelOutput"))
                     )
                 {
+
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
                     if (opIterator->hasAttr("NCE1_Compatible"))
                     {

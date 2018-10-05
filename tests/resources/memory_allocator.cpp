@@ -131,6 +131,117 @@ TEST(memory_allocator, slave_tensor_col_major)
 
 }
 
+TEST(memory_allocator, move_in_place)
+{
+
+    mv::OpModel om("testModel");
+    mv::DataModel dm(om);
+    mv::Shape outputShape({4, 4, 2});
+    mv::Shape inputShape({4, 4, 2});
+    mv::Order order = mv::OrderType::ColumnMajor;
+
+    auto inputTensor = dm.defineTensor("inputTensor", inputShape, mv::DTypeType::Float16, order);
+    auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
+        mv::utils::generateSequence<double>(outputShape.totalSize()));
+
+    mv::MemoryAllocator m("m1", 10000, 0, 2);
+    auto inputBuf = m.allocate(inputTensor, 0);
+    auto outputBuf = m.allocate(outputTensor, 0);
+    m.move(inputBuf, outputBuf, {0, 0, 0}, {0, 0, 0});
+
+    std::cout << (*outputBuf)->toString(true) << std::endl;
+    std::cout << (*inputBuf)->toString(true) << std::endl;
+
+    std::cout << m.toString() << std::endl;
+
+}
+
+TEST(memory_allocator, move_concat)
+{
+
+    mv::OpModel om("testModel");
+    mv::DataModel dm(om);
+    mv::Shape outputShape({4, 4, 4});
+    mv::Shape inputShape({4, 4, 2});
+    mv::Order order = mv::OrderType::ColumnMajor;
+
+    auto input1Tensor = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
+    auto input2Tensor = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
+    auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
+        mv::utils::generateSequence<double>(outputShape.totalSize()));
+
+    mv::MemoryAllocator m("m1", 10000, 0, 2);
+    auto input1Buf = m.allocate(input1Tensor, 0);
+    auto input2Buf = m.allocate(input2Tensor, 0);
+    auto outputBuf = m.allocate(outputTensor, 0);
+    m.move(input1Buf, outputBuf, {0, 0, 2}, {0, 0, 0});
+    m.move(input2Buf, outputBuf, {0, 0, 0}, {0, 0, 2});
+    
+    std::cout << (*outputBuf)->toString(true) << std::endl;
+    std::cout << (*input1Buf)->toString(true) << std::endl;
+    std::cout << (*input2Buf)->toString(true) << std::endl;
+
+    std::cout << m.toString() << std::endl;
+
+}
+
+TEST(memory_allocator, move_concat_in_place)
+{
+
+    mv::OpModel om("testModel");
+    mv::DataModel dm(om);
+    mv::Shape outputShape({4, 4, 4});
+    mv::Shape inputShape({4, 4, 2});
+    mv::Order order = mv::OrderType::ColumnMajor;
+
+    auto input1Tensor = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
+    auto input2Tensor = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
+    auto inter1Tensor = dm.defineTensor("interTensor1", inputShape, mv::DTypeType::Float16, order);
+    auto inter2Tensor = dm.defineTensor("interTensor2", inputShape, mv::DTypeType::Float16, order);
+    auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
+        mv::utils::generateSequence<double>(outputShape.totalSize()));
+
+    mv::MemoryAllocator m("m1", 10000, 0, 2);
+    auto input1Buf = m.allocate(input1Tensor, 0);
+    auto input2Buf = m.allocate(input2Tensor, 0);
+    auto inter1Buf = m.allocate(inter1Tensor, 0);
+    auto inter2Buf = m.allocate(inter2Tensor, 0);
+    auto outputBuf = m.allocate(outputTensor, 0);
+
+    std::cout << input1Tensor->getShape().toString() << std::endl;
+    std::cout << input2Tensor->getShape().toString() << std::endl;
+    std::cout << inter1Tensor->getShape().toString() << std::endl;
+    std::cout << inter2Tensor->getShape().toString() << std::endl;
+    std::cout << outputTensor->getShape().toString() << std::endl;
+
+    m.move(input1Buf, inter1Buf, {0, 0, 0}, {0, 0, 0});
+    m.move(input2Buf, inter2Buf, {0, 0, 0}, {0, 0, 0});
+
+    std::cout << input1Tensor->getShape().toString() << std::endl;
+    std::cout << input2Tensor->getShape().toString() << std::endl;
+    std::cout << inter1Tensor->getShape().toString() << std::endl;
+    std::cout << inter2Tensor->getShape().toString() << std::endl;
+    std::cout << outputTensor->getShape().toString() << std::endl;
+
+    m.move(inter1Buf, outputBuf, {0, 0, 2}, {0, 0, 0});
+    m.move(inter2Buf, outputBuf, {0, 0, 0}, {0, 0, 2});
+    
+    std::cout << input1Tensor->getShape().toString() << std::endl;
+    std::cout << input2Tensor->getShape().toString() << std::endl;
+    std::cout << inter1Tensor->getShape().toString() << std::endl;
+    std::cout << inter2Tensor->getShape().toString() << std::endl;
+    std::cout << outputTensor->getShape().toString() << std::endl;
+
+    std::cout << (*outputBuf)->toString(true) << std::endl;
+    std::cout << (*input1Buf)->toString(true) << std::endl;
+    std::cout << (*input2Buf)->toString(true) << std::endl;
+    std::cout << (*inter1Buf)->toString(true) << std::endl;
+    std::cout << (*inter2Buf)->toString(true) << std::endl;
+
+    std::cout << m.toString() << std::endl;
+
+}
+
 /*
 TEST(memory_allocator, tensor_col_major_planar)
 {
