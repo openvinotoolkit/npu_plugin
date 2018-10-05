@@ -79,8 +79,6 @@ namespace mv
             auto input_shape = this->input->getShape();
             auto output_shape = this->output->getShape();
 
-            unsigned int original_height = this->input->getShape()[1];
-
             /*
             std::cout << "Serializing a convolution performed in "
                        << this->DPUmodeVector.size()
@@ -111,7 +109,6 @@ namespace mv
                         auto output_width = output_shape[1];
                         auto input_width = input_shape[1];
 
-                        auto input_channels = input_shape[2];
                         auto output_channels = output_shape[2];
 
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
@@ -564,25 +561,21 @@ namespace mv
 
 
                         // Standard Fields for Convolution
+                        // MX WEIGHTS SHAPE ASSUMED!!!
                         this->descriptors[i].kernelWidth = this->taps->getShape()[2] -1;
                         this->descriptors[i].kernelHeight = this->taps->getShape()[3] -1;
 
                         this->descriptors[i].chStride = stride -1;  // Stride of Kernel (Square only)
 
                         if (padEn > 0)
-                        {
                             this->descriptors[i].padEn = 1;
-                        }
                         else
-                        {
                             this->descriptors[i].padEn = 0;
-                        }
 
                         this->descriptors[i].padType = 0;   // Zero Padding
 
                         this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
 
-                        unsigned int original_height = this->input->getShape()[1];
                         unsigned int current_height;
                         current_height = this->input_lines_processed[i];
 

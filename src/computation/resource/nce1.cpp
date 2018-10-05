@@ -97,39 +97,39 @@ std::vector<mv::ModeSelectionNode> mv::Nce1::generateNeighboursComingFromValidMo
     return std::vector<mv::ModeSelectionNode>(valid_neighbours_set.begin(), valid_neighbours_set.end());
 }
 
-bool mv::Nce1::check_min_lines_constraint(unsigned kernel_y, unsigned stride_y, unsigned input_width, unsigned input_channels)
+bool mv::Nce1::check_min_lines_constraint(unsigned kernel_height, unsigned stride_vertical, unsigned input_width, unsigned input_channels)
 {
-    unsigned min_lines = kernel_y + stride_y + 2;
+    unsigned min_lines = computeMinLinesForConvolution(kernel_height, stride_vertical);
     unsigned space_required = min_lines * input_width * input_data_size * input_channels;
     return space_required > data_storage_dimension;
 }
 
 bool mv::Nce1::check_min_lines_constraint_(mv::ConvolutionParameters param)
 {
-    return check_min_lines_constraint(param.kernel_y, param.stride_y, param.input_width, param.input_channels);
+    return check_min_lines_constraint(param.kernel_height, param.stride_vertical, param.input_width, param.input_channels);
 }
 
-bool mv::Nce1::check_coefficient_size_constraint(unsigned kernel_x, unsigned kernel_y, unsigned input_channels, unsigned output_channel_performed)
+bool mv::Nce1::check_coefficient_size_constraint(unsigned kernel_width, unsigned kernel_height, unsigned input_channels, unsigned output_channel_performed)
 {
-    unsigned coeff_size = kernel_x * kernel_y * input_channels * computeActualOutputChannels(output_channel_performed) * input_data_size;
+    unsigned coeff_size = kernel_width * kernel_height * input_channels * computeActualOutputChannels(output_channel_performed) * input_data_size;
     return coeff_size > coefficients_storage_dimension;
 }
 
 bool mv::Nce1::check_coefficient_size_constraint_(mv::ConvolutionParameters param, unsigned output_channel_performed)
 {
-    return check_coefficient_size_constraint(param.kernel_x, param.kernel_y, param.input_channels, output_channel_performed);
+    return check_coefficient_size_constraint(param.kernel_width, param.kernel_height, param.input_channels, output_channel_performed);
 }
 
-bool mv::Nce1::check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_x, unsigned kernel_y, int mode)
+bool mv::Nce1::check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_width, unsigned kernel_height, int mode)
 {
    unsigned channel_per_ramblock = input_channels / dpe_x_output_channel.at(mode);
-   unsigned check_coeff_line_per_block = kernel_x * kernel_y * channel_per_ramblock;
+   unsigned check_coeff_line_per_block = kernel_width * kernel_height * channel_per_ramblock;
    return check_coeff_line_per_block > max_coefficient_number_per_line;
 }
 
 bool mv::Nce1::check_coefficient_line_constraint_(mv::ConvolutionParameters param, int mode)
 {
-   return check_coefficient_line_constraint(param.input_channels, param.kernel_x, param.kernel_y, mode);
+   return check_coefficient_line_constraint(param.input_channels, param.kernel_width, param.kernel_height, mode);
 }
 
 bool mv::Nce1::check_channels_per_ram_block(unsigned input_channels, int mode)
@@ -146,12 +146,11 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
 {
     mv::ModeSelectionDistance to_return;
 
-    // Min lines  = Kernel_height + kernel stride + 2
-    unsigned min_lines = param.kernel_y + param.stride_y + 2;
+    unsigned min_lines = computeMinLinesForConvolution(param);
     // maximum ic that I can process without conflicting with min line constraint
     unsigned max_ic_minlines = floor((double)(data_storage_dimension)/(min_lines * input_data_size * param.input_width));
     // maximum ic that I can process without conflicting with coefficient line per block constraint
-    unsigned max_ic_ramblock = floor((double)(nce1_dpe)/(param.kernel_x*param.kernel_y)*dpe_x_output_channel.at(mode));
+    unsigned max_ic_ramblock = floor((double)(nce1_dpe)/(param.kernel_width*param.kernel_height)*dpe_x_output_channel.at(mode));
 
     // calculate the max input channels that can be processed without running out of memory:
     unsigned max_ic = std::min(max_ic_minlines, max_ic_ramblock);
@@ -206,7 +205,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     {
         // calculate the operation cost
         unsigned ic = std::min(actual_ic_per_split, param.input_channels-i*actual_ic_per_split);
-        cost += param.kernel_x * param.kernel_y * param.output_width * param.output_height * ic / dpe_x_output_channel.at(mode);
+        cost += param.kernel_width * param.kernel_height * param.output_width * param.output_height * ic / dpe_x_output_channel.at(mode);
     }
     // add the cost of summation over input channels
     cost += (n_split_c - 1) * (actual_output_channels * param.output_width*param.output_height + split_by_input_channel_overhead);
@@ -217,10 +216,20 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     return to_return;
 }
 
+unsigned mv::Nce1::computeMinLinesForConvolution(ConvolutionParameters param)
+{
+    return computeMinLinesForConvolution(param.kernel_height, param.stride_vertical);
+}
+
+unsigned mv::Nce1::computeMinLinesForConvolution(unsigned kernel_height, unsigned stride_vertical)
+{
+    return kernel_height + stride_vertical + 2;
+}
+
 mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters param, int mode, bool support_split_over_w)
 {
     ModeSelectionDistance to_return;
-    unsigned min_lines = param.kernel_y + param.stride_y + 2;
+    unsigned min_lines = computeMinLinesForConvolution(param);
     // Space required by min lines = min_lines * input_width * input data type size * num input channels
     unsigned space_required = min_lines * input_data_size * param.input_width * param.input_channels;
     unsigned n_split_w = int(ceil(double(space_required)/data_storage_dimension));
@@ -255,7 +264,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
             return to_return;
         }
 
-        cost += param.kernel_x * param.kernel_y * param.output_width * os_w * param.input_channels / dpe_x_output_channel.at(mode) + split_by_width_overhead;
+        cost += param.kernel_width * param.kernel_height * param.output_width * os_w * param.input_channels / dpe_x_output_channel.at(mode) + split_by_width_overhead;
     }
     to_return.cost = cost;
     to_return.num_splits = n_split_w;
@@ -316,7 +325,7 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
         to_return = split_by_input_channel(parameters, b.remaining_output_channels, mode);
     else
     {
-        to_return.cost = parameters.kernel_x * parameters.kernel_y * parameters.input_width * parameters.input_height * parameters.input_channels / dpe_x_output_channel.at(mode);
+        to_return.cost = parameters.kernel_width * parameters.kernel_height * parameters.input_width * parameters.input_height * parameters.input_channels / dpe_x_output_channel.at(mode);
         to_return.split_performed = Splits::NoSplit;
         to_return.num_splits = 1;
         if(check_channels_per_ram_block_(parameters, mode))
@@ -336,8 +345,8 @@ mv::InputLinesPerOutputLinesSolution inputLinesForOutputLines(mv::ConvolutionPar
 
    int pad_before = param.pad_x_up;
    int pad_after = param.pad_x_down;
-   int stride = param.stride_x;
-   int kernel_size = param.kernel_x;
+   int stride = param.stride_vertical;
+   int kernel_size = param.kernel_height;
    int input_size = param.input_height;
 
    to_return.input_start_index = -pad_before + output_start_index * stride;
