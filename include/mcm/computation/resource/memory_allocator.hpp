@@ -109,12 +109,12 @@ namespace mv
             std::size_t stage;
 
             /**
-             * @brief Left-top padding of the dimensions of the tensor allocted in the buffer (EXPRESSED IN DATA UNITS)
+             * @brief Left-top padding of the dimensions of the tensor allocted in the buffer (EXPRESSED IN WORDS)
              */
             std::vector<std::size_t> leftPad;
 
             /**
-             * @brief Right-bottom padding of the dimensions of the tensor allocted in the buffer (EXPRESSED IN DATA UNITS)
+             * @brief Right-bottom padding of the dimensions of the tensor allocted in the buffer (EXPRESSED IN WORDS)
              */
             std::vector<std::size_t> rightPad;
 
@@ -196,6 +196,8 @@ namespace mv
         long computeStrides_(const Order& order, std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides);
         void padBuffer_(BufferIterator buffer);
+        void moveSlave_(BufferIterator slaveBuffer);
+        void bindData_(BufferIterator slaveBuffer, bool pad);
 
     public:
 
@@ -217,11 +219,27 @@ namespace mv
          *
          * @param tensor Tensor to be allocated
          * @param buffer Buffer to be overallocated
-         * @param leftPadding Padding (left-top) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN DATA UNITS
-         * @param rightPadding Padding (right-bottom) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN DATA UNITS
+         * @param leftPadding Padding (left-top) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN WORDS
+         * @param rightPadding Padding (right-bottom) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN WORDS
          * @return BufferIterator Newly created buffer of the same offset and size that overlaps the memory space owned by the input buffer
          */
         BufferIterator allocate(Data::TensorIterator tensor, BufferIterator buffer, const std::vector<std::size_t>& leftPadding,
+            const std::vector<std::size_t>& rightPadding);
+
+        /**
+         * @brief Moves the given slaveBuffer into masterBuffer, making it its slave. The shape of tensor stored in the slave buffer padded by values
+         * specified by leftPadding and rightPadding has to match the shape of the tensor that is allocated in the masterBuffer. The shape
+         * dimensionality, data order and data type of the tensor stored in the slaveBuffer has to match the tensor stored in the masterBuffer.
+         * Moving will propagated for all slave buffers of slaveBuffer. If slaveBuffer had a master before it will be replaced with masterBuffer (slave
+         * buffer will be deleted from its slaveBuffers list). All previously applied paddings will be erased for slaveBuffer.
+         * 
+         * @param slaveBuffer Buffer to be moved into masterBuffer
+         * @param masterBuffer Buffer to be overallocated
+         * @param leftPadding leftPadding Padding (left-top) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN WORDS
+         * @param rightPadding rightPadding Padding (right-bottom) between tensor to be allocated and the tensor contained by the given buffer - EXPRESSED IN WORDS
+         * @return BufferIterator Modified slaveBuffer, of the same offset and size that overlaps the memory space owned by the masterBuffer
+         */
+        BufferIterator move(BufferIterator slaveBuffer, BufferIterator masterBuffer, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding);
 
         bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
