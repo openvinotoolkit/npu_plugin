@@ -1,6 +1,6 @@
 #include "mcm/computation/resource/nce1_utils.hpp"
 
-mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator convIterator)
+mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator convIterator, bool add_padding)
 {
     mv::ConvolutionParameters to_return;
     auto weigth_tensor = convIterator->getInputTensor(1);
@@ -19,6 +19,19 @@ mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator
     to_return.output_width = output_dimensions[0];
     to_return.output_height = output_dimensions[1];
     to_return.output_channels = output_dimensions[2];
+
+    if(add_padding)
+    {
+        std::vector<size_t> existing_output_tensor_paddings = output_tensor->get<std::vector<size_t>>("NCE1_Paddings");
+        std::vector<size_t> existing_input_tensor_paddings = input_tensor->get<std::vector<size_t>>("NCE1_Paddings");
+
+        to_return.input_width += existing_input_tensor_paddings[0];
+        to_return.input_height += existing_input_tensor_paddings[1];
+        to_return.input_channels += existing_input_tensor_paddings[2];
+        to_return.output_width += existing_output_tensor_paddings[0];
+        to_return.output_height += existing_output_tensor_paddings[1];
+        to_return.output_channels += existing_output_tensor_paddings[2];
+    }
 
     auto strides = convIterator->get<std::array<unsigned short, 2>>("stride");
     to_return.stride_vertical = strides[0];
