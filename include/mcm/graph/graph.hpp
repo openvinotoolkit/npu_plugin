@@ -308,20 +308,11 @@ namespace mv
                             unsigned common_parents = 0;
 
                             for (auto child_parent : *parents_)
-                            {
-
                                 if (sibling.lock()->parents_->find(child_parent) != sibling.lock()->parents_->end())
                                     ++common_parents;
 
-                            }
-
                             if (common_parents <= 1)
-                            {
-
                                 sibling.lock()->siblings_->erase(child);
-                                child.lock()->siblings_->erase(sibling);
-
-                            }
                             
                         }
 
@@ -1461,20 +1452,18 @@ namespace mv
             if (del_node)
             {
 
-                for (auto in_it = del_node->leftmost_input(); in_it != edge_end();)
+                while (del_node->inputs_size() > 0)
                 {
-                    auto del_it = in_it;
-                    ++in_it;
-                    edge_erase(del_it);
+                    auto in_it = del_node->leftmost_input();
+                    edge_erase(in_it);
                 }
 
-                for (auto out_it = del_node->leftmost_output(); out_it != edge_end();)
+                while (del_node->outputs_size() > 0)
                 {
-                    auto del_it = out_it;
-                    ++out_it;
-                    edge_erase(del_it);
+                    auto out_it = del_node->leftmost_output();
+                    edge_erase(out_it);
                 }
-
+                
                 nodes_->erase(del_node);
 
             }
@@ -1788,16 +1777,12 @@ namespace mv
                 // Remove the edge being deleted from sets of parents
                 // of output edges of the sink node
                 for (auto child_ref : *sink_ptr->outputs_)
-                {
                     child_ref.lock()->remove_parent_(e_it, child_ref);
-                }
 
                 // Remove the edge being deleted from sets of children
                 // of input edges of the source node
                 for (auto parent_ref : *source_ptr->inputs_)
-                {
                     parent_ref.lock()->remove_child_(e_it);
-                }
 
                 // Remove relation between source and sink node
                 sink_ptr->remove_parent_(source_ptr, sink_ptr);
