@@ -11,24 +11,25 @@ mv::SourceOp::~SourceOp()
 
 }
 
-bool mv::SourceOp::setOutputTensor(Data::TensorIterator &tensor, std::size_t idx)
+void mv::SourceOp::setOutputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
     
     if (idx >= get<unsigned short>("outputs"))
-        return false;   
+        throw IndexError(*this, idx, "Attempt of setting an undefined output");
     
-    outputs_.emplace(idx, tensor);
+    auto result = outputs_.emplace(idx, tensor);
+    if (!result.second)
+        outputs_[idx] = tensor;
     set<std::string>("output" + std::to_string(idx), tensor->getName());
     log(Logger::MessageType::MessageDebug, "Set output " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
-    return true;
 
 }
 
 mv::Data::TensorIterator mv::SourceOp::getOutputTensor(std::size_t idx)
 {
 
-    if (idx >= get<unsigned short>("outputs"))
-        throw IndexError(*this, idx, "Exceeds number of outputs");
+    if (outputs_.find(idx) == outputs_.end())
+        throw IndexError(*this, idx, "Attempt of getting an undefined output");
 
     return outputs_.at(idx);
 

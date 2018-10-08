@@ -16,7 +16,7 @@ namespace mv
 
         SourceOp(OpType opType, std::size_t outputsCount, const std::string &name);
         virtual ~SourceOp() = 0;
-        virtual bool setOutputTensor(Data::TensorIterator &tensor, std::size_t idx);
+        virtual void setOutputTensor(Data::TensorIterator tensor, std::size_t idx) override;
         virtual Data::TensorIterator getOutputTensor(std::size_t idx);
         std::size_t outputSlots();
 

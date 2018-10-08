@@ -56,16 +56,7 @@ mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::
     }
 
     for (std::size_t i = 0; i < numInputs; ++i)
-    {
-
-        if (defineFlow(inputs[i], opNode, i) == flowEnd())
-        {
-            dataGraph_.node_erase(opNode);
-            log(Logger::MessageType::MessageError, "Allocation of op failed due to input flow definition failure");
-            return tensorEnd();
-        }
-
-    }
+        defineFlow(inputs[i], opNode, i);
 
     auto outputTensor = defineOutputTensor_(opNode, 0);
     (*opNode)->setOutputTensor(outputTensor, 0);
@@ -153,13 +144,7 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
         return tensorEnd();
     }
 
-    if (defineFlow(inputTensor, outputIt, 0) == flowEnd())
-    {
-        dataGraph_.node_erase(outputIt);
-        log(Logger::MessageType::MessageError, "Allocation of op output failed due to input flow definition failure");
-        return tensorEnd();
-    }
-
+    defineFlow(inputTensor, outputIt, 0);
     incrementOpsCounter_(OpType::Output);
     *output_ = outputIt;
     log(Logger::MessageType::MessageInfo, "Defined " + (*output_)->toString());
@@ -500,29 +485,13 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
 {
 
     if (!isValid(sourceTensor))
-    {
-        log(Logger::MessageType::MessageError, "Unable to define source op - undefined input tensor" );
-        return flowEnd();
-    }
+        throw ArgumentError(*this, "source tensor", "invalid", "Invalid tensor passed for the data flow definition");
 
     if (!isValid(sinkOp))
-        return flowEnd();
+        throw ArgumentError(*this, "sink op", "invalid", "Invalid sink op passed for the data flow definition");
 
     auto sourceOp = findSourceOp_(sourceTensor);
-
-    if (!isValid(sourceOp))
-    {
-        log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + sourceTensor->getName() + 
-            "' does not belong to the computation model");
-        return flowEnd();
-    }
-
-    if (!sinkOp->setInputTensor(sourceTensor, inputIdx))
-    {
-        log(Logger::MessageType::MessageError, "Unable to define set input for op " + sinkOp->getName());
-        return flowEnd();
-    }
-
+    sinkOp->setInputTensor(sourceTensor, inputIdx);
     Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, std::make_shared<DataFlow>(sourceOp, 0, sinkOp, inputIdx, sourceTensor));
     
     if (inputFlow != *dataFlowEnd_)
@@ -530,12 +499,8 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
         log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
         return inputFlow;
     }
-    else
-    {
-        log(Logger::MessageType::MessageError, "Unable to define new flow for op " + sourceOp->getName());
-    }
-
-    return flowEnd();
+    
+    throw RuntimeError(*this, "Unnable to create data flow");
 
 }
 

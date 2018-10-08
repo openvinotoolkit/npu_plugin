@@ -11,20 +11,21 @@ mv::SinkOp::~SinkOp()
 
 }
 
-bool mv::SinkOp::setInputTensor(Data::TensorIterator &tensor, std::size_t idx)
+void mv::SinkOp::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
     if (idx >= get<unsigned short>("inputs"))
-        return false;
+        throw IndexError(*this, idx, "Attempt of setting an undefined input");
 
-    inputs_.emplace(idx, tensor);
+    auto result = inputs_.emplace(idx, tensor);
+    if (!result.second)
+        inputs_[idx] = tensor;
     set<std::string>("input" + std::to_string(idx), tensor->getName());
     log(Logger::MessageType::MessageDebug, "Set input " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
-    return true;
 }
 
 mv::Data::TensorIterator mv::SinkOp::getInputTensor(std::size_t idx)
 {
-    if (idx >= get<unsigned short>("inputs"))
+    if (inputs_.find(idx) == inputs_.end())
         throw IndexError(*this, idx, "Exceeds number of inputs");
 
     return inputs_.at(idx);

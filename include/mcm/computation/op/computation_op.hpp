@@ -30,8 +30,8 @@ namespace mv
         OpType getOpType() const;
         std::string toString() const override;
 
-        virtual bool setInputTensor(Data::TensorIterator& tensor, std::size_t idx);
-        virtual bool setOutputTensor(Data::TensorIterator& tensor, std::size_t idx);
+        virtual void setInputTensor(Data::TensorIterator tensor, std::size_t idx);
+        virtual void setOutputTensor(Data::TensorIterator tensor, std::size_t idx);
         virtual Data::TensorIterator getInputTensor(std::size_t idx);
         virtual Data::TensorIterator getOutputTensor(std::size_t idx);
         virtual bool hasInputDef();

@@ -16,7 +16,7 @@ namespace mv
 
         SinkOp(OpType opType, std::size_t inputsCount, const std::string &name);
         virtual ~SinkOp() = 0;
-        virtual bool setInputTensor(Data::TensorIterator &tensor, std::size_t idx);
+        virtual void setInputTensor(Data::TensorIterator tensor, std::size_t idx) override;
         virtual Data::TensorIterator getInputTensor(std::size_t idx);
         bool hasInputDef();
         bool hasInputDef(std::size_t idx);
