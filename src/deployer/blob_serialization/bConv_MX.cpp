@@ -102,10 +102,6 @@ namespace mv
 
                         //std::cout << "Filling descriptor " << i << std::endl;
 
-                        unsigned int current_height, output_height;
-                        current_height = this->input_lines_processed[h];
-                        output_height = this->output_lines_processed[h];
-
                         auto output_width = output_shape[1];
                         auto input_width = input_shape[1];
 
@@ -358,7 +354,6 @@ namespace mv
             this->CMXSize = cmxSize;
             this->reluSHVAcc = 0;
             double val = 0;
-            double val2 = 1;
             this->shvNegSlope = *(int * )(&val);
             this->shvPosSlope = 1065353216; //*(int * )(&val2);
 
@@ -369,7 +364,6 @@ namespace mv
 
             std::vector<std::size_t> chPerRamBlock;
             std::vector<size_t> topJunk, bottomJunk;
-            std::vector<size_t> input_lines_processed;
             int localLS = 1;
             std::vector<std::size_t> localCS;
             std::vector<std::size_t> LPC;
@@ -377,20 +371,7 @@ namespace mv
             int stride = 1;
             int padEn = 1;
 
-            if (! it->hasAttr("NCE1_InputLinesProcessed"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_InputLinesProcessed'. Defaulting to 1\n");
 
-                input_lines_processed = {0};
-                for( int i = 1; i != splits_over_H - 1; i++)
-                {
-                    input_lines_processed.push_back(0);
-                }
-            }
-            else
-            {
-                input_lines_processed = it->get<std::vector<std::size_t>>("NCE1_InputLinesProcessed");
-            }
             if (! it->hasAttr("NCE1_InputChannelsRamBlock"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsRamBlock'. Defaulting to 1\n");
