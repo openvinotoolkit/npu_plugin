@@ -265,27 +265,30 @@ namespace mv
 
                 if (child.expired())
                     throw std::runtime_error("Expired std::weak_ptr to child passed to iterable " + std::to_string(getID()) + " child deletion");
-            
-                for (auto sibling : child.lock()->siblings_)
-                {
+				
 
-                    if (sibling.expired())
+				auto sibling = child.lock()->siblings_.begin();
+                while (sibling != child.lock()->siblings_.end())
+                {
+					std::cout << "s" << std::endl;
+                    if (sibling->expired())
                         throw std::runtime_error("Expired std::weak_ptr to sibling found for iterable " + std::to_string(getID()));
 
                     unsigned common_parents = 0;
-
+					std::cout << "s1" << std::endl;
                     for (auto child_parent : parents_)
-                        if (sibling.lock()->parents_.find(child_parent) != sibling.lock()->parents_.end())
+                        if (sibling->lock()->parents_.find(child_parent) != sibling->lock()->parents_.end())
                             ++common_parents;
-
+					std::cout << "s2" << std::endl;
                     if (common_parents <= 1)
                     {
-                        sibling.lock()->siblings_.erase(child);
-                        child.lock()->siblings_.erase(sibling);
+                        sibling->lock()->siblings_.erase(child);
+                        child.lock()->siblings_.erase(*(sibling++));
                     }
+					std::cout << "s3" << std::endl;
 
                 }
-
+				std::cout << "s4" << std::endl;
                 children_.erase(child);
 
             }
