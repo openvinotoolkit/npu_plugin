@@ -301,6 +301,7 @@ namespace mv
 
                     for (auto sibling : *(child.lock()->siblings_))
                     {
+
                         if (!sibling.expired())
                         {
 
@@ -323,22 +324,24 @@ namespace mv
                             }
                             
                         }
+
                     }
 
-                    children_->erase(child);
-
                 }
+
+                children_->erase(child);
 
             }
 
             void remove_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& child)
             {
                 
-                if (!parent.expired() && !child.expired())
+                if (!parent.expired())
                 {
 
                     for (auto sibling : *siblings_)
                     {
+                        
                         if (!sibling.expired())
                         {
 
@@ -356,17 +359,20 @@ namespace mv
                             {
 
                                 sibling.lock()->siblings_->erase(child);
-                                child.lock()->siblings_->erase(sibling);
+                                if (!child.expired())
+                                    child.lock()->siblings_->erase(sibling);
 
                             }
                             
                         }
+                        else
+                            siblings_->erase(sibling);
 
                     }
 
-                    parents_->erase(parent);
-
                 }
+
+                parents_->erase(parent);
 
             }
 
