@@ -341,7 +341,7 @@ namespace mv
 
                     for (auto sibling : *siblings_)
                     {
-                        
+
                         if (!sibling.expired())
                         {
 
@@ -1789,14 +1789,14 @@ namespace mv
                 // of output edges of the sink node
                 for (auto child_ref : *sink_ptr->outputs_)
                 {
-                    child_ref.lock()->remove_parent_(e_it.get(), child_ref);
+                    child_ref.lock()->remove_parent_(e_it, child_ref);
                 }
 
                 // Remove the edge being deleted from sets of children
                 // of input edges of the source node
                 for (auto parent_ref : *source_ptr->inputs_)
                 {
-                    parent_ref.lock()->remove_child_(e_it.get());
+                    parent_ref.lock()->remove_child_(e_it);
                 }
 
                 // Remove relation between source and sink node
@@ -1804,11 +1804,11 @@ namespace mv
                 source_ptr->remove_child_(sink_ptr);
 
                 // Remove the edge being deleted from sets of outputs of the source node
-                e_it->source_.lock()->outputs_->erase(e_it.get().lock());
+                e_it->source_.lock()->outputs_->erase(e_it);
                 // Remove the edge being deleted from sets of inputs of the sink node
-                e_it->sink_.lock()->inputs_->erase(e_it.get().lock());
+                e_it->sink_.lock()->inputs_->erase(e_it);
                 // Remove egde from set of graph's edges (delete edge)
-                edges_->erase(e_it.get().lock());
+                edges_->erase(e_it.lock());
                 e_it = edge_end();
 
             }
