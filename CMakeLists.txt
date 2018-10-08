@@ -117,4 +117,4 @@ add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
 #add_subdirectory(python/api)
 
-add_library(cm SHARED ${logger} ${pass} ${base} ${compiler})
+add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
