@@ -6,6 +6,11 @@ unsigned mv::round_up(unsigned x, unsigned mult)
     return ((x + mult - 1) / mult) * mult; //power of integer arithmetic, don't touch
 }
 
+unsigned mv::floor_division(unsigned x, unsigned d)
+{
+    return (x + d - 1) / d;
+}
+
 unsigned mv::count_bits(unsigned number)
 {
     unsigned bits;
