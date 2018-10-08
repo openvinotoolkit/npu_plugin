@@ -4,6 +4,7 @@
 #include <memory>
 #include <set>
 #include <deque>
+#include <stdexcept>
 
 namespace mv
 {
@@ -211,111 +212,86 @@ namespace mv
                 return *siblings_;   
             }
 
-            bool add_child_(const std::weak_ptr<T_iterable>& child)
+            void add_child_(const std::weak_ptr<T_iterable>& child)
             {
 
-                if (!child.expired())
-                {
-                    auto result = children_->insert(child);
-                    
-                    if (!result.second)
-                        return false;
+                if (child.expired())
+                    throw std::runtime_error("Expired std::weak_ptr to child passed to iterable " + std::to_string(getID()) + " child definition");
 
-                }
-                else
-                    return false;
-   
-                return true;
+                auto result = children_->insert(child);
+                
+                if (!result.second)
+                    throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " child");
 
             }
 
-            bool add_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& child)
+            void add_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& child)
             {
 
-                if (!parent.expired() && !child.expired())
+                if (parent.expired())
+                    throw std::runtime_error("Expired std::weak_ptr to parent passed to iterable " + std::to_string(getID()) + " parent definition");
+
+                if (child.expired())
+                    throw std::runtime_error("Expired std::weak_ptr to child passed to iterable " + std::to_string(getID()) + " parent definition");
+
+                // Bond child to parent
+                auto result = parents_->insert(parent);
+
+                if (!result.second)
+                    throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " parent");
+
+                // Bond with new siblings
+                for (auto new_sibling = parent.lock()->get_children().begin(); new_sibling != parent.lock()->get_children().end(); ++new_sibling)
                 {
 
-                    // Bond child to parent
-                    auto result = parents_->insert(parent);
-
-                    if (result.second)
+                    if (new_sibling->lock() != child.lock())
                     {
 
-                        // Bond with new siblings
-                        for (auto new_sibling = parent.lock()->get_children().begin(); new_sibling != parent.lock()->get_children().end(); ++new_sibling)
+                        if (siblings_->find(*new_sibling) == siblings_->end())
                         {
+                            // Add child of a common parent as a sibling
+                            auto result = siblings_->insert(*new_sibling);
+                            if (!result.second)
+                                throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " sibling");
+                        }
 
-                            if (new_sibling->lock() != child.lock())
-                            {
-                                // Add child of a common parent as a sibling
-                                auto result_1 = siblings_->insert(*new_sibling);
-                                // Add new child to siblings of child of a common parent
-                                auto result_2 = (*new_sibling).lock()->siblings_->insert(child);
-    
-                                // Check if any insertion failed
-                                if (!result_1.second || !result_2.second)
-                                {
-                                    // Check if already siblings
-                                    if (result_1.first == siblings_->end())
-                                    {
-
-                                        // Revert changes
-                                        for (typename iterable_access_set<T_iterable>::reverse_iterator revert_sibling(++new_sibling);
-                                        revert_sibling != parent.lock()->get_children().rend(); ++revert_sibling)
-                                        {
-                                            
-                                            siblings_->erase(*revert_sibling);
-                                            (*revert_sibling).lock()->siblings_->erase(child);
-
-                                        }
-
-                                        parents_->erase(parent);
-                                        return false;
-
-                                    }
-
-                                }
-                            
-                            }
-
+                        if ((*new_sibling).lock()->siblings_->find(child) == (*new_sibling).lock()->siblings_->end())
+                        {
+                            // Add new child to siblings of child of a common parent
+                            auto result = (*new_sibling).lock()->siblings_->insert(child);
+                            if (!result.second)
+                                throw std::runtime_error("Unable to define iterable " + 
+                                    std::to_string((*new_sibling).lock()->getID()) + " sibling");
                         }
 
                     }
-                    else
-                        return false;
 
                 }
-                else
-                    return false;
-
-                
-                return true;
 
             }
 
             void remove_child_(const std::weak_ptr<T_iterable>& child)
             {
 
-                if (!child.expired())
+                if (child.expired())
+                    throw std::runtime_error("Expired std::weak_ptr to child passed to iterable " + std::to_string(getID()) + " child deletion");
+            
+                for (auto sibling : *(child.lock()->siblings_))
                 {
 
-                    for (auto sibling : *(child.lock()->siblings_))
+                    if (sibling.expired())
+                        throw std::runtime_error("Expired std::weak_ptr to sibling found for iterable " + std::to_string(getID()));
+
+                    unsigned common_parents = 0;
+
+                    for (auto child_parent : *parents_)
+                        if (sibling.lock()->parents_->find(child_parent) != sibling.lock()->parents_->end())
+                            ++common_parents;
+
+                    if (common_parents <= 1)
                     {
-
-                        if (!sibling.expired())
-                        {
-
-                            unsigned common_parents = 0;
-
-                            for (auto child_parent : *parents_)
-                                if (sibling.lock()->parents_->find(child_parent) != sibling.lock()->parents_->end())
-                                    ++common_parents;
-
-                            if (common_parents <= 1)
-                                sibling.lock()->siblings_->erase(child);
-                            
-                        }
-
+                        sibling.lock()->siblings_->erase(child);
+                        child.lock()->siblings_->erase(sibling);
                     }
 
                 }
@@ -327,37 +303,31 @@ namespace mv
             void remove_parent_(const std::weak_ptr<T_iterable>& parent, const std::weak_ptr<T_iterable>& child)
             {
                 
-                if (!parent.expired())
+                if (parent.expired())
+                    throw std::runtime_error("Expired std::weak_ptr to child passed to iterable " + std::to_string(getID()) + " parent deletion");
+
+                for (auto sibling : *siblings_)
                 {
 
-                    for (auto sibling : *siblings_)
+                    if (sibling.expired())
+                        throw std::runtime_error("Expired std::weak_ptr to sibling found for iterable " + std::to_string(getID()));
+
+
+                    unsigned common_parents = 0;
+
+                    for (auto child_parent : *parents_)
                     {
 
-                        if (!sibling.expired())
-                        {
+                        if (sibling.lock()->parents_->find(child_parent) != sibling.lock()->parents_->end())
+                            ++common_parents;
 
-                            unsigned common_parents = 0;
+                    }
 
-                            for (auto child_parent : *parents_)
-                            {
+                    if (common_parents <= 1)
+                    {
 
-                                if (sibling.lock()->parents_->find(child_parent) != sibling.lock()->parents_->end())
-                                    ++common_parents;
-
-                            }
-
-                            if (common_parents <= 1)
-                            {
-
-                                sibling.lock()->siblings_->erase(child);
-                                if (!child.expired())
-                                    child.lock()->siblings_->erase(sibling);
-
-                            }
-                            
-                        }
-                        else
-                            siblings_->erase(sibling);
+                        sibling.lock()->siblings_->erase(child);
+                        child.lock()->siblings_->erase(sibling);
 
                     }
 
@@ -1425,24 +1395,18 @@ namespace mv
             return node_it->content_.lock();
         }
 
-        virtual bool make_node_(std::shared_ptr<base_node>& b_node, std::shared_ptr<node>& new_node)
+        virtual void make_node_(std::shared_ptr<base_node>& b_node, std::shared_ptr<node>& new_node)
         {
 
             new_node = std::make_shared<node>(*this, b_node);
 
-            if (new_node)
-            {   
+            if (!new_node)
+                throw std::runtime_error("Unnable to define node " + std::to_string(b_node->getID()));
                 
-                auto result = nodes_->insert(nodes_->end(), new_node);
+            auto result = nodes_->insert(nodes_->end(), new_node);
 
-                if (result == nodes_->end())
-                    return false;
-                
-            }
-            else
-                return false;
-
-            return true;
+            if (result == nodes_->end())
+                throw std::runtime_error("Unnable to add node " + std::to_string(b_node->getID()) + " to the graph"); 
 
         }
 
@@ -1573,22 +1537,15 @@ namespace mv
             auto n_base_ptr = std::make_shared<base_node>(content, *node_id_);
             
             if (!n_base_ptr)
-                return node_end();
+                throw std::runtime_error("Unnable to define the base node for a node " + std::to_string(*node_id_)); 
             
             if (base_nodes_->insert(base_nodes_->end(), n_base_ptr) == base_nodes_->end())
-                return node_end();
+                throw std::runtime_error("Unnable to add base node for a node " + std::to_string(*node_id_) + " to the graph"); 
                 
             ++(*node_id_);
 
             std::shared_ptr<node> n_ptr;
-            bool result = make_node_(n_base_ptr, n_ptr);
-
-            if (!result)
-            {
-                base_nodes_->erase(n_base_ptr);
-                return node_end();
-            }
-            
+            make_node_(n_base_ptr, n_ptr);
             return node_list_iterator(n_ptr);
             
         }
@@ -1596,207 +1553,121 @@ namespace mv
         node_list_iterator node_insert(const base_iterator<node, T_node>& n1_it, const T_node& n_content, const T_edge& e_content)
         {
 
-            if (n1_it != node_end())
-            {
+            if (n1_it == node_end() || n1_it.expired())
+                throw std::runtime_error("Invalid source node passed for node " + std::to_string(*node_id_) + " construction"); 
+           
+            auto n2_it = node_insert(n_content);
+            edge_insert(n1_it, n2_it, e_content);
+            return n2_it;
 
-                auto n2_it = node_insert(n_content);
-
-                if (n2_it == node_end())
-                    return node_end();
-
-                auto e_it = edge_insert(n1_it, n2_it, e_content);
-
-                if (e_it == edge_end())
-                {
-                    node_erase(n2_it);
-                    return node_end();
-                }
-
-                return n2_it;
-            }
-            else
-                return node_end();
-        
         }
 
         edge_list_iterator edge_insert(const base_iterator<node, T_node>& n1_it, const base_iterator<node, T_node>& n2_it, const T_edge& content)
         {
-            if (n1_it != node_end() && n2_it != node_end())
-            {
+
+            if (n1_it == node_end() || n1_it.expired())
+                throw std::runtime_error("Invalid source node passed for edge " + std::to_string(*edge_id_) + " construction"); 
+            
+            if (n2_it == node_end() || n2_it.expired())
+                throw std::runtime_error("Invalid sink node passed for edge " + std::to_string(*edge_id_) + " construction"); 
     
-                // Construct an edge with a defined content
-                auto e_ptr = std::make_shared<edge>(*this, n1_it, n2_it, content, *edge_id_);
+            // Construct an edge with a defined content
+            auto e_ptr = std::make_shared<edge>(*this, n1_it, n2_it, content, *edge_id_);
 
-                if (!e_ptr)
-                    return edge_end();
-                
-                // Insert the edge in the graph
-                auto result = edges_->insert(edges_->end(), e_ptr);
+            if (!e_ptr)
+                throw std::runtime_error("Unnable to construct edge " + std::to_string(*edge_id_));
+            
+            // Insert the edge in the graph
+            auto result = edges_->insert(edges_->end(), e_ptr);
 
-                // Check if insertion successful
-                if (result == edges_->end())
-                {
-                    return edge_end();
-                }
-                
-                // Bond edge with the source node
-                auto result_source_node = n1_it->outputs_->insert(e_ptr);
-                if (!result_source_node.second)
-                {
-                    // Revert changes
-                    edges_->erase(*result);
-                    return edge_end();
-                }
+            // Check if insertion successful
+            if (result == edges_->end())
+                throw std::runtime_error("Unnable to add edge " + std::to_string(*edge_id_) + " to the graph");
+            
+            // Bond edge with the source node
+            auto result_source_node = n1_it->outputs_->insert(e_ptr);
+            if (!result_source_node.second)
+                throw std::runtime_error("Unnable to bond edge " + std::to_string(*edge_id_) + " with the source node");
 
-                // Bond edge with the sink node
-                auto result_sink_node = n2_it->inputs_->insert(e_ptr);
-                if (!result_sink_node.second)
-                {
-                    // Revert changes
-                    edges_->erase(*result);
-                    n1_it->outputs_->erase(*result_source_node.first);
-                    return edge_end();
-                }
+            // Bond edge with the sink node
+            auto result_sink_node = n2_it->inputs_->insert(e_ptr);
+            if (!result_sink_node.second)
+                throw std::runtime_error("Unnable to bond edge " + std::to_string(*edge_id_) + " with the sink node");
 
-                // Bond parent node and child node
-                bool result_1 = n1_it->add_child_(n2_it.get());
-                bool result_2 = n2_it->add_parent_(n1_it.get(), n2_it.get());
+            // Bond parent node and child node
+            n1_it->add_child_(n2_it.get());
+            n2_it->add_parent_(n1_it.get(), n2_it.get());
 
-                // Revert changes if bonding failed
-                if (!result_1 || !result_2)
-                {
-                    edges_->erase(*result);
-                    n1_it->outputs_->erase(*result_source_node.first);
-                    n2_it->inputs_->erase(*result_sink_node.first);
-                    return edge_end();
-                }
-
-                // Bond parent edges
-                for (auto parent_ref = n1_it->inputs_->begin(); parent_ref != n1_it->inputs_->end(); ++parent_ref)
-                {
-                    result_1 = parent_ref->lock()->add_child_(e_ptr);
-                    result_2 = e_ptr->add_parent_(*parent_ref, e_ptr);
-
-                    // Revert changes if bonding failed
-                    if (!result_1 || !result_2)
-                    {
-                        edges_->erase(*result);
-                        n1_it->outputs_->erase(*result_source_node.first);
-                        n2_it->inputs_->erase(*result_sink_node.first);
-                        n1_it->remove_child_(n2_it.get());
-                        n2_it->remove_parent_(n1_it.get(), n2_it.get());
-
-                        for (typename iterable_access_set<edge>::reverse_iterator reverse_parent(++parent_ref);
-                        reverse_parent != n1_it->inputs_->rend(); ++reverse_parent)
-                        {
-                            reverse_parent->lock()->remove_child_(e_ptr);
-                            e_ptr->remove_parent_(*reverse_parent, e_ptr);
-                        }
-
-                        return edge_end();
-                    }
-
-                }
-
-                // Bond child edges
-                for (auto child_ref = n2_it->outputs_->begin(); child_ref != n2_it->outputs_->end(); ++child_ref)
-                {
-
-                    result_1 = child_ref->lock()->add_parent_(e_ptr, *child_ref);
-                    result_2 = e_ptr->add_child_(*child_ref);
-
-                    // Revert changes if bonding failed
-                    if (!result_1 || !result_2)
-                    {
-                        edges_->erase(*result);
-                        n1_it->outputs_->erase(*result_source_node.first);
-                        n2_it->inputs_->erase(*result_sink_node.first);
-                        n1_it->remove_child_(n2_it.get());
-                        n2_it->remove_parent_(n1_it.get(), n2_it.get());
-
-                        for (auto reverse_parent = n1_it->inputs_->begin(); reverse_parent != n1_it->inputs_->end(); ++reverse_parent)
-                        {
-                            reverse_parent->lock()->remove_child_(e_ptr);
-                            e_ptr->remove_parent_(*reverse_parent, e_ptr);
-                        }
-
-                        for (typename iterable_access_set<edge>::reverse_iterator reverse_child(++child_ref);
-                        reverse_child != n2_it->outputs_->rend(); ++reverse_child)
-                        {
-                            reverse_child->lock()->remove_parent_(e_ptr, *reverse_child);
-                            e_ptr->remove_child_(*reverse_child);
-                        }
-
-                        return edge_end();
-                    }
-
-                }
-
-                ++(*edge_id_);
-                
-                return edge_list_iterator(e_ptr);
-
+            // Bond parent edges
+            for (auto parent_ref = n1_it->inputs_->begin(); parent_ref != n1_it->inputs_->end(); ++parent_ref)
+            {
+                parent_ref->lock()->add_child_(e_ptr);
+                e_ptr->add_parent_(*parent_ref, e_ptr);
             }
-            else
-                return edge_end();
+
+            // Bond child edges
+            for (auto child_ref = n2_it->outputs_->begin(); child_ref != n2_it->outputs_->end(); ++child_ref)
+            {
+                child_ref->lock()->add_parent_(e_ptr, *child_ref);
+                e_ptr->add_child_(*child_ref);
+            }
+
+            ++(*edge_id_);
+            return edge_list_iterator(e_ptr);
 
         }
 
         void node_erase(base_iterator<node, T_node>& n_it)
         {
 
-            if (n_it != node_end())
-            {
-                
-                auto n_ptr = n_it.get().lock();
-                auto base_n_ptr = n_ptr->content_.lock();
+            if (n_it == node_end() || n_it.expired())
+                throw std::runtime_error("Invalid node passed for node deletion"); 
+  
+            auto n_ptr = n_it.get().lock();
+            auto base_n_ptr = n_ptr->content_.lock();
 
-                // Delete node
-                terminate_node_(base_n_ptr, n_ptr);
-                //nodes_->erase(n_it.get().lock());
+            // Delete node
+            terminate_node_(base_n_ptr, n_ptr);
+            //nodes_->erase(n_it.get().lock());
 
-                if (base_n_ptr)
-                    base_nodes_->erase(base_n_ptr);
+            if (base_n_ptr)
+                base_nodes_->erase(base_n_ptr);
 
-                // Invalidate input iterator
-                n_it = node_end();
-
-            }
+            // Invalidate input iterator
+            n_it = node_end();
 
         }
 
         void edge_erase(base_iterator<edge, T_edge>& e_it)
         {
 
-            if (e_it != edge_end())
-            {
+            if (e_it == edge_end() || e_it.expired())
+                throw std::runtime_error("Invalid edge passed for edge deletion"); 
                 
-                auto sink_ptr = e_it->sink_.lock();
-                auto source_ptr = e_it->source_.lock();
+            auto sink_ptr = e_it->sink_.lock();
+            auto source_ptr = e_it->source_.lock();
 
-                // Remove the edge being deleted from sets of parents
-                // of output edges of the sink node
-                for (auto child_ref : *sink_ptr->outputs_)
-                    child_ref.lock()->remove_parent_(e_it, child_ref);
+            // Remove the edge being deleted from sets of parents
+            // of output edges of the sink node
+            for (auto child_ref : *sink_ptr->outputs_)
+                child_ref.lock()->remove_parent_(e_it, child_ref);
 
-                // Remove the edge being deleted from sets of children
-                // of input edges of the source node
-                for (auto parent_ref : *source_ptr->inputs_)
-                    parent_ref.lock()->remove_child_(e_it);
+            // Remove the edge being deleted from sets of children
+            // of input edges of the source node
+            for (auto parent_ref : *source_ptr->inputs_)
+                parent_ref.lock()->remove_child_(e_it);
 
-                // Remove relation between source and sink node
-                sink_ptr->remove_parent_(source_ptr, sink_ptr);
-                source_ptr->remove_child_(sink_ptr);
+            // Remove relation between source and sink node
+            sink_ptr->remove_parent_(source_ptr, sink_ptr);
+            source_ptr->remove_child_(sink_ptr);
 
-                // Remove the edge being deleted from sets of outputs of the source node
-                e_it->source_.lock()->outputs_->erase(e_it);
-                // Remove the edge being deleted from sets of inputs of the sink node
-                e_it->sink_.lock()->inputs_->erase(e_it);
-                // Remove egde from set of graph's edges (delete edge)
-                edges_->erase(e_it.lock());
-                e_it = edge_end();
-
-            }
+            // Remove the edge being deleted from sets of outputs of the source node
+            e_it->source_.lock()->outputs_->erase(e_it);
+            // Remove the edge being deleted from sets of inputs of the sink node
+            e_it->sink_.lock()->inputs_->erase(e_it);
+            // Remove egde from set of graph's edges (delete edge)
+            edges_->erase(e_it.lock());
+            e_it = edge_end();
 
         }
 

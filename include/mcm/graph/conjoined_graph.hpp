@@ -110,45 +110,21 @@ namespace mv
         using second_graph::edge_lower_bound;
         using second_graph::edge_equal_range;
 
-        bool make_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename first_graph::node> &new_node)
+        void make_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename first_graph::node> &new_node)
         {   
 
-            bool result = first_graph::make_node_(b_node, new_node);
-            
-            if (!result)
-                return false;
-            
+            first_graph::make_node_(b_node, new_node);
             std::shared_ptr<typename second_graph::node> dummy;
-            result = second_graph::make_node_(b_node, dummy);
-
-            if (!result)
-            {
-                first_graph::terminate_node_(b_node, new_node);
-                return false;
-            }
-
-            return true;
+            second_graph::make_node_(b_node, dummy);
 
         }
 
-        bool make_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename second_graph::node> &new_node)
+        void make_node_(std::shared_ptr<detail::base_node_class<T_node, std::size_t>> &b_node, std::shared_ptr<typename second_graph::node> &new_node)
         {   
 
-            bool result = second_graph::make_node_(b_node, new_node);
-            
-            if (!result)
-                return false;
-            
+            second_graph::make_node_(b_node, new_node);
             std::shared_ptr<typename first_graph::node> dummy;
-            result = first_graph::make_node_(b_node, dummy);
-
-            if (!result)
-            {
-                second_graph::terminate_node_(b_node, new_node);
-                return false;
-            }
-
-            return true;
+            first_graph::make_node_(b_node, dummy);
 
         }
 
