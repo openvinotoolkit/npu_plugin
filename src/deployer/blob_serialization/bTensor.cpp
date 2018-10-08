@@ -245,6 +245,8 @@ namespace mv
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
                 }
                 break;
+                //PROBLEM: This assumes a 3D tensor, while weights in MX are 5D.
+                //Still, weights are the same after some experiments, why is this happening?
                 case OrderType::RowMajor:
                 {
                     if (block == this->dimZ* 2)

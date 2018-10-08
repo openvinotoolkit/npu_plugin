@@ -21,7 +21,7 @@ namespace mv
     }
 }
 
-//ASSUMPTION: This pass must be executed after the Mark Hardware Convolution pass.
+//ASSUMPTION 1: This pass must be executed after the Mark Hardware Convolution pass.
 //REASON: There is no need to pad tensors not involved in HW operations at all.
 void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
@@ -84,7 +84,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         weight_tensor_paddings[0] = 0;
         weight_tensor_paddings[1] = 0;
         weight_tensor_paddings[2] = actual_input_channels - input_channels;
-        weight_tensor_paddings[3] = actual_output_channels - output_channels;
+        weight_tensor_paddings[3] = 0;
 
         if(input_tensor->hasAttr("NCE1_Paddings"))
         {
