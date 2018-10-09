@@ -97,7 +97,6 @@ then
   echo "   helpflag= $HELP"
   echo "   verbose= $VERBOSE"
   echo "   pause= $PAUSE"
-  echo "   weightsProvidedFlag= $WEIGHTSPROVIDED"
   echo " "
 fi
 
@@ -105,7 +104,7 @@ if [ "$HELP" == "true" ]
 then
   echo "mcmCheck compares inference result from framework against HW result using blob compiled with mvNCCompile -cpp"
   echo " "
-  echo "Usage: source ./mcmCheck.sh -n <prototxt_file> -w <caffemodel_file> -i <image_file> -b <blob_file> -r <result_file> -e <expected_file> -software -v -h -p"
+  echo "Usage: source ./mcmCheck.sh -n <prototxt_file> -w <caffemodel_file> -i <image_file> -b <blob_file> -r <result_file> -e <expected_file> -v -h -p"
   echo " "
   echo "    -n is needed for compilation and generation of expected reference results"
   echo "    -w is optional, if you do not supply weights then caffe generated weights will be used"
@@ -132,8 +131,7 @@ then
   return 2
 fi
 
-#-------------------------------------------------------------------------------------------------------------------------------
-
+#----------------
 if [ "$COMPILE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
 then
   rm -f cpp.blob
@@ -142,29 +140,25 @@ then
   #note: this produces a Fathom_expected.npy file during compilation using an random array of data passed through the caffe model
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --cpp    
 fi
-
-#---------------- compile software only blob from prototxt
-
+#---------------- compile blob from prototxt
 if [ "$COMPILE" == "true" ] && [ "$DISABLEHARDWARE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ]
 then
   rm -f cpp.blob
   echo "compiling for software"
   echo "using weights provided"
+#  ./mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser -w $WEIGHTS --cpp 
 fi
-
 #----------------
-
 if [ "$DISABLEHARDWARE" == "false" ] && [ "$COMPILE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
 then
   rm -f cpp.blob
   echo "compiling for harware"
   echo "weights not provided - generating weights"
+#  ./mvNCCompile.py $NETWORK --new-parser --cpp
   $MDK_HOME/projects/Fathom/src2/mvNCCompile.py $NETWORK --new-parser --cpp --ma2480
 fi
-
 #----------------
-
 if [ "$DISABLEHARDWARE" == "false" ] && [ "$COMPILE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ]
 then
   rm -f cpp.blob
@@ -175,41 +169,42 @@ then
 fi
 
 #---------------- generate reference/expected .npy outout with provided weights and provided image for inference
-
 if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ] && [ ! -z "$IMAGE" ]
 then
-  echo "executing mcmGenRef.py with provided weights"
+  echo -e "executing mcmGenRef.py with provided weights and a user supplied image\n"
   rm -f Fathom_expected.npy # delete the results file generated during compilation, inference on provided image will be saved to Fathom_expected.npy file now
   python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --weights $WEIGHTS --image $IMAGE
-elif [ "$GENREFERENCE" == "true" ]
+fi
+#----------------
+if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ] && [ -z "$IMAGE" ]
 then
-      echo "ERROR: You must provide an image for to generate an expected output from Caffe - exiting"
-      exit  
+  echo -e "executing mcmGenRef.py with provided weights and without user supplied image (will generate a random image)\n"
+  rm -f Fathom_expected.npy # delete the results file generated during compilation, inference on provided image will be saved to Fathom_expected.npy file now
+  python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --weights $WEIGHTS
+
 fi
 #---------------- generate reference/expected .npy outout without provided weights and provided image for inference
-
-if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]  && [ ! -z "$IMAGE" ]
+if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
 then
   echo "executing mcmGenRef.py without provided weights"
   rm -f Fathom_expected.npy
-  python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --image $IMAGE
-elif [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
-then
-      echo "ERROR: You must provide an image for to generate an expected output from Caffe, also note you have not provided weights - exiting"
-      exit  
+  python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --image $IMAGE 
 fi
-
-#---------------- run blob on HW
-
+#---------------- run blob on HW with user supplied image
 if [ "$RUNHW" == "true" ] && [ ! -z "$IMAGE" ]
 then
-  echo "running 1st blob"
+  echo "running 1st blob with user supplied image"
   rm -f $RESULT.npy 
-  python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB --image $IMAGE --result $RESULT 
-else
-      echo "ERROR: You must provide an image for inference on hardware - exiting"
-      exit  
+  python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB --image $IMAGE --result $RESULT  
 fi
+#----------------run blob on HW with random generated image
+if [ "$RUNHW" == "true" ] && [ -z "$IMAGE" ]
+then
+  echo -e "running 1st blob with random generated image test.png\n"
+  rm -f $RESULT.npy 
+  python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB --result $RESULT 
+fi
+#----------------
 if [ "$COMPAREBLOBS" == "true" ]
 then
   if [ "$PAUSE" == "true" ]
@@ -221,8 +216,16 @@ then
   echo "running 2nd blob"
   python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB2 --image $IMAGE --result $RESULT
 fi
-
-#---------------- compare output to reference
-echo "comparing results"
+#---------------- compare output to reference using the random generated image
+if [ -z "$IMAGE" ]
+then
+echo -e "comparing results blob result using caffe output for the random generated image test.png\n"
 python3 $MCM_HOME/python/tools/mcmCheckRef.py --reference $EXPECTED --result $RESULT.npy 
+fi
+#---------------- compare output to reference using the user supplied image
+if [ ! -z "$IMAGE" ]
+then
+echo -e "comparing results blob result using caffe output for the user supplied image\n"
+python3 $MCM_HOME/python/tools/mcmCheckRef.py --reference $EXPECTED --result $RESULT.npy 
+fi
 echo "return code = $?"

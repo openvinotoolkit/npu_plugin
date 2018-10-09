@@ -40,6 +40,9 @@ out_x = a["Layers..."][-1]["Op..."]["Buffers..."][1]["x"]
 out_y = a["Layers..."][-1]["Op..."]["Buffers..."][1]["y"]
 out_z = a["Layers..."][-1]["Op..."]["Buffers..."][1]["z"]
 
+#Already generated test.npy
+#gen_data(in_y, in_x, in_z)
+
 in_x = str(in_x)
 in_y = str(in_y)
 in_z = str(in_z)
@@ -48,16 +51,24 @@ out_x = str(out_x)
 out_y = str(out_y)
 out_z = str(out_z)
 
-
 GLOBALS.USING_MA2480 = True
-#Call run_blob.py with subprocess() as you can obtain the return codes 
-result = subprocess.call('python3 $MCM_HOME/python/tools/run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res, shell=True)
+#os.system('python3 $MCM_HOME/python/tools/run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res)
+#Using Subprocess() as it returns better error codes
 
-#return success/failure of running on hardware to mcmCheck
-if result:
-    sys.exit(-1) #return -1 error running on hardware
-elif result:
-    sys.exit(0) #successful running on hardware
+#User supplied image not provided setting image_path to test.png
+if image_path is None:
+    print("User supplied image not provided setting image_path to test.png\n")
+    image_path = "test.png"
+    result = subprocess.call('python3 $MCM_HOME/python/tools/run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res, shell=True)
+
+#Else a user supplied image was provided
+else:
+    result = subprocess.call('python3 $MCM_HOME/python/tools/run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res, shell=True)
+
+if result != 0:
+    sys.exit(-1) #return -1 on error running on hardware
+
+sys.exit(0) #else return 0
 
 
 

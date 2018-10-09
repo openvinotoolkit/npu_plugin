@@ -84,9 +84,39 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
             device.open()
         except:
             throw_error(ErrorTable.USBError, 'Error opening device')
-
-    #load the input image
-    input_image = parse_img(image_path,
+    #net.inputTensor = net.inputTensor.astype(dtype=np.float16)
+    #input_image = net.inputTensor
+    
+    if ".npy" in image_path:
+        print("Loading numpy generated image test.npy\n")
+        input_image = np.load("test.npy")
+        input_data_layout = StorageOrder.orderZYX
+ 
+    elif image_path is None or image_path == "Debug":
+        print("creating random image")
+        print("inputTensorShape ", inputTensorShape)
+        input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.float16)
+        if (hw):
+            # assume data in ZYX
+            if (len(inputTensorShape) == 4):
+                input_data = input_image.reshape(int(inputTensorShape[0]), int(inputTensorShape[3]), int(inputTensorShape[1]), int(inputTensorShape[2]))
+            input_data_layout = StorageOrder.orderZYX
+        else:
+            # assume data in YXZ
+            if (len(inputTensorShape) == 4):
+                input_data = input_image.reshape(int(inputTensorShape[0]), int(inputTensorShape[1]), int(inputTensorShape[2]), int(inputTensorShape[3]))
+            input_data_layout = StorageOrder.orderYXZ
+        if debug:
+            print("Input image shape", inputTensorShape)
+ 
+        if (input_data_layout == StorageOrder.orderZYX):
+            # transpose to YXZ
+            if (len(inputTensorShape)==4):
+                input_image = input_image.transpose([0, 2, 3, 1])
+    
+    elif image_path == "test.png":
+        print("Loading random generate test.png file that was generated from mcmGenRef for inference\n")
+        input_image = parse_img(image_path,
                             [int(inputTensorShape[0]),
                              int(inputTensorShape[3]),
                              int(inputTensorShape[1]),
@@ -94,8 +124,25 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
                             raw_scale=arguments.raw_scale,
                             mean=arguments.mean,
                             channel_swap=(2, 1, 0)).astype(np.float16)
+                            
+        #input_image = plt.imread(image_path).astype(np.float16)
+        #input_image = input_image.reshape((1, input_image.shape[0], input_image.shape[1], input_image.shape[2]))
+        input_image = input_image.transpose([0, 2, 3, 1])
     
-    input_image = input_image.transpose([0, 2, 3, 1])
+    elif image_path != "test.png" and image_path is not None:
+        print("Loading user supplied image for inference\n")
+        input_image = parse_img(image_path,
+                            [int(inputTensorShape[0]),
+                             int(inputTensorShape[3]),
+                             int(inputTensorShape[1]),
+                             int(inputTensorShape[2])],
+                            raw_scale=arguments.raw_scale,
+                            mean=arguments.mean,
+                            channel_swap=(2, 1, 0)).astype(np.float16)
+                            
+        #input_image = plt.imread(image_path).astype(np.float16)
+        #input_image = input_image.reshape((1, input_image.shape[0], input_image.shape[1], input_image.shape[2]))
+        input_image = input_image.transpose([0, 2, 3, 1])
 
     if GLOBALS.INPUT_IN_INTERLEAVED:
         # Convert to planar, pad, and then convert back to interleaved.
@@ -178,8 +225,11 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     fifoIn.allocate(device, descIn[0], 2)
     fifoOut.allocate(device, descOut[0], 2)
 
+    # input_image.fill(1)
     import binascii
-    print("CRC IMAGE: ", binascii.crc32(input_image))
+    print("CRC of IMAGE sent to hardware is:", binascii.crc32(input_image))
+    print("\n")
+
 
     for y in range(arguments.stress_full_run):
         if arguments.timer:
