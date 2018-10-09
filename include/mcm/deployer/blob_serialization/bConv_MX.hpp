@@ -33,6 +33,8 @@ namespace mv{
             size_t splits_over_H;
             size_t splits_over_iC;
             size_t inputChannelsPadded;
+            size_t inputWidthPadded;
+            size_t outputWidthPadded;
 
             uint32_t streamingMask;
             uint32_t concatOffset;

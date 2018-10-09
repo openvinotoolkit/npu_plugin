@@ -115,5 +115,8 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         input_tensor->set<std::vector<size_t>>("NCE1_Paddings", input_tensor_paddings);
         output_tensor->set<std::vector<size_t>>("NCE1_Paddings", output_tensor_paddings);
         weight_tensor->set<std::vector<size_t>>("NCE1_Paddings", weight_tensor_paddings);
+
+
+        operationIt->set<std::size_t>("NCE1_OutputWidthPadded", actual_output_width);
     }
 }

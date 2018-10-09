@@ -102,8 +102,8 @@ namespace mv
 
                         //std::cout << "Filling descriptor " << i << std::endl;
 
-                        auto output_width = output_shape[1];
-                        auto input_width = input_shape[1];
+                        auto output_width = this->outputWidthPadded ; //output_shape[1];
+                        auto input_width = this->inputWidthPadded; //input_shape[1];
 
                         auto output_channels = output_shape[2];
 
@@ -499,6 +499,27 @@ namespace mv
                 this->inputChannelsPadded = it->get<std::size_t>("NCE1_InputChannelsPadded");
             }
 
+            if (! it->hasAttr("NCE1_InputWidthPadded"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_InputWidthPadded'. Defaulting to 1\n");
+
+                this->inputWidthPadded = 1;
+            }
+            else
+            {
+                this->inputWidthPadded = it->get<std::size_t>("NCE1_InputWidthPadded");
+            }
+
+            if (! it->hasAttr("NCE1_OutputWidthPadded"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_OutputWidthPadded'. Defaulting to 1\n");
+
+                this->outputWidthPadded = 1;
+            }
+            else
+            {
+                this->outputWidthPadded = it->get<std::size_t>("NCE1_OutputWidthPadded");
+            }
 
             unsigned i;
             for (unsigned oc = 0; oc != DPUmodeVector.size(); oc++)

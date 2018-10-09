@@ -139,6 +139,7 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     convIterator->set<std::vector<std::size_t>>("NCE1_LocalChannelStride", local_channel_stride);
     convIterator->set<std::vector<std::size_t>>("NCE1_MinLines", min_lines);
     convIterator->set<std::size_t>("NCE1_InputChannelsPadded", splitted_input_channels);
+    convIterator->set<std::size_t>("NCE1_InputWidthPadded", input_width);
 
     //Input Tensor and weigth paddings need to be rewritten, as they may have changed due to mode selected
     input_tensor->set<std::vector<std::size_t>>("NCE1_Paddings", input_tensor_paddings);
