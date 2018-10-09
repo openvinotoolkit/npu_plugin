@@ -62,7 +62,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     debug = True
     hw = False
 
-    np.random.seed(19)
+    
 
     f = open(blob_path, 'rb')
     blob_file = f.read()
@@ -87,6 +87,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     #net.inputTensor = net.inputTensor.astype(dtype=np.float16)
     #input_image = net.inputTensor
     
+    
     if ".npy" in image_path:
         print("Loading numpy generated image test.npy\n")
         input_image = np.load("test.npy")
@@ -95,6 +96,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     elif image_path is None or image_path == "Debug":
         print("creating random image")
         print("inputTensorShape ", inputTensorShape)
+        np.random.seed(19)
         input_image = np.random.uniform(0, 1, inputTensorShape).astype(np.float16)
         if (hw):
             # assume data in ZYX

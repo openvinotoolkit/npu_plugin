@@ -181,7 +181,7 @@ then
   echo -e "executing mcmGenRef.py with provided weights and without user supplied image (will generate a random image)\n"
   rm -f Fathom_expected.npy # delete the results file generated during compilation, inference on provided image will be saved to Fathom_expected.npy file now
   python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --weights $WEIGHTS
-
+  
 fi
 #---------------- generate reference/expected .npy outout without provided weights and provided image for inference
 if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
