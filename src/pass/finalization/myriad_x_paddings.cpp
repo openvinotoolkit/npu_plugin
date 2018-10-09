@@ -61,11 +61,9 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         size_t output_width = output_tensor_dimension[0];
         size_t output_height = output_tensor_dimension[1];
-        size_t output_channels = output_tensor_dimension[2];
 
         size_t actual_output_width = nce.computeActualOutputWidth(output_width);
         size_t actual_output_height = nce.computerActualOutputHeight(output_height);
-        size_t actual_output_channels = nce.computeActualOutputChannels(output_channels);
 
         //God please forgive me for the magic numbers
         std::vector<size_t> input_tensor_paddings(3);
@@ -116,7 +114,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         output_tensor->set<std::vector<size_t>>("NCE1_Paddings", output_tensor_paddings);
         weight_tensor->set<std::vector<size_t>>("NCE1_Paddings", weight_tensor_paddings);
 
-
+        operationIt->set<std::size_t>("NCE1_InputWidthPadded", actual_input_width);
         operationIt->set<std::size_t>("NCE1_OutputWidthPadded", actual_output_width);
     }
 }
