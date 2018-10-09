@@ -61,7 +61,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
             original_output_channel += original_output_channel_padding;
 
-            unsigned floor_output_channel = mv::floor_division(original_output_channel, 8);
+            unsigned floor_output_channel = mv::ceil_division(original_output_channel, 8);
 
             mv::Shape new_shape = mv::Shape({floor_output_channel, wshape[2], wshape[0], wshape[1], 8});
 
