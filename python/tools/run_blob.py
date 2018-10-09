@@ -118,7 +118,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
     if input_image.shape[1] == 3:
         padded_slice = np.zeros((input_image.shape[0],
                                 1,
-                                #else return 0nput_image.shape[2],
+                                input_image.shape[2],
                                 input_image.shape[3]),
                                 dtype=float).astype(dtype=np.float16)
         input_image = np.append(input_image, padded_slice, axis=1)
