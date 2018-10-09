@@ -13,8 +13,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ")
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-
-
 file(GLOB base
     "src/base/attribute_registry.cpp"
     "src/base/attribute_def/*.cpp"
@@ -118,3 +116,10 @@ add_subdirectory(examples)
 #add_subdirectory(python/api)
 
 add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+
+include (GenerateExportHeader)          
+GENERATE_EXPORT_HEADER(cm           # generates the export header shared_EXPORTS.h automatically
+    BASE_NAME cm
+    EXPORT_MACRO_NAME cm
+    EXPORT_FILE_NAME cm_EXPORTS.h
+    STATIC_DEFINE SHARED_EXPORTS_BUILT_AS_STATIC)
