@@ -92,6 +92,11 @@ bufferLength_(bufferLength)
     buffer_ = new char[bufferLength_];
 }
 
+mv::JSONTextParser::~JSONTextParser()
+{
+    delete [] buffer_;
+}
+
 unsigned mv::JSONTextParser::readStream_()
 {
     inputStream_.read(buffer_, bufferLength_);
