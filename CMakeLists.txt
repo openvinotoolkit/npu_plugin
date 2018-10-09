@@ -115,11 +115,4 @@ add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
 #add_subdirectory(python/api)
 
-add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
-
-include (GenerateExportHeader)          
-GENERATE_EXPORT_HEADER(cm           # generates the export header shared_EXPORTS.h automatically
-    BASE_NAME cm
-    EXPORT_MACRO_NAME cm
-    EXPORT_FILE_NAME cm_EXPORTS.h
-    STATIC_DEFINE SHARED_EXPORTS_BUILT_AS_STATIC)
+add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler})
