@@ -123,7 +123,7 @@ namespace mv
 
         if ((*t)->isPopulated())
         {
-
+            std::cout << "Populated Tensor: " << (*t)->getName() << (*t)->getOrder().toString()<< std::endl;
             mem = dm->getBuffer("ConstantMemory", stg, *t);
             this->location = BLOB_INTERNAL_LOCATION;
 
@@ -138,8 +138,6 @@ namespace mv
                         break;
                     }
                 }
-                // this->dimY = this->dimY + 1;
-
             }
             else
             {
@@ -301,27 +299,39 @@ namespace mv
 
                 }
             }
-            std::cout << "local_StrideX: " << local_StrideX << std::endl;
-            std::cout << "local_StrideY: " << local_StrideY << std::endl;
-            std::cout << "local_StrideZ: " << local_StrideZ << std::endl;
-            std::cout << "this->dimX: " << this->dimX << std::endl;
-            std::cout << "this->dimY: " << this->dimY << std::endl;
-            std::cout << "this->dimZ: " << this->dimZ << std::endl;
-            std::cout << "Block size: " << block << std::endl;
-            std::cout << "Block stride: " << blk_stride << std::endl;
 
         }
 
         switch ( (*t)->getOrder() )
         {
             case OrderType::RowMajorPlanar:
-                // UPA Shave
-                this->order = 0;
-                // ROW MAJOR (CHANNEL MINOR)
-                // I.E: Y, X, Z
-                this->strideZ = fp16_size;
-                this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
-                this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                {
+                    if((int)(*t)->getShape().ndims() == 3){
+                        // UPA Shave
+                        this->order = 0;
+                        // ROW MAJOR (CHANNEL MINOR)
+                        // I.E: Y, X, Z
+                        this->strideZ = fp16_size;
+                        this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
+                        this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                    }else{
+                        if((int)(*t)->getShape().ndims() > 3){
+                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                            this->order = 3;
+                            this->strideZ = fp16_size;
+                            this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
+                            this->strideX = (this->dimY * this->strideY) + local_StrideY;
+                        }else{
+                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                            this->order = 1;
+                            this->strideX = fp16_size;
+                            this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                            this->strideZ = (this->dimY * this->strideY) + local_StrideY;
+                        }
+                    }
+                }
                 break;
             case OrderType::RowMajor:
                 // NOT USED
@@ -358,6 +368,16 @@ namespace mv
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);
+
+            std::cout << "Order: " << (*t)->getOrder().toString() << std::endl;
+            std::cout << "local_StrideX: " << local_StrideX << std::endl;
+            std::cout << "local_StrideY: " << local_StrideY << std::endl;
+            std::cout << "local_StrideZ: " << local_StrideZ << std::endl;
+            std::cout << "this->dimX: " << this->dimX << std::endl;
+            std::cout << "this->dimY: " << this->dimY << std::endl;
+            std::cout << "this->dimZ: " << this->dimZ << std::endl;
+            std::cout << "Block size: " << block << std::endl;
+            std::cout << "Block stride: " << blk_stride << std::endl;
         }
     }
 
