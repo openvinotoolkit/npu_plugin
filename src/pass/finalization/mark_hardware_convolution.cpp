@@ -37,6 +37,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 {
 
     int amount_marked = 0;
+    int max_amount = 3;
 
     bool disableHardware = false;
     if (compDesc.hasKey("MarkHardwareConvolution"))
@@ -51,7 +52,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
         // std::cout << " "opIterator->getName() << std::endl;
         if (!disableHardware)
         {
-            if(!opIterator->isHardwarizeable(compDesc) )
+            if(!opIterator->isHardwarizeable(compDesc) || amount_marked >= max_amount)
             {
                 om.addAttr(opIterator, "NCE1_Compatible", (int)0);
                 continue;
