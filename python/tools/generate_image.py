@@ -3,7 +3,7 @@ import numpy as np
 
 def gen_image(w, h, c):
     np.random.seed(19)
-    data = np.random.uniform(0, 1, (h, w, c)).astype(np.uint8)
+    data = np.random.uniform(0, 255, (h, w, c)).astype(np.uint8)
     img = Image.fromarray(data, 'RGB')
     print("Generating random png file : ", (h, w, c), "to ", 'test.png\n')
     img.save('test.png')
