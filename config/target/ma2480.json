@@ -37,14 +37,14 @@
 			"FuseBias",
 			"FuseScale",
 			"FuseBias",
-			"FullyConnectedAsConv2D",
-			"FuseRelu"
+			"FullyConnectedAsConv2D"
 		],
 
 		"finalize":
 		[
 			"AlignConstOrder",
 			"MarkHardwareConvolution",
+			"FuseReluMX",
 			"AddConversionLayers",
 			"MyriadXPaddings",
 			"ModeSelection",
