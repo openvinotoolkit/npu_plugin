@@ -128,7 +128,7 @@ then
   echo "   -compares result of 2 blobs run on HW, and reports all script flags and variables"
   echo "Example: source ./mcmCheck.sh -b new.blob -e ./expected_from_previous_build.npy -i ./mug.png -v"
   echo "   -runs given blob on HW and compares to given expected output"
-  return 2
+  exit
 fi
 
 #----------------
