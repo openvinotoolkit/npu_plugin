@@ -616,11 +616,22 @@ namespace mv
                         this->descriptors[i].sodGroup = 0;
 
                         // Fused ReLU
-                        this->descriptors[i].t0 = 0;
-                        this->descriptors[i].a0 = 0;
-                        this->descriptors[i].a1 = 0;
-                        this->descriptors[i].reluxEn = 0;
-                        this->descriptors[i].reluEn = 0;
+                        if(it->hasAttr("postOpType") && it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                        {
+                            this->descriptors[i].t0 = 0;
+                            this->descriptors[i].a0 = 0;
+                            this->descriptors[i].a1 = 1;
+                            this->descriptors[i].reluxEn = 0;
+                            this->descriptors[i].reluEn = 1;
+                        }
+                        else
+                        {
+                            this->descriptors[i].t0 = 0;
+                            this->descriptors[i].a0 = 0;
+                            this->descriptors[i].a1 = 0;
+                            this->descriptors[i].reluxEn = 0;
+                            this->descriptors[i].reluEn = 0;
+                        }
 
                         // Fused Pooling
                         if (0)
