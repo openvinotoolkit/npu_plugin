@@ -193,7 +193,7 @@ fi
 #---------------- run blob on HW with user supplied image
 if [ "$RUNHW" == "true" ] && [ ! -z "$IMAGE" ]
 then
-  echo "running 1st blob with user supplied image"
+  echo -e "running 1st blob with user supplied image\n"
   rm -f $RESULT.npy 
   python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB --image $IMAGE --result $RESULT  
 fi
@@ -219,13 +219,13 @@ fi
 #---------------- compare output to reference using the random generated image
 if [ -z "$IMAGE" ]
 then
-echo -e "comparing results blob result using caffe output for the random generated image test.png\n"
+echo -e "comparing the blob result from harware against caffe output for the random generated image test.png\n"
 python3 $MCM_HOME/python/tools/mcmCheckRef.py --reference $EXPECTED --result $RESULT.npy 
 fi
 #---------------- compare output to reference using the user supplied image
 if [ ! -z "$IMAGE" ]
 then
-echo -e "comparing results blob result using caffe output for the user supplied image\n"
+echo -e "comparing the blob result from harware against caffe output for the user supplied image\n"
 python3 $MCM_HOME/python/tools/mcmCheckRef.py --reference $EXPECTED --result $RESULT.npy 
 fi
 echo "return code = $?"

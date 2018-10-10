@@ -132,7 +132,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
         input_image = input_image.transpose([0, 2, 3, 1])
     
     elif image_path != "test.png" and image_path is not None:
-        print("Loading user supplied image for inference\n")
+        print("Loading user supplied image for inference on the hardware\n")
         input_image = parse_img(image_path,
                             [int(inputTensorShape[0]),
                              int(inputTensorShape[3]),
@@ -184,7 +184,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
 
     #if arguments.save_input is not None:
     #    net.inputTensor.tofile(arguments.save_input)
-    print("USB: Transferring Data...")
+    print("USB: Transferring Data...\n")
     if arguments.lower_temperature_limit != -1:
         device.set_option(
             mvncapi.DeviceOptionClass2.RW_TEMP_LIM_LOWER,
@@ -229,7 +229,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
 
     # input_image.fill(1)
     import binascii
-    print("CRC of IMAGE sent to hardware is:", binascii.crc32(input_image))
+    print("CRC of image loaded on hardware is:", binascii.crc32(input_image))
     print("\n")
 
 
@@ -253,7 +253,7 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
             print("\033[94mTime to Execute : ", str(
                 round((ts2 - ts) * 1000, 2)), " ms\033[39m")
 
-        print("USB: Myriad Execution Finished")
+        print("USB: Myriad Execution Finished\n")
 
     timings = graph.get_option(mvncapi.GraphOption.RO_TIME_TAKEN)
     if arguments.mode in [OperationMode.temperature_profile]:
@@ -267,8 +267,8 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
         print("*           THERMAL THROTTLING LEVEL 2 REACHED          *")
         print("*********************************************************")
 
-    print("Myriad Output: \n", myriad_output);
-    print("Myriad Output: \n", myriad_output.shape);
+    #print("Myriad Output: \n", myriad_output);
+    print("Myriad Output: ", myriad_output.shape);
     print("Output: ", outputTensorShape)
     myriad_output = myriad_output.reshape(outputTensorShape)
 
@@ -279,12 +279,12 @@ def run_blob_myriad(blob_path, image_path, inputTensorShape, outputTensorShape, 
         myriad_output.tofile(arguments.save_output)
         np.save("Fathom_result.npy", myriad_output)
 
-    print("USB: Myriad Connection Closing.")
+    print("USB: Myriad Connection Closing\n.")
     fifoIn.destroy()
     fifoOut.destroy()
     graph.destroy()
     device.close()
-    print("USB: Myriad Connection Closed.")
+    print("USB: Myriad Connection Closed\n.")
     return timings, myriad_output
 
 def parse_args():

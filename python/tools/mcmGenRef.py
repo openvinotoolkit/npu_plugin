@@ -10,10 +10,12 @@ import Controllers.Globals as GLOBALS
 from Controllers.Parsers.Caffe import CaffeParser
 from Views.Validate import *
 from Models.EnumDeclarations import ValidationStatistic
+from Controllers.MiscIO import parse_img
 
 from blob_print import blob_format
 from generate_image import gen_data
 from generate_image import gen_image
+import binascii
 
 class netArgs:
     def __init__(self, network, image, inputnode, outputnode, inputsize, nshaves, weights, extargs):
@@ -91,13 +93,13 @@ if calcArgs.image is None:
     print("In_x ", in_x)
     print("In_z ", in_z)
     
-    print("Generating a random numpy image file test.png\n")
+    print("Generating a random image file test.png\n")
     gen_image(in_y, in_x, in_z)
     
     #Set input image to be test.png    
     calcArgs.image = "test.png"
     print("calArgs clas varibale is ",calcArgs.image)
-    print("Generating expected outcome with a randomly generated image test.png\n")
+    print("Generating expected outcome from caffe with a randomly generated image test.png\n")
     p = CaffeParser()
     nw_file = args.network
     wt_file = args.weights
@@ -107,7 +109,8 @@ if calcArgs.image is None:
     
 else:
     # Load From Framework
-    print("Generating expected outcome with user defined image\n")
+    print("Generating expected outcome from caffe with the user defined image\n")   
+    
     calcArgs = netArgs(args.network, args.image, None, None, None, '1', args.weights, None)
     p = CaffeParser()
     nw_file = args.network
