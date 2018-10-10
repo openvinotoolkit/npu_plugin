@@ -27,5 +27,6 @@ ref_res = args.reference
 blob_np = np.load( blob_res )
 expected_np = np.load( ref_res )
 
+
 quit_code = validation(expected_np, blob_np, "NA", ValidationStatistic.accuracy_metrics, "NA", "NA")
 quit(quit_code)

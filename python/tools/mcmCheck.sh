@@ -169,11 +169,19 @@ then
 fi
 
 #---------------- generate reference/expected .npy outout with provided weights and provided image for inference
-if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ]
+if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ] && [ ! -z "$IMAGE" ]
 then
-  echo "executing mcmGenRef.py with provided weights"
+  echo -e "executing mcmGenRef.py with provided weights and a user supplied image\n"
   rm -f Fathom_expected.npy # delete the results file generated during compilation, inference on provided image will be saved to Fathom_expected.npy file now
   python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --weights $WEIGHTS --image $IMAGE
+fi
+#----------------
+if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "true" ] && [ -z "$IMAGE" ]
+then
+  echo -e "executing mcmGenRef.py with provided weights and without user supplied image (will generate a random image)\n"
+  rm -f Fathom_expected.npy # delete the results file generated during compilation, inference on provided image will be saved to Fathom_expected.npy file now
+  python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --weights $WEIGHTS
+  
 fi
 #---------------- generate reference/expected .npy outout without provided weights and provided image for inference
 if [ "$GENREFERENCE" == "true" ] && [ "$WEIGHTSPROVIDED" == "false" ]
@@ -182,13 +190,21 @@ then
   rm -f Fathom_expected.npy
   python3 $MCM_HOME/python/tools/mcmGenRef.py --network $NETWORK --image $IMAGE 
 fi
-#---------------- run blob on HW
-if [ "$RUNHW" == "true" ]
+#---------------- run blob on HW with user supplied image
+if [ "$RUNHW" == "true" ] && [ ! -z "$IMAGE" ]
 then
-  echo "running 1st blob"
+  echo -e "running 1st blob with user supplied image\n"
   rm -f $RESULT.npy 
   python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB --image $IMAGE --result $RESULT  
 fi
+#----------------run blob on HW with random generated image
+if [ "$RUNHW" == "true" ] && [ -z "$IMAGE" ]
+then
+  echo -e "running 1st blob with random generated image test.png\n"
+  rm -f $RESULT.npy 
+  python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB --result $RESULT 
+fi
+#----------------
 if [ "$COMPAREBLOBS" == "true" ]
 then
   if [ "$PAUSE" == "true" ]
@@ -200,7 +216,16 @@ then
   echo "running 2nd blob"
   python3 $MCM_HOME/python/tools/mcmRunHW.py --blob $BLOB2 --image $IMAGE --result $RESULT
 fi
-#---------------- compare output to reference
-echo "comparing results"
+#---------------- compare output to reference using the random generated image
+if [ -z "$IMAGE" ]
+then
+echo -e "comparing the blob result from harware against caffe output for the random generated image test.png\n"
 python3 $MCM_HOME/python/tools/mcmCheckRef.py --reference $EXPECTED --result $RESULT.npy 
+fi
+#---------------- compare output to reference using the user supplied image
+if [ ! -z "$IMAGE" ]
+then
+echo -e "comparing the blob result from harware against caffe output for the user supplied image\n"
+python3 $MCM_HOME/python/tools/mcmCheckRef.py --reference $EXPECTED --result $RESULT.npy 
+fi
 echo "return code = $?"
