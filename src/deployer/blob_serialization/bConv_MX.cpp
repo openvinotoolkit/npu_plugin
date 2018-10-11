@@ -176,14 +176,15 @@ namespace mv
         }
     }
 
-    bConv2D::bConv2D(mv::ComputationOp* it)
+    bConv2D::bConv2D(mv::Control::OpListIterator it)
         :
           Blob_Op_Definition(),
           input((it->getInputTensor(0))),
           output((it->getOutputTensor(0))),
           taps((it->getInputTensor(1))),
           radixX(it->getInputTensor(1)->getShape()[2]),
-          radixY(it->getInputTensor(1)->getShape()[3])
+          radixY(it->getInputTensor(1)->getShape()[3]),
+          descriptors(nullptr)
     {
 
         if (it->hasAttr("bias"))
@@ -353,6 +354,8 @@ namespace mv
             this->desc_count = descriptors_count;
 
             // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
+            if (this->descriptors != nullptr)
+                delete [] this->descriptors;
             this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
 
             std::vector<std::size_t> chPerRamBlock;
@@ -669,4 +672,11 @@ namespace mv
 
         }
     }
+
+    bConv2D::~bConv2D()
+    {
+        if (this->descriptors != nullptr)
+                delete [] this->descriptors;
+    }
+
 }

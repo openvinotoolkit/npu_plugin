@@ -36,8 +36,8 @@ namespace mv
 void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
 
-    int amount_marked = 0;
-    int mark_limit = 3;
+    //int amount_marked = 0;
+    //int mark_limit = 3;
 
     bool disableHardware = false;
     if (compDesc.hasKey("MarkHardwareConvolution"))
@@ -51,7 +51,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
     {
         if (!disableHardware)
         {
-            if(!opIterator->isHardwarizeable(compDesc) || amount_marked >= mark_limit)
+            if(!opIterator->isHardwarizeable(compDesc))// || amount_marked >= mark_limit)
             {
                 om.addAttr(opIterator, "NCE1_Compatible", (int)0);
                 continue;
@@ -59,7 +59,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
             om.addAttr(opIterator, "NCE1_Compatible", (int)1);
             om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
-            ++amount_marked;
+            //++amount_marked;
         }
         else
             om.addAttr(opIterator, "NCE1_Compatible", (int)0);

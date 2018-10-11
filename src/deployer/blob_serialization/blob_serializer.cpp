@@ -453,7 +453,7 @@ namespace mv
                             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
+                            bConv2D c = bConv2D(it);
                             c.writeStageInfo(&om, this);
 
                             AddBytes(4, 0x05);    // 0x12c , no preop
@@ -509,7 +509,7 @@ namespace mv
                             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
+                            bConv2D c = bConv2D(it);
                             c.writeStageInfo(&om, this);
 
                             AddBytes(4, conv_pool_stage.preop_type);
@@ -906,12 +906,16 @@ namespace mv
 
                     // Push tensor's data
                     if (tight)
-                        for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
+                    {
+                        auto data = bit->getData()->getData();
+                        for (std::size_t idx = 0; idx != data.size(); idx++)
                         {
-                            uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                            uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(data[idx]));  // Convert to fp16.
                             AddBytes(2, fp16_val);
                         }
-                    else{
+                    }
+                    else
+                    {
                         uint16_t fp16_val;
                         for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
                         {

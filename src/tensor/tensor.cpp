@@ -2,12 +2,19 @@
 #include "include/mcm/tensor/math.hpp"
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order) :
-Element(name)
+Element(name),
+data_(shape.totalSize()),
+blockSize_(shape[-1]),
+blocks_(shape.totalSize() / blockSize_)
 {
     set<Shape>("shape", shape);
     set<Order>("order", order);
     set<DType>("dType", dType);
     set<bool>("populated", false);
+
+    for (std::size_t i = 0; i < blocks_.size(); ++i)
+        blocks_[i] = data_.begin() + i * blockSize_;
+
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data) :
@@ -17,10 +24,16 @@ Tensor(name, shape, dType, order)
 }
 
 mv::Tensor::Tensor(const Tensor &other) :
-Element(other)
+Element(other),
+data_(other.data_.size()),
+blockSize_(other.blockSize_),
+blocks_(other.blocks_.size())
 {
+    for (std::size_t i = 0; i < blocks_.size(); ++i)
+        blocks_[i] = data_.begin() + i * blockSize_;
+
     if (isPopulated())
-        data_ = std::make_shared<std::vector<double>>(std::vector<double>(*other.data_));
+        data_ = other.data_;
 }
 
 mv::Tensor::~Tensor()
@@ -30,7 +43,7 @@ mv::Tensor::~Tensor()
 
 std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
 {
-    return getOrder().indToSub(s, index);
+    return Order(OrderType::RowMajor).indToSub(s, index);
 }
 
 unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const
@@ -57,11 +70,11 @@ unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& s
             
         }
 
-        return getOrder().subToInd(correctedShape, correctedSub);
+        return Order(OrderType::RowMajor).subToInd(correctedShape, correctedSub);
 
     }
 
-    return getOrder().subToInd(s, sub);
+    return Order(OrderType::RowMajor).subToInd(s, sub);
 
 }
 
@@ -72,7 +85,17 @@ void mv::Tensor::populate(const std::vector<double>& data)
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
             "does not match total size the tensor (" + std::to_string(getShape().totalSize()) + ")");
 
-    data_ = std::make_shared<std::vector<double>>(data);
+    if (getOrder() != OrderType::RowMajor)
+    {
+        Order tensorOrder = Order(OrderType::RowMajor);
+        for (std::size_t i = 0; i < data_.size(); ++i)
+        {
+            auto sub = getOrder().indToSub(getShape(), i);
+            data_[tensorOrder.subToInd(getShape(), sub)] = data[i];
+        }
+    }
+    else
+        data_ = data;
     set("populated", true);
 
 }
@@ -88,7 +111,7 @@ void mv::Tensor::unpopulate()
     if (!isPopulated())
         return;
 
-    data_.reset();
+    data_.clear();
     set<bool>("populated", false);
 
 }
@@ -130,27 +153,8 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
 void mv::Tensor::setOrder(Order order)
 {
 
-    if (!isPopulated())
-    {
-        set<Order>("order", order);
-        return;
-    }
-    
-    if (hasAttr("master") || hasAttr("slave"))
-        throw ValueError(*this, "Unable to reorder bound tensor");
-
-    auto dataPtr = std::make_shared<std::vector<double>>(data_->size());
-
-    for (unsigned i = 0; i < dataPtr->size(); ++i)
-    {
-
-        auto sub = getOrder().indToSub(getShape(), i);
-        dataPtr->at(order.subToInd(getShape(), sub)) = data_->at(i);
-
-    }
-
     set<Order>("order", order);
-    data_ = dataPtr;
+    return;
 
 }
 
@@ -174,7 +178,7 @@ void mv::Tensor::broadcast(const Shape& shape)
         // Will throw on error
         Shape sO = Shape::broadcast(s1, s2);
 
-        std::shared_ptr<std::vector<double>> dataPtr = std::make_shared<std::vector<double>>(sO.totalSize());
+        std::vector<double> dataBuf = std::vector<double>(sO.totalSize());
 
         if (s1.ndims() > s2.ndims())
         {
@@ -183,7 +187,7 @@ void mv::Tensor::broadcast(const Shape& shape)
         else if (s2.ndims() > s1.ndims())
             s1 = Shape::augment(s1, s2.ndims());
 
-        for (unsigned i = 0; i < dataPtr->size(); ++i)
+        for (unsigned i = 0; i < dataBuf.size(); ++i)
         {
 
             std::vector<std::size_t> sub = indToSub_(sO, i);
@@ -194,23 +198,36 @@ void mv::Tensor::broadcast(const Shape& shape)
                     sub[j] = 0;
             }
 
-            (*dataPtr)[i] = at(subToInd_(s1, sub));
+            dataBuf[i] = at(subToInd_(s1, sub));
 
         }
 
         set<Shape>("shape", sO);
-        data_ = dataPtr;
+        data_ = dataBuf;
 
     }
 
 }
 
 // TODO - Handle the case when tensor got deleted, by the reference is still in use
-std::vector<double>& mv::Tensor::getData()
+std::vector<double> mv::Tensor::getData()
 {
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
-    return *data_.get();
+
+    if (getOrder() == OrderType::RowMajor)
+        return data_;
+    
+    std::vector<double> orderedData(getShape().totalSize());
+    Order tensorOrder = Order(OrderType::RowMajor);
+    for (std::size_t i = 0; i < data_.size(); ++i)
+    {
+        auto sub = tensorOrder.indToSub(getShape(), i);
+        orderedData[getOrder().subToInd(getShape(), sub)] = data_[i];
+    }
+
+    return orderedData;
+
 }
 
 mv::DType mv::Tensor::getDType() const
@@ -236,65 +253,37 @@ void mv::Tensor::elementWise_(const Tensor& other, const std::function<double(do
 
     Shape s1 = getShape(), s2 = other.getShape();
 
-    if (s1.ndims() == 0 || s2.ndims() == 0)
-        throw ValueError(*this, "Unable to perfom element-wise operation using 0-dimensional tensor");
+    if (s1.ndims() == 0)
+        throw ArgumentError(*this, "tensor:Shape:ndims", std::to_string(s1.ndims()),
+             "0-dimensional tensor is illegal for element-wise operation");
+
+    if (s2.ndims() == 0)
+        throw ArgumentError(*this, "input tensor:Shape:ndims", std::to_string(s2.ndims()),
+             "0-dimensional tensor is illegal for element-wise operation");
+
+    if (s2.ndims() > s1.ndims())
+        throw ArgumentError(*this, "input tensor:Shape:ndims", s2.toString(),
+            "Currently unsupported in element wise in combination with " + s1.toString());
+
+    for (std::size_t i = 1; i <= s2.ndims(); ++i)
+        if (s1[-i] != s2[-i])
+            throw ArgumentError(*this, "input tensor:Shape", s2.toString(),
+                "Currently unsupported in combination with " + s1.toString()); 
 
     if (s1 == s2)
-    {
-        for (unsigned i = 0; i < data_->size(); ++i)
-            (*data_)[i] = opFunc(at(i), other(i));
-    }
+        std::transform(data_.begin(), data_.end(), other.data_.begin(), data_.begin(), opFunc);
     else
     {
 
-        /*Tensor broadcastOther(other);
-        if (!broadcastOther.broadcast(s1))
-            return false;
-        if (!broadcast(s2))
-            return false;
-
-        std::transform(data_->begin(), data_->end(), broadcast.data_->begin(), data_->begin(), opFunc);
-        return true;*/
-
-        Shape sO = Shape::broadcast(s1, s2);
-        std::shared_ptr<std::vector<double>> dataPtr;
-
-        if (sO == getShape())
+        std::size_t firstIdx = 0;
+        while (firstIdx < blocks_.size())
         {
-            dataPtr = data_;
-        }
-        else
-        {
-            dataPtr = std::make_shared<std::vector<double>>(sO.totalSize());
-        }
-
-        if (s1.ndims() > s2.ndims())
-        {
-            s2 = Shape::augment(s2, s1.ndims());
-        }
-        else if (s2.ndims() > s1.ndims())
-            s1 = Shape::augment(s1, s2.ndims());
-
-        for (unsigned i = 0; i < dataPtr->size(); ++i)
-        {
-
-            std::vector<std::size_t> subO = indToSub_(sO, i);
-            std::vector<std::size_t> sub1 = subO, sub2 = subO;
-
-            for (unsigned j = 0; j < subO.size(); ++j)
+            for (std::size_t secondIdx = 0; secondIdx < other.blocks_.size(); ++secondIdx)
             {
-                if (s1[j] == 1 && sO[j] > 1)
-                    sub1[j] = 0;
-                if (s2[j] == 1 && sO[j] > 1)
-                    sub2[j] = 0;
+                std::transform(blocks_[firstIdx], blocks_[firstIdx] + blockSize_, other.blocks_[secondIdx], blocks_[firstIdx], opFunc);
+                ++firstIdx;
             }
-
-            (*dataPtr)[i] = opFunc(at(subToInd_(s1, sub1)), other.at(subToInd_(s2, sub2)));
-
         }
-
-        set<Shape>("shape", sO);
-        data_ = dataPtr;
 
     }
 
@@ -311,8 +300,8 @@ void mv::Tensor::add(double val)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar addition operation for an unpopulated tensor");
     
-    for (unsigned i = 0; i < data_->size(); ++i)
-        (*data_)[i] += val;
+    for (unsigned i = 0; i < data_.size(); ++i)
+        data_[i] += val;
 
 }
 
@@ -327,8 +316,8 @@ void mv::Tensor::subtract(double val)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar subtraction operation for an unpopulated tensor");
 
-    for (unsigned i = 0; i < data_->size(); ++i)
-        (*data_)[i] -= val;
+    for (unsigned i = 0; i < data_.size(); ++i)
+        data_[i] -= val;
 
 }
 
@@ -343,8 +332,8 @@ void mv::Tensor::multiply(double val)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar multiplication operation for an unpopulated tensor");
 
-    for (unsigned i = 0; i < data_->size(); ++i)
-        (*data_)[i] *= val;
+    for (unsigned i = 0; i < data_.size(); ++i)
+        data_[i] *= val;
 
 }
 
@@ -354,8 +343,8 @@ void mv::Tensor::divide(double val)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar division operation for an unpopulated tensor");
 
-    for (unsigned i = 0; i < data_->size(); ++i)
-        (*data_)[i] /= val;
+    for (unsigned i = 0; i < data_.size(); ++i)
+        data_[i] /= val;
 
 }
 
@@ -370,8 +359,8 @@ void mv::Tensor::sqrt()
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar square root operation for an unpopulated tensor");
 
-    for (unsigned i = 0; i < data_->size(); ++i)
-        (*data_)[i] = std::sqrt((*data_)[i]);
+    for (unsigned i = 0; i < data_.size(); ++i)
+        data_[i] = std::sqrt(data_[i]);
 
 }
 
@@ -380,7 +369,7 @@ double& mv::Tensor::at(const std::vector<std::size_t>& sub)
     if (!isPopulated())
         throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
 
-    return (*data_)[subToInd(sub)];
+    return data_[subToInd(sub)];
 }
 
 const double& mv::Tensor::at(const std::vector<std::size_t>& sub) const
@@ -388,7 +377,7 @@ const double& mv::Tensor::at(const std::vector<std::size_t>& sub) const
     if (!isPopulated())
         throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
 
-    return (*data_)[subToInd(sub)];
+    return data_[subToInd(sub)];
 }
 
 double& mv::Tensor::at(std::size_t idx)
@@ -404,17 +393,21 @@ const double& mv::Tensor::at(std::size_t idx) const
     if (!isPopulated())
         throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
 
-    if (idx > data_->size())
+    if (idx > data_.size())
         throw IndexError(*this, idx, "Exceeds the total lenght of data vector");
 
     if (hasAttr("master"))
     {
         std::vector<std::size_t> sub = indToSub(idx);
-        return (*data_)[subToInd(sub)];
+        return data_[subToInd(sub)];
 
     }
 
-    return (*data_)[idx];
+    if (getOrder() == OrderType::RowMajor)
+        return data_[idx];
+
+    auto sub = Order(OrderType::RowMajor).indToSub(getShape(), idx);
+    return data_[getOrder().subToInd(getShape(), sub)];
 
 }
 
