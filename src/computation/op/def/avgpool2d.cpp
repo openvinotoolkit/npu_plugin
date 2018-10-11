@@ -9,5 +9,5 @@ Pool2DOp(OpType::AvgPool2D, kernelSize, stride, padding, name)
 
 bool mv::op::AvgPool2D::isHardwarizeable(json::Object&)
 {
-    return false;
+    return true;
 }

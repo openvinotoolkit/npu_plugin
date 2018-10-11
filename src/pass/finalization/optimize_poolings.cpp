@@ -4,8 +4,11 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
-static void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+//GOOD NEWS! Pooling does not require any channel padding, so this pass can be safely executed after the convolution optimization pass
+
+static void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,29 +16,26 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(ModeSelection)
-        .setFunc(modeSelection)
+        MV_REGISTER_PASS(OptimizePoolings)
+        .setFunc(optimizePoolings)
         .setGenre(PassGenre::Finalization)
         .setDescription(
-            "This pass selects the appropriate mode for each convolution executable by NCE"
+            "This pass optimizes each pooling layer for the NCE"
         );
     }
 }
 
 
-bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIterator, mv::ModeSelectionResult& modes_to_use, mv::Nce1& nce)
+void write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator poolIterator, mv::ModeSelectionResult& modes_to_use, mv::Nce1& nce)
 {
     // ASSUMPTION: all the splits in modes_to_use are are equal (This assumption is true now, and there will be routines to assure it's trueness in the future)
 
     // Scalar attributes first
-    auto input_tensor = convIterator->getInputTensor(0);
+    auto input_tensor = poolIterator->getInputTensor(0);
     auto input_tensor_dimensions = input_tensor->getShape();
-
-    auto output_tensor = convIterator->getOutputTensor(0);
+    auto output_tensor = poolIterator->getOutputTensor(0);
     auto output_tensor_dimensions = output_tensor->getShape();
 
-    auto weight_tensor = convIterator->getInputTensor(1);
-    auto weight_tensor_dimensions = weight_tensor->getShape();
 
     // Take biggest mode, necessary for getting the actual input channels
     unsigned num_modes_to_use = modes_to_use.distances.size();
@@ -55,13 +55,9 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     }
 
     // Getting real dimensions
-    std::size_t input_width = input_tensor_dimensions[0];
-    std::size_t input_height = input_tensor_dimensions[1];
+
     std::size_t input_channels = input_tensor_dimensions[2];
-
-    std::size_t output_channels = output_tensor_dimensions[2];
-
-    std::size_t kernel_height = weight_tensor_dimensions[1];
+    std::size_t input_width = input_tensor_dimensions[0];
 
     //ASSUMPTION: Mode selection always takes place after MX paddings pass.
     //CONSEQUENCE: There is no need to check for NCE1_Paddings, as each tensor involved in HW convolution
@@ -73,42 +69,37 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 
     std::vector<std::size_t> input_tensor_paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
     input_width += input_tensor_paddings[0];
-    input_height += input_tensor_paddings[1];
     input_channels += input_tensor_paddings[2];
     input_tensor->erase("NCE1_Paddings");
 
-    auto weight_tensor_paddings = weight_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-    weight_tensor->erase("NCE1_Paddings");
+    std::vector<std::size_t> output_tensor_paddings = output_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+    output_tensor->erase("NCE1_Paddings");
 
     //We must take care of any additional padding that might be needed for input channels due to the maximum mode selected
     //For both input tensor and weight tensor
-    auto input_channels_needed_by_max_selected_mode = nce.computeActualInputChannels(input_channels, max_mode);
+    auto input_channels_needed_by_max_selected_mode = nce.computeActualInputChannels(input_channels, mv::Mode4);
     input_tensor_paddings[2] += input_channels_needed_by_max_selected_mode - input_channels;
-    weight_tensor_paddings[2] +=  input_tensor_paddings[2];
-    input_channels = input_channels_needed_by_max_selected_mode;
 
     //Also output channels paddings need to be updated, because they could have been changed
     //(e.g. another convolution using the same tensor as input and padding the channels)
     //They need to be updated just in weight tensor
-    auto real_output_channels = modes_to_use.nodes[0].remaining_output_channels;
-    weight_tensor_paddings[3] += real_output_channels - output_channels;
+    output_tensor_paddings[2] += input_channels_needed_by_max_selected_mode - input_channels;
 
-    // Check if any split over input channel is needed
-    unsigned splits_over_input_channels = modes_to_use.distances[0].num_splits; //num_splits MUST be equal for every mode, see above assumption
+    input_channels = input_channels_needed_by_max_selected_mode;
 
-    unsigned splitted_input_channels = input_channels / splits_over_input_channels;
-    convIterator->set<std::size_t>("NCE1_SplitsOverInputChannels", (std::size_t)splits_over_input_channels);
+
+    std::size_t kernel_height = poolIterator->get<std::array<short unsigned, 2>>("kSize")[1];
 
     // Compute local line stride
     unsigned local_line_stride = nce.computeLocalLineStride(input_width);
-    convIterator->set<std::size_t>("NCE1_LocalLineStride", (std::size_t)local_line_stride);
+    poolIterator->set<std::size_t>("NCE1_LocalLineStride", (std::size_t)local_line_stride);
 
     // TODO: Streaming mask
     unsigned streaming_mask = 0; // For DDR streaming
-    convIterator->set<std::size_t>("NCE1_StreamingMask", (std::size_t)streaming_mask);
+    poolIterator->set<std::size_t>("NCE1_StreamingMask", (std::size_t)streaming_mask);
 
     // Max performed output channels
-    convIterator->set<std::size_t>("NCE1_MaxOutputChannelsPerformed", (std::size_t)max_output_channels_performed);
+    poolIterator->set<std::size_t>("NCE1_MaxOutputChannelsPerformed", (std::size_t)max_output_channels_performed);
 
     // -------------------VECTOR ATTRIBUTES----------------
     std::vector<std::size_t> input_channels_per_ram_block(num_modes_to_use);
@@ -117,54 +108,46 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     std::vector<std::size_t> min_lines(num_modes_to_use);
     for(unsigned i = 0; i < num_modes_to_use; ++i)
     {
-        input_channels_per_ram_block[i] = nce.computeInputChannelsPerRamBlock(splitted_input_channels, modes[i]);
-        lines_per_channel[i] = nce.computeLinesPerChannel(splitted_input_channels, local_line_stride, modes[i]);
+        input_channels_per_ram_block[i] = 1; //Because fuck u
+        lines_per_channel[i] = nce.computeLinesPerChannel(input_channels, local_line_stride, modes[i]);
         local_channel_stride[i] = lines_per_channel[i] * local_line_stride;
 
         //std::cout << "input_channels_per_ram_block[i] " << input_channels_per_ram_block[i] << std::endl;
         //std::cout << "lines_per_channel[i] " << lines_per_channel[i] << std::endl;
         //std::cout << "local_channel_stride[i] " << lines_per_channel[i] << std::endl;
 
-        min_lines[i] = 0;
-        bool poolEn = false;
-        if(poolEn)
-            min_lines[i] = 0; //TODO
-        else
-            min_lines[i] = std::min(kernel_height + 1, lines_per_channel[i]);
+        min_lines[i] = kernel_height * 2;
     }
-    convIterator->set<std::vector<std::size_t>>("NCE1_Modes", modes);
-    convIterator->set<std::vector<std::size_t>>("NCE1_OutputChannelsPerformed", output_channels_performed);
-    convIterator->set<std::vector<std::size_t>>("NCE1_InputChannelsRamBlock", input_channels_per_ram_block);
-    convIterator->set<std::vector<std::size_t>>("NCE1_LinesPerChannel", lines_per_channel);
-    convIterator->set<std::vector<std::size_t>>("NCE1_LocalChannelStride", local_channel_stride);
-    convIterator->set<std::vector<std::size_t>>("NCE1_MinLines", min_lines);
-    convIterator->set<std::size_t>("NCE1_InputChannelsPadded", splitted_input_channels);
+    poolIterator->set<std::vector<std::size_t>>("NCE1_Modes", modes);
+    poolIterator->set<std::vector<std::size_t>>("NCE1_OutputChannelsPerformed", output_channels_performed);
+    poolIterator->set<std::vector<std::size_t>>("NCE1_InputChannelsRamBlock", input_channels_per_ram_block);
+    poolIterator->set<std::vector<std::size_t>>("NCE1_LinesPerChannel", lines_per_channel);
+    poolIterator->set<std::vector<std::size_t>>("NCE1_LocalChannelStride", local_channel_stride);
+    poolIterator->set<std::vector<std::size_t>>("NCE1_MinLines", min_lines);
 
     //Input Tensor and weigth paddings need to be rewritten, as they may have changed due to mode selected
     input_tensor->set<std::vector<std::size_t>>("NCE1_Paddings", input_tensor_paddings);
-    weight_tensor->set<std::vector<std::size_t>>("NCE1_Paddings", weight_tensor_paddings);
+    output_tensor->set<std::vector<std::size_t>>("NCE1_Paddings", output_tensor_paddings);
+
+    poolIterator->set<std::size_t>("NCE1_InputChannelsPadded", input_channels);
+    poolIterator->set<std::size_t>("NCE1_OutputChannelsPadded", input_channels);
 
     //Marking the convolution as optimized
-    convIterator->set<bool>("NCE1_Optimized", true);
-
-    if(om.getSourceOp(input_tensor)->hasAttr("NCE1_Optimized"))
-        return true;
-    else
-        return false;
+    poolIterator->set<bool>("NCE1_Optimized", true);
 }
 
-mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
+mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel& om)
 {
     mv::ModeSelectionNode source;
-    source.parameters = mv::fillConvolutionParameters(convIterator, true);
+    source.parameters = mv::fillKernel2DOperationParameters(poolIterator, true);
 
     source.remaining_output_channels = source.parameters.output_channels;
-    return nce.optimize_convolution(source);
+    return nce.optimize_pooling(source);
 }
 
-void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    std::cout << "Mode selection pass" << std::endl;
+    std::cout << "HW pooling optimization pass started" << std::endl;
     mv::OpModel om(model);
     mv::Nce1 nce;
 
@@ -173,7 +156,7 @@ void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == mv::OpType::Conv2D)
+        if (opIterator->getOpType() == mv::OpType::MaxPool2D || opIterator->getOpType() == mv::OpType::AvgPool2D)
         {
 
             if(!opIterator->hasAttr("NCE1_Compatible"))
@@ -182,18 +165,7 @@ void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
                 continue;
             to_be_optimized.push(opIterator);
 
-            /*
-            case mv::OpType::FullyConnected:
-                //TODO: Write mode 0 or 4
-                break;
-            case mv::OpType::MaxPool2D:
-            case mv::OpType::AvgPool2D:
-                //TODO: Write mode 0 or 4
-                break;
-            */
-
         }
-
     }
 
     while(to_be_optimized.size() > 0)
@@ -202,12 +174,11 @@ void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
         auto opIterator = to_be_optimized.top();
         std::cout << "Optimizing " << opIterator->getName() << std::endl;
         to_be_optimized.pop();
-        auto modes = optimize_convolution_nce1(nce, opIterator, om);
-        if(write_hardware_attributes(om, opIterator, modes, nce))
-            std::cout << "FOOOOOOOOOOOOOOOOOOOL! Reoptimization is needed! :(" << std::endl;
+        auto modes = optimize_pooling_nce1(nce, opIterator, om);
+        write_hardware_attributes_pooling(om, opIterator, modes, nce);
 
     }
 
-    std::cout << "Mode selection pass ended" << std::endl;
+    std::cout << "HW pooling optimization pass ended" << std::endl;
 
 }

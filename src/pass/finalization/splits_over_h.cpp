@@ -24,57 +24,42 @@ namespace mv
     }
 }
 
-unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator convIt)
+unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator operationIt)
 {
-    auto input_tensor = convIt->getInputTensor(0);
-    auto input_tensor_shape = input_tensor->getShape();
-    auto output_tensor = convIt->getOutputTensor(0);
+    auto output_tensor = operationIt->getOutputTensor(0);
     auto output_tensor_shape = output_tensor->getShape();
-    auto output_width = output_tensor_shape[1];
+    auto output_width = output_tensor_shape[0];
+    auto output_height = output_tensor_shape[1];
 
-    if(convIt->hasAttr("NCE1_CMX2CMX"))
-        return output_width;
+    if(operationIt->hasAttr("NCE1_CMX2CMX"))
+        return output_height;
 
     //Assuming split over H is always possible from this point on
-    unsigned max_output_channels_performed = (unsigned)convIt->get("NCE1_MaxOutputChannelsPerformed").get<std::size_t>();
+    unsigned max_output_channels_performed = (unsigned)operationIt->get("NCE1_MaxOutputChannelsPerformed").get<std::size_t>();
     std::cout << "Max output channels performed " << max_output_channels_performed << std::endl;
-    return nce.computeMaxOutputLines(output_width, max_output_channels_performed);
+    if(operationIt->getOpType() == mv::OpType::Conv2D)
+        return nce.computeMaxOutputLinesConvolution(output_width, max_output_channels_performed);
+    else //Pooling
+    {
+        std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+        std::array<unsigned short, 2> kernel = operationIt->get<std::array<unsigned short, 2>>("kSize");
+        if(operationIt->hasAttr("padding"))
+            padding = operationIt->get<std::array<unsigned short, 4>>("padding");
+        return nce.computeMaxOutputLinesPooling(output_width, max_output_channels_performed, padding, kernel);
+    }
 }
 
 std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::OpListIterator convIterator, unsigned max_lines)
 {
-    mv::ConvolutionParameters param = mv::fillConvolutionParameters(convIterator);
+    mv::ConvolutionParameters param = mv::fillKernel2DOperationParameters(convIterator);
     return nce.computeSplitsOverH(param, max_lines);
 }
 
-std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::OpListIterator convIterator)
+std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::OpListIterator opIterator)
 {
-    unsigned max_lines = computeMaxLines(nce, convIterator);
+    unsigned max_lines = computeMaxLines(nce, opIterator);
     std::cout << "Max lines " << max_lines << std::endl;
-//    mv::SplitOverHSolution a;
-//    a.input_lines_processed = 112; //224;
-//    a.output_lines_processed = 112; //224;
-//    a.input_lines_processed = 224;
-//    a.output_lines_processed = 112;
-//    a.junk_output_before = 0;
-//    a.junk_output_after =0;
-//    a.start_input_line = 0;
-//    a.end_input_line = a.input_lines_processed;
-//    a.start_output_line = 0;
-//    a.end_output_line = a.output_lines_processed;
-
-    // mv::SplitOverHSolution b;
-    // b.input_lines_processed = 112;
-    // b.output_lines_processed = 112;
-    // b.junk_output_before = 0;
-    // b.junk_output_after = 0;
-    // b.start_input_line = a.input_lines_processed;
-    // b.end_input_line = a.input_lines_processed + b.input_lines_processed;
-    // b.start_output_line = a.output_lines_processed;
-    // b.end_output_line = a.output_lines_processed + b.output_lines_processed;
-
-    // // std::vector<mv::SplitOverHSolution> g = {a, b};
-    return computeSplitsOverH(nce, convIterator, max_lines);
+    return computeSplitsOverH(nce, opIterator, max_lines);
 }
 
 //ASSUMPTION: This pass must be executed after the mode selection pass.
@@ -88,8 +73,6 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
     {
-        if(operationIt->getOpType() != mv::OpType::Conv2D)
-            continue;
         if(!operationIt->hasAttr("NCE1_Compatible"))
             continue;
         if(!operationIt->get<int>("NCE1_Compatible"))
@@ -105,7 +88,11 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         operationIt->set<std::size_t>("NCE1_SplitsOverHeight", (std::size_t)splits_over_height);
 
         // Compute DescriptorsSplits
-        size_t splits_over_input_channels = operationIt->get<size_t>("NCE1_SplitsOverInputChannels");
+        size_t splits_over_input_channels;
+        if(operationIt->hasAttr("NCE1_SplitsOverInputChannels"))
+            splits_over_input_channels = operationIt->get<size_t>("NCE1_SplitsOverInputChannels");
+        else
+            splits_over_input_channels = 1;
         std::vector<size_t> modes = operationIt->get("NCE1_Modes").get<std::vector<std::size_t>>();
 
         unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, modes.size());

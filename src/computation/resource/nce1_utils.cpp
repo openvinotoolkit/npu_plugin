@@ -1,18 +1,28 @@
 #include "mcm/computation/resource/nce1_utils.hpp"
 
-mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator convIterator, bool add_padding)
+mv::ConvolutionParameters mv::fillKernel2DOperationParameters(mv::Data::OpListIterator opIterator, bool add_padding)
 {
     mv::ConvolutionParameters to_return;
-    auto weigth_tensor = convIterator->getInputTensor(1);
-    auto input_tensor = convIterator->getInputTensor(0);
-    auto output_tensor = convIterator->getOutputTensor(0);
+    auto input_tensor = opIterator->getInputTensor(0);
+    auto output_tensor = opIterator->getOutputTensor(0);
 
-    auto kernel_dimensions = weigth_tensor->getShape();
     auto input_dimensions = input_tensor->getShape();
     auto output_dimensions = output_tensor->getShape();
 
-    to_return.kernel_width = kernel_dimensions[0];
-    to_return.kernel_height = kernel_dimensions[1];
+    if(opIterator->getOpType() == mv::OpType::Conv2D)
+    {
+        auto weigth_tensor = opIterator->getInputTensor(1);
+        auto kernel_dimensions = weigth_tensor->getShape();
+        to_return.kernel_width = kernel_dimensions[0];
+        to_return.kernel_height = kernel_dimensions[1];
+    }
+    else if(opIterator->getOpType() == mv::OpType::AvgPool2D || opIterator->getOpType() == mv::OpType::MaxPool2D)
+    {
+        auto kernel_dimensions = opIterator->get<std::array<short unsigned, 2>>("kSize");
+        to_return.kernel_width = kernel_dimensions[0];
+        to_return.kernel_height = kernel_dimensions[1];
+    }
+
     to_return.input_width = input_dimensions[0];
     to_return.input_height = input_dimensions[1];
     to_return.input_channels = input_dimensions[2];
@@ -33,11 +43,11 @@ mv::ConvolutionParameters mv::fillConvolutionParameters(mv::Data::OpListIterator
         to_return.output_channels += existing_output_tensor_paddings[2];
     }
 
-    auto strides = convIterator->get<std::array<unsigned short, 2>>("stride");
+    auto strides = opIterator->get<std::array<unsigned short, 2>>("stride");
     to_return.stride_vertical = strides[0];
     to_return.stride_horizontal = strides[1];
 
-    auto paddings = convIterator->get<std::array<unsigned short, 4>>("padding");
+    auto paddings = opIterator->get<std::array<unsigned short, 4>>("padding");
     to_return.pad_x_up = paddings[0];
     to_return.pad_x_down = paddings[1];
     to_return.pad_y_left = paddings[2];

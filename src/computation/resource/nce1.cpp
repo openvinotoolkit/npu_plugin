@@ -44,7 +44,7 @@ mv::Nce1::Nce1()
     };
 }
 
-mv::ModeSelectionResult mv::Nce1::optimize_convolution(const ModeSelectionNode source)
+mv::ModeSelectionResult mv::Nce1::optimize_convolution(ModeSelectionNode source)
 {
     mv::ModeSelectionNode target;
     target.remaining_output_channels = 0;
@@ -54,6 +54,31 @@ mv::ModeSelectionResult mv::Nce1::optimize_convolution(const ModeSelectionNode s
 
     return mv::dijkstraRT<mv::ModeSelectionNode, mv::ModeSelectionDistance>(source, target, generate_neighbours_lambda, computer_cost_lambda);
 }
+
+mv::ModeSelectionResult mv::Nce1::optimize_pooling(ModeSelectionNode source)
+{
+    mv::ModeSelectionResult toReturn;
+    source.remaining_output_channels = source.parameters.input_channels = source.parameters.output_channels = mv::round_up(source.parameters.output_channels, dpe_x_output_channel.at(Mode4));
+    toReturn.nodes.push_back(ModeSelectionNode(source));
+
+    for(int tmp = source.remaining_output_channels - dpe_x_output_channel.at(Mode4); tmp > 0; tmp -= dpe_x_output_channel.at(Mode4))//Pooling can be executed just in mode 4 due to MX restrictions
+    {
+        source.remaining_output_channels = tmp;
+        toReturn.nodes.push_back(ModeSelectionNode(source));
+        ModeSelectionDistance to_push;
+        to_push.mode = Mode4;
+        to_push.performed_output_channels = dpe_x_output_channel.at(Mode4);
+        toReturn.distances.push_back(to_push);
+    }
+    ModeSelectionDistance to_push;
+    to_push.performed_output_channels = source.remaining_output_channels;
+    to_push.mode = Mode4;
+    toReturn.distances.push_back(to_push);
+    source.remaining_output_channels = 0;
+    toReturn.nodes.push_back(ModeSelectionNode(source));
+    return toReturn;
+}
+
 
 //At least one channel per ramblock
 unsigned mv::Nce1::get_max_mode(unsigned input_channels)
@@ -539,10 +564,32 @@ unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsi
     return input_channels / ram_blocks;
 }
 
-unsigned mv::Nce1::computeMaxOutputLines(unsigned width, unsigned output_channel_performed)
+unsigned mv::Nce1::computeMaxOutputLinesConvolution(unsigned width, unsigned output_channel_performed)
 {
     unsigned bytes_per_full_depth_slice = input_data_size * output_channel_performed * mv::round_up(width, 8);
     return cmx_stream_size / bytes_per_full_depth_slice;
+}
+
+unsigned mv::Nce1::computeMaxOutputLinesPooling(unsigned width, unsigned output_channel_performed, std::array<unsigned short, 4> padding, std::array<unsigned short, 2> kernel)
+{
+    unsigned max_output_lines = computeMaxOutputLinesConvolution(width, output_channel_performed);
+    //Padding order: Up, down, left, right
+    bool pad_enabled = std::max_element(padding.begin(), padding.end());
+    if(!pad_enabled)
+        return max_output_lines;
+
+    //True row adaptation B0
+    unsigned max_size;
+    unsigned kernel_height = kernel[1];
+    if(padding[1]) //pad_bottom
+        max_size = 2048;
+    else if(padding[2] || padding[3]) //pad left or right
+        max_size = 4096;
+    else //pad top?
+        max_size = mv::round_up(width, 16) * (max_output_lines-1 + kernel_height - 1);
+
+    max_output_lines = max_size / round_up(width, 16) - kernel_height + 2;
+    return max_output_lines;
 }
 
 unsigned mv::Nce1::getMaxNumberOfLinesInDataStorage()

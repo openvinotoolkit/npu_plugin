@@ -20,9 +20,17 @@ namespace mv
                     }
                 }
             case OpType::MaxPool2D:
+            if (NCE1) {
+                return 34;
+            } else {
                 return 1;
+            }
             case OpType::AvgPool2D:
+            if (NCE1) {
+                return 34;
+            } else {
                 return 2;
+            }
             case OpType::Softmax:
                 return 3;
             case OpType::FullyConnected:
@@ -164,8 +172,51 @@ namespace mv
                 case OpType::MaxPool2D:
                 case OpType::AvgPool2D:
                     {
-                        blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += bPooling::getSerializedSize()+5*4 ;
+                        int mx_valid = 0;
+                        if (! it->hasAttr("NCE1_Compatible"))
+                        {
+                            printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
+                        }
+                        else
+                        {
+                            mx_valid = it->get<int>("NCE1_Compatible");
+                        }
+
+                        if(mx_valid)
+                        {
+                            size_t descriptors = 1;
+                            if (! it->hasAttr("NCE1_DescriptorSplits"))
+                            {
+                                printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
+                            }
+                            else
+                            {
+                                descriptors = it->get<size_t>("NCE1_DescriptorSplits");
+                            }
+                            blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
+                            blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
+                            blob_stats.stage_section_size += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+
+                            blob_stats.stage_section_size += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                            blob_stats.stage_section_size += (3*4) ; // nextsatge, etc MOVE OUT.
+                            additional_buf++;       // Has scale also
+                        }
+                        else
+                        {
+                            blob_stats.stage_section_size += (53*4) ;
+                        }
+
+                        blob_stats.stage_count++;
+                        //ASK TO IAN: Why this if?
+                        /*
+                        if (it->hasAttr("postOpType"))
+                        {
+                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                            {
+                                blob_stats.stage_section_size += (3*4) ;
+                            }
+                        }
+                        */
                     }
                     break;
                 case OpType::Add:
@@ -402,135 +453,135 @@ namespace mv
 
                 case OpType::Conv2D:
                     {
-                        int mx_valid = 0;
-                        if (! it->hasAttr("NCE1_Compatible"))
+                int mx_valid = 0;
+                if (! it->hasAttr("NCE1_Compatible"))
+                {
+                    printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
+                }
+                else
+                {
+                    mx_valid = it->get<int>("NCE1_Compatible");
+                }
+
+                if(mx_valid)
+                {
+                    size_t descriptors = 1;
+                    int point0 = 0;
+                    if (! it->hasAttr("NCE1_DescriptorSplits"))
+                    {
+                        printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
+                    }
+                    else
+                    {
+                        descriptors = it->get<size_t>("NCE1_DescriptorSplits");
+                    }
+                    point0 += (11*4) ; // Header of Descriptors
+                    point0 += (descriptors*32*4) ; // Descriptor
+                    point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+
+                    point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+                    next_offset += point0 ;
+
+
+                    // No more layers (last)
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+
+                    int finalstage = 0;
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg))
+                    {
+                        conv_pool_stage.next = 0;
+                        finalstage = 1;
+                    }
+
+                    if(!finalstage){
+                        conv_pool_stage.next = next_offset;
+                    }
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype, true));
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // Serialize for MyriadX H/W
+                    bConv2D c = bConv2D(&(*it));
+                    c.writeStageInfo(&om, this);
+
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
+                }
+                else
+                {
+                    // Serialize for S/W
+                    int point0 = 0;
+                    point0 += (8*4) ; // Fields
+                    point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
+                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                         {
-                            printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
+                            point0 += (5*4) ;
                         }
                         else
                         {
-                            mx_valid = it->get<int>("NCE1_Compatible");
+                            printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
+                            assert(0);
                         }
+                    }
+                    else
+                    {
+                        point0 += (2*4) ;
+                    }
 
-                        if(mx_valid)
+                    next_offset += point0 ;
+
+
+                    // No more layers (last)
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+                    int finalstage = 0;
+
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                        conv_pool_stage.next = 0;
+                        finalstage = 1;
+                    }
+
+                    if(!finalstage){
+                        conv_pool_stage.next = next_offset;
+                    }
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // Serialize for MyriadX H/W
+                    bConv2D c = bConv2D(&(*it));
+                    c.writeStageInfo(&om, this);
+
+                    AddBytes(4, conv_pool_stage.preop_type);
+                    if (it->hasAttr("postOpType"))
+                    {
+
+                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                         {
-                            size_t descriptors = 1;
-                            int point0 = 0;
-                            if (! it->hasAttr("NCE1_DescriptorSplits"))
-                            {
-                                printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
-                            }
-                            else
-                            {
-                                descriptors = it->get<size_t>("NCE1_DescriptorSplits");
-                            }
-                            point0 += (11*4) ; // Header of Descriptors
-                            point0 += (descriptors*32*4) ; // Descriptor
-                            point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
 
-                            point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
-                            point0 += (3*4) ; // nextsatge, etc MOVE OUT.
-
-                            next_offset += point0 ;
-
-
-                            // No more layers (last)
-                            Data::BufferIterator mem;
-                            mv::Control::StageIterator stg = cm.getStage(0);
-
-                            int finalstage = 0;
-                            auto t = it->getOutputTensor(0);
-                            mem = dm.getBuffer("IntermediateMemory", stg, t);
-                            if (mem == dm.bufferEnd("IntermediateMemory", stg))
-                            {
-                                conv_pool_stage.next = 0;
-                                finalstage = 1;
-                            }
-
-                            if(!finalstage){
-                                conv_pool_stage.next = next_offset;
-                            }
-
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, get_blob_enum(ltype, true));
-                            AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                            // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
-                            c.writeStageInfo(&om, this);
-
-                            AddBytes(4, 0x05);    // 0x12c , no preop
-                            AddBytes(4, 0x05);    // 0x12c , no postop
+                            AddBytes(4, 0x06);    // 0x12c , postop relu
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
                         }
                         else
                         {
-                            // Serialize for S/W
-                            int point0 = 0;
-                            point0 += (8*4) ; // Fields
-                            point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
-                            point0 += (3*4) ; // nextsatge, etc MOVE OUT.
-
-
-                            if (it->hasAttr("postOpType"))
-                            {
-                                if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                                {
-                                    point0 += (5*4) ;
-                                }
-                                else
-                                {
-                                    printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
-                                    assert(0);
-                                }
-                            }
-                            else
-                            {
-                                point0 += (2*4) ;
-                            }
-
-                            next_offset += point0 ;
-
-
-                            // No more layers (last)
-                            Data::BufferIterator mem;
-                            mv::Control::StageIterator stg = cm.getStage(0);
-                            int finalstage = 0;
-
-                            auto t = it->getOutputTensor(0);
-                            mem = dm.getBuffer("IntermediateMemory", stg, t);
-                            if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                                conv_pool_stage.next = 0;
-                                finalstage = 1;
-                            }
-
-                            if(!finalstage){
-                                conv_pool_stage.next = next_offset;
-                            }
-
-                            AddBytes(4, conv_pool_stage.next);
-                            AddBytes(4, get_blob_enum(ltype));                                // 0x60
-                            AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                            // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
-                            c.writeStageInfo(&om, this);
-
-                            AddBytes(4, conv_pool_stage.preop_type);
-                            if (it->hasAttr("postOpType"))
-                            {
-
-                                if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                                {
-
-                                    AddBytes(4, 0x06);    // 0x12c , postop relu
-                                    AddBytes(4, 0x00);
-                                    AddBytes(4, 0x00);
-                                    AddBytes(4, 0x00);
-                                }
-                                else
-                                {
-                                    std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
-                                }
+                            std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
+                        }
 
                             }
                             else
@@ -690,36 +741,140 @@ namespace mv
                 case OpType::AvgPool2D:
                     {
 
-                        bPooling c = bPooling(&(*it));
-                        next_offset += c.getSerializedSize() + 5*4;
+                int mx_valid = 0;
+                if (! it->hasAttr("NCE1_Compatible"))
+                {
+                    printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
+                }
+                else
+                {
+                    mx_valid = it->get<int>("NCE1_Compatible");
+                }
 
-                        // No more layers (last)
-                        Data::BufferIterator mem;
-                        mv::Control::StageIterator stg = cm.getStage(0);
-                        int finalstage = 0;
+                if(mx_valid)
+                {
+                    size_t descriptors = 1;
+                    int point0 = 0;
+                    if (! it->hasAttr("NCE1_DescriptorSplits"))
+                    {
+                        printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
+                    }
+                    else
+                    {
+                        descriptors = it->get<size_t>("NCE1_DescriptorSplits");
+                    }
+                    point0 += (11*4) ; // Header of Descriptors
+                    point0 += (descriptors*32*4) ; // Descriptor
+                    point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
 
-                        auto t = it->getOutputTensor(0);
-                        mem = dm.getBuffer("IntermediateMemory", stg, t);
-                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
+                    point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+                    next_offset += point0 ;
+
+
+                    // No more layers (last)
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+
+                    int finalstage = 0;
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg))
+                    {
+                        conv_pool_stage.next = 0;
+                        finalstage = 1;
+                    }
+
+                    if(!finalstage){
+                        conv_pool_stage.next = next_offset;
+                    }
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype, true));
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // Serialize for MyriadX H/W
+                    bPooling_MX c = bPooling_MX(&(*it));
+                    c.writeStageInfo(&om, this);
+
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
+                }
+                else
+                {
+                    // Serialize for S/W
+                    int point0 = 0;
+                    point0 += (8*4) ; // Fields
+                    point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
+                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
                         {
-                            conv_pool_stage.next = 0;
-                            finalstage = 1;
+                            point0 += (5*4) ;
+                        }
+                        else
+                        {
+                            printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
+                            assert(0);
+                        }
+                    }
+                    else
+                    {
+                        point0 += (2*4) ;
+                    }
+
+                    next_offset += point0 ;
+
+
+                    // No more layers (last)
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+                    int finalstage = 0;
+
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+                        conv_pool_stage.next = 0;
+                        finalstage = 1;
+                    }
+
+                    if(!finalstage){
+                        conv_pool_stage.next = next_offset;
+                    }
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // Serialize for MyriadX H/W
+                    bConv2D c = bConv2D(&(*it));
+                    c.writeStageInfo(&om, this);
+
+                    AddBytes(4, conv_pool_stage.preop_type);
+                    if (it->hasAttr("postOpType"))
+                    {
+
+                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                        {
+
+                            AddBytes(4, 0x06);    // 0x12c , postop relu
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
+                        }
+                        else
+                        {
+                            std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
                         }
 
-                        if(!finalstage)
-                            conv_pool_stage.next = next_offset ;
-
-                        AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                        c.writeStageInfo(&om, this);
-
-                        AddBytes(4, 0x05);    // 0x12c , no preop
-                        AddBytes(4, 0x05);    // 0x12c , no postop
-
                     }
-                    break;
+                }
+                }
+                break;
                 case OpType::Add:
                 case OpType::Multiply:
                     {
