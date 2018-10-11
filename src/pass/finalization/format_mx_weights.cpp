@@ -61,9 +61,9 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
             original_output_channel += original_output_channel_padding;
 
-            unsigned floor_output_channel = mv::floor_division(original_output_channel, 8);
+            unsigned floor_output_channel = mv::ceil_division(original_output_channel, 8);
 
-            mv::Shape new_shape = mv::Shape({floor_output_channel, wshape[2], wshape[0], wshape[1], 8});
+            mv::Shape new_shape = mv::Shape({floor_output_channel, wshape[2] + original_input_channel_padding, wshape[0], wshape[1], 8});
 
             std::cout << "oldShape: " << wshape.toString() << std::endl;
             std::cout << "newShape: " << new_shape.toString() << std::endl;
@@ -89,7 +89,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
             new_op->set<bool>("NCE1_WeightTransformed", true);
             new_op->set<std::vector<size_t>>("NCE1_Paddings",
                 {0,
-                 original_input_channel_padding,
+                 0,
                  0,
                  0,
                  0
