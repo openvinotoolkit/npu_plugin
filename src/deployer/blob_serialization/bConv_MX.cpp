@@ -20,25 +20,21 @@ namespace mv
 
         if(this->bias_name != "")
         {
-            std::cout << "Has Bias" << std::endl;
             this->bias = dm.findTensor(this->bias_name);
             conv_bias = &this->bias;
         }
         else
         {
-            std::cout << "Has No Bias" << std::endl;
             conv_bias = NULL ;
         }
 
         if(this->scale_name != "")
         {
-            std::cout << "Has Bias" << std::endl;
             this->scale = dm.findTensor(this->scale_name);
             conv_scale = &this->scale;
         }
         else
         {
-            std::cout << "Has No Bias" << std::endl;
             conv_scale = NULL ;
         }
 
@@ -70,6 +66,7 @@ namespace mv
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
             std::cout << "taps" << std::endl;
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+
             std::cout << "bias" << std::endl;
             Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
             std::cout << "scale" << std::endl;
@@ -108,6 +105,7 @@ namespace mv
                         auto output_channels = output_shape[2];
 
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
+
                         this->descriptors[i].dataBaseAddr = 2*input_width*this->input_line_start[i];    // TODO: Calculate 3f0 (1008)
 
                         if( this->input->getOrder() == mv::OrderType::RowInterleaved ){
@@ -121,7 +119,8 @@ namespace mv
                         this->descriptors[i].coeffBaseAddr = 0;
                         this->descriptors[i].biasBaseAddr = 0;
                         this->descriptors[i].scaleBaseAddr = 0;
-                        this->descriptors[i].outBaseAddr = 2*output_width*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
+                        //HACK FOR CONCAT
+                        this->descriptors[i].outBaseAddr = 2* outputBlobTensor.strideZ*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
                         if( this->output->getOrder() == mv::OrderType::RowInterleaved ){
                             this->descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
                             this->descriptors[i].outLnStr = outputBlobTensor.strideY;
@@ -488,6 +487,7 @@ namespace mv
             {
                 localCS = it->get<std::vector<std::size_t>>("NCE1_LocalChannelStride");
             }
+
             if (! it->hasAttr("NCE1_InputChannelsPadded"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsPadded'. Defaulting to 1\n");
@@ -520,6 +520,7 @@ namespace mv
             {
                 this->outputWidthPadded = it->get<std::size_t>("NCE1_OutputWidthPadded");
             }
+
 
             unsigned i;
             for (unsigned oc = 0; oc != DPUmodeVector.size(); oc++)

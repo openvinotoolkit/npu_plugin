@@ -69,48 +69,69 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
 
 }
 
-//NOTE: This should not be done in such hardcoded way.
-void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
-{
 
-    std::cout << "addConversionLayers " << std::endl;
+void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel *om);
 
-    using namespace mv;
+void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel *om){
 
-    DataModel dm(model);
-    OpModel om(model);
+    if(parentIt->getOpType() == mv::OpType::Output) {
+        return;
+    }
 
-    auto flowIt = dm.flowBegin();
 
-    while (flowIt != dm.flowEnd())
-    {
-        auto source = flowIt.source();
-        auto sink = flowIt.sink();
 
-        //Mandatory check, otherwise the loop could be potentially infinite
-        if(source->getOpType() == OpType::Conversion || sink->getOpType() == OpType::Conversion)
+    parentIt->set<unsigned>("traversed_CR", 1);
+
+    auto childIt = parentIt.leftmostChild();
+
+
+    // Will the DNA test reveal the child's true father? Find out after the break!
+    auto paternityTest = childIt.leftmostParent();
+    bool all_parents_resolved = true;
+    while(1){
+        if(paternityTest->getOpType() != mv::OpType::Constant)
+            if(!paternityTest->hasAttr("traversed_CR") || paternityTest->get<unsigned>("traversed_CR") != 1){
+                // std::cout << !paternityTest->hasAttr("traversed_CR") <<":"<< paternityTest->get<unsigned>("traversed_CR") << std::endl;
+                all_parents_resolved = false;
+            }
+        if(paternityTest == childIt.rightmostParent()) break;
+        ++paternityTest;
+    }
+    if(!all_parents_resolved){
+        // Oh! Bad luck. Looks like these parents need to make up before letting their small child
+        // go out into the big bad world of recursion.
+        return;
+    }
+
+
+    while(1){
+        std::cout << "Source: " << parentIt->getName() << " Sink: " << childIt->getName() << std::endl;
+
+        auto source = parentIt;
+        auto sink = childIt;
+
+        if(source->getOpType() == mv::OpType::Conversion || sink->getOpType() == mv::OpType::Conversion)
         {
-            ++flowIt;
+            compatibilityResolution(childIt, om);
+            if(childIt == parentIt.rightmostChild()) break;
+            ++childIt;
             continue;
         }
 
-        //A conversion layer is needed in two cases
-        //-p-> stands for a padded tensor
-        //1) HW -p-> SW (Target order is RowInterleaved). In this case HW -p-> CONVERSION -> SW
-        //2) SW -p-> HW (Target order is planar). In this case SW -> CONVERSION -p-> HW.
-
-        //Reasonable assumption: this pass is executed after the hw marking pass.
         if(!source->hasAttr("NCE1_Compatible") || !sink->hasAttr("NCE1_Compatible"))
         {
-            ++flowIt;
+
+            compatibilityResolution(childIt, om);
+            if(childIt == parentIt.rightmostChild()) break;
+            ++childIt;
             continue;
-
         }
-
-        // Separate pass for alignment of constant
-        if (source->getOpType() == OpType::Constant)
+        if (source->getOpType() == mv::OpType::Constant)
         {
-            ++flowIt;
+
+            compatibilityResolution(childIt, om);
+            if(childIt == parentIt.rightmostChild()) break;
+            ++childIt;
             continue;
         }
 
@@ -119,26 +140,53 @@ void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, 
         int sinkIsHw = sink->get<int>("NCE1_Compatible");
         int sinkIsSw = !sinkIsHw;
         bool conversionNeeded = false;
-        Order targetOrder = OrderType::RowInterleaved;
+        mv::Order targetOrder = mv::OrderType::RowInterleaved;
 
         //Case 1
         if(sourceIsHw && sinkIsSw)
         {
-            targetOrder = OrderType::RowMajorPlanar;
+            targetOrder = mv::OrderType::RowMajorPlanar;
             conversionNeeded = true;
         }
 
         //Case 2
         if(sourceIsSw && sinkIsHw)
         {
-            targetOrder = OrderType::RowInterleaved;
+            targetOrder = mv::OrderType::RowInterleaved;
             conversionNeeded = true;
         }
 
-        if(conversionNeeded && !(source->getOpType() == OpType::Input) && !(sink->getOpType() == OpType::Output))
+        //Concat as sink case
+        if(sink->getOpType() == mv::OpType::Concat){
+            if (sourceIsSw){
+                // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                childIt->getInputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
+                childIt->getOutputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
+            }
+            // Hardware ops
+            else if (sourceIsHw){
+                // flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
+                childIt->getInputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
+                childIt->getOutputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
+                sink->set<int>("NCE1_Compatible", 1);
+            }
+
+            conversionNeeded = false;
+            // ++flowIt;
+
+            compatibilityResolution(childIt, om);
+            if(childIt == parentIt.rightmostChild()) break;
+            ++childIt;
+            continue;
+        }
+
+
+        if(conversionNeeded && !(source->getOpType() == mv::OpType::Input) && !(sink->getOpType() == mv::OpType::Output))
         {
-            mv::Data::TensorIterator originalTensor = flowIt->getTensor();
-            mv::Data::TensorIterator conversionOutputTensor = om.conversion(originalTensor, targetOrder);
+            // mv::Data::TensorIterator originalTensor = flowIt->getTensor();
+            mv::Data::TensorIterator originalTensor = childIt->getInputTensor(0);
+
+            mv::Data::TensorIterator conversionOutputTensor = om->conversion(originalTensor, targetOrder);
 
             //If the tensor we are "splitting" through the conversion layer has paddings, they must be handled.
             //Case1 (HW -> SW): Original tensor keeps it's padding, new tensor gets no padding
@@ -155,18 +203,27 @@ void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, 
 
             unsigned i = 0;
             for(; i < sink->inputSlots(); ++i)
-                if(sink->getInputTensor(i) == flowIt->getTensor())
+                // if(sink->getInputTensor(i) == flowIt->getTensor())
+                if(sink->getInputTensor(i) == childIt->getInputTensor(0))
                     break;
 
             //Necessary for iterator validity despite remotion
-            auto flowToEliminate = flowIt;
-            ++flowIt;
-            om.undefineFlow(flowToEliminate);
+
+            auto a = parentIt.leftmostOutput();
+            om->defineFlow(conversionOutputTensor, sink, i);
+            om->undefineFlow(a);
             sink->erase(std::string("input") + std::to_string(i));
-            om.defineFlow(conversionOutputTensor, sink, i);
+            std::cout << "Conversion Placed." << std::endl;
 
             for(; i < sink->outputSlots(); ++i)
                 sink->getOutputTensor(i)->setOrder(targetOrder);
+
+            // Recurse DFS
+            // compatibilityResolution(childIt, om);    // This child has a new parent now
+            if (childIt == parentIt.rightmostChild()) break;
+            ++childIt;
+
+
         }
         else
         {
@@ -174,15 +231,45 @@ void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, 
             // Align memory order when no conversion is needed
             /// Software ops
             if (sourceIsSw && sinkIsSw)
-                flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                parentIt->getOutputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
             // Hardware ops
             else if (sourceIsHw && sinkIsHw)
-                flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
+                // flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
+                parentIt->getOutputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
 
-            ++flowIt;
+            // ++flowIt;
+            std::cout << "Values aligned." << std::endl;
+
+            // Recurse DFS
+            compatibilityResolution(childIt, om);
+            std::cout << childIt->getName() << std::endl;
+            if (childIt == parentIt.rightmostChild()) break;
+            std::cout << childIt->getName() << std::endl;
+            ++childIt;
 
         }
-
     }
+
+}
+
+
+//NOTE: This should not be done in such hardcoded way.
+void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+{
+
+    std::cout << "addConversionLayers " << std::endl;
+
+    using namespace mv;
+
+    DataModel dm(model);
+    OpModel om(model);
+
+    auto opIt = om.opBegin();
+
+
+    compatibilityResolution(opIt, &om);
+    std::cout << "Added. " << std::endl;
+
 
 }

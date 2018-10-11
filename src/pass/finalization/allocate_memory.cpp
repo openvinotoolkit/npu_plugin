@@ -305,7 +305,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     switch(axis){
                         case 2: // Channels
                         {
-                            channel_index = 0;
+                            channel_index = 2;
                         }
                         break;
                         default:
@@ -349,8 +349,15 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             auto in0buf = dm.getBuffer("IntermediateMemory", stageIt, in0);
             auto in1buf = dm.getBuffer("IntermediateMemory", stageIt, in1);
 
-            dm.moveTensor("IntermediateMemory", in0buf, outRef, empty_padding, rhs_padding);
-            dm.moveTensor("IntermediateMemory", in1buf, outRef, lhs_padding, empty_padding);
+
+            in0buf = dm.moveTensor("IntermediateMemory", in0buf, outRef, empty_padding, rhs_padding);
+            in1buf = dm.moveTensor("IntermediateMemory", in1buf, outRef, lhs_padding, empty_padding);
+            in0->set<unsigned>("Offset", in0buf->getOffset());
+            in1->set<unsigned>("Offset", in1buf->getOffset());
+            in0->set<unsigned>("LeadPad", in0buf->getStrides()[0]);
+            in1->set<unsigned>("LeadPad", in1buf->getStrides()[0]);
+
+
 
         }
         else if (opIterator->getOpType() == OpType::Input)

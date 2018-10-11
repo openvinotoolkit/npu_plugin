@@ -246,21 +246,21 @@ namespace mv
             std::cout << "Not Tight" << (*t)->getOrder().toString() <<  std::endl;
             switch ( (*t)->getOrder() )
             {
-                case OrderType::ColumnMajor: //*2 because of data_size
+                case OrderType::RowMajor: //*2 because of data_size
                 {
-                    if (block == this->dimX * 2)
-                        local_StrideX = D1_stride;
-                    else if (block == this->dimX*this->dimY * 2)
-                        local_StrideY = D1_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
+                    if (D1_block == this->dimZ * 2)
                         local_StrideZ = D1_stride;
+                    else if (D1_block == this->dimZ*this->dimY * 2)
+                        local_StrideY = D1_stride;
+                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
+                        local_StrideX = D1_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
                 }
                 break;
                 //PROBLEM: This assumes a 3D tensor, while weights in MX are 5D.
                 //Still, weights are the same after some experiments, why is this happening?
-                case OrderType::RowMajor:
+                case OrderType::ColumnMajor:
                 {
                     // This is horrible because values in allocator are 5D
                     if (D1_stride == this->dimZ* 2 * 8){
@@ -280,11 +280,11 @@ namespace mv
                 break;
                 case OrderType::RowMajorPlanar:
                 {
-                    if (block == this->dimZ * 2)
+                    if (D1_block == this->dimZ * 2)
                         local_StrideZ = D1_stride;
-                    else if (block == this->dimX*this->dimY* 2)
+                    else if (D1_block == this->dimX*this->dimY* 2)
                         local_StrideX = D1_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
+                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
                         local_StrideY = D1_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (RowMajorPlanar)" << std::endl;
@@ -292,11 +292,11 @@ namespace mv
                 break;
                 case OrderType::ColumnMajorPlanar:
                 {
-                    if (block == this->dimY* 2)
+                    if (D1_block == this->dimY* 2)
                         local_StrideY = D1_stride;
-                    else if (block == this->dimX*this->dimY* 2)
+                    else if (D1_block == this->dimX*this->dimY* 2)
                         local_StrideX = D1_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
+                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
                         local_StrideZ = D1_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
@@ -308,7 +308,6 @@ namespace mv
                     // S
                     if (D1_block == this->dimX * 2){
                         local_StrideX = D1_stride;
-                        NULL;
                     }
                     else if (D1_block == this->dimZ*this->dimX * 2){
                         local_StrideZ = D1_stride;
@@ -319,7 +318,7 @@ namespace mv
                     }
                     else
                     {
-                        std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved) Block Size: " << block << std::endl;
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved) Block Size: " << D1_block << std::endl;
                     }
 
                     if(D2_stride != 0){
@@ -409,12 +408,19 @@ namespace mv
                 assert(0);
 
         }
-        std::cout << "Order: " << (*t)->getOrder().toString() << std::endl;
+
+        // if (strcmp((*t)->getName(), "Conversion_2:0") != 0){
+
+        // }
+
+        // std::cout << "Order: " << (*t)->getOrder().toString() << std::endl;
         std::cout << "X: Dim:" << this->dimX << ", Stride: " << this->strideX << "(local: " << local_StrideX << ")" << std::endl;
         std::cout << "Y: Dim:" << this->dimY << ", Stride: " << this->strideY << "(local: " << local_StrideY << ")" << std::endl;
         std::cout << "Z: Dim:" << this->dimZ << ", Stride: " << this->strideZ << "(local: " << local_StrideZ << ")" << std::endl;
-        std::cout << "Block size: " << D1_block << "|" << D2_block << std::endl;
-        std::cout << "Block stride: " << D1_stride << "|" << D2_stride << std::endl;
+        // std::cout << "Block size: " << D1_block << "|" << D2_block << std::endl;
+        // std::cout << "Block stride: " << D1_stride << "|" << D2_stride << std::endl;
+        // std::cout << "Strides:" << D1_stride << "," << D2_stride << std::endl;
+        // std::cout << "Blocks:" << D1_block << "," << D2_block << std::endl;
     }
 
 }
