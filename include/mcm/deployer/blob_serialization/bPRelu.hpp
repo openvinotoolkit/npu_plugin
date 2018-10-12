@@ -16,8 +16,8 @@ namespace mv{
     {
         private:
             mv::Data::TensorIterator input;
-            mv::Data::TensorIterator output;
             mv::Data::TensorIterator neg_slope;
+            mv::Data::TensorIterator output;
         public:
             uint32_t number_of_inputs = 1;
             void writeStageInfo(mv::OpModel * om, Blob_buffer* b);

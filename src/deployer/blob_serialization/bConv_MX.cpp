@@ -20,7 +20,6 @@ namespace mv
 
         if(this->bias_name != "")
         {
-            std::cout << "Has Bias" << std::endl;
             this->bias = dm.findTensor(this->bias_name);
             conv_bias = bias;
         }
@@ -29,7 +28,6 @@ namespace mv
         
         if(this->scale_name != "")
         {
-            std::cout << "Has Bias" << std::endl;
             this->scale = dm.findTensor(this->scale_name);
             conv_scale = scale;
         }
@@ -73,14 +71,24 @@ namespace mv
             auto input_shape = this->input->getShape();
             auto output_shape = this->output->getShape();
 
-            //unsigned int original_height = this->input->getShape()[1];
+            /*
+            std::cout << "Serializing a convolution performed in "
+                       << this->DPUmodeVector.size()
+                       << " shots, using "
+                       << splits_over_iC
+                       << " splits over IC and "
+                       << splits_over_H
+                       << " splits over H "
+                       << std::endl;
+            */
 
-            unsigned i;
-            for (unsigned oc = 0; oc != this->DPUmodeVector.size(); oc++)
+            //NOTE/TODO: This part probably has to be changed when split over IC come really into play.
+            unsigned i = 0;
+            for (unsigned oc = 0; oc != this->DPUmodeVector.size(); ++oc)
             {
-                for (unsigned ic = 0; ic != splits_over_iC; ic++)
+                for (unsigned ic = 0; ic != splits_over_iC; ++ic)
                 {
-                    for (unsigned h = 0; h != splits_over_H; h++)
+                    for (unsigned h = 0; h != splits_over_H; ++h)
                     {
                         i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
 
@@ -88,13 +96,14 @@ namespace mv
                         //current_height = this->input_lines_processed[i];
                         //output_height = this->output_lines_processed[i];
 
-                        auto output_width = output_shape[1];
-                        auto input_width = input_shape[1];
+                        auto output_width = this->outputWidthPadded ; //output_shape[1];
+                        auto input_width = this->inputWidthPadded; //input_shape[1];
 
                         //auto input_channels = input_shape[2];
                         auto output_channels = output_shape[2];
 
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
+
                         this->descriptors[i].dataBaseAddr = 2*input_width*this->input_line_start[i];    // TODO: Calculate 3f0 (1008)
 
                         if( this->input->getOrder() == mv::OrderType::RowInterleaved ){
@@ -108,7 +117,8 @@ namespace mv
                         this->descriptors[i].coeffBaseAddr = 0;
                         this->descriptors[i].biasBaseAddr = 0;
                         this->descriptors[i].scaleBaseAddr = 0;
-                        this->descriptors[i].outBaseAddr = 2*output_width*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
+                        //HACK FOR CONCAT
+                        this->descriptors[i].outBaseAddr = 2* outputBlobTensor.strideZ*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
                         if( this->output->getOrder() == mv::OrderType::RowInterleaved ){
                             this->descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
                             this->descriptors[i].outLnStr = outputBlobTensor.strideY;
@@ -136,6 +146,8 @@ namespace mv
                 }
                 
             }
+
+            std::cout << "Finished convolution serialization" << std::endl;
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
@@ -340,7 +352,6 @@ namespace mv
 
             std::vector<std::size_t> chPerRamBlock;
             std::vector<size_t> topJunk, bottomJunk;
-            std::vector<size_t> input_lines_processed;
             int localLS = 1;
             std::vector<std::size_t> localCS;
             std::vector<std::size_t> LPC;
@@ -348,20 +359,7 @@ namespace mv
             int stride = 1;
             int padEn = 1;
 
-            if (! it->hasAttr("NCE1_InputLinesProcessed"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_InputLinesProcessed'. Defaulting to 1\n");
 
-                input_lines_processed = {0};
-                for(std::size_t i = 1; i != splits_over_H - 1; i++)
-                {
-                    input_lines_processed.push_back(0);
-                }
-            }
-            else
-            {
-                input_lines_processed = it->get<std::vector<std::size_t>>("NCE1_InputLinesProcessed");
-            }
             if (! it->hasAttr("NCE1_InputChannelsRamBlock"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsRamBlock'. Defaulting to 1\n");
@@ -478,6 +476,7 @@ namespace mv
             {
                 localCS = it->get<std::vector<std::size_t>>("NCE1_LocalChannelStride");
             }
+
             if (! it->hasAttr("NCE1_InputChannelsPadded"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsPadded'. Defaulting to 1\n");
@@ -487,6 +486,28 @@ namespace mv
             else
             {
                 this->inputChannelsPadded = it->get<std::size_t>("NCE1_InputChannelsPadded");
+            }
+
+            if (! it->hasAttr("NCE1_InputWidthPadded"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_InputWidthPadded'. Defaulting to 1\n");
+
+                this->inputWidthPadded = 1;
+            }
+            else
+            {
+                this->inputWidthPadded = it->get<std::size_t>("NCE1_InputWidthPadded");
+            }
+
+            if (! it->hasAttr("NCE1_OutputWidthPadded"))
+            {
+                printf("Serializer Info: Needs Attribute 'NCE1_OutputWidthPadded'. Defaulting to 1\n");
+
+                this->outputWidthPadded = 1;
+            }
+            else
+            {
+                this->outputWidthPadded = it->get<std::size_t>("NCE1_OutputWidthPadded");
             }
 
 
@@ -499,7 +520,6 @@ namespace mv
                     {
                         
                         i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
-                        std::cout << "desc_count-i: " << this->desc_count << " " << i << std::endl;
                         //this->descriptors[i] =  cnnConvolutionPoolStructure();
 
                         // Relations to other Descriptors
@@ -532,25 +552,21 @@ namespace mv
 
 
                         // Standard Fields for Convolution
+                        // MX WEIGHTS SHAPE ASSUMED!!!
                         this->descriptors[i].kernelWidth = this->taps->getShape()[2] -1;
                         this->descriptors[i].kernelHeight = this->taps->getShape()[3] -1;
 
                         this->descriptors[i].chStride = stride -1;  // Stride of Kernel (Square only)
 
                         if (padEn > 0)
-                        {
                             this->descriptors[i].padEn = 1;
-                        }
                         else
-                        {
                             this->descriptors[i].padEn = 0;
-                        }
 
                         this->descriptors[i].padType = 0;   // Zero Padding
 
                         this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
 
-                        //unsigned int original_height = this->input->getShape()[1];
                         unsigned int current_height;
                         current_height = this->input_lines_processed[i];
 
@@ -560,11 +576,10 @@ namespace mv
                         this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 
                         // Myriad X DPU Assignment & Execution Configuration
-                        std::cout << "oc-DPUmodeVector.size: " << oc << " " << this->DPUmodeVector.size() << std::endl;
+                       
                         this->descriptors[i].Line0.mode = this->DPUmodeVector[oc];
                         this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                         this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
-                        std::cout << "ic-chPerRamBlock.size: " << ic << " " << chPerRamBlock.size() << std::endl;
                         this->descriptors[i].chPerRamBlock = chPerRamBlock[ic] -1;        // Input Channels per Ram Block
 
 
@@ -574,13 +589,10 @@ namespace mv
 
                         this->descriptors[i].localLs =  localLS;
 
-                        std::cout << "oc-LPC.size: " << oc << " " << LPC.size() << std::endl;
-                        std::cout << "h-input_lines_processed.size: " << h << " " << input_lines_processed.size() << std::endl;
                         this->descriptors[i].linesPerCh = std::min(LPC[oc] - 1, input_lines_processed[h] - 1);
                         this->descriptors[i].localCs = (this->descriptors[i].linesPerCh + 1) * this->descriptors[i].localLs;
 
                         this->descriptors[i].rud = 0;   // Re-Use bit
-                        std::cout << "ic-minLines.size: " << ic << " " << minLines.size() << std::endl;
                         this->descriptors[i].minLines = minLines[ic] - 1;     // Minimum lines of data required to carry out function
 
                         this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
@@ -592,11 +604,22 @@ namespace mv
                         this->descriptors[i].sodGroup = 0;
 
                         // Fused ReLU
-                        this->descriptors[i].t0 = 0;
-                        this->descriptors[i].a0 = 0;
-                        this->descriptors[i].a1 = 0;
-                        this->descriptors[i].reluxEn = 0;
-                        this->descriptors[i].reluEn = 0;
+                        if(it->hasAttr("postOpType") && it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                        {
+                            this->descriptors[i].t0 = 0;
+                            this->descriptors[i].a0 = 0;
+                            this->descriptors[i].a1 = 1;
+                            this->descriptors[i].reluxEn = 0;
+                            this->descriptors[i].reluEn = 1;
+                        }
+                        else
+                        {
+                            this->descriptors[i].t0 = 0;
+                            this->descriptors[i].a0 = 0;
+                            this->descriptors[i].a1 = 0;
+                            this->descriptors[i].reluxEn = 0;
+                            this->descriptors[i].reluEn = 0;
+                        }
 
                         // Fused Pooling
                         if (0)

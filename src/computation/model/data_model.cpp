@@ -172,6 +172,29 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
 
 }
 
+mv::Data::BufferIterator mv::DataModel::moveTensor(const std::string& allocatorName, Data::BufferIterator slaveBuffer, Data::BufferIterator masterBuffer,
+    const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
+{
+
+    if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
+        throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
+
+    auto buf = (*memoryAllocators_)[allocatorName]->move(slaveBuffer, masterBuffer, leftPadding, rightPadding);
+
+    if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(slaveBuffer->getStage()))
+    {
+        log(Logger::MessageType::MessageInfo, "Moved tensor " + (*buf)->getData()->getName() + "' using " +
+            (*memoryAllocators_)[allocatorName]->toString());
+        return buf;
+    }
+
+    log(Logger::MessageType::MessageWarning, "Unable to move '" + (*buf)->getData()->getName() + "' (of size " +
+        std::to_string((*buf)->getData()->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
+
+    return buf;
+
+}
+
 void mv::DataModel::padLeft(const std::string& allocatorName, Data::BufferIterator buffer, const std::vector<std::size_t>& padding)
 {
 

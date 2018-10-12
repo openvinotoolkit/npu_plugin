@@ -49,6 +49,7 @@ void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&,
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
+        // std::cout << " "opIterator->getName() << std::endl;
         if (!disableHardware)
         {
             if(!opIterator->isHardwarizeable(compDesc))// || amount_marked >= mark_limit)

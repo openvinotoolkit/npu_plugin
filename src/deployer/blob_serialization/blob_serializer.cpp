@@ -148,7 +148,9 @@ namespace mv
                             blob_stats.data_buffer_count++ ;
                         }
 
-                        blob_stats.stage_count++ ;
+                        blob_stats.stage_count++;
+                        //ASK TO IAN: Why this if?
+                        /*
                         if (it->hasAttr("postOpType"))
                         {
                             if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
@@ -156,6 +158,7 @@ namespace mv
                                 blob_stats.stage_section_size += (3*4) ;
                             }
                         }
+                        */
                     }
                     break;
                 case OpType::MaxPool2D:

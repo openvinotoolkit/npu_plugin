@@ -48,12 +48,10 @@ namespace mv
         if (it->hasAttr("bias"))
         {
             this->bias_name = it->get<std::string>("bias");
-            std::cout << "Conv has Bias" << std::endl;
         }
         else
         {
             this->bias_name = "";
-            std::cout << "Conv has no Bias" <<  std::endl;
         }
 
     }

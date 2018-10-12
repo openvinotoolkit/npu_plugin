@@ -142,7 +142,7 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
 
     Shape newShape(other.getShape());
     
-    for (std::size_t i = 0; i < newShape.ndims(); ++i)
+    for (std::size_t i = 0; i < leftPadding.size(); ++i)
         newShape[i] -= leftPadding[i] + rightPadding[i];
 
     set<Shape>("shape", newShape);

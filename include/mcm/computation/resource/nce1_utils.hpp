@@ -6,7 +6,7 @@
 
 namespace mv
 {
-    mv::ConvolutionParameters fillConvolutionParameters(mv::Data::OpListIterator convIterator);
+    mv::ConvolutionParameters fillConvolutionParameters(mv::Data::OpListIterator convIterator, bool add_padding = false);
 }
 
 #endif

@@ -137,9 +137,21 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
         "; size: " + std::to_string(this->size) + "; block size: " + std::to_string(this->blockSize) +
         "; block num: " + std::to_string(this->blockNum) + "; post align: " + std::to_string(this->postAlign);
 
+    res += "; left pad: {";
+    for (auto &pad : leftPad)
+        res += std::to_string(pad) + ", ";
+    res.erase(res.size() - 2, 2);
+    res += "}";
+
+    res += "; right pad: {";
+    for (auto &pad : rightPad)
+        res += std::to_string(pad) + ", ";
+    res.erase(res.size() - 2, 2);
+    res += "}";
+
     res += "; strides:";
 
-    for(auto &stride: strides)
+    for(auto &stride : strides)
         res += " " + std::to_string(stride);
 
     if (printValues && data->isPopulated())
@@ -258,6 +270,33 @@ long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t curren
 
 }
 
+void mv::MemoryAllocator::moveSlave_(BufferIterator slaveBuffer)
+{
+    auto masterBuffer = (*slaveBuffer)->masterBuffer;
+    if (masterBuffer == bufferEnd((*slaveBuffer)->stage))
+        return;
+
+    (*slaveBuffer)->offset = (*masterBuffer)->offset;
+    for (auto it = (*slaveBuffer)->slaveBuffers.begin(); it != (*slaveBuffer)->slaveBuffers.end(); ++it)
+        moveSlave_(*it);
+
+}
+
+void mv::MemoryAllocator::bindData_(BufferIterator slaveBuffer, bool pad)
+{
+    auto masterBuffer = (*slaveBuffer)->masterBuffer;
+    if (masterBuffer == bufferEnd((*slaveBuffer)->stage))
+        return;
+
+    if (pad)
+        (*slaveBuffer)->getData()->bindData(*(*masterBuffer)->getData(), (*slaveBuffer)->leftPad, (*slaveBuffer)->rightPad);
+    else
+        (*slaveBuffer)->getData()->bindData(*(*masterBuffer)->getData());
+    for (auto it = (*slaveBuffer)->slaveBuffers.begin(); it != (*slaveBuffer)->slaveBuffers.end(); ++it)
+        bindData_(*it, false);
+    
+}
+
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIterator tensor, std::size_t stageIdx)
 {
 
@@ -302,6 +341,19 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
 {
 
+    auto slaveBuffer = allocate(tensor, (*masterBuffer)->getStage());
+    move(slaveBuffer, masterBuffer, leftPadding, rightPadding);
+
+    return slaveBuffer;
+
+}
+
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer, 
+    const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
+{
+
+    auto tensor = (*slaveBuffer)->getData();
+
     if (tensor->getDType() != (*masterBuffer)->getData()->getDType())
         throw ArgumentError(*this, tensor->getName() + "::DType", tensor->getDType().toString(), "Does not match the DType " +
            (*masterBuffer)->getData()->getDType().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
@@ -331,17 +383,26 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
                 std::to_string(shape[i] + leftPadding[i] + rightPadding[i]), "Does not match the dimension " + std::to_string(allocatedShape[i]) +
                 " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
-    auto masterTensor = (*masterBuffer)->getData();
-    auto slaveBuffer = allocate(tensor, (*masterBuffer)->getStage());
-    padLeft(slaveBuffer, leftPadding);
-    padRight(slaveBuffer, rightPadding);
-
+    if ((*slaveBuffer)->masterBuffer != bufferEnd((*slaveBuffer)->stage))
+    {
+        auto &slaves = (*masterBuffer)->slaveBuffers;
+        slaves.erase(std::remove(slaves.begin(), slaves.end(), slaveBuffer), slaves.end());
+    }
+    
     (*slaveBuffer)->offset = (*masterBuffer)->offset;
     (*slaveBuffer)->masterBuffer = masterBuffer;
     (*masterBuffer)->slaveBuffers.push_back(slaveBuffer);
+    auto masterTensor = (*masterBuffer)->getData();
+    (*slaveBuffer)->leftPad = std::vector<std::size_t>(shape.ndims());
+    (*slaveBuffer)->rightPad = std::vector<std::size_t>(shape.ndims());
+    std::fill((*slaveBuffer)->strides.begin(), (*slaveBuffer)->strides.end(), 0);
+    std::fill((*slaveBuffer)->leftPad.begin(), (*slaveBuffer)->leftPad.end(), 0);
+    std::fill((*slaveBuffer)->rightPad.begin(), (*slaveBuffer)->rightPad.end(), 0);
+    padLeft(slaveBuffer, leftPadding);
+    padRight(slaveBuffer, rightPadding);
 
     if ((*masterBuffer)->getData()->isPopulated())
-        (*slaveBuffer)->getData()->bindData(*masterTensor, leftPadding, rightPadding);
+        bindData_(slaveBuffer, true);
 
     return slaveBuffer;
 

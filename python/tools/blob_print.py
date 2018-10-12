@@ -809,23 +809,23 @@ blob_format = Struct(
     "size_of_buffer_section" / Computed(this.paduntil[-1]),
     "Post_Pad" / Padded(3, Byte),
 
-    # "buffers" / Array(this.size_of_buffer_section - 7, Byte, discard=False),
-    # "relocation_buffer_size" / Int32ul,
-    # "blob_buffer_reloc_offset" / Int32ul,
-    # "blob_buffer_reloc_size" / Int32ul,
-    # "work_buffer_reloc_offset" / Int32ul,
-    # "work_buffer_reloc_size" / Int32ul,
+    "buffers" / Array(this.size_of_buffer_section - 7, Byte, discard=True),
+    "relocation_buffer_size" / Int32ul,
+    "blob_buffer_reloc_offset" / Int32ul,
+    "blob_buffer_reloc_size" / Int32ul,
+    "work_buffer_reloc_offset" / Int32ul,
+    "work_buffer_reloc_size" / Int32ul,
 
-    # "blob_reloc_entries" /  Struct(
-    #     "offset" / Int32ul,
-    #     "location" / Int32ul,
-    # )[this.blob_buffer_reloc_size // 8],
+    "blob_reloc_entries" /  Struct(
+        "offset" / Int32ul,
+        "location" / Int32ul,
+    )[this.blob_buffer_reloc_size // 8],
 
 
-    # "work_reloc_entries" /  Struct(
-    #     "offset" / Int32ul,
-    #     "location" / Int32ul,
-    # )[this.work_buffer_reloc_size // 8],
+    "work_reloc_entries" /  Struct(
+        "offset" / Int32ul,
+        "location" / Int32ul,
+    )[this.work_buffer_reloc_size // 8],
 
 )
 

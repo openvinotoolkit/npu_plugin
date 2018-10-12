@@ -1,0 +1,73 @@
+#include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/computation/model/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/tensor/math.hpp"
+
+static void fuseReluMXFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+
+namespace mv
+{
+
+    namespace pass
+    {
+
+        MV_REGISTER_PASS(FuseReluMX)
+        .setFunc(fuseReluMXFcn)
+        .setGenre(PassGenre::Finalization)
+        .setDescription(
+            "Fuses a relu op to the parent op."
+            "Relu op is removed from the model, and a new attribute of type OpType and value relu is defined for parent Op."
+        );
+
+    }
+
+}
+
+void fuseReluMXFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+{
+
+    using namespace mv;
+    OpModel om(model);
+
+    std::cout << "Fusing ReLU to HW operations" << std::endl;
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+
+        if (opIt->getOpType() == OpType::ReLU)
+        {
+
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            if(!parentOpIt->hasAttr("NCE1_Compatible"))
+                continue;
+            if(!parentOpIt->get<int>("NCE1_Compatible"))
+                continue;
+            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU));
+
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+            {
+                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
+                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
+                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
+            }
+
+            while(opIt.parentsSize() > 1)
+            {
+                auto paramOp = opIt.leftmostParent();
+                ++paramOp;
+                om.removeOp(paramOp);
+            }
+
+            om.removeOp(opIt);
+            opIt = parentOpIt;
+
+        }
+
+    }
+
+    std::cout << "Finished to fuse ReLU to hw operations" << std::endl;
+
+
+}
