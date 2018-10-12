@@ -139,9 +139,6 @@ namespace mv
           padStyle(2)
     {
 
-        //No padding on channels needed for pooling
-        this->inputChannelsPadded = it->get<size_t>("NCE1_InputChannelsPadded");
-        this->outputChannelsPadded = it->get<size_t>("NCE1_OutputChannelsPadded");
 
         int mx_valid = 0;
         if (! it->hasAttr("NCE1_Compatible"))
@@ -154,6 +151,10 @@ namespace mv
         if(this->NCE1_Compatible)
         {
             // printf("Serializing a HW Pooling\n");
+
+            //No padding on channels needed for pooling
+            this->inputChannelsPadded = it->get<size_t>("NCE1_InputChannelsPadded");
+            this->outputChannelsPadded = it->get<size_t>("NCE1_OutputChannelsPadded");
 
             int cmxSize = 256*1024;
 
