@@ -96,7 +96,7 @@ namespace mv
                         //current_height = this->input_lines_processed[i];
                         //output_height = this->output_lines_processed[i];
 
-                        auto output_width = this->outputWidthPadded ; //output_shape[1];
+                        //auto output_width = this->outputWidthPadded ; //output_shape[1];
                         auto input_width = this->inputWidthPadded; //input_shape[1];
 
                         //auto input_channels = input_shape[2];
@@ -342,7 +342,7 @@ namespace mv
             this->CMXSize = cmxSize;
             this->reluSHVAcc = 0;
             double val = 0;
-            this->shvNegSlope = static_cast<u_int32_t>(val);
+            this->shvNegSlope = static_cast<uint32_t>(val);
             this->shvPosSlope = 1065353216; //*(int * )(&val2);
 
             this->desc_count = it->get<std::size_t>("NCE1_DescriptorSplits");

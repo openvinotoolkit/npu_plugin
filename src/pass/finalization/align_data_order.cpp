@@ -273,7 +273,7 @@ void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, 
     auto opIt = om.opBegin();
 
 
-    compatibilityResolution(opIt, &om);
+    compatibilityResolution(opIt, om);
     std::cout << "Added. " << std::endl;
 
 
