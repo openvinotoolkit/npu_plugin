@@ -12,17 +12,15 @@ const std::function<int(const mv::Shape&, std::size_t)> mv::Order::RowInterleave
     if (s.ndims() == 0)
         throw OrderError(Order(OrderType::RowInterleaved), "0-dimensional shapes have no first contiguous dimension");
 
-    switch(dim){
-        case 0:
-            return -1;
-        case 1:
-            return 2;
-        case 2:
-            return 0;
-        default:
-            std::cout << "RowInterleaved only supports 3D" << std::endl;
-            assert(0);
-    }
+    if (dim == 0)
+        return -1;
+    else if (dim == 1)
+        return 2;
+    else if (dim == 2)
+        return 0;
+
+    throw OrderError(Order(OrderType::RowInterleaved), "RowInterleaved only supports 3D");
+    return 0;
 
 };
 
@@ -33,17 +31,16 @@ const std::function<int(const mv::Shape&, std::size_t)> mv::Order::RowInterleave
     if (s.ndims() == 0)
         throw OrderError(Order(OrderType::RowInterleaved), "Cannot check index for 0-dimensional shapes");
 
-    switch(dim){
-        case 0:
-            return 2;
-        case 1:
-            return -1;
-        case 2:
-            return 1;
-        default:
-            std::cout << "RowInterleaved only supports 3D" << std::endl;
-            assert(0);
-    }
+    if (dim == 0)
+        return 2;
+    else if (dim == 1)
+        return -1;
+    else if (dim == 2)
+        return 1;
+
+    throw OrderError(Order(OrderType::RowInterleaved), "RowInterleaved only supports 3D");
+    return 0;
+
 };
 
 const std::function<std::size_t(const mv::Shape&)> mv::Order::RowInterleaved_FirstContiguousDimIdx_ =

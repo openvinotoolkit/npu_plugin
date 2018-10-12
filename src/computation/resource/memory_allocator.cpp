@@ -241,7 +241,7 @@ long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t curren
         return leftPadding[currentDim] + rightPadding[currentDim] + shape[currentDim];
     }
 
-    long newStride;
+    long newStride = 0;
     for(std::size_t c = 0; c < shape[currentDim]; ++c)
     {
         std::size_t nextDimIdx = order.previousContiguousDimensionIndex(shape, currentDim);

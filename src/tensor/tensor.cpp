@@ -5,9 +5,10 @@ mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Ord
 Element(name),
 data_(shape.totalSize()),
 blockSize_(shape[-1]),
-blocks_(shape.totalSize() / blockSize_)
+blocks_(shape.totalSize() / blockSize_),
+shape_(shape)
 {
-    set<Shape>("shape", shape);
+    set<Shape>("shape", shape_);
     set<Order>("order", order);
     set<DType>("dType", dType);
     set<bool>("populated", false);
@@ -27,7 +28,8 @@ mv::Tensor::Tensor(const Tensor &other) :
 Element(other),
 data_(other.data_.size()),
 blockSize_(other.blockSize_),
-blocks_(other.blocks_.size())
+blocks_(other.blocks_.size()),
+shape_(other.shape_)
 {
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_.begin() + i * blockSize_;
@@ -88,9 +90,10 @@ void mv::Tensor::populate(const std::vector<double>& data)
     if (getOrder() != OrderType::RowMajor)
     {
         Order tensorOrder = Order(OrderType::RowMajor);
+        std::vector<std::size_t> sub(getShape().ndims());
         for (std::size_t i = 0; i < data_.size(); ++i)
         {
-            auto sub = getOrder().indToSub(getShape(), i);
+            sub = getOrder().indToSub(getShape(), i);
             data_[tensorOrder.subToInd(getShape(), sub)] = data[i];
         }
     }
@@ -220,9 +223,10 @@ std::vector<double> mv::Tensor::getData()
     
     std::vector<double> orderedData(getShape().totalSize());
     Order tensorOrder = Order(OrderType::RowMajor);
+    std::vector<std::size_t> sub(getShape().ndims());
     for (std::size_t i = 0; i < data_.size(); ++i)
     {
-        auto sub = tensorOrder.indToSub(getShape(), i);
+        sub = tensorOrder.indToSub(getShape(), i);
         orderedData[getOrder().subToInd(getShape(), sub)] = data_[i];
     }
 

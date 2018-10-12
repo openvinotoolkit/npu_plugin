@@ -240,7 +240,7 @@ namespace mv
                         if (siblings_.find(*new_sibling) == siblings_.end())
                         {
                             // Add child of a common parent as a sibling
-                            auto result = siblings_.insert(*new_sibling);
+                            result = siblings_.insert(*new_sibling);
                             if (!result.second)
                                 throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " sibling");
                         }
@@ -248,7 +248,7 @@ namespace mv
                         if ((*new_sibling).lock()->siblings_.find(child) == (*new_sibling).lock()->siblings_.end())
                         {
                             // Add new child to siblings of child of a common parent
-                            auto result = (*new_sibling).lock()->siblings_.insert(child);
+                            result = (*new_sibling).lock()->siblings_.insert(child);
                             if (!result.second)
                                 throw std::runtime_error("Unable to define iterable " + 
                                     std::to_string((*new_sibling).lock()->getID()) + " sibling");

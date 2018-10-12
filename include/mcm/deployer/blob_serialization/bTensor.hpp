@@ -30,7 +30,7 @@ namespace mv
                 int sx, int sy, int sz,
                 int offsetParam, int locationParam, int dtype, int orderParam);
 
-            Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, mv::RelocationTable * rt, mv::Data::TensorIterator* t);
+            Blob_Tensor(mv::DataModel& dm, mv::ControlModel& cm, mv::RelocationTable& rt, mv::Data::TensorIterator t);
 
             void write(WBuffer* b);
     };

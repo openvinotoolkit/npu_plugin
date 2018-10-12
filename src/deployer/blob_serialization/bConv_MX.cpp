@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    void bConv2D::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
+    void bConv2D::writeStageInfo(mv::OpModel *om, mv::Blob_buffer *b)
     {
 
 
@@ -15,32 +15,26 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        mv::Data::TensorIterator *conv_bias;
-        mv::Data::TensorIterator *conv_scale;
+        mv::Data::TensorIterator conv_bias = dm.tensorEnd();
+        mv::Data::TensorIterator conv_scale = dm.tensorEnd();
 
         if(this->bias_name != "")
         {
             std::cout << "Has Bias" << std::endl;
             this->bias = dm.findTensor(this->bias_name);
-            conv_bias = &this->bias;
+            conv_bias = bias;
         }
         else
-        {
             std::cout << "Has No Bias" << std::endl;
-            conv_bias = NULL ;
-        }
-
+        
         if(this->scale_name != "")
         {
             std::cout << "Has Bias" << std::endl;
             this->scale = dm.findTensor(this->scale_name);
-            conv_scale = &this->scale;
+            conv_scale = scale;
         }
         else
-        {
             std::cout << "Has No Bias" << std::endl;
-            conv_scale = NULL ;
-        }
 
 
         if (this->NCE1_Compatible)
@@ -64,23 +58,22 @@ namespace mv
 
 
             std::cout << "in" << std::endl;
-            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
+            Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
             std::cout << "Warning: forced Output, Taps Layout" << std::endl;
             std::cout << "out" << std::endl;
-            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
             std::cout << "taps" << std::endl;
-            Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+            Blob_Tensor tapsBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->taps);
             std::cout << "bias" << std::endl;
-            Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, conv_bias);
             std::cout << "scale" << std::endl;
-            Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_scale);
+            Blob_Tensor scaleBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, conv_scale);
 
 
             auto input_shape = this->input->getShape();
             auto output_shape = this->output->getShape();
 
-            unsigned int original_height = this->input->getShape()[1];
-
+            //unsigned int original_height = this->input->getShape()[1];
 
             unsigned i;
             for (unsigned oc = 0; oc != this->DPUmodeVector.size(); oc++)
@@ -91,14 +84,14 @@ namespace mv
                     {
                         i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
 
-                        unsigned int current_height, output_height;
-                        current_height = this->input_lines_processed[i];
-                        output_height = this->output_lines_processed[i];
+                        //unsigned int current_height, output_height;
+                        //current_height = this->input_lines_processed[i];
+                        //output_height = this->output_lines_processed[i];
 
                         auto output_width = output_shape[1];
                         auto input_width = input_shape[1];
 
-                        auto input_channels = input_shape[2];
+                        //auto input_channels = input_shape[2];
                         auto output_channels = output_shape[2];
 
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
@@ -134,13 +127,14 @@ namespace mv
 
                         this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
-
-                        for(unsigned j = 0; j != 32; j++){
-                            b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
-                        }
+                        char *byteArr = static_cast<char*>(static_cast<void*>(&this->descriptors[i]));
+                        for(unsigned j = 0; j != 32; j++)
+                            b->AddBytes(4, byteArr[j]);
 
                     }
+
                 }
+                
             }
 
             inputBlobTensor.write(b);
@@ -163,10 +157,10 @@ namespace mv
             b->AddBytes(4, this->padStyle);   // 0x80
             b->AddBytes(4, this->dilation);
 
-            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
-            Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
-            Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
+            Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
+            Blob_Tensor tapsBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->taps);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, conv_bias);
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
@@ -188,13 +182,9 @@ namespace mv
     {
 
         if (it->hasAttr("bias"))
-        {
             this->bias_name = it->get<std::string>("bias");
-        }
         else
-        {
             this->bias_name = "";
-        }
 
         if (it->hasAttr("scale"))
         {
@@ -203,23 +193,18 @@ namespace mv
 
         }
         else
-        {
             this->scale_name = "";
-        }
-
 
         int mx_valid = 0;
-        if (! it->hasAttr("NCE1_Compatible"))
-        {
+        if (!it->hasAttr("NCE1_Compatible"))
             printf("Serializer Info: attribute NCE1_Compatible not present. Assuming False.\n");
-        }
         else
-        {
             mx_valid = it->get<int>("NCE1_Compatible");
-        }
+        
         this->NCE1_Compatible = mx_valid;
 
-        if(this->NCE1_Compatible){
+        if(this->NCE1_Compatible)
+        {
             // printf("Serializing a HW Conv\n");
 
             int cmxSize = 256*1024;
@@ -254,7 +239,7 @@ namespace mv
 
             int descriptors_count = this->splits_over_iC * this->splits_over_H;
 
-            if (! it->hasAttr("NCE1_StreamingMask"))
+            if (!it->hasAttr("NCE1_StreamingMask"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
                 this->streamingMask = 1;
@@ -266,14 +251,12 @@ namespace mv
             printf("Serializer Info: Forcing Attribute 'NCE1_StreamingMask' to 1\n");
             this->streamingMask = 1;
 
-
-
-            if (! it->hasAttr("NCE1_Modes"))
+            if (!it->hasAttr("NCE1_Modes"))
             {
                 printf("Serializer Info: Needs Attribute 'NCE1_Modes'. Defaulting to 0\n");
 
                 this->DPUmodeVector = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
+                for(int i = 1; i != descriptors_count - 1; i++)
                 {
                     this->DPUmodeVector.push_back(0);
                 }
@@ -347,15 +330,12 @@ namespace mv
             this->CMXSize = cmxSize;
             this->reluSHVAcc = 0;
             double val = 0;
-            double val2 = 1;
-            this->shvNegSlope = *(int * )(&val);
+            this->shvNegSlope = static_cast<u_int32_t>(val);
             this->shvPosSlope = 1065353216; //*(int * )(&val2);
 
-            this->desc_count = descriptors_count;
+            this->desc_count = it->get<std::size_t>("NCE1_DescriptorSplits");
 
             // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
-            if (this->descriptors != nullptr)
-                delete [] this->descriptors;
             this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
 
             std::vector<std::size_t> chPerRamBlock;
@@ -373,7 +353,7 @@ namespace mv
                 printf("Serializer Info: Needs Attribute 'NCE1_InputLinesProcessed'. Defaulting to 1\n");
 
                 input_lines_processed = {0};
-                for( int i = 1; i != splits_over_H - 1; i++)
+                for(std::size_t i = 1; i != splits_over_H - 1; i++)
                 {
                     input_lines_processed.push_back(0);
                 }
@@ -517,10 +497,10 @@ namespace mv
                 {
                     for (unsigned h = 0; h != splits_over_H; h++)
                     {
-
+                        
                         i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
-
-                        this->descriptors[i] =  cnnConvolutionPoolStructure();
+                        std::cout << "desc_count-i: " << this->desc_count << " " << i << std::endl;
+                        //this->descriptors[i] =  cnnConvolutionPoolStructure();
 
                         // Relations to other Descriptors
                         if (i+1 == this->desc_count)
@@ -570,7 +550,7 @@ namespace mv
 
                         this->descriptors[i].inputWidth = this->input->getShape()[0] -1;
 
-                        unsigned int original_height = this->input->getShape()[1];
+                        //unsigned int original_height = this->input->getShape()[1];
                         unsigned int current_height;
                         current_height = this->input_lines_processed[i];
 
@@ -580,10 +560,11 @@ namespace mv
                         this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 
                         // Myriad X DPU Assignment & Execution Configuration
+                        std::cout << "oc-DPUmodeVector.size: " << oc << " " << this->DPUmodeVector.size() << std::endl;
                         this->descriptors[i].Line0.mode = this->DPUmodeVector[oc];
                         this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                         this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
-
+                        std::cout << "ic-chPerRamBlock.size: " << ic << " " << chPerRamBlock.size() << std::endl;
                         this->descriptors[i].chPerRamBlock = chPerRamBlock[ic] -1;        // Input Channels per Ram Block
 
 
@@ -593,11 +574,13 @@ namespace mv
 
                         this->descriptors[i].localLs =  localLS;
 
+                        std::cout << "oc-LPC.size: " << oc << " " << LPC.size() << std::endl;
+                        std::cout << "h-input_lines_processed.size: " << h << " " << input_lines_processed.size() << std::endl;
                         this->descriptors[i].linesPerCh = std::min(LPC[oc] - 1, input_lines_processed[h] - 1);
                         this->descriptors[i].localCs = (this->descriptors[i].linesPerCh + 1) * this->descriptors[i].localLs;
 
                         this->descriptors[i].rud = 0;   // Re-Use bit
-
+                        std::cout << "ic-minLines.size: " << ic << " " << minLines.size() << std::endl;
                         this->descriptors[i].minLines = minLines[ic] - 1;     // Minimum lines of data required to carry out function
 
                         this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;

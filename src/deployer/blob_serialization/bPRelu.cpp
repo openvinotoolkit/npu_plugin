@@ -14,9 +14,9 @@ namespace mv
         //this->input->setOrder(OrderType::RowMajor);
         //this->neg_slope->setOrder(OrderType::RowMajor);
 
-        Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-        Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
-        Blob_Tensor nSlopeTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->neg_slope);
+        Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
+        Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
+        Blob_Tensor nSlopeTensor = Blob_Tensor(dm, cm, b->reloc_table, this->neg_slope);
 
         inputBlobTensor.write(b);
         outputBlobTensor.write(b);
@@ -27,8 +27,8 @@ namespace mv
     bPRelu::bPRelu(mv::ComputationOp* it) :
     Blob_Op_Definition(),
     input((it->getInputTensor(0))),
-    neg_slope((it->getInputTensor(1))),
-    output((it->getOutputTensor(0)))
+    output((it->getOutputTensor(0))),
+    neg_slope((it->getInputTensor(1)))
     {
         
     }

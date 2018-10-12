@@ -22,6 +22,7 @@ namespace mv
         std::vector<double> data_;
         std::size_t blockSize_;
         std::vector<std::vector<double>::iterator> blocks_;
+        Shape shape_;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
@@ -82,9 +83,14 @@ namespace mv
             return get<bool>("populated");
         }
 
-        inline Shape getShape() const
+        inline Shape& getShape()
         {
-            return get<Shape>("shape");
+            return shape_;
+        }
+
+        inline const Shape& getShape() const
+        {
+            return shape_;
         }
 
         inline std::vector<std::size_t> indToSub(unsigned index) const

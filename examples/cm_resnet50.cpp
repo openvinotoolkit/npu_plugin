@@ -108,6 +108,8 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 int main()
 {
 
+    mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
+
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet50");
 
