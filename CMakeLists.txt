@@ -123,10 +123,10 @@ if (MSVC)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
     add_subdirectory(python/api)
+	add_subdirectory(tests)
+	add_subdirectory(contrib/googletest)
 endif()
 
-add_subdirectory(contrib/googletest)
-add_subdirectory(tests)
 add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
 
