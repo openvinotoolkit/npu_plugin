@@ -6,31 +6,28 @@
 namespace mv
 {
 
-    int Blob_buffer::get_blob_enum(mv::OpType o, bool NCE1) {
+    int Blob_buffer::get_blob_enum(mv::OpType o, bool NCE1)
+    {
         /***
          *  Mapping of C++ OpTypes to Blob Enumerations
          ***/
-        switch ((unsigned short)o) {
+        switch ((unsigned short)o)
+        {
             case OpType::Conv2D:
-                {
-                    if (NCE1) {
-                        return 33;
-                    } else {
-                        return 0;
-                    }
-                }
+                if (NCE1)
+                    return 33;
+                else
+                    return 0;
             case OpType::MaxPool2D:
-            if (NCE1) {
-                return 34;
-            } else {
-                return 1;
-            }
+                if (NCE1)
+                    return 34;
+                else
+                    return 1;
             case OpType::AvgPool2D:
-            if (NCE1) {
-                return 34;
-            } else {
-                return 2;
-            }
+                if (NCE1)
+                    return 34;
+                else
+                    return 2;
             case OpType::Softmax:
                 return 3;
             case OpType::FullyConnected:
@@ -51,10 +48,10 @@ namespace mv
             case OpType::Conversion:
                 return 37;
             default:
-                {
-                    std::cout << "Serialization Error: No Blob Enum Defined for layer" << o.toString() << std::endl;
-                    assert(0);
-                }
+            {
+                std::cout << "Serialization Error: No Blob Enum Defined for layer" << o.toString() << std::endl;
+                assert(0);
+            }
         }
     }
 
@@ -92,107 +89,28 @@ namespace mv
 
         for (mv::Control::OpDFSIterator it = cm.getFirst(); it != cm.opEnd(); ++it)
         {
-            switch((unsigned short)it->getOpType()){
+            switch((unsigned short)it->getOpType())
+            {
                 case OpType::Conv2D:
                 case OpType::FullyConnected:
+                {
+                    uint32_t total_weight_size = 0 ;
+                    auto weight_tensor = it->getInputTensor(1);
+                    auto weight_tensor_shape = weight_tensor->getShape();
+
+                    if ( it->getOpType() == OpType::FullyConnected )
+                        total_weight_size = weight_tensor_shape.totalSize();
+                    else
                     {
-                        uint32_t total_weight_size = 0 ;
-                        auto weight_tensor = it->getInputTensor(1);
-                        auto weight_tensor_shape = weight_tensor->getShape();
-
-                        if ( it->getOpType() == OpType::FullyConnected )
-                            total_weight_size = weight_tensor_shape.totalSize();
-                        else
-                        {
-                            total_weight_size = weight_tensor_shape.totalSize();
-                            int mx_valid = 0;
-                            if (! it->hasAttr("NCE1_Compatible"))
-                            {
-                                printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
-                            }
-                            else
-                            {
-                                mx_valid = it->get<int>("NCE1_Compatible");
-                            }
-
-                            if(mx_valid){
-
-                                size_t descriptors = 1;
-                                if (! it->hasAttr("NCE1_DescriptorSplits"))
-                                {
-                                    printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
-                                }
-                                else
-                                {
-                                    descriptors = it->get<size_t>("NCE1_DescriptorSplits");
-                                }
-                                blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
-                                blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
-                                blob_stats.stage_section_size += (5*10*4) ; // Input, Bias, Taps, Output, Scale
-
-                                blob_stats.stage_section_size += (2*4) ; // PreOp PostOp TODO: Move OUT.
-                                blob_stats.stage_section_size += (3*4) ; // nextsatge, etc MOVE OUT.
-                                additional_buf++;       // Has scale also
-                            }else{
-                                blob_stats.stage_section_size += (53*4) ;
-                            }
-                        }
-
-                        // buffer data section for convolution has 3 regions: taps, bias, and params
-                        // size of TAP region = align((roundUp(8,#kC)*kernelX*kernelY*kN)*dataSize),0x40)
-                        //  TODO       BIAS region = align((#biases*dataSize),0x40)
-
-                        // TAPS region
-                        // calculate buffer sizes etc related to weights
-                        uint32_t weights_region_size = total_weight_size*blob_stats.weights_number_size;
-                        blob_stats.weights_region_size += weights_region_size ;
-                        blob_stats.data_buffer_count++ ;
-
-                        // calculate buffer size related to bias
-                        if (it->hasAttr("bias"))
-                        {
-                            uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
-                            blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
-                            blob_stats.data_buffer_count++ ;
-                        }
-
-                        blob_stats.stage_count++;
-                        //ASK TO IAN: Why this if?
-                        /*
-                        if (it->hasAttr("postOpType"))
-                        {
-                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                            {
-                                blob_stats.stage_section_size += (3*4) ;
-                            }
-                        }
-                        */
-                    }
-                    break;
-                case OpType::MaxPool2D:
-                case OpType::AvgPool2D:
-                    {
+                        total_weight_size = weight_tensor_shape.totalSize();
                         int mx_valid = 0;
-                        if (! it->hasAttr("NCE1_Compatible"))
-                        {
-                            printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
-                        }
-                        else
-                        {
-                            mx_valid = it->get<int>("NCE1_Compatible");
-                        }
+                        if (it->hasAttr("NCE1_Compatible"))
+                             mx_valid = it->get<int>("NCE1_Compatible");
+
 
                         if(mx_valid)
                         {
-                            size_t descriptors = 1;
-                            if (! it->hasAttr("NCE1_DescriptorSplits"))
-                            {
-                                printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
-                            }
-                            else
-                            {
-                                descriptors = it->get<size_t>("NCE1_DescriptorSplits");
-                            }
+                            size_t descriptors = it->get<size_t>("NCE1_DescriptorSplits");
                             blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
                             blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
                             blob_stats.stage_section_size += (5*10*4) ; // Input, Bias, Taps, Output, Scale
@@ -202,69 +120,101 @@ namespace mv
                             additional_buf++;       // Has scale also
                         }
                         else
-                        {
                             blob_stats.stage_section_size += (53*4) ;
-                        }
-
-                        blob_stats.stage_count++;
-                        //ASK TO IAN: Why this if?
-                        /*
-                        if (it->hasAttr("postOpType"))
-                        {
-                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                            {
-                                blob_stats.stage_section_size += (3*4) ;
-                            }
-                        }
-                        */
                     }
-                    break;
+
+                    // buffer data section for convolution has 3 regions: taps, bias, and params
+                    // size of TAP region = align((roundUp(8,#kC)*kernelX*kernelY*kN)*dataSize),0x40)
+                    //  TODO       BIAS region = align((#biases*dataSize),0x40)
+
+                    // TAPS region
+                    // calculate buffer sizes etc related to weights
+                    uint32_t weights_region_size = total_weight_size*blob_stats.weights_number_size;
+                    blob_stats.weights_region_size += weights_region_size ;
+                    blob_stats.data_buffer_count++ ;
+
+                    // calculate buffer size related to bias
+                    if (it->hasAttr("bias"))
+                    {
+                        uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
+                        blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
+                        blob_stats.data_buffer_count++ ;
+                    }
+
+                    blob_stats.stage_count++;
+                }
+                break;
+                case OpType::MaxPool2D:
+                case OpType::AvgPool2D:
+                {
+                    int mx_valid = 0;
+                    if (it->hasAttr("NCE1_Compatible"))
+                        mx_valid = it->get<int>("NCE1_Compatible");
+
+                    if(mx_valid)
+                    {
+                        size_t descriptors = it->get<size_t>("NCE1_DescriptorSplits");
+
+                        blob_stats.stage_section_size += (11*4) ; // Header of Descriptors
+                        blob_stats.stage_section_size += (descriptors*32*4) ; // Descriptor
+                        blob_stats.stage_section_size += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+
+                        blob_stats.stage_section_size += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                        blob_stats.stage_section_size += (3*4) ; // nextsatge, etc MOVE OUT.
+                        additional_buf++;       // Has scale also
+                    }
+                    else
+                        blob_stats.stage_section_size += (27*4);
+
+                    blob_stats.stage_count++;
+                }
+                break;
                 case OpType::Add:
                 case OpType::Multiply:
-                    {
-                        blob_stats.stage_count++ ;
-                        blob_stats.elt_count++ ;
-                        blob_stats.stage_section_size += bEltwise::getSerializedSize()+5*4 ;
-                    }
-                    break;
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.elt_count++ ;
+                    blob_stats.stage_section_size += bEltwise::getSerializedSize()+5*4 ;
+                }
+                break;
                 case OpType::Softmax:
-                    {
-                        blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += bSoftmax::getSerializedSize()+5*4 ;
-                    }
-                    break;
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += bSoftmax::getSerializedSize()+5*4 ;
+                }
+                break;
 
                 case OpType::ReLU:
-                    {
-                        blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += bRelu::getSerializedSize()+5*4 ;
-                    }
-                    break;
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += bRelu::getSerializedSize()+5*4 ;
+                }
+                break;
 
                 case OpType::PReLU:
-                    {
-                        blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += bPRelu::getSerializedSize()+5*4 ;
-                    }
-                    break;
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += bPRelu::getSerializedSize()+5*4 ;
+                }
+                break;
+
                 case OpType::Scale:
-                    {
-                        blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += (3+32+10)*4 ;
-                        blob_stats.data_buffer_count++ ;   // uses buffer section (ala wts bias)
-                        uint32_t buffer_bias_values_len = ( it->getInputTensor(1)->getShape().totalSize() ) *blob_stats.weights_number_size;
-                        blob_stats.bias_region_size += buffer_bias_values_len ;
-                    }
-                    break;
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += (3+32+10)*4 ;
+                    blob_stats.data_buffer_count++ ;   // uses buffer section (ala wts bias)
+                    uint32_t buffer_bias_values_len = ( it->getInputTensor(1)->getShape().totalSize() ) *blob_stats.weights_number_size;
+                    blob_stats.bias_region_size += buffer_bias_values_len ;
+                }
+                break;
                 case OpType::Conversion:
-                    {
-                        blob_stats.stage_count++ ;
-                        blob_stats.stage_section_size += bCompatibility::getSerializedSize()+5*4 ;
-                    }
-                    break;
+                {
+                    blob_stats.stage_count++ ;
+                    blob_stats.stage_section_size += bCompatibility::getSerializedSize()+5*4 ;
+                }
+                break;
                 case OpType::Input:
                 case OpType::Output:
-                    {}
                     break;
 
                 default:
@@ -281,8 +231,8 @@ namespace mv
 
         unsigned int totalSize = 0;
 
-
-        if (dm.iterable("ConstantMemory", stg)){
+        if (dm.iterable("ConstantMemory", stg))
+        {
             for (Data::BufferIterator bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
             {
                 totalSize += bit->getSize() ;
@@ -309,7 +259,8 @@ namespace mv
             28;
     }
 
-    void Blob_buffer::write_elf_header(){
+    void Blob_buffer::write_elf_header()
+    {
         /*
             Somewhat following the ELF Header standard, but effort was dropped.
             This section remains until properly depreciated.
@@ -337,7 +288,8 @@ namespace mv
         AddBytes(2, 0x0000);  // 0x20
     }
 
-    void Blob_buffer::write_mv_header(){
+    void Blob_buffer::write_mv_header()
+    {
 
         uint32_t mv_magic_number = BLOB_MAGIC_NUMBER;
         uint32_t mv_version_major = BLOB_VERSION_MAJOR;
@@ -442,342 +394,185 @@ namespace mv
             switch((unsigned short)ltype)
             {
                 case OpType::Input:
-                    {
-                        AddBytes(4, 0x20);     // include input NoOp stage for compatibility with python compiler
-                        AddBytes(4, get_blob_enum(ltype));
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-                        AddBytes(4, 0x05);
-                        AddBytes(4, 0x05);
-                    }
-                    break;
+                {
+                    AddBytes(4, 0x20);     // include input NoOp stage for compatibility with python compiler
+                    AddBytes(4, get_blob_enum(ltype));
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+                    AddBytes(4, 0x05);
+                    AddBytes(4, 0x05);
+                }
+                break;
 
                 case OpType::Conv2D:
-                    {
-                int mx_valid = 0;
-                if (! it->hasAttr("NCE1_Compatible"))
                 {
-                    printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
-                }
-                else
-                {
-                    mx_valid = it->get<int>("NCE1_Compatible");
-                }
+                    int mx_valid = 0;
+                    if (it->hasAttr("NCE1_Compatible"))
+                        mx_valid = it->get<int>("NCE1_Compatible");
 
-                if(mx_valid)
-                {
-                    size_t descriptors = 1;
-                    int point0 = 0;
-                    if (! it->hasAttr("NCE1_DescriptorSplits"))
+                    if(mx_valid)
                     {
-                        printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
+                        int point0 = 0;
+                        size_t descriptors = it->get<size_t>("NCE1_DescriptorSplits");
+
+                        point0 += (11*4) ; // Header of Descriptors
+                        point0 += (descriptors*32*4) ; // Descriptor
+                        point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+
+                        point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                        point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+                        next_offset += point0 ;
+
+                        // No more layers (last)
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+
+                        int finalstage = 0;
+                        auto t = it->getOutputTensor(0);
+                        mem = dm.getBuffer("IntermediateMemory", stg, t);
+                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
+                        {
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
+                        }
+
+                        if(!finalstage)
+                            conv_pool_stage.next = next_offset;
+
+                        AddBytes(4, conv_pool_stage.next);
+                        AddBytes(4, get_blob_enum(ltype, true));
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                        // Serialize for MyriadX H/W
+                        bConv2D c = bConv2D(&(*it));
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
                     }
                     else
                     {
-                        descriptors = it->get<size_t>("NCE1_DescriptorSplits");
-                    }
-                    point0 += (11*4) ; // Header of Descriptors
-                    point0 += (descriptors*32*4) ; // Descriptor
-                    point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+                        // Serialize for S/W
+                        int point0 = 0;
+                        point0 += (8*4) ; // Fields
+                        point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
+                        point0 += (3*4) ; // nextsatge, etc MOVE OUT.
 
-                    point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
-                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
-
-                    next_offset += point0 ;
-
-
-                    // No more layers (last)
-                    Data::BufferIterator mem;
-                    mv::Control::StageIterator stg = cm.getStage(0);
-
-                    int finalstage = 0;
-                    auto t = it->getOutputTensor(0);
-                    mem = dm.getBuffer("IntermediateMemory", stg, t);
-                    if (mem == dm.bufferEnd("IntermediateMemory", stg))
-                    {
-                        conv_pool_stage.next = 0;
-                        finalstage = 1;
-                    }
-
-                    if(!finalstage){
-                        conv_pool_stage.next = next_offset;
-                    }
-
-                    AddBytes(4, conv_pool_stage.next);
-                    AddBytes(4, get_blob_enum(ltype, true));
-                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                    // Serialize for MyriadX H/W
-                    bConv2D c = bConv2D(&(*it));
-                    c.writeStageInfo(&om, this);
-
-                    AddBytes(4, 0x05);    // 0x12c , no preop
-                    AddBytes(4, 0x05);    // 0x12c , no postop
-                }
-                else
-                {
-                    // Serialize for S/W
-                    int point0 = 0;
-                    point0 += (8*4) ; // Fields
-                    point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
-                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
-
-
-                    if (it->hasAttr("postOpType"))
-                    {
-                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                        if (it->hasAttr("postOpType"))
                         {
-                            point0 += (5*4) ;
+                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                                point0 += (5*4) ;
+                            else
+                            {
+                                printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
+                                assert(0);
+                            }
                         }
                         else
+                            point0 += (2*4) ;
+
+                        next_offset += point0;
+
+                        // No more layers (last)
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        int finalstage = 0;
+
+                        auto t = it->getOutputTensor(0);
+                        mem = dm.getBuffer("IntermediateMemory", stg, t);
+                        if (mem == dm.bufferEnd("IntermediateMemory", stg)  )
                         {
-                            printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
-                            assert(0);
-                        }
-                    }
-                    else
-                    {
-                        point0 += (2*4) ;
-                    }
-
-                    next_offset += point0 ;
-
-
-                    // No more layers (last)
-                    Data::BufferIterator mem;
-                    mv::Control::StageIterator stg = cm.getStage(0);
-                    int finalstage = 0;
-
-                    auto t = it->getOutputTensor(0);
-                    mem = dm.getBuffer("IntermediateMemory", stg, t);
-                    if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                        conv_pool_stage.next = 0;
-                        finalstage = 1;
-                    }
-
-                    if(!finalstage){
-                        conv_pool_stage.next = next_offset;
-                    }
-
-                    AddBytes(4, conv_pool_stage.next);
-                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
-                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                    // Serialize for MyriadX H/W
-                    bConv2D c = bConv2D(&(*it));
-                    c.writeStageInfo(&om, this);
-
-                    AddBytes(4, conv_pool_stage.preop_type);
-                    if (it->hasAttr("postOpType"))
-                    {
-
-                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                        {
-
-                            AddBytes(4, 0x06);    // 0x12c , postop relu
-                            AddBytes(4, 0x00);
-                            AddBytes(4, 0x00);
-                            AddBytes(4, 0x00);
-                        }
-                        else
-                        {
-                            std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
                         }
 
+                        if(!finalstage)
+                            conv_pool_stage.next = next_offset;
+
+                        AddBytes(4, conv_pool_stage.next);
+                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                        // Serialize for MyriadX H/W
+                        bConv2D c = bConv2D(&(*it));
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, conv_pool_stage.preop_type);
+                        if (it->hasAttr("postOpType"))
+                        {
+                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                            {
+
+                                AddBytes(4, 0x06);    // 0x12c , postop relu
+                                AddBytes(4, 0x00);
+                                AddBytes(4, 0x00);
+                                AddBytes(4, 0x00);
                             }
                             else
                             {
-                                if (it->hasAttr("bias"))
-                                {
-                                    AddBytes(4, 0x09);    // 0x12c , postop bias
-                                }
-                                else
-                                {
-                                    AddBytes(4, 0x05);    // 0x12c , no postop
-                                }
+                                std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
                             }
-                        }
-                    }
-                    break;
+
+                       }
+                       else
+                       {
+                            if (it->hasAttr("bias"))
+                                AddBytes(4, 0x09);    // 0x12c , postop bias
+                            else
+                                AddBytes(4, 0x05);    // 0x12c , no postop
+
+                       }
+                    }//end serialize for SW
+                } //end case
+                break;
                 case OpType::FullyConnected:
-                    {
-                        // Currently not triggered - converted to Conv.
-                        int point0 = 0;
-                        point0 += 4*10 ; // Input, Output
-                        point0 += 2 ; // PreOp PostOp TODO: Move OUT.
-                        point0 += 3 ; // nextstage, id, imp
-                        next_offset += point0*4 ;
-
-                        // No more layers (last)
-                        Data::BufferIterator mem;
-                        mv::Control::StageIterator stg = cm.getStage(0);
-                        int finalstage = 0;
-
-                        auto t = it->getOutputTensor(0);
-                        mem = dm.getBuffer("IntermediateMemory", stg, t);
-                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
-                        {
-                            conv_pool_stage.next = 0;
-                            finalstage = 1;
-                        }
-                        if (!finalstage){
-                            conv_pool_stage.next = next_offset;
-                        }
-                        AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                        // Serialize for MyriadX H/W
-                        bInnerProduct c = bInnerProduct(&(*it));
-                        c.writeStageInfo(&om, this);
-
-                        AddBytes(4, 0x05);    // 0x12c , no preop
-                        AddBytes(4, 0x05);    // 0x12c , no postop
-
-                    }
-                    break;
-                case OpType::Softmax:
-                    {
-
-                        bSoftmax c = bSoftmax(&(*it));
-                        next_offset += c.getSerializedSize() + 5*4;
-
-                        // No more layers (last)
-                        Data::BufferIterator mem;
-                        mv::Control::StageIterator stg = cm.getStage(0);
-                        int finalstage = 0;
-
-                        auto t = it->getOutputTensor(0);
-                        mem = dm.getBuffer("IntermediateMemory", stg, t);
-                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
-                        {
-                            conv_pool_stage.next = 0;
-                            finalstage = 1;
-                        }
-
-                        if (finalstage == 0){
-                            conv_pool_stage.next = next_offset;
-                        }
-                        AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                        c.writeStageInfo(&om, this);
-
-                        AddBytes(4, 0x05);    // 0x12c , no preop
-                        AddBytes(4, 0x05);    // 0x12c , no postop
-                    }
-                    break;
-                case OpType::ReLU:
-                    {
-
-                        bRelu c = bRelu(&(*it));
-                        next_offset += c.getSerializedSize() + 5*4;
-
-                        // No more layers (last)
-                        Data::BufferIterator mem;
-                        mv::Control::StageIterator stg = cm.getStage(0);
-                        int finalstage = 0;
-
-                        auto t = it->getOutputTensor(0);
-                        mem = dm.getBuffer("IntermediateMemory", stg, t);
-
-                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
-                        {
-                            conv_pool_stage.next = 0;
-                            finalstage = 1;
-                        }
-
-                        if (!finalstage){
-                            conv_pool_stage.next = next_offset;
-                        }
-                        AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                        // Serialize for MyriadX H/W
-                        c.writeStageInfo(&om, this);
-
-                        AddBytes(4, 0x05);    // 0x12c , no preop
-                        AddBytes(4, 0x05);    // 0x12c , no postop
-
-                    }
-                    break;
-                case OpType::PReLU:
-                    {
-
-                        bPRelu c = bPRelu(&(*it));
-                        next_offset += c.getSerializedSize() + 5*4;
-
-                        // No more layers (last)
-                        //mv::DataModel dm(om);
-                        //mv::ControlModel cm(om);
-                        Data::BufferIterator mem;
-                        mv::Control::StageIterator stg = cm.getStage(0);
-                        int finalstage = 0;
-
-                        auto t = it->getOutputTensor(0);
-                        mem = dm.getBuffer("IntermediateMemory", stg, t);
-                        if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
-                            conv_pool_stage.next = 0;
-                            finalstage = 1;
-                        }
-
-                        if (!finalstage){
-                            conv_pool_stage.next = next_offset;
-                        }
-                        AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                        // Serialize for MyriadX H/W
-                        c.writeStageInfo(&om, this);
-
-                        AddBytes(4, 0x05);    // 0x12c , no preop
-                        AddBytes(4, 0x05);    // 0x12c , no postop
-
-                    }
-                    break;
-                case OpType::MaxPool2D:
-                case OpType::AvgPool2D:
-                    {
-
-                int mx_valid = 0;
-                if (! it->hasAttr("NCE1_Compatible"))
                 {
-                    printf("Warning: attribute NCE1_Compatible not present. Assuming False.\n");
-                }
-                else
-                {
-                    mx_valid = it->get<int>("NCE1_Compatible");
-                }
-
-                if(mx_valid)
-                {
-                    size_t descriptors = 1;
+                    // Currently not triggered - converted to Conv.
                     int point0 = 0;
-                    if (! it->hasAttr("NCE1_DescriptorSplits"))
-                    {
-                        printf("Warning: attribute NCE1_DescriptorSplits not present. Defaulting to 1.\n");
-                    }
-                    else
-                    {
-                        descriptors = it->get<size_t>("NCE1_DescriptorSplits");
-                    }
-                    point0 += (11*4) ; // Header of Descriptors
-                    point0 += (descriptors*32*4) ; // Descriptor
-                    point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
-
-                    point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
-                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
-
-                    next_offset += point0 ;
-
+                    point0 += 4*10 ; // Input, Output
+                    point0 += 2 ; // PreOp PostOp TODO: Move OUT.
+                    point0 += 3 ; // nextstage, id, imp
+                    next_offset += point0*4 ;
 
                     // No more layers (last)
                     Data::BufferIterator mem;
                     mv::Control::StageIterator stg = cm.getStage(0);
-
                     int finalstage = 0;
+
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg))
+                    {
+                        conv_pool_stage.next = 0;
+                        finalstage = 1;
+                    }
+                    if (!finalstage)
+                        conv_pool_stage.next = next_offset;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // Serialize for MyriadX H/W
+                    bInnerProduct c = bInnerProduct(&(*it));
+                    c.writeStageInfo(&om, this);
+
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
+
+                }
+                break;
+                case OpType::Softmax:
+                {
+
+                    bSoftmax c = bSoftmax(&(*it));
+                    next_offset += c.getSerializedSize() + 5*4;
+
+                    // No more layers (last)
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+                    int finalstage = 0;
+
                     auto t = it->getOutputTensor(0);
                     mem = dm.getBuffer("IntermediateMemory", stg, t);
                     if (mem == dm.bufferEnd("IntermediateMemory", stg))
@@ -786,49 +581,24 @@ namespace mv
                         finalstage = 1;
                     }
 
-                    if(!finalstage){
+                    if (finalstage == 0)
                         conv_pool_stage.next = next_offset;
-                    }
 
                     AddBytes(4, conv_pool_stage.next);
-                    AddBytes(4, get_blob_enum(ltype, true));
+                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
                     AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
-                    // Serialize for MyriadX H/W
-                    bPooling_MX c = bPooling_MX(&(*it));
                     c.writeStageInfo(&om, this);
 
                     AddBytes(4, 0x05);    // 0x12c , no preop
                     AddBytes(4, 0x05);    // 0x12c , no postop
                 }
-                else
+                break;
+                case OpType::ReLU:
                 {
-                    // Serialize for S/W
-                    int point0 = 0;
-                    point0 += (8*4) ; // Fields
-                    point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
-                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
 
-
-                    if (it->hasAttr("postOpType"))
-                    {
-                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                        {
-                            point0 += (5*4) ;
-                        }
-                        else
-                        {
-                            printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
-                            assert(0);
-                        }
-                    }
-                    else
-                    {
-                        point0 += (2*4) ;
-                    }
-
-                    next_offset += point0 ;
-
+                    bRelu c = bRelu(&(*it));
+                    next_offset += c.getSerializedSize() + 5*4;
 
                     // No more layers (last)
                     Data::BufferIterator mem;
@@ -837,200 +607,331 @@ namespace mv
 
                     auto t = it->getOutputTensor(0);
                     mem = dm.getBuffer("IntermediateMemory", stg, t);
-                    if (mem == dm.bufferEnd("IntermediateMemory", stg)  ){
+
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg))
+                    {
                         conv_pool_stage.next = 0;
                         finalstage = 1;
                     }
 
-                    if(!finalstage){
+                    if (!finalstage)
                         conv_pool_stage.next = next_offset;
-                    }
 
                     AddBytes(4, conv_pool_stage.next);
-                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                    AddBytes(4, get_blob_enum(ltype));
                     AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                     // Serialize for MyriadX H/W
-                    bConv2D c = bConv2D(&(*it));
                     c.writeStageInfo(&om, this);
 
-                    AddBytes(4, conv_pool_stage.preop_type);
-                    if (it->hasAttr("postOpType"))
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
+
+                }
+                break;
+                case OpType::PReLU:
+                {
+                    bPRelu c = bPRelu(&(*it));
+                    next_offset += c.getSerializedSize() + 5*4;
+
+                    // No more layers (last)
+                    //mv::DataModel dm(om);
+                    //mv::ControlModel cm(om);
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+                    int finalstage = 0;
+
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg)  )
                     {
+                        conv_pool_stage.next = 0;
+                        finalstage = 1;
+                    }
 
-                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                    if (!finalstage)
+                        conv_pool_stage.next = next_offset;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype));
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // Serialize for MyriadX H/W
+                    c.writeStageInfo(&om, this);
+
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
+
+                }
+                break;
+                case OpType::MaxPool2D:
+                case OpType::AvgPool2D:
+                {
+
+                    int mx_valid = 0;
+                    if (it->hasAttr("NCE1_Compatible"))
+                        mx_valid = it->get<int>("NCE1_Compatible");
+
+                    if(mx_valid)
+                    {
+                        size_t descriptors = it->get<size_t>("NCE1_DescriptorSplits");
+                        int point0 = 0;
+                        point0 += (11*4) ; // Header of Descriptors
+                        point0 += (descriptors*32*4) ; // Descriptor
+                        point0 += (5*10*4) ; // Input, Bias, Taps, Output, Scale
+
+                        point0 += (2*4) ; // PreOp PostOp TODO: Move OUT.
+                        point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+                        next_offset += point0 ;
+
+
+                        // No more layers (last)
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+
+                        int finalstage = 0;
+                        auto t = it->getOutputTensor(0);
+                        mem = dm.getBuffer("IntermediateMemory", stg, t);
+                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
                         {
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
+                        }
 
-                            AddBytes(4, 0x06);    // 0x12c , postop relu
-                            AddBytes(4, 0x00);
-                            AddBytes(4, 0x00);
-                            AddBytes(4, 0x00);
+                        if(!finalstage)
+                            conv_pool_stage.next = next_offset;
+
+                        AddBytes(4, conv_pool_stage.next);
+                        AddBytes(4, get_blob_enum(ltype, true));
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                        // Serialize for MyriadX H/W
+                        bPooling_MX c = bPooling_MX(&(*it)); //NOTE: Syntatic trick to get to correct iterator
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
+                    }
+                    else
+                    {
+                        // Serialize for S/W
+                        int point0 = 0;
+                        point0 += (8*4) ; // Fields
+                        point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
+                        point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+                        if (it->hasAttr("postOpType"))
+                        {
+                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                                point0 += (5*4) ;
+                            else
+                            {
+                                printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
+                                assert(0);
+                            }
                         }
                         else
+                            point0 += (2*4) ;
+
+                        next_offset += point0 ;
+
+                        // No more layers (last)
+                        Data::BufferIterator mem;
+                        mv::Control::StageIterator stg = cm.getStage(0);
+                        int finalstage = 0;
+
+                        auto t = it->getOutputTensor(0);
+                        mem = dm.getBuffer("IntermediateMemory", stg, t);
+                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
                         {
-                            std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
+                            conv_pool_stage.next = 0;
+                            finalstage = 1;
                         }
 
+                        if(!finalstage)
+                            conv_pool_stage.next = next_offset;
+
+                        AddBytes(4, conv_pool_stage.next);
+                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                        // Serialize for MyriadX H/W
+                        bPooling_MX c = bPooling_MX(&(*it));
+                        c.writeStageInfo(&om, this);
+
+                        AddBytes(4, conv_pool_stage.preop_type);
+                        if (it->hasAttr("postOpType"))
+                        {
+
+                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                            {
+
+                                AddBytes(4, 0x06);    // 0x12c , postop relu
+                                AddBytes(4, 0x00);
+                                AddBytes(4, 0x00);
+                                AddBytes(4, 0x00);
+                            }
+                            else
+                                std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
+                        }
                     }
-                }
                 }
                 break;
                 case OpType::Add:
                 case OpType::Multiply:
+                {
+
+                    bEltwise c = bEltwise(&(*it));
+                    next_offset += c.getSerializedSize() + 5*4;
+
+                    // No more layers (last)
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+                    int finalstage = 0;
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg))
                     {
-
-                        bEltwise c = bEltwise(&(*it));
-                        next_offset += c.getSerializedSize() + 5*4;
-
-                        // No more layers (last)
-                        Data::BufferIterator mem;
-                        mv::Control::StageIterator stg = cm.getStage(0);
-                        int finalstage = 0;
-                        auto t = it->getOutputTensor(0);
-                        mem = dm.getBuffer("IntermediateMemory", stg, t);
-
-                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
-                        {
-                            finalstage = 1;
-                            conv_pool_stage.next = 0;
-                        }
-
-                        if(!finalstage){
-                            conv_pool_stage.next = next_offset ;
-                        }
-                        AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                        c.writeStageInfo(&om, this);
-
-                        AddBytes(4, 0x05);    // 0x12c , no preop
-                        AddBytes(4, 0x05);    // 0x12c , no postop
+                        finalstage = 1;
+                        conv_pool_stage.next = 0;
                     }
-                    break;
+
+                    if(!finalstage)
+                        conv_pool_stage.next = next_offset ;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype));
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    c.writeStageInfo(&om, this);
+
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
+                }
+                break;
                 case OpType::Scale:
+                {
+                    std::cout << "We shouldn't have this case, because all scales should be absorbed?" << std::endl;
+
+                    next_offset += 0x8c ;
+                    AddBytes(4, conv_pool_stage.next);
+
+                    AddBytes(4, get_blob_enum(ltype));     // operation type element-wise Add
+
+                    next_offset += 0x28 ;
+
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // operator specific info
+                    add_stage_IO_info(it, conv_pool_stage);
+
+                    if (it->getOpType() == OpType::Scale)
                     {
-                        std::cout << "We shouldn't have this case, because all scales should be absorbed?" << std::endl;
 
-                        next_offset += 0x8c ;
-                        AddBytes(4, conv_pool_stage.next);
-
-                        AddBytes(4, get_blob_enum(ltype));     // operation type element-wise Add
-
-                        next_offset += 0x28 ;
-
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
-
-                        // operator specific info
-                        add_stage_IO_info(it, conv_pool_stage);
-
-                        if (it->getOpType() == OpType::Scale)
-                        {
-
-                            Blob_Tensor input_2 = Blob_Tensor(
-                                0x00,   // X
-                                1,   // Y
-                                1,   // Z
-                                blob_stats.tensor_number_size,     // X Stride
-                                blob_stats.tensor_number_size*it->getInputTensor(1)->getShape().totalSize(),    // Y Stride
-                                blob_stats.tensor_number_size,
-                                conv_pool_stage.TBOffset,
-                                3,
-                                conv_pool_stage.OutputDataType,
-                                3
-                            );
-                            conv_pool_stage.TBOffset++;
+                        Blob_Tensor input_2 = Blob_Tensor(
+                            0x00,   // X
+                            1,   // Y
+                            1,   // Z
+                            blob_stats.tensor_number_size,     // X Stride
+                            blob_stats.tensor_number_size*it->getInputTensor(1)->getShape().totalSize(),    // Y Stride
+                            blob_stats.tensor_number_size,
+                            conv_pool_stage.TBOffset,
+                            3,
+                            conv_pool_stage.OutputDataType,
+                            3
+                        );
+                        conv_pool_stage.TBOffset++;
 
 
-                            Blob_Tensor bias = Blob_Tensor(
-                                conv_pool_stage.BiasDimX,
-                                conv_pool_stage.BiasDimY,
-                                conv_pool_stage.BiasDimZ,
-                                conv_pool_stage.BiasStrideX,
-                                conv_pool_stage.BiasStrideY,
-                                conv_pool_stage.BiasStrideZ,
-                                0,
-                                0,
-                                conv_pool_stage.BiasDataType,
-                                conv_pool_stage.BiasOrder
-                            );
+                        Blob_Tensor bias = Blob_Tensor(
+                            conv_pool_stage.BiasDimX,
+                            conv_pool_stage.BiasDimY,
+                            conv_pool_stage.BiasDimZ,
+                            conv_pool_stage.BiasStrideX,
+                            conv_pool_stage.BiasStrideY,
+                            conv_pool_stage.BiasStrideZ,
+                            0,
+                            0,
+                            conv_pool_stage.BiasDataType,
+                            conv_pool_stage.BiasOrder
+                        );
 
-                            input_2.write(this);
-                            bias.write(this);
+                        input_2.write(this);
+                        bias.write(this);
 
-                        }
-                        else   // add or mult
-                        {
-                            // 2nd input info , same as first except buffer offset and location
-
-
-                            int input_1Location = conv_pool_stage.Input1Location;
-                            if (conv_pool_stage.Input1Location > 4)
-                            {
-                                input_1Location = 0x04;
-                            }
-
-                            Blob_Tensor input = Blob_Tensor(
-                                it->getInputTensor(0)->getShape()[0],   // X
-                                it->getInputTensor(0)->getShape()[1],   // Y
-                                it->getInputTensor(0)->getShape()[2],   // Z
-                                blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2],     // X Stride
-                                blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0],    // Y Stride
-                                blob_stats.tensor_number_size,
-                                conv_pool_stage.Input1Offset,
-                                input_1Location,
-                                conv_pool_stage.OutputDataType,
-                                conv_pool_stage.OutputOrder
-                            );
-                            input.write(this);
-                        }
-
-                        AddBytes(4, 0x5);    //  preop
-                        AddBytes(4, 0x5);    //  postop
                     }
-                    break;
+                    else   // add or mult
+                    {
+                        // 2nd input info , same as first except buffer offset and location
+
+
+                        int input_1Location = conv_pool_stage.Input1Location;
+                        if (conv_pool_stage.Input1Location > 4)
+                        {
+                            input_1Location = 0x04;
+                        }
+
+                        Blob_Tensor input = Blob_Tensor(
+                            it->getInputTensor(0)->getShape()[0],   // X
+                            it->getInputTensor(0)->getShape()[1],   // Y
+                            it->getInputTensor(0)->getShape()[2],   // Z
+                            blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2],     // X Stride
+                            blob_stats.tensor_number_size*it->getInputTensor(0)->getShape()[2]*it->getInputTensor(0)->getShape()[0],    // Y Stride
+                            blob_stats.tensor_number_size,
+                            conv_pool_stage.Input1Offset,
+                            input_1Location,
+                            conv_pool_stage.OutputDataType,
+                            conv_pool_stage.OutputOrder
+                        );
+                        input.write(this);
+                    }
+
+                    AddBytes(4, 0x5);    //  preop
+                    AddBytes(4, 0x5);    //  postop
+                }
+                break;
                 case OpType::Conversion:
-                    {
+                {
 
-                        bCompatibility c = bCompatibility(&(*it));
-                        next_offset += c.getSerializedSize() + 5*4 ;
+                    bCompatibility c = bCompatibility(&(*it));
+                    next_offset += c.getSerializedSize() + 5*4 ;
 
-                        Data::BufferIterator mem;
-                        mv::Control::StageIterator stg = cm.getStage(0);
-                        auto t = it->getOutputTensor(0);
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+                    auto t = it->getOutputTensor(0);
 
-                        mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
 
-                        if (mem == dm.bufferEnd("IntermediateMemory", stg))
-                            conv_pool_stage.next = 0;
-                        else
-                            conv_pool_stage.next = next_offset ;
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg))
+                        conv_pool_stage.next = 0;
+                    else
+                        conv_pool_stage.next = next_offset ;
 
-                        AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
-                        AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
-                        // Serialize for MyriadX H/W
-                        c.writeStageInfo(&om, this);
+                    // Serialize for MyriadX H/W
+                    c.writeStageInfo(&om, this);
 
-                        AddBytes(4, 0x05);    // 0x12c , no preop
-                        AddBytes(4, 0x05);    // 0x12c , no postop
+                    AddBytes(4, 0x05);    // 0x12c , no preop
+                    AddBytes(4, 0x05);    // 0x12c , no postop
 
-                    }
-                    break;
-
+                }
+                break;
                 default:
                     break;
                     std::cout << "Serialization Error: No Available Write Methods for layer:" << it->getOpType().toString() << std::endl;
                     assert(0);
-            }
-        }
+            }//Switch end
+        }//For end
 
         uint32_t buffer_section_offset = align(next_offset,0x10);
         uint32_t stage_pad_size = buffer_section_offset - next_offset;
         if (stage_pad_size > 0)
             AddBytes(stage_pad_size, 0x00000000);
-
     }
 
     void Blob_buffer::write_buffer_section(mv::ControlModel& cm)
@@ -1052,62 +953,61 @@ namespace mv
             AddBytes(4, buffer_header_pad_val);
 
 
-        if (dm.iterable("ConstantMemory", stg)){
-                for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
+        if (dm.iterable("ConstantMemory", stg))
+        {
+        for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
+        {
+            bool tight = true;
+            for ( auto s : bit->getStrides() )
+                if (s != 0)
+                    tight = false;
+
+            // Push tensor's data
+            if (tight)
+            {
+                for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
                 {
-
-                    bool tight = true;
-                    for ( auto s : bit->getStrides() )
-                        if (s != 0)
-                            tight = false;
-
-
-                    // Push tensor's data
-                    if (tight)
-                        for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
-                        {
-                            u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
-                            AddBytes(2, fp16_val);
-                        }
-                    else{
-                        u_int16_t fp16_val;
-                        for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
-                        {
-                            // TODO: lhs stride
-                            for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
-                            {
-                                //std::cout << "x" ;
-                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
-                                AddBytes(2, fp16_val);
-                            }
-                            for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
-                            {
-                                //std::cout << "o" ;
-                                u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
-                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
-                                AddBytes(2, fp16_val);
-                            }
-                            //std::cout << std::endl;
-                        }
-                        for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
-                        {
-                            fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
-                            AddBytes(2, fp16_val);
-                        }
-                    }
-
-
-
-                    // Push alignment
-                    for (std::size_t i = 0; i < bit->getPostAlign(); ++i)
-                        AddBytes(1, 0);
-
+                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                    AddBytes(2, fp16_val);
                 }
             }
+            else
+            {
+                u_int16_t fp16_val;
+                for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
+                {
+                    // TODO: lhs stride
+                    for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
+                    {
+                        //std::cout << "x" ;
+                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                        AddBytes(2, fp16_val);
+                    }
+                    for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
+                    {
+                        //std::cout << "o" ;
+                        u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
+                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                        AddBytes(2, fp16_val);
+                    }
+                    //std::cout << std::endl;
+                }
+                for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
+                {
+                    fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                    AddBytes(2, fp16_val);
+                }
+           }
 
+            // Push alignment
+            for (std::size_t i = 0; i < bit->getPostAlign(); ++i)
+                AddBytes(1, 0);
+            }
+        }
     }
 
-    blob_summary Blob_buffer::getBlobSumm(){
+    blob_summary Blob_buffer::getBlobSumm()
+    {
         return this->blob_stats;
     }
 

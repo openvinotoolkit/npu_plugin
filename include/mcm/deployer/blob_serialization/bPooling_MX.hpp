@@ -29,8 +29,8 @@ namespace mv{
         std::vector<size_t> output_line_start;
         std::vector<size_t> outputChannelPerformed;
         size_t splits_over_H;
-        size_t splits_over_iC;
-        size_t inputChannels;
+        size_t inputChannelsPadded;
+        size_t outputChannelsPadded;
         size_t inputWidthPadded;
         size_t outputWidthPadded;
 
@@ -44,8 +44,6 @@ namespace mv{
         uint32_t shvPosSlope;
         uint32_t desc_count;
 
-
-
         // Software Fields
         uint32_t radixX;
         uint32_t radixY;
@@ -58,7 +56,7 @@ namespace mv{
 
         bool NCE1_Compatible;
 
-        cnnConvolutionPoolStructure * descriptors;
+        std::vector<cnnConvolutionPoolStructure> descriptors;
 
         public:
             uint32_t number_of_inputs = 1;

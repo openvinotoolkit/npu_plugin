@@ -33,6 +33,7 @@ namespace mv{
             size_t splits_over_H;
             size_t splits_over_iC;
             size_t inputChannelsPadded;
+            size_t outputChannelsPadded;
             size_t inputWidthPadded;
             size_t outputWidthPadded;
 
@@ -60,7 +61,7 @@ namespace mv{
 
             bool NCE1_Compatible;
 
-            cnnConvolutionPoolStructure * descriptors;
+            std::vector<cnnConvolutionPoolStructure> descriptors;
 
         public:
             uint32_t number_of_inputs = 2;

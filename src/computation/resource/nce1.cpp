@@ -98,7 +98,7 @@ std::vector<unsigned> mv::Nce1::get_valid_modes(mv::ModeSelectionNode node)
     {
         if(mode > max_mode)
             continue;
-        unsigned number_of_descriptors_needed = ceil((double)(node.remaining_output_channels) / output_channel_performed_one_shot.at(mode));
+        unsigned number_of_descriptors_needed = ceil_division(node.remaining_output_channels, output_channel_performed_one_shot.at(mode));
         if(number_of_descriptors_needed >= max_descriptors_x_hw_op) //Useless check with the current numbers, but you never know
             continue;
         to_return.push_back(mode);
@@ -200,7 +200,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
 
     // n of input split required (padded to next pow of 2: WHY? Firmware)
     unsigned n_split_c = computeActualInputChannelSplits(param.input_channels/max_ic);
-    unsigned actual_ic_per_split = int(ceil((double)(param.input_channels)/n_split_c));
+    unsigned actual_ic_per_split = mv::ceil_division(param.input_channels, n_split_c);
 
     if((n_split_c < 2) || (actual_ic_per_split % ramBlocks) || (!support_split_over_c))
     {
@@ -257,7 +257,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
     unsigned min_lines = computeMinLinesForConvolution(param);
     // Space required by min lines = min_lines * input_width * input data type size * num input channels
     unsigned space_required = min_lines * input_data_size * param.input_width * param.input_channels;
-    unsigned n_split_w = int(ceil(double(space_required)/data_storage_dimension));
+    unsigned n_split_w = ceil_division(space_required, data_storage_dimension);
 
     unsigned split_output_width =  param.output_width/n_split_w;
     unsigned split_input_width =  param.input_width/n_split_w;
@@ -586,7 +586,7 @@ unsigned mv::Nce1::computeMaxOutputLinesPooling(unsigned width, unsigned output_
     else if(padding[2] || padding[3]) //pad left or right
         max_size = 4096;
     else //pad top?
-        max_size = mv::round_up(width, 16) * (max_output_lines-1 + kernel_height - 1);
+        max_size = mv::round_up(width, 16) * (max_output_lines - 1 + kernel_height - 1);
 
     max_output_lines = max_size / round_up(width, 16) - kernel_height + 2;
     return max_output_lines;

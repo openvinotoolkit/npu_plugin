@@ -8,7 +8,7 @@ namespace mv
     {
 
 
-        std::cout << "RADIX : " << this->radixX << "*" <<  this->radixY << std::endl;
+        //std::cout << "RADIX : " << this->radixX << "*" <<  this->radixY << std::endl;
 
         int fp16_size = 2;
 
@@ -24,9 +24,7 @@ namespace mv
             conv_bias = &this->bias;
         }
         else
-        {
             conv_bias = NULL ;
-        }
 
         if(this->scale_name != "")
         {
@@ -34,10 +32,7 @@ namespace mv
             conv_scale = &this->scale;
         }
         else
-        {
             conv_scale = NULL ;
-        }
-
 
         if (this->NCE1_Compatible)
         {
@@ -59,60 +54,46 @@ namespace mv
             b->AddBytes(4, this->desc_count);
 
 
-            std::cout << "in" << std::endl;
+            //std::cout << "in" << std::endl;
             Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-            std::cout << "Warning: forced Output, Taps Layout" << std::endl;
-            std::cout << "out" << std::endl;
+            //std::cout << "Warning: forced Output, Taps Layout" << std::endl;
+            //std::cout << "out" << std::endl;
             Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
-            std::cout << "taps" << std::endl;
+            //std::cout << "taps" << std::endl;
             Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
 
-            std::cout << "bias" << std::endl;
+            //std::cout << "bias" << std::endl;
             Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
-            std::cout << "scale" << std::endl;
+            //std::cout << "scale" << std::endl;
             Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_scale);
 
-
-            auto input_shape = this->input->getShape();
-            auto output_shape = this->output->getShape();
-
-            /*
-            std::cout << "Serializing a convolution performed in "
-                       << this->DPUmodeVector.size()
-                       << " shots, using "
-                       << splits_over_iC
-                       << " splits over IC and "
-                       << splits_over_H
-                       << " splits over H "
-                       << std::endl;
-            */
-
             //NOTE/TODO: This part probably has to be changed when split over IC come really into play.
-            unsigned i = 0;
-            for (unsigned oc = 0; oc != this->DPUmodeVector.size(); ++oc)
+            int i = -1;
+            for (unsigned h = 0; h < splits_over_H; ++h)
             {
-                for (unsigned ic = 0; ic != splits_over_iC; ++ic)
+                for (unsigned oc = 0; oc < this->DPUmodeVector.size(); ++oc)
                 {
-                    for (unsigned h = 0; h != splits_over_H; ++h)
+                    for (unsigned ic = 0; ic < splits_over_iC; ++ic)
                     {
-                        i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
+                        ++i;
 
                         //std::cout << "Filling descriptor " << i << std::endl;
 
-                        auto output_width = this->outputWidthPadded ; //output_shape[1];
                         auto input_width = this->inputWidthPadded; //input_shape[1];
-
-                        auto output_channels = output_shape[2];
+                        auto output_channels = this->outputChannelsPadded;
 
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
 
-                        this->descriptors[i].dataBaseAddr = 2*input_width*this->input_line_start[i];    // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].dataBaseAddr = 2 * input_width * this->input_line_start[i];    // TODO: Calculate 3f0 (1008)
 
-                        if( this->input->getOrder() == mv::OrderType::RowInterleaved ){
+                        if( this->input->getOrder() == mv::OrderType::RowInterleaved )
+                        {
                             this->descriptors[i].dataBaseAddr *= this->inputChannelsPadded;    // TODO: Calculate 3f0 (1008)
                             this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
                             this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
-                        }else{
+                        }
+                        else
+                        {
                             this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
                             this->descriptors[i].dataChStr = inputBlobTensor.strideZ;
                         }
@@ -120,12 +101,15 @@ namespace mv
                         this->descriptors[i].biasBaseAddr = 0;
                         this->descriptors[i].scaleBaseAddr = 0;
                         //HACK FOR CONCAT
-                        this->descriptors[i].outBaseAddr = 2* outputBlobTensor.strideZ*this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
-                        if( this->output->getOrder() == mv::OrderType::RowInterleaved ){
+                        this->descriptors[i].outBaseAddr = outputBlobTensor.strideZ * this->output_line_start[i];  // TODO: Calculate 3f0 (1008)
+                        if( this->output->getOrder() == mv::OrderType::RowInterleaved )
+                        {
                             this->descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
                             this->descriptors[i].outLnStr = outputBlobTensor.strideY;
                             this->descriptors[i].outChStr = outputBlobTensor.strideZ;
-                        }else{
+                        }
+                        else
+                        {
                             this->descriptors[i].outLnStr = outputBlobTensor.strideY;
                             this->descriptors[i].outChStr = outputBlobTensor.strideZ;
                         }
@@ -140,9 +124,8 @@ namespace mv
                         this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
 
-                        for(unsigned j = 0; j != 32; j++){
+                        for(unsigned j = 0; j != 32; j++)
                             b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
-                        }
 
                     }
                 }
@@ -156,7 +139,9 @@ namespace mv
             biasBlobTensor.write(b);
             scaleBlobTensor.write(b);
 
-        }else{
+        }
+        else
+        {
             // Software
 
             b->AddBytes(4, this->radixX );
@@ -194,158 +179,45 @@ namespace mv
     {
 
         if (it->hasAttr("bias"))
-        {
             this->bias_name = it->get<std::string>("bias");
-        }
         else
-        {
             this->bias_name = "";
-        }
 
         if (it->hasAttr("scale"))
         {
             this->scale_name = it->get<std::string>("scale");
             std::cout << "   in bConvHW contructor : scale tensor name = "<< this->scale_name << std::endl;
-
         }
         else
-        {
             this->scale_name = "";
-        }
 
 
         int mx_valid = 0;
-        if (! it->hasAttr("NCE1_Compatible"))
-        {
-            printf("Serializer Info: attribute NCE1_Compatible not present. Assuming False.\n");
-        }
-        else
-        {
+        if (it->hasAttr("NCE1_Compatible"))
             mx_valid = it->get<int>("NCE1_Compatible");
-        }
+
         this->NCE1_Compatible = mx_valid;
 
-        if(this->NCE1_Compatible){
+        if(this->NCE1_Compatible)
+        {
             // printf("Serializing a HW Conv\n");
 
             int cmxSize = 256*1024;
 
-            if (! it->hasAttr("NCE1_AssignedCMX"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_AssignedCMX'. Defaulting to 256*1024\n");
-            }
-            else
-            {
-                cmxSize = it->get<int>("NCE1_AssignedCMX");
-                printf("Serializer Info: Overriding attribute 'NCE1_AssignedCMX' to 256*1024\n");
-                cmxSize = 256*1024;
-            }
-            if (! it->hasAttr("NCE1_SplitsOverHeight"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverHeight'. Defaulting to 1\n");
-            }
-            else
-            {
-                this->splits_over_H = it->get<size_t>("NCE1_SplitsOverHeight");
-            }
+            this->splits_over_H = it->get<size_t>("NCE1_SplitsOverHeight");
+            this->splits_over_iC = it->get<size_t>("NCE1_SplitsOverInputChannels");
 
-            if (! it->hasAttr("NCE1_SplitsOverInputChannels"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_SplitsOverInputChannels'. Defaulting to 1\n");
-            }
-            else
-            {
-                this->splits_over_iC = it->get<size_t>("NCE1_SplitsOverInputChannels");
-            }
+            this->desc_count = it->get<std::size_t>("NCE1_DescriptorSplits");
+            this->streamingMask = it->get<std::size_t>("NCE1_StreamingMask");
 
-            int descriptors_count = this->splits_over_iC * this->splits_over_H;
+            this->DPUmodeVector = it->get<std::vector<size_t>>("NCE1_Modes");
 
-            if (! it->hasAttr("NCE1_StreamingMask"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_StreamingMask'. Defaulting to 1\n");
-                this->streamingMask = 1;
-            }
-            else
-            {
-                this->streamingMask = it->get<std::size_t>("NCE1_StreamingMask");
-            }
-            printf("Serializer Info: Forcing Attribute 'NCE1_StreamingMask' to 1\n");
-            this->streamingMask = 1;
+            this->input_lines_processed = it->get<std::vector<size_t>>("NCE1_InputLinesProcessed");
+            this->output_lines_processed = it->get<std::vector<size_t>>("NCE1_OutputLinesProcessed");
 
+            this->output_line_start = it->get<std::vector<size_t>>("NCE1_StartOutputLine");
+            this->input_line_start = it->get<std::vector<size_t>>("NCE1_StartInputLine");
 
-
-            if (! it->hasAttr("NCE1_Modes"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_Modes'. Defaulting to 0\n");
-
-                this->DPUmodeVector = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    this->DPUmodeVector.push_back(0);
-                }
-            }
-            else
-            {
-                this->DPUmodeVector = it->get<std::vector<size_t>>("NCE1_Modes");
-            }
-
-            if (! it->hasAttr("NCE1_InputLinesProcessed"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_InputLinesProcessed'. Defaulting to 0\n");
-
-                this->input_lines_processed = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    this->input_lines_processed.push_back(0);
-                }
-            }
-            else
-            {
-                this->input_lines_processed = it->get<std::vector<size_t>>("NCE1_InputLinesProcessed");
-            }
-            if (! it->hasAttr("NCE1_OutputLinesProcessed"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_OutputLinesProcessed'. Defaulting to 0\n");
-
-                this->output_lines_processed = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    this->output_lines_processed.push_back(0);
-                }
-            }
-            else
-            {
-                this->output_lines_processed = it->get<std::vector<size_t>>("NCE1_StartOutputLine");
-            }
-
-            if (! it->hasAttr("NCE1_StartOutputLine"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_StartOutputLine'. Defaulting to 0\n");
-
-                this->output_line_start = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    this->output_line_start.push_back(0);
-                }
-            }
-            else
-            {
-                this->output_line_start = it->get<std::vector<size_t>>("NCE1_StartOutputLine");
-            }
-            if (! it->hasAttr("NCE1_StartInputLine"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_StartInputLine'. Defaulting to 0\n");
-
-                this->input_line_start = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    this->input_line_start.push_back(0);
-                }
-            }
-            else
-            {
-                this->input_line_start = it->get<std::vector<size_t>>("NCE1_StartInputLine");
-            }
             this->concatOffset = 0; // Concat not supported currently
             this->unloadCMX = 0;
             this->overwriteInput = 0;
@@ -356,10 +228,8 @@ namespace mv
             this->shvNegSlope = *(int * )(&val);
             this->shvPosSlope = 1065353216; //*(int * )(&val2);
 
-            this->desc_count = descriptors_count;
-
             // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
-            this->descriptors = new cnnConvolutionPoolStructure[this->desc_count];
+            this->descriptors = std::vector<cnnConvolutionPoolStructure>(this->desc_count);
 
             std::vector<std::size_t> chPerRamBlock;
             std::vector<size_t> topJunk, bottomJunk;
@@ -371,176 +241,36 @@ namespace mv
             int padEn = 1;
 
 
-            if (! it->hasAttr("NCE1_InputChannelsRamBlock"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsRamBlock'. Defaulting to 1\n");
+            chPerRamBlock = it->get<std::vector<std::size_t>>("NCE1_InputChannelsRamBlock");
+            bottomJunk = it->get<std::vector<size_t>>("NCE1_JunkOutputAfter");
+            topJunk = it->get<std::vector<size_t>>("NCE1_JunkOutputBefore");
+            localLS = it->get<std::size_t>("NCE1_LocalLineStride");
+            minLines = it->get<std::vector<std::size_t>>("NCE1_MinLines");
+            stride = it->get<std::array<unsigned short, 2>>("stride")[0];
+            padEn = it->get<std::array<unsigned short, 4>>("padding")[0];
+            LPC = it->get<std::vector<std::size_t>>("NCE1_LinesPerChannel");
+            localCS = it->get<std::vector<std::size_t>>("NCE1_LocalChannelStride");
 
-                chPerRamBlock = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
+            this->inputChannelsPadded = it->get<std::size_t>("NCE1_InputChannelsPadded");
+            this->outputChannelsPadded = it->get<std::size_t>("NCE1_OutputChannelsPadded");
+
+            this->inputWidthPadded = it->get<std::size_t>("NCE1_InputWidthPadded");
+            this->outputWidthPadded = it->get<std::size_t>("NCE1_OutputWidthPadded");
+
+            int i = -1;
+            for (unsigned h = 0; h < splits_over_H; ++h)
+            {
+                for (unsigned ic = 0; ic < splits_over_iC; ++ic)
                 {
-                    chPerRamBlock.push_back(0);
-                }
-            }
-            else
-            {
-                chPerRamBlock = it->get<std::vector<std::size_t>>("NCE1_InputChannelsRamBlock");
-            }
-
-            if (! it->hasAttr("NCE1_JunkOutputAfter"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_JunkOutputAfter'. Defaulting to 0\n");
-
-                bottomJunk = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    bottomJunk.push_back(0);
-                }
-            }
-            else
-            {
-                bottomJunk = it->get<std::vector<size_t>>("NCE1_JunkOutputAfter");
-            }
-
-            if (! it->hasAttr("NCE1_JunkOutputBefore"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_JunkOutputBefore'. Defaulting to 0\n");
-
-                topJunk = {0};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    topJunk.push_back(0);
-                }
-            }
-            else
-            {
-                topJunk = it->get<std::vector<size_t>>("NCE1_JunkOutputBefore");
-            }
-
-            if (! it->hasAttr("NCE1_LocalLineStride"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_LocalLineStride'. Defaulting to 1\n");
-            }
-            else
-            {
-                localLS = it->get<std::size_t>("NCE1_LocalLineStride");
-            }
-
-            if (! it->hasAttr("NCE1_MinLines"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_MinLines'. Defaulting to 1\n");
-
-                minLines = {1};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    minLines.push_back(1);
-                }
-            }
-            else
-            {
-                minLines = it->get<std::vector<std::size_t>>("NCE1_MinLines");
-            }
-
-            if (! it->hasAttr("stride"))
-            {
-                printf("Serializer Info: Needs Attribute 'stride'. Defaulting to 1\n");
-            }
-            else
-            {
-                stride = it->get<std::array<unsigned short, 2>>("stride")[0];
-            }
-
-            if (! it->hasAttr("padding"))
-            {
-                printf("Serializer Info: Needs Attribute 'padding'. Defaulting to 1\n");
-            }
-            else
-            {
-                padEn = it->get<std::array<unsigned short, 4>>("padding")[0];
-            }
-
-            if (! it->hasAttr("NCE1_LinesPerChannel"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_LinesPerChannel'. Defaulting to 1\n");
-
-                LPC = {1};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    LPC.push_back(1);
-                }
-            }
-            else
-            {
-                LPC = it->get<std::vector<std::size_t>>("NCE1_LinesPerChannel");
-            }
-
-            if (! it->hasAttr("NCE1_LocalChannelStride"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_LocalChannelStride'. Defaulting to 1\n");
-
-                localCS = {1};
-                for( int i = 1; i != descriptors_count - 1; i++)
-                {
-                    localCS.push_back(1);
-                }
-            }
-            else
-            {
-                localCS = it->get<std::vector<std::size_t>>("NCE1_LocalChannelStride");
-            }
-
-            if (! it->hasAttr("NCE1_InputChannelsPadded"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_InputChannelsPadded'. Defaulting to 1\n");
-
-                this->inputChannelsPadded = 1;
-            }
-            else
-            {
-                this->inputChannelsPadded = it->get<std::size_t>("NCE1_InputChannelsPadded");
-            }
-
-            if (! it->hasAttr("NCE1_InputWidthPadded"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_InputWidthPadded'. Defaulting to 1\n");
-
-                this->inputWidthPadded = 1;
-            }
-            else
-            {
-                this->inputWidthPadded = it->get<std::size_t>("NCE1_InputWidthPadded");
-            }
-
-            if (! it->hasAttr("NCE1_OutputWidthPadded"))
-            {
-                printf("Serializer Info: Needs Attribute 'NCE1_OutputWidthPadded'. Defaulting to 1\n");
-
-                this->outputWidthPadded = 1;
-            }
-            else
-            {
-                this->outputWidthPadded = it->get<std::size_t>("NCE1_OutputWidthPadded");
-            }
-
-
-            unsigned i;
-            for (unsigned oc = 0; oc != DPUmodeVector.size(); oc++)
-            {
-                for (unsigned ic = 0; ic != splits_over_iC; ic++)
-                {
-                    for (unsigned h = 0; h != splits_over_H; h++)
+                    for (unsigned oc = 0; oc < DPUmodeVector.size(); ++oc)
                     {
-
-                        i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
-
-                        this->descriptors[i] =  cnnConvolutionPoolStructure();
+                        ++i;
 
                         // Relations to other Descriptors
-                        if (i+1 == this->desc_count)
-                        {
+                        if (i+1 == (int)this->desc_count)
                             this->descriptors[i].Line0.linkAddress = 0; // Last.
-                        }else{
-                            this->descriptors[i].Line0.linkAddress = 32*4;
-                        }
+                        else
+                            this->descriptors[i].Line0.linkAddress = 32*4*(oc+1);
 
                         this->descriptors[i].Line0.id = 0;
 
@@ -634,7 +364,7 @@ namespace mv
                             this->descriptors[i].reluEn = 0;
                         }
 
-                        // Fused Pooling
+                        // Fused Pooling, TODO
                         if (0)
                         {
                             this->descriptors[i].Line0.type = NCE1_CONV_POOL;
@@ -678,7 +408,9 @@ namespace mv
                     }
                 }
             }
-        } else {
+        }
+        else
+        {
             // printf("Serializing a SW Conv\n");
             this->radixX = it->getInputTensor(1)->getShape()[0];
             this->radixY = it->getInputTensor(1)->getShape()[1];
