@@ -95,7 +95,7 @@ void write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
     poolIterator->set<std::size_t>("NCE1_LocalLineStride", (std::size_t)local_line_stride);
 
     // TODO: Streaming mask
-    unsigned streaming_mask = 0; // For DDR streaming
+    unsigned streaming_mask = 1; // For DDR streaming
     poolIterator->set<std::size_t>("NCE1_StreamingMask", (std::size_t)streaming_mask);
 
     // Max performed output channels
