@@ -37,7 +37,7 @@ mv::Data::OpListIterator mv::OpModel::checkInputTensor_(Data::TensorIterator inp
 
     if (sourceIt == opEnd())
     {
-        log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + inputTensor->getName() + 
+        log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + inputTensor->getName() +
             "' does not belong to the computation model");
         return opEnd();
     }
@@ -112,7 +112,7 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
         opName = getOpName_(OpType::Input);
 
     *input_ = dataGraph_.node_insert(std::make_shared<op::Input>(shape, dType, order, opName));
-    
+
     if (*input_ == opEnd())
     {
         log(Logger::MessageType::MessageError, "Unable to allocate a new input op");
@@ -129,13 +129,13 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
 
 mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, const std::string& name)
 {
-    
+
     std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Output);
-    
+
     auto outputIt = dataGraph_.node_insert(std::make_shared<op::Output>(opName));
 
     if (outputIt == dataGraph_.node_end())
@@ -153,7 +153,7 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
 
 }
 
-mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape, 
+mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape,
     DType dType, Order order, const std::string& name)
 {
     std::string opName;
@@ -169,7 +169,7 @@ mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, 
     return outputTensor;
 }
 
-mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, 
+mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor,
     std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
 {
     std::string opName;
@@ -230,7 +230,7 @@ mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::concat(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::concat(std::vector<mv::Data::TensorIterator>& inputTensors, unsigned num_inputs, const std::string& name)
 {
     std::string opName;
     if (name != "")
@@ -238,8 +238,12 @@ mv::Data::TensorIterator mv::OpModel::concat(Data::TensorIterator input0Tensor, 
     else
         opName = getOpName_(OpType::Concat);
     Data::OpListIterator concatIt = dataGraph_.node_insert(std::make_shared<op::Concat>(opName));
-    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
-    auto result = defineOp_(concatIt, inputs, 2);
+
+    Data::TensorIterator inputs[num_inputs];
+    for(unsigned i = 0; i!= num_inputs; i++){
+        inputs[i] = inputTensors.at(i);
+    }
+    auto result = defineOp_(concatIt, inputs, num_inputs);
     if (isValid(result))
         incrementOpsCounter_(OpType::Concat);
     return result;
@@ -388,7 +392,7 @@ mv::Data::TensorIterator mv::OpModel::multiply(Data::TensorIterator input0Tensor
 }
 
 mv::Data::TensorIterator mv::OpModel::divide(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
-{   
+{
     std::string opName;
     if (name != "")
         opName = name;
@@ -418,7 +422,7 @@ mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator inputTensor, 
 }
 
 mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator inputTensor, Data::TensorIterator biasesTensor, const std::string& name)
-{   
+{
     std::string opName;
     if (name != "")
         opName = name;
@@ -510,13 +514,13 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
     auto sourceOp = findSourceOp_(sourceTensor);
     sinkOp->setInputTensor(sourceTensor, inputIdx);
     Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, std::make_shared<DataFlow>(sourceOp, 0, sinkOp, inputIdx, sourceTensor));
-    
+
     if (inputFlow != *dataFlowEnd_)
     {
         log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
         return inputFlow;
     }
-    
+
     throw RuntimeError(*this, "Unnable to create data flow");
 
 }

@@ -3,8 +3,8 @@
 mv::ComputationOp::ComputationOp(OpType opType, const std::string &name) :
 Element(name)
 {
-    set<OpType>("opType", opType); 
-    log(Logger::MessageType::MessageInfo, "Initialized");     
+    set<OpType>("opType", opType);
+    log(Logger::MessageType::MessageInfo, "Initialized");
 }
 
 mv::ComputationOp::~ComputationOp()
@@ -14,16 +14,16 @@ mv::ComputationOp::~ComputationOp()
 
 void mv::ComputationOp::validOutputDef_(std::size_t idx)
 {
-
-    if (!hasInputDef())
+    if (!hasInputDef()){
         throw(OpError(*this, "Unable to determine the output tensor while inputs are undefined"));
+    }
 
     if (idx > outputSlots())
         throw(IndexError(*this, idx, "Exceeds the number of outputs defined for this op type"));
 
 }
 
-mv::OpType mv::ComputationOp::getOpType() const 
+mv::OpType mv::ComputationOp::getOpType() const
 {
     return get<OpType>("opType");
 }

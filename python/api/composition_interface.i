@@ -53,19 +53,19 @@ import_array();
     {
         return &unit->recordedModel();
     }
-    
+
     void deleteCompilationUnitObject(mv::CompilationUnit *unit)
     {
         delete unit;
     }
-    
+
     int compile(mv::CompilationUnit *unit)
     {
         unit->initialize();
         auto compOutput = unit->run();
         return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
-    
+
     // TODO: Create Generic Vector Calls
     std::array<unsigned short, 2> * get2DVector(int x, int y){
         std::array<unsigned short, 2> *arr = new std::array<unsigned short, 2>();
@@ -186,16 +186,21 @@ import_array();
             adj_X = 0;
         if (adj_Y < 0)
             adj_Y = 0;
-         
+
         return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)});
 
     }
 
-    mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
+    std::vector<mv::Data::TensorIterator> * pushVector(std::vector<mv::Data::TensorIterator> * base, mv::Data::TensorIterator data){
+        if(base == nullptr)
+            base = new std::vector<mv::Data::TensorIterator>();
+        base->push_back(data);
+        return base;
+    }
+    mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs, unsigned num_inputs){
         /// Add a Concat Layer to the OpModel and return the relevant iterator.
-        /// Allows only two inputs at a time. More must cascade
-        return o.concat(input0, input1);
+        return o.concat(*inputs, num_inputs);
     }
 
     mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
@@ -291,7 +296,7 @@ import_array();
             double tensorflow_y = ceil((inner_y_calc +1) / strideX);
             adj_Y = (int)caffe_y - (int)tensorflow_y;
         }
-        
+
         if (adj_X < 0)
             adj_X = 0;
         if (adj_Y < 0)
@@ -347,7 +352,7 @@ import_array();
     bool isValid(mv::CompositionalModel& o){
     	return o.isValid();
     }
-      
+
  %}
 
 #include <include/mcm/computation/model/control_model.hpp>
@@ -359,7 +364,7 @@ import_array();
 
 namespace mv
 {
-	
+
     namespace Data
     {
         class TensorIterator
@@ -407,7 +412,11 @@ mv::Data::TensorIterator maxpool2D_caffe(mv::CompositionalModel& o, mv::Data::Te
     short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
     short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
-mv::Data::TensorIterator concat(mv::CompositionalModel& o, mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
+
+// %apply (mv::CompositionalModel& o, mv::Data::TensorIterator* INPLACE_ARRAY1, unsigned DIM1) {(mv::CompositionalModel& o, mv::Data::TensorIterator* inputs, unsigned num_inputs)}
+
+std::vector<mv::Data::TensorIterator> * pushVector(std::vector<mv::Data::TensorIterator> * base, mv::Data::TensorIterator data);
+mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs, unsigned num_inputs);
 mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor);
 
 mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);

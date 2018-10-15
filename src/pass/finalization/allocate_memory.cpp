@@ -73,29 +73,30 @@ void allocateInputOutputTensors(mv::ComputationModel& model, mv::TargetDescripto
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        std::cout << opIterator->getOpType().toString() << std::endl;
         for (unsigned x = 0; x < opIterator->inputSlots(); x++)
         {
-            auto inTensor = opIterator->getInputTensor(x);
-            if (!inTensor->isPopulated() &&
-                (! inTensor->hasAttr("allocator")) &&
-                (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
-            {
-                auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
-                if (opIterator->hasAttr("NCE1_Compatible"))
+            if(opIterator->hasInputDef(x)){
+                auto inTensor = opIterator->getInputTensor(x);
+                if (!inTensor->isPopulated() &&
+                    (! inTensor->hasAttr("allocator")) &&
+                    (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
                 {
-                    if (opIterator->get<int>("NCE1_Compatible"))
+                    auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
+                    if (opIterator->hasAttr("NCE1_Compatible"))
                     {
-                        if (inTensor->hasAttr("NCE1_Paddings"))
+                        if (opIterator->get<int>("NCE1_Compatible"))
                         {
-                            std::cout << "Padding for hardware" << std::endl;
-                            auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-                            dm.padRight("ProgrammableInput", buf, paddings);
+                            if (inTensor->hasAttr("NCE1_Paddings"))
+                            {
+                                std::cout << "Padding for hardware" << std::endl;
+                                auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                                dm.padRight("ProgrammableInput", buf, paddings);
 
+                            }
                         }
                     }
-                }
 
+                }
             }
 
         }
@@ -214,151 +215,93 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-
         if (opIterator->getOpType() == OpType::Concat)
         {
+            // Allocate Output
+            auto outputTensor = opIterator->getOutputTensor(0);
+            if (outputTensor->hasAttr("allocator"))
+                dm.deallocateTensor("IntermediateMemory", stageIt, outputTensor);
 
-            auto in0 = opIterator->getInputTensor(0);
-            auto in1 = opIterator->getInputTensor(1);
-            auto out = opIterator->getOutputTensor(0);
+            auto outputBuffer = dm.allocateTensor("IntermediateMemory", stageIt, outputTensor);
 
-            // If already allocated, must be deallocated so that we can stride properly.
-            // Note: This is probably not a good long term solution as we may have
-            // requirements from two different connections, this approach only resolves one.
-            // Probably restrictions on a tensor should be attributes of that tensor.
-
-            if (!in0->hasAttr("allocator")){
-                dm.allocateTensor("IntermediateMemory", stageIt, in0);
-            }
-            if (!in1->hasAttr("allocator")){
-                dm.allocateTensor("IntermediateMemory", stageIt, in1);
-            }
-            if (out->hasAttr("allocator")){
-                dm.deallocateTensor("IntermediateMemory", stageIt, out);
-            }
-
-            auto outRef = dm.allocateTensor("IntermediateMemory", stageIt, out);
-
-            //TODO: assert equal amount of dimensions and equal layouts.
-            std::vector<std::size_t> empty_padding(in0->getShape().ndims());
-            std::vector<std::size_t> lhs_padding(in0->getShape().ndims());
-            std::vector<std::size_t> rhs_padding(in0->getShape().ndims());
-
+            // Allocate Inputs inside of that output
+            auto valid_inputs = 0;
+            for(auto i = 0; i != opIterator->inputSlots(); i++)
+                if(opIterator->hasInputDef(i))
+                    valid_inputs++;
 
             auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;
 
-            // TODO: I think there is a gap in functionality here that would make this trivial
+            // TODO: Request this from the order - What element is axis at.
+            // Currently only working for channels.
+            // auto inOrder = opIterator->getInputTensor(0)->getOrder();
+            channel_index = 2;
 
-            switch(in0->getOrder())
-            {
-                case OrderType::RowMajor:
-                {
-                    switch(axis){
-                        case 2: // Channels
-                        {
-                            channel_index = 2;
-                        }
-                        break;
-                        default:
-                        {
-                            std::cout << "Concat not supported for this axis" << std::endl;
-                            assert(0);
-                        }
-                    }
-                }
-                break;
-                case OrderType::RowMajorPlanar:
-                {
-                    switch(axis){
-                        case 2: // Channels
-                        {
-                            channel_index = 2;
-                        }
-                        break;
-                        default:
-                        {
-                            std::cout << "Concat not supported for this axis" << std::endl;
-                            assert(0);
-                        }
-                    }
-                }
-                break;
-                case OrderType::ColumnMajorPlanar:
-                {
-                    switch(axis){
-                        case 2: // Channels
-                        {
-                            channel_index = 0;
-                        }
-                        break;
-                        default:
-                        {
-                            std::cout << "Concat not supported for this axis" << std::endl;
-                            assert(0);
-                        }
-                    }
-                }
-                break;
-                case OrderType::RowInterleaved:
-                {
-                    switch(axis){
-                        case 2: // Channels
-                        {
-                            channel_index = 2;
-                        }
-                        break;
-                        default:
-                        {
-                            std::cout << "Concat not supported for this axis" << std::endl;
-                            assert(0);
-                        }
-                    }
-                }
-                break;
-                case OrderType::ColumnMajor:
-                {
-                    switch(axis){
-                        case 2: // Channels
-                        {
-                            channel_index = 0;
-                        }
-                        break;
-                        default:
-                        {
-                            std::cout << "Concat not supported for this axis" << std::endl;
-                            assert(0);
-                        }
-                    }
-                }
-                break;
-                default:
-                {
-                    std::cout << "Order: "<< in0->getOrder().toString() << std::endl;
-                    std::cout << "Concat not supported for this format" << std::endl;
-                    assert(0);
-                }
+            std::vector<unsigned> running_concat_offset_LHS;
+            auto prev_offset = 0;
+            auto offset = 0;
+            for(auto i = 0; i != valid_inputs; i++){
+                running_concat_offset_LHS.push_back(prev_offset + offset);
+                prev_offset = prev_offset + offset;
+                // Calculate for next tensor
+                offset = opIterator->getInputTensor(i)->getShape()[channel_index];
             }
 
-            auto lhs = in0->getShape()[channel_index];
-            auto rhs = in1->getShape()[channel_index];
-            lhs_padding.at(channel_index) = lhs;
-            rhs_padding.at(channel_index) = rhs;
+            std::vector<unsigned> running_concat_offset_RHS;
+            std::copy(running_concat_offset_LHS.begin(),
+                    running_concat_offset_LHS.end(),
+                    back_inserter(running_concat_offset_RHS));
+            std::reverse(std::begin(running_concat_offset_RHS), std::end(running_concat_offset_RHS));
+
+            // std::cout << "running_concat_offset_LHS: ";
+            // for(auto i : running_concat_offset_LHS)
+            //     std::cout << i<< ",";
+            // std::cout << std::endl;
+            // std::cout << "running_concat_offset_RHS: ";
+            // for(auto i : running_concat_offset_RHS)
+            //     std::cout << i<< ",";
+            // std::cout << std::endl;
+
+            // std::cout << "Output Tensor Shape: " << outputTensor->getShape().toString() << std::endl;
+
+            for(auto i = 0; i != valid_inputs; i++){
+                auto inputTensor = opIterator->getInputTensor(i);
+
+                // If already allocated from a previous pass, deallocate.
+                // Note: This is probably not a good long term solution as we may have
+                // requirements from two different connections, this approach only resolves one.
+                // Probably restrictions on a tensor should be attributes of that tensor.
+                if (!inputTensor->hasAttr("allocator"))
+                    dm.allocateTensor("IntermediateMemory", stageIt, inputTensor);
+
+                std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
+                std::vector<std::size_t> rhs_padding(inputTensor->getShape().ndims());
 
 
-            auto in0buf = dm.getBuffer("IntermediateMemory", stageIt, in0);
-            auto in1buf = dm.getBuffer("IntermediateMemory", stageIt, in1);
+                // This code assumes all tensors are of equal size. TODO: Assertions
+                auto lhs = running_concat_offset_LHS[i];
+                auto rhs = running_concat_offset_RHS[i];
+
+                lhs_padding.at(channel_index) = lhs;
+                rhs_padding.at(channel_index) = rhs;
+
+                auto ExistingBuffer = dm.getBuffer("IntermediateMemory", stageIt, inputTensor);
 
 
-            in0buf = dm.moveTensor("IntermediateMemory", in0buf, outRef, empty_padding, rhs_padding);
-            in1buf = dm.moveTensor("IntermediateMemory", in1buf, outRef, lhs_padding, empty_padding);
-            in0->set<unsigned>("Offset", in0buf->getOffset());
-            in1->set<unsigned>("Offset", in1buf->getOffset());
-            in0->set<unsigned>("LeadPad", in0buf->getStrides()[0]);
-            in1->set<unsigned>("LeadPad", in1buf->getStrides()[0]);
+                // std::cout << "Tensor Shape: " << inputTensor->getShape().toString() << std::endl;
+                // std::cout << "\t\tLeft Padding: ";
+                // for(auto i : lhs_padding)
+                //     std::cout << i<< ",";
+                // std::cout << std::endl;
+                // std::cout << "\t\tRight Padding: ";
+                // for(auto i : rhs_padding)
+                //     std::cout << i<< ",";
+                // std::cout << std::endl;
 
+                auto NewBuffer = dm.moveTensor("IntermediateMemory", ExistingBuffer, outputBuffer, lhs_padding, rhs_padding);
 
-
+            }
         }
         else if (opIterator->getOpType() == OpType::Input)
         {
@@ -401,7 +344,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         */
         else
         {
-            std::cout << opIterator->getOpType().toString() << std::endl;
 
             for (unsigned x = 0; x < opIterator->inputSlots(); x++)
             {

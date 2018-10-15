@@ -164,13 +164,19 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         if(sink->getOpType() == mv::OpType::Concat){
             if (sourceIsSw){
                 // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
-                childIt->getInputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
+                for(auto i = 0; i < childIt->inputSlots(); i++){
+                    if(childIt->hasInputDef(i))
+                        childIt->getInputTensor(i)->setOrder(mv::OrderType::RowMajorPlanar);
+                }
                 childIt->getOutputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
             }
             // Hardware ops
             else if (sourceIsHw){
                 // flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
-                childIt->getInputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
+                for(auto i = 0; i < childIt->inputSlots(); i++){
+                    if(childIt->hasInputDef(i))
+                        childIt->getInputTensor(i)->setOrder(mv::OrderType::RowInterleaved);
+                }
                 childIt->getOutputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
                 sink->set<int>("NCE1_Compatible", 1);
             }
