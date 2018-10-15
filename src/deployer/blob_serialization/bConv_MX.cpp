@@ -21,7 +21,7 @@ namespace mv
         if(this->bias_name != "")
         {
             this->bias = dm.findTensor(this->bias_name);
-            conv_bias = bias;
+            conv_bias = this->bias;
         }
         else
             std::cout << "Has No Bias" << std::endl;
@@ -29,7 +29,7 @@ namespace mv
         if(this->scale_name != "")
         {
             this->scale = dm.findTensor(this->scale_name);
-            conv_scale = scale;
+            conv_scale = this->scale;
         }
         else
             std::cout << "Has No Bias" << std::endl;

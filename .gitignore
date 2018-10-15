@@ -11,5 +11,4 @@ recordings/
 *.prototxt
 *.caffemodel
 *.ps
-python/tools/caffe_filler.py
 *.png
