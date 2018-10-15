@@ -21,9 +21,9 @@ namespace mv
 
         //printf("Serialization Warning: Manual Override of bEltwise Software layer order\n");
 
-        Blob_Tensor input0BlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input0);
-        Blob_Tensor input1BlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input1);
-        Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+        Blob_Tensor input0BlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input0);
+        Blob_Tensor input1BlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input1);
+        Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
 
         input0BlobTensor.write(b);
         outputBlobTensor.write(b);

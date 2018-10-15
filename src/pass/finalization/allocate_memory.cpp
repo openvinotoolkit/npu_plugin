@@ -414,19 +414,25 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     (! inTensor->hasAttr("modelOutput") || ! inTensor->get<bool>("modelOutput"))
                     )
                 {
+
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, inTensor);
                     if (opIterator->hasAttr("NCE1_Compatible"))
                     {
+
                         if (opIterator->get<int>("NCE1_Compatible"))
                         {
+
                             if (inTensor->hasAttr("NCE1_Paddings"))
                             {
+
                                 std::cout << "Padding for hardware" << std::endl;
                                 auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
                                 dm.padRight("IntermediateMemory", buf, paddings);
 
                             }
+
                         }
+
                     }
 
                 }
@@ -445,16 +451,21 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                     auto buf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
                     if (opIterator->hasAttr("NCE1_Compatible"))
                     {
+
                         if (opIterator->get<int>("NCE1_Compatible"))
                         {
+
                             if(outTensor->hasAttr("NCE1_Paddings"))
                             {
+
                                 std::cout << "Padding for hardware" << std::endl;
                                 auto paddings = outTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
                                 dm.padRight("IntermediateMemory", buf, paddings);
 
                             }
+
                         }
+
                     }
 
                 }

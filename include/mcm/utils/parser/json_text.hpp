@@ -63,6 +63,7 @@ namespace mv
     public:
 
         JSONTextParser(unsigned bufferLength = 64);
+        ~JSONTextParser();
         bool parseFile(const std::string& fileName, json::Value& outputObject);
 
         std::string getLogID() const override;

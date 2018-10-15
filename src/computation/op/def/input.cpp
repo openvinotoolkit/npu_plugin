@@ -12,12 +12,9 @@ SourceOp(OpType::Input, 1, name)
 
 }
 
-bool mv::op::Input::setOutputTensor(Data::TensorIterator &tensor, std::size_t idx)
+void mv::op::Input::setOutputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
-
-    bool result = SourceOp::setOutputTensor(tensor, idx);
-    return result;
-
+    SourceOp::setOutputTensor(tensor, idx);
 }
 
 mv::Tensor mv::op::Input::getOutputDef(std::size_t idx)

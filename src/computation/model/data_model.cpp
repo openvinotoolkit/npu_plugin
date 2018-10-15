@@ -58,32 +58,24 @@ bool mv::DataModel::removeGroupElement(Data::FlowListIterator& element, GroupCon
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order)
 {
 
-    if (flowTensors_->find(name) == flowTensors_->end())
-    {
-        // TODO: handle failure
-        auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
-        log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
-        return result.first;
-    }
+    if (flowTensors_->find(name) != flowTensors_->end())
+        throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of an upopulated tensor name during the creation");
 
-    log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
-    return Data::TensorIterator();
+    auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
+    log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+    return result.first;
 
 }
 
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data)
 {
 
-    if (flowTensors_->find(name) == flowTensors_->end())
-    {
-        // TODO: handle failure
-        auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
-        log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
-        return result.first;
-    }
+    if (flowTensors_->find(name) != flowTensors_->end())
+        throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of a populated tensor name during the creation");
 
-    log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
-    return Data::TensorIterator();
+    auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
+    log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+    return result.first;
 
 }
 

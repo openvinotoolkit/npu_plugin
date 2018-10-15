@@ -33,24 +33,24 @@ std::string mv::ComputationOp::toString() const
     return "Op " + getOpType().toString() + " '" + name_ + "' " + Element::attrsToString_();
 }
 
-mv::Data::TensorIterator mv::ComputationOp::getInputTensor(std::size_t)
+mv::Data::TensorIterator mv::ComputationOp::getInputTensor(std::size_t idx)
 {
-    return mv::Data::TensorIterator();
+    throw IndexError(*this, idx, "Attempt of getting an undefined input");
 }
 
-mv::Data::TensorIterator mv::ComputationOp::getOutputTensor(std::size_t)
+mv::Data::TensorIterator mv::ComputationOp::getOutputTensor(std::size_t idx)
 {
-    return mv::Data::TensorIterator();
+    throw IndexError(*this, idx, "Attempt of getting an undefined output");
 }
 
-bool mv::ComputationOp::setInputTensor(Data::TensorIterator&, std::size_t)
+void mv::ComputationOp::setInputTensor(Data::TensorIterator, std::size_t idx)
 {
-    return false;
+    throw IndexError(*this, idx, "Attempt of setting an undefined input");
 }
 
-bool mv::ComputationOp::setOutputTensor(Data::TensorIterator&, std::size_t)
+void mv::ComputationOp::setOutputTensor(Data::TensorIterator, std::size_t idx)
 {
-    return false;
+    throw IndexError(*this, idx, "Attempt of setting an undefined output");
 }
 
 bool mv::ComputationOp::hasInputDef()

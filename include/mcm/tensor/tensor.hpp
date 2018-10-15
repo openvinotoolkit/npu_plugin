@@ -5,6 +5,7 @@
 #include <memory>
 #include <algorithm>
 #include <vector>
+#include <iterator>
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/order.hpp"
@@ -18,7 +19,10 @@ namespace mv
     class Tensor : public Element
     {
 
-        std::shared_ptr<std::vector<double>> data_;
+        std::vector<double> data_;
+        std::size_t blockSize_;
+        std::vector<std::vector<double>::iterator> blocks_;
+        Shape shape_;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
@@ -49,7 +53,7 @@ namespace mv
         void bindData(Tensor& other, const std::vector<std::size_t>& leftPadding = {}, const std::vector<std::size_t>& rightPadding = {});
         void broadcast(const Shape& shape);
 
-        std::vector<double>& getData();
+        std::vector<double> getData();
         void setDType(DType dType);
         DType getDType() const;
         void setOrder(Order order);
@@ -79,9 +83,14 @@ namespace mv
             return get<bool>("populated");
         }
 
-        inline Shape getShape() const
+        inline Shape& getShape()
         {
-            return get<Shape>("shape");
+            return shape_;
+        }
+
+        inline const Shape& getShape() const
+        {
+            return shape_;
         }
 
         inline std::vector<std::size_t> indToSub(unsigned index) const

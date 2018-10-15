@@ -41,13 +41,13 @@ namespace mv
         // DEPRECIATED.
     }
 
-    Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t)
+    Blob_Tensor::Blob_Tensor(mv::DataModel& dm, mv::ControlModel& cm, RelocationTable& rt , mv::Data::TensorIterator t)
     {
 
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == nullptr)
+        if (t == dm.tensorEnd())
         {
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
@@ -63,42 +63,42 @@ namespace mv
             return;
         }
 
-        switch((int)(*t)->getShape().ndims())
+        switch((int)t->getShape().ndims())
         {
             case 5:
             {
                 // Hardware Weights
-                this->dimX = (*t)->getShape()[0] * (*t)->getShape()[4];
-                this->dimY = (*t)->getShape()[1];
-                this->dimZ = (*t)->getShape()[3] * (*t)->getShape()[2];
+                this->dimX = t->getShape()[0] * t->getShape()[4];
+                this->dimY = t->getShape()[1];
+                this->dimZ = t->getShape()[3] * t->getShape()[2];
             }
             break;
             case 4:
             {
                 // Most Software Weights
-                this->dimZ = (*t)->getShape()[3];
-                this->dimY = (*t)->getShape()[2];
-                this->dimX = (*t)->getShape()[0] * (*t)->getShape()[1];
+                this->dimZ = t->getShape()[3];
+                this->dimY = t->getShape()[2];
+                this->dimX = t->getShape()[0] * t->getShape()[1];
             }
             break;
             case 3:
             {
                 // I/O
-                this->dimX = (*t)->getShape()[0];
-                this->dimY = (*t)->getShape()[1];
-                this->dimZ = (*t)->getShape()[2];
+                this->dimX = t->getShape()[0];
+                this->dimY = t->getShape()[1];
+                this->dimZ = t->getShape()[2];
             }
             break;
             case 2:
             {
                 this->dimX = 1;
                 this->dimY = 1;
-                this->dimZ = (*t)->getShape()[1];
+                this->dimZ = t->getShape()[1];
             }
             break;
             case 1:
             {
-                this->dimX = (*t)->getShape()[0];
+                this->dimX = t->getShape()[0];
                 this->dimY = 1;
                 this->dimZ = 1;
             }
@@ -112,20 +112,20 @@ namespace mv
         }
 
 
-        if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
-            throw RuntimeError(*dm, "Required allocators missing");
+        if (!dm.hasAllocator("ConstantMemory") || !dm.hasAllocator("IntermediateMemory"))
+            throw RuntimeError(dm, "Required allocators missing");
 
         Data::BufferIterator mem;
-        mv::Control::StageIterator stg = cm->getStage(0);
+        mv::Control::StageIterator stg = cm.getStage(0);
 
         unsigned D1_stride = 0, D1_block = 0;
         unsigned D2_stride = 0, D2_block = 0;
         int block = 0;
 
-        if ((*t)->isPopulated())
+        if (t->isPopulated())
         {
-            std::cout << "Populated Tensor: " << (*t)->getName() << (*t)->getOrder().toString()<< std::endl;
-            mem = dm->getBuffer("ConstantMemory", stg, *t);
+            std::cout << "Populated Tensor: " << t->getName() << t->getOrder().toString()<< std::endl;
+            mem = dm.getBuffer("ConstantMemory", stg, t);
             this->location = BLOB_INTERNAL_LOCATION;
 
             if (!mem->getStrides().empty())
@@ -145,18 +145,19 @@ namespace mv
                 D1_stride = -1;
             }
 
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Constant ));
+            // CAUTION - non-tight tensors not considered here
+            int rt_entry = rt.push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Constant ));
             this->offset = rt_entry;
 
         }
         else
         {
 
-            mv::OpModel om(*cm);
+            mv::OpModel om(cm);
 
-            if ((*t)->hasAttr("modelInput"))
+            if (t->hasAttr("modelInput"))
             {
-                if ((*t)->get<bool>("modelInput"))
+                if (t->get<bool>("modelInput"))
                 {
                     // Input tensor, non allocated in the blob
                     this->location = BLOB_INPUT_LOCATION;
@@ -164,11 +165,11 @@ namespace mv
                     this->allocator_name = "ProgrammableInput";
                 }
                 else
-                    throw RuntimeError(**t, "Unallocated tensor marked as non input passed for serialization");
+                    throw RuntimeError(*t, "Unallocated tensor marked as non input passed for serialization");
             }
-            else if ((*t)->hasAttr("modelOutput"))
+            else if (t->hasAttr("modelOutput"))
             {
-                if ((*t)->get<bool>("modelOutput"))
+                if (t->get<bool>("modelOutput"))
                 {
                     // Output tensor, non allocated in the blob
                     this->location = BLOB_OUTPUT_LOCATION;
@@ -176,7 +177,7 @@ namespace mv
                     this->allocator_name = "ProgrammableOutput";
                 }
                 else
-                    throw RuntimeError(**t, "Unallocated tensor marked as non output passed for serialization");
+                    throw RuntimeError(*t, "Unallocated tensor marked as non output passed for serialization");
             }
             else
             {
@@ -186,9 +187,9 @@ namespace mv
             }
 
             // Will throw IndexError on incorrect stage
-            mem = dm->getBuffer(allocator_name, stg, *t);
-            if (mem == dm->bufferEnd(allocator_name, stg))
-                throw RuntimeError(**t, "Unallocated tensor found during the serialization");
+            mem = dm.getBuffer(allocator_name, stg, t);
+            if (mem == dm.bufferEnd(allocator_name, stg))
+                throw RuntimeError(*t, "Unallocated tensor found during the serialization");
 
             unsigned leading_pad = 0;
             if (!mem->getStrides().empty())
@@ -225,9 +226,8 @@ namespace mv
                 D1_stride = -1;
             }
 
-            if(this->offset == -1){
-                this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
-            }
+            if(this->offset == -1)
+                this->offset =  rt.push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
 
         }
 
@@ -243,8 +243,8 @@ namespace mv
         }
         else
         {
-            std::cout << "Not Tight" << (*t)->getOrder().toString() <<  std::endl;
-            switch ( (*t)->getOrder() )
+            std::cout << "Not Tight" << std::endl;
+            switch ( t->getOrder() )
             {
                 case OrderType::RowMajor: //*2 because of data_size
                 {
@@ -338,11 +338,11 @@ namespace mv
 
         }
 
-        switch ( (*t)->getOrder() )
+        switch ( t->getOrder() )
         {
             case OrderType::RowMajorPlanar:
                 {
-                    if((int)(*t)->getShape().ndims() == 3){
+                    if((int)t->getShape().ndims() == 3){
                         // UPA Shave
                         this->order = 0;
                         // ROW MAJOR (CHANNEL MINOR)
@@ -351,7 +351,7 @@ namespace mv
                         this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
                         this->strideY = (this->dimX * this->strideX) + local_StrideX;
                     }else{
-                        if((int)(*t)->getShape().ndims() > 3){
+                        if((int)t->getShape().ndims() > 3){
                             // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
                             // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
                             this->order = 3;

@@ -46,8 +46,6 @@ namespace mv{
             uint32_t shvPosSlope;
             uint32_t desc_count;
 
-
-
             // Software Fields
             uint32_t radixX;
             uint32_t radixY;
@@ -65,7 +63,8 @@ namespace mv{
         public:
             uint32_t number_of_inputs = 2;
             void writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b);
-            bConv2D(mv::ComputationOp* it);
+            bConv2D(mv::Control::OpListIterator it);
+            ~bConv2D();
     };
 }
 

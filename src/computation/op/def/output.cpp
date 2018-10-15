@@ -8,13 +8,11 @@ SinkOp(OpType::Output, 1, name)
 }
 
 
-bool mv::op::Output::setInputTensor(Data::TensorIterator &tensor, std::size_t idx)
+void mv::op::Output::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
 
-    bool result = SinkOp::setInputTensor(tensor, idx);
-    if (result)
-        set<Shape>("shape",  tensor->getShape());
-    return result;
+    SinkOp::setInputTensor(tensor, idx);
+    set<Shape>("shape",  tensor->getShape());
 
 }
 

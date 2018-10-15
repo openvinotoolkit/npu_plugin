@@ -143,7 +143,7 @@ namespace mv
                         // calculate buffer size related to bias
                         if (it->hasAttr("bias"))
                         {
-                            uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
+                            uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getShape().totalSize() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                             blob_stats.data_buffer_count++ ;
                         }
@@ -456,7 +456,7 @@ namespace mv
                             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
+                            bConv2D c = bConv2D(it);
                             c.writeStageInfo(&om, this);
 
                             AddBytes(4, 0x05);    // 0x12c , no preop
@@ -512,7 +512,7 @@ namespace mv
                             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
+                            bConv2D c = bConv2D(it);
                             c.writeStageInfo(&om, this);
 
                             AddBytes(4, conv_pool_stage.preop_type);
@@ -909,13 +909,17 @@ namespace mv
 
                     // Push tensor's data
                     if (tight)
+                    {
+                        //auto data = bit->getData()->getData();
                         for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
                         {
-                            u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                            uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                             AddBytes(2, fp16_val);
                         }
-                    else{
-                        u_int16_t fp16_val;
+                    }
+                    else
+                    {
+                        uint16_t fp16_val;
                         for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
                         {
                             // TODO: lhs stride
@@ -925,11 +929,13 @@ namespace mv
                                 fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
                                 AddBytes(2, fp16_val);
                             }
+
+                            //auto data = bit->getData()->getData();
                             for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
                             {
                                 //std::cout << "o" ;
-                                u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
-                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                                uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;    
+                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                                 AddBytes(2, fp16_val);
                             }
                             //std::cout << std::endl;

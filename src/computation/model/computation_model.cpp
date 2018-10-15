@@ -494,10 +494,10 @@ mv::Data::TensorIterator mv::ComputationModel::findTensor_(const std::string &na
 {
     auto it = flowTensors_->find(name);
 
-    if (it != flowTensors_->end())
-        return it;
+    if (it == flowTensors_->end())
+        throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
-    return Data::TensorIterator();
+    return it;
 
 }
 
@@ -505,14 +505,14 @@ mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterato
 {
 
     if (tensor == tensorEnd())
-        return Data::OpListIterator();
+        throw ArgumentError(*this, "tensor iterator", "end", "Attempt of finding a source op of an invalid tensor");
 
     auto it = tensorsSources_->find(tensor->getName());
 
-    if (it != tensorsSources_->end())
-        return it->second;
+    if (it == tensorsSources_->end())
+        throw ArgumentError(*this, "tensor", "invalid", "Attempt of finding a source op of a tensor that does not belong to the model");
 
-    return Data::OpListIterator();
+    return it->second;
 
 }
 
@@ -571,7 +571,6 @@ mv::Data::TensorIterator mv::ComputationModel::tensorBegin() const
 
 mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
 {
-    //return Data::TensorIterator();
     return flowTensors_->end();
 }
 
