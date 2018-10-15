@@ -92,10 +92,6 @@ namespace mv
                     {
                         i = oc*splits_over_iC*splits_over_H + ic*splits_over_H + h;
 
-                        //unsigned int current_height, output_height;
-                        //current_height = this->input_lines_processed[i];
-                        //output_height = this->output_lines_processed[i];
-
                         //auto output_width = this->outputWidthPadded ; //output_shape[1];
                         auto input_width = this->inputWidthPadded; //input_shape[1];
 
