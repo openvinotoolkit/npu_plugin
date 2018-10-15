@@ -337,8 +337,8 @@ namespace mv
 
             this->CMXSize = cmxSize;
             this->reluSHVAcc = 0;
-            double val = 0;
-            this->shvNegSlope = static_cast<uint32_t>(val);
+            // TODO replace with a proper bit streamer call for PReLU
+            this->shvNegSlope = 0;
             this->shvPosSlope = 1065353216; //*(int * )(&val2);
 
             this->desc_count = it->get<std::size_t>("NCE1_DescriptorSplits");
