@@ -16,7 +16,7 @@ int main()
     auto pool3It = cm.maxpool2D(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
 
     std::vector<mv::Data::TensorIterator> cin = {pool3It, pool2It};
-    auto concat1It = cm.concat(cin, 2);
+    auto concat1It = cm.concat(cin);
     auto pool4It = cm.maxpool2D(concat1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
     cm.output(pool4It);
 

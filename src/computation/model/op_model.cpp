@@ -230,7 +230,7 @@ mv::Data::TensorIterator mv::OpModel::avgpool2D(Data::TensorIterator inputTensor
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::concat(std::vector<mv::Data::TensorIterator>& inputTensors, unsigned num_inputs, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::concat(std::vector<mv::Data::TensorIterator>& inputTensors, const std::string& name)
 {
     std::string opName;
     if (name != "")
@@ -238,6 +238,8 @@ mv::Data::TensorIterator mv::OpModel::concat(std::vector<mv::Data::TensorIterato
     else
         opName = getOpName_(OpType::Concat);
     Data::OpListIterator concatIt = dataGraph_.node_insert(std::make_shared<op::Concat>(opName));
+
+    unsigned num_inputs = inputTensors.size();
 
     Data::TensorIterator inputs[num_inputs];
     for(unsigned i = 0; i!= num_inputs; i++){

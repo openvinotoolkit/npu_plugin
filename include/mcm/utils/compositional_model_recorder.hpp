@@ -42,7 +42,7 @@ namespace mv
 		virtual Data::TensorIterator matMul(Data::TensorIterator input0, Data::TensorIterator input1, const std::string& name = "") override;
 		virtual Data::TensorIterator maxpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
 		virtual Data::TensorIterator avgpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
-		virtual Data::TensorIterator concat(std::vector<mv::Data::TensorIterator>& inputs, unsigned num_inputs, const std::string& name = "") override;
+		virtual Data::TensorIterator concat(std::vector<mv::Data::TensorIterator>& inputs, const std::string& name = "") override;
 		virtual Data::TensorIterator batchNorm(Data::TensorIterator input, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, double varianceEps, const std::string& name = "") override;
 		virtual Data::TensorIterator scale(Data::TensorIterator input, Data::TensorIterator scale, const std::string& name = "") override;
 		virtual Data::TensorIterator relu(Data::TensorIterator input, const std::string& name = "") override;

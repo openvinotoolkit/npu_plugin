@@ -32,7 +32,7 @@ namespace mv
         virtual Data::TensorIterator avgpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize,
              std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") = 0;
 
-        virtual Data::TensorIterator concat(std::vector<mv::Data::TensorIterator>& inputs, unsigned num_inputs,
+        virtual Data::TensorIterator concat(std::vector<mv::Data::TensorIterator>& inputs,
             const std::string& name = "") = 0;
 
         virtual Data::TensorIterator batchNorm(Data::TensorIterator input, Data::TensorIterator mean,

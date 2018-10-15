@@ -195,11 +195,12 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::avgpool2D(Data::TensorI
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::concat(std::vector<mv::Data::TensorIterator>& inputTensors, unsigned num_inputs,
+mv::Data::TensorIterator mv::CompositionalModelRecorder::concat(std::vector<mv::Data::TensorIterator>& inputTensors,
 	const std::string& name)
 {
 	/*get the name of the argument(s)*/
 
+    unsigned num_inputs = inputTensors.size();
 	mv::Data::OpListIterator sourceIts[num_inputs];
 
 	for(unsigned i = 0; i!= num_inputs; i++){
@@ -220,7 +221,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::concat(std::vector<mv::
 	ss.str("");
 	outputSourceFile.close();
 
-	auto result = modelRef_.concat(inputTensors, num_inputs, name);
+	auto result = modelRef_.concat(inputTensors, name);
     return result;
 }
 
