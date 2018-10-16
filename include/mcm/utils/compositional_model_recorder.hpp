@@ -27,6 +27,7 @@ namespace mv
 		std::string recordedSourceFileNameCpp;
 		const std::string savedRecordingsPath_;
 		unsigned weightsVectorCounter = 0;
+		unsigned concatVectorCounter = 0;
 
 		static std::string toString(const std::array<unsigned short, 2>& arr);
 		static std::string toString(const std::array<unsigned short, 4>& arr);

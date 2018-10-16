@@ -8,7 +8,7 @@ int main()
     mv::CompilationUnit unit("cm_two_branch");
 
     // Obtain compositional model from the compilation unit
-    mv::CompositionalModel& cm = unit.model();
+    mv::CompositionalModel& cm = unit.recordedModel();
 
     auto input = cm.input({24, 24, 20}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto pool1It = cm.maxpool2D(input, {1, 1}, {1, 1}, {0, 0, 0, 0});

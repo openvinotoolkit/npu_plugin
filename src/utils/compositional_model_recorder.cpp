@@ -77,7 +77,6 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::output(Data::TensorIter
 mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vector<double>& data, const Shape& shape,
 	DType dType, Order order, const std::string& name)
 {
-
 	/*Create weights vector name e.g weights_0, weights_1 */
 	std::string weightsVectorName = "weights_" + std::to_string(weightsVectorCounter);
 	weightsVectorCounter++;
@@ -186,7 +185,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::avgpool2D(Data::TensorI
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::AvgPool2D) << " =" << " rc.avgpool2D(" << sourceIt0->getName()
 		<< ", " << toString(kernelSize) << ", " << toString(stride) << ", " << toString(padding)
-		<< ")" << ";" << "\n";;
+		<< ")" << ";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
@@ -198,25 +197,39 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::avgpool2D(Data::TensorI
 mv::Data::TensorIterator mv::CompositionalModelRecorder::concat(std::vector<mv::Data::TensorIterator>& inputTensors,
 	const std::string& name)
 {
-	/*get the name of the argument(s)*/
+	/*Create concat vector name e.g concat_0, concat_1 */
+	std::string concatVectorName = "concat_" + std::to_string(weightsVectorCounter);
+	weightsVectorCounter++;
 
-    unsigned num_inputs = inputTensors.size();
-	mv::Data::OpListIterator sourceIts[num_inputs];
-
-	for(unsigned i = 0; i!= num_inputs; i++){
-        sourceIts[i] = modelRef_.getSourceOp(inputTensors.at(i));
-    }
-	// auto sourceIt0 = modelRef_.getSourceOp(input0Tensor);
-	// auto sourceIt1 = modelRef_.getSourceOp(input1Tensor);
-
-	/*open the recording file*/
+    /*open the recording file*/
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
 
-	/*Construct a std::string and write to file*/
-	// TODO: Fix recording concat
-	// ss << "a"
-	// ss << "auto " << modelRef_.getOpName_(OpType::Concat) << " =" << " rc.concat(" << sourceIt0->getName() << ", "
-	// 	<< sourceIt1->getName() << ")" << ";" << "\n";
+	/*an array holding the names of the TensorIterators*/
+    unsigned num_inputs = inputTensors.size();
+	mv::Data::TensorIterator sourceIts[num_inputs];
+
+    /*Begin the vector definition*/
+	ss << "std::vector<mv::Data::TensorIterator> " << concatVectorName << "= {";
+	outputSourceFile << ss.str();
+	ss.str("");
+
+    /*Finish the vector definition*/
+	for(unsigned i = 0; i!= num_inputs; i++){
+	ss << modelRef_.getSourceOp(inputTensors.at(i))->getName() << ", ";
+	}
+
+	/*Overwrite the last ',' and append the closing }*/
+	ss.seekp(-2,ss.cur);
+	ss << '}'  << ";" << "\n";
+	
+	/*write to file*/
+	outputSourceFile << ss.str();
+	ss.str("");
+
+	/*Construct a string of the CompositionalModel concat() call and write to file*/
+	ss << "auto " << modelRef_.getOpName_(OpType::Concat) << " =" << " rc.concat(";
+	ss << concatVectorName  << ")" << ";" << "\n";
+	
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
