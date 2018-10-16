@@ -93,7 +93,7 @@ int main()
     mv::CompilationUnit unit("ResNet18");
 
     // Obtain compositional model from the compilation unit
-    mv::CompositionalModel& cm = unit.recordedModel();
+    mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet18
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);
