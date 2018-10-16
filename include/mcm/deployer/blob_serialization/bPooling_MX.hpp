@@ -60,8 +60,8 @@ namespace mv{
 
         public:
             uint32_t number_of_inputs = 1;
-            void writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b);
-            bPooling_MX(mv::ComputationOp* it);
+            void writeStageInfo(OpModel &om, mv::Blob_buffer* b);
+            bPooling_MX(mv::Control::OpListIterator it);
             static int getSerializedSize(int platform);
 
     };

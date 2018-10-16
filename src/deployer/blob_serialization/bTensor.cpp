@@ -232,7 +232,7 @@ namespace mv
 
 
             if(is_external)
-                this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
+                this->offset =  rt.push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
 
         }
 

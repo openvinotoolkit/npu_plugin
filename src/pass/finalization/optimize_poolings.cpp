@@ -6,8 +6,6 @@
 #include "include/mcm/computation/resource/nce1_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-//GOOD NEWS! Pooling does not require any channel padding, so this pass can be safely executed after the convolution optimization pass
-
 static void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv

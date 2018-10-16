@@ -443,7 +443,7 @@ namespace mv
                         AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // Serialize for MyriadX H/W
-                        bConv2D c = bConv2D(&(*it));
+                        bConv2D c = bConv2D(it);
                         c.writeStageInfo(&om, this);
 
                         AddBytes(4, 0x05);    // 0x12c , no preop
@@ -493,7 +493,7 @@ namespace mv
                         AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // Serialize for MyriadX H/W
-                        bConv2D c = bConv2D(&(*it));
+                        bConv2D c = bConv2D(it);
                         c.writeStageInfo(&om, this);
 
                         AddBytes(4, conv_pool_stage.preop_type);
@@ -706,8 +706,8 @@ namespace mv
                         AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // Serialize for MyriadX H/W
-                        bPooling_MX c = bPooling_MX(&(*it)); //NOTE: Syntatic trick to get to correct iterator
-                        c.writeStageInfo(&om, this);
+                        bPooling_MX c = bPooling_MX(it);
+                        c.writeStageInfo(om, this);
 
                         AddBytes(4, 0x05);    // 0x12c , no preop
                         AddBytes(4, 0x05);    // 0x12c , no postop
@@ -756,8 +756,8 @@ namespace mv
                         AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                         // Serialize for MyriadX H/W
-                        bPooling_MX c = bPooling_MX(&(*it));
-                        c.writeStageInfo(&om, this);
+                        bPooling_MX c = bPooling_MX(it);
+                        c.writeStageInfo(om, this);
 
                         AddBytes(4, conv_pool_stage.preop_type);
                         if (it->hasAttr("postOpType"))

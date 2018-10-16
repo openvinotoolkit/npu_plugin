@@ -4,13 +4,13 @@
 namespace mv
 {
 
-    void bPooling_MX::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
+    void bPooling_MX::writeStageInfo(mv::OpModel& om, mv::Blob_buffer* b)
     {
 
         int fp16_size = 2;
 
-        mv::DataModel dm(*om);
-        mv::ControlModel cm(*om);
+        mv::DataModel dm(om);
+        mv::ControlModel cm(om);
 
         if (this->NCE1_Compatible)
         {
@@ -28,12 +28,17 @@ namespace mv
             b->AddBytes(4, this->desc_count);
 
 
-            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+            mv::Data::TensorIterator pool_bias = dm.tensorEnd();
+            mv::Data::TensorIterator pool_scale = dm.tensorEnd();
+            mv::Data::TensorIterator pool_taps = dm.tensorEnd();
 
-            Blob_Tensor scale = Blob_Tensor(&dm, &cm, &b->reloc_table, nullptr);
-            Blob_Tensor bias = Blob_Tensor(&dm, &cm, &b->reloc_table, nullptr);
-            Blob_Tensor taps = Blob_Tensor(&dm, &cm, &b->reloc_table, nullptr);
+
+            Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
+
+            Blob_Tensor scale = Blob_Tensor(dm, cm, b->reloc_table, pool_scale);
+            Blob_Tensor bias = Blob_Tensor(dm, cm, b->reloc_table, pool_bias);
+            Blob_Tensor taps = Blob_Tensor(dm, cm, b->reloc_table, pool_taps);
 
             std::cout << "Input width padded " << this->inputWidthPadded << std::endl;
             std::cout << "Input channels padded " << this->inputChannelsPadded << std::endl;
@@ -108,8 +113,8 @@ namespace mv
             this->output->setOrder(mv::OrderType::RowMajorPlanar);
             this->input->setOrder(mv::OrderType::RowMajorPlanar);
 
-            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+            Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
 
             b->AddBytes(4, this->radixX);
             b->AddBytes(4, this->radixY);
@@ -125,7 +130,7 @@ namespace mv
         }
     }
 
-    bPooling_MX::bPooling_MX(mv::ComputationOp* it)
+    bPooling_MX::bPooling_MX(mv::Control::OpListIterator it)
         :
           Blob_Op_Definition(),
           input((it->getInputTensor(0))),

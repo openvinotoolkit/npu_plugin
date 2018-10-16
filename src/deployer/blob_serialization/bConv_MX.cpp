@@ -23,16 +23,12 @@ namespace mv
             this->bias = dm.findTensor(this->bias_name);
             conv_bias = this->bias;
         }
-        else
-            conv_bias = NULL ;
 
         if(this->scale_name != "")
         {
             this->scale = dm.findTensor(this->scale_name);
             conv_scale = this->scale;
         }
-        else
-            conv_scale = NULL ;
 
         if (this->NCE1_Compatible)
         {
@@ -55,17 +51,17 @@ namespace mv
 
 
             //std::cout << "in" << std::endl;
-            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
+            Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
             //std::cout << "Warning: forced Output, Taps Layout" << std::endl;
             //std::cout << "out" << std::endl;
-            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
             //std::cout << "taps" << std::endl;
-            Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
+            Blob_Tensor tapsBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->taps);
 
             //std::cout << "bias" << std::endl;
-            Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, conv_bias);
             //std::cout << "scale" << std::endl;
-            Blob_Tensor scaleBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_scale);
+            Blob_Tensor scaleBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, conv_scale);
 
             //NOTE/TODO: This part probably has to be changed when split over IC come really into play.
             int i = -1;
@@ -177,8 +173,7 @@ namespace mv
           output((it->getOutputTensor(0))),
           taps((it->getInputTensor(1))),
           radixX(it->getInputTensor(1)->getShape()[2]),
-          radixY(it->getInputTensor(1)->getShape()[3]),
-          descriptors(nullptr)
+          radixY(it->getInputTensor(1)->getShape()[3])
     {
 
         if (it->hasAttr("bias"))
@@ -428,8 +423,6 @@ namespace mv
 
     bConv2D::~bConv2D()
     {
-        if (this->descriptors != nullptr)
-                delete [] this->descriptors;
     }
 
 }
