@@ -169,6 +169,8 @@ int main()
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet50.blob");
     //unit.compilationDescriptor()["GenerateJSON"]["output"] = std::string("resnet50.json");
 
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+
     // Initialize compilation 
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Serialization);

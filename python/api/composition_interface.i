@@ -44,7 +44,7 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
-        unit->compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = disableHardware;
+        unit->compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = disableHardware;
         return unit;
 
     }

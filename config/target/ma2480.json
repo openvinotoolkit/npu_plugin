@@ -43,7 +43,7 @@
 		"finalize":
 		[
 			"AlignConstOrder",
-			"MarkHardwareConvolution",
+			"MarkHardwareOperations",
 			"FuseReluMX",
 			"AddConversionLayers",
 			"MyriadXPaddings",
