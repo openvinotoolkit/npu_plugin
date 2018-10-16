@@ -20,6 +20,7 @@ constexpr unsigned short mv::OpType::Divide;
 constexpr unsigned short mv::OpType::Reshape;
 constexpr unsigned short mv::OpType::Bias;
 constexpr unsigned short mv::OpType::FullyConnected;
+constexpr unsigned short mv::OpType::DropOut;
 constexpr unsigned short mv::OpType::PReLU;
 
 const std::unordered_map<unsigned short, std::string> mv::OpType::opTypeStrings_ =
@@ -44,7 +45,9 @@ const std::unordered_map<unsigned short, std::string> mv::OpType::opTypeStrings_
     {Reshape, "Reshape"},
     {Bias, "Bias"},
     {FullyConnected, "FullyConnected"},
+	{DropOut, "DropOut"},
     {PReLU, "PReLU"}
+
 };
 
 mv::OpType::OpType() :

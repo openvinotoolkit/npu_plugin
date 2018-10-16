@@ -70,6 +70,8 @@ namespace mv
         virtual Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, 
             const std::string& name = "") = 0;
 
+        virtual Data::TensorIterator dropOut(Data::TensorIterator input, const std::string& name = "") = 0;
+
         virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;
 
         virtual void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) = 0;

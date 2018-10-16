@@ -310,6 +310,11 @@ import_array();
     mv::Data::TensorIterator relu(mv::CompositionalModel& o, mv::Data::TensorIterator input){
         return o.relu(input);
     }
+
+    mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input){
+        return o.dropOut(input);
+    }
+
     mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope){
         return o.prelu(input, negative_slope);
     }
@@ -328,7 +333,7 @@ import_array();
     mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o.fullyConnected(input0, input1);
     }
-
+    
     mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1){
         return o.divide(input0, input1);
     }
@@ -410,6 +415,7 @@ mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIt
 mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
 mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input);
+mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input);
 mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 mv::Data::TensorIterator add(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
@@ -420,6 +426,7 @@ mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterato
 mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
+mv::Data::TensorIterator dropOut(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 bool isValid(mv::CompositionalModel& o);
 
 int testConv(

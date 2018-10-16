@@ -91,6 +91,7 @@ file(GLOB base
     "src/computation/op/def/subtract.cpp"
     "src/computation/op/def/fully_connected.cpp"
     "src/computation/op/def/conversion.cpp"
+    "src/computation/op/def/drop_out.cpp"
 )
 
 file(GLOB logger
@@ -115,8 +116,6 @@ file(GLOB pass
 file(GLOB compiler
     "src/compiler/*"
 )
-
-
 
 if (MSVC)
     add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler})

@@ -37,7 +37,8 @@
 			"FuseBias",
 			"FuseScale",
 			"FuseBias",
-			"FullyConnectedAsConv2D"
+			"FullyConnectedAsConv2D",
+			"RemoveDropOut"
 		],
 
 		"finalize":

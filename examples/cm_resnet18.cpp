@@ -28,21 +28,21 @@
  */
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
-    
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    auto conv = model.conv2D(input, weights, stride, padding);
 
-    // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
-    std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
+	std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
+	auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+	auto conv = model.conv2D(input, weights, stride, padding);
+
+	// For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
+	std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+	std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+	std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+	std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+	auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+	auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+	auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+	auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+	return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 
 }
 
@@ -55,13 +55,13 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input)
 {
 
-    auto inputShape = input->getShape();
-    auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[2], inputShape[2]}, {1, 1}, {1, 1, 1, 1});
-    branch2a = model.relu(branch2a);
-    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, inputShape[2], inputShape[2]}, {1, 1}, {1, 1, 1, 1});
+	auto inputShape = input->getShape();
+	auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[2], inputShape[2]}, {1, 1}, {1, 1, 1, 1});
+	branch2a = model.relu(branch2a);
+	auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, inputShape[2], inputShape[2]}, {1, 1}, {1, 1, 1, 1});
 
-    auto res = model.add(input, branch2b);
-    return model.relu(res);
+	auto res = model.add(input, branch2b);
+	return model.relu(res);
 
 }
 
@@ -74,20 +74,19 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
 mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned outputDepth, std::array<unsigned short, 2> stride)
 {
 
-    auto inputShape = input->getShape();
-    auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0});
-    auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[2], outputDepth}, {1, 1}, {1, 1, 1, 1});
-    branch2a = model.relu(branch2a);
-    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, outputDepth, outputDepth}, stride, {1, 1, 1, 1});
+	auto inputShape = input->getShape();
+	auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0});
+	auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[2], outputDepth}, {1, 1}, {1, 1, 1, 1});
+	branch2a = model.relu(branch2a);
+	auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, outputDepth, outputDepth}, stride, {1, 1, 1, 1});
 
-    auto res = model.add(branch1, branch2b);
-    return model.relu(res);
+	auto res = model.add(branch1, branch2b);
+	return model.relu(res);
 
 }
 
 int main()
 {
-
     mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
 
     // Define the primary compilation unit
@@ -140,5 +139,4 @@ int main()
     //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
     //system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
     return 0;
-
 }

@@ -55,6 +55,7 @@ namespace mv
 		virtual Data::TensorIterator reshape(Data::TensorIterator input, const Shape& shape, const std::string& name = "") override;
 		virtual Data::TensorIterator bias(Data::TensorIterator input, Data::TensorIterator biases, const std::string& name = "") override;
 		virtual Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, const std::string& name = "") override;
+		virtual Data::TensorIterator dropOut(Data::TensorIterator input, const std::string& name = "") override;
 		void createRecordedSourceFiles(); /*Create two files to store the generated source code and weight vector definitions*/
 		void completeRecordedSourceFile(); /*Populate the 'compilation passes' and end of the source file */
 		void writeWeightsToFile(const std::vector<double>& weightsData, std::string weightsVectorName);
