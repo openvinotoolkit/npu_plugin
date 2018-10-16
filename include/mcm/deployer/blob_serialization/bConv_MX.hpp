@@ -63,7 +63,7 @@ namespace mv{
 
         public:
             uint32_t number_of_inputs = 2;
-            void writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b);
+            void writeStageInfo(OpModel &om, mv::Blob_buffer* b);
             bConv2D(mv::Control::OpListIterator it);
             ~bConv2D();
     };

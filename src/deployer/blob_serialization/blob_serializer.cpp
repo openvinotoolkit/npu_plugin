@@ -381,7 +381,7 @@ namespace mv
 
         std::cout << "--- Write Stages ---" << std::endl;
 
-        Blob_stage conv_pool_stage ;
+        Blob_stage conv_pool_stage;
         uint32_t next_offset = 4*3 + 4*5 ;
         mv::OpModel om(cm);
         mv::DataModel dm(cm);
@@ -444,7 +444,7 @@ namespace mv
 
                         // Serialize for MyriadX H/W
                         bConv2D c = bConv2D(it);
-                        c.writeStageInfo(&om, this);
+                        c.writeStageInfo(om, this);
 
                         AddBytes(4, 0x05);    // 0x12c , no preop
                         AddBytes(4, 0x05);    // 0x12c , no postop
@@ -492,9 +492,9 @@ namespace mv
                         AddBytes(4, get_blob_enum(ltype));                                // 0x60
                         AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
-                        // Serialize for MyriadX H/W
+                        // Serialize for MyriadX SW
                         bConv2D c = bConv2D(it);
-                        c.writeStageInfo(&om, this);
+                        c.writeStageInfo(om, this);
 
                         AddBytes(4, conv_pool_stage.preop_type);
                         if (it->hasAttr("postOpType"))
@@ -630,7 +630,7 @@ namespace mv
                 break;
                 case OpType::PReLU:
                 {
-                    bPRelu c = bPRelu(&(*it));
+                    bPRelu c = bPRelu(it);
                     next_offset += c.getSerializedSize() + 5*4;
 
                     // No more layers (last)
@@ -656,7 +656,7 @@ namespace mv
                     AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                     // Serialize for MyriadX H/W
-                    c.writeStageInfo(&om, this);
+                    c.writeStageInfo(om, this);
 
                     AddBytes(4, 0x05);    // 0x12c , no preop
                     AddBytes(4, 0x05);    // 0x12c , no postop

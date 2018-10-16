@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    void bConv2D::writeStageInfo(mv::OpModel *om, mv::Blob_buffer *b)
+    void bConv2D::writeStageInfo(mv::OpModel& om, mv::Blob_buffer *b)
     {
 
 
@@ -12,8 +12,8 @@ namespace mv
 
         int fp16_size = 2;
 
-        mv::DataModel dm(*om);
-        mv::ControlModel cm(*om);
+        mv::DataModel dm(om);
+        mv::ControlModel cm(om);
 
         mv::Data::TensorIterator conv_bias = dm.tensorEnd();
         mv::Data::TensorIterator conv_scale = dm.tensorEnd();
@@ -75,7 +75,7 @@ namespace mv
 
                         //std::cout << "Filling descriptor " << i << std::endl;
 
-                        auto input_width = this->inputWidthPadded; //input_shape[1];
+                        auto input_width = this->inputWidthPadded;
                         auto output_channels = this->outputChannelsPadded;
 
                         // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
@@ -119,9 +119,8 @@ namespace mv
 
                         this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
-                        char *byteArr = static_cast<char*>(static_cast<void*>(&this->descriptors[i]));
                         for(unsigned j = 0; j != 32; j++)
-                            b->AddBytes(4, byteArr[j]);
+                            b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
 
                     }
 
