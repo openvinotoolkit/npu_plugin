@@ -123,6 +123,8 @@ namespace mv
                 InputStrideZ = 2 ;
                 InputOffset = 0 ;
                 InputLocation = 1 ;
+                Input1Offset = 0;
+                Input1Location = 1;
                 InputDataType = 0 ;
                 InputOrder = 0 ;
 

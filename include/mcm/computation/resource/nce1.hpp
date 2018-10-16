@@ -120,6 +120,20 @@ namespace mv
         }
 
         ConvolutionParameters()
+            :kernel_width(0),
+             kernel_height(0),
+             stride_vertical(0),
+             stride_horizontal(0),
+             input_channels(0),
+             output_channels(0),
+             input_width(0),
+             input_height(0),
+             output_width(0),
+             output_height(0),
+             pad_x_up(0),
+             pad_x_down(0),
+             pad_y_left(0),
+             pad_y_right(0)
         {
 
         }
@@ -150,6 +164,8 @@ namespace mv
         ConvolutionParameters parameters;
 
         ModeSelectionNode()
+            :remaining_output_channels(0),
+             parameters()
         {
 
         }

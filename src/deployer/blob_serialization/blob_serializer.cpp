@@ -53,6 +53,7 @@ namespace mv
                 assert(0);
             }
         }
+        return -1; //To avoid warning
     }
 
     void Blob_buffer::calc(mv::ControlModel& cm)

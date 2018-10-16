@@ -3,11 +3,11 @@
 
 namespace mv
 {
-    void bPRelu::writeStageInfo(mv::OpModel * om, Blob_buffer* b)
+    void bPRelu::writeStageInfo(mv::OpModel& om, Blob_buffer* b)
     {
 
-        mv::DataModel dm(*om);
-        mv::ControlModel cm(*om);
+        mv::DataModel dm(om);
+        mv::ControlModel cm(om);
 
         //printf("Serialization Warning: Manual Override of PReLU Software layer OrderType\n");
         //this->output->setOrder(OrderType::RowMajor);
@@ -24,7 +24,7 @@ namespace mv
 
     }
 
-    bPRelu::bPRelu(mv::ComputationOp* it) :
+    bPRelu::bPRelu(Control::OpListIterator it) :
     Blob_Op_Definition(),
     input((it->getInputTensor(0))),
     output((it->getOutputTensor(0))),
@@ -33,7 +33,8 @@ namespace mv
         
     }
 
-    int bPRelu::getSerializedSize(){
+    int bPRelu::getSerializedSize()
+    {
         int fields = 0;
         fields += 3*10 ; // Input, Output
         return fields*4 ;
