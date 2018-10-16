@@ -1,8 +1,7 @@
 #include "include/mcm/computation/op/sink_op.hpp"
 
 mv::SinkOp::SinkOp(OpType opType, std::size_t inputsCount, const std::string &name) :
-ComputationOp(opType, name),
-inputs_(inputsCount, Data::TensorIterator())
+ComputationOp(opType, name)
 {
     set<unsigned short>("inputs", inputsCount);
 }
@@ -12,23 +11,24 @@ mv::SinkOp::~SinkOp()
 
 }
 
-bool mv::SinkOp::setInputTensor(Data::TensorIterator &tensor, std::size_t idx)
+void mv::SinkOp::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
     if (idx >= get<unsigned short>("inputs"))
-        return false;
+        throw IndexError(*this, idx, "Attempt of setting an undefined input");
 
-    inputs_[idx] = tensor;
+    auto result = inputs_.emplace(idx, tensor);
+    if (!result.second)
+        inputs_[idx] = tensor;
     set<std::string>("input" + std::to_string(idx), tensor->getName());
     log(Logger::MessageType::MessageDebug, "Set input " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
-    return true;
 }
 
 mv::Data::TensorIterator mv::SinkOp::getInputTensor(std::size_t idx)
 {
-    if (idx >= get<unsigned short>("inputs"))
-        return Data::TensorIterator();
+    if (inputs_.find(idx) == inputs_.end())
+        throw IndexError(*this, idx, "Exceeds number of inputs");
 
-    return inputs_[idx];
+    return inputs_.at(idx);
 }
 
 bool mv::SinkOp::hasInputDef()
@@ -47,9 +47,7 @@ bool mv::SinkOp::hasInputDef()
 bool mv::SinkOp::hasInputDef(std::size_t idx)
 {
 
-    Data::TensorIterator emptyIt;
-
-    if (inputs_[idx] == emptyIt)
+    if (inputs_.find(idx) == inputs_.end())
         return false;
 
     return true;
@@ -59,6 +57,6 @@ bool mv::SinkOp::hasInputDef(std::size_t idx)
 std::size_t mv::SinkOp::inputSlots()
 {
 
-    return inputs_.size();
+    return get<unsigned short>("inputs");
     
 }

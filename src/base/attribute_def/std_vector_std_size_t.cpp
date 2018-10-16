@@ -50,7 +50,7 @@ namespace mv
             return output;
         }
 
-        MV_REGISTER_ATTR(std::vector<std::size_t>)
+        MV_REGISTER_DUPLICATE_ATTR(std::vector<std::size_t>)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
             .setToStringFunc(toString);

@@ -408,7 +408,6 @@ namespace mv
                     int mx_valid = 0;
                     if (it->hasAttr("NCE1_Compatible"))
                         mx_valid = it->get<int>("NCE1_Compatible");
-
                     if(mx_valid)
                     {
                         int point0 = 0;

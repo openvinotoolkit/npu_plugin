@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    void bConv2D::writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b)
+    void bConv2D::writeStageInfo(mv::OpModel *om, mv::Blob_buffer *b)
     {
 
 
@@ -15,13 +15,13 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        mv::Data::TensorIterator *conv_bias;
-        mv::Data::TensorIterator *conv_scale;
+        mv::Data::TensorIterator conv_bias = dm.tensorEnd();
+        mv::Data::TensorIterator conv_scale = dm.tensorEnd();
 
         if(this->bias_name != "")
         {
             this->bias = dm.findTensor(this->bias_name);
-            conv_bias = &this->bias;
+            conv_bias = this->bias;
         }
         else
             conv_bias = NULL ;
@@ -29,7 +29,7 @@ namespace mv
         if(this->scale_name != "")
         {
             this->scale = dm.findTensor(this->scale_name);
-            conv_scale = &this->scale;
+            conv_scale = this->scale;
         }
         else
             conv_scale = NULL ;
@@ -123,12 +123,14 @@ namespace mv
 
                         this->descriptors[i].coeffChStrOut = this->radixX * this->radixY * inChans * 2 * 8; // (fp16)
 
-
+                        char *byteArr = static_cast<char*>(static_cast<void*>(&this->descriptors[i]));
                         for(unsigned j = 0; j != 32; j++)
-                            b->AddBytes(4, ((int *) &this->descriptors[i])[j]);
+                            b->AddBytes(4, byteArr[j]);
 
                     }
+
                 }
+                
             }
 
             std::cout << "Finished convolution serialization" << std::endl;
@@ -155,10 +157,10 @@ namespace mv
             b->AddBytes(4, this->padStyle);   // 0x80
             b->AddBytes(4, this->dilation);
 
-            Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-            Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
-            Blob_Tensor tapsBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->taps);
-            Blob_Tensor biasBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, conv_bias);
+            Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
+            Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
+            Blob_Tensor tapsBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->taps);
+            Blob_Tensor biasBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, conv_bias);
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);
@@ -168,14 +170,15 @@ namespace mv
         }
     }
 
-    bConv2D::bConv2D(mv::ComputationOp* it)
+    bConv2D::bConv2D(mv::Control::OpListIterator it)
         :
           Blob_Op_Definition(),
           input((it->getInputTensor(0))),
           output((it->getOutputTensor(0))),
           taps((it->getInputTensor(1))),
           radixX(it->getInputTensor(1)->getShape()[2]),
-          radixY(it->getInputTensor(1)->getShape()[3])
+          radixY(it->getInputTensor(1)->getShape()[3]),
+          descriptors(nullptr)
     {
 
         if (it->hasAttr("bias"))
@@ -224,8 +227,8 @@ namespace mv
 
             this->CMXSize = cmxSize;
             this->reluSHVAcc = 0;
-            double val = 0;
-            this->shvNegSlope = *(int * )(&val);
+            // TODO replace with a proper bit streamer call for PReLU
+            this->shvNegSlope = 0;
             this->shvPosSlope = 1065353216; //*(int * )(&val2);
 
             // this->descriptors = (cnnConvolutionPoolStructure *)malloc(128 * this->desc_count);
@@ -265,7 +268,7 @@ namespace mv
                     for (unsigned oc = 0; oc < DPUmodeVector.size(); ++oc)
                     {
                         ++i;
-
+                        
                         // Relations to other Descriptors
                         if (i+1 == (int)this->desc_count)
                             this->descriptors[i].Line0.linkAddress = 0; // Last.
@@ -318,10 +321,10 @@ namespace mv
                         this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 
                         // Myriad X DPU Assignment & Execution Configuration
+                       
                         this->descriptors[i].Line0.mode = this->DPUmodeVector[oc];
                         this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                         this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.
-
                         this->descriptors[i].chPerRamBlock = chPerRamBlock[ic] -1;        // Input Channels per Ram Block
 
 
@@ -335,7 +338,6 @@ namespace mv
                         this->descriptors[i].localCs = (this->descriptors[i].linesPerCh + 1) * this->descriptors[i].localLs;
 
                         this->descriptors[i].rud = 0;   // Re-Use bit
-
                         this->descriptors[i].minLines = minLines[ic] - 1;     // Minimum lines of data required to carry out function
 
                         this->descriptors[i].coeffLpb = (this->descriptors[i].chPerRamBlock+1) * (this->descriptors[i].kernelWidth+1) * (this->descriptors[i].kernelHeight+1) - 1;
@@ -423,4 +425,11 @@ namespace mv
 
         }
     }
+
+    bConv2D::~bConv2D()
+    {
+        if (this->descriptors != nullptr)
+                delete [] this->descriptors;
+    }
+
 }

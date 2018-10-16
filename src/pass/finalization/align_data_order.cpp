@@ -5,6 +5,7 @@
 
 static void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
 {
@@ -70,41 +71,44 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
 }
 
 
-void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel *om);
 
-void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel *om){
+
+void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
+{
 
     if(parentIt->getOpType() == mv::OpType::Output) {
         return;
     }
 
-
-
     parentIt->set<unsigned>("traversed_CR", 1);
 
     auto childIt = parentIt.leftmostChild();
 
-
     // Will the DNA test reveal the child's true father? Find out after the break!
     auto paternityTest = childIt.leftmostParent();
     bool all_parents_resolved = true;
-    while(1){
+    while(1)
+    {
         if(paternityTest->getOpType() != mv::OpType::Constant)
-            if(!paternityTest->hasAttr("traversed_CR") || paternityTest->get<unsigned>("traversed_CR") != 1){
+            if(!paternityTest->hasAttr("traversed_CR") || paternityTest->get<unsigned>("traversed_CR") != 1)
+            {
                 // std::cout << !paternityTest->hasAttr("traversed_CR") <<":"<< paternityTest->get<unsigned>("traversed_CR") << std::endl;
                 all_parents_resolved = false;
             }
         if(paternityTest == childIt.rightmostParent()) break;
         ++paternityTest;
     }
-    if(!all_parents_resolved){
+    if(!all_parents_resolved)
+    {
         // Oh! Bad luck. Looks like these parents need to make up before letting their small child
         // go out into the big bad world of recursion.
         return;
     }
 
 
-    while(1){
+    while(1)
+    {
+
         std::cout << "Source: " << parentIt->getName() << " Sink: " << childIt->getName() << std::endl;
 
         auto source = parentIt;
@@ -186,7 +190,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel *om)
             // mv::Data::TensorIterator originalTensor = flowIt->getTensor();
             mv::Data::TensorIterator originalTensor = childIt->getInputTensor(0);
 
-            mv::Data::TensorIterator conversionOutputTensor = om->conversion(originalTensor, targetOrder);
+            mv::Data::TensorIterator conversionOutputTensor = om.conversion(originalTensor, targetOrder);
 
             //If the tensor we are "splitting" through the conversion layer has paddings, they must be handled.
             //Case1 (HW -> SW): Original tensor keeps it's padding, new tensor gets no padding
@@ -210,8 +214,8 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel *om)
             //Necessary for iterator validity despite remotion
 
             auto a = parentIt.leftmostOutput();
-            om->defineFlow(conversionOutputTensor, sink, i);
-            om->undefineFlow(a);
+            om.defineFlow(conversionOutputTensor, sink, i);
+            om.undefineFlow(a);
             sink->erase(std::string("input") + std::to_string(i));
             std::cout << "Conversion Placed." << std::endl;
 
@@ -249,6 +253,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel *om)
             ++childIt;
 
         }
+        
     }
 
 }
@@ -268,7 +273,7 @@ void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, 
     auto opIt = om.opBegin();
 
 
-    compatibilityResolution(opIt, &om);
+    compatibilityResolution(opIt, om);
     std::cout << "Added. " << std::endl;
 
 

@@ -96,7 +96,7 @@ void checkTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     for (auto it = dm.tensorBegin(); it != dm.tensorEnd(); ++it)
     {
 
-        if (it->isPopulated() && it->getData().size() == 0)
+        if (it->isPopulated() && it->getShape().totalSize() == 0)
         {
 
             compOutput["valid"] = false;

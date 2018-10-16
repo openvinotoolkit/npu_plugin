@@ -47,7 +47,7 @@ file(GLOB nce1
 
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp
-    ${nce1}
+    #${nce1}
     ${graph_src}
     ${resources}
     ${base_src}
@@ -59,7 +59,7 @@ add_executable(mcm_unit_tests
 )
 
 target_link_libraries (mcm_unit_tests gtest m)
-target_sources(mcm_unit_tests PUBLIC ${computation_model} ${ops} ${logger} ${pass} ${base} ${tensor} ${compiler})
+target_link_libraries(mcm_unit_tests cm)
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")

@@ -2,11 +2,14 @@
 #define COMPUTATION_OP_HPP_
 
 #include <string>
+#include <array>
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/base/exception/op_error.hpp"
+#include "include/mcm/base/exception/index_error.hpp"
 
 namespace mv
 {
@@ -27,8 +30,8 @@ namespace mv
         OpType getOpType() const;
         std::string toString() const override;
 
-        virtual bool setInputTensor(Data::TensorIterator& tensor, std::size_t idx);
-        virtual bool setOutputTensor(Data::TensorIterator& tensor, std::size_t idx);
+        virtual void setInputTensor(Data::TensorIterator tensor, std::size_t idx);
+        virtual void setOutputTensor(Data::TensorIterator tensor, std::size_t idx);
         virtual Data::TensorIterator getInputTensor(std::size_t idx);
         virtual Data::TensorIterator getOutputTensor(std::size_t idx);
         virtual bool hasInputDef();
