@@ -83,6 +83,15 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
 
+        if(operationIt->getOpType() != mv::OpType::Conv2D)
+            continue;
+
+        if(operationIt->getOpType() != mv::OpType::AvgPool2D)
+            continue;
+
+        if(operationIt->getOpType() != mv::OpType::MaxPool2D)
+            continue;
+
         std::vector<mv::SplitOverHSolution> splits = computeSplitsOverH(nce, operationIt);
         unsigned splits_over_height = splits.size();
 
