@@ -29,7 +29,6 @@ unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator operationIt)
     auto input_tensor = operationIt->getInputTensor(0);
     auto input_tensor_shape = input_tensor->getShape();
     auto input_width = input_tensor_shape[0];
-    auto input_height = input_tensor_shape[1];
 
     auto output_tensor = operationIt->getOutputTensor(0);
     auto output_tensor_shape = output_tensor->getShape();
@@ -38,7 +37,7 @@ unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator operationIt)
 
     //This is probably wrong
     if(operationIt->hasAttr("NCE1_CMX2CMX"))
-        return input_height; //or output_height
+        return output_height; //or output_height
 
     //Assuming split over H is always possible from this point on
     unsigned max_output_channels_performed = (unsigned)operationIt->get("NCE1_MaxOutputChannelsPerformed").get<std::size_t>();
