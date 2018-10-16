@@ -7,6 +7,15 @@
 namespace mv
 {
 
+    int bPooling_MX::getSerializedSize()
+    {
+        int fields = 0;
+        fields += 7;     // Individuals
+        fields += 2*10;  // Two buffers
+
+        return fields*4;    // All Ints
+    }
+
     void bPooling_MX::writeStageInfo(mv::OpModel& om, mv::Blob_buffer* b)
     {
 
@@ -143,9 +152,10 @@ namespace mv
           radixY(it->get<std::array<short unsigned, 2>>("kSize")[1]),
           strideX(it->get<std::array<short unsigned, 2>>("stride")[0]),
           strideY(it->get<std::array<short unsigned, 2>>("stride")[1]),
-          padX(0),
-          padY(0),
-          padStyle(2)
+          padX(it->get<std::array<unsigned short, 4>>("padding")[0]),
+          padY(it->get<std::array<unsigned short, 4>>("padding")[2]),
+          padStyle(2),
+          dilation(1)
     {
 
 
@@ -354,17 +364,6 @@ namespace mv
                     this->descriptors[i].p15 = 0;
                 }
             }
-        }
-        else
-        {
-            this->radixX = it->getInputTensor(0)->getShape()[0];
-            this->radixY = it->getInputTensor(0)->getShape()[1];
-            this->strideX = it->get<std::array<unsigned short, 2>>("stride")[0];
-            this->strideY = it->get<std::array<unsigned short, 2>>("stride")[1];
-            this->padX = it->get<std::array<unsigned short, 4>>("padding")[0];
-            this->padY = it->get<std::array<unsigned short, 4>>("padding")[2];
-            this->padStyle = 2; // HARDCODED.
-            this->dilation = 1; // HARDCODED.
         }
     }
 }

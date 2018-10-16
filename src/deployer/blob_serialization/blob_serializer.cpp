@@ -715,26 +715,8 @@ namespace mv
                     }
                     else
                     {
-                        // Serialize for S/W
-                        int point0 = 0;
-                        point0 += (8*4) ; // Fields
-                        point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
-                        point0 += (3*4) ; // nextsatge, etc MOVE OUT.
-
-                        if (it->hasAttr("postOpType"))
-                        {
-                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                                point0 += (5*4) ;
-                            else
-                            {
-                                printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
-                                assert(0);
-                            }
-                        }
-                        else
-                            point0 += (2*4) ;
-
-                        next_offset += point0 ;
+                        bPooling_MX c = bPooling_MX(it);
+                        next_offset += c.getSerializedSize() + 5*4;
 
                         // No more layers (last)
                         Data::BufferIterator mem;
@@ -750,31 +732,16 @@ namespace mv
                         }
 
                         if(!finalstage)
-                            conv_pool_stage.next = next_offset;
+                            conv_pool_stage.next = next_offset ;
 
                         AddBytes(4, conv_pool_stage.next);
-                        AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                        AddBytes(4, get_blob_enum(ltype));
                         AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
-                        // Serialize for MyriadX H/W
-                        bPooling_MX c = bPooling_MX(it);
                         c.writeStageInfo(om, this);
 
-                        AddBytes(4, conv_pool_stage.preop_type);
-                        if (it->hasAttr("postOpType"))
-                        {
-
-                            if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
-                            {
-
-                                AddBytes(4, 0x06);    // 0x12c , postop relu
-                                AddBytes(4, 0x00);
-                                AddBytes(4, 0x00);
-                                AddBytes(4, 0x00);
-                            }
-                            else
-                                std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
-                        }
+                        AddBytes(4, 0x05);    // 0x12c , no preop
+                        AddBytes(4, 0x05);    // 0x12c , no postop
                     }
                 }
                 break;
@@ -965,15 +932,16 @@ namespace mv
             // Push tensor's data
             if (tight)
             {
+                //auto data = bit->getData()->getData();
                 for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
                 {
-                    u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                    uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                     AddBytes(2, fp16_val);
                 }
             }
             else
             {
-                u_int16_t fp16_val;
+                uint16_t fp16_val;
                 for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
                 {
                     // TODO: lhs stride
@@ -983,11 +951,13 @@ namespace mv
                         fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
                         AddBytes(2, fp16_val);
                     }
+
+                    //auto data = bit->getData()->getData();
                     for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
                     {
                         //std::cout << "o" ;
-                        u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
-                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                        uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;    
+                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                         AddBytes(2, fp16_val);
                     }
                     //std::cout << std::endl;
