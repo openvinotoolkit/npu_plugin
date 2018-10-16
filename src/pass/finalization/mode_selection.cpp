@@ -23,7 +23,7 @@ namespace mv
 }
 
 
-void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIterator, mv::ModeSelectionResult& modes_to_use, mv::Nce1& nce)
+bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIterator, mv::ModeSelectionResult& modes_to_use, mv::Nce1& nce)
 {
     // ASSUMPTION: all the splits in modes_to_use are are equal (This assumption is true now, and there will be routines to assure it's trueness in the future)
 
@@ -58,31 +58,44 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     std::size_t input_width = input_tensor_dimensions[0];
     std::size_t input_height = input_tensor_dimensions[1];
     std::size_t input_channels = input_tensor_dimensions[2];
-    std::size_t output_width = output_tensor_dimensions[0];
-    std::size_t output_height = output_tensor_dimensions[1];
+
     std::size_t output_channels = output_tensor_dimensions[2];
-    std::size_t kernel_height = weight_tensor_dimensions[0];
 
-    //TEMPORARY HACK: Prepass takes care of everything (mode selection with re optimization routine should take care of this)
-    //std::size_t original_input_channels = input_channels;
-    if(input_tensor->hasAttr("NCE1_Paddings"))
-    {
-        std::vector<std::size_t> input_tensor_paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-        input_width += input_tensor_paddings[0];
-        input_height += input_tensor_paddings[1];
-        input_channels += input_tensor_paddings[2];
-    }
+    std::size_t kernel_height = weight_tensor_dimensions[1];
 
-    if(output_tensor->hasAttr("NCE1_Paddings"))
-    {
-        std::vector<std::size_t> output_tensor_paddings = output_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-        output_width += output_tensor_paddings[0];
-        output_height += output_tensor_paddings[1];
-        output_channels += output_tensor_paddings[2];
-    }
+    //ASSUMPTION: Mode selection always takes place after MX paddings pass.
+    //CONSEQUENCE: There is no need to check for NCE1_Paddings, as each tensor involved in HW convolution
+    //will have it
+
+    //Prepass takes care of padding of width for each input/output tensor to HW operation.
+    //Prepass also takes care of padding of channels for output tensor of an HW operation.
+    //Prepass also takes care of padding of output channels for weight tensor.
+
+    std::vector<std::size_t> input_tensor_paddings = input_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+    input_width += input_tensor_paddings[0];
+    input_height += input_tensor_paddings[1];
+    input_channels += input_tensor_paddings[2];
+    input_tensor->erase("NCE1_Paddings");
+
+    auto weight_tensor_paddings = weight_tensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+    weight_tensor->erase("NCE1_Paddings");
+
+    //We must take care of any additional padding that might be needed for input channels due to the maximum mode selected
+    //For both input tensor and weight tensor
+    auto input_channels_needed_by_max_selected_mode = nce.computeActualInputChannels(input_channels, max_mode);
+    input_tensor_paddings[2] += input_channels_needed_by_max_selected_mode - input_channels;
+    weight_tensor_paddings[2] +=  input_tensor_paddings[2];
+    input_channels = input_channels_needed_by_max_selected_mode;
+
+    //Also output channels paddings need to be updated, because they could have been changed
+    //(e.g. another convolution using the same tensor as input and padding the channels)
+    //They need to be updated just in weight tensor
+    auto real_output_channels = modes_to_use.nodes[0].remaining_output_channels;
+    weight_tensor_paddings[3] += real_output_channels - output_channels;
 
     // Check if any split over input channel is needed
     unsigned splits_over_input_channels = modes_to_use.distances[0].num_splits; //num_splits MUST be equal for every mode, see above assumption
+
     unsigned splitted_input_channels = input_channels / splits_over_input_channels;
     convIterator->set<std::size_t>("NCE1_SplitsOverInputChannels", (std::size_t)splits_over_input_channels);
 
@@ -108,9 +121,9 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
         lines_per_channel[i] = nce.computeLinesPerChannel(splitted_input_channels, local_line_stride, modes[i]);
         local_channel_stride[i] = lines_per_channel[i] * local_line_stride;
 
-        std::cout << "input_channels_per_ram_block[i] " << input_channels_per_ram_block[i] << std::endl;
-        std::cout << "lines_per_channel[i] " << lines_per_channel[i] << std::endl;
-        std::cout << "local_channel_stride[i] " << lines_per_channel[i] << std::endl;
+        //std::cout << "input_channels_per_ram_block[i] " << input_channels_per_ram_block[i] << std::endl;
+        //std::cout << "lines_per_channel[i] " << lines_per_channel[i] << std::endl;
+        //std::cout << "local_channel_stride[i] " << lines_per_channel[i] << std::endl;
 
         min_lines[i] = 0;
         bool poolEn = false;
@@ -126,24 +139,37 @@ void write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     convIterator->set<std::vector<std::size_t>>("NCE1_LocalChannelStride", local_channel_stride);
     convIterator->set<std::vector<std::size_t>>("NCE1_MinLines", min_lines);
     convIterator->set<std::size_t>("NCE1_InputChannelsPadded", splitted_input_channels);
+
+    //Input Tensor and weigth paddings need to be rewritten, as they may have changed due to mode selected
+    input_tensor->set<std::vector<std::size_t>>("NCE1_Paddings", input_tensor_paddings);
+    weight_tensor->set<std::vector<std::size_t>>("NCE1_Paddings", weight_tensor_paddings);
+
+    //Marking the convolution as optimized
+    convIterator->set<bool>("NCE1_Optimized", true);
+
+    if(om.getSourceOp(input_tensor)->hasAttr("NCE1_Optimized"))
+        return true;
+    else
+        return false;
 }
 
-void optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
+mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
 {
     mv::ModeSelectionNode source;
-    source.parameters = mv::fillConvolutionParameters(convIterator);
+    source.parameters = mv::fillConvolutionParameters(convIterator, true);
 
     source.remaining_output_channels = source.parameters.output_channels;
-    mv::ModeSelectionResult modes = nce.optimize_convolution(source);
-    write_hardware_attributes(om, convIterator, modes, nce);
+    return nce.optimize_convolution(source);
 }
 
 void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    std::cout << "mode " << std::endl;
+    std::cout << "Mode selection pass" << std::endl;
     mv::OpModel om(model);
     mv::Nce1 nce;
-    std::queue<mv::Data::OpListIterator> to_be_optimized;
+
+    //Maybe an algorithm for topological sorting is needed, but for now a stack instead of queue will work
+    std::stack<mv::Data::OpListIterator> to_be_optimized;
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
@@ -173,10 +199,15 @@ void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
     while(to_be_optimized.size() > 0)
     {
 
-        auto opIterator = to_be_optimized.front();
+        auto opIterator = to_be_optimized.top();
+        std::cout << "Optimizing " << opIterator->getName() << std::endl;
         to_be_optimized.pop();
-        optimize_convolution_nce1(nce, opIterator, om);
+        auto modes = optimize_convolution_nce1(nce, opIterator, om);
+        if(write_hardware_attributes(om, opIterator, modes, nce))
+            std::cout << "FOOOOOOOOOOOOOOOOOOOL! Reoptimization is needed! :(" << std::endl;
 
     }
+
+    std::cout << "Mode selection pass ended" << std::endl;
 
 }

@@ -87,55 +87,56 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 
 int main()
 {
-	// Define the primary compilation unit
-	mv::CompilationUnit unit("ResNet18");
+    mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
 
-	// Obtain compositional model from the compilation unit
-	mv::CompositionalModel& cm = unit.model();
+    // Define the primary compilation unit
+    mv::CompilationUnit unit("ResNet18");
 
-	// Compose the model for ResNet18
-	auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);
-	auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
-	conv1 = cm.relu(conv1);
-	auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-	auto res2a = residualConvBlock(cm, pool1, 64, {1, 1});
-	auto res2b = residualBlock(cm, res2a);
-	auto res3a = residualConvBlock(cm, res2b, 128, {2, 2});
-	auto res3b = residualBlock(cm, res3a);
-	auto res4a = residualConvBlock(cm, res3b, 256, {2, 2});
-	auto res4b = residualBlock(cm, res4a);
-	auto res5a = residualConvBlock(cm, res4b, 512, {2, 2});
-	auto res5b = residualBlock(cm, res5a);
-	auto pool5 = cm.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
-	std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
-	auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);
-	auto fc1000 = cm.fullyConnected(pool5, weights);
-	auto softmax = cm.softmax(fc1000);
-	cm.output(softmax);
+    // Obtain compositional model from the compilation unit
+    mv::CompositionalModel& cm = unit.model();
 
-	// Load target descriptor for the selected target to the compilation unit
-	if (!unit.loadTargetDescriptor(mv::Target::ma2480))
-		exit(1);
+    // Compose the model for ResNet18
+    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);
+    auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
+    conv1 = cm.relu(conv1);
+    auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto res2a = residualConvBlock(cm, pool1, 64, {1, 1});
+    auto res2b = residualBlock(cm, res2a);
+    auto res3a = residualConvBlock(cm, res2b, 128, {2, 2});
+    auto res3b = residualBlock(cm, res3a);
+    auto res4a = residualConvBlock(cm, res3b, 256, {2, 2});
+    auto res4b = residualBlock(cm, res4a);
+    auto res5a = residualConvBlock(cm, res4b, 512, {2, 2});
+    auto res5b = residualBlock(cm, res5a);
+    auto pool5 = cm.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
+    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);
+    auto fc1000 = cm.fullyConnected(pool5, weights);
+    auto softmax = cm.softmax(fc1000);
+    cm.output(softmax);
 
-	// Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-	unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
-	unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-	unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-	unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-	unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet18.blob");
-	unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    // Load target descriptor for the selected target to the compilation unit
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+        exit(1);
+    
+    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet18.blob");
+    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    
+    // Initialize compilation 
+    unit.initialize();
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().disablePass(mv::PassGenre::Adaptation);
 
-	// Initialize compilation
-	unit.initialize();
-	//unit.passManager().disablePass(mv::PassGenre::Serialization);
-	//unit.passManager().disablePass(mv::PassGenre::Adaptation);
+    // Run all passes
+    unit.run();
 
-	// Run all passes
-	unit.run();
-
-	//system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
-	//system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
-	//system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
-	return 0;
-
+    //system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+    //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
+    //system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
+    return 0;
 }

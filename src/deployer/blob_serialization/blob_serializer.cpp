@@ -88,28 +88,15 @@ namespace mv
                 case OpType::Conv2D:
                 case OpType::FullyConnected:
                     {
-                        uint32_t kernel_sizeX = 0 ;
-                        uint32_t kernel_sizeY = 0 ;
-                        uint32_t kernel_sizeZ = 0 ;
-                        uint32_t kernel_sizeN = 0 ;
+                        uint32_t total_weight_size = 0 ;
+                        auto weight_tensor = it->getInputTensor(1);
+                        auto weight_tensor_shape = weight_tensor->getShape();
 
                         if ( it->getOpType() == OpType::FullyConnected )
-                        {
-                            kernel_sizeX = it->getInputTensor(1)->getShape().totalSize() ;
-                            kernel_sizeY = 1 ;
-                            kernel_sizeZ = 1 ;
-                            kernel_sizeN = 1 ;
-                            blob_stats.stage_section_size += (45*4) ;
-                        }
+                            total_weight_size = weight_tensor_shape.totalSize();
                         else
                         {
-
-                            kernel_sizeX = it->getInputTensor(1)->getShape()[0] ;
-                            kernel_sizeY = it->getInputTensor(1)->getShape()[1] ;
-                            kernel_sizeZ = it->getInputTensor(1)->getShape()[2] ;
-                            kernel_sizeN = it->getInputTensor(1)->getShape()[3] ;
-
-
+                            total_weight_size = weight_tensor_shape.totalSize();
                             int mx_valid = 0;
                             if (! it->hasAttr("NCE1_Compatible"))
                             {
@@ -149,19 +136,21 @@ namespace mv
 
                         // TAPS region
                         // calculate buffer sizes etc related to weights
-                        uint32_t weights_region_size = kernel_sizeN*kernel_sizeX*kernel_sizeY*kernel_sizeZ*blob_stats.weights_number_size;
+                        uint32_t weights_region_size = total_weight_size*blob_stats.weights_number_size;
                         blob_stats.weights_region_size += weights_region_size ;
                         blob_stats.data_buffer_count++ ;
 
                         // calculate buffer size related to bias
                         if (it->hasAttr("bias"))
                         {
-                            uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
+                            uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getShape().totalSize() ;
                             blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                             blob_stats.data_buffer_count++ ;
                         }
 
-                        blob_stats.stage_count++ ;
+                        blob_stats.stage_count++;
+                        //ASK TO IAN: Why this if?
+                        /*
                         if (it->hasAttr("postOpType"))
                         {
                             if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
@@ -169,6 +158,7 @@ namespace mv
                                 blob_stats.stage_section_size += (3*4) ;
                             }
                         }
+                        */
                     }
                     break;
                 case OpType::MaxPool2D:
@@ -466,7 +456,7 @@ namespace mv
                             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
+                            bConv2D c = bConv2D(it);
                             c.writeStageInfo(&om, this);
 
                             AddBytes(4, 0x05);    // 0x12c , no preop
@@ -522,7 +512,7 @@ namespace mv
                             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
                             // Serialize for MyriadX H/W
-                            bConv2D c = bConv2D(&(*it));
+                            bConv2D c = bConv2D(it);
                             c.writeStageInfo(&om, this);
 
                             AddBytes(4, conv_pool_stage.preop_type);
@@ -911,7 +901,6 @@ namespace mv
                 for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
                 {
 
-                    std::cout << "Tensor: " << bit->toString() << std::endl;
                     bool tight = true;
                     for ( auto s : bit->getStrides() )
                         if (s != 0)
@@ -920,13 +909,17 @@ namespace mv
 
                     // Push tensor's data
                     if (tight)
+                    {
+                        //auto data = bit->getData()->getData();
                         for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
                         {
-                            u_int16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                            uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                             AddBytes(2, fp16_val);
                         }
-                    else{
-                        u_int16_t fp16_val;
+                    }
+                    else
+                    {
+                        uint16_t fp16_val;
                         for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
                         {
                             // TODO: lhs stride
@@ -936,11 +929,13 @@ namespace mv
                                 fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
                                 AddBytes(2, fp16_val);
                             }
+
+                            //auto data = bit->getData()->getData();
                             for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
                             {
                                 //std::cout << "o" ;
-                                u_int16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
-                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->getData()[idx]));  // Convert to fp16.
+                                uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;    
+                                fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                                 AddBytes(2, fp16_val);
                             }
                             //std::cout << std::endl;

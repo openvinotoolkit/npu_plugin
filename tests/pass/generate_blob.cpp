@@ -6,6 +6,20 @@
 TEST (mv_num_convert, fp32_to_fp16)
 {
    mv_num_convert cvtr ;
+   EXPECT_EQ(cvtr.fp32_to_fp16(1.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625f),0x3c01 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(-2.0f),0xc000 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(65504.0f),0x7bff );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000610352f),0x0400 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000609756f),0x03ff );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0000000596046f),0x0001 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.0f),0x0000 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(0.333251953125f),0x3555 );
+}
+
+TEST (mv_num_convert, fp64_to_fp16)
+{
+   mv_num_convert cvtr ;
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0),0x3c00 );
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625),0x3c01 );
    EXPECT_EQ(cvtr.fp32_to_fp16(-2.0),0xc000 );

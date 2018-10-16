@@ -13,8 +13,8 @@ namespace mv
         //this->output->setOrder(OrderType::RowMajor);
         //this->input->setOrder(OrderType::RowMajor);
 
-        Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-        Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+        Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
+        Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
 
         b->AddBytes(4, this->opX);
 

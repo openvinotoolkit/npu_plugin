@@ -43,13 +43,15 @@
 
 		"finalize":
 		[
+			"AlignConstOrder",
 			"MarkHardwareConvolution",
+			"FuseReluMX",
+			"AddConversionLayers",
 			"MyriadXPaddings",
 			"ModeSelection",
 			"SplitsOverH",
 			"ScaleFission",
 			"FormatMXWeights",
-			"AddConversionLayers",
 			"ArrangeLinearExecution",
 			"AllocatePopulatedTensors",
 			"AllocateUnpopulatedTensors",

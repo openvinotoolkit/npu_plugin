@@ -58,32 +58,24 @@ bool mv::DataModel::removeGroupElement(Data::FlowListIterator& element, GroupCon
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order)
 {
 
-    if (flowTensors_->find(name) == flowTensors_->end())
-    {
-        // TODO: handle failure
-        auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
-        log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
-        return result.first;
-    }
+    if (flowTensors_->find(name) != flowTensors_->end())
+        throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of an upopulated tensor name during the creation");
 
-    log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
-    return Data::TensorIterator();
+    auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
+    log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+    return result.first;
 
 }
 
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data)
 {
 
-    if (flowTensors_->find(name) == flowTensors_->end())
-    {
-        // TODO: handle failure
-        auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
-        log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
-        return result.first;
-    }
+    if (flowTensors_->find(name) != flowTensors_->end())
+        throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of a populated tensor name during the creation");
 
-    log(Logger::MessageType::MessageError, "Unable to define an output tensor - tensor already defined");
-    return Data::TensorIterator();
+    auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
+    log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+    return result.first;
 
 }
 
@@ -176,6 +168,29 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
 
     log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " +
         std::to_string(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
+    return buf;
+
+}
+
+mv::Data::BufferIterator mv::DataModel::moveTensor(const std::string& allocatorName, Data::BufferIterator slaveBuffer, Data::BufferIterator masterBuffer,
+    const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
+{
+
+    if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
+        throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
+
+    auto buf = (*memoryAllocators_)[allocatorName]->move(slaveBuffer, masterBuffer, leftPadding, rightPadding);
+
+    if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(slaveBuffer->getStage()))
+    {
+        log(Logger::MessageType::MessageInfo, "Moved tensor " + (*buf)->getData()->getName() + "' using " +
+            (*memoryAllocators_)[allocatorName]->toString());
+        return buf;
+    }
+
+    log(Logger::MessageType::MessageWarning, "Unable to move '" + (*buf)->getData()->getName() + "' (of size " +
+        std::to_string((*buf)->getData()->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
+
     return buf;
 
 }

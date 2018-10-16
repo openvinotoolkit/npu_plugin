@@ -33,6 +33,8 @@ namespace mv{
             size_t splits_over_H;
             size_t splits_over_iC;
             size_t inputChannelsPadded;
+            size_t inputWidthPadded;
+            size_t outputWidthPadded;
 
             uint32_t streamingMask;
             uint32_t concatOffset;
@@ -43,8 +45,6 @@ namespace mv{
             uint32_t shvNegSlope;
             uint32_t shvPosSlope;
             uint32_t desc_count;
-
-
 
             // Software Fields
             uint32_t radixX;
@@ -63,7 +63,8 @@ namespace mv{
         public:
             uint32_t number_of_inputs = 2;
             void writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b);
-            bConv2D(mv::ComputationOp* it);
+            bConv2D(mv::Control::OpListIterator it);
+            ~bConv2D();
     };
 }
 

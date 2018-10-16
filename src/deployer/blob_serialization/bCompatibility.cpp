@@ -14,8 +14,8 @@ namespace mv
             this->input->setOrder(OrderType::ColumnMajor);
         }*/
 
-        Blob_Tensor inputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->input);
-        Blob_Tensor outputBlobTensor = Blob_Tensor(&dm, &cm, &b->reloc_table, &this->output);
+        Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
+        Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
 
         inputBlobTensor.write(b);
         outputBlobTensor.write(b);

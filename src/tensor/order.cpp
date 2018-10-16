@@ -206,7 +206,7 @@ bool mv::Order::operator!=(const OrderType &other) const
     return !operator==(other);
 }
 
-mv::Order::operator OrderType() const
+mv::Order::operator mv::OrderType() const
 {
     return order_;
 }

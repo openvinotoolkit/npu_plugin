@@ -41,13 +41,13 @@ namespace mv
         // DEPRECIATED.
     }
 
-    Blob_Tensor::Blob_Tensor(mv::DataModel* dm, mv::ControlModel* cm, RelocationTable * rt , mv::Data::TensorIterator* t)
+    Blob_Tensor::Blob_Tensor(mv::DataModel& dm, mv::ControlModel& cm, RelocationTable& rt , mv::Data::TensorIterator t)
     {
 
         int fp16_size = 2;
         this->dataType = 0;
 
-        if ( t == nullptr)
+        if (t == dm.tensorEnd())
         {
             // Exit early if this is an Empty / Null Tensor
             this->dimX = 0;
@@ -63,42 +63,42 @@ namespace mv
             return;
         }
 
-        switch((int)(*t)->getShape().ndims())
+        switch((int)t->getShape().ndims())
         {
             case 5:
             {
                 // Hardware Weights
-                this->dimX = (*t)->getShape()[0] * (*t)->getShape()[4];
-                this->dimY = (*t)->getShape()[1];
-                this->dimZ = (*t)->getShape()[3] * (*t)->getShape()[2];
+                this->dimX = t->getShape()[0] * t->getShape()[4];
+                this->dimY = t->getShape()[1];
+                this->dimZ = t->getShape()[3] * t->getShape()[2];
             }
             break;
             case 4:
             {
                 // Most Software Weights
-                this->dimZ = (*t)->getShape()[3];
-                this->dimY = (*t)->getShape()[2];
-                this->dimX = (*t)->getShape()[0] * (*t)->getShape()[1];
+                this->dimZ = t->getShape()[3];
+                this->dimY = t->getShape()[2];
+                this->dimX = t->getShape()[0] * t->getShape()[1];
             }
             break;
             case 3:
             {
                 // I/O
-                this->dimX = (*t)->getShape()[0];
-                this->dimY = (*t)->getShape()[1];
-                this->dimZ = (*t)->getShape()[2];
+                this->dimX = t->getShape()[0];
+                this->dimY = t->getShape()[1];
+                this->dimZ = t->getShape()[2];
             }
             break;
             case 2:
             {
                 this->dimX = 1;
                 this->dimY = 1;
-                this->dimZ = (*t)->getShape()[1];
+                this->dimZ = t->getShape()[1];
             }
             break;
             case 1:
             {
-                this->dimX = (*t)->getShape()[0];
+                this->dimX = t->getShape()[0];
                 this->dimY = 1;
                 this->dimZ = 1;
             }
@@ -112,53 +112,52 @@ namespace mv
         }
 
 
-        if (!dm->hasAllocator("ConstantMemory") || !dm->hasAllocator("IntermediateMemory"))
-            throw RuntimeError(*dm, "Required allocators missing");
+        if (!dm.hasAllocator("ConstantMemory") || !dm.hasAllocator("IntermediateMemory"))
+            throw RuntimeError(dm, "Required allocators missing");
 
         Data::BufferIterator mem;
-        mv::Control::StageIterator stg = cm->getStage(0);
+        mv::Control::StageIterator stg = cm.getStage(0);
 
-        int blk_stride = 0;
+        unsigned D1_stride = 0, D1_block = 0;
+        unsigned D2_stride = 0, D2_block = 0;
         int block = 0;
 
-        if ((*t)->isPopulated())
+        if (t->isPopulated())
         {
-
-            mem = dm->getBuffer("ConstantMemory", stg, *t);
+            std::cout << "Populated Tensor: " << t->getName() << t->getOrder().toString()<< std::endl;
+            mem = dm.getBuffer("ConstantMemory", stg, t);
             this->location = BLOB_INTERNAL_LOCATION;
 
             if (!mem->getStrides().empty())
             {
                 for(std::size_t i = 1; i < mem->getStrides().size() - 2; i++)
                 {
-                    blk_stride = (int)mem->getStrides()[i];
-                    block += (int)mem->getBlockSize();
-                    if (blk_stride != 0)
+                    D1_stride = (int)mem->getStrides()[i];
+                    D1_block += (int)mem->getBlockSize();
+                    if (D1_stride != 0)
                     {
                         break;
                     }
                 }
-                // this->dimY = this->dimY + 1;
-
             }
             else
             {
-                blk_stride = -1;
+                D1_stride = -1;
             }
 
             // CAUTION - non-tight tensors not considered here
-            int rt_entry = rt->push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Constant ));
+            int rt_entry = rt.push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Constant ));
             this->offset = rt_entry;
 
         }
         else
         {
 
-            mv::OpModel om(*cm);
+            mv::OpModel om(cm);
 
-            if ((*t)->hasAttr("modelInput"))
+            if (t->hasAttr("modelInput"))
             {
-                if ((*t)->get<bool>("modelInput"))
+                if (t->get<bool>("modelInput"))
                 {
                     // Input tensor, non allocated in the blob
                     this->location = BLOB_INPUT_LOCATION;
@@ -166,11 +165,11 @@ namespace mv
                     this->allocator_name = "ProgrammableInput";
                 }
                 else
-                    throw RuntimeError(**t, "Unallocated tensor marked as non input passed for serialization");
+                    throw RuntimeError(*t, "Unallocated tensor marked as non input passed for serialization");
             }
-            else if ((*t)->hasAttr("modelOutput"))
+            else if (t->hasAttr("modelOutput"))
             {
-                if ((*t)->get<bool>("modelOutput"))
+                if (t->get<bool>("modelOutput"))
                 {
                     // Output tensor, non allocated in the blob
                     this->location = BLOB_OUTPUT_LOCATION;
@@ -178,7 +177,7 @@ namespace mv
                     this->allocator_name = "ProgrammableOutput";
                 }
                 else
-                    throw RuntimeError(**t, "Unallocated tensor marked as non output passed for serialization");
+                    throw RuntimeError(*t, "Unallocated tensor marked as non output passed for serialization");
             }
             else
             {
@@ -188,34 +187,47 @@ namespace mv
             }
 
             // Will throw IndexError on incorrect stage
-            mem = dm->getBuffer(allocator_name, stg, *t);
-            if (mem == dm->bufferEnd(allocator_name, stg))
-                throw RuntimeError(**t, "Unallocated tensor found during the serialization");
+            mem = dm.getBuffer(allocator_name, stg, t);
+            if (mem == dm.bufferEnd(allocator_name, stg))
+                throw RuntimeError(*t, "Unallocated tensor found during the serialization");
 
             unsigned leading_pad = 0;
             if (!mem->getStrides().empty())
             {
+                bool Dim1_Stride_Set = false;
 
                 // Start at 1 and go til -1 because the first and last strides are
                 // leading and trailing "padding"
                 for(std::size_t i = 1; i < mem->getStrides().size() - 2; i++)
                 {
 
-                    blk_stride = (int)mem->getStrides()[i];
+                    unsigned blk_stride = (int)mem->getStrides()[i];
                     block += (int)mem->getBlockSize();
-                    if (blk_stride != 0)
-                        break;
+                    if (blk_stride != 0){
+                        if(Dim1_Stride_Set && blk_stride != D1_stride){
+                            // 2nd dimension stride
+                            D2_stride = blk_stride - D1_stride;  // wraparound
+                            D2_block = block;
+                            break;  // no further striding support over 2D
+                        }else{
+                            D1_block = block;
+                            block = 0;
+                            D1_stride = blk_stride;
+                            Dim1_Stride_Set = true;
+                        }
+                    }
 
                 }
 
                 leading_pad = mem->getStrides()[0];
 
             }
-            else
-                blk_stride = -1;
+            else{
+                D1_stride = -1;
+            }
 
             if(this->offset == -1)
-                this->offset =  rt->push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
+                this->offset =  rt.push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
 
         }
 
@@ -224,74 +236,97 @@ namespace mv
         int local_StrideY = 0;
         int local_StrideZ = 0;
 
-        if (blk_stride <= 0)
+        if (D1_stride <= 0)
         {
-            std::cout << "Tight" << std::endl;
             // Tight or Empty Buffer. Either way no exterior striding
+            std::cout << "Tight" << std::endl;
         }
         else
         {
             std::cout << "Not Tight" << std::endl;
-            switch ( (*t)->getOrder() )
+            switch ( t->getOrder() )
             {
-                case OrderType::ColumnMajor: //*2 because of data_size
+                case OrderType::RowMajor: //*2 because of data_size
                 {
-                    if (block == this->dimX * 2)
-                        local_StrideX = blk_stride;
-                    else if (block == this->dimX*this->dimY * 2)
-                        local_StrideY = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ * 2)
-                        local_StrideZ = blk_stride;
+                    if (D1_block == this->dimZ * 2)
+                        local_StrideZ = D1_stride;
+                    else if (D1_block == this->dimZ*this->dimY * 2)
+                        local_StrideY = D1_stride;
+                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
+                        local_StrideX = D1_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
                 }
                 break;
-                case OrderType::RowMajor:
+                //PROBLEM: This assumes a 3D tensor, while weights in MX are 5D.
+                //Still, weights are the same after some experiments, why is this happening?
+                case OrderType::ColumnMajor:
                 {
-                    if (block == this->dimZ)
-                        local_StrideZ = blk_stride;
-                    else if (block == this->dimY*this->dimZ)
-                        local_StrideY = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
-                        local_StrideX = blk_stride;
+                    // This is horrible because values in allocator are 5D
+                    if (D1_stride == this->dimZ* 2 * 8){
+                        local_StrideY = D1_stride - 16;
+                    }
+                    else if (D1_stride == this->dimY*this->dimZ* 2  * 8){
+                        local_StrideZ = D1_stride - 16;
+
+                    }
+                    else if ( D1_stride == this->dimX*this->dimY*this->dimZ * 2 * 8){
+
+                        local_StrideX = D1_stride - 16;
+                    }
                     else
-                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << std::endl;
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << D1_block << std::endl;
                 }
                 break;
                 case OrderType::RowMajorPlanar:
                 {
-                    if (block == this->dimZ)
-                        local_StrideZ = blk_stride;
-                    else if (block == this->dimX*this->dimY)
-                        local_StrideX = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
-                        local_StrideY = blk_stride;
+                    if (D1_block == this->dimZ * 2)
+                        local_StrideZ = D1_stride;
+                    else if (D1_block == this->dimX*this->dimY* 2)
+                        local_StrideX = D1_stride;
+                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
+                        local_StrideY = D1_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (RowMajorPlanar)" << std::endl;
                 }
                 break;
                 case OrderType::ColumnMajorPlanar:
                 {
-                    if (block == this->dimY)
-                        local_StrideY = blk_stride;
-                    else if (block == this->dimX*this->dimY)
-                        local_StrideX = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ )
-                        local_StrideZ = blk_stride;
+                    if (D1_block == this->dimY* 2)
+                        local_StrideY = D1_stride;
+                    else if (D1_block == this->dimX*this->dimY* 2)
+                        local_StrideX = D1_stride;
+                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
+                        local_StrideZ = D1_stride;
                     else
                         std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
                 }
                 break;
                 case OrderType::RowInterleaved: //*2 because of input_data size
                 {
-                    if (block == this->dimY * 2)
-                        local_StrideY = blk_stride;
-                    else if (block == this->dimZ*this->dimY * 2)
-                        local_StrideZ = blk_stride;
-                    else if ( block == this->dimX*this->dimY*this->dimZ * 2 )
-                        local_StrideX = blk_stride;
+
+                    // S
+                    if (D1_block == this->dimX * 2){
+                        local_StrideX = D1_stride;
+                    }
+                    else if (D1_block == this->dimZ*this->dimX * 2){
+                        local_StrideZ = D1_stride;
+                    }
+                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2 )
+                    {
+                        local_StrideY = D1_stride;
+                    }
                     else
-                        std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved)" << std::endl;
+                    {
+                        std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved) Block Size: " << D1_block << std::endl;
+                    }
+
+                    if(D2_stride != 0){
+                        // Can't be X, that would be Dim1.
+                        // Can't be Y, or rather, it will be unobserved in the meta info if it is.
+                        // Therefore, it must be Z
+                        local_StrideZ = D2_stride;
+                    }
                 }
                 break;
 
@@ -300,34 +335,46 @@ namespace mv
 
                 }
             }
-            std::cout << "local_StrideX: " << local_StrideX << std::endl;
-            std::cout << "local_StrideY: " << local_StrideY << std::endl;
-            std::cout << "local_StrideZ: " << local_StrideZ << std::endl;
-            std::cout << "this->dimX: " << this->dimX << std::endl;
-            std::cout << "this->dimY: " << this->dimY << std::endl;
-            std::cout << "this->dimZ: " << this->dimZ << std::endl;
-            std::cout << "Block size: " << block << std::endl;
-            std::cout << "Block stride: " << blk_stride << std::endl;
 
         }
 
-        switch ( (*t)->getOrder() )
+        switch ( t->getOrder() )
         {
             case OrderType::RowMajorPlanar:
-                // UPA Shave
-                this->order = 0;
-                // ROW MAJOR (CHANNEL MINOR)
-                // I.E: Y, X, Z
-                this->strideZ = fp16_size;
-                this->strideX = (this->dimZ + local_StrideZ)*this->strideZ;
-                this->strideY = (this->dimX + local_StrideX)*this->strideX;
+                {
+                    if((int)t->getShape().ndims() == 3){
+                        // UPA Shave
+                        this->order = 0;
+                        // ROW MAJOR (CHANNEL MINOR)
+                        // I.E: Y, X, Z
+                        this->strideZ = fp16_size;
+                        this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
+                        this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                    }else{
+                        if((int)t->getShape().ndims() > 3){
+                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                            this->order = 3;
+                            this->strideZ = fp16_size;
+                            this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
+                            this->strideX = (this->dimY * this->strideY) + local_StrideY;
+                        }else{
+                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                            this->order = 1;
+                            this->strideX = fp16_size;
+                            this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                            this->strideZ = (this->dimY * this->strideY) + local_StrideY;
+                        }
+                    }
+                }
                 break;
             case OrderType::RowMajor:
-                // NOT USED
-                this->order = 2;
+                // Misleading - weights
+                this->order = 1;
                 this->strideX = fp16_size;
-                this->strideY = (this->dimX + local_StrideX)*this->strideX;
-                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+                this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                this->strideZ = (this->dimY * this->strideY) + local_StrideY;
                 break;
             case OrderType::ColumnMajor:
                 // NCE1 - Option 1
@@ -335,29 +382,45 @@ namespace mv
                 // I.E: X, Y, Z
                 this->order = 1;    // THIS ENUM IS WRONG
                 this->strideX = fp16_size;
-                this->strideY = (this->dimX + local_StrideX)*this->strideX;
-                this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+                this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                this->strideZ = (this->dimY * this->strideY) + local_StrideY;
                 break;
             case OrderType::ColumnMajorPlanar:
-                this->order = 1;
-                this->strideY = fp16_size;
-                this->strideX = (this->dimY + local_StrideY)*this->strideY;
-                this->strideZ = (this->dimX + local_StrideX)*this->strideX;
-                // this->strideX = fp16_size;
-                // this->strideY = (this->dimX + local_StrideX)*this->strideX;
-                // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+                {
+                    this->order = 1;
+                    this->strideY = fp16_size;
+                    this->strideX = (this->dimY * this->strideY) + local_StrideY;
+                    this->strideZ = (this->dimX * this->strideX) + local_StrideX;
+                    // this->strideX = fp16_size;
+                    // this->strideY = (this->dimX + local_StrideX)*this->strideX;
+                    // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+                }
                 break;
              case OrderType::RowInterleaved:
                 this->order = 2;
                 this->strideX = fp16_size;
-                this->strideZ = (this->dimX *this->strideX) + local_StrideX;
+                this->strideZ = (this->dimX * this->strideX) + local_StrideX;
                 this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
                 break;
 
             default:
                 std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
                 assert(0);
+
         }
+
+        // if (strcmp((*t)->getName(), "Conversion_2:0") != 0){
+
+        // }
+
+        // std::cout << "Order: " << (*t)->getOrder().toString() << std::endl;
+        std::cout << "X: Dim:" << this->dimX << ", Stride: " << this->strideX << "(local: " << local_StrideX << ")" << std::endl;
+        std::cout << "Y: Dim:" << this->dimY << ", Stride: " << this->strideY << "(local: " << local_StrideY << ")" << std::endl;
+        std::cout << "Z: Dim:" << this->dimZ << ", Stride: " << this->strideZ << "(local: " << local_StrideZ << ")" << std::endl;
+        // std::cout << "Block size: " << D1_block << "|" << D2_block << std::endl;
+        // std::cout << "Block stride: " << D1_stride << "|" << D2_stride << std::endl;
+        // std::cout << "Strides:" << D1_stride << "," << D2_stride << std::endl;
+        // std::cout << "Blocks:" << D1_block << "," << D2_block << std::endl;
     }
 
 }

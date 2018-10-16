@@ -1,6 +1,7 @@
 #ifndef MV_PASS_PASS_REGISTRY_HPP_
 #define MV_PASS_PASS_REGISTRY_HPP_
 
+#include <string>
 #include "include/mcm/base/registry.hpp"
 #include "include/mcm/pass/pass_entry.hpp"
 

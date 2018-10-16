@@ -8,3 +8,7 @@ build/
 *.svg
 *.txt
 recordings/
+*.prototxt
+*.caffemodel
+*.ps
+*.png

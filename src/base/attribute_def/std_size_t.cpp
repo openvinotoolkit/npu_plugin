@@ -26,7 +26,7 @@ namespace mv
             return std::to_string(a.get<std::size_t>());
         }
 
-        MV_REGISTER_ATTR(std::size_t)
+        MV_REGISTER_DUPLICATE_ATTR(std::size_t)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
             .setToStringFunc(toString);

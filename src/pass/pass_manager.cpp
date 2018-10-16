@@ -330,23 +330,24 @@ mv::json::Object& mv::PassManager::step()
         {
             ++currentStage_;
 
-            if (currentStage_->first == PassGenre::Validation)
-            {
-                if (currentStage_ != passFlow_.begin())
-                    if ((currentStage_ - 1)->second->size() == 0)
-                        ++currentStage_;
-            }
+			if (currentStage_ == passFlow_.end())
+			{
+				completed_ = true;
+				running_ = false;
+				compOutput_["finished"] = true;
+				return compOutput_;
+			}
 
-            if (currentStage_ == passFlow_.end())
-            {
-                completed_ = true;
-                running_ = false;
-                compOutput_["finished"] = true;
-                return compOutput_;
-            }
-
+			if (currentStage_->first == PassGenre::Validation)
+			{
+				if (currentStage_ != passFlow_.begin())
+					if ((currentStage_ - 1)->second->size() == 0)
+						++currentStage_;
+			}
+            
             currentPass_ = currentStage_->second->begin();
-        }
+        
+		}
             
         auto passPtr = pass::PassRegistry::instance().find(*currentPass_);
 

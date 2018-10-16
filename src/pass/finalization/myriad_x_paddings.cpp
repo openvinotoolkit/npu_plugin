@@ -21,7 +21,7 @@ namespace mv
     }
 }
 
-//ASSUMPTION: This pass must be executed after the Mark Hardware Convolution pass.
+//ASSUMPTION 1: This pass must be executed after the Mark Hardware Convolution pass.
 //REASON: There is no need to pad tensors not involved in HW operations at all.
 void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
@@ -50,41 +50,39 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         auto output_tensor_dimension = output_tensor->getShape();
 
         auto weight_tensor = operationIt->getInputTensor(1);
-        auto weight_tensor_dimension = weight_tensor->getShape();
 
         size_t input_width = input_tensor_dimension[0];
         size_t input_height = input_tensor_dimension[1];
         size_t input_channels = input_tensor_dimension[2];
 
-        size_t actual_input_width = nce.computeActualInputWidth(input_width);
         size_t actual_input_height = nce.computeActualInputHeight(input_height);
+        size_t actual_input_width = nce.computeActualInputWidth(input_width);
         size_t actual_input_channels = nce.computeActualInputChannels(input_channels);
 
         size_t output_width = output_tensor_dimension[0];
         size_t output_height = output_tensor_dimension[1];
-        size_t output_channels = output_tensor_dimension[2];
 
         size_t actual_output_width = nce.computeActualOutputWidth(output_width);
         size_t actual_output_height = nce.computerActualOutputHeight(output_height);
-        size_t actual_output_channels = nce.computeActualOutputChannels(output_channels);
 
         //God please forgive me for the magic numbers
         std::vector<size_t> input_tensor_paddings(3);
         std::vector<size_t> output_tensor_paddings(3);
         std::vector<size_t> weight_tensor_paddings(4);
 
+        //Channels need to be physically padded just for weights apparentely
         input_tensor_paddings[0] = actual_input_width - input_width;
         input_tensor_paddings[1] = actual_input_height - input_height;
-        input_tensor_paddings[2] = actual_input_channels - input_channels;
+        input_tensor_paddings[2] = 0;
 
         output_tensor_paddings[0] = actual_output_width - output_width;
         output_tensor_paddings[1] = actual_output_height - output_height;
-        output_tensor_paddings[2] = actual_output_channels - output_channels;
+        output_tensor_paddings[2] = 0;
 
         weight_tensor_paddings[0] = 0;
         weight_tensor_paddings[1] = 0;
         weight_tensor_paddings[2] = actual_input_channels - input_channels;
-        weight_tensor_paddings[3] = actual_output_channels - output_channels;
+        weight_tensor_paddings[3] = 0;
 
         if(input_tensor->hasAttr("NCE1_Paddings"))
         {
@@ -115,5 +113,8 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         input_tensor->set<std::vector<size_t>>("NCE1_Paddings", input_tensor_paddings);
         output_tensor->set<std::vector<size_t>>("NCE1_Paddings", output_tensor_paddings);
         weight_tensor->set<std::vector<size_t>>("NCE1_Paddings", weight_tensor_paddings);
+
+        operationIt->set<std::size_t>("NCE1_InputWidthPadded", actual_input_width);
+        operationIt->set<std::size_t>("NCE1_OutputWidthPadded", actual_output_width);
     }
 }

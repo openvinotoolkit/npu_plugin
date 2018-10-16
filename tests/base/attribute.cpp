@@ -4,6 +4,7 @@
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/tensor/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
+#include <array>
 
 TEST(attribute, def_double)
 {
@@ -128,7 +129,7 @@ TEST(attribute, mod_std_vector_std_size_t)
 TEST(attribute, def_std_array_unsidged_short_2)
 {
 
-    std::array<unsigned short, 2> v1({1, 2});
+    std::array<unsigned short, 2> v1 = {1, 2};
     mv::Attribute a1 = v1;
     auto r = a1.get<std::array<unsigned short, 2>>();
     ASSERT_EQ(r, v1);
@@ -137,7 +138,7 @@ TEST(attribute, def_std_array_unsidged_short_2)
 
 TEST(attribute, mod_std_array_unsidged_short_2)
 {
-    std::array<unsigned short, 2> v1({1, 2}), v2({3, 4});
+    std::array<unsigned short, 2> v1 = {1, 2}, v2 = {3, 4};
     mv::Attribute a1 = v1;
     a1 = v2;
     auto r = a1.get<std::array<unsigned short, 2>>();
@@ -147,7 +148,7 @@ TEST(attribute, mod_std_array_unsidged_short_2)
 TEST(attribute, def_std_array_unsidged_short_3)
 {
 
-    std::array<unsigned short, 3> v1({1, 2, 3});
+    std::array<unsigned short, 3> v1 = {1, 2, 3};
     mv::Attribute a1 = v1;
     auto r = a1.get<std::array<unsigned short, 3>>();
     ASSERT_EQ(r, v1);
@@ -156,7 +157,7 @@ TEST(attribute, def_std_array_unsidged_short_3)
 
 TEST(attribute, mod_std_array_unsidged_short_3)
 {
-    std::array<unsigned short, 3> v1({1, 2, 3}), v2({4, 5, 6});
+    std::array<unsigned short, 3> v1 = {1, 2, 3}, v2 = {4, 5, 6};
     mv::Attribute a1 = v1;
     a1 = v2;
     auto r = a1.get<std::array<unsigned short, 3>>();
@@ -166,7 +167,7 @@ TEST(attribute, mod_std_array_unsidged_short_3)
 TEST(attribute, def_std_array_unsidged_short_4)
 {
 
-    std::array<unsigned short, 4> v1({1, 2, 3, 4});
+    std::array<unsigned short, 4> v1 = {1, 2, 3, 4};
     mv::Attribute a1 = v1;
     auto r = a1.get<std::array<unsigned short, 4>>();
     ASSERT_EQ(r, v1);
@@ -175,7 +176,7 @@ TEST(attribute, def_std_array_unsidged_short_4)
 
 TEST(attribute, mod_std_array_unsidged_short_4)
 {
-    std::array<unsigned short, 4> v1({1, 2, 3, 4}), v2({5, 6, 7, 8});
+    std::array<unsigned short, 4> v1 = {1, 2, 3, 4}, v2 = {5, 6, 7, 8};
     mv::Attribute a1 = v1;
     a1 = v2;
     auto r = a1.get<std::array<unsigned short, 4>>();

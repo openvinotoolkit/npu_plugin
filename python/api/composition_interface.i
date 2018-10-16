@@ -166,22 +166,27 @@ import_array();
         int adj_X = 0, adj_Y = 0;
         mv::Shape i = input->getShape();
 
-        if (padX > 0)
+        //if (padX > 0)
         {
-            double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
             double caffe_x = ceil(inner_x_calc / strideX) + 1;
             double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = caffe_x - tensorflow_x;
+            adj_X = (int)caffe_x - (int)tensorflow_x;
         }
 
-        if (padY > 0)
+        //if (padY > 0)
         {
-            double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
             double caffe_y = ceil(inner_y_calc / strideX) + 1;
             double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = caffe_y - tensorflow_y;
+            adj_Y = (int)caffe_y - (int)tensorflow_y;
         }
-        
+
+        if (adj_X < 0)
+            adj_X = 0;
+        if (adj_Y < 0)
+            adj_Y = 0;
+         
         return o.maxpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)});
 
@@ -213,21 +218,31 @@ import_array();
         int kernelSizeX =  k[0];
         int kernelSizeY =  k[1];
 
-        if (padX > 0)
+        //if (padX > 0)
         {
-            double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
             double caffe_x = ceil(inner_x_calc / strideX) + 1;
             double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = caffe_x - tensorflow_x;
+            adj_X = (int)caffe_x - (int)tensorflow_x;
         }
 
-        if (padY > 0)
+        //if (padY > 0)
         {
-            double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
             double caffe_y = ceil(inner_y_calc / strideX) + 1;
             double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = caffe_y - tensorflow_y;
+            adj_Y = (int)caffe_y - (int)tensorflow_y;
         }
+
+        if (adj_X < 0)
+            adj_X = 0;
+        if (adj_Y < 0)
+            adj_Y = 0;
+
+        if (padX == 0)
+            adj_X = 0;
+        if (padY == 0)
+            adj_Y = 0;
 
         return o.conv2D(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
     }
@@ -261,21 +276,26 @@ import_array();
         int adj_X = 0, adj_Y = 0;
         mv::Shape i = input->getShape();
 
-        if (padX > 0)
+        //if (padX > 0)
         {
-            double inner_x_calc = double(i[0] + padX + padX - kernelSizeX);
+            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
             double caffe_x = ceil(inner_x_calc / strideX) + 1;
             double tensorflow_x = ceil((inner_x_calc +1) / strideX);
-            adj_X = caffe_x - tensorflow_x;
+            adj_X = (int)caffe_x - (int)tensorflow_x;
         }
 
-        if (padY > 0)
+        //if (padY > 0)
         {
-            double inner_y_calc = double(i[1] + padY + padY - kernelSizeY);
+            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
             double caffe_y = ceil(inner_y_calc / strideX) + 1;
             double tensorflow_y = ceil((inner_y_calc +1) / strideX);
-            adj_Y = caffe_y - tensorflow_y;
+            adj_Y = (int)caffe_y - (int)tensorflow_y;
         }
+        
+        if (adj_X < 0)
+            adj_X = 0;
+        if (adj_Y < 0)
+            adj_Y = 0;
 
         return o.avgpool2D(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
             {padX, (short unsigned )(padX+ adj_X), padY, (short unsigned )(padY+ adj_Y)});

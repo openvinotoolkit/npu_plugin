@@ -13,10 +13,10 @@ TEST (nce1, split_over_h_1)
 
     param.input_height = 112;
     param.input_width = 112;
-    param.kernel_x = 3;
-    param.kernel_y = 3;
-    param.stride_x = 2;
-    param.stride_y = 2;
+    param.kernel_width = 3;
+    param.kernel_height = 3;
+    param.stride_vertical = 2;
+    param.stride_horizontal = 2;
     param.pad_x_down = 1;
     param.pad_x_up = 1;
     param.pad_y_left = 1;
@@ -58,10 +58,10 @@ TEST (nce1, split_over_h_2)
 
     param.input_height = 224;
     param.input_width = 224;
-    param.kernel_x = 7;
-    param.kernel_y = 7;
-    param.stride_x = 2;
-    param.stride_y = 2;
+    param.kernel_width = 7;
+    param.kernel_height = 7;
+    param.stride_vertical = 2;
+    param.stride_horizontal = 2;
     param.pad_x_down = 3;
     param.pad_x_up = 3;
     param.pad_y_left = 3;
@@ -261,10 +261,10 @@ TEST (nce1, split_over_h_3)
 
     param.input_height = 224;
     param.input_width = 224;
-    param.kernel_x = 1;
-    param.kernel_y = 1;
-    param.stride_x = 1;
-    param.stride_y = 1;
+    param.kernel_width = 1;
+    param.kernel_height = 1;
+    param.stride_vertical = 1;
+    param.stride_horizontal = 1;
     param.pad_x_down = 0;
     param.pad_x_up = 0;
     param.pad_y_left = 0;
@@ -278,7 +278,7 @@ TEST (nce1, split_over_h_3)
 
     std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
 
-    for(int i = 0; i < result.size(); ++i)
+    for(unsigned i = 0; i < result.size(); ++i)
     {
         std::cout << i << " - " << result[i] << std::endl;
     }
@@ -295,10 +295,10 @@ TEST (nce1, split_over_h_4)
 
     param.input_height = 224;
     param.input_width = 224;
-    param.kernel_x = 3;
-    param.kernel_y = 3;
-    param.stride_x = 1;
-    param.stride_y = 1;
+    param.kernel_width = 3;
+    param.kernel_height = 3;
+    param.stride_vertical = 1;
+    param.stride_horizontal = 1;
     param.pad_x_down = 0;
     param.pad_x_up = 0;
     param.pad_y_left = 0;
@@ -312,7 +312,7 @@ TEST (nce1, split_over_h_4)
 
     std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
 
-    for(int i = 0; i < result.size(); ++i)
+    for(unsigned i = 0; i < result.size(); ++i)
     {
         std::cout << i << " - " << result[i] << std::endl;
     }
@@ -328,10 +328,10 @@ TEST (nce1, split_over_h_5)
 
     param.input_height = 224;
     param.input_width = 224;
-    param.kernel_x = 3;
-    param.kernel_y = 3;
-    param.stride_x = 1;
-    param.stride_y = 1;
+    param.kernel_width = 3;
+    param.kernel_height = 3;
+    param.stride_vertical = 1;
+    param.stride_horizontal = 1;
     param.pad_x_down = 1;
     param.pad_x_up = 1;
     param.pad_y_left = 1;
@@ -345,7 +345,7 @@ TEST (nce1, split_over_h_5)
 
     std::vector<mv::SplitOverHSolution> result = nce.computeSplitsOverH(param, max_output_lines);
 
-    for(int i = 0; i < result.size(); ++i)
+    for(unsigned i = 0; i < result.size(); ++i)
     {
         std::cout << i << " - " << result[i] << std::endl;
     }
@@ -368,10 +368,10 @@ TEST (nce1, mode_selection_resnet_first_conv)
     source.parameters.output_width = 112;
     source.parameters.input_channels = 3;
     source.parameters.output_channels = 64;
-    source.parameters.kernel_x = 7;
-    source.parameters.kernel_y = 7;
-    source.parameters.stride_x = 2;
-    source.parameters.stride_y = 2;
+    source.parameters.kernel_width = 7;
+    source.parameters.kernel_height = 7;
+    source.parameters.stride_vertical = 2;
+    source.parameters.stride_horizontal = 2;
     source.remaining_output_channels = source.parameters.output_channels;
 
     mv::DijkstraReturnValue<mv::ModeSelectionNode, mv::ModeSelectionDistance> shortestPath = nce.optimize_convolution(source);
@@ -410,10 +410,10 @@ TEST (nce1, mode_selection_resnet_another_conv)
     source.parameters.output_width = 56;
     source.parameters.input_channels = 64;
     source.parameters.output_channels = 224;
-    source.parameters.kernel_x = 1;
-    source.parameters.kernel_y = 1;
-    source.parameters.stride_x = 1;
-    source.parameters.stride_y = 1;
+    source.parameters.kernel_width = 1;
+    source.parameters.kernel_height = 1;
+    source.parameters.stride_vertical = 1;
+    source.parameters.stride_horizontal = 1;
     source.remaining_output_channels = source.parameters.output_channels;
 
     mv::DijkstraReturnValue<mv::ModeSelectionNode, mv::ModeSelectionDistance> shortestPath = nce.optimize_convolution(source);

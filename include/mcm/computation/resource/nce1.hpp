@@ -1,4 +1,4 @@
-#ifndef NCE1_HPP
+﻿#ifndef NCE1_HPP
 #define NCE1_HPP
 
 #include <map>
@@ -71,10 +71,10 @@ namespace mv
 
     struct ConvolutionParameters
     {
-        unsigned kernel_x;
-        unsigned kernel_y;
-        unsigned stride_x;
-        unsigned stride_y;
+        unsigned kernel_width;
+        unsigned kernel_height;
+        unsigned stride_vertical;
+        unsigned stride_horizontal;
         unsigned input_channels;
         unsigned output_channels;
         unsigned input_width;
@@ -87,10 +87,10 @@ namespace mv
         unsigned pad_y_right;
 
         ConvolutionParameters(
-        unsigned kernel_x_param,
-        unsigned kernel_y_param,
-        unsigned stride_x_param,
-        unsigned stride_y_param,
+        unsigned kernel_width_param,
+        unsigned kernel_height_param,
+        unsigned stride_vertical_param,
+        unsigned stride_horizontal_param,
         unsigned input_channels_param,
         unsigned output_channels_param,
         unsigned input_width_param,
@@ -101,10 +101,10 @@ namespace mv
         unsigned pad_x_down_param,
         unsigned pad_y_left_param,
         unsigned pad_y_right_param)
-            :kernel_x(kernel_x_param),
-             kernel_y(kernel_y_param),
-             stride_x(stride_x_param),
-             stride_y(stride_y_param),
+            :kernel_width(kernel_width_param),
+             kernel_height(kernel_height_param),
+             stride_vertical(stride_vertical_param),
+             stride_horizontal(stride_horizontal_param),
              input_channels(input_channels_param),
              output_channels(output_channels_param),
              input_width(input_width_param),
@@ -125,10 +125,10 @@ namespace mv
         }
 
         ConvolutionParameters(const ConvolutionParameters& other)
-            :kernel_x(other.kernel_x),
-             kernel_y(other.kernel_y),
-             stride_x(other.stride_x),
-             stride_y(other.stride_y),
+            :kernel_width(other.kernel_width),
+             kernel_height(other.kernel_height),
+             stride_vertical(other.stride_vertical),
+             stride_horizontal(other.stride_horizontal),
              input_channels(other.input_channels),
              output_channels(other.output_channels),
              input_width(other.input_width),
@@ -307,6 +307,7 @@ namespace mv
             //Utility functions
             unsigned get_max_mode(unsigned input_channels);
             std::vector<unsigned> get_valid_modes(ModeSelectionNode node);
+            unsigned computeMinLinesForConvolution(ConvolutionParameters param);
 
             //Constraint check functions, private overload
             //IMPORTANT: All the check functions must be invoked with param values already rounded up to the needed values.
@@ -324,9 +325,9 @@ namespace mv
 
             //Constraint check functions
             //IMPORTANT: All the check functions must be invoked with param values already rounded up to the needed values.
-            bool check_min_lines_constraint(unsigned kernel_y, unsigned stride_y, unsigned input_width, unsigned input_channels);
+            bool check_min_lines_constraint(unsigned kernel_height, unsigned stride_vertical, unsigned input_width, unsigned input_channels);
             bool check_coefficient_size_constraint(unsigned kernel_x, unsigned kernel_y, unsigned input_channels, unsigned output_channel_performed);
-            bool check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_x, unsigned kernel_y, int mode);
+            bool check_coefficient_line_constraint(unsigned input_channels, unsigned kernel_x, unsigned kernel_height, int mode);
             bool check_channels_per_ram_block(unsigned input_channels, int mode);
 
             //Padding helper functions
@@ -348,6 +349,8 @@ namespace mv
             unsigned computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode);
             unsigned computeLinesPerChannel(unsigned input_channels, unsigned local_line_stride, unsigned mode);
             unsigned computeMaxOutputLines(unsigned width, unsigned output_channel_performed);
+            unsigned computeMinLinesForConvolution(unsigned kernel_height, unsigned stride_vertical);
+
 
             //Getter methods
             unsigned getBytesPerLine();
