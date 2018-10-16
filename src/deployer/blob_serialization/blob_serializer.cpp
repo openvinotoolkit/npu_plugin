@@ -165,7 +165,7 @@ namespace mv
                         additional_buf++;       // Has scale also
                     }
                     else
-                        blob_stats.stage_section_size += (27*4);
+                        blob_stats.stage_section_size += bPooling_MX::getSerializedSize()+5*4 ;
 
                     blob_stats.stage_count++;
                 }
