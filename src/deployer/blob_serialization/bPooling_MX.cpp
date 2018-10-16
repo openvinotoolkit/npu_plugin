@@ -357,8 +357,8 @@ namespace mv
         }
         else
         {
-            this->radixX = it->getInputTensor(1)->getShape()[0];
-            this->radixY = it->getInputTensor(1)->getShape()[1];
+            this->radixX = it->getInputTensor(0)->getShape()[0];
+            this->radixY = it->getInputTensor(0)->getShape()[1];
             this->strideX = it->get<std::array<unsigned short, 2>>("stride")[0];
             this->strideY = it->get<std::array<unsigned short, 2>>("stride")[1];
             this->padX = it->get<std::array<unsigned short, 4>>("padding")[0];
