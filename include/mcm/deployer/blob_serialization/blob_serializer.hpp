@@ -16,7 +16,7 @@
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
 #include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
 #include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
-#include "include/mcm/deployer/blob_serialization/bPooling.hpp"
+#include "include/mcm/deployer/blob_serialization/bPooling_MX.hpp"
 #include "include/mcm/deployer/blob_serialization/bSoftmax.hpp"
 #include "include/mcm/deployer/blob_serialization/bRelu.hpp"
 #include "include/mcm/deployer/blob_serialization/bPRelu.hpp"
@@ -123,6 +123,8 @@ namespace mv
                 InputStrideZ = 2 ;
                 InputOffset = 0 ;
                 InputLocation = 1 ;
+                Input1Offset = 0;
+                Input1Location = 1;
                 InputDataType = 0 ;
                 InputOrder = 0 ;
 

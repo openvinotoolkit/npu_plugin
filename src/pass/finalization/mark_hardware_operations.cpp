@@ -7,7 +7,7 @@
 #include "mcm/utils/custom_math.hpp"
 #include <math.h>
 
-static void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void markHardwareOperations(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
@@ -16,11 +16,11 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(MarkHardwareConvolution)
-        .setFunc(markHardwareConvolution)
+        MV_REGISTER_PASS(MarkHardwareOperations)
+        .setFunc(markHardwareOperations)
         .setGenre(PassGenre::Finalization)
         .setDescription(
-            "This pass marks the convolutions that can be executed in NCE"
+            "This pass marks the operations that can be executed in NCE."
         );
 
         MV_REGISTER_PASS(ScaleFission)
@@ -33,16 +33,16 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareConvolution(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void markHardwareOperations(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
 
     //int amount_marked = 0;
     //int mark_limit = 3;
 
     bool disableHardware = false;
-    if (compDesc.hasKey("MarkHardwareConvolution"))
-        if (compDesc["MarkHardwareConvolution"].hasKey("disableHardware"))
-            if (compDesc["MarkHardwareConvolution"]["disableHardware"].get<bool>())
+    if (compDesc.hasKey("MarkHardwareOperations"))
+        if (compDesc["MarkHardwareOperations"].hasKey("disableHardware"))
+            if (compDesc["MarkHardwareOperations"]["disableHardware"].get<bool>())
                 disableHardware = true;
 
     mv::OpModel om(model);

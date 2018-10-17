@@ -51,7 +51,7 @@ TEST (generate_blob, blob_output_conv_01)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -90,7 +90,7 @@ TEST (generate_blob, blob_output_conv_02)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -127,7 +127,7 @@ TEST (generate_blob, blob_output_conv_03)
 
     std::string blobName = "test_conv_03.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -163,7 +163,7 @@ TEST (generate_blob, blob_output_conv_04)
     
     std::string blobName = "test_conv_04.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -202,7 +202,7 @@ TEST (generate_blob, blob_blur_edge_05)
 
     std::string blobName = "test_conv_05.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -248,7 +248,7 @@ TEST (generate_blob, blob_4_ops)
 
     std::string blobName = "test_conv_06.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -316,7 +316,7 @@ TEST (generate_blob, blob_eltwise_add)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -385,7 +385,7 @@ TEST (generate_blob, blob_eltwise_multiply)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -449,7 +449,7 @@ TEST (generate_blob, blob_softmax)
 
     std::string blobName = "test_softmax_09.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -507,7 +507,7 @@ TEST (generate_blob, blob_convbias_convrelu)
 
     std::string blobName = "test_relu_10.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -557,7 +557,7 @@ TEST (generate_blob, blob_scale)
 
     std::string blobName = "test_scale_11.blob";
     unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
-    unit.compilationDescriptor()["MarkHardwareConvolution"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);

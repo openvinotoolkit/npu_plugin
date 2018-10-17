@@ -38,7 +38,7 @@ namespace mv
           dataType(dtype),
           order(orderParam)
     {
-        // DEPRECIATED.
+        // DEPRECATED.
     }
 
     Blob_Tensor::Blob_Tensor(mv::DataModel& dm, mv::ControlModel& cm, RelocationTable& rt , mv::Data::TensorIterator t)
@@ -122,6 +122,8 @@ namespace mv
         unsigned D2_stride = 0, D2_block = 0;
         int block = 0;
 
+        bool is_tight = false;
+
         if (t->isPopulated())
         {
             std::cout << "Populated Tensor: " << t->getName() << t->getOrder().toString()<< std::endl;
@@ -130,30 +132,28 @@ namespace mv
 
             if (!mem->getStrides().empty())
             {
-                for(std::size_t i = 1; i < mem->getStrides().size() - 2; i++)
+                std::size_t i = 1;
+                for(; i < mem->getStrides().size() - 2; i++)
                 {
                     D1_stride = (int)mem->getStrides()[i];
                     D1_block += (int)mem->getBlockSize();
                     if (D1_stride != 0)
-                    {
                         break;
-                    }
                 }
+                if(i >= mem->getStrides().size() - 2)
+                    is_tight = true;
             }
             else
-            {
-                D1_stride = -1;
-            }
+                is_tight = true;
 
             // CAUTION - non-tight tensors not considered here
             int rt_entry = rt.push_entry(std::pair<int, bLocation>(mem->getOffset(), bLocation::Constant ));
             this->offset = rt_entry;
 
         }
-        else
+        else//unpopulated
         {
-
-            mv::OpModel om(cm);
+            bool is_external = false;
 
             if (t->hasAttr("modelInput"))
             {
@@ -182,7 +182,7 @@ namespace mv
             else
             {
                 this->location = BLOB_EXTERNAL_LOCATION;
-                this->offset = -1;
+                is_external = true;
                 this->allocator_name = "IntermediateMemory";
             }
 
@@ -200,43 +200,47 @@ namespace mv
                 // leading and trailing "padding"
                 for(std::size_t i = 1; i < mem->getStrides().size() - 2; i++)
                 {
-
                     unsigned blk_stride = (int)mem->getStrides()[i];
                     block += (int)mem->getBlockSize();
-                    if (blk_stride != 0){
-                        if(Dim1_Stride_Set && blk_stride != D1_stride){
+                    if (blk_stride != 0)
+                    {
+                        if(Dim1_Stride_Set && blk_stride != D1_stride)
+                        {
                             // 2nd dimension stride
                             D2_stride = blk_stride - D1_stride;  // wraparound
                             D2_block = block;
                             break;  // no further striding support over 2D
-                        }else{
+                        }
+                        else
+                        {
                             D1_block = block;
                             block = 0;
                             D1_stride = blk_stride;
                             Dim1_Stride_Set = true;
                         }
                     }
-
                 }
+
+                if(D1_stride == 0)
+                    is_tight = true;
 
                 leading_pad = mem->getStrides()[0];
 
             }
-            else{
-                D1_stride = -1;
-            }
+            else
+                is_tight = true;
 
-            if(this->offset == -1)
+
+            if(is_external)
                 this->offset =  rt.push_entry(std::pair<int, bLocation>(mem->getOffset() + leading_pad, bLocation::Variable));
 
         }
-
 
         int local_StrideX = 0;
         int local_StrideY = 0;
         int local_StrideZ = 0;
 
-        if (D1_stride <= 0)
+        if (is_tight)
         {
             // Tight or Empty Buffer. Either way no exterior striding
             std::cout << "Tight" << std::endl;
@@ -321,7 +325,8 @@ namespace mv
                         std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved) Block Size: " << D1_block << std::endl;
                     }
 
-                    if(D2_stride != 0){
+                    if(D2_stride != 0)
+                    {
                         // Can't be X, that would be Dim1.
                         // Can't be Y, or rather, it will be unobserved in the meta info if it is.
                         // Therefore, it must be Z

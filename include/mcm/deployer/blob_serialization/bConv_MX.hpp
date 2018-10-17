@@ -33,6 +33,7 @@ namespace mv{
             size_t splits_over_H;
             size_t splits_over_iC;
             size_t inputChannelsPadded;
+            size_t outputChannelsPadded;
             size_t inputWidthPadded;
             size_t outputWidthPadded;
 
@@ -58,11 +59,11 @@ namespace mv{
 
             bool NCE1_Compatible;
 
-            cnnConvolutionPoolStructure * descriptors;
+            std::vector<cnnConvolutionPoolStructure> descriptors;
 
         public:
             uint32_t number_of_inputs = 2;
-            void writeStageInfo(mv::OpModel * om, mv::Blob_buffer* b);
+            void writeStageInfo(OpModel& om, mv::Blob_buffer* b);
             bConv2D(mv::Control::OpListIterator it);
             ~bConv2D();
     };

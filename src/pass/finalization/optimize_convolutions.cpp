@@ -5,7 +5,7 @@
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
 
-static void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void optimizeConvolutions(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,8 +13,8 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(ModeSelection)
-        .setFunc(modeSelection)
+        MV_REGISTER_PASS(OptimizeConvolutions)
+        .setFunc(optimizeConvolutions)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass selects the appropriate mode for each convolution executable by NCE"
@@ -104,7 +104,7 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     convIterator->set<std::size_t>("NCE1_LocalLineStride", (std::size_t)local_line_stride);
 
     // TODO: Streaming mask
-    unsigned streaming_mask = 0; // For DDR streaming
+    unsigned streaming_mask = 1; // For DDR streaming
     convIterator->set<std::size_t>("NCE1_StreamingMask", (std::size_t)streaming_mask);
 
     // Max performed output channels
@@ -139,6 +139,7 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     convIterator->set<std::vector<std::size_t>>("NCE1_LocalChannelStride", local_channel_stride);
     convIterator->set<std::vector<std::size_t>>("NCE1_MinLines", min_lines);
     convIterator->set<std::size_t>("NCE1_InputChannelsPadded", splitted_input_channels);
+    convIterator->set<std::size_t>("NCE1_OutputChannelsPadded", real_output_channels);
 
     //Input Tensor and weigth paddings need to be rewritten, as they may have changed due to mode selected
     input_tensor->set<std::vector<std::size_t>>("NCE1_Paddings", input_tensor_paddings);
@@ -147,7 +148,9 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     //Marking the convolution as optimized
     convIterator->set<bool>("NCE1_Optimized", true);
 
-    if(om.getSourceOp(input_tensor)->hasAttr("NCE1_Optimized"))
+    //This check has a sense only for cascades of convolutions since HW poolings have already been optimized
+    auto parent_op = om.getSourceOp(input_tensor);
+    if(parent_op->hasAttr("NCE1_Optimized") && parent_op->getOpType() == mv::OpType::Conv2D)
         return true;
     else
         return false;
@@ -156,15 +159,15 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
 {
     mv::ModeSelectionNode source;
-    source.parameters = mv::fillConvolutionParameters(convIterator, true);
+    source.parameters = mv::fillKernel2DOperationParameters(convIterator, true);
 
     source.remaining_output_channels = source.parameters.output_channels;
     return nce.optimize_convolution(source);
 }
 
-void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void optimizeConvolutions(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    std::cout << "Mode selection pass" << std::endl;
+    std::cout << "HW optimization convolution pass started" << std::endl;
     mv::OpModel om(model);
     mv::Nce1 nce;
 
@@ -182,16 +185,6 @@ void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
                 continue;
             to_be_optimized.push(opIterator);
 
-            /*
-            case mv::OpType::FullyConnected:
-                //TODO: Write mode 0 or 4
-                break;
-            case mv::OpType::MaxPool2D:
-            case mv::OpType::AvgPool2D:
-                //TODO: Write mode 0 or 4
-                break;
-            */
-
         }
 
     }
@@ -204,10 +197,10 @@ void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
         to_be_optimized.pop();
         auto modes = optimize_convolution_nce1(nce, opIterator, om);
         if(write_hardware_attributes(om, opIterator, modes, nce))
-            std::cout << "FOOOOOOOOOOOOOOOOOOOL! Reoptimization is needed! :(" << std::endl;
+            std::cout << "FOOOOOOOOOOOOOOOOOOOL! Reoptimization is needed (convolution)! :(" << std::endl;
 
     }
 
-    std::cout << "Mode selection pass ended" << std::endl;
+    std::cout << "HW optimization convolution pass ended" << std::endl;
 
 }

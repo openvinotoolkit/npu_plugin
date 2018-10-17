@@ -169,7 +169,7 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
                 mv::Shape original_shape = tIt->getShape();
                 std::vector<std::size_t> original_shape_v = original_shape;
                 std::vector<std::size_t> padded_shape_v = std::vector<std::size_t>(original_shape.ndims());
-                for(int i =0; i< original_shape_v.size();i++)
+                for(unsigned i =0; i< original_shape_v.size();i++)
                     padded_shape_v[i] += original_shape_v[i] + rhs_paddings[i];
 
                 auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);

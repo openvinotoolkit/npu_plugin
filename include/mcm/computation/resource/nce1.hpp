@@ -120,6 +120,20 @@ namespace mv
         }
 
         ConvolutionParameters()
+            :kernel_width(0),
+             kernel_height(0),
+             stride_vertical(0),
+             stride_horizontal(0),
+             input_channels(0),
+             output_channels(0),
+             input_width(0),
+             input_height(0),
+             output_width(0),
+             output_height(0),
+             pad_x_up(0),
+             pad_x_down(0),
+             pad_y_left(0),
+             pad_y_right(0)
         {
 
         }
@@ -150,6 +164,8 @@ namespace mv
         ConvolutionParameters parameters;
 
         ModeSelectionNode()
+            :remaining_output_channels(0),
+             parameters()
         {
 
         }
@@ -280,6 +296,8 @@ namespace mv
             //Hw constraints
             unsigned max_coefficient_number_per_line;
             unsigned max_descriptors_x_hw_op;
+            unsigned max_size_true_adaptation_B0_pad_bottom;
+            unsigned max_size_true_adaptation_B0_pad_left_right;
 
             //Support data structures
             std::map<unsigned, unsigned> dpe_x_output_channel;
@@ -321,7 +339,8 @@ namespace mv
             Nce1();
 
             //Mode selection procedure
-            ModeSelectionResult optimize_convolution(const ModeSelectionNode source);
+            ModeSelectionResult optimize_convolution(ModeSelectionNode source);
+            ModeSelectionResult optimize_pooling(ModeSelectionNode source);
 
             //Constraint check functions
             //IMPORTANT: All the check functions must be invoked with param values already rounded up to the needed values.
@@ -348,7 +367,8 @@ namespace mv
             unsigned computeDescriptorSplits(unsigned splits_over_height, unsigned splits_over_input_channels, unsigned num_modes);
             unsigned computeInputChannelsPerRamBlock(unsigned input_channels, unsigned mode);
             unsigned computeLinesPerChannel(unsigned input_channels, unsigned local_line_stride, unsigned mode);
-            unsigned computeMaxOutputLines(unsigned width, unsigned output_channel_performed);
+            unsigned computeMaxOutputLinesConvolution(unsigned width, unsigned output_channel_performed);
+            unsigned computeMaxOutputLinesPooling(unsigned width, unsigned output_channel_performed, std::array<unsigned short, 4> padding, std::array<unsigned short, 2> kernel);
             unsigned computeMinLinesForConvolution(unsigned kernel_height, unsigned stride_vertical);
 
 

@@ -9,5 +9,5 @@ Pool2DOp(OpType::MaxPool2D, kernelSize, stride, padding, name)
 
 bool mv::op::MaxPool2D::isHardwarizeable(json::Object&)
 {
-    return false;
+    return true;
 }

@@ -44,11 +44,12 @@
 		"finalize":
 		[
 			"AlignConstOrder",
-			"MarkHardwareConvolution",
+			"MarkHardwareOperations",
 			"FuseReluMX",
 			"AddConversionLayers",
 			"MyriadXPaddings",
-			"ModeSelection",
+			"OptimizePoolings",
+			"OptimizeConvolutions",
 			"SplitsOverH",
 			"ScaleFission",
 			"FormatMXWeights",
