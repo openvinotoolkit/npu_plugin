@@ -77,6 +77,7 @@ file(GLOB base
     "src/computation/op/def/concat.cpp"
     "src/computation/op/def/constant.cpp"
     "src/computation/op/def/conv2d.cpp"
+    "src/computation/op/def/depthwise_conv2d.cpp"
     "src/computation/op/def/divide.cpp"
     "src/computation/op/def/matmul.cpp"
     "src/computation/op/def/input.cpp"
