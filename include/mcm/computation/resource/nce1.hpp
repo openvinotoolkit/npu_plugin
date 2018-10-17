@@ -296,6 +296,8 @@ namespace mv
             //Hw constraints
             unsigned max_coefficient_number_per_line;
             unsigned max_descriptors_x_hw_op;
+            unsigned max_size_true_adaptation_B0_pad_bottom;
+            unsigned max_size_true_adaptation_B0_pad_left_right;
 
             //Support data structures
             std::map<unsigned, unsigned> dpe_x_output_channel;

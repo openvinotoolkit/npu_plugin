@@ -11,6 +11,8 @@ mv::Nce1::Nce1()
      cmx_stream_size(pow(2,18)), //256K
      max_coefficient_number_per_line(256),
      max_descriptors_x_hw_op(255),
+     max_size_true_adaptation_B0_pad_bottom(2048), //Constraint found in Fathom
+     max_size_true_adaptation_B0_pad_left_right(4096), //Constraint found in Fathom
      split_by_input_channel_overhead(30000),
      split_by_width_overhead(5000),
      split_by_output_channel_overhead(7000),
@@ -582,9 +584,9 @@ unsigned mv::Nce1::computeMaxOutputLinesPooling(unsigned width, unsigned output_
     unsigned max_size;
     unsigned kernel_height = kernel[1];
     if(padding[1]) //pad_bottom
-        max_size = 2048;
+        max_size = max_size_true_adaptation_B0_pad_bottom;
     else if(padding[2] || padding[3]) //pad left or right
-        max_size = 4096;
+        max_size = max_size_true_adaptation_B0_pad_left_right;
     else //pad top?
         max_size = round_up(width, 16) * (max_output_lines - 1 + kernel_height - 1);
 
