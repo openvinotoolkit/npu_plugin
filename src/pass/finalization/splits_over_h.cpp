@@ -68,7 +68,7 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 }
 
 //ASSUMPTION: This pass must be executed after the mode selection pass.
-//REASON: Paddings (and possibly modes) for each HW operation are needed.
+//REASON: Paddings and modes for each HW operation are needed.
 void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
     std::cout << "Split over H pass " << std::endl;
@@ -83,68 +83,63 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
 
-        if(operationIt->getOpType() != mv::OpType::Conv2D)
-            continue;
-
-        if(operationIt->getOpType() != mv::OpType::AvgPool2D)
-            continue;
-
-        if(operationIt->getOpType() != mv::OpType::MaxPool2D)
-            continue;
-
-        std::vector<mv::SplitOverHSolution> splits = computeSplitsOverH(nce, operationIt);
-        unsigned splits_over_height = splits.size();
-
-
-        for(unsigned i = 0; i < splits_over_height; ++i)
-            std::cout << i << " - " << splits[i] << std::endl;
-
-        operationIt->set<std::size_t>("NCE1_SplitsOverHeight", (std::size_t)splits_over_height);
-
-        // Compute DescriptorsSplits
-        size_t splits_over_input_channels;
-        if(operationIt->hasAttr("NCE1_SplitsOverInputChannels"))
-            splits_over_input_channels = operationIt->get<size_t>("NCE1_SplitsOverInputChannels");
-        else
-            splits_over_input_channels = 1;
-        std::vector<size_t> modes = operationIt->get("NCE1_Modes").get<std::vector<std::size_t>>();
-
-        unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, modes.size());
-        operationIt->set<std::size_t>("NCE1_DescriptorSplits", (std::size_t)descriptor_splits);
-
-        std::vector<std::size_t> input_lines_processed(splits_over_height);
-        std::vector<std::size_t> output_lines_processed(splits_over_height);
-        std::vector<std::size_t> junk_output_before(splits_over_height);
-        std::vector<std::size_t> junk_output_after(splits_over_height);
-
-        std::vector<std::size_t> start_input_line(splits_over_height);
-        std::vector<std::size_t> end_input_line(splits_over_height);
-        std::vector<std::size_t> start_output_line(splits_over_height);
-        std::vector<std::size_t> end_output_line(splits_over_height);
-
-
-        for(unsigned i = 0; i < splits_over_height; ++i)
+        if(operationIt->getOpType() == mv::OpType::Conv2D || operationIt->getOpType() == mv::OpType::AvgPool2D || operationIt->getOpType() == mv::OpType::MaxPool2D)
         {
-            auto split = splits[i];
-            input_lines_processed[i] = split.input_lines_processed;
-            output_lines_processed[i] = split.output_lines_processed;
-            junk_output_before[i] = split.junk_output_before;
-            junk_output_after[i] = split.junk_output_after;
-            start_input_line[i] = split.start_input_line;
-            end_input_line[i] = split.end_input_line;
-            start_output_line[i] = split.start_output_line;
-            end_output_line[i] = split.end_output_line;
+
+            std::vector<mv::SplitOverHSolution> splits = computeSplitsOverH(nce, operationIt);
+            unsigned splits_over_height = splits.size();
+
+
+            for(unsigned i = 0; i < splits_over_height; ++i)
+                std::cout << i << " - " << splits[i] << std::endl;
+
+            operationIt->set<std::size_t>("NCE1_SplitsOverHeight", (std::size_t)splits_over_height);
+
+            // Compute DescriptorsSplits
+            size_t splits_over_input_channels;
+            if(operationIt->hasAttr("NCE1_SplitsOverInputChannels"))
+                splits_over_input_channels = operationIt->get<size_t>("NCE1_SplitsOverInputChannels");
+            else
+                splits_over_input_channels = 1;
+            std::vector<size_t> modes = operationIt->get("NCE1_Modes").get<std::vector<std::size_t>>();
+
+            unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, modes.size());
+            operationIt->set<std::size_t>("NCE1_DescriptorSplits", (std::size_t)descriptor_splits);
+
+            std::vector<std::size_t> input_lines_processed(splits_over_height);
+            std::vector<std::size_t> output_lines_processed(splits_over_height);
+            std::vector<std::size_t> junk_output_before(splits_over_height);
+            std::vector<std::size_t> junk_output_after(splits_over_height);
+
+            std::vector<std::size_t> start_input_line(splits_over_height);
+            std::vector<std::size_t> end_input_line(splits_over_height);
+            std::vector<std::size_t> start_output_line(splits_over_height);
+            std::vector<std::size_t> end_output_line(splits_over_height);
+
+
+            for(unsigned i = 0; i < splits_over_height; ++i)
+            {
+                auto split = splits[i];
+                input_lines_processed[i] = split.input_lines_processed;
+                output_lines_processed[i] = split.output_lines_processed;
+                junk_output_before[i] = split.junk_output_before;
+                junk_output_after[i] = split.junk_output_after;
+                start_input_line[i] = split.start_input_line;
+                end_input_line[i] = split.end_input_line;
+                start_output_line[i] = split.start_output_line;
+                end_output_line[i] = split.end_output_line;
+            }
+
+            operationIt->set<std::vector<std::size_t>>("NCE1_InputLinesProcessed", input_lines_processed);
+            operationIt->set<std::vector<std::size_t>>("NCE1_OutputLinesProcessed", output_lines_processed);
+            operationIt->set<std::vector<std::size_t>>("NCE1_JunkOutputBefore", junk_output_before);
+            operationIt->set<std::vector<std::size_t>>("NCE1_JunkOutputAfter", junk_output_after);
+
+            operationIt->set<std::vector<std::size_t>>("NCE1_StartInputLine", start_input_line);
+            operationIt->set<std::vector<std::size_t>>("NCE1_EndInputLine", end_input_line);
+            operationIt->set<std::vector<std::size_t>>("NCE1_StartOutputLine", start_output_line);
+            operationIt->set<std::vector<std::size_t>>("NCE1_EndOutputLine", end_output_line);
         }
-
-        operationIt->set<std::vector<std::size_t>>("NCE1_InputLinesProcessed", input_lines_processed);
-        operationIt->set<std::vector<std::size_t>>("NCE1_OutputLinesProcessed", output_lines_processed);
-        operationIt->set<std::vector<std::size_t>>("NCE1_JunkOutputBefore", junk_output_before);
-        operationIt->set<std::vector<std::size_t>>("NCE1_JunkOutputAfter", junk_output_after);
-
-        operationIt->set<std::vector<std::size_t>>("NCE1_StartInputLine", start_input_line);
-        operationIt->set<std::vector<std::size_t>>("NCE1_EndInputLine", end_input_line);
-        operationIt->set<std::vector<std::size_t>>("NCE1_StartOutputLine", start_output_line);
-        operationIt->set<std::vector<std::size_t>>("NCE1_EndOutputLine", end_output_line);
     }
 
 }
