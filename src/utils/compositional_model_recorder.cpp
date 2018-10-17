@@ -206,7 +206,6 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::concat(std::vector<mv::
 
 	/*an array holding the names of the TensorIterators*/
     unsigned num_inputs = inputTensors.size();
-	mv::Data::TensorIterator sourceIts[num_inputs];
 
     /*Begin the vector definition*/
 	ss << "std::vector<mv::Data::TensorIterator> " << concatVectorName << "= {";
