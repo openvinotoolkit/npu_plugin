@@ -24,7 +24,7 @@ namespace mv
 }
 
 
-void write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator poolIterator, mv::ModeSelectionResult& modes_to_use, mv::Nce1& nce)
+bool write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator poolIterator, mv::ModeSelectionResult& modes_to_use, mv::Nce1& nce)
 {
     // ASSUMPTION: all the splits in modes_to_use are are equal (This assumption is true now, and there will be routines to assure it's trueness in the future)
 
@@ -132,6 +132,13 @@ void write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
 
     //Marking the convolution as optimized
     poolIterator->set<bool>("NCE1_Optimized", true);
+
+    //This check has a sense only for cascades of poolings since HW convolutions still have to be optimized
+    auto parent_op = om.getSourceOp(input_tensor);
+    if(parent_op->hasAttr("NCE1_Optimized") && (parent_op->getOpType() == mv::OpType::AvgPool2D || parent_op->getOpType() == mv::OpType::MaxPool2D))
+        return true;
+    else
+        return false;
 }
 
 mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel& om)
@@ -173,7 +180,8 @@ void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
         std::cout << "Optimizing " << opIterator->getName() << std::endl;
         to_be_optimized.pop();
         auto modes = optimize_pooling_nce1(nce, opIterator, om);
-        write_hardware_attributes_pooling(om, opIterator, modes, nce);
+        if(write_hardware_attributes_pooling(om, opIterator, modes, nce))
+            std::cout << "FOOOOOOOOOOOOOOOL!!! Reoptimization is needed (pooling)";
 
     }
 

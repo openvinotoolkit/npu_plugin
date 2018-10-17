@@ -148,7 +148,9 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
     //Marking the convolution as optimized
     convIterator->set<bool>("NCE1_Optimized", true);
 
-    if(om.getSourceOp(input_tensor)->hasAttr("NCE1_Optimized"))
+    //This check has a sense only for cascades of convolutions since HW poolings have already been optimized
+    auto parent_op = om.getSourceOp(input_tensor);
+    if(parent_op->hasAttr("NCE1_Optimized") && parent_op->getOpType() == mv::OpType::Conv2D)
         return true;
     else
         return false;
@@ -195,7 +197,7 @@ void optimizeConvolutions(mv::ComputationModel& model, mv::TargetDescriptor&, mv
         to_be_optimized.pop();
         auto modes = optimize_convolution_nce1(nce, opIterator, om);
         if(write_hardware_attributes(om, opIterator, modes, nce))
-            std::cout << "FOOOOOOOOOOOOOOOOOOOL! Reoptimization is needed! :(" << std::endl;
+            std::cout << "FOOOOOOOOOOOOOOOOOOOL! Reoptimization is needed (convolution)! :(" << std::endl;
 
     }
 
