@@ -67,7 +67,6 @@ namespace mv
                     //std::cout << "Filling descriptor " << i << std::endl;
 
                     auto input_width = this->inputWidthPadded; //input_shape[1];
-                    auto output_channels = this->outputChannelsPadded;
                     auto output_channels_performed_so_far = std::accumulate(this->outputChannelPerformed.begin(), this->outputChannelPerformed.begin()+oc, 0);
 
                     // this->descriptors[i].dataBaseAddr = i*0x3f0;    // TODO: Calculate 3f0 (1008)
