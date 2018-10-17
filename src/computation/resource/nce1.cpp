@@ -46,18 +46,18 @@ mv::Nce1::Nce1()
 
 mv::ModeSelectionResult mv::Nce1::optimize_convolution(ModeSelectionNode source)
 {
-    mv::ModeSelectionNode target;
+    ModeSelectionNode target;
     target.remaining_output_channels = 0;
 
     auto generate_neighbours_lambda = [this](ModeSelectionNode a) {return generateNeighboursComingFromValidModes(a);};
     auto computer_cost_lambda = [this](ModeSelectionNode a, ModeSelectionNode b) {return computeModeCost(a, b);};
 
-    return mv::dijkstraRT<mv::ModeSelectionNode, mv::ModeSelectionDistance>(source, target, generate_neighbours_lambda, computer_cost_lambda);
+    return mv::dijkstraRT<ModeSelectionNode, ModeSelectionDistance>(source, target, generate_neighbours_lambda, computer_cost_lambda);
 }
 
 mv::ModeSelectionResult mv::Nce1::optimize_pooling(ModeSelectionNode source)
 {
-    mv::ModeSelectionResult toReturn;
+    ModeSelectionResult toReturn;
     source.remaining_output_channels = source.parameters.input_channels = source.parameters.output_channels = mv::round_up(source.parameters.output_channels, dpe_x_output_channel.at(Mode4));
     toReturn.nodes.push_back(ModeSelectionNode(source));
 
@@ -113,13 +113,13 @@ std::vector<mv::ModeSelectionNode> mv::Nce1::generateNeighboursComingFromValidMo
     unsigned n = valid_modes.size();
     for(unsigned i = 0; i < n; ++i)
     {
-        mv::ModeSelectionNode neighbour(current_node);
+        ModeSelectionNode neighbour(current_node);
         neighbour.remaining_output_channels -= output_channel_performed_one_shot.at(valid_modes[i]);
         if(neighbour.remaining_output_channels < 0)
             neighbour.remaining_output_channels = 0;
         valid_neighbours_set.insert(neighbour);
     }
-    return std::vector<mv::ModeSelectionNode>(valid_neighbours_set.begin(), valid_neighbours_set.end());
+    return std::vector<ModeSelectionNode>(valid_neighbours_set.begin(), valid_neighbours_set.end());
 }
 
 bool mv::Nce1::check_min_lines_constraint(unsigned kernel_height, unsigned stride_vertical, unsigned input_width, unsigned input_channels)
@@ -169,7 +169,7 @@ bool mv::Nce1::check_channels_per_ram_block_(mv::ConvolutionParameters param, in
 
 mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParameters param, unsigned actual_output_channels, int mode, bool support_split_over_c)
 {
-    mv::ModeSelectionDistance to_return;
+    ModeSelectionDistance to_return;
 
     unsigned min_lines = computeMinLinesForConvolution(param);
     // maximum ic that I can process without conflicting with min line constraint
@@ -200,7 +200,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
 
     // n of input split required (padded to next pow of 2: WHY? Firmware)
     unsigned n_split_c = computeActualInputChannelSplits(param.input_channels/max_ic);
-    unsigned actual_ic_per_split = mv::ceil_division(param.input_channels, n_split_c);
+    unsigned actual_ic_per_split = ceil_division(param.input_channels, n_split_c);
 
     if((n_split_c < 2) || (actual_ic_per_split % ramBlocks) || (!support_split_over_c))
     {
@@ -241,7 +241,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     return to_return;
 }
 
-unsigned mv::Nce1::computeMinLinesForConvolution(ConvolutionParameters param)
+unsigned mv::Nce1::computeMinLinesForConvolution(mv::ConvolutionParameters param)
 {
     return computeMinLinesForConvolution(param.kernel_height, param.stride_vertical);
 }
@@ -301,7 +301,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
 
 mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode a, const mv::ModeSelectionNode b)
 {
-    mv::ModeSelectionDistance to_return;
+    ModeSelectionDistance to_return;
 
     int split_over_output_channel_overhead = 0;
     int mode = 0;
@@ -327,7 +327,7 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
         split_over_output_channel_overhead = 7000;
 
     //Aligning parameters to current mode
-    mv::ConvolutionParameters parameters = a.parameters;
+    ConvolutionParameters parameters = a.parameters;
     parameters.input_channels = computeActualInputChannels(parameters.input_channels, mode);
 
     //These two actually can be done also outside of the function since they do not depend on the mode. But for now they are keeping them here.`
@@ -449,9 +449,9 @@ int maximizeOutput(mv::ConvolutionParameters param, int output_start_index, int 
 }
 
 
-std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(ConvolutionParameters param, unsigned max_output_lines)
+std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(mv::ConvolutionParameters param, unsigned max_output_lines)
 {
-    std::vector<mv::SplitOverHSolution> to_return;
+    std::vector<SplitOverHSolution> to_return;
 
     int output_start_index = 0;
 
@@ -499,7 +499,7 @@ std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(ConvolutionPara
 //Padding functions
 unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels, unsigned mode)
 {
-    return mv::round_up(input_channels, dpe_x_output_channel.at(mode));
+    return round_up(input_channels, dpe_x_output_channel.at(mode));
 }
 
 unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels)
@@ -509,12 +509,12 @@ unsigned mv::Nce1::computeActualInputChannels(unsigned input_channels)
 
 unsigned mv::Nce1::computeActualOutputChannels(unsigned output_channels)
 {
-    return mv::round_up(output_channels, 8);
+    return round_up(output_channels, 8);
 }
 
 unsigned mv::Nce1::computeActualInputWidth(unsigned input_width)
 {
-     return mv::round_up(input_width, 8);
+     return round_up(input_width, 8);
 }
 
 unsigned mv::Nce1::computeActualInputHeight(unsigned input_height)
@@ -524,12 +524,12 @@ unsigned mv::Nce1::computeActualInputHeight(unsigned input_height)
 
 unsigned mv::Nce1::computeActualInputChannelSplits(unsigned splits)
 {
-     return mv::next_greater_power_of_2(splits);
+     return next_greater_power_of_2(splits);
 }
 
 unsigned mv::Nce1::computeActualOutputWidth(unsigned output_width)
 {
-    return mv::round_up(output_width, 8);
+    return round_up(output_width, 8);
 }
 
 unsigned mv::Nce1::computerActualOutputHeight(unsigned output_height)
@@ -549,7 +549,7 @@ unsigned mv::Nce1::getWordsPerLine()
 
 unsigned mv::Nce1::computeLocalLineStride(unsigned input_width)
 {
-    unsigned pixels_per_input_line_rounded_up = mv::round_up(input_width, 8);
+    unsigned pixels_per_input_line_rounded_up = round_up(input_width, 8);
     return pixels_per_input_line_rounded_up / 8; // equation courtesy of the docs
 }
 
@@ -566,7 +566,7 @@ unsigned mv::Nce1::computeInputChannelsPerRamBlock(unsigned input_channels, unsi
 
 unsigned mv::Nce1::computeMaxOutputLinesConvolution(unsigned width, unsigned output_channel_performed)
 {
-    unsigned bytes_per_full_depth_slice = input_data_size * output_channel_performed * mv::round_up(width, 8);
+    unsigned bytes_per_full_depth_slice = input_data_size * output_channel_performed * round_up(width, 8);
     return cmx_stream_size / bytes_per_full_depth_slice;
 }
 
@@ -586,7 +586,7 @@ unsigned mv::Nce1::computeMaxOutputLinesPooling(unsigned width, unsigned output_
     else if(padding[2] || padding[3]) //pad left or right
         max_size = 4096;
     else //pad top?
-        max_size = mv::round_up(width, 16) * (max_output_lines - 1 + kernel_height - 1);
+        max_size = round_up(width, 16) * (max_output_lines - 1 + kernel_height - 1);
 
     max_output_lines = max_size / round_up(width, 16) - kernel_height + 2;
     return max_output_lines;
