@@ -62,8 +62,14 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
 
             // Constant is a parameter tensor for a software layer
             //opIt->set<Order>("order", OrderType::RowMajorPlanar);
-            opIt->getOutputTensor(0)->setOrder(OrderType::RowMajorPlanar);
-
+            if (opIt.leftmostChild()->getOpType() == OpType::FullyConnected)
+            {
+                opIt->getOutputTensor(0)->setOrder(OrderType::RowMajor);
+            }
+            else 
+            {
+                opIt->getOutputTensor(0)->setOrder(OrderType::RowMajorPlanar);
+            }
         }
 
     }

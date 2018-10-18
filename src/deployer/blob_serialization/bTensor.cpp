@@ -92,7 +92,7 @@ namespace mv
             case 2:
             {
                 this->dimX = 1;
-                this->dimY = 1;
+                this->dimY = t->getShape()[0];
                 this->dimZ = t->getShape()[1];
             }
             break;
@@ -347,7 +347,8 @@ namespace mv
         {
             case OrderType::RowMajorPlanar:
                 {
-                    if((int)t->getShape().ndims() == 3){
+                    if((int)t->getShape().ndims() == 3)
+                    {
                         // UPA Shave
                         this->order = 0;
                         // ROW MAJOR (CHANNEL MINOR)
@@ -355,31 +356,40 @@ namespace mv
                         this->strideZ = fp16_size;
                         this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
                         this->strideY = (this->dimX * this->strideX) + local_StrideX;
-                    }else{
-                        if((int)t->getShape().ndims() > 3){
-                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
-                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
-                            this->order = 3;
-                            this->strideZ = fp16_size;
-                            this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
-                            this->strideX = (this->dimY * this->strideY) + local_StrideY;
-                        }else{
-                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
-                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
-                            this->order = 1;
-                            this->strideX = fp16_size;
-                            this->strideY = (this->dimX * this->strideX) + local_StrideX;
-                            this->strideZ = (this->dimY * this->strideY) + local_StrideY;
-                        }
+                    }
+                    else if((int)t->getShape().ndims() > 3)
+                    {
+                        // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                        // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                        this->order = 3;
+                        this->strideZ = fp16_size;
+                        this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
+                        this->strideX = (this->dimY * this->strideY) + local_StrideY;
+                    }
+                    else if((int)(t->getShape().ndims()) == 2 )
+                    {
+                        this->order = 0;
+                        this->strideZ = fp16_size;
+                        this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
+                        this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                    }
+                    else
+                    {
+                        // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                        // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                        this->order = 1;
+                        this->strideX = fp16_size;
+                        this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                        this->strideZ = (this->dimY * this->strideY) + local_StrideY;
                     }
                 }
                 break;
             case OrderType::RowMajor:
                 // Misleading - weights
-                this->order = 1;
-                this->strideX = fp16_size;
-                this->strideY = (this->dimX * this->strideX) + local_StrideX;
-                this->strideZ = (this->dimY * this->strideY) + local_StrideY;
+                this->order = 3;
+                this->strideZ = fp16_size;
+                this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
+                this->strideX = (this->dimY * this->strideY) + local_StrideY;
                 break;
             case OrderType::ColumnMajor:
                 // NCE1 - Option 1
