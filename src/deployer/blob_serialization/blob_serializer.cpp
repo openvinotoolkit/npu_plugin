@@ -28,6 +28,8 @@ namespace mv
                     return 34;
                 else
                     return 2;
+            case OpType::DepthwiseConv2D:
+                return 8;
             case OpType::Softmax:
                 return 3;
             case OpType::FullyConnected:
@@ -93,6 +95,7 @@ namespace mv
             switch((unsigned short)it->getOpType())
             {
                 case OpType::Conv2D:
+                case OpType::DepthwiseConv2D:
                 case OpType::FullyConnected:
                 {
                     uint32_t total_weight_size = 0 ;
@@ -404,6 +407,75 @@ namespace mv
                 }
                 break;
 
+                case OpType::DepthwiseConv2D:
+                {
+                    int point0 = 0;
+                    point0 += (8*4) ; // Fields
+                    point0 += (4*10*4) ; // Input, Bias, Taps, Output, Scale
+                    point0 += (3*4) ; // nextsatge, etc MOVE OUT.
+
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                            point0 += (5*4) ;
+                        else
+                        {
+                            printf("POST OP NOT SUPPORTED\n"); // TODO: Move out.
+                            assert(0);
+                        }
+                    }
+                    else
+                        point0 += (2*4) ;
+
+                    next_offset += point0;
+
+                    // No more layers (last)
+                    Data::BufferIterator mem;
+                    mv::Control::StageIterator stg = cm.getStage(0);
+                    int finalstage = 0;
+
+                    auto t = it->getOutputTensor(0);
+                    mem = dm.getBuffer("IntermediateMemory", stg, t);
+                    if (mem == dm.bufferEnd("IntermediateMemory", stg)  )
+                    {
+                        conv_pool_stage.next = 0;
+                        finalstage = 1;
+                    }
+
+                    if(!finalstage)
+                        conv_pool_stage.next = next_offset;
+
+                    AddBytes(4, conv_pool_stage.next);
+                    AddBytes(4, get_blob_enum(ltype));                                // 0x60
+                    AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+                    // Serialize for MyriadX SW
+                    bDepthwiseConv2D c = bDepthwiseConv2D(it);
+                    c.writeStageInfo(om, this);
+
+                    AddBytes(4, conv_pool_stage.preop_type);
+                    if (it->hasAttr("postOpType"))
+                    {
+                        if (it->get<mv::OpType>("postOpType") == mv::OpType::ReLU)
+                        {
+
+                            AddBytes(4, 0x06);    // 0x12c , postop relu
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
+                            AddBytes(4, 0x00);
+                        }
+                        else
+                            std::cout << "ERROR: NON-relu postOP found for " << it->getName() << std::endl;
+                   }
+                   else
+                   {
+                        if (it->hasAttr("bias"))
+                            AddBytes(4, 0x09);    // 0x12c , postop bias
+                        else
+                            AddBytes(4, 0x05);    // 0x12c , no postop
+                   }
+                }
+                break;
                 case OpType::Conv2D:
                 {
                     int mx_valid = 0;
