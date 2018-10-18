@@ -1,5 +1,5 @@
-#ifndef MV_BLOB_MX_BCONV_HPP_
-#define MV_BLOB_MX_BCONV_HPP_
+#ifndef MV_BLOB_MX_BDEPTHWISECONV_HPP_
+#define MV_BLOB_MX_BDEPTHWISECONV_HPP_
 
 #include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
@@ -13,7 +13,7 @@ namespace mv{
 
     class Blob_buffer;  // Forward Declaration
 
-    class bConv2D : public Blob_Op_Definition
+    class bDepthwiseConv2D : public Blob_Op_Definition
     {
         private:
             mv::Data::TensorIterator input;
@@ -25,29 +25,6 @@ namespace mv{
             std::string bias_name;
             std::string scale_name;
 
-            // Hardware Fields
-            std::vector<size_t> DPUmodeVector;
-            std::vector<size_t> input_lines_processed;
-            std::vector<size_t> output_lines_processed;
-            std::vector<size_t> input_line_start;
-            std::vector<size_t> output_line_start;
-            size_t splits_over_H;
-            size_t splits_over_iC;
-            size_t inputChannelsPadded;
-            size_t outputChannelsPadded;
-            size_t inputWidthPadded;
-            size_t outputWidthPadded;
-
-            uint32_t streamingMask;
-            uint32_t concatOffset;
-            uint32_t unloadCMX;
-            uint32_t overwriteInput;
-            uint32_t CMXSize;
-            uint32_t reluSHVAcc;
-            uint32_t shvNegSlope;
-            uint32_t shvPosSlope;
-            uint32_t desc_count;
-
             // Software Fields
             uint32_t radixX;
             uint32_t radixY;
@@ -58,16 +35,12 @@ namespace mv{
             uint32_t padStyle;
             uint32_t dilation;
 
-            bool NCE1_Compatible;
-
-            std::vector<cnnConvolutionPoolStructure> descriptors;
-
         public:
             uint32_t number_of_inputs = 2;
             void writeStageInfo(OpModel& om, mv::Blob_buffer* b);
-            bConv2D(mv::Control::OpListIterator it);
-            ~bConv2D();
+            bDepthwiseConv2D(mv::Control::OpListIterator it);
+            ~bDepthwiseConv2D();
     };
 }
 
-#endif
+#endif //MV_BLOB_MX_BDEPTHWISECONV_HPP_

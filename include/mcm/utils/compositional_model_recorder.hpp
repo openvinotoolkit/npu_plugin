@@ -40,6 +40,7 @@ namespace mv
 		virtual Data::TensorIterator output(Data::TensorIterator input, const std::string& name = "") override;
 		virtual Data::TensorIterator constant(const std::vector<double>& data, const Shape& shape, DType dType, Order order, const std::string& name = "") override;
 		virtual Data::TensorIterator conv2D(Data::TensorIterator input, Data::TensorIterator filters, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
+        	virtual Data::TensorIterator depthwiseConv2D(Data::TensorIterator input, Data::TensorIterator filters, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
 		virtual Data::TensorIterator matMul(Data::TensorIterator input0, Data::TensorIterator input1, const std::string& name = "") override;
 		virtual Data::TensorIterator maxpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
 		virtual Data::TensorIterator avgpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;

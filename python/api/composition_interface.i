@@ -209,6 +209,12 @@ import_array();
         return o.conv2D(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
     }
 
+    mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
+        /// Add a Convolutional Layer to the OpModel and return the relevant iterator
+        return o.depthwiseConv2D(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
+    }
+
     mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
         short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
     {
@@ -250,6 +256,49 @@ import_array();
             adj_Y = 0;
 
         return o.conv2D(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
+    }
+
+    mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+    {
+        /// This differs from the above because caffe calculates output sizes differently.
+        /// To compensate, we add values to pad.
+
+        int adj_X = 0, adj_Y = 0;
+
+        mv::Shape i = input->getShape();
+        mv::Shape k = filters->getShape();
+
+        int kernelSizeX =  k[0];
+        int kernelSizeY =  k[1];
+
+        //if (padX > 0)
+        {
+            double inner_x_calc = (double)i[0] + (double)padX + (double)padX - (double)kernelSizeX;
+            double caffe_x = ceil(inner_x_calc / strideX) + 1;
+            double tensorflow_x = ceil((inner_x_calc +1) / strideX);
+            adj_X = (int)caffe_x - (int)tensorflow_x;
+        }
+
+        //if (padY > 0)
+        {
+            double inner_y_calc = (double)i[1] + (double)padY + (double)padY - (double)kernelSizeY;
+            double caffe_y = ceil(inner_y_calc / strideX) + 1;
+            double tensorflow_y = ceil((inner_y_calc +1) / strideX);
+            adj_Y = (int)caffe_y - (int)tensorflow_y;
+        }
+
+        if (adj_X < 0)
+            adj_X = 0;
+        if (adj_Y < 0)
+            adj_Y = 0;
+
+        if (padX == 0)
+            adj_X = 0;
+        if (padY == 0)
+            adj_Y = 0;
+
+        return o.depthwiseConv2D(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
     }
 
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape){
@@ -405,6 +454,10 @@ mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorItera
 mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
     short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);

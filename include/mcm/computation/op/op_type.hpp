@@ -38,6 +38,7 @@ namespace mv
         static constexpr unsigned short FullyConnected = 19;
         static constexpr unsigned short PReLU = 20;
         static constexpr unsigned short DropOut = 21;
+        static constexpr unsigned short DepthwiseConv2D = 22;
 
     private:
 

@@ -15,6 +15,7 @@
 #include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
 #include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
+#include "include/mcm/deployer/blob_serialization/bDepthwiseConv.hpp"
 #include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
 #include "include/mcm/deployer/blob_serialization/bPooling_MX.hpp"
 #include "include/mcm/deployer/blob_serialization/bSoftmax.hpp"

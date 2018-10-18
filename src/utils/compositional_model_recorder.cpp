@@ -106,6 +106,29 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vec
 	return result;
 }
 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::depthwiseConv2D(Data::TensorIterator inputTensor,
+    Data::TensorIterator filtersTensor, std::array<unsigned short, 2> stride,
+    std::array<unsigned short, 4> padding, const std::string& name)
+{
+    /*get the name of the argument(s)*/
+    auto sourceIt0 = modelRef_.getSourceOp(inputTensor);
+    auto sourceIt1 = modelRef_.getSourceOp(filtersTensor);
+
+    /*open the recording file*/
+    outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
+
+    /*Construct a std::string and write to file*/
+    ss << "auto " << modelRef_.getOpName_(OpType::DepthwiseConv2D) << " =" << " rc.depthwiseConv2D("
+        << sourceIt0->getName() << ", " << sourceIt1->getName() << ", " << toString(stride)
+        << ", " << toString(padding) << ")" << ";" << "\n";
+    outputSourceFile << ss.str();
+    ss.str("");
+    outputSourceFile.close();
+
+    auto result = modelRef_.depthwiseConv2D(inputTensor, filtersTensor, stride, padding, name);
+    return result;
+}
+
 mv::Data::TensorIterator mv::CompositionalModelRecorder::conv2D(Data::TensorIterator inputTensor,
 	Data::TensorIterator filtersTensor, std::array<unsigned short, 2> stride,
 	std::array<unsigned short, 4> padding, const std::string& name)

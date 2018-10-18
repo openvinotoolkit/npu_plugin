@@ -4,6 +4,7 @@ constexpr unsigned short mv::OpType::Input;
 constexpr unsigned short mv::OpType::Output;
 constexpr unsigned short mv::OpType::Constant;
 constexpr unsigned short mv::OpType::Conv2D;
+constexpr unsigned short mv::OpType::DepthwiseConv2D;
 constexpr unsigned short mv::OpType::Conversion;
 constexpr unsigned short mv::OpType::MatMul;
 constexpr unsigned short mv::OpType::MaxPool2D;
@@ -28,6 +29,7 @@ const std::unordered_map<unsigned short, std::string> mv::OpType::opTypeStrings_
     {Input, "Input"},
     {Output, "Output"},
     {Constant, "Constant"},
+    {DepthwiseConv2D, "DepthwiseConv2D"},
     {Conv2D, "Conv2D"},
     {Conversion, "Conversion"},
     {MatMul, "MatMul"},

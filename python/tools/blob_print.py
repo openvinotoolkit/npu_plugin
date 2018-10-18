@@ -559,6 +559,29 @@ blob_format = Struct(
                         "order" / Int32ul,
                     )[4]
                 ),
+                # Depthwise convolution
+                8: Struct(
+                    "radixX" / Int32ul,
+                    "radixY" / Int32ul,
+                    "radixStrideX" / Int32ul,
+                    "radixStrideY" / Int32ul,
+                    "padX" / Int32ul,
+                    "padY" / Int32ul,
+                    "padStyle" / Int32ul,
+                    "dilation" / Int32ul,
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[4]
+                ),
                 # MaxPooling
                 1: Struct(
                     "radixX" / Int32ul,

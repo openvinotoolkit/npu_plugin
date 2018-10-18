@@ -169,6 +169,22 @@ mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, 
     return outputTensor;
 }
 
+mv::Data::TensorIterator mv::OpModel::depthwiseConv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor,
+    std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
+{
+    std::string opName;
+    if (name != "")
+        opName = name;
+    else
+        opName = getOpName_(OpType::DepthwiseConv2D);
+    auto conv = dataGraph_.node_insert(std::make_shared<op::DepthwiseConv2D>(stride, padding, opName));
+    Data::TensorIterator inputs[] = {inputTensor, filtersTensor};
+    auto result = defineOp_(conv, inputs, 2);;
+    if (isValid(result))
+        incrementOpsCounter_(OpType::DepthwiseConv2D);
+    return result;
+}
+
 mv::Data::TensorIterator mv::OpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor,
     std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
 {
