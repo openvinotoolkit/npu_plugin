@@ -5,6 +5,7 @@
 	"ops":
 	[
 		"Conv2D",
+		"DepthwiseConv2D",
 		"MatMul",
 		"MaxPool2D",
 		"AvgPool2D",

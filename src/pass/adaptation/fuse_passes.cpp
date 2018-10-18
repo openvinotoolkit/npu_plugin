@@ -72,7 +72,9 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
             
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             
-            if (parentOpIt->getOpType() == OpType::Conv2D || parentOpIt->getOpType() == OpType::FullyConnected)
+            if (parentOpIt->getOpType() == OpType::Conv2D ||
+                parentOpIt->getOpType() == OpType::DepthwiseConv2D ||
+                parentOpIt->getOpType() == OpType::FullyConnected)
             {
 
                 auto bias = *opIt->getInputTensor(1);
