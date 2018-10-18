@@ -194,12 +194,12 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
 
     if (flow != *controlFlowEnd_)
     {
-        log(Logger::MessageType::MessageInfo, "Defined " + flow->toString());
+        log(Logger::MessageType::Info, "Defined " + flow->toString());
         return flow;
     }
     else
     {
-        log(Logger::MessageType::MessageError, "Unable to define new control flow between " + 
+        log(Logger::MessageType::Error, "Unable to define new control flow between " + 
             sourceOp->getName() + " and " + sinkOp->getName());
     }
 
@@ -228,5 +228,5 @@ bool mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
 
 std::string mv::ControlModel::getLogID() const
 {
-    return "ControlModel";
+    return "ControlModel:" + name_;
 }

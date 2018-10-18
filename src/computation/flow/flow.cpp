@@ -19,5 +19,5 @@ mv::ComputationFlow::~ComputationFlow()
 
 std::string mv::ComputationFlow::toString() const
 {
-    return "'" + name_ + "' " + Element::attrsToString_();
+    return getLogID() + Element::attrsToString_();
 }

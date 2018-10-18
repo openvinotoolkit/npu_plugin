@@ -6,6 +6,7 @@
 #include <set>
 #include <map>
 #include "include/mcm/target/target_descriptor.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
@@ -26,14 +27,14 @@ namespace mv
     namespace pass
     {
 
-        class PassEntry
+        class PassEntry : public LogSender
         {
 
             std::string name_;
             std::set<PassGenre> passGenre_;
             std::string description_;
             std::map<std::string, json::JSONType> requiredArgs_;
-            std::function<void(ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)> passFunc_;
+            std::function<void(const PassEntry& pass, ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)> passFunc_;
 
         public:
 
@@ -64,7 +65,8 @@ namespace mv
                 return *this;
             }
 
-            inline PassEntry& setFunc(const std::function<void(ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)>& passFunc)
+            inline PassEntry& setFunc(const std::function<void(const PassEntry&, ComputationModel&, TargetDescriptor&, 
+                json::Object&, json::Object&)>& passFunc)
             {
                 passFunc_ = passFunc;
                 return *this;
@@ -104,7 +106,12 @@ namespace mv
 
             inline void run(ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor, json::Object& output) const
             {
-                passFunc_(model, targetDescriptor, compDescriptor, output);
+                passFunc_(*this, model, targetDescriptor, compDescriptor, output);
+            }
+
+            std::string getLogID() const override
+            {
+                return "Pass:" + getName();
             }
 
 

@@ -5,7 +5,7 @@
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
 
-static void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void modeSelection(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -162,7 +162,7 @@ mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpLis
     return nce.optimize_convolution(source);
 }
 
-void modeSelection(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void modeSelection(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "Mode selection pass" << std::endl;
     mv::OpModel om(model);

@@ -6,8 +6,8 @@
 static void setPassReg()
 {
 
-    std::function<void(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> foo = 
-    [](mv::ComputationModel& model, mv::TargetDescriptor& desc, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> foo = 
+    [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& desc, mv::json::Object&, mv::json::Object&)
     {   
         if (desc.getTarget() == mv::Target::Unknown)
             throw mv::ArgumentError(model, "target", "unknown", "Test pass does not accept target decriptor"

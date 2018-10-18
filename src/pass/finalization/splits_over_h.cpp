@@ -7,7 +7,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 
 
-static void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void splitsOverH(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -79,7 +79,7 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 
 //ASSUMPTION: This pass must be executed after the mode selection pass.
 //REASON: Paddings (and possibly modes) for each HW operation are needed.
-void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void splitsOverH(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
 {
     std::cout << "Split over H pass " << std::endl;
     mv::OpModel om(model);

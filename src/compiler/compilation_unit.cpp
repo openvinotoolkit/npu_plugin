@@ -52,7 +52,7 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
     }
     catch (ArgumentError& e)
     {
-        log(Logger::MessageType::MessageError, e.what());
+        log(Logger::MessageType::Error, e.what());
         return false;
     }
 

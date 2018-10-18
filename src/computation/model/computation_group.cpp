@@ -120,10 +120,10 @@ std::size_t mv::ComputationGroup::size() const
 
 std::string mv::ComputationGroup::toString() const
 {
-    return "Group '" + name_ + "' " + Element::attrsToString_();
+    return getLogID() + Element::attrsToString_();
 }
 
 std::string mv::ComputationGroup::getLogID() const
 {
-    return "Group '" + getName() + "'";
+    return "Group:" + getName();
 }

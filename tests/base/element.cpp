@@ -116,7 +116,7 @@ TEST(element, def_attrs)
 TEST(element, get_failure)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     mv::Element e("TestElement");
     setValueAttrTypes(e);
@@ -135,7 +135,7 @@ TEST(element, get_failure)
     ASSERT_ANY_THROW(e.get<mv::Shape>("aVecStdSizeT"));
     ASSERT_ANY_THROW(e.get<int>("aUnsignedShort"));
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
@@ -149,19 +149,19 @@ struct UnregisteredAttr
 TEST(element, set_unregistered)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     mv::Element e("TestElement");
     ASSERT_ANY_THROW(e.set<UnregisteredAttr>("a1", {0}));
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
 TEST(element, get_unregisterd)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     mv::Element e("TestElement");
     setValueAttrTypes(e);
@@ -180,7 +180,7 @@ TEST(element, get_unregisterd)
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aVecStdSizeT"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aUnsignedShort"));
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 

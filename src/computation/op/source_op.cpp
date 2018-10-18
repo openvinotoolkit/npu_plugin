@@ -21,7 +21,7 @@ void mv::SourceOp::setOutputTensor(Data::TensorIterator tensor, std::size_t idx)
     if (!result.second)
         outputs_[idx] = tensor;
     set<std::string>("output" + std::to_string(idx), tensor->getName());
-    log(Logger::MessageType::MessageDebug, "Set output " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
+    log(Logger::MessageType::Debug, "Set output " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
 
 }
 

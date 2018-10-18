@@ -62,7 +62,7 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, co
         throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of an upopulated tensor name during the creation");
 
     auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
-    log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+    log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
     return result.first;
 
 }
@@ -74,7 +74,7 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, co
         throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of a populated tensor name during the creation");
 
     auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
-    log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+    log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
     return result.first;
 
 }
@@ -84,7 +84,7 @@ bool mv::DataModel::undefineTensor(const std::string& name)
 
     if (flowTensors_->find(name) == flowTensors_->end())
     {
-        log(Logger::MessageType::MessageError, "Unable to remove unexisting tensor " + name +
+        log(Logger::MessageType::Error, "Unable to remove unexisting tensor " + name +
             " from the computation model");
         return false;
     }
@@ -92,7 +92,7 @@ bool mv::DataModel::undefineTensor(const std::string& name)
     auto tensorSource = tensorsSources_->find(name);
     if (tensorSource != tensorsSources_->end())
     {
-        log(Logger::MessageType::MessageError, "Unable to remove the tensor " + name +
+        log(Logger::MessageType::Error, "Unable to remove the tensor " + name +
             " that is an output of the operation " + tensorSource->second->getName() + " - source "
             "operation has to be removed to achieve this");
         return false;
@@ -120,7 +120,7 @@ bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, std:
     auto result = memoryAllocators_->emplace(name, std::make_shared<MemoryAllocator>(name, size, alignment, dataTypeSize));
     if (result.second)
     {
-        log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+        log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
         return true;
     }
     return false;
@@ -138,12 +138,12 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
 
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(stageIdx))
     {
-        log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " +
+        log(Logger::MessageType::Info, "Allocated memory for '" + tensor->getName() + "' using " +
             (*memoryAllocators_)[allocatorName]->toString());
         return buf;
     }
 
-    log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " +
+    log(Logger::MessageType::Warning, "Unable to allocate '" + tensor->getName() + "' (of size " +
         std::to_string(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
 
     return buf;
@@ -161,12 +161,12 @@ mv::Data::BufferIterator mv::DataModel::allocateTensor(const std::string& alloca
 
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(buffer->getStage()))
     {
-        log(Logger::MessageType::MessageInfo, "Allocated memory for '" + tensor->getName() + "' using " +
+        log(Logger::MessageType::Info, "Allocated memory for '" + tensor->getName() + "' using " +
             (*memoryAllocators_)[allocatorName]->toString());
         return buf;
     }
 
-    log(Logger::MessageType::MessageWarning, "Unable to allocate '" + tensor->getName() + "' (of size " +
+    log(Logger::MessageType::Warning, "Unable to allocate '" + tensor->getName() + "' (of size " +
         std::to_string(tensor->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
     return buf;
 
@@ -183,12 +183,12 @@ mv::Data::BufferIterator mv::DataModel::moveTensor(const std::string& allocatorN
 
     if (buf != (*memoryAllocators_)[allocatorName]->bufferEnd(slaveBuffer->getStage()))
     {
-        log(Logger::MessageType::MessageInfo, "Moved tensor " + (*buf)->getData()->getName() + "' using " +
+        log(Logger::MessageType::Info, "Moved tensor " + (*buf)->getData()->getName() + "' using " +
             (*memoryAllocators_)[allocatorName]->toString());
         return buf;
     }
 
-    log(Logger::MessageType::MessageWarning, "Unable to move '" + (*buf)->getData()->getName() + "' (of size " +
+    log(Logger::MessageType::Warning, "Unable to move '" + (*buf)->getData()->getName() + "' (of size " +
         std::to_string((*buf)->getData()->getShape().totalSize()) + ") using " + (*memoryAllocators_)[allocatorName]->toString());
 
     return buf;
@@ -226,12 +226,12 @@ bool mv::DataModel::deallocateTensor(const std::string& allocatorName, Control::
 
     if (result)
     {
-        log(Logger::MessageType::MessageInfo, "Unallocated memory for '" + tensor->getName() + "' in '" +
+        log(Logger::MessageType::Info, "Unallocated memory for '" + tensor->getName() + "' in '" +
             allocatorName + "'");
         return true;
     }
 
-    log(Logger::MessageType::MessageInfo, "Unable to unallocated memory for '" + tensor->getName() + "' in '" +
+    log(Logger::MessageType::Info, "Unable to unallocated memory for '" + tensor->getName() + "' in '" +
             allocatorName + "'");
 
     return false;
@@ -299,5 +299,5 @@ bool mv::DataModel::hasAllocator(const std::string& name)
 
 std::string mv::DataModel::getLogID() const
 {
-    return "DataModel";
+    return "DataModel:" + name_;
 }

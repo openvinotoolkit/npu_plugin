@@ -29,7 +29,7 @@ mv::Data::OpListIterator mv::OpModel::checkInputTensor_(Data::TensorIterator inp
 
     if (inputTensor == tensorEnd())
     {
-        log(Logger::MessageType::MessageError, "Unable to define source op - undefined input tensor" );
+        log(Logger::MessageType::Error, "Unable to define source op - undefined input tensor" );
         return opEnd();
     }
 
@@ -37,7 +37,7 @@ mv::Data::OpListIterator mv::OpModel::checkInputTensor_(Data::TensorIterator inp
 
     if (sourceIt == opEnd())
     {
-        log(Logger::MessageType::MessageError, "Unable to define source op - tensor '" + inputTensor->getName() + 
+        log(Logger::MessageType::Error, "Unable to define source op - tensor '" + inputTensor->getName() + 
             "' does not belong to the computation model");
         return opEnd();
     }
@@ -51,7 +51,7 @@ mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::
 
     if (opNode == dataGraph_.node_end())
     {
-        log(Logger::MessageType::MessageError, "Unable to allocate a new op");
+        log(Logger::MessageType::Error, "Unable to allocate a new op");
         return tensorEnd();
     }
 
@@ -60,7 +60,7 @@ mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::
 
     auto outputTensor = defineOutputTensor_(opNode, 0);
     (*opNode)->setOutputTensor(outputTensor, 0);
-    log(Logger::MessageType::MessageInfo, "Defined " + (*opNode)->toString());
+    log(Logger::MessageType::Info, "Defined " + (*opNode)->toString());
 
     return outputTensor;
 
@@ -101,7 +101,7 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
 
     if (*input_ != opEnd())
     {
-        log(Logger::MessageType::MessageError, "Unable to define input - already defined (multi-input models currently not supported");
+        log(Logger::MessageType::Error, "Unable to define input - already defined (multi-input models currently not supported");
         return tensorEnd();
     }
 
@@ -115,14 +115,14 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Ord
     
     if (*input_ == opEnd())
     {
-        log(Logger::MessageType::MessageError, "Unable to allocate a new input op");
+        log(Logger::MessageType::Error, "Unable to allocate a new input op");
         return tensorEnd();
     }
 
     auto outputTensor = defineOutputTensor_(*input_, 0);
     (*input_)->setOutputTensor(outputTensor, 0);
     incrementOpsCounter_(OpType::Input);
-    log(Logger::MessageType::MessageInfo, "Defined " + (*input_)->toString());
+    log(Logger::MessageType::Info, "Defined " + (*input_)->toString());
     return outputTensor;
 
 }
@@ -140,14 +140,14 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
 
     if (outputIt == dataGraph_.node_end())
     {
-        log(Logger::MessageType::MessageError, "Unable to allocate a new output op");
+        log(Logger::MessageType::Error, "Unable to allocate a new output op");
         return tensorEnd();
     }
 
     defineFlow(inputTensor, outputIt, 0);
     incrementOpsCounter_(OpType::Output);
     *output_ = outputIt;
-    log(Logger::MessageType::MessageInfo, "Defined " + (*output_)->toString());
+    log(Logger::MessageType::Info, "Defined " + (*output_)->toString());
 
     return inputTensor;
 
@@ -165,7 +165,7 @@ mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, 
     auto outputTensor = defineOutputTensor_(constantIt, 0);
     constantIt->setOutputTensor(outputTensor, 0);
     incrementOpsCounter_(OpType::Constant);
-    log(Logger::MessageType::MessageInfo, "Defined " + constantIt->toString());
+    log(Logger::MessageType::Info, "Defined " + constantIt->toString());
     return outputTensor;
 }
 
@@ -496,7 +496,7 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTe
     
     if (inputFlow != *dataFlowEnd_)
     {
-        log(Logger::MessageType::MessageInfo, "Defined " + inputFlow->toString());
+        log(Logger::MessageType::Info, "Defined " + inputFlow->toString());
         return inputFlow;
     }
     
@@ -641,5 +641,5 @@ void mv::OpModel::addAttr(Data::OpListIterator op, const std::string& name, cons
 
 std::string mv::OpModel::getLogID() const
 {
-    return "OpModel";
+    return "OpModel:" + name_;
 }

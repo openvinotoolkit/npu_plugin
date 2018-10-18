@@ -3,9 +3,9 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
-static void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
+static void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void compatibilityResolution(const mv::pass::PassEntry& pass, mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
 {
@@ -31,7 +31,7 @@ namespace mv
 
 }
 
-void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -55,6 +55,7 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
                 {
                     //opIt->set<Order>("order", OrderType::RowMajorPlanar);
                     opIt.leftmostOutput()->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                    pass.log(Logger::MessageType::Info, "Changed data order of the NCE executed op " + opIt->getName() + " to RowMajorPlanar");
                     continue;
                 }
 
@@ -63,6 +64,7 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
             // Constant is a parameter tensor for a software layer
             //opIt->set<Order>("order", OrderType::RowMajorPlanar);
             opIt->getOutputTensor(0)->setOrder(OrderType::RowMajorPlanar);
+            pass.log(Logger::MessageType::Info, "Changed data order of the software executed op " + opIt->getName() + " to RowMajorPlanar");
 
         }
 
@@ -260,7 +262,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 
 
 //NOTE: This should not be done in such hardcoded way.
-void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "addConversionLayers " << std::endl;

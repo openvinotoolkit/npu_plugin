@@ -18,6 +18,7 @@ namespace mv
         //ControlFlow(mv::json::Value& value);
         std::string toString() const;
         json::Value toJsonValue() const;
+        std::string getLogID() const override;
     };
 
 }

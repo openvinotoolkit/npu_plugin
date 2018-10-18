@@ -213,5 +213,5 @@ mv::Order::operator mv::OrderType() const
 
 std::string mv::Order::getLogID() const
 {
-    return toString();
+    return "Order:" + toString();
 }

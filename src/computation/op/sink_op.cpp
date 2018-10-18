@@ -20,7 +20,7 @@ void mv::SinkOp::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
     if (!result.second)
         inputs_[idx] = tensor;
     set<std::string>("input" + std::to_string(idx), tensor->getName());
-    log(Logger::MessageType::MessageDebug, "Set input " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
+    log(Logger::MessageType::Debug, "Set input " + std::to_string(idx) + " for " + toString() + " as " + tensor->toString());
 }
 
 mv::Data::TensorIterator mv::SinkOp::getInputTensor(std::size_t idx)

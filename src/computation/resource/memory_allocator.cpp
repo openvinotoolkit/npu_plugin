@@ -149,10 +149,10 @@ std::string mv::MemoryAllocator::MemoryBuffer::toString(bool printValues) const
     res.erase(res.size() - 2, 2);
     res += "}";
 
-    res += "; strides:";
+    /*res += "; strides:";
 
     for(auto &stride : strides)
-        res += " " + std::to_string(stride);
+        res += " " + std::to_string(stride);*/
 
     if (printValues && data->isPopulated())
     {
@@ -638,5 +638,5 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getBuffer(std::size_t s
 
 std::string mv::MemoryAllocator::getLogID() const
 {
-    return "Memory allocator " + name_;
+    return "MemoryAllocator:" + name_;
 }

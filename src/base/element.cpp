@@ -53,7 +53,7 @@ mv::Element::Element(const json::Value& content)
         auto it = attrs_.emplace(key, content[key]);
         if (!it.second)
             throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
-        log(Logger::MessageType::MessageDebug, "Attriubte '" + key + "' (" + it.first->second.getTypeName() +
+        log(Logger::MessageType::Debug, "Attriubte '" + key + "' (" + it.first->second.getTypeName() +
                     ") set to " + it.first->second.toString());
 
     }
@@ -66,7 +66,7 @@ mv::Element::~Element()
 
 std::string mv::Element::getLogID() const
 {
-    return "Element '" + name_ + "'";
+    return "Element:" + name_;
 }
 
 mv::Element& mv::Element::operator=(const Element &other)
@@ -140,7 +140,7 @@ void mv::Element::set(const std::string& name, const Attribute& attr)
     auto it = attrs_.emplace(name, attr);
     if (!it.second)
         throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
-    log(Logger::MessageType::MessageDebug, "Attriubte '" + name + "' (" + it.first->second.getTypeName() +
+    log(Logger::MessageType::Debug, "Attriubte '" + name + "' (" + it.first->second.getTypeName() +
         ") set to " + it.first->second.toString());
 }
 

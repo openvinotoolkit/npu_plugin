@@ -5,7 +5,7 @@ mv::DataFlow::DataFlow(const Data::OpListIterator& source, std::size_t outputIdx
 ComputationFlow("df_" + source->getName() + std::to_string(outputIdx) + "_" + sink->getName() + std::to_string(inputIdx)),
 data_(data)
 {
-    log(Logger::MessageType::MessageInfo, "Initialized");
+    log(Logger::MessageType::Info, "Initialized");
     set<std::string>("sourceOp", source->getName());
     set<std::size_t>("sourceOutput", outputIdx);
     set<std::string>("sinkOp", sink->getName());
@@ -14,7 +14,7 @@ data_(data)
 
 mv::DataFlow::~DataFlow()
 {
-    log(Logger::MessageType::MessageInfo, "Deleted");
+    log(Logger::MessageType::Info, "Deleted");
 }
 
 /*mv::DataFlow::DataFlow(mv::json::Value &value):
@@ -37,7 +37,7 @@ mv::Data::TensorIterator& mv::DataFlow::getTensor()
 
 std::string mv::DataFlow::toString() const
 {
-    return "data flow '" + name_ + "'\n'tensor': " + data_->getName() + Element::attrsToString_();
+    return getLogID() + "\n'tensor': " + data_->getName() + Element::attrsToString_();
 }
 
 /*mv::json::Value mv::DataFlow::toJsonValue() const
@@ -47,3 +47,8 @@ std::string mv::DataFlow::toString() const
     //toReturn["type"] = mv::Jsonable::toJsonValue("data_flow");
     return mv::json::Value(toReturn);
 }*/
+
+std::string mv::DataFlow::getLogID() const
+{
+    return "DataFlow:" + name_;
+}

@@ -19,7 +19,7 @@ controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_e
 input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end()))
 {
-    log(Logger::MessageType::MessageInfo, "Initialized");
+    log(Logger::MessageType::Info, "Initialized");
 }
 
 /*void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
@@ -286,12 +286,12 @@ controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_)
 {
-    log(Logger::MessageType::MessageInfo, "Bound");
+    log(Logger::MessageType::Info, "Bound");
 }
 
 mv::ComputationModel::~ComputationModel()
 {
-    log(Logger::MessageType::MessageInfo, "Deleted");
+    log(Logger::MessageType::Info, "Deleted");
 }
 
 bool mv::ComputationModel::isValid() const
@@ -359,7 +359,7 @@ mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string
         auto result = groups_->emplace(name, std::make_shared<ComputationGroup>(name));
         if (result.second)
         {
-            log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+            log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
             return result.first;
         }
         return groupEnd();
@@ -398,7 +398,7 @@ mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement_(std::sha
         auto result = group->insert(element);
         if (result != group->end())
         {
-            log(Logger::MessageType::MessageInfo, "Appended new member '" + result->lock()->getName() + "' to group '" + 
+            log(Logger::MessageType::Info, "Appended new member '" + result->lock()->getName() + "' to group '" + 
                 group->getName() + "'");
             return result;
         }
@@ -447,7 +447,7 @@ mv::Control::StageIterator mv::ComputationModel::addStage_()
 {
 
     auto it = stages_->emplace(stages_->size(), std::make_shared<ComputationStage>(stages_->size()));
-    log(Logger::MessageType::MessageInfo, "Defined " + it.first->second->toString());
+    log(Logger::MessageType::Info, "Defined " + it.first->second->toString());
     return it.first;
 
 }
@@ -461,7 +461,7 @@ bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpLi
 
         if (result != stage->end())
         {
-            log(Logger::MessageType::MessageInfo, "Appended new member '" + result->lock()->getName() + "' to stage " + 
+            log(Logger::MessageType::Info, "Appended new member '" + result->lock()->getName() + "' to stage " + 
                 std::to_string(result->lock()->get<std::size_t>("stage")));
             return true;
         }
@@ -482,7 +482,7 @@ mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListI
     {
         auto result = flowTensors_->emplace(tensorDef.getName(), std::make_shared<Tensor>(tensorDef));
         tensorsSources_->emplace(tensorDef.getName(), source);
-        log(Logger::MessageType::MessageInfo, "Defined " + result.first->second->toString());
+        log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
         return result.first;
     }
 
@@ -671,5 +671,5 @@ void mv::ComputationModel::clear()
 
 std::string mv::ComputationModel::getLogID() const
 {
-    return "Model " + name_;
+    return "Model:" + name_;
 }

@@ -437,5 +437,5 @@ const double& mv::Tensor::operator()(const std::vector<std::size_t>& sub) const
 
 std::string mv::Tensor::getLogID() const
 {
-    return "Tensor " + getName();
+    return "Tensor:" + getName();
 }

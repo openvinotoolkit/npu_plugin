@@ -24,6 +24,7 @@ namespace mv
         Data::TensorIterator& getTensor();
         std::string toString() const;
         json::Value toJsonValue() const;
+        std::string getLogID() const override;
 
     };
 

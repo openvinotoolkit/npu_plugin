@@ -22,7 +22,7 @@ void mv::Logger::logMessage_(MessageType messageType, std::string content) const
 
     switch (messageType)
     {
-        case MessageType::MessageError:
+        case MessageType::Error:
             logContent += "ERROR:   ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
@@ -30,7 +30,7 @@ void mv::Logger::logMessage_(MessageType messageType, std::string content) const
             logError_(logContent);
             break;
 
-        case MessageType::MessageWarning:
+        case MessageType::Warning:
             logContent += "WARNING: ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
@@ -38,7 +38,7 @@ void mv::Logger::logMessage_(MessageType messageType, std::string content) const
             logWarning_(logContent);
             break;
 
-        case MessageType::MessageInfo:
+        case MessageType::Info:
             logContent += "INFO:    ";
             Printable::replaceSub(content, "\n", "\n" + indent_ + "         ");
             Printable::replaceSub(content, "\n\t", "\n" + indent_ + "            ");
@@ -65,8 +65,9 @@ mv::Logger& mv::Logger::instance()
 }
 
 mv::Logger::Logger() : 
-verboseLevel_(VerboseLevel::VerboseError), 
-logTime_(false)
+verboseLevel_(VerboseLevel::Error), 
+logTime_(false),
+filterPositive_(true)
 {
     if (logTime_)
         indent_ = "                     ";
@@ -99,25 +100,48 @@ void mv::Logger::disableLogTime()
 void mv::Logger::log(MessageType messageType, const std::string& senderName, const std::string &content)
 {
 
+    if (!instance().filterList_.empty())
+    {
+        bool found = false;
+        for (auto it = instance().filterList_.begin(); it != instance().filterList_.end(); ++it)
+        {
+            std::smatch m;
+            if (std::regex_match(senderName, m, *it))
+            {
+                if (!instance().filterPositive_)
+                    return;
+                else
+                {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found && instance().filterPositive_)
+            return;
+
+    }
+
     switch (instance().verboseLevel_)
     {
 
-         case VerboseLevel::VerboseDebug:
+         case VerboseLevel::Debug:
             instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
-        case VerboseLevel::VerboseInfo:
-            if (messageType == MessageType::MessageError || messageType == MessageType::MessageWarning || messageType == MessageType::MessageInfo)
+        case VerboseLevel::Info:
+            if (messageType == MessageType::Error || messageType == MessageType::Warning || messageType == MessageType::Info)
                 instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
-        case VerboseLevel::VerboseWarning:
-            if (messageType == MessageType::MessageError || messageType == MessageType::MessageWarning)
+        case VerboseLevel::Warning:
+            if (messageType == MessageType::Error || messageType == MessageType::Warning)
                 instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
-        case VerboseLevel::VerboseError:
-            if (messageType == MessageType::MessageError)
+        case VerboseLevel::Error:
+            if (messageType == MessageType::Error)
                 instance().logMessage_(messageType, senderName + " - " + content);
             break;
 
@@ -146,4 +170,16 @@ void mv::Logger::logInfo_(const std::string &content) const
 void mv::Logger::logDebug_(const std::string &content) const
 {
     std::cout << content << std::endl;
+}
+
+void mv::Logger::logFilter(std::list<std::regex> filterList, bool filterPositive)
+{
+    instance().filterList_ = filterList;
+    instance().filterPositive_ = filterPositive;
+}
+
+void mv::Logger::clearFilter()
+{
+    instance().filterList_.clear();
+    instance().filterPositive_ = true;
 }

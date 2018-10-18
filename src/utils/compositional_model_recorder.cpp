@@ -522,7 +522,7 @@ void mv::CompositionalModelRecorder::createRecordedSourceFiles() {
 
 	if (!outputSourceFile)
 	{
-		log(Logger::MessageType::MessageError, "Failed to open file to record Compositional Model API calls");
+		log(Logger::MessageType::Error, "Failed to open file to record Compositional Model API calls");
 		exit(1);
 	}
 
@@ -530,7 +530,7 @@ void mv::CompositionalModelRecorder::createRecordedSourceFiles() {
 
 	if (!outputWeightsFile)
 	{
-		log(Logger::MessageType::MessageError, "Failed to open file to record the weights");
+		log(Logger::MessageType::Error, "Failed to open file to record the weights");
 		exit(1);
 	}
 

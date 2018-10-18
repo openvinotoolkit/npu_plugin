@@ -13,19 +13,19 @@ bool mv::ComputationStage::markMembmer_(Element &member)
             }
             else
             {
-                log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + 
+                log(Logger::MessageType::Warning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + 
                     "' that was already assigned to this stage");
             }
         }
         else
         {
-            log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + 
+            log(Logger::MessageType::Warning, "Stage '" + name_ + "' - failed appending member '" + member.getName() + 
                 "' of invalid type '" + member.get<OpType>("opType").toString() + "'");
         }
     }    
     else
     {
-        log(Logger::MessageType::MessageWarning, "Stage '" + name_ + "' - failed appending non-op member '" + 
+        log(Logger::MessageType::Warning, "Stage '" + name_ + "' - failed appending non-op member '" + 
             member.getName() + "'");
     }
     
@@ -79,5 +79,5 @@ bool mv::ComputationStage::operator <(ComputationStage &other)
 
 std::string mv::ComputationStage::getLogID() const
 {
-    return "Stage " + std::to_string(getIdx());
+    return "Stage:" + std::to_string(getIdx());
 }

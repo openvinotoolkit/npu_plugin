@@ -4,12 +4,12 @@ mv::ComputationOp::ComputationOp(OpType opType, const std::string &name) :
 Element(name)
 {
     set<OpType>("opType", opType); 
-    log(Logger::MessageType::MessageInfo, "Initialized");     
+    log(Logger::MessageType::Info, "Initialized");     
 }
 
 mv::ComputationOp::~ComputationOp()
 {
-    log(Logger::MessageType::MessageInfo, "Deleted");
+    log(Logger::MessageType::Info, "Deleted");
 }
 
 void mv::ComputationOp::validOutputDef_(std::size_t idx)
@@ -85,5 +85,5 @@ bool mv::ComputationOp::isExecutable() const
 
 std::string mv::ComputationOp::getLogID() const
 {
-    return "Op '" + getName() + "'";
+    return "Op:" + getName();
 }

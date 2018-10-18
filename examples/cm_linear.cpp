@@ -6,7 +6,7 @@
 int main()
 {
 
-    mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 
     // Define blank computation model (op view)
     mv::OpModel om("Model1");
@@ -57,7 +57,7 @@ int main()
     mv::OpModel om2(v);
     mv::json::Value v2 = om2.toJsonValue();*/
 
-    /*mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
+    /*mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 
     mv::OpModel om;
     auto input = om.input({128, 128, 3}, mv::DTypeType::Float, mv::OrderType::ColumnMajor);
@@ -75,7 +75,7 @@ int main()
     auto conv3 = om.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
     auto output = om.output(conv3);*/
 
-    /*auto msgType = mv::Logger::MessageType::MessageInfo;
+    /*auto msgType = mv::Logger::MessageType::Info;
 
     auto attr = output->getAttr("shape");
     om.logger().log(msgType, "Tensor '" + output->getName() + "' attribute 'shape' content: " + attr.getContent<mv::Shape>().toString());
