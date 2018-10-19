@@ -226,7 +226,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             // Allocate Inputs inside of that output
             auto valid_inputs = 0;
-            for(auto i = 0; i != opIterator->inputSlots(); i++)
+            for(unsigned i = 0; i != opIterator->inputSlots(); i++)
                 if(opIterator->hasInputDef(i))
                     valid_inputs++;
 
@@ -241,7 +241,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             std::vector<unsigned> running_concat_offset_LHS;
             auto prev_offset = 0;
             auto offset = 0;
-            for(auto i = 0; i != valid_inputs; i++){
+            for(unsigned i = 0; i != valid_inputs; i++){
                 running_concat_offset_LHS.push_back(prev_offset + offset);
                 prev_offset = prev_offset + offset;
                 // Calculate for next tensor
@@ -265,7 +265,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             // std::cout << "Output Tensor Shape: " << outputTensor->getShape().toString() << std::endl;
 
-            for(auto i = 0; i != valid_inputs; i++){
+            for(unsigned i = 0; i != valid_inputs; i++){
                 auto inputTensor = opIterator->getInputTensor(i);
 
                 // If already allocated from a previous pass, deallocate.

@@ -16,7 +16,7 @@ namespace mv
         static Attribute fromJSON(const json::Value& v)
         {
             if (v.valueType() != json::JSONType::Bool)
-                throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) + 
+                throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) +
                     " to bool");
             return v.get<bool>();
         }

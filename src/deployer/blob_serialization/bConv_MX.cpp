@@ -125,7 +125,7 @@ namespace mv
                     }
 
                 }
-                
+
             }
 
             std::cout << "Finished convolution serialization" << std::endl;
@@ -262,7 +262,7 @@ namespace mv
                     for (unsigned oc = 0; oc < DPUmodeVector.size(); ++oc)
                     {
                         ++i;
-                        
+
                         // Relations to other Descriptors
                         if (i+1 == (int)this->desc_count)
                             this->descriptors[i].Line0.linkAddress = 0; // Last.
@@ -315,7 +315,7 @@ namespace mv
                         this->descriptors[i].outputChannels = this->output->getShape()[2] -1;
 
                         // Myriad X DPU Assignment & Execution Configuration
-                       
+
                         this->descriptors[i].Line0.mode = this->DPUmodeVector[oc];
                         this->descriptors[i].Line0.it = 0;  // Interrupt Trigger
                         this->descriptors[i].Line0.disInt = 0;  // 0 - Interrupts Enabled, 1 - Interrupts disabled.

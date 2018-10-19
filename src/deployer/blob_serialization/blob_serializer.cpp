@@ -1039,7 +1039,7 @@ namespace mv
                     for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
                     {
                         //std::cout << "o" ;
-                        uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;    
+                        uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
                         fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
                         AddBytes(2, fp16_val);
                     }

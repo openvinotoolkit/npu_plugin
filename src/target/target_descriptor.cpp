@@ -191,19 +191,8 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
         std::vector<std::string> keys = jsonDescriptor["ops"].getKeys();
 
-        // std::cout << "> 'Ops'" << std::endl;
         for (unsigned i = 0; i < keys.size(); ++i)  // Op Names
         {
-            // std::cout << "> > OpType" << std::endl;
-
-            // Register Ops
-            // TODO: Re-enable
-            // if (keys[i].valueType() != json::JSONType::String)
-            // {
-            //     reset();
-            //     return false;
-            // }
-
             std::string opStr = keys.at(i);
             try
             {

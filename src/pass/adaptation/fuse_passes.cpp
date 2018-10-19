@@ -214,7 +214,6 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
 void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    std::cout << "FBN" << std::endl;
     using namespace mv;
     OpModel om(model);
 

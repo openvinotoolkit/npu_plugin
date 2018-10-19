@@ -40,7 +40,7 @@ mv::Element::Element(const json::Value& content)
     if (content["attrs"].valueType() != json::JSONType::Object)
         throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
             "field 'attrs' is " + json::Value::typeName(content["attrs"].valueType()) + ", must be json::Object");
-    
+
     if (content.size() > 2)
         throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
             "too many members specified - must be 2 ('name' and 'attrs'), has " + std::to_string(content.size()));
@@ -159,7 +159,7 @@ std::string mv::Element::toString() const
 
 mv::json::Value mv::Element::toJSON() const
 {
-    
+
     json::Object result;
     result["name"] = name_;
     result.emplace("attrs", json::Object());

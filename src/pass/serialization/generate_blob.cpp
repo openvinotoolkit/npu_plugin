@@ -88,16 +88,29 @@ static void writeSerialFieldsFcn(mv::ComputationModel& model, mv::TargetDescript
             std::string instruction = s->substr(0, s->find(':'));
             std::string name = s->substr(s->find(':')+1, s->size());
             if(instruction == "Attr"){
-                auto retrieved_attr = opIt->get<unsigned>(name);
-                std::cout << "Retrieved: " << name << ": " <<retrieved_attr << std::endl;
+                auto attr = opIt->get(name);
+                std::cout << "Type of Attr: " << attr.getTypeName() << std::endl;
+                auto typeName = attr.getTypeName();
+                if(typeName == "unsigned")
+                {
+                    auto retrieved_attr = opIt->get<unsigned>(name);
+                    std::cout << "Attr: " << name << ": " <<retrieved_attr << std::endl;
+                }else if(typeName == "std::vector<unsigned>"){
+                    auto retrieved_attr = opIt->get<std::vector<unsigned>>(name);
+                    for( auto i : retrieved_attr )
+                        std::cout << "Attr: " << i << ": " << std::endl;
+                }
+                else{
+                    std::cout << "NO ATTR FOUND" << std::endl;
+                }
+
+
             }else if(instruction == "Tensor"){
                 std::string inOrOut = name.substr(0, name.find(':'));
                 std::string index = name.substr(name.find(':')+1, name.size());
                 mv::Data::TensorIterator retrievedT;
-                std::cout << "Orig: "<< name << " - " <<inOrOut << ", " << index << ";" << std::endl;
                 if(inOrOut == "0"){
                     unsigned idx = stoi(index);
-                    std::cout << "Testing..."<< std::endl;
                     if(opIt->hasInputDef(idx))
                         retrievedT = opIt->getInputTensor(idx);
                     else

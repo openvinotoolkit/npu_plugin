@@ -79,6 +79,7 @@ bool mv::op::Conv2D::isHardwarizeable(json::Object&)
 }
 
 
+
 void mv::op::Conv2D::gatherSerialFields()
 {
     auto fp16_size = 2;
@@ -86,8 +87,12 @@ void mv::op::Conv2D::gatherSerialFields()
     std::cout << "Ok " << std::endl;
 
     if (this->hasAttr("NCE1_Compatible")){
-        this->set<unsigned>("streamingMask",
-        this->get<std::size_t>("NCE1_StreamingMask"));
+
+        this->set<unsigned>(
+            "streamingMask",
+            this->get<std::size_t>("NCE1_StreamingMask")
+        );
+        std::cout << "Set " << std::endl;
 
         std::size_t total_size = this->getInputTensor(0)->getShape().totalSize();
         total_size /= this->getInputTensor(0)->getShape()[2];
@@ -113,8 +118,9 @@ void mv::op::Conv2D::gatherSerialFields()
             1065353216); // Magic Number...
         this->set<unsigned>("desc_count",
             this->get<std::size_t>("NCE1_DescriptorSplits"));
-        this->set<unsigned>("descriptors",
-            42
+        std::vector<unsigned> desc = {20,20,20};
+        this->set<std::vector<unsigned>>("descriptors",
+            desc
         );
     }
 

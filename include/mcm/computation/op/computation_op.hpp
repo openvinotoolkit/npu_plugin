@@ -5,6 +5,7 @@
 #include <array>
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/base/attribute.hpp"
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
