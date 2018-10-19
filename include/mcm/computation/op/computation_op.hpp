@@ -44,7 +44,7 @@ namespace mv
         bool operator==(const ComputationOp &other) const;
         virtual std::string getLogID() const override;
 
-        void gatherSerialFields();
+        virtual void gatherSerialFields();
 
     };
 

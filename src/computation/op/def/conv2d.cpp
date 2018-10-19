@@ -113,7 +113,7 @@ void mv::op::Conv2D::gatherSerialFields()
             1065353216); // Magic Number...
         this->set<unsigned>("desc_count",
             this->get<std::size_t>("NCE1_DescriptorSplits"));
-        this->set<unsigned>("descriptor",
+        this->set<unsigned>("descriptors",
             42
         );
     }

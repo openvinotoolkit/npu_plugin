@@ -35,12 +35,12 @@ currentPass_(adaptPassQueue_.end())
 
 bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor& targetDescriptor, const mv::json::Object& compDescriptor)
 {
-    
+
     if (running_)
         return false;
 
     reset();
-    
+
     targetDescriptor_ = targetDescriptor;
     adaptPassQueue_ = targetDescriptor_.adaptPasses();
     optPassQueue_ = targetDescriptor_.optPasses();
@@ -48,6 +48,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
     serialPassQueue_ = targetDescriptor_.serialPasses();
     validPassQueue_ = targetDescriptor_.validPasses();
 
+    std::cout << "A" << std::endl;
     auto checkQueue = [this](const std::vector<std::string>& queue, PassGenre genre)
     {
         for (std::size_t i = 0; i < queue.size(); ++i)
@@ -118,7 +119,7 @@ bool mv::PassManager::enablePass(PassGenre stage, const std::string& pass, int p
     auto passGenres = passPtr->getGenre();
     if (passGenres.find(stage) == passGenres.end())
         return false;
-    
+
     std::vector<std::string>* queuePtr = nullptr;
 
     switch (stage)
@@ -135,7 +136,7 @@ bool mv::PassManager::enablePass(PassGenre stage, const std::string& pass, int p
         case PassGenre::Finalization:
             queuePtr = &finalPassQueue_;
             break;
-        
+
         case PassGenre::Serialization:
             queuePtr = &serialPassQueue_;
             break;
@@ -143,7 +144,7 @@ bool mv::PassManager::enablePass(PassGenre stage, const std::string& pass, int p
         case PassGenre::Validation:
             queuePtr = &validPassQueue_;
             break;
-        
+
     }
 
     if (pos > (int)queuePtr->size() || pos < -1)
@@ -186,7 +187,7 @@ bool mv::PassManager::disablePass(PassGenre stage, const std::string& pass)
         case PassGenre::Finalization:
             queuePtr = &finalPassQueue_;
             break;
-        
+
         case PassGenre::Serialization:
             queuePtr = &serialPassQueue_;
             break;
@@ -194,7 +195,7 @@ bool mv::PassManager::disablePass(PassGenre stage, const std::string& pass)
         case PassGenre::Validation:
             queuePtr = &validPassQueue_;
             break;
-        
+
     }
 
     auto passIt = std::find(queuePtr->begin(), queuePtr->end(), pass);
@@ -234,7 +235,7 @@ bool mv::PassManager::disablePass(PassGenre stage)
         case PassGenre::Finalization:
             queuePtr = &finalPassQueue_;
             break;
-        
+
         case PassGenre::Serialization:
             queuePtr = &serialPassQueue_;
             break;
@@ -242,7 +243,7 @@ bool mv::PassManager::disablePass(PassGenre stage)
         case PassGenre::Validation:
             queuePtr = &validPassQueue_;
             break;
-        
+
     }
 
     queuePtr->clear();
@@ -344,11 +345,11 @@ mv::json::Object& mv::PassManager::step()
 					if ((currentStage_ - 1)->second->size() == 0)
 						++currentStage_;
 			}
-            
+
             currentPass_ = currentStage_->second->begin();
-        
+
 		}
-            
+
         auto passPtr = pass::PassRegistry::instance().find(*currentPass_);
 
         if (passPtr->getName() == "GenerateDot")
@@ -405,7 +406,7 @@ mv::json::Object& mv::PassManager::step()
 
 std::size_t mv::PassManager::scheduledPassesCount(PassGenre stage) const
 {
-    return scheduledPasses(stage).size();   
+    return scheduledPasses(stage).size();
 }
 
 const std::vector<std::string>& mv::PassManager::scheduledPasses(PassGenre stage) const
@@ -420,7 +421,7 @@ const std::vector<std::string>& mv::PassManager::scheduledPasses(PassGenre stage
 
         case PassGenre::Finalization:
             return finalPassQueue_;
-        
+
         case PassGenre::Serialization:
             return serialPassQueue_;
 
@@ -455,7 +456,7 @@ bool mv::PassManager::validDescriptors() const
             auto passPtr = pass::PassRegistry::instance().find(*passIt);
             if (passPtr->argsCount() > 0)
             {
-                
+
                 if (compDescriptor_.hasKey(passPtr->getName()))
                 {
                     if (compDescriptor_[passPtr->getName()].valueType() != json::JSONType::Object)
@@ -511,7 +512,7 @@ bool mv::PassManager::validDescriptors() const
 
     if (!checkStage(serialPassQueue_))
         return false;
-    
+
     if (!checkStage(validPassQueue_))
         return false;
 
