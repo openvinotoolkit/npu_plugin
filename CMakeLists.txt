@@ -41,12 +41,6 @@ file(GLOB base
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
     "src/tensor/math.cpp"
-    "src/tensor/order.cpp"
-    "src/tensor/order/column_major_planar.cpp"
-    "src/tensor/order/column_major.cpp"
-    "src/tensor/order/row_major_planar.cpp"
-    "src/tensor/order/row_major.cpp"
-    "src/tensor/order/row_interleaved.cpp"
     "src/tensor/dtype.cpp"
     "src/computation/model/computation_model.cpp"
     "src/api/compositional_model.cpp"
@@ -93,6 +87,8 @@ file(GLOB base
     "src/computation/op/def/fully_connected.cpp"
     "src/computation/op/def/conversion.cpp"
     "src/computation/op/def/drop_out.cpp"
+    "src/order/*.cpp"
+    "src/order/order_def/*.cpp"
 )
 
 file(GLOB logger

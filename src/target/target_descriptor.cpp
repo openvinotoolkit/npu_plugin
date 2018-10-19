@@ -24,8 +24,7 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
-globalDType_(DTypeType::Float16),
-globalOrder_(OrderType::ColumnMajor)
+globalDType_(DTypeType::Float16)
 {
 
     if (!filePath.empty())
@@ -39,7 +38,6 @@ void mv::TargetDescriptor::reset()
 {
     target_ = Target::Unknown;
     globalDType_ = DTypeType::Float16;
-    globalOrder_ = OrderType::ColumnMajor;
     adaptationPasses_.clear();
     optimizationPasses_.clear();
     finalizationPasses_.clear();
@@ -105,25 +103,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         else
         {
             globalDType_ = DType(jsonDescriptor["dtype"]["global"].get<std::string>());
-        }
-
-    }
-
-    if (jsonDescriptor["order"].valueType() != json::JSONType::Object)
-    {
-        reset();
-        return false;
-    }
-    else
-    {
-        if (!jsonDescriptor["order"].hasKey("global"))
-        {
-            reset();
-            return false;
-        }
-        else
-        {
-            globalOrder_ = Order(jsonDescriptor["order"]["global"].get<std::string>());
         }
 
     }
@@ -291,7 +270,6 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
 
     json::Object root;
     root["target"] = toString(target_);
-    root["order"] = globalOrder_.toString();
     root["dtype"] = globalDType_.toString();
     root["ops"] = json::Array();
 
@@ -336,11 +314,6 @@ void mv::TargetDescriptor::setTarget(Target target)
 void mv::TargetDescriptor::setDType(DType dType)
 {
     globalDType_ = dType;
-}
-
-void mv::TargetDescriptor::setOrder(Order order)
-{
-    globalOrder_ = order;
 }
 
 bool mv::TargetDescriptor::appendAdaptPass(const std::string& pass, int pos)
@@ -603,11 +576,6 @@ mv::Target mv::TargetDescriptor::getTarget() const
 mv::DType mv::TargetDescriptor::getDType() const
 {
     return globalDType_;
-}
-
-mv::Order mv::TargetDescriptor::getOrder() const
-{
-    return globalOrder_;
 }
 
 const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const

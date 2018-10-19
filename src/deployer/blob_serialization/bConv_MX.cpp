@@ -82,7 +82,7 @@ namespace mv
 
                         this->descriptors[i].dataBaseAddr = 2 * input_width * this->input_line_start[h];    // TODO: Calculate 3f0 (1008)
 
-                        if( this->input->getOrder() == mv::OrderType::RowInterleaved )
+                        if( this->input->getOrder() == Order(Order::getRowMajorID(3)) )
                         {
                             this->descriptors[i].dataBaseAddr *= this->inputChannelsPadded;    // TODO: Calculate 3f0 (1008)
                             this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
@@ -98,7 +98,7 @@ namespace mv
                         this->descriptors[i].scaleBaseAddr = 0;
                         //HACK FOR CONCAT
                         this->descriptors[i].outBaseAddr = outputBlobTensor.strideZ * this->output_line_start[h];  // TODO: Calculate 3f0 (1008)
-                        if( this->output->getOrder() == mv::OrderType::RowInterleaved )
+                        if( this->output->getOrder() == mv::Order("WCH"))
                         {
                             this->descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
                             this->descriptors[i].outLnStr = outputBlobTensor.strideY;
@@ -274,12 +274,12 @@ namespace mv
                         // Layer Meta Information - Layout & DataTypes
                         this->descriptors[i].Line0.type = NCE1_CONV;
 
-                        if( this->input->getOrder() == mv::OrderType::RowInterleaved )
+                        if( this->input->getOrder() == mv::Order("WCH") )
                             this->descriptors[i].Line0.interleavedInput = 1;
                         else
                             this->descriptors[i].Line0.interleavedInput = 0;
 
-                        if( this->output->getOrder() == mv::OrderType::RowInterleaved ){
+                        if( this->output->getOrder() == mv::Order("WCH") ){
                             this->descriptors[i].Line0.interleavedOutput = 1;
                             this->descriptors[i].rsvd3_interleaved = 1;
                         }

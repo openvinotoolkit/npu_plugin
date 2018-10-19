@@ -73,7 +73,7 @@ namespace mv
 
                     this->descriptors[i].dataBaseAddr = 2 * input_width * output_channels_performed_so_far;    // TODO: Calculate 3f0 (1008)
 
-                    if( this->input->getOrder() == mv::OrderType::RowInterleaved )
+                    if( this->input->getOrder() == mv::Order("WCH") )
                     {
                         this->descriptors[i].dataBaseAddr += this->input->getShape()[2] * 2 * input_width * this->input_line_start[h] ;    // TODO: Calculate 3f0 (1008)
                         this->descriptors[i].dataLnStr = inputBlobTensor.strideY;
@@ -90,7 +90,7 @@ namespace mv
                     this->descriptors[i].scaleBaseAddr = 0;
                     //HACK FOR CONCAT
                     this->descriptors[i].outBaseAddr = 2 * outputWidthPadded * output_channels_performed_so_far;  // TODO: Calculate 3f0 (1008)
-                    if( this->output->getOrder() == mv::OrderType::RowInterleaved )
+                    if( this->output->getOrder() == mv::Order("WCH") )
                     {
                         this->descriptors[i].outBaseAddr += outputChannelsPadded * 2 * outputWidthPadded * this->output_line_start[h];    // TODO: Calculate 3f0 (1008)
                         this->descriptors[i].outLnStr = outputBlobTensor.strideY;
@@ -122,8 +122,8 @@ namespace mv
             // Software
 
             printf("Serialization Warning: Manual Override of Pooling Software layer order\n");
-            this->output->setOrder(mv::OrderType::RowMajorPlanar);
-            this->input->setOrder(mv::OrderType::RowMajorPlanar);
+            this->output->setOrder(mv::Order("HWC"));
+            this->input->setOrder(mv::Order("HWC"));
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
@@ -239,12 +239,12 @@ namespace mv
                     // Layer Meta Information - Layout & DataTypes
                     this->descriptors[i].Line0.type = NCE1_POOL;
 
-                    if( this->input->getOrder() == mv::OrderType::RowInterleaved )
+                    if( this->input->getOrder() == Order("HCW"))
                         this->descriptors[i].Line0.interleavedInput = 1;
                     else
                         this->descriptors[i].Line0.interleavedInput = 0;
 
-                    if( this->output->getOrder() == mv::OrderType::RowInterleaved )
+                    if( this->output->getOrder() == Order("HCW"))
                     {
                         this->descriptors[i].Line0.interleavedOutput = 1;
                         this->descriptors[i].rsvd3_interleaved = 1;

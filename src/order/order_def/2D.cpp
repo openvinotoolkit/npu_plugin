@@ -1,0 +1,9 @@
+#include "include/mcm/order/order_registry.hpp"
+#include "include/mcm/base/exception/order_error.hpp"
+#include "include/mcm/order/order.hpp"
+
+namespace mv
+{
+    MV_REGISTER_ORDER(WH).setContiguityVector({1, 0});
+    MV_REGISTER_ORDER(HW).setContiguityVector({0, 1});
+}

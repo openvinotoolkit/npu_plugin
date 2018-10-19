@@ -228,7 +228,7 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order,
 {
     std::deque<std::size_t> leftStrides;
     std::deque<std::size_t> rightStrides;
-    computeStrides_(order, order.lastContiguousDimensionIndex(shape), shape, leftPadding, rightPadding, leftStrides, rightStrides);
+    computeStrides_(order, 0, shape, leftPadding, rightPadding, leftStrides, rightStrides);
     std::deque<std::size_t> strides;
 
     strides.push_back(leftStrides.back() * dataTypeSize_);
@@ -242,11 +242,11 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order,
     return strides;
 }
 
-long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
+long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
     const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides)
 {
-
-    if(order.isFirstContiguousDimensionIndex(shape, currentDim))
+    std::size_t currentDim = order[idx];
+    if(idx == order.size() - 1)
     {
         leftStrides.push_back(leftPadding[currentDim]);
         rightStrides.push_back(rightPadding[currentDim]);
@@ -255,10 +255,8 @@ long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t curren
 
     long newStride = 0;
     for(std::size_t c = 0; c < shape[currentDim]; ++c)
-    {
-        std::size_t nextDimIdx = order.previousContiguousDimensionIndex(shape, currentDim);
-        newStride = computeStrides_(order, nextDimIdx, shape, leftPadding, rightPadding, leftStrides, rightStrides);
-    }
+        newStride = computeStrides_(order, ++idx, shape, leftPadding, rightPadding, leftStrides, rightStrides);
+
     //Last stride should be joined (stride definition -> only between two blocks)
     long toAddLeft = leftStrides.back();
     long toAddRight = rightStrides.back();
@@ -313,7 +311,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     newBuffer.id = currentID_++;
     newBuffer.offset = 0;
     newBuffer.size = shape.totalSize() * dataTypeSize_;
-    newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex(shape)] * dataTypeSize_;
+    newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex()] * dataTypeSize_;
     newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
     newBuffer.postAlign= 0;
     newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);

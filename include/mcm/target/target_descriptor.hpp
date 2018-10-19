@@ -11,7 +11,7 @@
 #include "include/mcm/base/json/string.hpp"
 #include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/base/printable.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/order/order.hpp"
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 
@@ -43,7 +43,6 @@ namespace mv
 
         Target target_;
         DType globalDType_;
-        Order globalOrder_;
         std::set<OpType> ops_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
 

@@ -1,7 +1,7 @@
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/attribute.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/order/order.hpp"
 
 namespace mv
 {

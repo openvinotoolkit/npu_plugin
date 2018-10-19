@@ -70,7 +70,7 @@ void formatMXWeights(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
 
             std::vector<double> new_data(new_shape.totalSize(), 0);
-            mv::Tensor backup_tensor("backup", new_shape, weights->getDType(), mv::OrderType::RowMajor, new_data);
+            mv::Tensor backup_tensor("backup", new_shape, weights->getDType(), mv::Order(mv::Order::getRowMajorID(new_shape.ndims())), new_data);
             for(unsigned kx = 0; kx < wshape[0]; ++kx)
                 for(unsigned ky = 0; ky < wshape[1]; ++ky)
                     for(unsigned ic = 0; ic < wshape[2]; ++ic)
