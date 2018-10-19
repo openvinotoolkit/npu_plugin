@@ -9,7 +9,7 @@ namespace mv
 
         //std::cout << "RADIX : " << this->radixX << "*" <<  this->radixY << std::endl;
 
-        int fp16_size = 2;
+        // unsigned fp16_size = 2;
 
         mv::DataModel dm(om);
         mv::ControlModel cm(om);

@@ -14,10 +14,6 @@ namespace mv
         class Conv2D : public KernelOp, public SinkOp
         {
 
-        private:
-            unsigned short int serialIdentifier_MvTensor = 0;
-            unsigned short int serialIdentifier_NCE1 = 33;
-
         public:
 
             Conv2D(std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name);

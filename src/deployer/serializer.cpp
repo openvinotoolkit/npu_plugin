@@ -7,9 +7,10 @@ namespace mv
         output_format = set_output_format;
     }
 
-    unsigned long long Serializer::serialize(mv::ControlModel& graph_2_deploy, const char* ofilename )
+    unsigned long long Serializer::serialize(mv::ComputationModel& model, mv::TargetDescriptor& td, const char* ofilename )
     {
 
+        mv::ControlModel graph_2_deploy(model);
         printf("Serializer\n");
 
         uint64_t fsize = 0 ;
@@ -21,7 +22,8 @@ namespace mv
                 odata.write_elf_header();
                 odata.write_mv_header();
                 odata.write_stage_section_header();
-                odata.write_stages(graph_2_deploy);
+                // odata.write_stages(graph_2_deploy);
+                odata.write_ops(model, td);
                 odata.write_buffer_section(graph_2_deploy);
                 odata.write_relocation_section(graph_2_deploy);
                 fsize = odata.End() ;

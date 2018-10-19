@@ -19,7 +19,7 @@ namespace mv
             DepthwiseConv2D(std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name);
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
-
+            void gatherSerialFields() override;
         };
 
     }

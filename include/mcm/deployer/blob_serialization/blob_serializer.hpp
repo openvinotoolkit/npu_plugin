@@ -25,6 +25,7 @@
 #include "include/mcm/deployer/blob_serialization/bEltwise.hpp"
 #include "include/mcm/deployer/blob_serialization/bInnerProduct.hpp"
 #include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
 #include <assert.h>
 
 #define BLOB_VERSION_MAJOR 2
@@ -219,6 +220,8 @@ namespace mv
             void add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage);
 
             void write_stages(mv::ControlModel& cm);
+
+            void write_ops(mv::ComputationModel& model, mv::TargetDescriptor& td);
 
             void write_buffer_section(mv::ControlModel& cm);
 

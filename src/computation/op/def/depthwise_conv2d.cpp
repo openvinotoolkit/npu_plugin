@@ -58,3 +58,20 @@ bool mv::op::DepthwiseConv2D::isHardwarizeable(json::Object&)
 {
    return false;
 }
+
+void mv::op::DepthwiseConv2D::gatherSerialFields()
+{
+    auto fp16_size = 2;
+
+    this->set<unsigned>("SerialID", 8);
+
+    this->set<unsigned>("radixX",  this->getInputTensor(1)->getShape()[0]);
+    this->set<unsigned>("radixY",  this->getInputTensor(1)->getShape()[1]);
+    this->set<unsigned>("strideX",  this->get<std::array<unsigned short, 2>>("stride")[0]);
+    this->set<unsigned>("strideY",  this->get<std::array<unsigned short, 2>>("stride")[1]);
+    this->set<unsigned>("padX",  this->get<std::array<unsigned short, 4>>("padding")[0]);
+    this->set<unsigned>("padY",  this->get<std::array<unsigned short, 4>>("padding")[2]);
+    this->set<unsigned>("padStyle",  2);
+    this->set<unsigned>("dilation",  1);
+
+}

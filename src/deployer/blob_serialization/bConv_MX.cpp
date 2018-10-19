@@ -7,9 +7,6 @@ namespace mv
     void bConv2D::writeStageInfo(mv::OpModel& om, mv::Blob_buffer *b)
     {
 
-
-        //std::cout << "RADIX : " << this->radixX << "*" <<  this->radixY << std::endl;
-
         int fp16_size = 2;
 
         mv::DataModel dm(om);
@@ -204,16 +201,6 @@ namespace mv
             this->splits_over_H = it->get<size_t>("NCE1_SplitsOverHeight");
             this->splits_over_iC = it->get<size_t>("NCE1_SplitsOverInputChannels");
 
-            this->desc_count = it->get<std::size_t>("NCE1_DescriptorSplits");
-            this->streamingMask = it->get<std::size_t>("NCE1_StreamingMask");
-
-            this->DPUmodeVector = it->get<std::vector<size_t>>("NCE1_Modes");
-
-            this->input_lines_processed = it->get<std::vector<size_t>>("NCE1_InputLinesProcessed");
-            this->output_lines_processed = it->get<std::vector<size_t>>("NCE1_OutputLinesProcessed");
-
-            this->output_line_start = it->get<std::vector<size_t>>("NCE1_StartOutputLine");
-            this->input_line_start = it->get<std::vector<size_t>>("NCE1_StartInputLine");
 
             this->concatOffset = 0; // Concat not supported currently
             this->unloadCMX = 0;
@@ -407,15 +394,15 @@ namespace mv
         }
         else
         {
-            // printf("Serializing a SW Conv\n");
-            this->radixX = it->getInputTensor(1)->getShape()[0];
-            this->radixY = it->getInputTensor(1)->getShape()[1];
-            this->strideX = it->get<std::array<unsigned short, 2>>("stride")[0];
-            this->strideY = it->get<std::array<unsigned short, 2>>("stride")[1];
-            this->padX = it->get<std::array<unsigned short, 4>>("padding")[0];
-            this->padY = it->get<std::array<unsigned short, 4>>("padding")[2];
-            this->padStyle = 2; // HARDCODED.
-            this->dilation = 1; // HARDCODED.
+            // // printf("Serializing a SW Conv\n");
+            // this->radixX = it->getInputTensor(1)->getShape()[0];
+            // this->radixY = it->getInputTensor(1)->getShape()[1];
+            // this->strideX = it->get<std::array<unsigned short, 2>>("stride")[0];
+            // this->strideY = it->get<std::array<unsigned short, 2>>("stride")[1];
+            // this->padX = it->get<std::array<unsigned short, 4>>("padding")[0];
+            // this->padY = it->get<std::array<unsigned short, 4>>("padding")[2];
+            // this->padStyle = 2; // HARDCODED.
+            // this->dilation = 1; // HARDCODED.
 
         }
     }

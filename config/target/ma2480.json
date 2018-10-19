@@ -60,27 +60,6 @@
 					"Tensor:0:1",
 					"Tensor:0:2"
 				]
-			},
-			"NCE1":{
-				"serial_description":[
-					"Attr:streamingMask",
-					"Attr:inputSize",
-					"Attr:outputSize",
-					"Attr:concatOffset",
-					"Attr:unloadCMX",
-					"Attr:overwriteInput",
-					"Attr:CMXSize",
-					"Attr:reluSHVAcc",
-					"Attr:shvNegSlope",
-					"Attr:shvPosSlope",
-					"Attr:desc_count",
-					"Attr:descriptors",
-					"Tensor:0:0",
-					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2",
-					"Tensor:0:3"
-				]
 			}
 		},
 		"MatMul":{
@@ -113,9 +92,7 @@
 					"Attr:padStyle",
 					"Attr:dilation",
 					"Tensor:0:0",
-					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Tensor:1:0"
 				]
 			},
 			"NCE1":{
@@ -152,9 +129,7 @@
 					"Attr:padStyle",
 					"Attr:dilation",
 					"Tensor:0:0",
-					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Tensor:1:0"
 				]
 			},
 			"NCE1":{
@@ -182,122 +157,62 @@
 		"ReLU":{
 			"MvTensor":{
 				"serial_description":[
-					"Attr:radixX",
-					"Attr:radixY",
-					"Attr:strideX",
-					"Attr:strideY",
-					"Attr:padX",
-					"Attr:padY",
-					"Attr:padStyle",
-					"Attr:dilation",
+					"Attr:opX",
 					"Tensor:0:0",
 					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Attr:strideX",
+					"Attr:strideY"
 				]
 			}
 		},
 		"Softmax":{
 			"MvTensor":{
 				"serial_description":[
-					"Attr:radixX",
-					"Attr:radixY",
-					"Attr:strideX",
-					"Attr:strideY",
-					"Attr:padX",
-					"Attr:padY",
-					"Attr:padStyle",
-					"Attr:dilation",
+					"Attr:axis",
 					"Tensor:0:0",
-					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Tensor:1:0"
 				]
 			}
 		},
 		"Add":{
 			"MvTensor":{
 				"serial_description":[
-					"Attr:radixX",
-					"Attr:radixY",
-					"Attr:strideX",
-					"Attr:strideY",
-					"Attr:padX",
-					"Attr:padY",
-					"Attr:padStyle",
-					"Attr:dilation",
 					"Tensor:0:0",
 					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Tensor:0:1"
 				]
 			}
 		},
 		"Subtract":{
 			"MvTensor":{
 				"serial_description":[
-					"Attr:radixX",
-					"Attr:radixY",
-					"Attr:strideX",
-					"Attr:strideY",
-					"Attr:padX",
-					"Attr:padY",
-					"Attr:padStyle",
-					"Attr:dilation",
 					"Tensor:0:0",
 					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Tensor:0:1"
 				]
 			}
 		},
 		"Multiply":{
 			"MvTensor":{
 				"serial_description":[
-					"Attr:radixX",
-					"Attr:radixY",
-					"Attr:strideX",
-					"Attr:strideY",
-					"Attr:padX",
-					"Attr:padY",
-					"Attr:padStyle",
-					"Attr:dilation",
 					"Tensor:0:0",
 					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Tensor:0:1"
 				]
 			}
 		},
 		"Divide":{
 			"MvTensor":{
 				"serial_description":[
-					"Attr:radixX",
-					"Attr:radixY",
-					"Attr:strideX",
-					"Attr:strideY",
-					"Attr:padX",
-					"Attr:padY",
-					"Attr:padStyle",
-					"Attr:dilation",
 					"Tensor:0:0",
 					"Tensor:1:0",
-					"Tensor:0:1",
-					"Tensor:0:2"
+					"Tensor:0:1"
 				]
 			}
 		},
 		"FullyConnected":{
 			"MvTensor":{
 				"serial_description":[
-					"Attr:radixX",
-					"Attr:radixY",
-					"Attr:strideX",
-					"Attr:strideY",
-					"Attr:padX",
-					"Attr:padY",
-					"Attr:padStyle",
-					"Attr:dilation",
 					"Tensor:0:0",
 					"Tensor:1:0",
 					"Tensor:0:1",
@@ -374,7 +289,6 @@
 		"serialize":
 		[
 			"PopulateSerialFields",
-			"WriteSerialFields",
 			"GenerateBlob"
 		],
 

@@ -382,6 +382,97 @@ namespace mv
         output.write(this);
     }
 
+    void Blob_buffer::write_ops(mv::ComputationModel& model, mv::TargetDescriptor& td){
+        mv::OpModel om(model);
+        mv::DataModel dm(model);
+        mv::ControlModel cm(model);
+
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            std::cout << "Writing Serial Fields for Op{" << opIt->getOpType().toString() << "}" <<std::endl;
+
+            // Get the serialization instructions for op
+            mv::Element e("serial_viewer");
+            if (opIt->getOpType() == mv::OpType::Input){
+                AddBytes(4, 0x20);
+                AddBytes(4, 5);
+                AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+                AddBytes(4, 5);
+                AddBytes(4, 5);
+                continue;
+            }else if(opIt->getOpType() == mv::OpType::Output
+                || opIt->getOpType() == mv::OpType::Constant)
+            {
+                continue;
+            }else if (opIt->hasAttr("NCE1_Compatible") && opIt->get<int>("NCE1_Compatible")){
+                e = td.getSerialDefinition(opIt->getOpType().toString(), "NCE1");
+            }else{
+                e = td.getSerialDefinition(opIt->getOpType().toString(), "MvTensor");
+            }
+
+            unsigned offset = 0;
+            // Some Construction and other Fields
+            AddBytes(4, offset);
+            AddBytes(4, opIt->get<unsigned>("SerialID"));   // TODO: Enum registers
+            AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
+
+
+            std::vector<std::string> serial_instructions = e.get<std::vector<std::string>>("serial_view");
+            for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s){
+                std::string instruction = s->substr(0, s->find(':'));
+                std::string name = s->substr(s->find(':')+1, s->size());
+                if(instruction == "Attr"){
+                    auto attr = opIt->get(name);
+                    std::cout << "Type of Attr: " << attr.getTypeName() << std::endl;
+                    auto typeName = attr.getTypeName();
+                    if(typeName == "unsigned")
+                    {
+                        auto retrieved_attr = opIt->get<unsigned>(name);
+                        std::cout << "Attr: " << name << ": " <<retrieved_attr << std::endl;
+                        AddBytes(4, retrieved_attr);
+                    }else if(typeName == "std::vector<unsigned>"){
+                        auto retrieved_attr = opIt->get<std::vector<unsigned>>(name);
+                        for( auto i : retrieved_attr ){
+                            AddBytes(4, i);
+                            std::cout << "Attr: " << i << ": " << std::endl;
+                        }
+                    }
+                    else{
+                        std::cout << "NO ATTR FOUND" << std::endl;
+                    }
+
+
+                }else if(instruction == "Tensor"){
+                    std::string inOrOut = name.substr(0, name.find(':'));
+                    std::string index = name.substr(name.find(':')+1, name.size());
+                    mv::Data::TensorIterator retrievedT;
+                    if(inOrOut == "0"){
+                        unsigned idx = stoi(index);
+                        if(opIt->hasInputDef(idx))
+                            retrievedT = opIt->getInputTensor(idx);
+                        else
+                            retrievedT = dm.tensorEnd();
+                    }else{
+                        unsigned idx = stoi(index);
+                        retrievedT = opIt->getOutputTensor(idx);
+                    }
+                    if(retrievedT == dm.tensorEnd())
+                        std::cout << "Retrieved NULL: " << ": " << std::endl;
+                    else
+                        std::cout << "Retrieved Tensor: " << ": " << retrievedT->getName() << std::endl;
+
+                    Blob_Tensor bt = Blob_Tensor(dm, cm, this->reloc_table, retrievedT);
+                    bt.write(this);
+                }else{
+                    // throw mv::AttributeError(instruction, "Invalid Serialization Instruction");
+                }
+            }
+            AddBytes(4, 5);     // Post/Pre Op (Deprecated)
+            AddBytes(4, 5);     // Post/Pre Op (Deprecated)
+
+        }
+    }
+
     void Blob_buffer::write_stages(mv::ControlModel& cm)
     {
 
