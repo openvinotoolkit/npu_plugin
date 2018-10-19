@@ -16,7 +16,7 @@ namespace mv
 
     class ComputationOp : public Element
     {
-        
+
     protected:
 
         void validOutputDef_(std::size_t idx);
@@ -43,6 +43,8 @@ namespace mv
         virtual bool isHardwarizeable(mv::json::Object& TargetDescriptor) = 0;
         bool operator==(const ComputationOp &other) const;
         virtual std::string getLogID() const override;
+
+        void gatherSerialFields();
 
     };
 

@@ -181,7 +181,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
     }
 
-    if (jsonDescriptor["ops"].valueType() != json::JSONType::Array)
+    if (jsonDescriptor["ops"].valueType() != json::JSONType::Object)
     {
         reset();
         return false;
@@ -189,21 +189,27 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
     else
     {
 
-        for (unsigned i = 0; i < jsonDescriptor["ops"].size(); ++i)
+        std::vector<std::string> keys = jsonDescriptor["ops"].getKeys();
+
+        // std::cout << "> 'Ops'" << std::endl;
+        for (unsigned i = 0; i < keys.size(); ++i)  // Op Names
         {
+            // std::cout << "> > OpType" << std::endl;
 
-            if (jsonDescriptor["ops"][i].valueType() != json::JSONType::String)
-            {
-                reset();
-                return false;
-            }
+            // Register Ops
+            // TODO: Re-enable
+            // if (keys[i].valueType() != json::JSONType::String)
+            // {
+            //     reset();
+            //     return false;
+            // }
 
-            std::string opStr = jsonDescriptor["ops"][i].get<std::string>();
+            std::string opStr = keys.at(i);
             try
             {
                 OpType op(opStr);
                 ops_.insert(op);
-                break;
+                // break;
             }
             catch (OpError& e)
             {
@@ -211,8 +217,33 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 return false;
             }
 
-        }
 
+            std::string op_name = keys[i];
+            mv::Element e(op_name);
+
+
+            for (unsigned j = 0; j < jsonDescriptor["ops"][op_name].size(); ++j) // Resource
+            {
+                std::vector<std::string> resource_keys = jsonDescriptor["ops"][op_name].getKeys();
+                std::string platform_name = resource_keys[j];
+
+                std::vector<std::string> serial_list;
+                for (unsigned k = 0; k < jsonDescriptor["ops"][op_name][platform_name]["serial_description"].size(); ++k) // Resource
+                {
+                    std::string v = jsonDescriptor["ops"][op_name][platform_name]["serial_description"][k].get<std::string>();
+                    serial_list.push_back(v);
+                    std::cout << "~" ;
+                }
+
+
+                e.set<std::vector<std::string>>("serial_view", serial_list);
+
+                std::cout << "Set. Attr Count: " << e.attrsCount() << std::endl;
+                serialDescriptions_.insert(std::make_pair(op_name+":"+platform_name, e));
+                // serialDescriptions_[op_name+":"+platform_name] = e;
+
+            }
+        }
     }
 
     if (jsonDescriptor["resources"].valueType() != json::JSONType::Object)
@@ -608,6 +639,12 @@ mv::DType mv::TargetDescriptor::getDType() const
 mv::Order mv::TargetDescriptor::getOrder() const
 {
     return globalOrder_;
+}
+
+mv::Element mv::TargetDescriptor::getSerialDefinition(std::string op_name, std::string platform_name) const
+{
+    std::cout << "Get: " << op_name+":"+platform_name << std::endl;
+    return serialDescriptions_.at(op_name+":"+platform_name);
 }
 
 const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const

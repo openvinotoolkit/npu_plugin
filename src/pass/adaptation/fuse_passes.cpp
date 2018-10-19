@@ -65,13 +65,13 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
     DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == OpType::Bias)
         {
-            
+
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            
+
             if (parentOpIt->getOpType() == OpType::Conv2D ||
                 parentOpIt->getOpType() == OpType::DepthwiseConv2D ||
                 parentOpIt->getOpType() == OpType::FullyConnected)
@@ -90,14 +90,14 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
                     auto biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData());
                     om.addAttr(parentOpIt, "bias", biasTensor->getName());
                 }
-                
+
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
                 {
                     std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                     sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
                 }
 
                 while(opIt.parentsSize() > 1)
@@ -106,7 +106,7 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
                     ++paramOp;
                     om.removeOp(paramOp);
                 }
-                
+
                 om.removeOp(opIt);
                 opIt = parentOpIt;
 
@@ -120,19 +120,19 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
 void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    
+
     using namespace mv;
     OpModel om(model);
     DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == OpType::Scale)
         {
-            
+
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            
+
             if (parentOpIt->getOpType() == OpType::Conv2D)
             {
 
@@ -151,7 +151,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
                 {
                     std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                     sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
                 }
 
                 while(opIt.parentsSize() > 1)
@@ -160,7 +160,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
                     ++paramOp;
                     om.removeOp(paramOp);
                 }
-                
+
                 om.removeOp(opIt);
                 opIt = parentOpIt;
 
@@ -174,18 +174,18 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
 
 void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    
+
     using namespace mv;
     OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == OpType::ReLU)
         {
 
-            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0)); 
-            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU)); 
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU));
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
@@ -193,7 +193,7 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
             {
                 std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                 sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
             }
 
             while(opIt.parentsSize() > 1)
@@ -202,7 +202,7 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
                 ++paramOp;
                 om.removeOp(paramOp);
             }
-            
+
             om.removeOp(opIt);
             opIt = parentOpIt;
 
@@ -214,19 +214,19 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
 void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-
-    using namespace mv;   
+    std::cout << "FBN" << std::endl;
+    using namespace mv;
     OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == OpType::BatchNorm)
         {
-            
+
             auto batchNormName = opIt->getName();
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            
+
             auto bnMean = *opIt->getInputTensor(1);
             auto bnVar = *opIt->getInputTensor(2);
             auto bnOffset = *opIt->getInputTensor(3);
@@ -263,8 +263,8 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
 
             if (offsetParam.getShape().ndims() == 1)
             {
-                sourceTensor = om.bias(sourceTensor, offset); 
-            }   
+                sourceTensor = om.bias(sourceTensor, offset);
+            }
             else
             {
                 sourceTensor = om.add(sourceTensor, offset);
@@ -274,7 +274,7 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             {
                 std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                 sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
             }
 
             while(opIt.parentsSize() > 1)
@@ -283,7 +283,7 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
                 ++paramOp;
                 om.removeOp(paramOp);
             }
-            
+
             om.removeOp(opIt);
             opIt = parentOpIt;
 

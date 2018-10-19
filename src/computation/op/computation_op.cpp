@@ -87,3 +87,8 @@ std::string mv::ComputationOp::getLogID() const
 {
     return "Op '" + getName() + "'";
 }
+
+
+void mv::ComputationOp::gatherSerialFields(){
+    std::cout << "Super Called." << std::endl;
+}

@@ -14,10 +14,11 @@
 #include "include/mcm/tensor/order.hpp"
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm/base/element.hpp"
 
 namespace mv
 {
-    
+
     enum class Target
     {
         ma2480,
@@ -52,6 +53,9 @@ namespace mv
         std::vector<std::string> finalizationPasses_;
         std::vector<std::string> serializationPasses_;
         std::vector<std::string> validationPasses_;
+
+
+        std::map<std::string, mv::Element> serialDescriptions_;
 
     public:
 
@@ -99,8 +103,10 @@ namespace mv
         Order getOrder() const;
         DType getDType() const;
 
+        mv::Element getSerialDefinition(std::string op_name, std::string platform_name) const;
+
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
-        
+
         std::string getLogID() const override;
 
     };

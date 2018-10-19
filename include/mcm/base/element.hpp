@@ -39,7 +39,7 @@ namespace mv
 
         const std::string &getName() const;
         void setName(const std::string& name);
-        
+
         bool hasAttr(const std::string &name) const;
         std::size_t attrsCount() const;
         std::vector<std::string> attrsKeys() const;
@@ -60,7 +60,7 @@ namespace mv
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw AttributeError("Unable to define the attribute '" + name + "' of an undefined"
                     " type " + typeid(AttrType).name());
-            
+
             Attribute newAttr = value;
             std::string errMsg;
             if (!attr::AttributeRegistry::checkValue<AttrType>(newAttr, errMsg))
@@ -79,7 +79,7 @@ namespace mv
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw ArgumentError(*this, "type", typeid(AttrType).name(), "Unregistered"
                     " type used for Attribute " + name + "initialization");
-            
+
             Attribute newAttr = value;
             std::string errMsg;
             if (!attr::AttributeRegistry::checkValue<AttrType>(newAttr, errMsg))
