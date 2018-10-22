@@ -228,7 +228,7 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const mv::Order& or
 {
     std::deque<std::size_t> leftStrides;
     std::deque<std::size_t> rightStrides;
-    computeStrides_(order, order.lastContiguousDimensionIndex(), shape, leftPadding, rightPadding, leftStrides, rightStrides);
+    computeStrides_(order, order.size() - 1, shape, leftPadding, rightPadding, leftStrides, rightStrides);
     std::deque<std::size_t> strides;
 
     strides.push_back(leftStrides.back() * dataTypeSize_);
@@ -246,7 +246,7 @@ long mv::MemoryAllocator::computeStrides_(const mv::Order& order, std::size_t id
     const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides)
 {
     std::size_t currentDim = order[idx];
-    if(idx == order.firstContiguousDimensionIndex())
+    if(idx == 0)
     {
         leftStrides.push_back(leftPadding[currentDim]);
         rightStrides.push_back(rightPadding[currentDim]);
@@ -255,7 +255,7 @@ long mv::MemoryAllocator::computeStrides_(const mv::Order& order, std::size_t id
 
     long newStride = 0;
     for(std::size_t c = 0; c < shape[currentDim]; ++c)
-        newStride = computeStrides_(order, ++idx, shape, leftPadding, rightPadding, leftStrides, rightStrides);
+        newStride = computeStrides_(order, --idx, shape, leftPadding, rightPadding, leftStrides, rightStrides);
 
     //Last stride should be joined (stride definition -> only between two blocks)
     long toAddLeft = leftStrides.back();
@@ -311,7 +311,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     newBuffer.id = currentID_++;
     newBuffer.offset = 0;
     newBuffer.size = shape.totalSize() * dataTypeSize_;
-    newBuffer.blockSize = shape[tensor->getOrder().firstContiguousDimensionIndex()] * dataTypeSize_;
+    newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize_;
     newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
     newBuffer.postAlign= 0;
     newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
