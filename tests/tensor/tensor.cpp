@@ -254,7 +254,7 @@ TEST(tensor, column_major_to_planar)
 
     mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::Order("NCHW"));
+    t.setOrder(mv::Order("WHNC"));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -293,7 +293,7 @@ TEST(tensor, planar_to_column_major)
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("NCHW"));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("WHNC"));
     t.populate(data);
     t.setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
@@ -332,7 +332,7 @@ TEST(tensor, row_major_to_planar)
 
     mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::Order("HWCN"));
+    t.setOrder(mv::Order("WHNC"));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -368,7 +368,7 @@ TEST(tensor, planar_to_row_major)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("WHNC"));
     t.populate(data);
     t.setOrder(mv::Order(mv::Order::getRowMajorID(4)));
 

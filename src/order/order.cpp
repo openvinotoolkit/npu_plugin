@@ -138,13 +138,13 @@ bool mv::Order::isColMajor(const mv::Order& o)
 {
     if(o == mv::Order("W"))
         return true;
-    if(o == mv::Order("WH"))
+    if(o == mv::Order("HW"))
         return true;
-    if(o == mv::Order("WHC"))
+    if(o == mv::Order("CHW"))
         return true;
-    if(o == mv::Order("WHCN"))
+    if(o == mv::Order("NCHW"))
         return true;
-    if(o == mv::Order("WHCNT"))
+    if(o == mv::Order("TNCHW"))
         return true;
     return false;
 }
@@ -153,13 +153,13 @@ bool mv::Order::isRowMajorPlanar(const mv::Order& o)
 {
     if(o == mv::Order("W"))
         return true;
-    if(o == mv::Order("WH"))
+    if(o == mv::Order("HW"))
         return true;
-    if(o == mv::Order("WHC"))
+    if(o == mv::Order("HWC"))
         return true;
-    if(o == mv::Order("WHCN"))
+    if(o == mv::Order("HWCN"))
         return true;
-    if(o == mv::Order("WHCNT"))
+    if(o == mv::Order("HWCNT"))
         return true;
     return false;
 }
@@ -170,26 +170,18 @@ bool mv::Order::isColMajorPlanar(const mv::Order& o)
         return true;
     if(o == mv::Order("WH"))
         return true;
-    if(o == mv::Order("WHC"))
+    if(o == mv::Order("CWH"))
         return true;
-    if(o == mv::Order("WHCN"))
+    if(o == mv::Order("NCWH"))
         return true;
-    if(o == mv::Order("WHCNT"))
+    if(o == mv::Order("TNCWH"))
         return true;
     return false;
 }
 
 bool mv::Order::isRowInterleaved(const mv::Order& o)
 {
-    if(o == mv::Order("W"))
-        return true;
-    if(o == mv::Order("WH"))
-        return true;
-    if(o == mv::Order("WHC"))
-        return true;
-    if(o == mv::Order("WHCN"))
-        return true;
-    if(o == mv::Order("WHCNT"))
+    if(o == mv::Order("HCW"))
         return true;
     return false;
 }
