@@ -38,7 +38,7 @@ std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& 
     unsigned currentMul = 1;
     unsigned currentResult = 0;
 
-    for (int i = contVector_.size() - 1; i >= 0; --i)
+    for (unsigned i = 0; i < contVector_.size(); ++i)
     {
 
         if (sub[contVector_[i]] >=  s[contVector_[i]])
@@ -61,10 +61,10 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
         throw ShapeError(*this, "indToSub: Cannot compute subscripts for 0-dimensional shape");
 
     std::vector<std::size_t> sub(s.ndims());
-    sub[contVector_[contVector_.size() - 1]] =  idx % s[contVector_.size() - 1];
-    int offset = -sub[contVector_.size() - 1];
-    int scale = s[contVector_.size() - 1];
-    for (int i = contVector_.size() - 2; i >= 0; --i)
+    sub[contVector_[0]] =  idx % s[contVector_[0]];
+    int offset = -sub[contVector_[0]];
+    int scale = s[contVector_[0]];
+    for (unsigned i = 1; i < contVector_.size(); ++i)
     {
         sub[contVector_[i]] = (idx + offset) / scale % s[contVector_[i]];
         offset -= sub[contVector_[i]] * scale;
