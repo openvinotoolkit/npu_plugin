@@ -230,7 +230,7 @@ TEST(element, to_json)
         "{\"attrs\":{\"aBool\":{\"attrType\":\"bool\",\"content\":true},\"aDType\":"
         "{\"attrType\":\"DType\",\"content\":\"Float16\"},\"aDouble\":{\"attrType\""
         ":\"double\",\"content\":1.0},\"aInt\":{\"attrType\":\"int\",\"content\":2}"
-        ",\"amv::Order\":{\"attrType\":\"mv::Order\",\"content\":\"ColumnMajor\"},\"aShape\""
+        ",\"aOrder\":{\"attrType\":\"Order\",\"content\":\"(1 0 2 )\"},\"aShape\""
         ":{\"attrType\":\"Shape\",\"content\":[1,2,3]},\"aStdArrUnsignedShort2\":{\""
         "attrType\":\"std::array<unsigned short, 2>\",\"content\":[4,5]},\"aStdArrUn"
         "signedShort3\":{\"attrType\":\"std::array<unsigned short, 3>\",\"content\":"
@@ -242,7 +242,6 @@ TEST(element, to_json)
         "3,14,15,16,17]}},\"name\":\"TestElement\"}";
 
     ASSERT_EQ(e.toJSON().stringify(), jsonStr);
-
 }
 
 /*TEST(element, def_op_iterator_attr)

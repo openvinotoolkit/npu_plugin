@@ -12,7 +12,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     mv::OpModel om("testModel");
     auto input = om.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3);
-    auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)), "weights");
+    auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();

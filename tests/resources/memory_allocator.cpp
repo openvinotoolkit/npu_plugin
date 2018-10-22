@@ -14,7 +14,7 @@ TEST(memory_allocator, concatenate_tensors)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 4});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
+    mv::Order order(mv::Order::getColMajorID(3));
     
     auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
         mv::utils::generateSequence<double>(outputShape.totalSize()));

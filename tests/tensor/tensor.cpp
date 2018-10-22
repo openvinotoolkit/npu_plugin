@@ -9,7 +9,7 @@ TEST(tensor, populating)
 
     mv::Shape tShape({5, 5});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(2)));
     t.populate(data);
 
     for (unsigned j = 0; j < tShape[0]; ++j)
@@ -175,9 +175,9 @@ TEST(tensor, column_major_to_row_major)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::Order(mv::Order::getRowMajorID(3)));
+    t.setOrder(mv::Order(mv::Order::getRowMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -214,9 +214,9 @@ TEST(tensor, row_major_to_column_major)
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(3)));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::Order(mv::Order::getColMajorID(3)));
+    t.setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -252,14 +252,16 @@ TEST(tensor, column_major_to_planar)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::Order("HWC"));
+    t.setOrder(mv::Order("NCHW"));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
 
 }
+
+//What planar is this guy referring to?
 
 TEST(tensor, planar_to_column_major)
 {
@@ -291,9 +293,9 @@ TEST(tensor, planar_to_column_major)
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("NCHW"));
     t.populate(data);
-    t.setOrder(mv::Order(mv::Order::getColMajorID(3)));
+    t.setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -328,9 +330,9 @@ TEST(tensor, row_major_to_planar)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(3)));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::Order("HWC"));
+    t.setOrder(mv::Order("HWCN"));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -366,9 +368,9 @@ TEST(tensor, planar_to_row_major)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
     t.populate(data);
-    t.setOrder(mv::Order(mv::Order::getRowMajorID(3)));
+    t.setOrder(mv::Order(mv::Order::getRowMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -478,7 +480,7 @@ TEST(tensor, add_broadcast_vec)
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
     mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(3)), data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(3)), data2);
+    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(1)), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -504,7 +506,7 @@ TEST(tensor, add_broadcast_mat)
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
     mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)), data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)), data2);
+    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
