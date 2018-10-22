@@ -248,177 +248,152 @@ namespace mv
         else
         {
             std::cout << "Not Tight" << std::endl;
-            switch ( t->getOrder() )
+            mv::Order current_order = t->getOrder();
+            if(mv::Order::isRowMajor(current_order))
             {
-                case OrderType::RowMajor: //*2 because of data_size
-                {
-                    if (D1_block == this->dimZ * 2)
-                        local_StrideZ = D1_stride;
-                    else if (D1_block == this->dimZ*this->dimY * 2)
-                        local_StrideY = D1_stride;
-                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
-                        local_StrideX = D1_stride;
-                    else
-                        std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
-                }
-                break;
-                //PROBLEM: This assumes a 3D tensor, while weights in MX are 5D.
-                //Still, weights are the same after some experiments, why is this happening?
-                case OrderType::ColumnMajor:
-                {
-                    // This is horrible because values in allocator are 5D
-                    if (D1_stride == this->dimZ* 2 * 8){
-                        local_StrideY = D1_stride - 16;
-                    }
-                    else if (D1_stride == this->dimY*this->dimZ* 2  * 8){
-                        local_StrideZ = D1_stride - 16;
-
-                    }
-                    else if ( D1_stride == this->dimX*this->dimY*this->dimZ * 2 * 8){
-
-                        local_StrideX = D1_stride - 16;
-                    }
-                    else
-                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << D1_block << std::endl;
-                }
-                break;
-                case OrderType::RowMajorPlanar:
-                {
-                    if (D1_block == this->dimZ * 2)
-                        local_StrideZ = D1_stride;
-                    else if (D1_block == this->dimX*this->dimY* 2)
-                        local_StrideX = D1_stride;
-                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
-                        local_StrideY = D1_stride;
-                    else
-                        std::cout << "Serialization Error: Cannot figure out stride translation (RowMajorPlanar)" << std::endl;
-                }
-                break;
-                case OrderType::ColumnMajorPlanar:
-                {
-                    if (D1_block == this->dimY* 2)
-                        local_StrideY = D1_stride;
-                    else if (D1_block == this->dimX*this->dimY* 2)
-                        local_StrideX = D1_stride;
-                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
-                        local_StrideZ = D1_stride;
-                    else
-                        std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
-                }
-                break;
-                case OrderType::RowInterleaved: //*2 because of input_data size
-                {
-
-                    // S
-                    if (D1_block == this->dimX * 2){
-                        local_StrideX = D1_stride;
-                    }
-                    else if (D1_block == this->dimZ*this->dimX * 2){
-                        local_StrideZ = D1_stride;
-                    }
-                    else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2 )
-                    {
-                        local_StrideY = D1_stride;
-                    }
-                    else
-                    {
-                        std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved) Block Size: " << D1_block << std::endl;
-                    }
-
-                    if(D2_stride != 0)
-                    {
-                        // Can't be X, that would be Dim1.
-                        // Can't be Y, or rather, it will be unobserved in the meta info if it is.
-                        // Therefore, it must be Z
-                        local_StrideZ = D2_stride;
-                    }
-                }
-                break;
-
-                default:
-                {
-
-                }
+                if (D1_block == this->dimZ * 2)
+                    local_StrideZ = D1_stride;
+                else if (D1_block == this->dimZ*this->dimY * 2)
+                    local_StrideY = D1_stride;
+                else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
+                    local_StrideX = D1_stride;
+                else
+                    std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
             }
 
+            else if(mv::Order::isColMajor(current_order))
+            {
+                // This is horrible because values in allocator are 5D
+                if (D1_stride == this->dimZ* 2 * 8)
+                    local_StrideY = D1_stride - 16;
+
+                else if (D1_stride == this->dimY*this->dimZ* 2  * 8)
+                    local_StrideZ = D1_stride - 16;
+
+                else if ( D1_stride == this->dimX*this->dimY*this->dimZ * 2 * 8)
+                    local_StrideX = D1_stride - 16;
+
+                else
+                    std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << D1_block << std::endl;
+            }
+
+            else if(mv::Order::isRowMajorPlanar(current_order))
+            {
+                if (D1_block == this->dimZ * 2)
+                    local_StrideZ = D1_stride;
+                else if (D1_block == this->dimX*this->dimY* 2)
+                    local_StrideX = D1_stride;
+                else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
+                    local_StrideY = D1_stride;
+                else
+                    std::cout << "Serialization Error: Cannot figure out stride translation (RowMajorPlanar)" << std::endl;
+            }
+
+
+            else if(mv::Order::isColMajorPlanar(current_order))
+            {
+
+                if (D1_block == this->dimY* 2)
+                    local_StrideY = D1_stride;
+                else if (D1_block == this->dimX*this->dimY* 2)
+                    local_StrideX = D1_stride;
+                else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2)
+                    local_StrideZ = D1_stride;
+                else
+                    std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajorPlanar)" << std::endl;
+            }
+
+
+            else if(mv::Order::isRowInterleaved(current_order))
+            {
+                if (D1_block == this->dimX * 2)
+                    local_StrideX = D1_stride;
+                else if (D1_block == this->dimZ*this->dimX * 2)
+                    local_StrideZ = D1_stride;
+
+                else if ( D1_block == this->dimX*this->dimY*this->dimZ * 2 )
+                    local_StrideY = D1_stride;
+                else
+                    std::cout << "Serialization Error: Cannot figure out stride translation (RowInterleaved) Block Size: " << D1_block << std::endl;
+                if(D2_stride != 0)
+                    local_StrideZ = D2_stride;
+            }
         }
 
-        switch ( t->getOrder() )
+        mv::Order current_order = t->getOrder();
+
+        if(mv::Order::isRowMajorPlanar(current_order))
         {
-            case OrderType::RowMajorPlanar:
-                {
-                    if((int)t->getShape().ndims() == 3){
-                        // UPA Shave
-                        this->order = 0;
-                        // ROW MAJOR (CHANNEL MINOR)
-                        // I.E: Y, X, Z
-                        this->strideZ = fp16_size;
-                        this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
-                        this->strideY = (this->dimX * this->strideX) + local_StrideX;
-                    }else{
-                        if((int)t->getShape().ndims() > 3){
-                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
-                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
-                            this->order = 3;
-                            this->strideZ = fp16_size;
-                            this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
-                            this->strideX = (this->dimY * this->strideY) + local_StrideY;
-                        }else{
-                            // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
-                            // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
-                            this->order = 1;
-                            this->strideX = fp16_size;
-                            this->strideY = (this->dimX * this->strideX) + local_StrideX;
-                            this->strideZ = (this->dimY * this->strideY) + local_StrideY;
-                        }
-                    }
-                }
-                break;
-            case OrderType::RowMajor:
-                // Misleading - weights
-                this->order = 1;
-                this->strideX = fp16_size;
+            if(t->getShape().ndims() == 3)
+            {
+                // UPA Shave
+                this->order = 0;
+                // ROW MAJOR (CHANNEL MINOR)
+                // I.E: Y, X, Z
+                this->strideZ = fp16_size;
+                this->strideX = (this->dimZ * this->strideZ) + local_StrideZ;
                 this->strideY = (this->dimX * this->strideX) + local_StrideX;
-                this->strideZ = (this->dimY * this->strideY) + local_StrideY;
-                break;
-            case OrderType::ColumnMajor:
-                // NCE1 - Option 1
-                // COLUMN MAJOR(NCE1 Planar)
-                // I.E: X, Y, Z
-                this->order = 1;    // THIS ENUM IS WRONG
-                this->strideX = fp16_size;
-                this->strideY = (this->dimX * this->strideX) + local_StrideX;
-                this->strideZ = (this->dimY * this->strideY) + local_StrideY;
-                break;
-            case OrderType::ColumnMajorPlanar:
+            }
+            else
+            {
+                if(t->getShape().ndims() > 3)
                 {
-                    this->order = 1;
-                    this->strideY = fp16_size;
+                    // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                    // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                    this->order = 3;
+                    this->strideZ = fp16_size;
+                    this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
                     this->strideX = (this->dimY * this->strideY) + local_StrideY;
-                    this->strideZ = (this->dimX * this->strideX) + local_StrideX;
-                    // this->strideX = fp16_size;
-                    // this->strideY = (this->dimX + local_StrideX)*this->strideX;
-                    // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
                 }
-                break;
-             case OrderType::RowInterleaved:
-                this->order = 2;
-                this->strideX = fp16_size;
-                this->strideZ = (this->dimX * this->strideX) + local_StrideX;
-                this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
-                break;
-
-            default:
-                std::cout << "Serialization Error: Order of Tensor not supported" << std::endl;
-                assert(0);
-
+                else
+                {
+                    // Software weights follow a different paradigm in c++ and python/mvtensor, causing this case.
+                    // MvTensor actually uses ZYX rather than ZXY here. (confusion caused by multidimensionality)
+                    this->order = 1;
+                    this->strideX = fp16_size;
+                    this->strideY = (this->dimX * this->strideX) + local_StrideX;
+                    this->strideZ = (this->dimY * this->strideY) + local_StrideY;
+                }
+            }
         }
 
-        // if (strcmp((*t)->getName(), "Conversion_2:0") != 0){
+        else if(mv::Order::isRowMajor(current_order))
+        {
+            // Misleading - weights
+            this->order = 1;
+            this->strideX = fp16_size;
+            this->strideY = (this->dimX * this->strideX) + local_StrideX;
+            this->strideZ = (this->dimY * this->strideY) + local_StrideY;
+        }
+        else if(mv::Order::isColMajor(current_order))
+        {
+            // NCE1 - Option 1
+            // COLUMN MAJOR(NCE1 Planar)
+            // I.E: X, Y, Z
+            this->order = 1;    // THIS ENUM IS WRONG
+            this->strideX = fp16_size;
+            this->strideY = (this->dimX * this->strideX) + local_StrideX;
+            this->strideZ = (this->dimY * this->strideY) + local_StrideY;
+        }
+        else if(mv::Order::isColMajorPlanar(current_order))
+        {
+            this->order = 1;
+            this->strideY = fp16_size;
+            this->strideX = (this->dimY * this->strideY) + local_StrideY;
+            this->strideZ = (this->dimX * this->strideX) + local_StrideX;
+            // this->strideX = fp16_size;
+            // this->strideY = (this->dimX + local_StrideX)*this->strideX;
+            // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
+         }
+         else if(mv::Order::isRowInterleaved(current_order))
+         {
+            this->order = 2;
+            this->strideX = fp16_size;
+            this->strideZ = (this->dimX * this->strideX) + local_StrideX;
+            this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
+         }
 
-        // }
-
-        // std::cout << "Order: " << (*t)->getOrder().toString() << std::endl;
+        // std::cout << "mv::Order: " << (*t)->getOrder().toString() << std::endl;
         std::cout << "X: Dim:" << this->dimX << ", Stride: " << this->strideX << "(local: " << local_StrideX << ")" << std::endl;
         std::cout << "Y: Dim:" << this->dimY << ", Stride: " << this->strideY << "(local: " << local_StrideY << ")" << std::endl;
         std::cout << "Z: Dim:" << this->dimZ << ", Stride: " << this->strideZ << "(local: " << local_StrideZ << ")" << std::endl;

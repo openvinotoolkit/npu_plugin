@@ -165,7 +165,7 @@ TEST (graph_container, int_int_graph_contruction) {
 
 }
 
-TEST (graph_container, search_order) 
+TEST (graph_container, search_order)
 {
 
     int_int_graph g;
@@ -205,7 +205,7 @@ TEST (graph_container, search_order)
     int count_node_dfs = 0 ;
     for (int_int_graph::node_dfs_iterator dit = g.node_begin(); dit != g.node_end(); ++dit)
     {
-        EXPECT_EQ (node_dfs_order[count_node_dfs], *dit) << "ERROR: wrong node order traversing depth first";
+        EXPECT_EQ (node_dfs_order[count_node_dfs], *dit) << "ERROR: wrong node mv::Order traversing depth first";
         count_node_dfs++;
     }
     EXPECT_EQ (6, count_node_dfs) << "ERROR: wrong node count during depth first search";
@@ -214,7 +214,7 @@ TEST (graph_container, search_order)
     int count_node_bfs = 0 ;
     for (int_int_graph::node_bfs_iterator bit = g.node_begin(); bit != g.node_end(); ++bit)
     {
-        EXPECT_EQ (node_bfs_order[count_node_bfs], *bit) << "ERROR: wrong node order traversing breadth first";
+        EXPECT_EQ (node_bfs_order[count_node_bfs], *bit) << "ERROR: wrong node mv::Order traversing breadth first";
         count_node_bfs++;
     }
     EXPECT_EQ (6, count_node_bfs) << "ERROR: wrong node count during breadth first search";
@@ -235,7 +235,7 @@ TEST (graph_container, search_order)
     int count_node_list2 = 0 ;
     for (auto nodeIt = g2.node_begin(); nodeIt != g2.node_end(); ++nodeIt)
     {
-        EXPECT_EQ (node_list_order2[count_node_list2], *nodeIt) << "ERROR: wrong node order traversing node list forward";
+        EXPECT_EQ (node_list_order2[count_node_list2], *nodeIt) << "ERROR: wrong node mv::Order traversing node list forward";
         count_node_list2++;
     }
     EXPECT_EQ (4, count_node_list2) << "ERROR: wrong node count traversing node list forward";
@@ -263,7 +263,7 @@ TEST (graph_container, int_int_graph_manipulation)
     int count_node_list2 = 0 ;
     for (auto it = g2.node_begin(); it != g2.node_end(); ++it)
     {
-        EXPECT_EQ (node_list_order2[count_node_list2], *it) << "ERROR: wrong node order traversing node list forward";
+        EXPECT_EQ (node_list_order2[count_node_list2], *it) << "ERROR: wrong node mv::Order traversing node list forward";
         count_node_list2++;
     }
     EXPECT_EQ (4, count_node_list2) << "ERROR: wrong node count traversing node list forward";
@@ -381,15 +381,15 @@ TEST (graph_container, int_int_graph_manipulation)
                 std::cout << "done removing node" << std::endl;                
 
                 // traverse the int_int_graph using the chosen iterator
-                std::vector<int> n_dfs_order= { 800,801,806,808,804,805,802,803,807 } ;
-                std::vector<int> nr4_dfs_order= { 800,801,806,808,805,802,803,807 } ;
-                std::vector<int> nr1_dfs_order= { 800,806,808,804,805,802,803,807 } ;
+                std::vector<int> n_dfs_mv::Order= { 800,801,806,808,804,805,802,803,807 } ;
+                std::vector<int> nr4_dfs_mv::Order= { 800,801,806,808,805,802,803,807 } ;
+                std::vector<int> nr1_dfs_mv::Order= { 800,806,808,804,805,802,803,807 } ;
                 int cnt_node_dfs = 0 ;
                 for (graph::node_dfs_iterator dit = test_graph.node_begin(); dit != test_graph.node_end(); ++dit)
                 {
- //                   EXPECT_EQ (nr4_dfs_order[cnt_node_dfs], *dit) << "ERROR: wrong node order traversing depth first"; 
+ //                   EXPECT_EQ (nr4_dfs_mv::Order[cnt_node_dfs], *dit) << "ERROR: wrong node mv::Order traversing depth first"; 
                     std::cout << "checking int_int_graph at node " << *dit << std::endl;                
-                    EXPECT_EQ (nr1_dfs_order[cnt_node_dfs], *dit) << "ERROR: wrong node order traversing depth first";
+                    EXPECT_EQ (nr1_dfs_mv::Order[cnt_node_dfs], *dit) << "ERROR: wrong node mv::Order traversing depth first";
                     cnt_node_dfs++;
                 }
 

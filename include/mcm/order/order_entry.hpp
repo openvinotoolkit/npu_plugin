@@ -1,5 +1,5 @@
-#ifndef MV_ORDER_ENTRY_HPP_
-#define MV_ORDER_ENTRY_HPP_
+#ifndef MV_ORDER_ENTRY
+#define MV_ORDER_ENTRY
 
 #include <vector>
 
@@ -36,4 +36,4 @@ namespace mv
 
 }
 
-#endif // MV_ORDER_ENTRY_HPP_
+#endif // MV_ORDER_ENTRY

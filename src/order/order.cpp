@@ -26,7 +26,7 @@ std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& 
     //No shapes bigger than dimension supported
     if (s.ndims() != contVector_.size())
         throw ShapeError(*this, "subToInd: Mismatch between number of dimensions in shape ("
-         + std::to_string(s.ndims()) + ") and dimensions supported by this order " + std::to_string(contVector_.size()));
+         + std::to_string(s.ndims()) + ") and dimensions supported by this mv::Order " + std::to_string(contVector_.size()));
 
     //If shape is correct, also sub has to be correct
     if (sub.size() != s.ndims())
@@ -73,17 +73,18 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
-const std::size_t& mv::Order::operator[](std::size_t idx) const
+//Read only access to dimensions
+std::size_t mv::Order::operator[](std::size_t idx) const
 {
     return contVector_[idx];
 }
 
-bool mv::Order::operator!=(const mv::Order& other)
+bool mv::Order::operator!=(const mv::Order& other) const
 {
     return contVector_ != other.contVector_;
 }
 
-bool mv::Order::operator==(const mv::Order& other)
+bool mv::Order::operator==(const mv::Order& other) const
 {
     return contVector_ == other.contVector_;
 }
@@ -93,16 +94,106 @@ std::size_t mv::Order::size() const
     return contVector_.size();
 }
 
-mv::Order::Order(const Order& other)
+mv::Order::Order(const mv::Order& other)
     :contVector_(other.contVector_)
 {
 
 }
 
-mv::Order& mv::Order::operator=(const Order& other)
+mv::Order& mv::Order::operator=(const mv::Order& other)
 {
     contVector_ = other.contVector_;
     return *this;
 }
 
+std::string mv::Order::toString() const
+{
+    std::string to_return("(");
+    for(auto i: contVector_)
+        to_return += std::to_string(i) + " ";
+    to_return += ")";
+    return to_return;
+}
+
+bool mv::Order::isRowMajor(const mv::Order& o)
+{
+    if(o == mv::Order("W"))
+        return true;
+    if(o == mv::Order("WH"))
+        return true;
+    if(o == mv::Order("WHC"))
+        return true;
+    if(o == mv::Order("WHCN"))
+        return true;
+    if(o == mv::Order("WHCNT"))
+        return true;
+    return false;
+}
+
+
+
+bool mv::Order::isColMajor(const mv::Order& o)
+{
+    if(o == mv::Order("W"))
+        return true;
+    if(o == mv::Order("WH"))
+        return true;
+    if(o == mv::Order("WHC"))
+        return true;
+    if(o == mv::Order("WHCN"))
+        return true;
+    if(o == mv::Order("WHCNT"))
+        return true;
+    return false;
+}
+
+bool mv::Order::isRowMajorPlanar(const mv::Order& o)
+{
+    if(o == mv::Order("W"))
+        return true;
+    if(o == mv::Order("WH"))
+        return true;
+    if(o == mv::Order("WHC"))
+        return true;
+    if(o == mv::Order("WHCN"))
+        return true;
+    if(o == mv::Order("WHCNT"))
+        return true;
+    return false;
+}
+
+bool mv::Order::isColMajorPlanar(const mv::Order& o)
+{
+    if(o == mv::Order("W"))
+        return true;
+    if(o == mv::Order("WH"))
+        return true;
+    if(o == mv::Order("WHC"))
+        return true;
+    if(o == mv::Order("WHCN"))
+        return true;
+    if(o == mv::Order("WHCNT"))
+        return true;
+    return false;
+}
+
+bool mv::Order::isRowInterleaved(const mv::Order& o)
+{
+    if(o == mv::Order("W"))
+        return true;
+    if(o == mv::Order("WH"))
+        return true;
+    if(o == mv::Order("WHC"))
+        return true;
+    if(o == mv::Order("WHCN"))
+        return true;
+    if(o == mv::Order("WHCNT"))
+        return true;
+    return false;
+}
+
+std::string mv::Order::getLogID() const
+{
+    return "Order '" + toString() + "'";
+}
 

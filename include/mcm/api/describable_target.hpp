@@ -18,10 +18,10 @@ namespace mv
 
         virtual void setTarget(Target target) = 0;
         virtual void setDType(DType dType) = 0;
-        virtual void setOrder(Order order) = 0;
+        virtual void setOrder(mv::Order mv::Order) = 0;
 
         virtual Target getTarget() const = 0;
-        virtual Order getOrder() const = 0;
+        virtual mv::Order getOrder() const = 0;
         virtual DType getDType() const = 0;
 
         virtual bool defineOp(OpType op) = 0;
@@ -36,7 +36,7 @@ namespace mv
         virtual bool defineCompResource(const std::string& resouce, std::size_t quantity) = 0;
         virtual bool undefineCompResource(const std::string& resouce) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, DType argValue) = 0;
-        virtual bool defineCompResourceArg(const std::string& argName, Order argValue) = 0;
+        virtual bool defineCompResourceArg(const std::string& argName, mv::Order argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, const std::string& argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, double argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, int argValue) = 0;

@@ -32,7 +32,7 @@ class mv_num_convert
     static int const maxNorm  = 0x477FE000; // max flt16 normal as a flt32 = 2**(15)*1.11111
     static int const minNorm  = 0x38800000; // min flt16 normal as a flt32 = 2**(-14)*1.0000
     static int const sign32= 0x80000000;    // flt32 sign bit
-    static unsigned int const roundBit = 0x00001000; // highest order truncated fraction bit
+    static unsigned int const roundBit = 0x00001000; // highest mv::Order truncated fraction bit
 
     static int const NaNC = 0x7FFF;         // max unsigned fp16 Not a Number
     static int const infC = infN >> shiftFraction; 

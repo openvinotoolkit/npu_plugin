@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 
 static void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void alignConstOrder(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
@@ -21,7 +21,7 @@ namespace mv
         );
 
         MV_REGISTER_PASS(AlignConstOrder)
-        .setFunc(alignConstOrderFcn)
+        .setFunc(alignConstOrder)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass adds conversion layers where needed."
@@ -31,7 +31,7 @@ namespace mv
 
 }
 
-void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void alignConstOrder(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -53,16 +53,16 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
             {
                 if (opIt.leftmostChild()->get<int>("NCE1_Compatible") == 1)
                 {
-                    //opIt->set<Order>("order", OrderType::RowMajorPlanar);
-                    opIt.leftmostOutput()->getTensor()->setOrder(Order(Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
+                    //opIt->set<mv::Order>("mv::Order", mv::Order("HWC"));
+                    opIt.leftmostOutput()->getTensor()->setOrder(mv::Order(mv::Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
                     continue;
                 }
 
             }
 
             // Constant is a parameter tensor for a software layer
-            //opIt->set<Order>("order", OrderType::RowMajorPlanar);
-            opIt->getOutputTensor(0)->setOrder(Order(Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
+            //opIt->set<mv::Order>("mv::Order", mv::Order("HWC"));
+            opIt->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
 
         }
 
@@ -165,7 +165,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         {
             if (sourceIsSw)
             {
-                // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                // flowIt->getTensor()->setOrder(mv::Order("HWC"));
                 for(unsigned i = 0; i < childIt->inputSlots(); i++)
                 {
                     if(childIt->hasInputDef(i))
@@ -176,7 +176,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
             // Hardware ops
             else if (sourceIsHw)
             {
-                // flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
+                // flowIt->getTensor()->setOrder(mv::OrderType::RowInterleaved);
                 for(unsigned i = 0; i < childIt->inputSlots(); i++)
                 {
                     if(childIt->hasInputDef(i))
@@ -243,14 +243,14 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         else
         {
 
-            // Align memory order when no conversion is needed
+            // Align memory mv::Order when no conversion is needed
             /// Software ops
             if (sourceIsSw && sinkIsSw)
-                // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                // flowIt->getTensor()->setOrder(mv::Order("HWC"));
                 parentIt->getOutputTensor(0)->setOrder(mv::Order("HWC"));
             // Hardware ops
             else if (sourceIsHw && sinkIsHw)
-                // flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
+                // flowIt->getTensor()->setOrder(mv::OrderType::RowInterleaved);
                 parentIt->getOutputTensor(0)->setOrder(mv::Order("HWC"));
 
             // ++flowIt;

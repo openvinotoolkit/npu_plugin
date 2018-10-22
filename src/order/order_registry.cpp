@@ -7,5 +7,5 @@ namespace mv
 
 mv::OrderRegistry& mv::OrderRegistry::instance()
 {
-    return static_cast<OrderRegistry&>(Registry<std::string, OrderEntry>::instance());
+    return static_cast<mv::OrderRegistry&>(Registry<std::string, mv::OrderEntry>::instance());
 }

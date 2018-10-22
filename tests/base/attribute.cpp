@@ -2,7 +2,7 @@
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/tensor/dtype.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/order/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include <array>
 
@@ -196,7 +196,7 @@ TEST(attribute, def_dtype)
 TEST(attribute, def_order)
 {
 
-    mv::Order v1(mv::OrderType::ColumnMajor);
+    mv::Order v1(mv::Order(mv::Order::getColMajorID(3)));
     mv::Attribute a1 = v1;
     ASSERT_EQ(a1.get<mv::Order>(), v1);
 
@@ -205,7 +205,8 @@ TEST(attribute, def_order)
 TEST(attribute, mod_order)
 {
 
-    mv::Order v1(mv::OrderType::ColumnMajor), v2(mv::OrderType::RowMajor);
+    mv::Order v1(mv::Order(mv::Order::getColMajorID(3)));
+    mv::Order v2(mv::Order(mv::Order::getRowMajorID(3)));
     mv::Attribute a1 = v1;
     a1 = v2;
     ASSERT_EQ(a1.get<mv::Order>(), v2);

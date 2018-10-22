@@ -23,7 +23,7 @@ namespace mv
         std::size_t blockSize_;
         std::vector<std::vector<double>::iterator> blocks_;
         Shape shape_;
-        Order internalOrder_;
+        mv::Order internal_order;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
@@ -45,8 +45,8 @@ namespace mv
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
          * to select a fragment of the master tensor. Shape of the calling tensor will be modified according to the shape of master tensor
-         * and padding values. Data type and data order will be inherited from the master tensor. Automatically sets populated flag.
-         * Current implementation will disallow any further reordering (setOrder()) and broadcasting (broadcast()) of both master and slave.
+         * and padding values. Data type and data mv::Order will be inherited from the master tensor. Automatically sets populated flag.
+         * Current implementation will disallow any further remv::Ordering (setOrder()) and broadcasting (broadcast()) of both master and slave.
          * @param other Master tensor, must be populated
          * @param leftPadding Vector of values specifing the padding between the bounderies (left-top) of the master tensor and this tensor per dimenision.
          * @param rightPadding Vector of values specifing the padding between the bounderies (right-bottom) of the master tensor and this tensor per dimenision.

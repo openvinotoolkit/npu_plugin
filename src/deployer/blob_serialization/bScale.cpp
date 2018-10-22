@@ -44,10 +44,10 @@ namespace mv
             this->bias_name = "";
         }
 
-        //printf("Serialization Warning: Manual Override of Scale Software layer order\n");
-        //this->output->setOrder(OrderType::RowMajor);
-        //this->input->setOrder(OrderType::RowMajor);
-        //this->taps->setOrder(OrderType::RowMajor);
-        //this->taps->setOrder(OrderType::TBDLayout);
+        //printf("Serialization Warning: Manual Override of Scale Software layer mv::Order\n");
+        //this->output->setOrder(mv::Order(Order::getRowMajorID(3)));
+        //this->input->setOrder(mv::Order(Order::getRowMajorID(3)));
+        //this->taps->setOrder(mv::Order(Order::getRowMajorID(3)));
+        //this->taps->setOrder(mv::OrderType::TBDLayout);
     }
 }

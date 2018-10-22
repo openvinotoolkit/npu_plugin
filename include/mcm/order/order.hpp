@@ -38,39 +38,66 @@ namespace mv
             return colMajorID.at(dimension);
         }
 
+        static bool isRowMajor(const mv::Order& o);
+        static bool isColMajor(const mv::Order& o);
+        static bool isRowMajorPlanar(const mv::Order& o);
+        static bool isColMajorPlanar(const mv::Order& o);
+        static bool isRowInterleaved(const mv::Order& o);
+
+
         Order(const Order& other);
         Order& operator=(const Order& other);
         Order(const std::string& value)
            :Order([this, value]()->Order
             {
 
-                if(!OrderRegistry::checkOrder(value))
-                    throw OrderError(*this, "Invalid string passed for order construction " + value);
+                if(!mv::OrderRegistry::checkOrder(value))
+                    throw mv::OrderError(*this, "Invalid string passed for mv::Order construction " + value);
 
-                return Order(OrderRegistry::getContVector(value));
+                return mv::Order(mv::OrderRegistry::getContVector(value));
             }())
         {
 
         }
 
-        bool operator!=(const Order& other);
-        bool operator==(const Order& other);
+        bool operator!=(const mv::Order& other) const;
+        bool operator==(const mv::Order& other) const;
 
         std::size_t subToInd(const Shape &s, const std::vector<std::size_t>& sub) const;
         std::vector<std::size_t> indToSub(const Shape &s, std::size_t idx) const;
 
-        const std::size_t& operator[](std::size_t idx) const;
+        std::size_t operator[](std::size_t idx) const;
         std::size_t size() const;
         std::string toString() const;
 
-        inline std::size_t firstContiguousDimensionIndex()
+        inline std::size_t firstContiguousDimensionIndex() const
         {
             return 0;
         }
 
-        inline std::size_t lastContiguousDimensionIndex()
+        inline std::size_t lastContiguousDimensionIndex() const
         {
             return contVector_.size() - 1;
+        }
+
+        inline std::size_t nextContiguosDimensionIndex(std::size_t dim) const
+        {
+            return ++dim;
+        }
+
+        inline std::size_t prevContiguosDimensionIndex(std::size_t dim) const
+        {
+            return --dim;;
+        }
+
+        inline bool isFirstContiguousDimensionIndex(std::size_t dim) const
+        {
+            return dim == firstContiguousDimensionIndex();
+        }
+
+        inline bool isLastContiguousDimensionIndex(std::size_t dim) const
+        {
+            return dim == lastContiguousDimensionIndex();
         }
 
         std::string getLogID() const override;

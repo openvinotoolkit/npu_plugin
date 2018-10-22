@@ -2,7 +2,7 @@
 #include "mcm/computation/resource/memory_allocator.hpp"
 #include "mcm/computation/model/data_model.hpp"
 #include "mcm/computation/model/op_model.hpp"
-#include "mcm/tensor/order.hpp"
+#include "mcm/order/order.hpp"
 #include "mcm/utils/data_generator.hpp"
 #include "gtest/gtest.h"
 
@@ -14,7 +14,7 @@ TEST(memory_allocator, concatenate_tensors)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 4});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::OrderType::ColumnMajor;
+    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
     
     auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
         mv::utils::generateSequence<double>(outputShape.totalSize()));
@@ -43,7 +43,7 @@ TEST(memory_allocator, mulitple)
     mv::Shape s1({4, 4, 4});
     mv::Shape s2({4, 8, 2});
     mv::Shape s3({32, 2, 2});
-    mv::Order order = mv::OrderType::ColumnMajor;
+    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
     
     auto t1 = dm.defineTensor("t1", s1, mv::DTypeType::Float16, order);
     auto t2 = dm.defineTensor("a2", s2, mv::DTypeType::Float16, order);
@@ -64,7 +64,7 @@ TEST(memory_allocator, tensor_col_major)
     mv::OpModel om("testModel");
     mv::DataModel dm(om);
     mv::Shape s({2, 2});
-    mv::Order order = mv::OrderType::RowMajor;
+    mv::Order order = mv::Order(mv::Order::getRowMajorID(3));;
     auto t = dm.defineTensor("testTensor", s, mv::DTypeType::Float16, order, mv::utils::generateSequence<double>(s.totalSize()));
 
     mv::MemoryAllocator m("m1", 10000, 0, 2);
@@ -104,8 +104,8 @@ TEST(memory_allocator, slave_tensor_col_major)
     mv::DataModel dm(om);
     mv::Shape masterShape({4, 4});
     mv::Shape slaveShape({2, 2});
-    mv::Order order = mv::OrderType::RowMajor;
-    auto tMaster = dm.defineTensor("masterTensor", masterShape, mv::DTypeType::Float16, order, 
+    mv::Order order = mv::Order(mv::Order::getRowMajorID(3));;
+    auto tMaster = dm.defineTensor("masterTensor", masterShape, mv::DTypeType::Float16, order,
         mv::utils::generateSequence<double>(masterShape.totalSize()));
     auto tSlave = dm.defineTensor("slaveShape", slaveShape, mv::DTypeType::Float16, order,
         mv::utils::generateSequence<double>(slaveShape.totalSize()));
@@ -138,7 +138,7 @@ TEST(memory_allocator, move_in_place)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 2});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::OrderType::ColumnMajor;
+    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
 
     auto inputTensor = dm.defineTensor("inputTensor", inputShape, mv::DTypeType::Float16, order);
     auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
@@ -163,7 +163,7 @@ TEST(memory_allocator, move_concat)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 4});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::OrderType::ColumnMajor;
+    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
 
     auto input1Tensor = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
     auto input2Tensor = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
@@ -192,7 +192,7 @@ TEST(memory_allocator, move_concat_in_place)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 4});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::OrderType::ColumnMajor;
+    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
 
     auto input1Tensor = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
     auto input2Tensor = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
@@ -247,7 +247,7 @@ TEST(memory_allocator, tensor_col_major_planar)
 {
 
     mv::Shape s({3, 2, 5});
-    mv::Order order = mv::OrderType::ColumnMajorPlanar;
+    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
     mv::Tensor t("test_tensor", s, mv::DTypeType::Float16, order);
     mv::MemoryAllocator m("m1", 10000, order);
     std::vector<std::size_t> paddings(s.ndims());
@@ -266,7 +266,7 @@ TEST(memory_allocator, tensor_row_major)
 {
 
     mv::Shape s({3, 2, 5});
-    mv::Order order = mv::OrderType::RowMajor;
+    mv::Order order = mv::Order(Order::getRowMajorID(3));;
     mv::Tensor t("test_tensor", s, mv::DTypeType::Float16, order);
     mv::MemoryAllocator m("m1", 10000, order);
     std::vector<std::size_t> paddings(s.ndims());
@@ -285,7 +285,7 @@ TEST(memory_allocator, tensor_row_major_planar)
 {
 
     mv::Shape s({3, 2, 5});
-    mv::Order order = mv::OrderType::RowMajorPlanar;
+    mv::Order order = mv::Order("HWC");
     mv::Tensor t("test_tensor", s, mv::DTypeType::Float16, order);
     mv::MemoryAllocator m("m1", 10000, order);
     std::vector<std::size_t> paddings(s.ndims());

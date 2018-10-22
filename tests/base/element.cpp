@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/dtype.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/order/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
@@ -13,7 +13,7 @@ static bool vBool = true;
 static double vDouble = 1.0;
 static mv::DType vDType(mv::DTypeType::Float16);
 static int vInt = 2;
-static mv::Order vOrder(mv::OrderType::ColumnMajor);
+static mv::Order vOrder(mv::Order(mv::Order::getColMajorID(3)));
 static mv::Shape vShape({1, 2, 3});
 static std::array<unsigned short, 2> vStdArrUnsignedShort2 = {4, 5};
 static std::array<unsigned short, 3> vStdArrUnsignedShort3 = {6, 7, 8};
@@ -65,7 +65,7 @@ static void setValueAttrTypes(mv::Element& e)
     e.clear();
     m.clear();
 
-    auto input = m.input(mv::Shape({32, 32, 3}), mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = m.input(mv::Shape({32, 32, 3}), mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
     m.output(input);
     auto inputOp = m.getSourceOp(input);
 
@@ -125,7 +125,7 @@ TEST(element, get_failure)
     ASSERT_ANY_THROW(e.get<bool>("aDouble"));
     ASSERT_ANY_THROW(e.get<int>("aDType"));
     ASSERT_ANY_THROW(e.get<bool>("aInt"));
-    ASSERT_ANY_THROW(e.get<unsigned short>("aOrder"));
+    ASSERT_ANY_THROW(e.get<unsigned short>("amv::Order"));
     ASSERT_ANY_THROW(e.get<std::vector<std::size_t>>("aShape"));
     ASSERT_ANY_THROW(e.get<std::vector<std::size_t>>("aStdArrUnsignedShort2"));
     ASSERT_ANY_THROW(e.get<std::vector<std::size_t>>("aStdArrUnsignedShort3"));
@@ -170,7 +170,7 @@ TEST(element, get_unregisterd)
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aDouble"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aDType"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aInt"));
-    ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aOrder"));
+    ASSERT_ANY_THROW(e.get<UnregisteredAttr>("amv::Order"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aShape"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aStdArrUnsignedShort2"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aStdArrUnsignedShort3"));
@@ -230,7 +230,7 @@ TEST(element, to_json)
         "{\"attrs\":{\"aBool\":{\"attrType\":\"bool\",\"content\":true},\"aDType\":"
         "{\"attrType\":\"DType\",\"content\":\"Float16\"},\"aDouble\":{\"attrType\""
         ":\"double\",\"content\":1.0},\"aInt\":{\"attrType\":\"int\",\"content\":2}"
-        ",\"aOrder\":{\"attrType\":\"Order\",\"content\":\"ColumnMajor\"},\"aShape\""
+        ",\"amv::Order\":{\"attrType\":\"mv::Order\",\"content\":\"ColumnMajor\"},\"aShape\""
         ":{\"attrType\":\"Shape\",\"content\":[1,2,3]},\"aStdArrUnsignedShort2\":{\""
         "attrType\":\"std::array<unsigned short, 2>\",\"content\":[4,5]},\"aStdArrUn"
         "signedShort3\":{\"attrType\":\"std::array<unsigned short, 3>\",\"content\":"

@@ -11,7 +11,7 @@ namespace mv
 
         static mv::json::Value toJSON(const Attribute& a)
         { 
-            auto o = a.get<Order>();
+            auto o = a.get<mv::Order>();
             return json::Value(o.toString());
         }
 
@@ -21,12 +21,12 @@ namespace mv
                 throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) + 
                     " to mv::Order");
             
-            return Order(v.get<std::string>());
+            return mv::Order(v.get<std::string>());
         }
 
         static std::string toString(const Attribute& a)
         {
-            return a.get<Order>().toString();
+            return a.get<mv::Order>().toString();
         }
 
         MV_REGISTER_ATTR(Order)

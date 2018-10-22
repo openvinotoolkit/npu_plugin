@@ -11,7 +11,7 @@ TEST(data_model, allocate_unpopulated_tensor)
     mv::ControlModel cm(om);
     mv::DataModel dm(om);
 
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
     auto pool1 = om.maxpool2D(input, {3, 3}, {1, 1}, {1, 1, 1, 1});
     auto pool1Op = om.getSourceOp(pool1);
     auto pool2 = om.maxpool2D(pool1, {3, 3}, {1, 1}, {1, 1, 1, 1});
@@ -45,9 +45,9 @@ TEST(data_model, allocate_populated_tensor)
     mv::ControlModel cm(om);
     mv::DataModel dm(om);
 
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
     auto weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3, 1.0f, 0.01f);
-    auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
     auto conv1 = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto conv1Op = om.getSourceOp(conv1);
     om.output(conv1);

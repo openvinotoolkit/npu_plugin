@@ -223,12 +223,12 @@ currentID_(1)
 
 }
 
-std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
+std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const mv::Order& order, const std::vector<std::size_t>& leftPadding,
     const std::vector<std::size_t>& rightPadding, const mv::Shape& shape)
 {
     std::deque<std::size_t> leftStrides;
     std::deque<std::size_t> rightStrides;
-    computeStrides_(order, 0, shape, leftPadding, rightPadding, leftStrides, rightStrides);
+    computeStrides_(order, order.lastContiguousDimensionIndex(), shape, leftPadding, rightPadding, leftStrides, rightStrides);
     std::deque<std::size_t> strides;
 
     strides.push_back(leftStrides.back() * dataTypeSize_);
@@ -242,11 +242,11 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order,
     return strides;
 }
 
-long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
+long mv::MemoryAllocator::computeStrides_(const mv::Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
     const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides)
 {
     std::size_t currentDim = order[idx];
-    if(idx == order.size() - 1)
+    if(idx == order.firstContiguousDimensionIndex())
     {
         leftStrides.push_back(leftPadding[currentDim]);
         rightStrides.push_back(rightPadding[currentDim]);
@@ -357,7 +357,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
            (*masterBuffer)->getData()->getDType().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
     if (tensor->getOrder() != (*masterBuffer)->getData()->getOrder())
-        throw ArgumentError(*this, tensor->getName() + "::Order", tensor->getOrder().toString(), "Does not match the Order " +
+        throw ArgumentError(*this, tensor->getName() + "::mv::Order", tensor->getOrder().toString(), "Does not match the mv::Order " +
             (*masterBuffer)->getData()->getOrder().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
     Shape shape(tensor->getShape());

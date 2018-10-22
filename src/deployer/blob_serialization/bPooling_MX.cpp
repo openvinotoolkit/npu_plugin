@@ -121,7 +121,7 @@ namespace mv
         {
             // Software
 
-            printf("Serialization Warning: Manual Override of Pooling Software layer order\n");
+            printf("Serialization Warning: Manual Override of Pooling Software layer mv::Order\n");
             this->output->setOrder(mv::Order("HWC"));
             this->input->setOrder(mv::Order("HWC"));
 
@@ -239,12 +239,12 @@ namespace mv
                     // Layer Meta Information - Layout & DataTypes
                     this->descriptors[i].Line0.type = NCE1_POOL;
 
-                    if( this->input->getOrder() == Order("HCW"))
+                    if( this->input->getOrder() == mv::Order("HCW"))
                         this->descriptors[i].Line0.interleavedInput = 1;
                     else
                         this->descriptors[i].Line0.interleavedInput = 0;
 
-                    if( this->output->getOrder() == Order("HCW"))
+                    if( this->output->getOrder() == mv::Order("HCW"))
                     {
                         this->descriptors[i].Line0.interleavedOutput = 1;
                         this->descriptors[i].rsvd3_interleaved = 1;

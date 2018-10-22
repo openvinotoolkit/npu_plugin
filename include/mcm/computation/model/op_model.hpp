@@ -11,7 +11,7 @@ namespace mv
 
     class OpModel : public ComputationModel, public CompositionalModel
     {
-    	friend class CompositionalModelRecorder;
+        friend class CompositionalModelRecorder;
 
         using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
 
@@ -61,7 +61,7 @@ namespace mv
         Data::TensorIterator bias(Data::TensorIterator input, Data::TensorIterator biases, const std::string& name = "") override;
         Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, const std::string& name = "") override;
         Data::TensorIterator dropOut(Data::TensorIterator inputTensor, const std::string& name) override;
-        Data::TensorIterator conversion(Data::TensorIterator input, Order targetOrder, const std::string& name = "");
+        Data::TensorIterator conversion(Data::TensorIterator input, mv::Order target_order, const std::string& name = "");
 
         bool isValid() const override;
         bool isValid(const Data::TensorIterator& it) const override;

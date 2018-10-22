@@ -6,9 +6,9 @@ TEST(ops, matMul)
 {
 
     mv::OpModel om("testModel");
-    auto input0 = om.input({256, 512}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input0 = om.input({256, 512}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(512u * 100u);
-    auto input1 = om.constant(weightsData, {512, 100}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input1 = om.constant(weightsData, {512, 100}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
     auto matMul = om.matMul(input0, input1);
     auto matMulOp = om.getSourceOp(matMul);
     auto output = om.output(matMul);

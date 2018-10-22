@@ -61,7 +61,6 @@ namespace mv
 
         void setTarget(Target target);
         void setDType(DType dType);
-        void setOrder(Order order);
 
         bool appendAdaptPass(const std::string& pass, int pos = -1);
         bool appendOptPass(const std::string& pass, int pos = -1);
@@ -95,7 +94,6 @@ namespace mv
         const std::vector<std::string>& validPasses() const;
 
         Target getTarget() const;
-        Order getOrder() const;
         DType getDType() const;
 
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;

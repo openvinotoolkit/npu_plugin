@@ -96,7 +96,7 @@ mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator othe
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, mv::Order order, const std::string& name)
 {
 
     if (*input_ != opEnd())
@@ -154,7 +154,7 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator inputTensor, c
 }
 
 mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape,
-    DType dType, Order order, const std::string& name)
+    DType dType, mv::Order order, const std::string& name)
 {
     std::string opName;
     if (name != "")
@@ -334,14 +334,14 @@ mv::Data::TensorIterator mv::OpModel::prelu(Data::TensorIterator inputTensor, Da
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, Order targetOrder, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, mv::Order target_order, const std::string& name)
 {
     std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Conversion);
-    Data::OpListIterator conversionIt = dataGraph_.node_insert(std::make_shared<op::Conversion>(opName, targetOrder));
+    Data::OpListIterator conversionIt = dataGraph_.node_insert(std::make_shared<op::Conversion>(opName, target_order));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(conversionIt, inputs, 1);
     if (isValid(result))

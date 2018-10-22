@@ -140,7 +140,7 @@ import_array();
 
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o.input(shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+        return o.input(shape, mv::DTypeType::Float16, mv::Order("HWC"));
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
@@ -303,7 +303,7 @@ import_array();
 
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
-        return o.constant(data, shape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+        return o.constant(data, shape, mv::DTypeType::Float16, mv::Order("HWC"));
     }
 
     mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
