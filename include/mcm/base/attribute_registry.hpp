@@ -195,6 +195,27 @@ namespace mv
 
             }
 
+            inline static const std::function<std::vector<uint8_t>(const Attribute&)>& getToBinaryFunc(std::type_index typeID)
+            {
+
+                if (!checkType(typeID))
+                {
+                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-string conversion function for an unregistered attribute type "
+                        + std::string(typeID.name()));
+                }
+
+                AttributeEntry* const attrPtr = instance().find(typeID);
+
+                if (attrPtr)
+                {
+                    return attrPtr->getToBinaryFunc();
+                }
+
+                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
+                    " not found in the attribute registry");
+
+            }
+
             inline static bool hasTrait(std::type_index typeID, const std::string& trait)
             {
                 if (!checkType(typeID))
@@ -224,7 +245,7 @@ namespace mv
 
         #define STRV(...) #__VA_ARGS__
         #define COMMA ,
-        
+
         #define MV_REGISTER_ATTR(Type)                                                                          \
             static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =     \
                 mv::attr::AttributeRegistry::instance().enter<Type>().setName(STRV(Type))

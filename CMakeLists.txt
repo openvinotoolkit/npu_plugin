@@ -25,6 +25,7 @@ file(GLOB base
     "src/base/attribute_def/*.cpp"
     "src/base/printable.cpp"
     "src/base/jsonable.cpp"
+    "src/base/binarizable.cpp"
     "src/base/json/object.cpp"
     "src/base/json/array.cpp"
     "src/base/json/value.cpp"

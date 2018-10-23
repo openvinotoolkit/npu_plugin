@@ -447,7 +447,6 @@ namespace mv
                 offset = next_offset;
             }
 
-
             // Some Construction and other Fields
             AddBytes(4, offset);
             AddBytes(4, opIt->get<unsigned>("SerialID"));   // TODO: Enum registers
@@ -460,21 +459,24 @@ namespace mv
                     auto attr = opIt->get(name);
                     std::cout << "Type of Attr: " << attr.getTypeName() << std::endl;
                     auto typeName = attr.getTypeName();
-                    if(typeName == "unsigned")
-                    {
-                        auto retrieved_attr = opIt->get<unsigned>(name);
-                        std::cout << "Attr: " << name << ": " <<retrieved_attr << std::endl;
-                        AddBytes(4, retrieved_attr);
-                    }else if(typeName == "std::vector<unsigned>"){
-                        auto retrieved_attr = opIt->get<std::vector<unsigned>>(name);
-                        for( auto i : retrieved_attr ){
-                            AddBytes(4, i);
-                            std::cout << "Attr: " << i << ": " << std::endl;
-                        }
-                    }
-                    else{
-                        std::cout << "NO ATTR FOUND" << std::endl;
-                    }
+                    auto b = attr.toBinary();
+                    for( uint8_t byte : b)
+                        AddBytes(1, byte);
+                    // if(typeName == "unsigned")
+                    // {
+                    //     auto retrieved_attr = opIt->get<unsigned>(name);
+                    //     std::cout << "Attr: " << name << ": " <<retrieved_attr << std::endl;
+                    //     AddBytes(4, retrieved_attr);
+                    // }else if(typeName == "std::vector<unsigned>"){
+                    //     auto retrieved_attr = opIt->get<std::vector<unsigned>>(name);
+                    //     for( auto i : retrieved_attr ){
+                    //         AddBytes(4, i);
+                    //         std::cout << "Attr: " << i << ": " << std::endl;
+                    //     }
+                    // }
+                    // else{
+                    //     std::cout << "NO ATTR FOUND" << std::endl;
+                    // }
 
 
                 }else if(instruction == "Tensor"){

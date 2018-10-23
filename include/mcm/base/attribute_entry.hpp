@@ -37,7 +37,7 @@ namespace mv
             {
                 std::function<R(Args...)> f;
             };
-            
+
             std::type_index typeID_;
             std::string typeName_;
             std::string description_;
@@ -98,7 +98,7 @@ namespace mv
 
                 if (!checkFunc_)
                     throw MasterError(*this, "Undefined check function for the argument type " + typeName_);
-                    
+
                 auto pFunc = std::dynamic_pointer_cast<ConcreteFunc<bool, const Attribute&, std::string&> >(checkFunc_);
                 if (pFunc)
                     return pFunc->f;
@@ -137,7 +137,7 @@ namespace mv
                 auto pFunc = std::dynamic_pointer_cast<ConcreteFunc<mv::json::Value, const Attribute&> >(toJSONFunc_);
                 if (pFunc)
                     return pFunc->f;
-                    
+
                 throw AttributeError(*this, "Invalid types specified for to-JSON conversion function for type " + typeName_);
 
             }
@@ -185,8 +185,22 @@ namespace mv
                 auto pFunc = std::dynamic_pointer_cast<ConcreteFunc<std::string, const Attribute&> >(toStringFunc_);
                 if (pFunc)
                     return pFunc->f;
-                    
+
                 throw AttributeError(*this, "Invalid types specified for to-string conversion function for type " + typeName_);
+
+            }
+
+            inline const std::function<std::vector<uint8_t>(const Attribute&)>& getToBinaryFunc()
+            {
+
+                if (!toBinaryFunc_)
+                    throw MasterError(*this, "Undefined to-binary conversion function for the argument type ");
+
+                auto pFunc = std::dynamic_pointer_cast<ConcreteFunc<std::vector<uint8_t>, const Attribute&> >(toBinaryFunc_);
+                if (pFunc)
+                    return pFunc->f;
+
+                throw AttributeError(*this, "Invalid types specified for to-binary conversion function for type " + typeName_);
 
             }
 
