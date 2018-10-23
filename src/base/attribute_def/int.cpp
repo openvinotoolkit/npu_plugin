@@ -31,10 +31,10 @@ namespace mv
             union Tmp
             {
                 int n;
-                uint8_t bytes[4];
+                uint8_t bytes[sizeof(int)];
             };
             Tmp tmp = {a.get<int>()};
-            return std::vector<uint8_t>(tmp.bytes, std::end(tmp.bytes));
+            return std::vector<uint8_t>(std::begin(tmp.bytes), std::end(tmp.bytes));
         }
 
         MV_REGISTER_ATTR(int)

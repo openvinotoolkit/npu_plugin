@@ -31,10 +31,10 @@ namespace mv
             union Tmp
             {
                 unsigned n;
-                uint8_t bytes[4];
+                uint8_t bytes[sizeof(unsigned)];
             };
             Tmp tmp = {a.get<unsigned>()};
-            return std::vector<uint8_t>(tmp.bytes, std::end(tmp.bytes));
+            return std::vector<uint8_t>(std::begin(tmp.bytes), std::end(tmp.bytes));
         }
 
         MV_REGISTER_DUPLICATE_ATTR(unsigned)
