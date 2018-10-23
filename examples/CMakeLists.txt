@@ -22,3 +22,18 @@ target_link_libraries(cm_allocate_resources cm)
 
 add_executable(test_f test.cpp)
 target_link_libraries(test_f cm)
+
+
+include_directories("/opt/movidius/caffe/include")
+include_directories("/opt/movidius/caffe/build/include")
+include_directories("/opt/movidius/caffe/build/include/caffe/proto")
+link_directories("/opt/movidius/caffe/build/lib")
+
+include_directories("/usr/local/include/google")
+include(FindProtobuf)
+find_package(Protobuf REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIR})
+
+add_executable(prototxt_test prototxt_test.cpp)
+target_link_libraries(prototxt_test cm caffe boost_system ${PROTOBUF_LIBRARY})
+target_compile_definitions(prototxt_test PRIVATE CPU_ONLY=1)

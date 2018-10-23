@@ -125,6 +125,7 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet18.blob");
+    //unit.compilationDescriptor()["GenerateProto"]["output"] = std::string("prototxt.txt");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     
     // Initialize compilation 
