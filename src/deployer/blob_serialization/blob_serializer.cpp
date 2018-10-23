@@ -438,10 +438,9 @@ namespace mv
             next_offset += 3*4 + 2*4;   // First few fields, Post/Pre Ops
 
 
-            auto opItCopy = opIt;
-            ++opItCopy;
             unsigned offset = next_offset;
-            if(opItCopy->getOpType() == mv::OpType::Output){
+
+            if(opIt->getOutputTensor(0) == om.getOutput()->getInputTensor(0)){
                 // Final Layer. Unreliable Method to obtain...
                 offset = 0;
             }else{
@@ -454,7 +453,6 @@ namespace mv
             AddBytes(4, opIt->get<unsigned>("SerialID"));   // TODO: Enum registers
             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
-            unsigned size_of_serial = 0;
             for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s){
                 std::string instruction = s->substr(0, s->find(':'));
                 std::string name = s->substr(s->find(':')+1, s->size());
@@ -466,13 +464,11 @@ namespace mv
                     {
                         auto retrieved_attr = opIt->get<unsigned>(name);
                         std::cout << "Attr: " << name << ": " <<retrieved_attr << std::endl;
-                        size_of_serial = 4;
                         AddBytes(4, retrieved_attr);
                     }else if(typeName == "std::vector<unsigned>"){
                         auto retrieved_attr = opIt->get<std::vector<unsigned>>(name);
                         for( auto i : retrieved_attr ){
                             AddBytes(4, i);
-                            size_of_serial += 4;
                             std::cout << "Attr: " << i << ": " << std::endl;
                         }
                     }
@@ -482,7 +478,6 @@ namespace mv
 
 
                 }else if(instruction == "Tensor"){
-                    size_of_serial = 4*10;
                     std::string inOrOut = name.substr(0, name.find(':'));
                     std::string index = name.substr(name.find(':')+1, name.size());
                     mv::Data::TensorIterator retrievedT;
