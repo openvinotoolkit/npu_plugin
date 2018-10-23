@@ -387,11 +387,12 @@ namespace mv
         mv::DataModel dm(model);
         mv::ControlModel cm(model);
 
+        unsigned next_offset = 4*3;     // Who knows?
+
         for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
         {
             std::cout << "Writing Serial Fields for Op{" << opIt->getOpType().toString() << "}" <<std::endl;
 
-            // Get the serialization instructions for op
             mv::Element e("serial_viewer");
             if (opIt->getOpType() == mv::OpType::Input){
                 AddBytes(4, 0x20);
@@ -399,6 +400,8 @@ namespace mv
                 AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
                 AddBytes(4, 5);
                 AddBytes(4, 5);
+                next_offset += 4*5;
+
                 continue;
             }else if(opIt->getOpType() == mv::OpType::Output
                 || opIt->getOpType() == mv::OpType::Constant
@@ -411,14 +414,47 @@ namespace mv
                 e = td.getSerialDefinition(opIt->getOpType().toString(), "MvTensor");
             }
 
-            unsigned offset = 0;
+            std::vector<std::string> serial_instructions = e.get<std::vector<std::string>>("serial_view");
+
+            // Calculate Offset to Next Pointer
+            for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s){
+                std::string instruction = s->substr(0, s->find(':'));
+                std::string name = s->substr(s->find(':')+1, s->size());
+                if(instruction == "Attr"){
+                    auto attr = opIt->get(name);
+                    std::cout << "Type of Attr: " << attr.getTypeName() << std::endl;
+                    auto typeName = attr.getTypeName();
+                    if(typeName == "unsigned")
+                    {
+                        next_offset += 4;
+                    }else if(typeName == "std::vector<unsigned>"){
+                        auto retrieved_attr = opIt->get<std::vector<unsigned>>(name);
+                        next_offset += retrieved_attr.size()*4;
+                    }
+                }else if(instruction == "Tensor"){
+                    next_offset += 4*10;
+                }
+            }
+            next_offset += 3*4 + 2*4;   // First few fields, Post/Pre Ops
+
+
+            auto opItCopy = opIt;
+            ++opItCopy;
+            unsigned offset = next_offset;
+            if(opItCopy->getOpType() == mv::OpType::Output){
+                // Final Layer. Unreliable Method to obtain...
+                offset = 0;
+            }else{
+                offset = next_offset;
+            }
+
+
             // Some Construction and other Fields
             AddBytes(4, offset);
             AddBytes(4, opIt->get<unsigned>("SerialID"));   // TODO: Enum registers
             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
-
-            std::vector<std::string> serial_instructions = e.get<std::vector<std::string>>("serial_view");
+            unsigned size_of_serial = 0;
             for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s){
                 std::string instruction = s->substr(0, s->find(':'));
                 std::string name = s->substr(s->find(':')+1, s->size());
@@ -430,11 +466,13 @@ namespace mv
                     {
                         auto retrieved_attr = opIt->get<unsigned>(name);
                         std::cout << "Attr: " << name << ": " <<retrieved_attr << std::endl;
+                        size_of_serial = 4;
                         AddBytes(4, retrieved_attr);
                     }else if(typeName == "std::vector<unsigned>"){
                         auto retrieved_attr = opIt->get<std::vector<unsigned>>(name);
                         for( auto i : retrieved_attr ){
                             AddBytes(4, i);
+                            size_of_serial += 4;
                             std::cout << "Attr: " << i << ": " << std::endl;
                         }
                     }
@@ -444,6 +482,7 @@ namespace mv
 
 
                 }else if(instruction == "Tensor"){
+                    size_of_serial = 4*10;
                     std::string inOrOut = name.substr(0, name.find(':'));
                     std::string index = name.substr(name.find(':')+1, name.size());
                     mv::Data::TensorIterator retrievedT;
@@ -469,10 +508,18 @@ namespace mv
                     // throw mv::AttributeError(instruction, "Invalid Serialization Instruction");
                 }
             }
+
             AddBytes(4, 5);     // Post/Pre Op (Deprecated)
             AddBytes(4, 5);     // Post/Pre Op (Deprecated)
 
         }
+
+        std::cout << "next_offset" << next_offset << std::endl;
+        // next_offset = 0
+        uint32_t buffer_section_offset = align(next_offset, 16);
+        uint32_t stage_pad_size = buffer_section_offset - next_offset;
+        if (stage_pad_size > 0)
+            AddBytes(stage_pad_size, 0x00000000);
     }
 
     void Blob_buffer::write_stages(mv::ControlModel& cm)
