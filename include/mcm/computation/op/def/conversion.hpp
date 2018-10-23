@@ -18,7 +18,7 @@ namespace mv
             Conversion(const std::string &name, Order targetOrder);
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
-
+            void gatherSerialFields() override;
         };
 
     }

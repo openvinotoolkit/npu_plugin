@@ -26,3 +26,8 @@ bool mv::op::Conversion::isHardwarizeable(mv::json::Object&)
 {
     return false;
 }
+
+void mv::op::Conversion::gatherSerialFields()
+{
+    this->set<unsigned>("SerialID", 37);
+}

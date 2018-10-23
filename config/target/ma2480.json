@@ -209,6 +209,14 @@
 				]
 			}
 		},
+		"Conversion":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0"
+				]
+			}
+		},
 		"FullyConnected":{
 			"MvTensor":{
 				"serial_description":[
