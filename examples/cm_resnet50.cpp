@@ -183,7 +183,7 @@ int main()
     std::cout << result.stringifyPretty() << std::endl;
 
     // Uncomment for an easy generation of SVG images for DOT output files (requires dot package)
-    //system("dot -Tsvg resnet50.dot -o resnet50.svg");
+    system("dot -Tsvg resnet50.dot -o resnet50.svg");
     //system("dot -Tsvg resnet50_adapt.dot -o resnet50_adapt.svg");
     //system("dot -Tsvg resnet50_final.dot -o resnet50_final.svg");
 
