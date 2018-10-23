@@ -72,6 +72,7 @@ std::string mv::Element::getLogID() const
 mv::Element& mv::Element::operator=(const Element &other)
 {
     name_ = other.name_;
+    attrs_ = other.attrs_;
     return *this;
 }
 

@@ -103,7 +103,10 @@ namespace mv
                     auto weight_tensor_shape = weight_tensor->getShape();
 
                     if ( it->getOpType() == OpType::FullyConnected )
+                    {
                         total_weight_size = weight_tensor_shape.totalSize();
+                        blob_stats.stage_section_size += (45*4) ;
+                    }
                     else
                     {
                         total_weight_size = weight_tensor_shape.totalSize();
@@ -259,8 +262,7 @@ namespace mv
             blob_stats.stage_section_size +
             blob_stats.buffer_header_size +
             blob_stats.buffer_data_size +
-            // blob_stats.relocation_section_size;
-            28;
+            blob_stats.relocation_section_size;
     }
 
     void Blob_buffer::write_elf_header()
@@ -630,7 +632,16 @@ namespace mv
                     c.writeStageInfo(&om, this);
 
                     AddBytes(4, 0x05);    // 0x12c , no preop
-                    AddBytes(4, 0x05);    // 0x12c , no postop
+
+
+                    if (it->hasAttr("bias"))
+                    {
+                        AddBytes(4, 0x09);    // 0x12c , postop bias
+                    }
+                    else
+                    {
+                        AddBytes(4, 0x05);    // 0x12c , no postop
+                    }
 
                 }
                 break;

@@ -23,9 +23,7 @@ namespace mv
             Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
             Blob_Tensor tapsBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->taps);
-            Blob_Tensor biasBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->taps);
-
-            b->reloc_table.push_entry(std::pair<int, bLocation>(666, bLocation::Constant ));
+            Blob_Tensor biasBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->bias);
 
             inputBlobTensor.write(b);
             outputBlobTensor.write(b);

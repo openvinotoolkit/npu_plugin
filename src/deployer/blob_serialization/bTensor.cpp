@@ -92,7 +92,7 @@ namespace mv
             case 2:
             {
                 this->dimX = 1;
-                this->dimY = 1;
+                this->dimY = t->getShape()[0];
                 this->dimZ = t->getShape()[1];
             }
             break;
