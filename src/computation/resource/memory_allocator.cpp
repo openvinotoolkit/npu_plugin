@@ -255,7 +255,7 @@ long mv::MemoryAllocator::computeStrides_(const mv::Order& order, std::size_t id
 
     long newStride = 0;
     for(std::size_t c = 0; c < shape[currentDim]; ++c)
-        newStride = computeStrides_(order, --idx, shape, leftPadding, rightPadding, leftStrides, rightStrides);
+        newStride = computeStrides_(order, idx-1, shape, leftPadding, rightPadding, leftStrides, rightStrides);
 
     //Last stride should be joined (stride definition -> only between two blocks)
     long toAddLeft = leftStrides.back();

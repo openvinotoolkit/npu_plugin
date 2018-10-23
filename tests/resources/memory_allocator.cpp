@@ -64,7 +64,7 @@ TEST(memory_allocator, tensor_col_major)
     mv::OpModel om("testModel");
     mv::DataModel dm(om);
     mv::Shape s({2, 2});
-    mv::Order order = mv::Order(mv::Order::getRowMajorID(3));;
+    mv::Order order = mv::Order(mv::Order::getRowMajorID(2));;
     auto t = dm.defineTensor("testTensor", s, mv::DTypeType::Float16, order, mv::utils::generateSequence<double>(s.totalSize()));
 
     mv::MemoryAllocator m("m1", 10000, 0, 2);
@@ -104,7 +104,7 @@ TEST(memory_allocator, slave_tensor_col_major)
     mv::DataModel dm(om);
     mv::Shape masterShape({4, 4});
     mv::Shape slaveShape({2, 2});
-    mv::Order order = mv::Order(mv::Order::getRowMajorID(3));;
+    mv::Order order = mv::Order(mv::Order::getRowMajorID(2));;
     auto tMaster = dm.defineTensor("masterTensor", masterShape, mv::DTypeType::Float16, order,
         mv::utils::generateSequence<double>(masterShape.totalSize()));
     auto tSlave = dm.defineTensor("slaveShape", slaveShape, mv::DTypeType::Float16, order,
