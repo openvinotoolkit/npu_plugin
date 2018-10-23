@@ -90,7 +90,6 @@
 					"Attr:padX",
 					"Attr:padY",
 					"Attr:padStyle",
-					"Attr:dilation",
 					"Tensor:0:0",
 					"Tensor:1:0"
 				]

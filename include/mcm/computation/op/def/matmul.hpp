@@ -11,7 +11,7 @@ namespace mv
     namespace op
     {
 
-        /// \todo Add assertions (dimensions)   
+        /// \todo Add assertions (dimensions)
         class MatMul : public SinkOp, public SourceOp
         {
 
@@ -20,7 +20,6 @@ namespace mv
             MatMul(const std::string &name);
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
-
         };
 
     }

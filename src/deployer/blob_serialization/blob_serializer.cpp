@@ -446,6 +446,7 @@ namespace mv
                     std::string inOrOut = name.substr(0, name.find(':'));
                     std::string index = name.substr(name.find(':')+1, name.size());
                     mv::Data::TensorIterator retrievedT;
+                    std::cout << inOrOut << ":" << index << std::endl;
                     if(inOrOut == "0"){
                         unsigned idx = stoi(index);
                         if(opIt->hasInputDef(idx))

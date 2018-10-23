@@ -16,7 +16,7 @@ namespace mv
 
             ReLU(const std::string &name);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
-
+            void gatherSerialFields() override;
         };
 
     }

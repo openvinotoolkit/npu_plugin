@@ -101,6 +101,7 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
                 splits_over_input_channels = operationIt->get<size_t>("NCE1_SplitsOverInputChannels");
             else
                 splits_over_input_channels = 1;
+                operationIt->set<size_t>("NCE1_SplitsOverInputChannels", splits_over_input_channels);
             std::vector<size_t> modes = operationIt->get("NCE1_Modes").get<std::vector<std::size_t>>();
 
             unsigned descriptor_splits = nce.computeDescriptorSplits(splits_over_height, splits_over_input_channels, modes.size());

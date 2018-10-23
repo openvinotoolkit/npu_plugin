@@ -10,12 +10,12 @@ SourceOp(OpType::MatMul, 1, name)
 
 mv::Tensor mv::op::MatMul::getOutputDef(std::size_t idx)
 {
-    
+
     // Will throw on error
     validOutputDef_(idx);
 
     auto input0 = getInputTensor(0);
-    auto input0Shape = input0->getShape(); 
+    auto input0Shape = input0->getShape();
     auto input1Shape = getInputTensor(1)->getShape();
 
     if (input0Shape.ndims() != 2)
@@ -31,7 +31,7 @@ mv::Tensor mv::op::MatMul::getOutputDef(std::size_t idx)
             " and the first dimension of the parameters tensor (input 1) " + std::to_string(input1Shape[0])));
 
     return Tensor(name_ + ":0", {input0Shape[0], input1Shape[1]}, input0->getDType(), input0->getOrder());
-    
+
 }
 
 bool mv::op::MatMul::isHardwarizeable(json::Object&)
