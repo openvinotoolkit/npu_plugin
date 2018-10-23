@@ -12,19 +12,7 @@
 #include "include/mcm/utils/serializer/file_buffer.h"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/deployer/blob_serialization/myriadX_hardware_descriptors.hpp"
-#include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
-#include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
-#include "include/mcm/deployer/blob_serialization/bDepthwiseConv.hpp"
-#include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
-#include "include/mcm/deployer/blob_serialization/bPooling_MX.hpp"
-#include "include/mcm/deployer/blob_serialization/bSoftmax.hpp"
-#include "include/mcm/deployer/blob_serialization/bRelu.hpp"
-#include "include/mcm/deployer/blob_serialization/bPRelu.hpp"
-#include "include/mcm/deployer/blob_serialization/bScale.hpp"
-#include "include/mcm/deployer/blob_serialization/bEltwise.hpp"
-#include "include/mcm/deployer/blob_serialization/bInnerProduct.hpp"
-#include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include <assert.h>
 
@@ -209,7 +197,7 @@ namespace mv
 
 
             // Calculate Blob Statistics
-            void calc(mv::ControlModel& cm);
+            void calc(mv::ControlModel& cm, mv::TargetDescriptor& td);
 
             void write_elf_header();
 

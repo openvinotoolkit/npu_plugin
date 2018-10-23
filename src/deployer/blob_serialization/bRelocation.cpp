@@ -58,6 +58,9 @@ namespace mv
             case bLocation::Variable:
                 this->variable_entries.push_back(ol);
                 return (unsigned int)this->variable_entries.size() -1;
+            default:
+                std::cout << "Relocation: Invalid Location." << std::endl;
+
         }
         printf("Relocation Table Entry cannot exist\n");
         assert(0);

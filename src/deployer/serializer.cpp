@@ -17,7 +17,7 @@ namespace mv
         switch( output_format )
         {
             case mvblob_mode:
-                odata.calc(graph_2_deploy);
+                odata.calc(graph_2_deploy, td);
                 odata.open(ofilename);
                 odata.write_elf_header();
                 odata.write_mv_header();
