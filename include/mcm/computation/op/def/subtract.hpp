@@ -16,6 +16,7 @@ namespace mv
 
             Subtract(const std::string &name);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
+            void gatherSerialFields() override;
 
         };
 

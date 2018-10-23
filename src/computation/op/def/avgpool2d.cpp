@@ -34,8 +34,8 @@ void mv::op::AvgPool2D::gatherSerialFields()
         auto output_line_start = this->get<std::vector<size_t>>("NCE1_StartOutputLine");
         auto input_line_start = this->get<std::vector<size_t>>("NCE1_StartInputLine");
 
-        auto radixX = this->getInputTensor(1)->getShape()[2];
-        auto radixY = this->getInputTensor(1)->getShape()[3];
+        auto radixX = this->get<std::array<short unsigned, 2>>("kSize")[0];
+        auto radixY = this->get<std::array<short unsigned, 2>>("kSize")[1];
 
         this->set<unsigned>("SerialID", 34);    // To be moved?
 
@@ -132,7 +132,7 @@ void mv::op::AvgPool2D::gatherSerialFields()
         this->set<std::vector<unsigned>>("descriptors", desc
         );
     }else{
-        this->set<unsigned>("SerialID", 1);
+        this->set<unsigned>("SerialID", 2);
 
         this->set<unsigned>("radixX",  this->getInputTensor(1)->getShape()[0]);
         this->set<unsigned>("radixY",  this->getInputTensor(1)->getShape()[1]);

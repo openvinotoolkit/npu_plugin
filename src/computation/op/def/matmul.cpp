@@ -38,3 +38,8 @@ bool mv::op::MatMul::isHardwarizeable(json::Object&)
 {
     return false;
 }
+
+void mv::op::MatMul::gatherSerialFields()
+{
+    this->set<unsigned>("SerialID", 8);
+}

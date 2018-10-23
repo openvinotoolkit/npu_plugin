@@ -42,6 +42,7 @@ void mv::op::FullyConnected::gatherSerialFields()
 
     if (this->hasAttr("NCE1_Compatible")){
 
+        this->set<unsigned>("SerialID", 35);
         // Get all attrs:
         auto splits_over_H = this->get<size_t>("NCE1_SplitsOverHeight");
         auto DPUmodeVector = this->get<std::vector<size_t>>("NCE1_Modes");
@@ -153,7 +154,8 @@ void mv::op::FullyConnected::gatherSerialFields()
 
         }
 
-        this->set<std::vector<unsigned>>("descriptors", desc
-        );
+        this->set<std::vector<unsigned>>("descriptors", desc);
+    }else{
+        this->set<unsigned>("SerialID", 4);
     }
 }

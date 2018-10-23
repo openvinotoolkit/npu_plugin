@@ -16,9 +16,10 @@ namespace mv
 
             Add(const std::string& name);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
+            void gatherSerialFields() override;
 
         };
-        
+
     }
 
 }

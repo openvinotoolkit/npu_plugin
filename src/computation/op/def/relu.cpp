@@ -16,4 +16,5 @@ void mv::op::ReLU::gatherSerialFields(){
     this->set<unsigned>("opX", 0);
     this->set<unsigned>("strideX", 0);
     this->set<unsigned>("strideY", 0);
+    this->set<unsigned>("SerialID", 6);
 }

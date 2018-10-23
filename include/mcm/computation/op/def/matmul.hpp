@@ -20,6 +20,7 @@ namespace mv
             MatMul(const std::string &name);
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& targetDescriptor);
+            void gatherSerialFields() override;
         };
 
     }

@@ -1,4 +1,4 @@
-#ifndef DEPTHWISE_CONV2D_OP_HPP_
+ #ifndef DEPTHWISE_CONV2D_OP_HPP_
 #define DEPTHWISE_CONV2D_OP_HPP_
 
 #include "include/mcm/computation/op/kernel_op.hpp"
