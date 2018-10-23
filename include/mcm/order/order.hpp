@@ -38,11 +38,11 @@ namespace mv
             return colMajorID.at(dimension);
         }
 
-        static bool isRowMajor(const mv::Order& o);
-        static bool isColMajor(const mv::Order& o);
-        static bool isRowMajorPlanar(const mv::Order& o);
-        static bool isColMajorPlanar(const mv::Order& o);
-        static bool isRowInterleaved(const mv::Order& o);
+        bool isRowMajor();
+        bool isColMajor();
+        bool isRowMajorPlanar();
+        bool isColMajorPlanar();
+        bool isRowInterleaved();
 
 
         Order(const Order& other);

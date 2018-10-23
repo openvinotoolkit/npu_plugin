@@ -117,71 +117,71 @@ std::string mv::Order::toString() const
     return to_return;
 }
 
-bool mv::Order::isRowMajor(const mv::Order& o)
+bool mv::Order::isRowMajor()
 {
-    if(o == mv::Order("W"))
+    if(*this == mv::Order("W"))
         return true;
-    if(o == mv::Order("WH"))
+    if(*this == mv::Order("WH"))
         return true;
-    if(o == mv::Order("WHC"))
+    if(*this == mv::Order("WHC"))
         return true;
-    if(o == mv::Order("WHCN"))
+    if(*this == mv::Order("WHCN"))
         return true;
-    if(o == mv::Order("WHCNT"))
+    if(*this == mv::Order("WHCNT"))
         return true;
     return false;
 }
 
 
 
-bool mv::Order::isColMajor(const mv::Order& o)
+bool mv::Order::isColMajor()
 {
-    if(o == mv::Order("W"))
+    if(*this == mv::Order("W"))
         return true;
-    if(o == mv::Order("HW"))
+    if(*this == mv::Order("HW"))
         return true;
-    if(o == mv::Order("CHW"))
+    if(*this == mv::Order("CHW"))
         return true;
-    if(o == mv::Order("NCHW"))
+    if(*this == mv::Order("NCHW"))
         return true;
-    if(o == mv::Order("TNCHW"))
+    if(*this == mv::Order("TNCHW"))
         return true;
     return false;
 }
 
-bool mv::Order::isRowMajorPlanar(const mv::Order& o)
+bool mv::Order::isRowMajorPlanar()
 {
-    if(o == mv::Order("W"))
+    if(*this == mv::Order("W"))
         return true;
-    if(o == mv::Order("HW"))
+    if(*this == mv::Order("HW"))
         return true;
-    if(o == mv::Order("HWC"))
+    if(*this == mv::Order("HWC"))
         return true;
-    if(o == mv::Order("HWCN"))
+    if(*this == mv::Order("HWCN"))
         return true;
-    if(o == mv::Order("HWCNT"))
+    if(*this == mv::Order("HWCNT"))
         return true;
     return false;
 }
 
-bool mv::Order::isColMajorPlanar(const mv::Order& o)
+bool mv::Order::isColMajorPlanar()
 {
-    if(o == mv::Order("W"))
+    if(*this == mv::Order("W"))
         return true;
-    if(o == mv::Order("WH"))
+    if(*this == mv::Order("WH"))
         return true;
-    if(o == mv::Order("CWH"))
+    if(*this == mv::Order("CWH"))
         return true;
-    if(o == mv::Order("NCWH"))
+    if(*this == mv::Order("NCWH"))
         return true;
-    if(o == mv::Order("TNCWH"))
+    if(*this == mv::Order("TNCWH"))
         return true;
     return false;
 }
 
-bool mv::Order::isRowInterleaved(const mv::Order& o)
+bool mv::Order::isRowInterleaved()
 {
-    if(o == mv::Order("HCW"))
+    if(*this == mv::Order("HCW"))
         return true;
     return false;
 }

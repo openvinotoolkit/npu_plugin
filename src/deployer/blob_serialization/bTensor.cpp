@@ -249,7 +249,7 @@ namespace mv
         {
             std::cout << "Not Tight" << std::endl;
             mv::Order current_order = t->getOrder();
-            if(mv::Order::isRowMajor(current_order))
+            if(current_order.isRowMajor())
             {
                 if (D1_block == this->dimZ * 2)
                     local_StrideZ = D1_stride;
@@ -261,7 +261,7 @@ namespace mv
                     std::cout << "Serialization Error: Cannot figure out stride translation (ColumnMajor)" << std::endl;
             }
 
-            else if(mv::Order::isColMajor(current_order))
+            else if(current_order.isColMajor())
             {
                 // This is horrible because values in allocator are 5D
                 if (D1_stride == this->dimZ* 2 * 8)
@@ -277,7 +277,7 @@ namespace mv
                     std::cout << "Serialization Error: Cannot figure out stride translation (RowMajor)" << D1_block << std::endl;
             }
 
-            else if(mv::Order::isRowMajorPlanar(current_order))
+            else if(current_order.isRowMajorPlanar())
             {
                 if (D1_block == this->dimZ * 2)
                     local_StrideZ = D1_stride;
@@ -290,7 +290,7 @@ namespace mv
             }
 
 
-            else if(mv::Order::isColMajorPlanar(current_order))
+            else if(current_order.isColMajorPlanar())
             {
 
                 if (D1_block == this->dimY* 2)
@@ -304,7 +304,7 @@ namespace mv
             }
 
 
-            else if(mv::Order::isRowInterleaved(current_order))
+            else if(current_order.isRowInterleaved())
             {
                 if (D1_block == this->dimX * 2)
                     local_StrideX = D1_stride;
@@ -322,7 +322,7 @@ namespace mv
 
         mv::Order current_order = t->getOrder();
 
-        if(mv::Order::isRowMajorPlanar(current_order))
+        if(current_order.isRowMajorPlanar())
         {
             if(t->getShape().ndims() == 3)
             {
@@ -357,7 +357,7 @@ namespace mv
             }
         }
 
-        else if(mv::Order::isRowMajor(current_order))
+        else if(current_order.isRowMajor())
         {
             // Misleading - weights
             this->order = 1;
@@ -365,7 +365,7 @@ namespace mv
             this->strideY = (this->dimX * this->strideX) + local_StrideX;
             this->strideZ = (this->dimY * this->strideY) + local_StrideY;
         }
-        else if(mv::Order::isColMajor(current_order))
+        else if(current_order.isColMajor())
         {
             // NCE1 - Option 1
             // COLUMN MAJOR(NCE1 Planar)
@@ -375,7 +375,7 @@ namespace mv
             this->strideY = (this->dimX * this->strideX) + local_StrideX;
             this->strideZ = (this->dimY * this->strideY) + local_StrideY;
         }
-        else if(mv::Order::isColMajorPlanar(current_order))
+        else if(current_order.isColMajorPlanar())
         {
             this->order = 1;
             this->strideY = fp16_size;
@@ -385,7 +385,7 @@ namespace mv
             // this->strideY = (this->dimX + local_StrideX)*this->strideX;
             // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
          }
-         else if(mv::Order::isRowInterleaved(current_order))
+         else if(current_order.isRowInterleaved())
          {
             this->order = 2;
             this->strideX = fp16_size;
