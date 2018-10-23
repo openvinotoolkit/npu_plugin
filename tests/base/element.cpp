@@ -125,7 +125,7 @@ TEST(element, get_failure)
     ASSERT_ANY_THROW(e.get<bool>("aDouble"));
     ASSERT_ANY_THROW(e.get<int>("aDType"));
     ASSERT_ANY_THROW(e.get<bool>("aInt"));
-    ASSERT_ANY_THROW(e.get<unsigned short>("amv::Order"));
+    ASSERT_ANY_THROW(e.get<unsigned short>("aOrder"));
     ASSERT_ANY_THROW(e.get<std::vector<std::size_t>>("aShape"));
     ASSERT_ANY_THROW(e.get<std::vector<std::size_t>>("aStdArrUnsignedShort2"));
     ASSERT_ANY_THROW(e.get<std::vector<std::size_t>>("aStdArrUnsignedShort3"));
