@@ -26,10 +26,22 @@ namespace mv
             return std::to_string(a.get<std::size_t>());
         }
 
+        static std::vector<uint8_t> toBinary(const Attribute& a)
+        {
+            union Tmp
+            {
+                std::size_t n;
+                uint8_t bytes[sizeof(std::size_t)];
+            };
+            Tmp tmp = {a.get<std::size_t>()};
+            return std::vector<uint8_t>(std::begin(tmp.bytes), std::end(tmp.bytes));
+        }
+
         MV_REGISTER_DUPLICATE_ATTR(std::size_t)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+            .setToStringFunc(toString)
+            .setToBinaryFunc(toBinary);
 
     }
 
