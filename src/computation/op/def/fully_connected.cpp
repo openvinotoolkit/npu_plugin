@@ -40,7 +40,7 @@ void mv::op::FullyConnected::gatherSerialFields()
 {
     auto fp16_size = 2;
 
-    if (this->hasAttr("NCE1_Compatible")){
+    if (this->hasAttr("NCE1_Compatible") && this->get<int>("NCE1_Compatible") ){
 
         this->set<unsigned>("SerialID", 35);
         // Get all attrs:

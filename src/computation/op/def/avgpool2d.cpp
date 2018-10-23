@@ -16,7 +16,7 @@ void mv::op::AvgPool2D::gatherSerialFields()
 {
     auto fp16_size = 2;
 
-    if (this->hasAttr("NCE1_Compatible")){
+    if (this->hasAttr("NCE1_Compatible") && this->get<int>("NCE1_Compatible") ){
 
         // Get all attrs:
         auto splits_over_H = this->get<size_t>("NCE1_SplitsOverHeight");
@@ -134,8 +134,8 @@ void mv::op::AvgPool2D::gatherSerialFields()
     }else{
         this->set<unsigned>("SerialID", 2);
 
-        this->set<unsigned>("radixX",  this->getInputTensor(1)->getShape()[0]);
-        this->set<unsigned>("radixY",  this->getInputTensor(1)->getShape()[1]);
+        this->set<unsigned>("radixX",  this->get<std::array<short unsigned, 2>>("kSize")[0]);
+        this->set<unsigned>("radixY",  this->get<std::array<short unsigned, 2>>("kSize")[1]);
         this->set<unsigned>("strideX",  this->get<std::array<unsigned short, 2>>("stride")[0]);
         this->set<unsigned>("strideY",  this->get<std::array<unsigned short, 2>>("stride")[1]);
         this->set<unsigned>("padX",  this->get<std::array<unsigned short, 4>>("padding")[0]);

@@ -401,7 +401,8 @@ namespace mv
                 AddBytes(4, 5);
                 continue;
             }else if(opIt->getOpType() == mv::OpType::Output
-                || opIt->getOpType() == mv::OpType::Constant)
+                || opIt->getOpType() == mv::OpType::Constant
+                || opIt->getOpType() == mv::OpType::Concat)
             {
                 continue;
             }else if (opIt->hasAttr("NCE1_Compatible") && opIt->get<int>("NCE1_Compatible")){

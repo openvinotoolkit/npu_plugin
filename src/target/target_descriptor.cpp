@@ -632,7 +632,7 @@ mv::Order mv::TargetDescriptor::getOrder() const
 
 mv::Element mv::TargetDescriptor::getSerialDefinition(std::string op_name, std::string platform_name) const
 {
-    std::cout << "Get: " << op_name+":"+platform_name << std::endl;
+    std::cout << "Get: " << op_name + ":" + platform_name << std::endl;
     return serialDescriptions_.at(op_name+":"+platform_name);
 }
 

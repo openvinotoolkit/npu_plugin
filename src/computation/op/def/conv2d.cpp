@@ -85,7 +85,7 @@ void mv::op::Conv2D::gatherSerialFields()
 {
     auto fp16_size = 2;
 
-    if (this->hasAttr("NCE1_Compatible")){
+    if (this->hasAttr("NCE1_Compatible") && this->get<int>("NCE1_Compatible")){
 
         // Get all attrs:
         auto splits_over_H = this->get<size_t>("NCE1_SplitsOverHeight");
