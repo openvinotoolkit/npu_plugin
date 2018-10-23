@@ -45,6 +45,7 @@ namespace mv
             std::shared_ptr<GenericFunc> toJSONFunc_;
             std::shared_ptr<GenericFunc> fromJSONFunc_;
             std::shared_ptr<GenericFunc> toStringFunc_;
+            std::shared_ptr<GenericFunc> toBinaryFunc_;
             std::set<std::string> typeTraits_;
 
         public:
@@ -116,6 +117,14 @@ namespace mv
                 auto pFunc = std::make_shared<ConcreteFunc<mv::json::Value, const Attribute&> >();
                 pFunc->f = f;
                 toJSONFunc_ = pFunc;
+                return *this;
+            }
+
+            inline AttributeEntry& setToBinaryFunc(const std::function<std::vector<uint8_t>(const Attribute&)>& f)
+            {
+                auto pFunc = std::make_shared<ConcreteFunc<std::vector<uint8_t>, const Attribute&>>();
+                pFunc->f = f;
+                toBinaryFunc_ = pFunc;
                 return *this;
             }
 

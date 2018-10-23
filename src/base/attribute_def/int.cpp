@@ -26,10 +26,22 @@ namespace mv
             return std::to_string(a.get<int>());
         }
 
+        static std::vector<uint8_t> toBinary(const Attribute& a)
+        {
+            union Tmp
+            {
+                int n;
+                uint8_t bytes[4];
+            };
+            Tmp tmp = {a.get<int>()};
+            return std::vector<uint8_t>(tmp.bytes[0], tmp.bytes[4]);
+        }
+
         MV_REGISTER_ATTR(int)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+            .setToStringFunc(toString)
+            .setToBinaryFunc(toBinary);
 
     }
 
