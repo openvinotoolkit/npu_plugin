@@ -34,7 +34,7 @@ namespace mv
                 uint8_t bytes[4];
             };
             Tmp tmp = {a.get<int>()};
-            return std::vector<uint8_t>(tmp.bytes[0], tmp.bytes[4]);
+            return std::vector<uint8_t>(tmp.bytes, std::end(tmp.bytes));
         }
 
         MV_REGISTER_ATTR(int)
