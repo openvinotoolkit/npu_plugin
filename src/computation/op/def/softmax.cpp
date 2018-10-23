@@ -14,6 +14,6 @@ bool mv::op::Softmax::isHardwarizeable(json::Object&)
 
 
 void mv::op::Softmax::gatherSerialFields(){
-    this->set<unsigned>("axis", 0);
+    this->set<unsigned>("axis", 1);
     this->set<unsigned>("SerialID", 3);
 }
