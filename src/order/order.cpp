@@ -18,6 +18,15 @@ std::unordered_map<std::size_t, std::string> mv::Order::colMajorID =
     {5, "TNCHW"}
 };
 
+std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID =
+{
+    {1, "W"},
+    {2, "HW"},
+    {3, "HWC"},
+    {4, "HWCN"},
+    {5, "HWCNT"}
+};
+
 std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& sub) const
 {
 

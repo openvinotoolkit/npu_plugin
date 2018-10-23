@@ -62,14 +62,10 @@ void alignConstOrder(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
             // Constant is a parameter tensor for a software layer
             //opIt->set<mv::Order>("mv::Order", mv::Order("HWC"));
-             if (opIt.leftmostChild()->getOpType() == OpType::FullyConnected)
-            {
-                opIt->getOutputTensor(0)->setOrder(Order::getRowMajorID(opIt->getOutputTensor(0)->getShape().ndims());
-            }
+            if (opIt.leftmostChild()->getOpType() == OpType::FullyConnected)
+                opIt->getOutputTensor(0)->setOrder(Order::getRowMajorID(opIt->getOutputTensor(0)->getShape().ndims()));
             else 
-            {
-                opIt->getOutputTensor(0)->setOrder(Order::getRowMajorPlanarID(opIt->getOutputTensor(0)->getShape().ndims());
-            }
+                opIt->getOutputTensor(0)->setOrder(Order::getRowMajorPlanarID(opIt->getOutputTensor(0)->getShape().ndims()));
         }
 
     }
