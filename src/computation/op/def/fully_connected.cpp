@@ -27,6 +27,8 @@ mv::Tensor mv::op::FullyConnected::getOutputDef(std::size_t idx)
         throw(OpError(*this, "Inconsistent total size of input tensor (input 0) " + std::to_string(input0Shape.totalSize()) + 
             " and 1st dimension of weights tensor (input 1) " + std::to_string(input1Shape[0])));
 
+    //NOTE: Due to order refactoring this line is now wrong
+    //Input order is 3D, here we need a 2D order
     return Tensor(name_ + ":0", {1, input1Shape[1]}, input0->getDType(), input0->getOrder());
     
 }

@@ -9,6 +9,8 @@ blocks_(shape.totalSize() / blockSize_),
 shape_(shape),
 internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
 {
+    if(order.size() != shape.ndims())
+        throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
     set<Shape>("shape", shape_);
     set<Order>("order", order);
     set<DType>("dType", dType);

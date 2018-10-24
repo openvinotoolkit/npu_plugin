@@ -26,6 +26,8 @@ mv::Tensor mv::op::Input::getOutputDef(std::size_t idx)
     auto outputShape = get<Shape>("shape");
     auto dType = get<DType>("dType");
     auto order = get<Order>("order");
+
+    //Order should be a 2D order here
     return Tensor(name_ + ":0", outputShape, dType, order);
 
 }
