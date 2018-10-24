@@ -37,27 +37,7 @@ namespace mv
 
 }
 
-/*
-layer {
-  name: "conv1"
-  type: "Convolution"
-  bottom: "data"
-  top: "conv1"
-  param {
-    lr_mult: 1
-    decay_mult: 1
-  }
-  param {
-    lr_mult: 2
-    decay_mult: 0
-  }
-  convolution_param {
-    num_output: 96
-    kernel_size: 11
-    stride: 4
-  }
-}
-*/
+
 
 
 void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput)
