@@ -430,6 +430,21 @@ double& mv::Tensor::operator()(const std::vector<std::size_t>& sub)
     return at(sub);
 }
 
+mv::Tensor& mv::Tensor::operator=(const Tensor& other)
+{
+    Element::operator=(other);
+    data_ = std::vector<double>(other.data_.size());
+    blockSize_ = other.blockSize_;
+    blocks_ = std::vector<std::vector<double>::iterator>(other.blocks_.size());
+    shape_ = other.shape_;
+
+    for (std::size_t i = 0; i < blocks_.size(); ++i)
+        blocks_[i] = data_.begin() + i * blockSize_;
+
+    if (isPopulated())
+        data_ = other.data_;
+}
+
 const double& mv::Tensor::operator()(const std::vector<std::size_t>& sub) const
 {
     return at(sub);

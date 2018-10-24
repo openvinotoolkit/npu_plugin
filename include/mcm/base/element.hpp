@@ -25,6 +25,8 @@ namespace mv
 
         std::string name_;
         virtual std::string attrsToString_() const;
+        void forceErase_(const std::string& name);
+        const std::map<std::string, Attribute>& getAttrs_() const;
 
     public:
 
@@ -74,7 +76,7 @@ namespace mv
         }*/
 
         template <class AttrType>
-        void set(const std::string& name, const AttrType& value)
+        void set(const std::string& name, const AttrType& value, std::initializer_list<std::string> traits = {})
         {
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw ArgumentError(*this, "type", typeid(AttrType).name(), "Unregistered"
@@ -88,7 +90,7 @@ namespace mv
 
             if (!hasAttr(name))
             {
-                auto it = attrs_.emplace(name, value);
+                auto it = attrs_.emplace(std::piecewise_construct, std::forward_as_tuple(name), std::forward_as_tuple(value, traits));
                 if (!it.second)
                     throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
                 log(Logger::MessageType::Debug, "Attriubte '" + name + "' (" + it.first->second.getTypeName() +
@@ -96,6 +98,8 @@ namespace mv
             }
             else
             {
+                if (attrs_[name].hasTrait("const"))
+                    throw AttributeError(*this, "Attempt of modification of a const attribute " + name);
                 attrs_[name] = value;
                 log(Logger::MessageType::Debug, "Attriubte '" + name + "' (" + attrs_[name].getTypeName() +
                     ") modified to " + attrs_[name].toString());

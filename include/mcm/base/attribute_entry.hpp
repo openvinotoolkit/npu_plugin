@@ -181,14 +181,14 @@ namespace mv
 
             }
 
-            inline AttributeEntry& setTrait(const std::string& trait)
+            inline AttributeEntry& setTypeTrait(const std::string& trait)
             {
                 if (typeTraits_.find(trait) != typeTraits_.end())
                     typeTraits_.insert(trait);
                 return *this;
             }
 
-            inline bool hasTrait(const std::string& trait)
+            inline bool hasTypeTrait(const std::string& trait)
             {
                 return typeTraits_.find(trait) != typeTraits_.end();
             }

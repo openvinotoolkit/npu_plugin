@@ -36,6 +36,7 @@ namespace mv
 
         Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
+        Data::TensorIterator defineTensor(const Tensor& tensor);
         bool undefineTensor(const std::string& name);
         Data::TensorIterator findTensor(const std::string& name);
         unsigned tensorsCount() const;

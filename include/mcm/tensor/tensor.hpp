@@ -103,6 +103,8 @@ namespace mv
             return subToInd_(getShape(), sub);
         }
 
+        Tensor& operator=(const Tensor& other);
+
         std::string toString() const override;
         virtual std::string getLogID() const override;
 

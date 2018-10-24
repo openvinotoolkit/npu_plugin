@@ -15,6 +15,7 @@ namespace mv
     public:
 
         explicit LoggedError(const LogSender& sender, const std::string& whatArg);
+        explicit LoggedError(const std::string& senderID, const std::string& whatArg);
         virtual ~LoggedError() = 0;
 
     };

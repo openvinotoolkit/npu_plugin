@@ -673,3 +673,8 @@ std::string mv::ComputationModel::getLogID() const
 {
     return "Model:" + name_;
 }
+
+std::string mv::ComputationModel::getName() const
+{
+    return name_;
+}

@@ -14,16 +14,6 @@ namespace mv
     namespace pass
     {   
 
-        class RutimeError : public std::runtime_error
-        {
-
-        public:
-
-            explicit RutimeError(const std::string& whatArg);
-
-        };
-
-
         class PassRegistry : public Registry<std::string, PassEntry>
         {
             

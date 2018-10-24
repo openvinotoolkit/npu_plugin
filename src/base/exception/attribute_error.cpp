@@ -5,3 +5,9 @@ LoggedError(sender, "AttributeError: " + whatArg)
 {
 
 }
+
+mv::AttributeError::AttributeError(const std::string& senderID, const std::string& whatArg) :
+LoggedError(senderID, "AttributeError: " + whatArg)
+{
+
+}

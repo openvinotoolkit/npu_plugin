@@ -38,6 +38,7 @@ file(GLOB base
     "src/base/exception/*.cpp"
     "src/utils/*.cpp"
     "src/base/element.cpp"
+    "src/computation/model/model_element.cpp"
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
     "src/tensor/math.cpp"
@@ -112,6 +113,11 @@ file(GLOB pass
     "src/deployer/blob_serialization/*.cpp"
 )
 
+file(GLOB op
+    "src/computation/op/op_registry.cpp"
+    "src/computation/op/op.cpp"
+)
+
 file(GLOB compiler
     "src/compiler/*"
 )
@@ -119,9 +125,9 @@ file(GLOB compiler
 
 
 if (MSVC)
-    add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler})
+    add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler} ${op})
 else()
-    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${op})
     add_subdirectory(python/api)
 	add_subdirectory(tests)
 	add_subdirectory(contrib/googletest)

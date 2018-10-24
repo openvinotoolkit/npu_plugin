@@ -131,6 +131,7 @@ namespace mv
 
         void clear();
 
+        std::string getName() const;
         virtual std::string getLogID() const override;
         //json::Value toJSON() const override;
 

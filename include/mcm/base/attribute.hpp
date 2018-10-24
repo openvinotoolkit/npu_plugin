@@ -6,8 +6,8 @@
 #include <typeinfo>
 #include <typeindex>
 #include <string>
-#include <cassert>
 #include <functional>
+#include <initializer_list>
 #include "include/mcm/base/json/value.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
@@ -76,6 +76,7 @@ namespace mv
         };
 
         AbstractObject* ptr_;
+        std::set<std::string> traits_;
         std::function<Attribute(const mv::json::Value&)> fromJSONFunc_;
 
         AbstractObject* clone_() const
@@ -88,11 +89,12 @@ namespace mv
     public:
 
         template <class ValueType>
-        Attribute(const ValueType& val) : 
+        Attribute(const ValueType& val, std::initializer_list<std::string> traits = {}) : 
         //ptr_(new Object<typename std::decay<ValueType>::type>(std::forward<ValueType>(val)))
         ptr_(new Object<typename std::decay<ValueType>::type>(val))
         {
-
+            for (auto it = traits.begin(); it != traits.end(); ++it)
+                addTrait(*it);
         }
 
         Attribute(const json::Object &val) :
@@ -101,7 +103,7 @@ namespace mv
             [this, val]()->Attribute
             {
                 if (!val.hasKey("attrType"))
-                throw AttributeError(*this, "Invalid JSON object passed for construction - missing field \"attrType\"");
+                    throw AttributeError(*this, "Invalid JSON object passed for construction - missing field \"attrType\"");
 
                 if (val["attrType"].valueType() != json::JSONType::String)
                     throw AttributeError(*this, "Invalid JSON object passed for construction - field \"attrType\" has a type of " 
@@ -113,6 +115,21 @@ namespace mv
 
                 if (!val.hasKey("content"))
                     throw AttributeError(*this, "Invalid JSON object passed for construction - missing field \"content\"");
+
+                if (val.hasKey("traits"))
+                {
+                    if (val["traits"].valueType() != json::JSONType::Array)
+                        throw AttributeError(*this, "Invalid JSON object passed for construction - field \"traits\" has a type of "
+                            + json::Value::typeName(val["traits"].valueType()) + " (should be array)");
+                    
+                    for (std::size_t i = 0; i < val["traits"].size(); ++i)
+                    {
+                        if (val["traits"][i].valueType() != json::JSONType::String)
+                            throw AttributeError(*this, "Invalid JSON object passed for construction - field \"traits\" contains "
+                            " an invalid value of type " + json::Value::typeName(val["traits"][i].valueType()) + " (should be string)");
+                        traits_.insert(val["traits"][i].get<std::string>());
+                    }
+                }
 
                 return attr::AttributeRegistry::getFromJSONFunc(val["attrType"].get<std::string>())(val["content"]);
             }()
@@ -142,22 +159,31 @@ namespace mv
 
         }
 
-        Attribute(Attribute& other) : ptr_(other.clone_())
+        Attribute(Attribute& other) :
+        ptr_(other.clone_()),
+        traits_(other.traits_)
         {
 
         }
 
-        Attribute(Attribute&& other) : ptr_(other.ptr_)
+        Attribute(Attribute&& other) : 
+        ptr_(other.ptr_),
+        traits_(other.traits_)
         {
             other.ptr_ = nullptr;
+            other.traits_.clear();
         }
 
-        Attribute(const Attribute& other) : ptr_(other.clone_())
+        Attribute(const Attribute& other) :
+        ptr_(other.clone_()),
+        traits_(other.traits_)
         {
 
         }
 
-        Attribute(const Attribute&& other) : ptr_(other.clone_())
+        Attribute(const Attribute&& other) :
+        ptr_(other.clone_()),
+        traits_(other.traits_)
         {
 
         }
@@ -209,6 +235,7 @@ namespace mv
             if (tPtr_)
                 delete tPtr_;
 
+            traits_ = other.traits_;
             return *this;
         }
 
@@ -219,7 +246,7 @@ namespace mv
                 return *this;
 
             std::swap(ptr_, other.ptr_);
-
+            traits_ = other.traits_;
             return *this;
 
         }
@@ -241,6 +268,16 @@ namespace mv
             json::Object result;
             result["attrType"] = ptr_->getTypeName();
             result["content"] = attr::AttributeRegistry::getToJSONFunc(ptr_->getTypeID())(*this);
+            if (!traits_.empty())
+            {   
+                result["traits"] = json::Array(traits_.size());
+                std::size_t i = 0;
+                for (auto it = traits_.begin(); it != traits_.end(); ++it)
+                {
+                    result["traits"][i] = *it;
+                    ++i;
+                }
+            }
             return result;
         }
 
@@ -268,6 +305,18 @@ namespace mv
         bool valid() const
         {
             return ptr_ != nullptr;
+        }
+
+        bool hasTrait(const std::string& trait) const
+        {
+            return (traits_.find(trait) != traits_.end());
+        }
+
+        void addTrait(const std::string& trait)
+        {
+            if (!attr::AttributeRegistry::checkInstanceTrait(trait))
+                throw AttributeError(*this, "Attempt of defining an illegal trait \"" + trait + "\"");
+            traits_.insert(trait);
         }
 
         std::string getLogID() const override

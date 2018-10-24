@@ -5,3 +5,9 @@ LoggedError(sender, "OpError: " + whatArg)
 {
 
 }
+
+mv::OpError::OpError(const std::string& senderID, const std::string& whatArg) :
+LoggedError(senderID, "OpError: " + whatArg)
+{
+
+}

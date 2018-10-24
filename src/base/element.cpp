@@ -72,6 +72,7 @@ std::string mv::Element::getLogID() const
 mv::Element& mv::Element::operator=(const Element &other)
 {
     name_ = other.name_;
+    attrs_ = other.attrs_;
     return *this;
 }
 
@@ -128,6 +129,16 @@ std::string mv::Element::attrsToString_() const
 
 }
 
+void mv::Element::forceErase_(const std::string& name)
+{
+    attrs_.erase(name);
+}
+
+const std::map<std::string, mv::Attribute>& mv::Element::getAttrs_() const
+{
+    return attrs_;
+}
+
 mv::Attribute& mv::Element::get(const std::string& name)
 {
     if (attrs_.find(name) == attrs_.end())
@@ -148,6 +159,8 @@ void mv::Element::erase(const std::string& name)
 {
     if (!hasAttr(name))
         throw ArgumentError(*this, "attribute identifer", name,  "Undefined identifier");
+    if (attrs_[name].hasTrait("const"))
+        throw AttributeError(*this, "Attempt of deletion of a const attribute " + name);
     attrs_.erase(name);
 }
 

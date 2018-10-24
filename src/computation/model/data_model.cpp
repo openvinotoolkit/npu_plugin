@@ -79,6 +79,18 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, co
 
 }
 
+mv::Data::TensorIterator mv::DataModel::defineTensor(const Tensor& tensor)
+{
+
+    if (flowTensors_->find(tensor.getName()) != flowTensors_->end())
+        throw ArgumentError(*this, "Tensor::name", tensor.getName(), "Attempt of duplication of a tensor name during the copy creation");
+
+    auto result = flowTensors_->emplace(tensor.getName(), std::make_shared<Tensor>(tensor));
+    log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
+    return result.first;
+
+}
+
 bool mv::DataModel::undefineTensor(const std::string& name)
 {
 

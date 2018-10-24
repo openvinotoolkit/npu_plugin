@@ -12,6 +12,7 @@ namespace mv
     public:
 
         explicit MasterError(const LogSender& sender, const std::string& whatArg);
+        explicit MasterError(const std::string& senderID, const std::string& whatArg);
 
     };
 
