@@ -212,7 +212,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             for (std::size_t i = 0; i < jsonDescriptor["resources"]["memory"].size(); ++i)
             {
 
-                std::string name, order_str;
+                std::string name;
                 long long size;
                 std::size_t alignment;
                 std::size_t dataTypeSize;

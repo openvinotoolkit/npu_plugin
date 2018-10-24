@@ -235,7 +235,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             // TODO: Request this from the mv::Order - What element is axis at.
             // Currently only working for channels.
-            // auto inmv::Order = opIterator->getInputTensor(0)->getOrder();
+            // auto inOrder = opIterator->getInputTensor(0)->getOrder();
             channel_index = 2;
 
             std::vector<unsigned> running_concat_offset_LHS;

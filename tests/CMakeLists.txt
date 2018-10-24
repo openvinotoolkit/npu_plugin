@@ -41,10 +41,6 @@ file(GLOB tensor
     "tensor/*.cpp"
 )
 
-file(GLOB order
-    "order/*.cpp"
-)
-
 file(GLOB nce1
     "nce1/*.cpp"
 )
@@ -56,7 +52,6 @@ add_executable(mcm_unit_tests
     ${resources}
     ${base_src}
     ${tensor}
-    ${order}
     ${op_src}
     ${pass_src}
     ${compiler_src}

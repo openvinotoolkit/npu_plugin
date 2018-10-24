@@ -113,7 +113,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                         std::string edgeDef = "\t\"" + opIt->getName() + "\" -> \"" + dataIt.sink()->getName() + "\"";
                         if (htmlLike)
                         {
-                            edgeDef += " [penwidth=2.0, label=<<TABLE Bmv::Order=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + dataIt->getTensor()->getName() + "</B></FONT></TD></TR>";
+                            edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + dataIt->getTensor()->getName() + "</B></FONT></TD></TR>";
                             if (contentLevel == "full")
                             {
                                 std::vector<std::string> attrKeys(dataIt->getTensor()->attrsKeys());
@@ -181,7 +181,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
 
             if (htmlLike)
             {
-                nodeDef += " label=<<TABLE Bmv::Order=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + tIt->getName() + "</B></FONT></TD></TR>";
+                nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + tIt->getName() + "</B></FONT></TD></TR>";
                 if (contentLevel == "full")
                 {
                     std::vector<std::string> attrKeys(tIt->attrsKeys());
@@ -219,7 +219,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                 std::string edgeDef = "\t\"" + flowIt->getTensor()->getName() + "\" -> \"" + flowIt.leftmostChild()->getTensor()->getName() + "\"";
                 if (htmlLike)
                 {
-                    edgeDef += " [penwidth=2.0, label=<<TABLE Bmv::Order=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + flowIt.sink()->getName() + "</B></FONT></TD></TR>";
+                    edgeDef += " [penwidth=2.0, label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + flowIt.sink()->getName() + "</B></FONT></TD></TR>";
                     if (contentLevel == "full")
                     {
                         std::vector<std::string> attrKeys(flowIt.sink()->attrsKeys());

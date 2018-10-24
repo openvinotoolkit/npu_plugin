@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 
 static void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void alignConstOrder(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
@@ -21,7 +21,7 @@ namespace mv
         );
 
         MV_REGISTER_PASS(AlignConstOrder)
-        .setFunc(alignConstOrder)
+        .setFunc(alignConstOrderFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass adds conversion layers where needed."
@@ -31,7 +31,7 @@ namespace mv
 
 }
 
-void alignConstOrder(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     using namespace mv;
