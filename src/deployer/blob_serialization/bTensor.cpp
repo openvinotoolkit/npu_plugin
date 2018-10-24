@@ -360,10 +360,10 @@ namespace mv
         else if(current_order.isRowMajor())
         {
             // Misleading - weights
-            this->order = 1;
-            this->strideX = fp16_size;
-            this->strideY = (this->dimX * this->strideX) + local_StrideX;
-            this->strideZ = (this->dimY * this->strideY) + local_StrideY;
+            this->order = 3;
+            this->strideZ = fp16_size;
+            this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
+            this->strideX = (this->dimY * this->strideY) + local_StrideY;
         }
         else if(current_order.isColMajor())
         {
@@ -384,14 +384,14 @@ namespace mv
             // this->strideX = fp16_size;
             // this->strideY = (this->dimX + local_StrideX)*this->strideX;
             // this->strideZ = (this->dimY + local_StrideY)*this->strideY;
-         }
-         else if(current_order.isRowInterleaved())
-         {
+        }
+        else if(current_order.isRowInterleaved())
+        {
             this->order = 2;
             this->strideX = fp16_size;
             this->strideZ = (this->dimX * this->strideX) + local_StrideX;
             this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
-         }
+        }
 
         // std::cout << "mv::Order: " << (*t)->getOrder().toString() << std::endl;
         std::cout << "X: Dim:" << this->dimX << ", Stride: " << this->strideX << "(local: " << local_StrideX << ")" << std::endl;

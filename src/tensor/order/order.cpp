@@ -106,7 +106,8 @@ std::size_t mv::Order::size() const
 }
 
 mv::Order::Order(const mv::Order& other)
-    :contVector_(other.contVector_)
+    :contVector_(other.contVector_),
+     contVectorStr_(other.contVectorStr_)
 {
 
 }
