@@ -226,11 +226,11 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             // Allocate Inputs inside of that output
             auto valid_inputs = 0;
-            for(auto i = 0; i != opIterator->inputSlots(); i++)
+            for(unsigned i = 0; i != opIterator->inputSlots(); i++)
                 if(opIterator->hasInputDef(i))
                     valid_inputs++;
 
-            auto axis = opIterator->get<int>("axis");
+            //auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;
 
             // TODO: Request this from the mv::Order - What element is axis at.

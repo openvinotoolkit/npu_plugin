@@ -1,5 +1,5 @@
-#ifndef INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER
-#define INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER
+#ifndef INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_
+#define INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_
 
 #include "include/mcm/api/compositional_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
@@ -40,7 +40,7 @@ namespace mv
 		virtual Data::TensorIterator output(Data::TensorIterator input, const std::string& name = "") override;
         virtual Data::TensorIterator constant(const std::vector<double>& data, const Shape& shape, DType dType, Order order, const std::string& name = "") override;
 		virtual Data::TensorIterator conv2D(Data::TensorIterator input, Data::TensorIterator filters, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
-        	virtual Data::TensorIterator depthwiseConv2D(Data::TensorIterator input, Data::TensorIterator filters, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
+        virtual Data::TensorIterator depthwiseConv2D(Data::TensorIterator input, Data::TensorIterator filters, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
 		virtual Data::TensorIterator matMul(Data::TensorIterator input0, Data::TensorIterator input1, const std::string& name = "") override;
 		virtual Data::TensorIterator maxpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
 		virtual Data::TensorIterator avgpool2D(Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
@@ -74,4 +74,4 @@ namespace mv
 	};
 
 }
-#endif /* INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER */
+#endif /* INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_ */

@@ -7,7 +7,7 @@ data_(shape.totalSize()),
 blockSize_(shape[-1]),
 blocks_(shape.totalSize() / blockSize_),
 shape_(shape),
-internal_order(mv::Order(mv::Order::getRowMajorID(shape.ndims())))
+internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
 {
     set<Shape>("shape", shape_);
     set<Order>("order", order);
@@ -31,7 +31,7 @@ data_(other.data_.size()),
 blockSize_(other.blockSize_),
 blocks_(other.blocks_.size()),
 shape_(other.shape_),
-internal_order(mv::Order(mv::Order::getRowMajorID(other.shape_.ndims())))
+internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
 {
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_.begin() + i * blockSize_;
@@ -47,7 +47,7 @@ mv::Tensor::~Tensor()
 
 std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
 {
-    return internal_order.indToSub(s, index);
+    return internalOrder_.indToSub(s, index);
 }
 
 unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const
@@ -74,11 +74,11 @@ unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& s
             
         }
 
-        return internal_order.subToInd(correctedShape, correctedSub);
+        return internalOrder_.subToInd(correctedShape, correctedSub);
 
     }
 
-    return internal_order.subToInd(s, sub);
+    return internalOrder_.subToInd(s, sub);
 
 }
 
@@ -89,13 +89,13 @@ void mv::Tensor::populate(const std::vector<double>& data)
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
             "does not match total size the tensor (" + std::to_string(getShape().totalSize()) + ")");
 
-    if (getOrder() != internal_order)
+    if (getOrder() != internalOrder_)
     {
         std::vector<std::size_t> sub(getShape().ndims());
         for (std::size_t i = 0; i < data_.size(); ++i)
         {
             sub = getOrder().indToSub(getShape(), i);
-            data_[internal_order.subToInd(getShape(), sub)] = data[i];
+            data_[internalOrder_.subToInd(getShape(), sub)] = data[i];
         }
     }
     else
@@ -157,7 +157,7 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
 void mv::Tensor::setOrder(Order order)
 {
 
-    set<mv::Order>("order", order);
+    set<Order>("order", order);
     return;
 
 }
@@ -219,14 +219,14 @@ std::vector<double> mv::Tensor::getData()
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
-    if (getOrder() == internal_order)
+    if (getOrder() == internalOrder_)
         return data_;
     
     std::vector<double> orderedData(getShape().totalSize());
     std::vector<std::size_t> sub(getShape().ndims());
     for (std::size_t i = 0; i < data_.size(); ++i)
     {
-        sub = internal_order.indToSub(getShape(), i);
+        sub = internalOrder_.indToSub(getShape(), i);
         orderedData[getOrder().subToInd(getShape(), sub)] = data_[i];
     }
 
@@ -407,10 +407,10 @@ const double& mv::Tensor::at(std::size_t idx) const
 
     }
 
-    if (getOrder() == internal_order)
+    if (getOrder() == internalOrder_)
         return data_[idx];
 
-    auto sub = internal_order.indToSub(getShape(), idx);
+    auto sub = internalOrder_.indToSub(getShape(), idx);
     return data_[getOrder().subToInd(getShape(), sub)];
 
 }

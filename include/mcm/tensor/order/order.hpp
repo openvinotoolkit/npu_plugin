@@ -15,9 +15,9 @@ namespace mv
 
     private:
 
-        static std::unordered_map<std::size_t, std::string> rowMajorID;
-        static std::unordered_map<std::size_t, std::string> rowMajorPlanarID;
-        static std::unordered_map<std::size_t, std::string> colMajorID;
+        static const std::unordered_map<std::size_t, std::string> rowMajorID;
+        static const  std::unordered_map<std::size_t, std::string> rowMajorPlanarID;
+        static const std::unordered_map<std::size_t, std::string> colMajorID;
 
         std::vector<std::size_t>& contVector_;
         Order(std::vector<std::size_t>& contVectorParam)
@@ -57,17 +57,17 @@ namespace mv
            :Order([this, value]()->Order
             {
 
-                if(!mv::OrderRegistry::checkOrder(value))
-                    throw mv::OrderError(*this, "Invalid string passed for mv::Order construction " + value);
+                if(!OrderRegistry::checkOrder(value))
+                    throw OrderError(*this, "Invalid string passed for Order construction " + value);
 
-                return mv::Order(mv::OrderRegistry::getContVector(value));
+                return Order(OrderRegistry::getContVector(value));
             }())
         {
 
         }
 
-        bool operator!=(const mv::Order& other) const;
-        bool operator==(const mv::Order& other) const;
+        bool operator!=(const Order& other) const;
+        bool operator==(const Order& other) const;
 
         std::size_t subToInd(const Shape &s, const std::vector<std::size_t>& sub) const;
         std::vector<std::size_t> indToSub(const Shape &s, std::size_t idx) const;

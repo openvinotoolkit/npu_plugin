@@ -1,6 +1,6 @@
 #include "include/mcm/tensor/order/order.hpp"
 
-std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID =
+const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID =
 {
     {1, "W"},
     {2, "WH"},
@@ -9,7 +9,7 @@ std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID =
     {5, "WHCNT"}
 };
 
-std::unordered_map<std::size_t, std::string> mv::Order::colMajorID =
+const std::unordered_map<std::size_t, std::string> mv::Order::colMajorID =
 {
     {1, "W"},
     {2, "HW"},
@@ -18,7 +18,7 @@ std::unordered_map<std::size_t, std::string> mv::Order::colMajorID =
     {5, "TNCHW"}
 };
 
-std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID =
+const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID =
 {
     {1, "W"},
     {2, "HW"},

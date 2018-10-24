@@ -7,15 +7,6 @@
 
 namespace mv
 {
-    class RutimeError : public std::runtime_error
-    {
-
-    public:
-
-        explicit RutimeError(const std::string& whatArg);
-
-    };
-
 
     class OrderRegistry : public Registry<std::string, OrderEntry>
     {
