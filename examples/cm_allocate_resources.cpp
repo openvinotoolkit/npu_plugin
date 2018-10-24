@@ -14,14 +14,14 @@ int main()
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(4u * 4u * 16u * 32u);
 
     // Compose model - use Composition API to create ops and obtain tensors
-    auto input = cm.input({128, 128, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
-    auto weights1 = cm.constant(weights1Data, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = cm.input({128, 128, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto weights1 = cm.constant(weights1Data, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto conv1 = cm.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
     auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto weights2 = cm.constant(weights2Data, {5, 5, 8, 16}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto weights2 = cm.constant(weights2Data, {5, 5, 8, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto conv2 = cm.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
     auto pool2 = cm.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
-    auto weights3 = cm.constant(weights3Data, {4, 4, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto weights3 = cm.constant(weights3Data, {4, 4, 16, 32}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto conv3 = cm.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
     cm.output(conv3);
 

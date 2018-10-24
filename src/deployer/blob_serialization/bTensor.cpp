@@ -248,7 +248,7 @@ namespace mv
         else
         {
             std::cout << "Not Tight" << std::endl;
-            mv::Order current_order = t->getOrder();
+            Order current_order = t->getOrder();
             if(current_order.isRowMajor())
             {
                 if (D1_block == this->dimZ * 2)
@@ -320,7 +320,7 @@ namespace mv
             }
         }
 
-        mv::Order current_order = t->getOrder();
+        Order current_order = t->getOrder();
 
         if(current_order.isRowMajorPlanar())
         {
@@ -393,7 +393,7 @@ namespace mv
             this->strideY = (this->dimZ * this->strideZ) + local_StrideZ;
         }
 
-        // std::cout << "mv::Order: " << (*t)->getOrder().toString() << std::endl;
+        // std::cout << "Order: " << (*t)->getOrder().toString() << std::endl;
         std::cout << "X: Dim:" << this->dimX << ", Stride: " << this->strideX << "(local: " << local_StrideX << ")" << std::endl;
         std::cout << "Y: Dim:" << this->dimY << ", Stride: " << this->strideY << "(local: " << local_StrideY << ")" << std::endl;
         std::cout << "Z: Dim:" << this->dimZ << ", Stride: " << this->strideZ << "(local: " << local_StrideZ << ")" << std::endl;

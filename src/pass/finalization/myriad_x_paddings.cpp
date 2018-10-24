@@ -40,8 +40,8 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         operationIt->getInputTensor(0)->setOrder(mv::Order("HCW"));
         operationIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));
-        // operationIt->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(3)));
-        // operationIt->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(3)));
+        // operationIt->getInputTensor(0)->setOrder(mv::Order("CHW"));
+        // operationIt->getOutputTensor(0)->setOrder(mv::Order("CHW"));
 
         auto input_tensor = operationIt->getInputTensor(0);
         auto input_tensor_dimension = input_tensor->getShape();

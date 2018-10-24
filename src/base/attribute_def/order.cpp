@@ -19,7 +19,7 @@ namespace mv
         {
             if (v.valueType() != json::JSONType::String)
                 throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) + 
-                    " to mv::Order");
+                    " to Order");
             
             return Order(v.get<std::string>());
         }

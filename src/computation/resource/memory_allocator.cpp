@@ -223,8 +223,8 @@ currentID_(1)
 
 }
 
-std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const mv::Order& order, const std::vector<std::size_t>& leftPadding,
-    const std::vector<std::size_t>& rightPadding, const mv::Shape& shape)
+std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
+    const std::vector<std::size_t>& rightPadding, const Shape& shape)
 {
     std::deque<std::size_t> leftStrides;
     std::deque<std::size_t> rightStrides;
@@ -242,7 +242,7 @@ std::deque<std::size_t> mv::MemoryAllocator::computeStrides_(const mv::Order& or
     return strides;
 }
 
-long mv::MemoryAllocator::computeStrides_(const mv::Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
+long mv::MemoryAllocator::computeStrides_(const Order& order, std::size_t idx, const Shape& shape, const std::vector<std::size_t>& leftPadding,
     const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides)
 {
     std::size_t currentDim = order[idx];
@@ -357,7 +357,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
            (*masterBuffer)->getData()->getDType().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
     if (tensor->getOrder() != (*masterBuffer)->getData()->getOrder())
-        throw ArgumentError(*this, tensor->getName() + "::mv::Order", tensor->getOrder().toString(), "Does not match the mv::Order " +
+        throw ArgumentError(*this, tensor->getName() + "::Order", tensor->getOrder().toString(), "Does not match the order " +
             (*masterBuffer)->getData()->getOrder().toString() + " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
 
     Shape shape(tensor->getShape());

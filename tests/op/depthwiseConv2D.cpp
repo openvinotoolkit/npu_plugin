@@ -6,7 +6,7 @@ TEST(ops, depthconv2D)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({32, 32, 1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = om.input({32, 32, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f});
     auto weights1 = om.constant(weightsData, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
     auto conv = om.depthwiseConv2D(input, weights1, {4, 4}, {1, 1, 1, 1});

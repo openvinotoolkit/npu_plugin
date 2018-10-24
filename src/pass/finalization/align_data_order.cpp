@@ -53,15 +53,15 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
             {
                 if (opIt.leftmostChild()->get<int>("NCE1_Compatible") == 1)
                 {
-                    //opIt->set<mv::Order>("mv::Order", mv::Order("HWC"));
-                    opIt.leftmostOutput()->getTensor()->setOrder(mv::Order(mv::Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
+                    //opIt->set<Order>("Order", mv::Order("HWC"));
+                    opIt.leftmostOutput()->getTensor()->setOrder(Order(Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
                     continue;
                 }
 
             }
 
             // Constant is a parameter tensor for a software layer
-            //opIt->set<mv::Order>("mv::Order", mv::Order("HWC"));
+            //opIt->set<Order>("Order", Order("HWC"));
             if (opIt.leftmostChild()->getOpType() == OpType::FullyConnected)
                 opIt->getOutputTensor(0)->setOrder(Order::getRowMajorID(opIt->getOutputTensor(0)->getShape().ndims()));
             else 
@@ -245,7 +245,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         else
         {
 
-            // Align memory mv::Order when no conversion is needed
+            // Align memory order when no conversion is needed
             /// Software ops
             if (sourceIsSw && sinkIsSw)
                 // flowIt->getTensor()->setOrder(mv::Order("HWC"));

@@ -36,7 +36,7 @@ namespace mv
         virtual bool defineCompResource(const std::string& resouce, std::size_t quantity) = 0;
         virtual bool undefineCompResource(const std::string& resouce) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, DType argValue) = 0;
-        virtual bool defineCompResourceArg(const std::string& argName, mv::Order argValue) = 0;
+        virtual bool defineCompResourceArg(const std::string& argName, Order argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, const std::string& argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, double argValue) = 0;
         virtual bool defineCompResourceArg(const std::string& argName, int argValue) = 0;

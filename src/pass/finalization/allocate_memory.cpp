@@ -233,7 +233,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             //auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;
 
-            // TODO: Request this from the mv::Order - What element is axis at.
+            // TODO: Request this from the order - What element is axis at.
             // Currently only working for channels.
             // auto inOrder = opIterator->getInputTensor(0)->getOrder();
             channel_index = 2;

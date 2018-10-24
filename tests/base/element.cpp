@@ -13,7 +13,7 @@ static bool vBool = true;
 static double vDouble = 1.0;
 static mv::DType vDType(mv::DTypeType::Float16);
 static int vInt = 2;
-static mv::Order vOrder(mv::Order(mv::Order::getColMajorID(3)));
+static mv::Order vOrder(mv::Order("CHW"));
 static mv::Shape vShape({1, 2, 3});
 static std::array<unsigned short, 2> vStdArrUnsignedShort2 = {4, 5};
 static std::array<unsigned short, 3> vStdArrUnsignedShort3 = {6, 7, 8};
@@ -65,7 +65,7 @@ static void setValueAttrTypes(mv::Element& e)
     e.clear();
     m.clear();
 
-    auto input = m.input(mv::Shape({32, 32, 3}), mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = m.input(mv::Shape({32, 32, 3}), mv::DTypeType::Float16, mv::Order("CHW"));
     m.output(input);
     auto inputOp = m.getSourceOp(input);
 
@@ -230,7 +230,7 @@ TEST(element, to_json)
         "{\"attrs\":{\"aBool\":{\"attrType\":\"bool\",\"content\":true},\"aDType\":"
         "{\"attrType\":\"DType\",\"content\":\"Float16\"},\"aDouble\":{\"attrType\""
         ":\"double\",\"content\":1.0},\"aInt\":{\"attrType\":\"int\",\"content\":2}"
-        ",\"aOrder\":{\"attrType\":\"Order\",\"content\":\"(0 1 2 )\"},\"aShape\""
+        ",\"aOrder\":{\"attrType\":\"Order\",\"content\":\"CHW\"},\"aShape\""
         ":{\"attrType\":\"Shape\",\"content\":[1,2,3]},\"aStdArrUnsignedShort2\":{\""
         "attrType\":\"std::array<unsigned short, 2>\",\"content\":[4,5]},\"aStdArrUn"
         "signedShort3\":{\"attrType\":\"std::array<unsigned short, 3>\",\"content\":"

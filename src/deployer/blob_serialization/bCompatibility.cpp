@@ -11,7 +11,7 @@ namespace mv
 
         /*if (this->input->getOrder() == this->output->getOrder()){
             printf("Serialization Warning: Manual Override of Conversion layer due to non-difference\n");
-            this->input->setOrder(mv::Order(mv::Order::getColMajorID(3)));
+            this->input->setOrder(Order("CHW"));
         }*/
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);

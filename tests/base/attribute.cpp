@@ -196,7 +196,7 @@ TEST(attribute, def_dtype)
 TEST(attribute, def_order)
 {
 
-    mv::Order v1(mv::Order(mv::Order::getColMajorID(3)));
+    mv::Order v1(mv::Order("CHW"));
     mv::Attribute a1 = v1;
     ASSERT_EQ(a1.get<mv::Order>(), v1);
 
@@ -205,8 +205,8 @@ TEST(attribute, def_order)
 TEST(attribute, mod_order)
 {
 
-    mv::Order v1(mv::Order(mv::Order::getColMajorID(3)));
-    mv::Order v2(mv::Order(mv::Order::getRowMajorID(3)));
+    mv::Order v1(mv::Order("CHW"));
+    mv::Order v2(mv::Order("WHC"));
     mv::Attribute a1 = v1;
     a1 = v2;
     ASSERT_EQ(a1.get<mv::Order>(), v2);

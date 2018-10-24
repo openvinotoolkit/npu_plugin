@@ -117,7 +117,7 @@ TEST(pass_manager, invalid_execution)
 
     setPassReg();
     mv::OpModel model("testModel");
-    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order("CHW"));
     model.output(input);
 
     mv::PassManager pm;
@@ -154,7 +154,7 @@ TEST(pass_manager, execution)
 
     setPassReg();
     mv::OpModel model("testModel");
-    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order("CHW"));
     model.output(input);
 
     mv::PassManager pm;

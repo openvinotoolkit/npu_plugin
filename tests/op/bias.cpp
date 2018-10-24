@@ -5,7 +5,7 @@
 TEST(ops, bias)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({32, 32, 16}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = om.input({32, 32, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> data = mv::utils::generateSequence<double>(16);
     auto biases = om.constant(data, {16}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)));
     auto bias = om.bias(input, biases);

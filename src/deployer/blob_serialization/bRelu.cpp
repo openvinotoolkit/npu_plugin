@@ -9,9 +9,9 @@ namespace mv
         mv::DataModel dm(*om);
         mv::ControlModel cm(*om);
 
-        //printf("Serialization Warning: Manual Override of ReLU Software layer mv::Order\n");
-        //this->output->setOrder(mv::Order(Order::getRowMajorID(3)));
-        //this->input->setOrder(mv::Order(Order::getRowMajorID(3)));
+        //printf("Serialization Warning: Manual Override of ReLU Software layer order\n");
+        //this->output->setOrder(Order(Order::getRowMajorID(3)));
+        //this->input->setOrder(Order(Order::getRowMajorID(3)));
 
         Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
         Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);

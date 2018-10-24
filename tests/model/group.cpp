@@ -7,9 +7,9 @@ TEST(group, op_member_append)
 
     mv::OpModel om("TestModel");
 
-    auto input = om.input({8, 8, 1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = om.input({8, 8, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto inputOp = om.getSourceOp(input);
-    auto weights = om.constant(mv::utils::generateSequence<double>(1), {1, 1, 1, 1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto weights = om.constant(mv::utils::generateSequence<double>(1), {1, 1, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto weightsOp = om.getSourceOp(weights);
     auto conv = om.conv2D(input, weights, {1, 1}, {0, 0, 0, 0});
     auto convOp = om.getSourceOp(conv);
@@ -50,9 +50,9 @@ TEST(group, op_member_remove)
 
     mv::OpModel om("TestModel");
 
-    auto input = om.input({8, 8, 1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto input = om.input({8, 8, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto inputOp = om.getSourceOp(input);
-    auto weights = om.constant(mv::utils::generateSequence<double>(1), {1, 1, 1, 1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(3)));
+    auto weights = om.constant(mv::utils::generateSequence<double>(1), {1, 1, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto weightsOp = om.getSourceOp(weights);
     auto conv = om.conv2D(input, weights, {1, 1}, {0, 0, 0, 0});
     auto convOp = om.getSourceOp(conv);

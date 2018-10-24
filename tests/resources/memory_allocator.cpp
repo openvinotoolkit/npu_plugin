@@ -43,7 +43,7 @@ TEST(memory_allocator, mulitple)
     mv::Shape s1({4, 4, 4});
     mv::Shape s2({4, 8, 2});
     mv::Shape s3({32, 2, 2});
-    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
+    mv::Order order = mv::Order("CHW");
     
     auto t1 = dm.defineTensor("t1", s1, mv::DTypeType::Float16, order);
     auto t2 = dm.defineTensor("a2", s2, mv::DTypeType::Float16, order);
@@ -138,7 +138,7 @@ TEST(memory_allocator, move_in_place)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 2});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
+    mv::Order order = mv::Order("CHW");
 
     auto inputTensor = dm.defineTensor("inputTensor", inputShape, mv::DTypeType::Float16, order);
     auto outputTensor = dm.defineTensor("outputTensor", outputShape, mv::DTypeType::Float16, order,
@@ -163,7 +163,7 @@ TEST(memory_allocator, move_concat)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 4});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
+    mv::Order order = mv::Order("CHW");
 
     auto input1Tensor = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
     auto input2Tensor = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
@@ -192,7 +192,7 @@ TEST(memory_allocator, move_concat_in_place)
     mv::DataModel dm(om);
     mv::Shape outputShape({4, 4, 4});
     mv::Shape inputShape({4, 4, 2});
-    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
+    mv::Order order = mv::Order("CHW");
 
     auto input1Tensor = dm.defineTensor("inputTensor1", inputShape, mv::DTypeType::Float16, order);
     auto input2Tensor = dm.defineTensor("inputTensor2", inputShape, mv::DTypeType::Float16, order);
@@ -247,7 +247,7 @@ TEST(memory_allocator, tensor_col_major_planar)
 {
 
     mv::Shape s({3, 2, 5});
-    mv::Order order = mv::Order(mv::Order::getColMajorID(3));
+    mv::Order order = mv::Order("CHW");
     mv::Tensor t("test_tensor", s, mv::DTypeType::Float16, order);
     mv::MemoryAllocator m("m1", 10000, order);
     std::vector<std::size_t> paddings(s.ndims());

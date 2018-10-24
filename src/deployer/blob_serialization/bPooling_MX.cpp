@@ -121,9 +121,9 @@ namespace mv
         {
             // Software
 
-            printf("Serialization Warning: Manual Override of Pooling Software layer mv::Order\n");
-            this->output->setOrder(mv::Order("HWC"));
-            this->input->setOrder(mv::Order("HWC"));
+            printf("Serialization Warning: Manual Override of Pooling Software layer order\n");
+            this->output->setOrder(Order("HWC"));
+            this->input->setOrder(Order("HWC"));
 
             Blob_Tensor inputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->input);
             Blob_Tensor outputBlobTensor = Blob_Tensor(dm, cm, b->reloc_table, this->output);
