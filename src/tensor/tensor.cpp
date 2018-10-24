@@ -1,6 +1,5 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
-#include "include/mcm/order/order.hpp"
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order) :
 Element(name),

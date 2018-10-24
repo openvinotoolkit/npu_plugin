@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <functional>
 #include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/tensor/order/order_registry.hpp"
 #include "include/mcm/base/exception/order_error.hpp"
-#include "include/mcm/order/order_registry.hpp"
 
 namespace mv
 {

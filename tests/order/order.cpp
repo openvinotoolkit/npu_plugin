@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "include/mcm/order/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 
 TEST(order, row_major1d)
 {

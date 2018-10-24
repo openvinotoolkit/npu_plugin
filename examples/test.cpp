@@ -1,7 +1,7 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/order/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 
 int main()
 {

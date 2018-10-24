@@ -8,7 +8,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
-#include "include/mcm/order/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 
 namespace mv

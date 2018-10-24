@@ -3,7 +3,7 @@
 
 #include <string>
 #include "include/mcm/base/registry.hpp"
-#include "include/mcm/order/order_entry.hpp"
+#include "include/mcm/tensor/order/order_entry.hpp"
 
 namespace mv
 {

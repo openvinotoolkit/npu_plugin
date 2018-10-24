@@ -1,8 +1,8 @@
 #include "mcm/tensor/tensor.hpp"
+#include "mcm/tensor/order/order.hpp"
 #include "mcm/computation/resource/memory_allocator.hpp"
 #include "mcm/computation/model/data_model.hpp"
 #include "mcm/computation/model/op_model.hpp"
-#include "mcm/order/order.hpp"
 #include "mcm/utils/data_generator.hpp"
 #include "gtest/gtest.h"
 
