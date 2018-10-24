@@ -1,5 +1,5 @@
-#ifndef MV_ORDER_ERROR_HPP
-#define MV_ORDER_ERROR_HPP
+#ifndef MV_ORDER_ERROR_HPP_
+#define MV_ORDER_ERROR_HPP_
 
 #include "include/mcm/base/exception/logged_error.hpp"
 
@@ -17,4 +17,4 @@ namespace mv
 
 }
 
-#endif //MV_ORDER_ERROR_HPP
+#endif //MV_ORDER_ERROR_HPP_

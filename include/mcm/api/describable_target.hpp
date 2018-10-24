@@ -18,10 +18,10 @@ namespace mv
 
         virtual void setTarget(Target target) = 0;
         virtual void setDType(DType dType) = 0;
-        virtual void setOrder(mv::Order mv::Order) = 0;
+        virtual void setOrder(Order order) = 0;
 
         virtual Target getTarget() const = 0;
-        virtual mv::Order getOrder() const = 0;
+        virtual Order getOrder() const = 0;
         virtual DType getDType() const = 0;
 
         virtual bool defineOp(OpType op) = 0;

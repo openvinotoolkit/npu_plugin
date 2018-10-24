@@ -334,14 +334,14 @@ mv::Data::TensorIterator mv::OpModel::prelu(Data::TensorIterator inputTensor, Da
     return result;
 }
 
-mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, mv::Order target_order, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator inputTensor, mv::Order targetOrder, const std::string& name)
 {
     std::string opName;
     if (name != "")
         opName = name;
     else
         opName = getOpName_(OpType::Conversion);
-    Data::OpListIterator conversionIt = dataGraph_.node_insert(std::make_shared<op::Conversion>(opName, target_order));
+    Data::OpListIterator conversionIt = dataGraph_.node_insert(std::make_shared<op::Conversion>(opName, targetOrder));
     Data::TensorIterator inputs[] = {inputTensor};
     auto result = defineOp_(conversionIt, inputs, 1);
     if (isValid(result))
