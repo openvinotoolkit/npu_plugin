@@ -16,12 +16,15 @@ namespace mv
     private:
 
         static const std::unordered_map<std::size_t, std::string> rowMajorID;
-        static const  std::unordered_map<std::size_t, std::string> rowMajorPlanarID;
+        static const std::unordered_map<std::size_t, std::string> rowMajorPlanarID;
         static const std::unordered_map<std::size_t, std::string> colMajorID;
 
         std::vector<std::size_t>& contVector_;
-        Order(std::vector<std::size_t>& contVectorParam)
-            :contVector_(contVectorParam)
+        std::string contVectorStr_;
+
+        Order(std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam)
+            :contVector_(contVectorParam),
+             contVectorStr_(contVectorStrParam)
         {
 
         }
@@ -60,7 +63,7 @@ namespace mv
                 if(!OrderRegistry::checkOrder(value))
                     throw OrderError(*this, "Invalid string passed for Order construction " + value);
 
-                return Order(OrderRegistry::getContVector(value));
+                return Order(OrderRegistry::getContVector(value), value);
             }())
         {
 

@@ -114,6 +114,7 @@ mv::Order::Order(const mv::Order& other)
 mv::Order& mv::Order::operator=(const mv::Order& other)
 {
     contVector_ = other.contVector_;
+    contVectorStr_ = other.contVectorStr_;
     return *this;
 }
 
@@ -128,69 +129,67 @@ std::string mv::Order::toString() const
 
 bool mv::Order::isRowMajor()
 {
-    if(*this == mv::Order("W"))
+    if(contVectorStr_ == "W")
         return true;
-    if(*this == mv::Order("WH"))
+    if(contVectorStr_ == "WH")
         return true;
-    if(*this == mv::Order("WHC"))
+    if(contVectorStr_ == "WHC")
         return true;
-    if(*this == mv::Order("WHCN"))
+    if(contVectorStr_ == "WHCN")
         return true;
-    if(*this == mv::Order("WHCNT"))
+    if(contVectorStr_ == "WHCNT")
         return true;
     return false;
 }
 
-
-
 bool mv::Order::isColMajor()
 {
-    if(*this == mv::Order("W"))
+    if(contVectorStr_ == "W")
         return true;
-    if(*this == mv::Order("HW"))
+    if(contVectorStr_ == "HW")
         return true;
-    if(*this == mv::Order("CHW"))
+    if(contVectorStr_ == "CHW")
         return true;
-    if(*this == mv::Order("NCHW"))
+    if(contVectorStr_ == "NCHW")
         return true;
-    if(*this == mv::Order("TNCHW"))
+    if(contVectorStr_ == "TNCHW")
         return true;
     return false;
 }
 
 bool mv::Order::isRowMajorPlanar()
 {
-    if(*this == mv::Order("W"))
+    if(contVectorStr_ == "W")
         return true;
-    if(*this == mv::Order("HW"))
+    if(contVectorStr_ == "HW")
         return true;
-    if(*this == mv::Order("HWC"))
+    if(contVectorStr_ == "HWC")
         return true;
-    if(*this == mv::Order("HWCN"))
+    if(contVectorStr_ == "HWCN")
         return true;
-    if(*this == mv::Order("HWCNT"))
+    if(contVectorStr_ == "HWCNT")
         return true;
     return false;
 }
 
 bool mv::Order::isColMajorPlanar()
 {
-    if(*this == mv::Order("W"))
+    if(contVectorStr_ == "W")
         return true;
-    if(*this == mv::Order("WH"))
+    if(contVectorStr_ == "WH")
         return true;
-    if(*this == mv::Order("CWH"))
+    if(contVectorStr_ == "CWH")
         return true;
-    if(*this == mv::Order("NCWH"))
+    if(contVectorStr_ == "NCWH")
         return true;
-    if(*this == mv::Order("TNCWH"))
+    if(contVectorStr_ == "TNCWH")
         return true;
     return false;
 }
 
 bool mv::Order::isRowInterleaved()
 {
-    if(*this == mv::Order("HCW"))
+    if(contVectorStr_ == "HCW")
         return true;
     return false;
 }
