@@ -120,11 +120,7 @@ mv::Order& mv::Order::operator=(const mv::Order& other)
 
 std::string mv::Order::toString() const
 {
-    std::string to_return("(");
-    for(auto i: contVector_)
-        to_return += std::to_string(i) + " ";
-    to_return += ")";
-    return to_return;
+    return contVectorStr_;
 }
 
 bool mv::Order::isRowMajor()

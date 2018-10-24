@@ -42,8 +42,8 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::input(const Shape& shap
 
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::Input) << " =" << " rc.input(mv::Shape"
-            << shape.toString() << ", " << "mv::DTypeType::" << dType.toString() << ", " << "mv::OrderType::"
-            << order.toString() << ")" << ";" << "\n";
+            << shape.toString() << ", " << "mv::DTypeType::" << dType.toString() << ", " << "Order(\""
+            << order.toString() << "\"))" << ";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
@@ -97,7 +97,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vec
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::Constant) << " =" << " rc.constant("
 		<< weightsVectorName << ", " << "mv::Shape" << shape.toString() << ", "
-        << "mv::DTypeType::" << dType.toString() << ", " <<"mv::OrderType::" << order.toString() << ")" << ";" << "\n";;
+        << "mv::DTypeType::" << dType.toString() << ", Order(\"" << order.toString() << "\"))" << ";" << "\n";;
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
