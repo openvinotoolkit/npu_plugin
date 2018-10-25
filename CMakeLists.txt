@@ -94,6 +94,9 @@ file(GLOB base
     "src/computation/op/def/fully_connected.cpp"
     "src/computation/op/def/conversion.cpp"
     "src/computation/op/op_entry.cpp"
+    "src/computation/op/op_registry.cpp"
+    "src/computation/op/op.cpp"
+    "src/computation/op/def2/*.cpp"
 )
 
 file(GLOB logger
@@ -117,8 +120,7 @@ file(GLOB pass
 )
 
 file(GLOB op
-    "src/computation/op/op_registry.cpp"
-    "src/computation/op/op.cpp"
+    
 )
 
 file(GLOB compiler
