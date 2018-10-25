@@ -163,12 +163,31 @@
 				]
 			}
 		},
+		"PReLU":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1"
+				]
+			}
+		},
 		"Softmax":{
 			"MvTensor":{
 				"serial_description":[
 					"Attr:axis",
 					"Tensor:0:0",
 					"Tensor:1:0"
+				]
+			}
+		},
+		"Scale":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2"
 				]
 			}
 		},

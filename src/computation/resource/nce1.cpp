@@ -480,8 +480,6 @@ std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(mv::Convolution
         to_append.start_output_line = output_start_index;
         to_append.end_output_line = new_output_end_index;
 
-        //std::cout << to_append << std::endl;
-
         to_return.push_back(to_append);
 
         output_start_index = new_output_end_index;
