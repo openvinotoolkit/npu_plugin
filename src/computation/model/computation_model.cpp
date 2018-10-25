@@ -17,7 +17,8 @@ dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
 controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
 controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
 input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
-output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end()))
+output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+binary_("test",0)
 {
     log(Logger::MessageType::MessageInfo, "Initialized");
 }
@@ -284,7 +285,8 @@ dataFlowEnd_(other.dataFlowEnd_),
 controlOpEnd_(other.controlOpEnd_),
 controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
-output_(other.output_)
+output_(other.output_),
+binary_("test2",0)
 {
     log(Logger::MessageType::MessageInfo, "Bound");
 }
@@ -573,6 +575,19 @@ mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
 {
     return flowTensors_->end();
 }
+
+int mv::ComputationModel::getBinarySize()
+{
+    int retval = binary_.getSize() ;
+    return retval ;
+}
+
+bool mv::ComputationModel::getBinaryBuffer(std::string newName, int newSize)
+{
+    bool retval = binary_.getBuffer(newName, newSize) ;
+    return retval ;
+}
+
 
 void mv::ComputationModel::clear()
 {

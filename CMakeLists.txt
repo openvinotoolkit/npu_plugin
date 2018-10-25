@@ -57,6 +57,7 @@ file(GLOB base
     "src/computation/op/computation_op.cpp"
     "src/computation/op/kernel_op.cpp"
     "src/computation/model/computation_group.cpp"
+    "src/computation/model/runtime_binary.cpp"
     "src/computation/flow/flow.cpp"
     "src/computation/flow/control_flow.cpp"
     "src/computation/flow/data_flow.cpp"

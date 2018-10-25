@@ -13,7 +13,7 @@ namespace mv
         MV_REGISTER_PASS(GenerateBlob)
         .setFunc(generateBlobFcn)
         .setGenre(PassGenre::Serialization)
-        .defineArg(json::JSONType::String, "output")
+//        .defineArg(json::JSONType::String, "output")
         .setDescription(
             "Generates an executable blob file"
         );
@@ -26,12 +26,15 @@ void generateBlobFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 {   
 
     using namespace mv;
-
-    if (compDesc["GenerateBlob"]["output"].get<std::string>().empty())
-        throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
-
     mv::ControlModel cm(model);
     mv::Serializer serializer(mv::mvblob_mode);
+
+    std::cout << "in serilize pass, using RAM buffer" << std::endl;
+    std::cout << " buffer size is " << cm.getBinarySize() << std::endl;
+ 
+    cm.getBinaryBuffer("namedInPass",2000000000);
+    std::cout << " after getBuffer size is " << cm.getBinarySize() << std::endl;
+
     long long result = static_cast<long long>(serializer.serialize(cm, compDesc["GenerateBlob"]["output"].get<std::string>().c_str()));
     compOutput["blobSize"] = result;
 
