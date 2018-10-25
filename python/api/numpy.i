@@ -299,7 +299,7 @@
       result = (PyArrayObject*) PyArray_FromArray(ary,
                                                   array_descr(ary),
 %#if NPY_API_VERSION < 0x00000007
-                                                  NPY_FORTRANmv::Order);
+                                                  NPY_FORTRANORDER);
 %#else
                                                   NPY_ARRAY_F_CONTIGUOUS);
 %#endif
