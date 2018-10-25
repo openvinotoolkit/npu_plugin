@@ -38,11 +38,11 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            std::string output = "[";
+            std::string output = "{";
             auto s = a.get<Shape>();
             for (std::size_t i = 0; i < s.ndims() - 1; ++i)
                 output += std::to_string(s[i]) + ", ";
-            output += std::to_string(s[-1]) + "]";
+            output += std::to_string(s[-1]) + "}";
             return output;
         }
 

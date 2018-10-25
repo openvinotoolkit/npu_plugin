@@ -23,6 +23,7 @@ namespace mv
              * @brief Legal attribute types traits
              */
             static const std::set<std::string> typeTraits_;
+            
             /**
              * @brief Legal attribute instances traits
              */

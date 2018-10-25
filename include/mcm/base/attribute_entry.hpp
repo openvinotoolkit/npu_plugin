@@ -183,7 +183,7 @@ namespace mv
 
             inline AttributeEntry& setTypeTrait(const std::string& trait)
             {
-                if (typeTraits_.find(trait) != typeTraits_.end())
+                if (typeTraits_.find(trait) == typeTraits_.end())
                     typeTraits_.insert(trait);
                 return *this;
             }

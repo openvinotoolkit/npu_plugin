@@ -35,50 +35,40 @@ namespace mv
                 std::vector<Tensor>&)> outputDef_;
             std::vector<std::string> outputLabels_;
             std::map<std::string, std::type_index> args_;
+            std::set<std::string> typeTraits_;
 
         public:
 
-            OpEntry(const std::string& opType) :
-            opType_(opType)
-            {
+            OpEntry(const std::string& opType);
 
-            }
+            OpEntry& setInputs(std::vector<std::string> labels);
+            OpEntry& setOutputs(std::vector<std::string> labels);
+            OpEntry& setInputCheck(const std::function<std::pair<bool, std::size_t>
+                (const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, std::string&)>& inputCheck);
+            OpEntry& setOutputDef(std::function<void(const std::vector<Data::TensorIterator>&,
+                const std::map<std::string, Attribute>&, std::vector<Tensor>&)>& outputDef);
+            OpEntry& setDescription(const std::string& description);
+            OpEntry& setTypeTrait(const std::string& trait);
+            OpEntry& setTypeTrait(std::initializer_list<std::string> traits);
 
-            inline OpEntry& setInputs(std::vector<std::string> labels)
-            {
+            const std::string getDescription() const;
+            std::size_t getInputsCount() const;
+            std::size_t getOutputsCount() const;
+            bool hasArg(const std::string& name) const;
+            std::type_index argType(const std::string& name) const;
+            std::vector<std::string> argsList() const;
+            std::pair<bool, std::size_t> checkInputs(const std::vector<Data::TensorIterator>& inputs, 
+                const std::map<std::string, Attribute>& args, std::string& errMsg);
+            void getOutputsDef(const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
+                std::vector<Tensor>& outputs);
+            std::string getInputLabel(std::size_t idx);
+            const std::vector<std::string>& getInputLabel();
+            std::string getOutputLabel(std::size_t idx);
+            const std::vector<std::string>& getOutputLabel();
+            bool hasTypeTrait(const std::string& trait);
+            const std::set<std::string>& getTypeTraits();
 
-                inputLabels_ = labels;
-                return *this;
-
-            }
-
-            inline OpEntry& setOutputs(std::vector<std::string> labels)
-            {
-
-                outputLabels_ = labels;
-                return *this;
-
-            }
-
-            inline OpEntry& setInputCheck(const std::function<std::pair<bool, std::size_t>
-                (const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, std::string&)>& inputCheck)
-            {
-                inputCheck_ = inputCheck;
-                return *this;
-            }
-
-            inline OpEntry& setOutputDef(std::function<void(const std::vector<Data::TensorIterator>&,
-                const std::map<std::string, Attribute>&, std::vector<Tensor>&)>& outputDef)
-            {
-                outputDef_ = outputDef;
-                return *this;
-            }
-
-            inline OpEntry& setDescription(const std::string& description)
-            {
-                description_ = description;
-                return *this;
-            }
+            std::string getLogID() const override;
 
             template <class AttrType>
             inline OpEntry& setArg(const std::string& name)
@@ -91,89 +81,6 @@ namespace mv
                 args_.emplace(name, typeid(AttrType));
                 return *this;
 
-            }
-
-            inline const std::string getDescription() const
-            {
-                return description_;
-            }
-
-            inline std::size_t getInputsCount() const
-            {
-                return inputLabels_.size();
-            }
-
-            inline std::size_t getOutputsCount() const
-            {
-                return outputLabels_.size();
-            }
-
-            inline bool hasArg(const std::string& name) const
-            {
-                return args_.find(name) != args_.end();
-            }
-
-            inline std::type_index argType(const std::string& name) const
-            {
-                if (!hasArg(name))
-                    throw OpError(*this, "Attempt of checking the type of an non-existing argument \"" + name + "\"");
-                return args_.at(name);
-            }
-
-            inline std::vector<std::string> argsList() const
-            {
-                std::vector<std::string> list;
-                list.reserve((args_.size()));
-                for (auto &arg : args_)
-                    list.push_back(arg.first);
-                return list;
-            }
-
-            inline std::pair<bool, std::size_t> checkInputs(const std::vector<Data::TensorIterator>& inputs, 
-                const std::map<std::string, Attribute>& args, std::string& errMsg)
-            {
-                return inputCheck_(inputs, args, errMsg);
-            }
-
-            inline void getOutputsDef(const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
-                std::vector<Tensor>& outputs)
-            {
-                outputDef_(inputs, args, outputs);
-            }
-
-            inline std::string getInputLabel(std::size_t idx)
-            {
-
-                if (idx >= inputLabels_.size())
-                    throw IndexError(*this, idx, "Passed input index exceeds inputs count registered for the op type " + opType_);
-
-                return inputLabels_[idx];
-            
-            }
-
-            inline const std::vector<std::string>& getInputLabel()
-            {
-                return inputLabels_;
-            }
-
-            inline std::string getOutputLabel(std::size_t idx)
-            {
-
-                if (idx >= outputLabels_.size())
-                    throw IndexError(*this, idx, "Passed input index exceeds outputs count registered for the op type " + opType_);
-
-                return outputLabels_[idx];
-            
-            }
-
-            inline const std::vector<std::string>& getOutputLabel()
-            {
-                return outputLabels_;
-            }
-
-            std::string getLogID() const override
-            {
-                return "OpEntry:" + opType_;
             }
 
 

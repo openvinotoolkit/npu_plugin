@@ -26,7 +26,7 @@ namespace mv
         
         if (inputs[0]->getShape()[2] != inputs[1]->getShape()[2])
         {
-            errMsg = "Does not match the channel dimension of input";
+            errMsg = "Does not match the channel dimension of input " + std::to_string(inputs[0]->getShape()[2]);
             return {false, 1};
         }
         
@@ -34,13 +34,13 @@ namespace mv
 
         if (inputs[0]->getShape()[0] + padding[0] + padding[1] < inputs[1]->getShape()[0])
         {
-            errMsg = "Width exceeds padded input width";
+            errMsg = "Width exceeds padded input width " + std::to_string(inputs[0]->getShape()[0] + padding[0] + padding[1]);
             return {false, 1};
         }
         
         if (inputs[0]->getShape()[1] + padding[2] + padding[3] < inputs[1]->getShape()[1])
         {
-            errMsg = "Height exceeds padded input height";
+            errMsg = "Height exceeds padded input height " + std::to_string(inputs[0]->getShape()[1] + padding[2] + padding[3]);
             return {false, 1};
         }
 
@@ -73,7 +73,8 @@ namespace mv
         .setArg<std::array<unsigned short, 4>>("padding")
         .setArg<std::array<unsigned short, 2>>("stride")
         .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn);
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait("executable");
 
     }
 
@@ -91,8 +92,8 @@ int main()
     // Compose model - use Composition API to create ops and obtain tensors
     auto input = om.input({128, 128, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto weights1 = om.constant(weights1Data, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    auto conv1 = om.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
-    om.output(conv1);
+    //auto conv1 = om.conv2D(input, weights1, {2, 2}, {1, 1, 1, 1});
+    //om.output(conv1);
 
 
     mv::OpModel m1("m1");

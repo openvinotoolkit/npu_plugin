@@ -92,6 +92,7 @@ file(GLOB base
     "src/computation/op/def/subtract.cpp"
     "src/computation/op/def/fully_connected.cpp"
     "src/computation/op/def/conversion.cpp"
+    "src/computation/op/op_entry.cpp"
 )
 
 file(GLOB logger

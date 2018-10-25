@@ -124,7 +124,7 @@ std::string mv::Element::attrsToString_() const
 
     std::string result;
     for (auto it = attrs_.cbegin(); it != attrs_.cend(); ++it)
-        result += "\n'" +  it->first + "' (" + it->second.getTypeName() + "): " + it->second.toString();
+        result += "\n\"" +  it->first + "\" (" + it->second.getTypeName() + "): " + it->second.toString();
     return result;
 
 }

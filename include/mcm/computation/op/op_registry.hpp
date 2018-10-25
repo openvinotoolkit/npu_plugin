@@ -17,6 +17,11 @@ namespace mv
         class OpRegistry : public Registry<std::string, OpEntry>
         {
 
+            /**
+             * @brief Legal op types traits
+             */
+            static const std::set<std::string> typeTraits_;
+
         public:
 
             static OpRegistry& instance();
@@ -182,6 +187,27 @@ namespace mv
 
                 return opPtr->getOutputLabel();
 
+            }
+
+            static bool checkTypeTrait(const std::string& typeTrait)
+            {
+                if (typeTraits_.find(typeTrait) != typeTraits_.end())
+                    return true;
+                return false;
+            }
+
+            static const std::set<std::string>& getTypeTraits(const std::string& opType)
+            {
+                if (!checkOpType(opType))
+                    throw OpError("OpRegistry", "Attempt of obtaining type traits for an unregistered op type " + opType);
+
+                OpEntry* const opPtr = instance().find(opType);
+
+                if (!opPtr)
+                    throw MasterError("OpRegistry", "Registered op type " + opType +
+                        " not found in the op registry");
+
+                return opPtr->getTypeTraits();
             }
 
         };

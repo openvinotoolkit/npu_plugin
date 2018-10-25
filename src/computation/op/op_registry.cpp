@@ -7,6 +7,12 @@ namespace mv
 
 }
 
+const std::set<std::string> mv::op::OpRegistry::typeTraits_ = 
+{
+    "executable",   // An op is doing some processing of inputs
+    "exposedAPI"       // An op definition call is exposed in CompositionAPI
+};
+
 mv::op::OpRegistry& mv::op::OpRegistry::instance()
 {
     

@@ -52,15 +52,48 @@ void markHardwareConvolution(const mv::pass::PassEntry& pass, mv::ComputationMod
         // std::cout << " "opIterator->getName() << std::endl;
         if (!disableHardware)
         {
-            if(!opIterator->isHardwarizeable(compDesc))// || amount_marked >= mark_limit)
+
+            if (opIterator->getOpType() == mv::OpType::Conv2D)
+            {
+                auto padding = opIterator->get<std::array<unsigned short, 4>>("padding");
+                auto stride = opIterator->get<std::array<unsigned short, 2>>("stride");
+
+                auto input = opIterator->getInputTensor(0);
+                auto inputShape = input->getShape();
+                auto weights = opIterator->getInputTensor(1);
+                auto weightsShape = weights->getShape();
+
+                // Check for supported padding
+                if ((padding[0] != 0 && padding[0] != weightsShape[0]/2) || (padding[2] != 0 && padding[2] != weightsShape[1]/2))
+                {
+                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                    continue;
+                }
+
+                // Check for supported kernel sizes
+                if(weightsShape[0] > 15 || weightsShape[1] > 15)
+                {
+                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                    continue;
+                }
+
+                // Check for supported strides
+                if(stride[0] > 8 || stride[1] > 8)
+                {
+                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                    continue;
+                }
+
+                om.addAttr(opIterator, "NCE1_Compatible", (int)1);
+                om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
+
+            }
+            else
             {
                 om.addAttr(opIterator, "NCE1_Compatible", (int)0);
                 continue;
             }
 
-            om.addAttr(opIterator, "NCE1_Compatible", (int)1);
-            om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
-            //++amount_marked;
         }
         else
             om.addAttr(opIterator, "NCE1_Compatible", (int)0);

@@ -67,6 +67,14 @@ model_(model)
         outputs_.push_back(dm.defineTensor(outputsDef[i]));
         outputs_[i]->set<std::string>("sourceOp", getName(), {"const"});
     }
+
+    const std::set<std::string>& typeTraits = op::OpRegistry::getTypeTraits(opType);
+    std::vector<std::string> opTraits;
+    for (auto it = typeTraits.begin(); it != typeTraits.end(); ++it)
+        opTraits.push_back(*it);
+
+    set<std::vector<std::string>>("traits", opTraits);
+
 }
 
 std::string mv::Op::getOpType() const
