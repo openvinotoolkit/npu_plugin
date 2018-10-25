@@ -20,6 +20,18 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+
+#Protobuf
+find_package(Protobuf REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIR})
+
+#Boost
+find_package(Boost COMPONENTS regex system filesystem REQUIRED)
+
+#Caffe
+set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/include;/opt/movidius/caffe/build/include;/opt/movidius/caffe/build/include/caffe/proto")
+set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
+
 file(GLOB base
     "src/base/attribute_registry.cpp"
     "src/base/attribute_def/*.cpp"
@@ -109,9 +121,14 @@ file(GLOB pass
     "src/pass/adaptation/*.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
-    "src/pass/serialization/*.cpp"
+    "src/pass/serialization/generate_blob.cpp"
+    "src/pass/serialization/generate_json.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
+)
+
+file(GLOB pass_validation
+"src/pass/serialization/generate_prototxt.cpp"
 )
 
 file(GLOB compiler
@@ -122,6 +139,9 @@ if (MSVC)
     add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler})
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    add_library(cm_validation SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
+    target_link_libraries(cm_validation ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
+    target_compile_definitions(cm_validation PRIVATE CPU_ONLY=1)
     add_subdirectory(python/api)
 	add_subdirectory(tests)
 	add_subdirectory(contrib/googletest)
