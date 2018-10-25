@@ -15,9 +15,9 @@ namespace mv
 
     private:
 
-        static const std::unordered_map<std::size_t, std::string> rowMajorID;
-        static const std::unordered_map<std::size_t, std::string> rowMajorPlanarID;
-        static const std::unordered_map<std::size_t, std::string> colMajorID;
+        static const std::unordered_map<std::size_t, std::string> rowMajorID_;
+        static const std::unordered_map<std::size_t, std::string> rowMajorPlanarID_;
+        static const std::unordered_map<std::size_t, std::string> colMajorID_;
 
         std::vector<std::size_t>& contVector_;
         std::string contVectorStr_;
@@ -34,17 +34,17 @@ namespace mv
 
         inline static std::string getRowMajorID(std::size_t dimension)
         {
-            return rowMajorID.at(dimension);
+            return rowMajorID_.at(dimension);
         }
 
         inline static std::string getColMajorID(std::size_t dimension)
         {
-            return colMajorID.at(dimension);
+            return colMajorID_.at(dimension);
         }
 
         inline static std::string getRowMajorPlanarID(std::size_t dimension)
         {
-            return rowMajorPlanarID.at(dimension);
+            return rowMajorPlanarID_.at(dimension);
         }
 
         bool isRowMajor();
