@@ -32,10 +32,7 @@ namespace mv
         Shape& operator=(const Shape& other);
         bool operator==(const Shape& other) const;
         bool operator!=(const Shape& other) const;
-        operator std::vector<std::size_t>() const
-        {
-            return dims_;
-        }
+        operator std::vector<std::size_t>() const;
 
         std::string toString() const override;
         virtual std::string getLogID() const override;
