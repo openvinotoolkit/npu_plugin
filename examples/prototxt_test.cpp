@@ -51,13 +51,14 @@ int main()
     mv::CompositionalModel &cm = unit.model();
 
     /*Network object*/
-    caffe::NetParameter netParam;
+    caffe::NetParameter netParamPrototxt;
+    caffe::NetParameter netParamCaffeModel;
 
     /*Create computation model*/
-    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajorPlanar);
+    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     mv::Shape kernelShape = {3, 3, 3, 3};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
     auto conv = cm.conv2D(input, weights, stride, padding);
@@ -66,6 +67,13 @@ int main()
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
 
+    /*create caffemodel*/
+    fstream output("weights.caffemodel", ios::out | ios::binary);
+
+    /*create prototxt*/
+    std::ofstream ofs;
+    ofs.open("test.prototxt", std::ofstream::out | std::ofstream::trunc);
+
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {
 
@@ -73,73 +81,71 @@ int main()
         {
             /*Don't add layer for input*/
 
-            caffe::InputParameter inputParam;
+            caffe::InputParameter inputParamPrototxt;
+            caffe::InputParameter inputParamCaffeModel;
 
             /*Set name and type of the layer*/
             //inputParam.set_name("Input_0");
 
-             /* add input dimensions*/
-            //caffe::BlobShape *blobShape = inputParam.add_input_shape();
-            netParam.add_input("Input_0");
-            netParam.add_input_dim(0);
-            netParam.add_input_dim(1);
-            netParam.add_input_dim(2);
-            netParam.add_input_dim(3);
-
-            netParam.set_input_dim(0, 1);
-            netParam.set_input_dim(1, 3);
-            netParam.set_input_dim(2, 224);
-            netParam.set_input_dim(3, 224);
-
-            //TODO: Move this to function 
+            /* add input dimensions*/
             /*create caffemodel*/
-            fstream output("weights.caffemodel", ios::out | ios::binary);
-            netParam.SerializeToOstream(&output);
+            netParam.add_input("Input_0");
+            netParamPrototxt.add_input_dim(0);
+            netParamPrototxt.add_input_dim(1);
+            netParamPrototxt.add_input_dim(2);
+            netParamPrototxt.add_input_dim(3);
 
-            /*remove blob before writing to prototxt*/
-            //layerParam->clear_blobs();
-
-            /*create prototxt*/
-            std::ofstream ofs;
-            ofs.open("test.prototxt", std::ofstream::out | std::ofstream::trunc);
-            ofs << netParam.Utf8DebugString();
-            ofs.close();
-            
-
+            netParamPrototxt.set_input_dim(0, 1);
+            netParamPrototxt.set_input_dim(1, 3);
+            netParamPrototxt.set_input_dim(2, 224);
+            netParamPrototxt.set_input_dim(3, 224);
         }
-    
+
         if (opIt->getOpType() == mv::OpType::Conv2D)
         {
 
-            caffe::LayerParameter *layerParam = netParam.add_layer();
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
 
             /*Set name and type of the layer*/
-            layerParam->set_name(opIt->getName());
-            layerParam->set_type("Convolution");
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Convolution");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Convolution");
 
             /*Get the input operation*/
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
-            layerParam->add_bottom(parentOpIt->getName());
+            layerParamPrototxt->add_bottom(parentOpIt->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
             /*Get the output operation*/
-            auto sourceOpIt = opIt.leftmostChild();
-            layerParam->add_top(sourceOpIt->getName());
+            //auto sourceOpIt = opIt.leftmostChild();
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
 
             /*Set layer to have a conv parameter*/
-            caffe::ConvolutionParameter *convParam = layerParam->mutable_convolution_param();
+            caffe::ConvolutionParameter *convParamPrototxt = layerParamPrototxt->mutable_convolution_param();
+            caffe::ConvolutionParameter *convParamCaffeModel = layerParamCaffeModel->mutable_convolution_param();
 
             /*Set stride on ConvolutionParameter object*/
-            convParam->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            convParamPrototxt->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            convParamCaffeModel->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
 
             /*Set kernel on ConvolutionParameter object*/
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
-            convParam->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
+            convParamPrototxt->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
+            convParamCaffeModel->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
 
             /*Set number of output channels*/
-            convParam->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
+            convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
+            convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
+
+            convParamPrototxt->set_bias_term(0);
+            convParamCaffeModel->set_bias_term(0);
 
             /* add weights*/
-            caffe::BlobProto *blobProto = layerParam->add_blobs();
+            caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShape = blobProto->mutable_shape();
 
             blobShape->add_dim(0);
@@ -162,73 +168,39 @@ int main()
             for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
             {
                 blobProto->add_double_data(weightsData[i]);
-
-            //TODO: Move this to function 
-            /*create caffemodel*/
-            fstream output("weights.caffemodel", ios::out | ios::binary);
-            netParam.SerializeToOstream(&output);
-
-            /*remove blob before writing to prototxt*/
-            layerParam->clear_blobs();
-
-            /*create prototxt*/
-            std::ofstream ofs;
-            ofs.open("test.prototxt", std::ofstream::out | std::ofstream::trunc);
-            ofs << netParam.Utf8DebugString();
-            ofs.close();  // Note: May need to use this here (need to verify if weights are in correct order with mcmCheck):
-                // void set_double_data(int index, double value);
             }
-
-
-            //TODO: Move this to function 
-            /*create caffemodel*/
-            fstream output("weights.caffemodel", ios::out | ios::binary);
-            netParam.SerializeToOstream(&output);
-
-            /*remove blob before writing to prototxt*/
-            layerParam->clear_blobs();
-
-            /*create prototxt*/
-            std::ofstream ofs;
-            ofs.open("test.prototxt", std::ofstream::out | std::ofstream::trunc);
-            ofs << netParam.Utf8DebugString();
-            ofs.close();
         }
 
         if (opIt->getOpType() == mv::OpType::Softmax)
         {
-            caffe::LayerParameter *layerParam = netParam.add_layer();
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
 
             /*Set name and type of the layer*/
-            layerParam->set_name(opIt->getName());
-            layerParam->set_type("Softmax");
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Softmax");
+
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Softmax");
 
             /*Get the input operation*/
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
-            layerParam->add_bottom(parentOpIt->getName());
+            layerParamPrototxt->add_bottom(parentOpIt->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
             /*Get the output operation*/
-            auto sourceOpIt = opIt.leftmostChild();
-            layerParam->add_top(sourceOpIt->getName());
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
 
             /*Set layer to have a softmax parameter*/
-            //caffe::SoftmaxParameter *softmaxParam = layerParam->mutable_softmax_param();
-
-            //TODO: Move this to function 
-            /*create caffemodel*/
-            fstream output("weights.caffemodel", ios::out | ios::binary);
-            netParam.SerializeToOstream(&output);
-
-            /*remove blob before writing to prototxt*/
-            layerParam->clear_blobs();
-
-            /*create prototxt*/
-            std::ofstream ofs;
-            ofs.open("test.prototxt", std::ofstream::out | std::ofstream::trunc);
-            ofs << netParam.Utf8DebugString();
-            ofs.close();
         }
     }
+
+    /*create caffemodel*/
+    netParam.SerializeToOstream(&output);
+
+    ofs << netParam.Utf8DebugString();
+    ofs.close();
 
     // Load target descriptor for the selected target to the compilation unit
     if (!unit.loadTargetDescriptor(mv::Target::ma2480))
@@ -240,7 +212,8 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("prototext.blob");
-    unit.compilationDescriptor()["GenerateProto"]["output"] = std::string("prototxt.txt");
+    unit.compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("prototxt.txt");
+    unit.compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("weights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     // Initialize compilation
