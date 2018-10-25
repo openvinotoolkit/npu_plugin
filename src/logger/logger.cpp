@@ -64,8 +64,8 @@ mv::Logger& mv::Logger::instance()
     return instance_;
 }
 
-mv::Logger::Logger() : 
-verboseLevel_(VerboseLevel::VerboseError), 
+mv::Logger::Logger() :
+verboseLevel_(VerboseLevel::VerboseError),
 logTime_(false)
 {
     if (logTime_)

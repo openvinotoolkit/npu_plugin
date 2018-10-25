@@ -90,5 +90,6 @@ std::string mv::ComputationOp::getLogID() const
 
 
 void mv::ComputationOp::gatherSerialFields(){
-    std::cout << "Super Called." << std::endl;
+    std::cout << "Unsupported serial function." << std::endl;
+    assert(0);
 }

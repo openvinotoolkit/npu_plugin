@@ -321,12 +321,8 @@ mv::Data::TensorIterator mv::OpModel::prelu(Data::TensorIterator inputTensor, Da
     else
         opName = getOpName_(OpType::PReLU);
 
-    std::cout << "Create Preluit" << std::endl;
     Data::OpListIterator preluIt = dataGraph_.node_insert(std::make_shared<op::PReLU>(opName));
-    std::cout << "Create inputs" << std::endl;
     Data::TensorIterator inputs[] = {inputTensor, negativeSlope};
-
-    std::cout << "DEFINE" << std::endl;
 
     auto result = defineOp_(preluIt, inputs, 2);
     if (isValid(result))

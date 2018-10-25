@@ -467,7 +467,6 @@ std::vector<mv::SplitOverHSolution> mv::Nce1::computeSplitsOverH(mv::Convolution
             break;
 
         //InputLinesPerOutputLinesSolution sol = inputLinesForOutputLines(param, output_start_index, output_end_index);
-        //std::cout << sol << std::endl;
         //NOTE:This call might be facultative
         int new_output_end_index = maximizeOutput(param, output_start_index, output_end_index, max_output_lines);
         InputLinesPerOutputLinesSolution sol2 = inputLinesForOutputLines(param, output_start_index, new_output_end_index);

@@ -198,7 +198,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             {
                 OpType op(opStr);
                 ops_.insert(op);
-                // break;
             }
             catch (OpError& e)
             {
@@ -221,15 +220,11 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 {
                     std::string v = jsonDescriptor["ops"][op_name][platform_name]["serial_description"][k].get<std::string>();
                     serial_list.push_back(v);
-                    std::cout << "~" ;
                 }
-
 
                 e.set<std::vector<std::string>>("serial_view", serial_list);
 
-                std::cout << "Set. Attr Count: " << e.attrsCount() << std::endl;
                 serialDescriptions_.insert(std::make_pair(op_name+":"+platform_name, e));
-                // serialDescriptions_[op_name+":"+platform_name] = e;
 
             }
         }
@@ -632,7 +627,6 @@ mv::Order mv::TargetDescriptor::getOrder() const
 
 mv::Element mv::TargetDescriptor::getSerialDefinition(std::string op_name, std::string platform_name) const
 {
-    std::cout << "Get: " << op_name + ":" + platform_name << std::endl;
     return serialDescriptions_.at(op_name+":"+platform_name);
 }
 
