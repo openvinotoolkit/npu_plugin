@@ -17,7 +17,7 @@ namespace mv
             PReLU(const std::string &name);
             Tensor getOutputDef(std::size_t idx);
             bool isHardwarizeable(mv::json::Object& TargetDescriptor);
-
+            void gatherSerialFields() override;
         };
 
     }
