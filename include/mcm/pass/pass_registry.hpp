@@ -4,6 +4,7 @@
 #include <string>
 #include "include/mcm/base/registry.hpp"
 #include "include/mcm/pass/pass_entry.hpp"
+#include "include/mcm/base/exception/master_error.hpp"
 
 namespace mv
 {
@@ -22,14 +23,8 @@ namespace mv
 
             static PassRegistry& instance();
 
-            inline void run(std::string name, ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor, json::Object& output)
-            {   
-                PassEntry* const passPtr = find(name);
-                if (passPtr)
-                {
-                    passPtr->run(model, targetDescriptor, compDescriptor, output);
-                }
-            }
+            void run(std::string name, ComputationModel& model, TargetDescriptor& targetDescriptor, 
+                json::Object& compDescriptor, json::Object& output);
 
         };
 

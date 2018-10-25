@@ -15,7 +15,7 @@ namespace mv
 
     namespace attr
     {
-
+        // TODO Checks for setting type traits
         class AttributeRegistry : public Registry<std::type_index, AttributeEntry>
         {
             

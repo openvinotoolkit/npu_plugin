@@ -432,6 +432,7 @@ double& mv::Tensor::operator()(const std::vector<std::size_t>& sub)
 
 mv::Tensor& mv::Tensor::operator=(const Tensor& other)
 {
+    
     Element::operator=(other);
     data_ = std::vector<double>(other.data_.size());
     blockSize_ = other.blockSize_;
@@ -443,6 +444,9 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
 
     if (isPopulated())
         data_ = other.data_;
+
+    return *this;
+
 }
 
 const double& mv::Tensor::operator()(const std::vector<std::size_t>& sub) const

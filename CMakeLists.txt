@@ -22,6 +22,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 
 file(GLOB base
     "src/base/attribute_registry.cpp"
+    "src/base/attribute_entry.cpp"
     "src/base/attribute_def/*.cpp"
     "src/base/printable.cpp"
     "src/base/jsonable.cpp"
@@ -105,6 +106,7 @@ file(GLOB pass
     "src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
+    "src/pass/pass_entry.cpp"
     "src/target/target_descriptor.cpp"
     "src/pass/adaptation/*.cpp"
     "src/pass/finalization/*.cpp"
