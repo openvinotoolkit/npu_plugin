@@ -48,34 +48,20 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
     if (compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>().empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
         
-        /*Network object*/
+    /*Create Network objects*/
     caffe::NetParameter netParamPrototxt;
     caffe::NetParameter netParamCaffeModel;
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(model);
-
-    /*create caffemodel*/
-    std::fstream output("weights_from_pass.caffemodel", std::ios::out | std::ios::binary);
-
-    /*create prototxt*/
-    std::ofstream ofs;
-    ofs.open("prototxt_from_pass.prototxt", std::ofstream::out | std::ofstream::trunc);
 
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {
 
         if (opIt->getOpType() == mv::OpType::Input)
         {
-            /*Don't add layer for input*/
+            /*Don't create a LayerParameter for input */
 
-            //caffe::InputParameter inputParamPrototxt;
-            //caffe::InputParameter inputParamCaffeModel;
-
-            /*Set name and type of the layer*/
-            //inputParam.set_name("Input_0");
-
-            /* add input dimensions*/
-            /*create caffemodel*/
+            /* add input dimensions to the network objects*/
             netParamPrototxt.add_input("Input_0");
             netParamCaffeModel.add_input("Input_0");
 
@@ -93,6 +79,7 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
         if (opIt->getOpType() == mv::OpType::Conv2D)
         {
 
+            /*Create layers*/
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
 
@@ -103,13 +90,14 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Convolution");
 
-            /*Get the input operation*/
+            /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
             layerParamPrototxt->add_bottom(parentOpIt->getName());
             layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
-            /*Get the output operation*/
-            //auto sourceOpIt = opIt.leftmostChild();
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -134,10 +122,12 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
 
+            /*Specify if it has bais*/
+            //TODO: add a check for bias
             convParamPrototxt->set_bias_term(0);
             convParamCaffeModel->set_bias_term(0);
 
-            /* add weights*/
+            /*add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShape = blobProto->mutable_shape();
 
@@ -157,6 +147,7 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
             weights->setOrder(mv::OrderType::ColumnMajor);
+
             std::vector<double> caffeModelWeights = (*weights).getData();
 
             for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
@@ -177,23 +168,29 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Softmax");
 
-            /*Get the input operation*/
+            /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
             layerParamPrototxt->add_bottom(parentOpIt->getName());
             layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
-            /*Get the output operation*/
+             /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
             /*Set layer to have a softmax parameter*/
+            //TODO: add this
         }
     }
 
     /*create caffemodel*/
+    std::fstream output(compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>(), std::ios::out | std::ios::binary);
     netParamCaffeModel.SerializeToOstream(&output);
 
+    /*create prototxt*/
+    std::ofstream ofs;
+    ofs.open(compDesc["GenerateProto"]["outputPrototxt"].get<std::string>(), std::ofstream::out | std::ofstream::trunc);
     ofs << netParamPrototxt.Utf8DebugString();
     ofs.close();
-
 }

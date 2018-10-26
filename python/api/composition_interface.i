@@ -44,8 +44,8 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
-        unit->compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("prototxt.txt");
-        unit->compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("weights.caffemodel");
+        unit->compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("generatedPrototxt.prototxt");
+        unit->compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("generatedWeights.caffemodel");
         unit->compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = disableHardware;
 
         return unit;
