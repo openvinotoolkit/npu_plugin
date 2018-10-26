@@ -204,29 +204,31 @@ int main()
     ofs << netParamPrototxt.Utf8DebugString();
     ofs.close();
 
-    // // Load target descriptor for the selected target to the compilation unit
-    // if (!unit.loadTargetDescriptor(mv::Target::ma2480))
-    //     exit(1);
+    // Load target descriptor for the selected target to the compilation unit
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+        exit(1);
 
-    // // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    // unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("prototxt.dot");
-    // unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-    // unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    // unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    // unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("prototext.blob");
-    // //unit.compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("prototxt.txt");
-    // //unit.compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("weights.caffemodel");
-    // unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("prototxt.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("prototext.blob");
+    unit.compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("prototxt.txt");
+    unit.compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("weights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
-    // // Initialize compilation
-    // unit.initialize();
-    // //unit.passManager().disablePass(mv::PassGenre::Serialization);
-    // //unit.passManager().disablePass(mv::PassGenre::Adaptation);
+    // Initialize compilation
+    unit.initialize();
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().disablePass(mv::PassGenre::Adaptation);
+    unit.passManager().disablePass(mv::PassGenre::Validation);
+    //unit.passManager().disablePass(mv::PassGenre::Finalization);
 
-    // // Run all passes
-    // unit.run();
+    // Run all passes
+    unit.run();
 
-    // system("dot -Tsvg prototxt.dot -o cm_protoxt.svg");
+    system("dot -Tsvg prototxt.dot -o cm_protoxt.svg");
    
 
     return 0;
