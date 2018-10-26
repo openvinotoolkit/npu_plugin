@@ -89,7 +89,7 @@ int main()
 
             /* add input dimensions*/
             /*create caffemodel*/
-            netParam.add_input("Input_0");
+            netParamPrototxt.add_input("Input_0");
             netParamPrototxt.add_input_dim(0);
             netParamPrototxt.add_input_dim(1);
             netParamPrototxt.add_input_dim(2);
@@ -197,9 +197,9 @@ int main()
     }
 
     /*create caffemodel*/
-    netParam.SerializeToOstream(&output);
+    netParamCaffeModel.SerializeToOstream(&output);
 
-    ofs << netParam.Utf8DebugString();
+    ofs << netParamPrototxt.Utf8DebugString();
     ofs.close();
 
     // Load target descriptor for the selected target to the compilation unit

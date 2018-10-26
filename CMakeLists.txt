@@ -29,7 +29,7 @@ include_directories(${PROTOBUF_INCLUDE_DIR})
 find_package(Boost COMPONENTS regex system filesystem REQUIRED)
 
 #Caffe
-set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/include;/opt/movidius/caffe/build/include;/opt/movidius/caffe/build/include/caffe/proto")
+set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
 set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
 
 file(GLOB base
@@ -104,6 +104,7 @@ file(GLOB base
     "src/computation/op/def/drop_out.cpp"
 )
 
+
 file(GLOB logger
     "src/logger/logger.cpp"
     "src/logger/log_sender.cpp"
@@ -125,7 +126,7 @@ file(GLOB pass
 )
 
 file(GLOB pass_validation
-"src/pass/serialization/generate_prototxt.cpp"
+#"src/pass/serialization/generate_prototxt.cpp"
 )
 
 file(GLOB compiler
@@ -135,7 +136,7 @@ file(GLOB compiler
 if (MSVC)
     add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler})
 else()
-    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    #add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
     add_library(cm_validation SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
     target_link_libraries(cm_validation ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
     target_compile_definitions(cm_validation PRIVATE CPU_ONLY=1)
