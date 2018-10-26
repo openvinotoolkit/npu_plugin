@@ -62,8 +62,8 @@
 
 		"serialize":
 		[
-			"GenerateBlob",
- 			"GenerateProto"
+			"GenerateProto",			
+			"GenerateBlob"
 		],
 
 		"validate":

@@ -20,6 +20,10 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+include_directories("/opt/movidius/caffe/include")
+include_directories("/opt/movidius/caffe/build/include")
+include_directories("/opt/movidius/caffe/build/include/caffe/proto")
+
 
 #Protobuf
 find_package(Protobuf REQUIRED)
@@ -129,7 +133,7 @@ file(GLOB pass
 )
 
 file(GLOB pass_validation
-#"src/pass/serialization/generate_prototxt.cpp"
+"src/pass/serialization/generate_prototxt.cpp"
 )
 
 file(GLOB compiler
