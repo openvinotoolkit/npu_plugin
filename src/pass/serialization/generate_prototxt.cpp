@@ -55,11 +55,11 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(model);
 
     /*create caffemodel*/
-    std::fstream output("weights.caffemodel", std::ios::out | std::ios::binary);
+    std::fstream output("weights_from_pass.caffemodel", std::ios::out | std::ios::binary);
 
     /*create prototxt*/
     std::ofstream ofs;
-    ofs.open("test.prototxt", std::ofstream::out | std::ofstream::trunc);
+    ofs.open("prototxt_from_pass.prototxt", std::ofstream::out | std::ofstream::trunc);
 
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {

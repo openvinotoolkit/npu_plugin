@@ -44,7 +44,10 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
         unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
+        unit->compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("prototxt.txt");
+        unit->compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("weights.caffemodel");
         unit->compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = disableHardware;
+
         return unit;
 
     }
@@ -62,6 +65,10 @@ import_array();
     int compile(mv::CompilationUnit *unit)
     {
         unit->initialize();
+
+        unit->passManager().disablePass(mv::PassGenre::Adaptation);
+        unit->passManager().disablePass(mv::PassGenre::Validation);
+
         auto compOutput = unit->run();
         return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }

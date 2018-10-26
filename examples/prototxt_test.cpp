@@ -68,11 +68,11 @@ int main()
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
 
     /*create caffemodel*/
-    fstream output("weights.caffemodel", ios::out | ios::binary);
+    fstream output("weights_from_example.caffemodel", ios::out | ios::binary);
 
     /*create prototxt*/
     std::ofstream ofs;
-    ofs.open("test.prototxt", std::ofstream::out | std::ofstream::trunc);
+    ofs.open("prototxt_from_example.prototxt", std::ofstream::out | std::ofstream::trunc);
 
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {
@@ -222,6 +222,9 @@ int main()
     unit.compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("weights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
+    std::cout << "printing compilation descriptor" << std::endl;
+    unit.compilationDescriptor().stringify();
+    
     // Initialize compilation
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Serialization);
