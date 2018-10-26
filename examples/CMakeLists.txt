@@ -37,5 +37,5 @@ include_directories("/opt/movidius/caffe/build/include/caffe/proto")
 #find_package(Boost COMPONENTS regex system filesystem REQUIRED)
 
 add_executable(prototxt_test prototxt_test.cpp)
-target_link_libraries(prototxt_test cm_validation ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY}) 
+target_link_libraries(prototxt_test cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY}) 
 target_compile_definitions(prototxt_test PRIVATE CPU_ONLY=1)

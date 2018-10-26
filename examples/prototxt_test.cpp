@@ -139,6 +139,10 @@ int main()
             convParamPrototxt->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
             convParamCaffeModel->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
 
+             /*Set padding on ConvolutionParameter object*/
+            convParamPrototxt->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamCaffeModel->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+
             /*Set number of output channels*/
             convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
@@ -180,9 +184,9 @@ int main()
 
             /*Set name and type of the layer*/
             layerParamPrototxt->set_name(opIt->getName());
-            layerParamCaffeModel->set_type("Softmax");
+            layerParamPrototxt->set_type("Softmax");
 
-            layerParamPrototxt->set_name(opIt->getName());
+            layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Softmax");
 
             /*Get the input operation*/
@@ -223,13 +227,12 @@ int main()
     //unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.passManager().disablePass(mv::PassGenre::Adaptation);
     unit.passManager().disablePass(mv::PassGenre::Validation);
-    //unit.passManager().disablePass(mv::PassGenre::Finalization);
 
     // Run all passes
     unit.run();
 
     system("dot -Tsvg prototxt.dot -o cm_protoxt.svg");
-   
+    
 
     return 0;
 }

@@ -68,8 +68,8 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
         {
             /*Don't add layer for input*/
 
-            caffe::InputParameter inputParamPrototxt;
-            caffe::InputParameter inputParamCaffeModel;
+            //caffe::InputParameter inputParamPrototxt;
+            //caffe::InputParameter inputParamCaffeModel;
 
             /*Set name and type of the layer*/
             //inputParam.set_name("Input_0");
@@ -121,6 +121,10 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             convParamPrototxt->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             convParamCaffeModel->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
 
+            /*Set padding on ConvolutionParameter object*/
+            convParamPrototxt->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamCaffeModel->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+
             /*Set kernel on ConvolutionParameter object*/
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
             convParamPrototxt->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
@@ -168,9 +172,9 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
 
             /*Set name and type of the layer*/
             layerParamPrototxt->set_name(opIt->getName());
-            layerParamCaffeModel->set_type("Softmax");
+            layerParamPrototxt->set_type("Softmax");
 
-            layerParamPrototxt->set_name(opIt->getName());
+            layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Softmax");
 
             /*Get the input operation*/
