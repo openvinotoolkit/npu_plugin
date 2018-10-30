@@ -42,13 +42,9 @@ file(GLOB base
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
     "src/tensor/math.cpp"
-    "src/tensor/order.cpp"
-    "src/tensor/order/column_major_planar.cpp"
-    "src/tensor/order/column_major.cpp"
-    "src/tensor/order/row_major_planar.cpp"
-    "src/tensor/order/row_major.cpp"
-    "src/tensor/order/row_interleaved.cpp"
     "src/tensor/dtype.cpp"
+    "src/tensor/order/*.cpp"
+    "src/tensor/order/order_def/*.cpp"
     "src/computation/model/computation_model.cpp"
     "src/api/compositional_model.cpp"
     "src/computation/model/op_model.cpp"
@@ -124,8 +120,9 @@ if (MSVC)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
     add_subdirectory(python/api)
-	add_subdirectory(tests)
-	add_subdirectory(contrib/googletest)
+        add_subdirectory(tests)
+        add_subdirectory(contrib/googletest)
+        #add_subdirectory(recordings)
 endif()
 
 add_subdirectory(examples)

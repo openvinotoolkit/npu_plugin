@@ -11,7 +11,7 @@
 #include "include/mcm/base/json/string.hpp"
 #include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/base/printable.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/base/element.hpp"
@@ -44,7 +44,6 @@ namespace mv
 
         Target target_;
         DType globalDType_;
-        Order globalOrder_;
         std::set<OpType> ops_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
 
@@ -66,7 +65,6 @@ namespace mv
 
         void setTarget(Target target);
         void setDType(DType dType);
-        void setOrder(Order order);
 
         bool appendAdaptPass(const std::string& pass, int pos = -1);
         bool appendOptPass(const std::string& pass, int pos = -1);
@@ -100,7 +98,6 @@ namespace mv
         const std::vector<std::string>& validPasses() const;
 
         Target getTarget() const;
-        Order getOrder() const;
         DType getDType() const;
 
         mv::Element getSerialDefinition(std::string op_name, std::string platform_name) const;

@@ -1,572 +1,144 @@
 #include "gtest/gtest.h"
-#include "include/mcm/tensor/order.hpp"
-
-TEST(order, col_major0d)
-{
-    mv::Order order(mv::OrderType::ColumnMajor);
-    mv::Shape s(0);
-    ASSERT_ANY_THROW(order.isFirstContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.isLastContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.previousContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.nextContiguousDimensionIndex(s, 0));
-}
-
-TEST(order, col_major1d)
-{
-    mv::Order order(mv::OrderType::ColumnMajor);
-    mv::Shape s({3});
-
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
-}
-
-TEST(order, col_major2d)
-{
-    mv::Order order(mv::OrderType::ColumnMajor);
-    mv::Shape s({2, 3});
-
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
-}
-
-TEST(order, col_major3d)
-{
-    mv::Order order(mv::OrderType::ColumnMajor);
-    mv::Shape s({2, 3, 5});
-
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
-}
-
-TEST(order, col_major4d)
-{
-    mv::Order order(mv::OrderType::ColumnMajor);
-    mv::Shape s({3, 3, 5, 7});
-
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
-}
+#include "include/mcm/tensor/order/order.hpp"
+#include "include/mcm/tensor/tensor.hpp"
 
 TEST(order, row_major0d)
 {
-    mv::Order order(mv::OrderType::RowMajor);
     mv::Shape s(0);
-    ASSERT_ANY_THROW(order.isFirstContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.isLastContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.previousContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.nextContiguousDimensionIndex(s, 0));
+    ASSERT_ANY_THROW(mv::Order order(mv::Order::getRowMajorID(s.ndims())));
 }
-
 
 TEST(order, row_major1d)
 {
-    mv::Order order(mv::OrderType::RowMajor);
-    mv::Shape s({3});
+    mv::Shape s({2});
+    mv::Order order(mv::Order::getRowMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {0};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
 TEST(order, row_major2d)
 {
-    mv::Order order(mv::OrderType::RowMajor);
-    mv::Shape s({2, 3});
+    mv::Shape s({2, 2});
+    mv::Order order(mv::Order::getRowMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {1, 0};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
 TEST(order, row_major3d)
 {
-    mv::Order order(mv::OrderType::RowMajor);
-    mv::Shape s({2, 3, 5});
+    mv::Shape s({2, 2, 2});
+    mv::Order order(mv::Order::getRowMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {2, 1, 0};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
 TEST(order, row_major4d)
 {
-    mv::Order order(mv::OrderType::RowMajor);
-    mv::Shape s({3, 3, 5, 7});
+    mv::Shape s({2, 2, 2, 2});
+    mv::Order order(mv::Order::getRowMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {3, 2, 1, 0};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
-TEST(order, planar0d)
+TEST(order, row_major5d)
 {
-    mv::Order order(mv::OrderType::ColumnMajorPlanar);
+    mv::Shape s({2, 2, 2, 2, 2});
+    mv::Order order(mv::Order::getRowMajorID(s.ndims()));
+
+    std::vector<std::size_t> expectedOrder = {4, 3, 2, 1, 0};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
+}
+
+TEST(order, col_major0d)
+{
     mv::Shape s(0);
-    ASSERT_ANY_THROW(order.isFirstContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.isLastContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.previousContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.nextContiguousDimensionIndex(s, 0));
+    ASSERT_ANY_THROW(mv::Order order(mv::Order::getColMajorID(s.ndims())));
 }
 
-TEST(order, planar1d)
+TEST(order, col_major1d)
 {
-    mv::Order order(mv::OrderType::ColumnMajorPlanar);
-    mv::Shape s({3});
+    mv::Shape s({2});
+    mv::Order order(mv::Order::getColMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {0};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
-TEST(order, planar2d)
+TEST(order, col_major2d)
 {
-    mv::Order order(mv::OrderType::ColumnMajorPlanar);
-    mv::Shape s({2, 3});
+    mv::Shape s({2, 2});
+    mv::Order order(mv::Order::getColMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {0, 1};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
-TEST(order, planar3d)
+TEST(order, col_major3d)
 {
-    mv::Order order(mv::OrderType::ColumnMajorPlanar);
-    mv::Shape s({2, 3, 5});
+    mv::Shape s({2, 2, 2});
+    mv::Order order(mv::Order::getColMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {0, 1, 2};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
-TEST(order, planar4d)
+TEST(order, col_major4d)
 {
-    mv::Order order(mv::OrderType::ColumnMajorPlanar);
-    mv::Shape s({3, 3, 5, 7});
+    mv::Shape s({2, 2, 2, 2});
+    mv::Order order(mv::Order::getColMajorID(s.ndims()));
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {0, 1, 2, 3};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
-TEST(order, planar20d)
+TEST(order, col_major5d)
 {
-    mv::Order order(mv::OrderType::RowMajorPlanar);
-    mv::Shape s(0);
-    ASSERT_ANY_THROW(order.isFirstContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.isLastContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.previousContiguousDimensionIndex(s, 0));
-    ASSERT_ANY_THROW(order.nextContiguousDimensionIndex(s, 0));
+    mv::Shape s({2, 2, 2, 2, 2});
+    mv::Order order(mv::Order::getColMajorID(s.ndims()));
+
+    std::vector<std::size_t> expectedOrder = {0, 1, 2, 3, 4};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
-TEST(order, planar21d)
+TEST(order, row_interleaved)
 {
-    mv::Order order(mv::OrderType::RowMajorPlanar);
-    mv::Shape s({3});
+    mv::Shape s({2, 2, 2});
+    mv::Order order("HCW");
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    std::vector<std::size_t> expectedOrder = {0, 2, 1};
+
+    for(unsigned i = 0; i < order.size(); ++i)
+        ASSERT_EQ(order[i], expectedOrder[i]);
 }
 
-TEST(order, planar22d)
+TEST(order, tensor_mismatching_order)
 {
-    mv::Order order(mv::OrderType::RowMajorPlanar);
-    mv::Shape s({2, 3});
+    mv::Shape s({2, 2});
+    mv::Order order("HCW");
 
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
+    ASSERT_ANY_THROW(mv::Tensor("Test", s, mv::DType(mv::DTypeType::Float16), order));
 }
-
-TEST(order, planar23d)
-{
-    mv::Order order(mv::OrderType::RowMajorPlanar);
-    mv::Shape s({2, 3, 5});
-
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
-}
-
-TEST(order, planar24d)
-{
-    mv::Order order(mv::OrderType::RowMajorPlanar);
-    mv::Shape s({3, 3, 5, 7});
-
-    try
-    {
-        for(int i = order.firstContiguousDimensionIndex(s); i != -1; i = order.nextContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-        std::cout << std::endl;
-        for(int i = order.lastContiguousDimensionIndex(s); i != -1; i = order.previousContiguousDimensionIndex(s,i))
-        {
-            std::cout << i;
-            if(order.isFirstContiguousDimensionIndex(s, i))
-                std::cout << " - Is the first contiguos dimension";
-            if(order.isLastContiguousDimensionIndex(s, i))
-                std::cout << " - Is the last contiguos dimension";
-            std::cout << std::endl;
-        }
-   }
-   catch(mv::ShapeError err)
-   {
-        std::cout << "Catched exception " << err.what() << std::endl;
-   }
-}
-

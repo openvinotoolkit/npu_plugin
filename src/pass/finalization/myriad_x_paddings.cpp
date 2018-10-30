@@ -38,10 +38,10 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
         bool isConv = operationIt->getOpType() == mv::OpType::Conv2D;
 
-        operationIt->getInputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
-        operationIt->getOutputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
-        // operationIt->getInputTensor(0)->setOrder(mv::OrderType::ColumnMajorPlanar);
-        // operationIt->getOutputTensor(0)->setOrder(mv::OrderType::ColumnMajorPlanar);
+        operationIt->getInputTensor(0)->setOrder(mv::Order("HCW"));
+        operationIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));
+        // operationIt->getInputTensor(0)->setOrder(mv::Order("CHW"));
+        // operationIt->getOutputTensor(0)->setOrder(mv::Order("CHW"));
 
         auto input_tensor = operationIt->getInputTensor(0);
         auto input_tensor_dimension = input_tensor->getShape();

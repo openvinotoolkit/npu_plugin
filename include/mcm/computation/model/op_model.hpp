@@ -11,7 +11,7 @@ namespace mv
 
     class OpModel : public ComputationModel, public CompositionalModel
     {
-    	friend class CompositionalModelRecorder;
+        friend class CompositionalModelRecorder;
 
         using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
 

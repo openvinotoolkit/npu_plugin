@@ -42,13 +42,13 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::input(const Shape& shap
 
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::Input) << " =" << " rc.input(mv::Shape"
-		<< shape.toString() << ", " << "mv::DTypeType::" << dType.toString() << ", " << "mv::OrderType::"
-		<< order.toString() << ")" << ";" << "\n";
+            << shape.toString() << ", " << "mv::DTypeType::" << dType.toString() << ", " << "mv::Order(\""
+            << order.toString() << "\"))" << ";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
 
-	auto result = modelRef_.input(shape, dType, order, name);
+    auto result = modelRef_.input(shape, dType, order, name);
 	return result;
 }
 
@@ -75,7 +75,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::output(Data::TensorIter
 }
 
 mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vector<double>& data, const Shape& shape,
-	DType dType, Order order, const std::string& name)
+    DType dType, Order order, const std::string& name)
 {
 	/*Create weights vector name e.g weights_0, weights_1 */
 	std::string weightsVectorName = "weights_" + std::to_string(weightsVectorCounter);
@@ -97,12 +97,12 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vec
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::Constant) << " =" << " rc.constant("
 		<< weightsVectorName << ", " << "mv::Shape" << shape.toString() << ", "
-		<< "mv::DTypeType::" << dType.toString() << ", " <<"mv::OrderType::" << order.toString() << ")" << ";" << "\n";;
+        << "mv::DTypeType::" << dType.toString() << ", mv::Order(\"" << order.toString() << "\"))" << ";" << "\n";;
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
 
-	auto result = modelRef_.constant(data, shape, dType, order, name);
+    auto result = modelRef_.constant(data, shape, dType, order, name);
 	return result;
 }
 

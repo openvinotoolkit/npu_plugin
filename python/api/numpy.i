@@ -336,8 +336,8 @@
     return ary1;
   }
 
-  /* Convert a given PyObject to a Fortran-ordered PyArrayObject of the
-   * specified type.  If the input object is not a Fortran-ordered
+  /* Convert a given PyObject to a Fortran-mv::Ordered PyArrayObject of the
+   * specified type.  If the input object is not a Fortran-mv::Ordered
    * PyArrayObject, a new one will be created and the new object flag
    * will be set.
    */
@@ -414,7 +414,7 @@
     if (!array_is_native(ary))
     {
       PyErr_SetString(PyExc_TypeError,
-                      "Array must have native byteorder.  "
+                      "Array must have native bytemv::Order.  "
                       "A byte-swapped array was given");
       native = 0;
     }
@@ -529,9 +529,9 @@
     return success;
   }
 
-  /* Require the given PyArrayObject to to be Fortran ordered.  If the
-   * the PyArrayObject is already Fortran ordered, do nothing.  Else,
-   * set the Fortran ordering flag and recompute the strides.
+  /* Require the given PyArrayObject to to be Fortran mv::Ordered.  If the
+   * the PyArrayObject is already Fortran mv::Ordered, do nothing.  Else,
+   * set the Fortran mv::Ordering flag and recompute the strides.
    */
   int require_fortran(PyArrayObject* ary)
   {
@@ -541,7 +541,7 @@
     npy_intp * strides = array_strides(ary);
     if (array_is_fortran(ary)) return success;
     int n_non_one = 0;
-    /* Set the Fortran ordered flag */
+    /* Set the Fortran mv::Ordered flag */
     const npy_intp *dims = array_dimensions(ary);
     for (i=0; i < nd; ++i)
       n_non_one += (dims[i] != 1) ? 1 : 0;
@@ -674,7 +674,7 @@
  * where "DATA_TYPE" is any type supported by the NumPy module, and
  * "std::size_t" is any int-like type suitable for specifying dimensions.
  * The difference between "ARRAY" typemaps and "FARRAY" typemaps is
- * that the "FARRAY" typemaps expect Fortran ordering of
+ * that the "FARRAY" typemaps expect Fortran mv::Ordering of
  * multidimensional arrays.  In python, the dimensions will not need
  * to be specified (except for the "DATA_TYPE* ARGOUT_ARRAY1"
  * typemaps).  The IN_ARRAYs can be a numpy array or any sequence that

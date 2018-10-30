@@ -230,7 +230,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
                 if(opIterator->hasInputDef(i))
                     valid_inputs++;
 
-            auto axis = opIterator->get<int>("axis");
+            //auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;
 
             // TODO: Request this from the order - What element is axis at.

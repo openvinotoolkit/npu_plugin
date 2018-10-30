@@ -6,9 +6,9 @@ TEST(ops, fullyConnected)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({8, 8, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = om.input({8, 8, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(input->getShape().totalSize() * 100u);
-    auto weights1 = om.constant(weightsData, {input->getShape().totalSize(), 100}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto weights1 = om.constant(weightsData, {input->getShape().totalSize(), 100}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)));
     auto fullyConnected = om.fullyConnected(input, weights1);
     auto fullyConnectedOp = om.getSourceOp(fullyConnected);
     auto output = om.output(fullyConnected);

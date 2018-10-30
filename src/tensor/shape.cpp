@@ -40,6 +40,11 @@ std::size_t mv::Shape::totalSize() const
 
 }
 
+mv::Shape::operator std::vector<std::size_t>() const
+{
+    return dims_;
+}
+
 std::size_t& mv::Shape::operator[](int ndim)
 {
 

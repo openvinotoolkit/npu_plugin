@@ -27,8 +27,13 @@ mv::Tensor mv::op::FullyConnected::getOutputDef(std::size_t idx)
         throw(OpError(*this, "Inconsistent total size of input tensor (input 0) " + std::to_string(input0Shape.totalSize()) +
             " and 1st dimension of weights tensor (input 1) " + std::to_string(input1Shape[0])));
 
-    return Tensor(name_ + ":0", {1, input1Shape[1]}, input0->getDType(), input0->getOrder());
-
+    Order outputOrder(Order::getColMajorID(2));
+    if(input0->getOrder().isRowMajor())
+        outputOrder = Order(Order::getRowMajorID(2));
+    else if(input0->getOrder().isRowMajorPlanar())
+        outputOrder = Order(Order::getRowMajorPlanarID(2));
+    return Tensor(name_ + ":0", {1, input1Shape[1]}, input0->getDType(), outputOrder);
+    
 }
 
 bool mv::op::FullyConnected::isHardwarizeable(json::Object&)

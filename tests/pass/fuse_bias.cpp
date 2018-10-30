@@ -9,13 +9,13 @@ TEST(fuse_bias, case_conv)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
-    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
+    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> biasesData = mv::utils::generateSequence<double>(32);
-    auto biases = om.constant(biasesData, {32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "biases");
+    auto biases = om.constant(biasesData, {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), "biases");
     auto bias = om.bias(conv, biases);
     auto biasOp = om.getSourceOp(bias);
     om.output(bias);
