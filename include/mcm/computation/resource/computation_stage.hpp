@@ -1,30 +1,37 @@
-#ifndef STAGE_HPP_
-#define STAGE_HPP_
+#ifndef MV_STAGE_HPP_
+#define MV_STAGE_HPP_
 
-#include "include/mcm/computation/model/computation_group.hpp"
-#include "include/mcm/computation/op/op_type.hpp"
+#include <algorithm>
+#include <vector>
+#include <string>
+#include "include/mcm/computation/model/iterator/control_context.hpp"
+#include "include/mcm/computation/model/model_element.hpp"
+#include "include/mcm/base/exception/logic_error.hpp"
 
 namespace mv
 {
 
-    class ComputationStage : public ComputationGroup
+    class Stage : public ModelElement
     {
-
-    protected:
-
-        virtual bool markMembmer_(Element &member) override;
-        virtual bool unmarkMembmer_(Element &member) override;
 
     public:
 
-        ComputationStage(std::size_t idx);
+        Stage(ComputationModel& model, std::size_t idx);
+
+        void include(Control::OpListIterator op);
+        void exclude(Control::OpListIterator op);
+
+        bool isMember(Control::OpListIterator op) const;
+        std::vector<Control::OpListIterator> getMembers();
+    
         std::size_t getIdx() const;
         std::string toString() const override;
-        bool operator <(ComputationStage &other);
-        virtual std::string getLogID() const override;
+        std::string getLogID() const override;
+
+        bool operator <(Stage &other);
 
     };
 
 }
 
-#endif // STAGE_HPP_
+#endif // MV_STAGE_HPP_

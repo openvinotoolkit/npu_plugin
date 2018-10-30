@@ -122,7 +122,7 @@ namespace mv
         .setArg<double>("eps")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait("executable");
+        .setTypeTrait({"executable", "exposed"});
 
     }
 

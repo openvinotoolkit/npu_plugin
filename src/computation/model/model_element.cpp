@@ -3,7 +3,7 @@
 
 mv::ModelElement::ModelElement(ComputationModel& model, const std::string& name) :
 Element(name),
-model_(model)
+model_(std::ref(model))
 {
 
 }
@@ -13,10 +13,15 @@ mv::ModelElement::~ModelElement()
 
 }
 
+mv::ComputationModel& mv::ModelElement::getModel_()
+{
+    return model_.get();
+}
+
 mv::json::Value mv::ModelElement::toJSON() const
 {
     auto val = Element::toJSON();
-    val["model"] = model_.getName();
+    val["model"] = model_.get().getName();
     return val;
 }
 

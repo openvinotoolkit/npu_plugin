@@ -33,7 +33,8 @@ namespace mv
         .setArg<mv::Order>("order")
         .setArg<std::vector<double>>("data")
         .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn);
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"exposed"});
 
     }
 

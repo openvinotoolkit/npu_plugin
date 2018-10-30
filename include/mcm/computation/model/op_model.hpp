@@ -1,35 +1,27 @@
 #ifndef OP_MODEL_HPP_
 #define OP_MODEL_HPP_
 
-#include "include/mcm/api/compositional_model.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
-#include "include/mcm/computation/op/ops_headers.hpp"
+#include "include/mcm/computation/op/op.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
 
-    class OpModel : public ComputationModel, public CompositionalModel
+    class OpModel : public ComputationModel//, public CompositionalModel
     {
     	friend class CompositionalModelRecorder;
-
-        using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
-
-        bool defineDefaultControlFlow_(Data::OpListIterator op);
-        bool defaultStage_(Data::OpListIterator op);
-        Data::OpListIterator checkInputTensor_(Data::TensorIterator inputTensor);
-        Data::TensorIterator defineOp_(computation_graph::first_graph::node_list_iterator& opNode, Data::TensorIterator *inputs, std::size_t numInputs);
-        void incrementOpsCounter_(OpType opType);
-        void decrementOpsCounter_(OpType opType);
-        std::string getOpName_(OpType opType);
-
+        /*bool defineDefaultControlFlow_(Data::OpListIterator op);
+        bool defaultStage_(Data::OpListIterator op);*/
+        
     public:
 
         OpModel(const std::string& name);
         OpModel(mv::json::Value& value);
+        virtual ~OpModel();
 
         OpModel(ComputationModel& model);
-        OpModel(CompositionalModel& model);
+        //OpModel(CompositionalModel& model);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
 
@@ -39,7 +31,7 @@ namespace mv
         Data::OpListIterator opEnd() const;
         Data::FlowListIterator flowEnd() const;
 
-        Data::TensorIterator input(const Shape& shape, DType dType, Order order, const std::string& name = "") override;
+        /*Data::TensorIterator input(const Shape& shape, DType dType, Order order, const std::string& name = "") override;
         Data::TensorIterator output(Data::TensorIterator input, const std::string& name = "") override;
         Data::TensorIterator constant(const std::vector<double>& data, const Shape& shape, DType dType, Order order, const std::string& name = "") override;
         Data::TensorIterator conv2D(Data::TensorIterator input, Data::TensorIterator filters, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name = "") override;
@@ -66,23 +58,32 @@ namespace mv
         bool isValid(const Data::OpListIterator& it) const override;
 
         Data::OpListIterator getSourceOp(Data::TensorIterator tensor) override;
-        void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) override;
+        void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) override;*/
 
-        bool removeOp(Data::OpListIterator op);
+        bool isValid() const;
+        bool isValid(const Data::TensorIterator& it) const;
+        bool isValid(const Data::OpListIterator& it) const;
+
+        Data::OpListIterator getSourceOp(Data::TensorIterator tensor);
+        void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr);
+
+        Data::TensorIterator defineOp(const std::string& opType, const std::vector<Data::TensorIterator>& inputs,
+            std::initializer_list<std::pair<std::string, Attribute>> args = {}, std::string name = "");
+        void removeOp(Data::OpListIterator op);
         Data::FlowListIterator defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, std::size_t inputIdx);
         Data::FlowListIterator defineFlow(Data::OpListIterator sourceOp, std::size_t outputIdx, Data::OpListIterator sinkOp, std::size_t inputIdx);
-        bool undefineFlow(Data::FlowListIterator flow);
+        void undefineFlow(Data::FlowListIterator flow);
 
-        GroupContext::MemberIterator addGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);
+        /*GroupContext::MemberIterator addGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);
         bool removeGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group);
         using ComputationModel::addGroupElement;
-        using ComputationModel::removeGroupElement;
+        using ComputationModel::removeGroupElement;*/
 
         std::vector<Shape> getInputShapes(Data::OpListIterator& op);
         std::vector<Shape> getOutputShapes(Data::OpListIterator& op);
 
         std::size_t opsCount() const;
-        std::size_t opsCount(OpType opType) const;
+        std::size_t opsCount(const std::string& opType) const;
 
         long long unsigned parametersCount() const;
 

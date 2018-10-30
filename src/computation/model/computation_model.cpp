@@ -1,17 +1,20 @@
 #include "include/mcm/computation/model/computation_model.hpp"
-#include "include/mcm/computation/op/ops_headers.hpp"
+#include "include/mcm/computation/op/op.hpp"
 
 mv::ComputationModel::ComputationModel(const std::string& name) :
 name_(name),
 opsGraph_(std::make_shared<computation_graph>(computation_graph())),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
-flowTensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>(std::map<std::string, std::shared_ptr<Tensor>>())),
-tensorsSources_(std::make_shared<std::map<std::string, Data::OpListIterator>>(std::map<std::string, Data::OpListIterator>())),
-groups_(std::make_shared<std::map<std::string, std::shared_ptr<ComputationGroup>>>(std::map<std::string, std::shared_ptr<ComputationGroup>>())),
-stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<ComputationStage>>>(std::map<std::size_t, std::shared_ptr<ComputationStage>>())),
-memoryAllocators_(std::make_shared<std::map<std::string, std::shared_ptr<MemoryAllocator>>>(std::map<std::string, std::shared_ptr<MemoryAllocator>>())),
-opsCounter_(std::make_shared<std::map<OpType, std::size_t>>(std::map<OpType, std::size_t>())),
+ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
+dataFlows_(std::make_shared<std::unordered_map<std::string, Data::FlowListIterator>>()),
+controlFlows_(std::make_shared<std::unordered_map<std::string, Control::FlowListIterator>>()),
+tensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>()),
+groups_(std::make_shared<std::map<std::string, std::shared_ptr<Group>>>()),
+stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<Stage>>>()),
+memoryAllocators_(std::make_shared<std::map<std::string, std::shared_ptr<MemoryAllocator>>>()),
+opsInstanceCounter_(std::make_shared<std::map<std::string, std::size_t>>()),
+opsIndexCounter_(std::make_shared<std::map<std::string, std::size_t>>()),
 dataOpEnd_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
 controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
@@ -19,7 +22,7 @@ controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_e
 input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end()))
 {
-    log(Logger::MessageType::Info, "Initialized");
+    
 }
 
 /*void mv::ComputationModel::addOutputTensorsJson(Data::OpListIterator insertedOp)
@@ -200,7 +203,7 @@ mv::ComputationModel::ComputationModel(json::Value &model) :
     for(std::sconst std::string& nametensors.size(); ++i)
     {
         auto currentTensor = std::make_shared<Tensor>(tensors[i]);
-        auto addedTensor = flowTensors_->emplace(currentTensor->getName(), currentTensor);
+        auto addedTensor = tensors_->emplace(currentTensor->getName(), currentTensor);
         handleGroupsForAddedElement<Tensor, Data::TensorIterator>(addedTensor.first);
     }
 
@@ -273,12 +276,15 @@ name_(other.name_),
 opsGraph_(other.opsGraph_),
 dataGraph_(other.dataGraph_),
 controlGraph_(other.controlGraph_),
-flowTensors_(other.flowTensors_),
-tensorsSources_(other.tensorsSources_),
+ops_(other.ops_),
+dataFlows_(other.dataFlows_),
+controlFlows_(other.controlFlows_),
+tensors_(other.tensors_),
 groups_(other.groups_),
 stages_(other.stages_),
 memoryAllocators_(other.memoryAllocators_),
-opsCounter_(other.opsCounter_),
+opsInstanceCounter_(other.opsInstanceCounter_),
+opsIndexCounter_(other.opsIndexCounter_),
 dataOpEnd_(other.dataOpEnd_),
 dataFlowEnd_(other.dataFlowEnd_),
 controlOpEnd_(other.controlOpEnd_),
@@ -286,12 +292,35 @@ controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_)
 {
-    log(Logger::MessageType::Info, "Bound");
+    
 }
 
 mv::ComputationModel::~ComputationModel()
 {
-    log(Logger::MessageType::Info, "Deleted");
+    
+}
+
+void mv::ComputationModel::incrementOpsIndexCounter_(const std::string& opType)
+{
+    if (opsIndexCounter_->find(opType) == opsIndexCounter_->end())
+        opsIndexCounter_->emplace(opType, 1);
+    else
+        ++opsIndexCounter_->at(opType);
+}
+
+void mv::ComputationModel::incrementOpsInstanceCounter_(const std::string& opType)
+{
+    if (opsInstanceCounter_->find(opType) == opsInstanceCounter_->end())
+        opsInstanceCounter_->emplace(opType, 0);
+    else
+        ++opsInstanceCounter_->at(opType);
+}
+
+void mv::ComputationModel::decrementOpsInstanceCounter_(const std::string& opType)
+{
+    if (opsInstanceCounter_->find(opType) != opsInstanceCounter_->end())
+        if (opsInstanceCounter_->at(opType) > 0)
+            --opsInstanceCounter_->at(opType);
 }
 
 bool mv::ComputationModel::isValid() const
@@ -304,7 +333,7 @@ bool mv::ComputationModel::isValid(const Data::TensorIterator &it) const
 
     if (it == tensorEnd())
         return false;
-    if (flowTensors_->find(it->getName()) != flowTensors_->end())
+    if (tensors_->find(it->getName()) != tensors_->end())
         return true;
     return false;
 
@@ -315,7 +344,7 @@ bool mv::ComputationModel::isValid(const Data::OpListIterator &it) const
     
     if (it == *dataOpEnd_)
         return false;
-    if (dataGraph_.node_find(it) != dataGraph_.node_end())
+    if (dataGraph_.node_find(*it) != dataGraph_.node_end())
         return true;
     return false;
 
@@ -326,7 +355,7 @@ bool mv::ComputationModel::isValid(const Control::OpListIterator &it) const
     
     if (it == *controlOpEnd_)
         return false;
-    if (controlGraph_.node_find(it) != controlGraph_.node_end())
+    if (controlGraph_.node_find(*it) != controlGraph_.node_end())
         return true;
     return false;
 
@@ -336,7 +365,7 @@ bool mv::ComputationModel::isValid(const Data::FlowListIterator &it) const
 {
     if (it == *dataFlowEnd_)
         return false;
-    if (dataGraph_.edge_find(it) != dataGraph_.edge_end())
+    if (dataGraph_.edge_find(*it) != dataGraph_.edge_end())
         return true;
     return false;
 }
@@ -345,12 +374,12 @@ bool mv::ComputationModel::isValid(const Control::FlowListIterator &it) const
 {
     if (it == *controlFlowEnd_)
         return false;
-    if (controlGraph_.edge_find(it) != controlGraph_.edge_end())
+    if (controlGraph_.edge_find(*it) != controlGraph_.edge_end())
         return true;
     return false;
 }
 
-mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
+/*mv::GroupContext::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
 {
 
     if (getGroup(name) == groupEnd())
@@ -425,9 +454,9 @@ bool mv::ComputationModel::removeGroupElement_(std::weak_ptr<Element> element, m
 
     return false;
 
-}
+}*/
 
-bool mv::ComputationModel::checkOpsStages_() const
+/*bool mv::ComputationModel::checkOpsStages_() const
 {
 
     if (*input_ == *dataOpEnd_)
@@ -441,12 +470,12 @@ bool mv::ComputationModel::checkOpsStages_() const
 
     return true;
 
-}
+}*/
 
-mv::Control::StageIterator mv::ComputationModel::addStage_()
+/*mv::Control::StageIterator mv::ComputationModel::addStage_()
 {
 
-    auto it = stages_->emplace(stages_->size(), std::make_shared<ComputationStage>(stages_->size()));
+    auto it = stages_->emplace(stages_->size(), std::make_shared<Stage>(stages_->size()));
     log(Logger::MessageType::Info, "Defined " + it.first->second->toString());
     return it.first;
 
@@ -469,18 +498,18 @@ bool mv::ComputationModel::addToStage_(Control::StageIterator &stage, Data::OpLi
 
     return false;
 
-}
+}*/
 
-mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx)
+/*mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx)
 {
     if (!isValid(source))
         throw ArgumentError(*this, "Source op", "null", "Undefined source op");
 
     auto tensorDef = source->getOutputDef(outputIdx);
 
-    if (flowTensors_->find(tensorDef.getName()) == flowTensors_->end())
+    if (tensors_->find(tensorDef.getName()) == tensors_->end())
     {
-        auto result = flowTensors_->emplace(tensorDef.getName(), std::make_shared<Tensor>(tensorDef));
+        auto result = tensors_->emplace(tensorDef.getName(), std::make_shared<Tensor>(tensorDef));
         tensorsSources_->emplace(tensorDef.getName(), source);
         log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
         return result.first;
@@ -488,20 +517,20 @@ mv::Data::TensorIterator mv::ComputationModel::defineOutputTensor_(Data::OpListI
 
     throw(ArgumentError(*this, "Tensor name", tensorDef.getName(), "Duplicated tensor identifier"));
     
-}
+}*/
 
-mv::Data::TensorIterator mv::ComputationModel::findTensor_(const std::string &name)
+/*mv::Data::TensorIterator mv::ComputationModel::findTensor_(const std::string &name)
 {
-    auto it = flowTensors_->find(name);
+    auto it = tensors_->find(name);
 
-    if (it == flowTensors_->end())
+    if (it == tensors_->end())
         throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
     return it;
 
-}
+}*/
 
-mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterator &tensor)
+/*mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterator &tensor)
 {
 
     if (tensor == tensorEnd())
@@ -514,9 +543,9 @@ mv::Data::OpListIterator mv::ComputationModel::findSourceOp_(Data::TensorIterato
 
     return it->second;
 
-}
+}*/
 
-mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
+/*mv::GroupContext::MemberIterator mv::ComputationModel::addGroupElement(GroupContext::GroupIterator &element, GroupContext::GroupIterator &group)
 {
     std::shared_ptr<ComputationGroup> ptr = element;
     return addGroupElement_(ptr, group);
@@ -526,20 +555,20 @@ bool mv::ComputationModel::removeGroupElement(GroupContext::GroupIterator &eleme
 {
     std::shared_ptr<ComputationGroup> ptr = element;
     return removeGroupElement_(ptr, group);
-}
+}*/
 
-mv::GroupContext::GroupIterator mv::ComputationModel::groupBegin()
+mv::GroupIterator mv::ComputationModel::groupBegin()
 {
     return groups_->begin();
 }
 
-mv::GroupContext::GroupIterator mv::ComputationModel::groupEnd()
+mv::GroupIterator mv::ComputationModel::groupEnd()
 {
     //return GroupContext::GroupIterator();
     return groups_->end();
 }
 
-mv::GroupContext::MemberIterator mv::ComputationModel::memberBegin(GroupContext::GroupIterator &group)
+/*mv::GroupContext::MemberIterator mv::ComputationModel::memberBegin(GroupContext::GroupIterator &group)
 {
 
     if (group != groupEnd())
@@ -562,26 +591,90 @@ mv::GroupContext::MemberIterator mv::ComputationModel::memberEnd(GroupContext::G
 
     return GroupContext::MemberIterator();
 
-}
+}*/
 
 mv::Data::TensorIterator mv::ComputationModel::tensorBegin() const
 {
-    return flowTensors_->begin();
+    return tensors_->begin();
 }
 
 mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
 {
-    return flowTensors_->end();
+    return tensors_->end();
 }
+
+mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string& name)
+{
+
+    auto it = tensors_->find(name);
+
+    if (it == tensors_->end())
+        throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
+
+    return it;
+
+}
+
+mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
+{
+
+    auto it = ops_->find(name);
+
+    if (it == ops_->end())
+        throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
+
+    return it->second;
+
+}
+
+mv::Data::FlowListIterator mv::ComputationModel::getDataFlow(const std::string& name)
+{
+
+    auto it = dataFlows_->find(name);
+
+    if (it == dataFlows_->end())
+        throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
+
+    return it->second;
+
+}
+
+mv::Control::FlowListIterator mv::ComputationModel::getControlFlow(const std::string& name)
+{
+
+    auto it = controlFlows_->find(name);
+
+    if (it == controlFlows_->end())
+        throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
+
+    return it->second;
+
+}
+
+mv::GroupIterator mv::ComputationModel::getGroup(const std::string& name)
+{
+
+    auto it = groups_->find(name);
+
+    if (it == groups_->end())
+        throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
+
+    return it;
+
+}
+
 
 void mv::ComputationModel::clear()
 {
-    flowTensors_->clear();
-    tensorsSources_->clear();
+    ops_->clear();
+    dataFlows_->clear();
+    controlFlows_->clear();
+    tensors_->clear();
     groups_->clear();
     stages_->clear();
     memoryAllocators_->clear();
-    opsCounter_->clear();
+    opsInstanceCounter_->clear();
+    opsIndexCounter_->clear();
     dataGraph_.clear();
     controlGraph_.clear();
     *dataOpEnd_ = dataGraph_.node_end();
@@ -614,10 +707,10 @@ void mv::ComputationModel::clear()
         groups.append(Jsonable::toJsonValue(*groupIt->second));
 
     //Tensors and source operations
-    for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
+    for (auto tensorIt = tensors_->begin(); tensorIt != tensors_->end(); ++tensorIt)
         tensors.append(Jsonable::toJsonValue(*(tensorIt->second)));
 
-    for (auto tensorIt = flowTensors_->begin(); tensorIt != flowTensors_->end(); ++tensorIt)
+    for (auto tensorIt = tensors_->begin(); tensorIt != tensors_->end(); ++tensorIt)
     {
         if(tensorIt->second->isPopulated())
         {

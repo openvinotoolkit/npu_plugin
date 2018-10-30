@@ -2,11 +2,13 @@
 #define MV_OP_REGISTRY_HPP_
 
 #include <string>
+#include <fstream>
 #include "include/mcm/base/registry.hpp"
 #include "include/mcm/computation/op/op_entry.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/master_error.hpp"
 #include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 
 namespace mv
 {
@@ -17,14 +19,23 @@ namespace mv
         class OpRegistry : public Registry<std::string, OpEntry>
         {
 
+            static const std::string compAPIHeaderPath_;
+            static const std::string compAPISourcePath_;
+
             /**
              * @brief Legal op types traits
              */
             static const std::set<std::string> typeTraits_;
 
+            static std::string getCompositionDeclSig_(const std::string& opType, bool defaultArgs);
+            static std::string getCompositionDecl_(const std::string& opType);
+            static std::string getCompositionDef_(const std::string& opType, const std::string& eol = "\n", const std::string& tab = "    ");
+
         public:
 
             static OpRegistry& instance();
+
+            static std::vector<std::string> getOpTypes(std::initializer_list<std::string> traits = {});
 
             static bool checkOpType(const std::string& opType);
             static std::vector<std::string> argsList(const std::string& opType);
@@ -42,6 +53,9 @@ namespace mv
             static const std::vector<std::string>& getOutputLabel(const std::string& opType);
             static bool checkTypeTrait(const std::string& typeTrait);
             static const std::set<std::string>& getTypeTraits(const std::string& opType);
+            static bool hasTypeTrait(const std::string& opType, const std::string& trait);
+
+            static void generateCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
             
         };
 

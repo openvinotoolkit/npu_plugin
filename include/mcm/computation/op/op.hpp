@@ -7,22 +7,17 @@
 #include "include/mcm/computation/model/model_element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/tensor.hpp"
-#include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/op/op_registry.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
 
 namespace mv
 {
 
-    class ComputationModel;
-
     class Op : public ModelElement
     {
 
-        ComputationModel& model_;
         std::vector<Data::TensorIterator> inputs_;
         std::vector<Data::TensorIterator> outputs_;
 
@@ -30,6 +25,8 @@ namespace mv
 
         Op(ComputationModel& model, const std::string& opType, const std::string& name, 
             const std::vector<Data::TensorIterator>& inputs, std::initializer_list<std::pair<std::string, Attribute>> args = {});
+
+        virtual ~Op();
 
         std::string getOpType() const;
 

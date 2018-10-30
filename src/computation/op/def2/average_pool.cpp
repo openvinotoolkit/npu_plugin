@@ -67,7 +67,7 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("kSize")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait("executable");
+        .setTypeTrait({"executable", "exposed"});
 
     }
 

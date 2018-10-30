@@ -3,7 +3,7 @@
 mv::OpModel::OpModel(const std::string& name) :
 ComputationModel(name)
 {
-
+    log(Logger::MessageType::Debug, "Initialized");
 }
 
 /*mv::OpModel::OpModel(mv::json::Value& value) :
@@ -15,80 +15,12 @@ ComputationModel(value)
 mv::OpModel::OpModel(ComputationModel& other) :
 ComputationModel(other)
 {
-
+    log(Logger::MessageType::Debug, "Bound");
 }
 
-mv::OpModel::OpModel(CompositionalModel& model) :
-ComputationModel(static_cast<OpModel&>(model))
+mv::OpModel::~OpModel()
 {
-
-}
-
-mv::Data::OpListIterator mv::OpModel::checkInputTensor_(Data::TensorIterator inputTensor)
-{
-
-    if (inputTensor == tensorEnd())
-    {
-        log(Logger::MessageType::Error, "Unable to define source op - undefined input tensor" );
-        return opEnd();
-    }
-
-    auto sourceIt = findSourceOp_(inputTensor);
-
-    if (sourceIt == opEnd())
-    {
-        log(Logger::MessageType::Error, "Unable to define source op - tensor '" + inputTensor->getName() + 
-            "' does not belong to the computation model");
-        return opEnd();
-    }
-
-    return sourceIt;
-
-}
-
-mv::Data::TensorIterator mv::OpModel::defineOp_(computation_graph::first_graph::node_list_iterator& opNode, Data::TensorIterator* inputs, std::size_t numInputs)
-{
-
-    if (opNode == dataGraph_.node_end())
-    {
-        log(Logger::MessageType::Error, "Unable to allocate a new op");
-        return tensorEnd();
-    }
-
-    for (std::size_t i = 0; i < numInputs; ++i)
-        defineFlow(inputs[i], opNode, i);
-
-    auto outputTensor = defineOutputTensor_(opNode, 0);
-    (*opNode)->setOutputTensor(outputTensor, 0);
-    log(Logger::MessageType::Info, "Defined " + (*opNode)->toString());
-
-    return outputTensor;
-
-}
-
-void mv::OpModel::incrementOpsCounter_(OpType opType)
-{
-    if (opsCounter_->find(opType) == opsCounter_->end())
-    {
-        opsCounter_->emplace(opType, 1);
-    }
-    else
-        ++opsCounter_->at(opType);
-}
-void mv::OpModel::decrementOpsCounter_(OpType opType)
-{
-    if (opsCounter_->find(opType) == opsCounter_->end())
-        return;
-    else
-    {
-        if (opsCounter_->at(opType) > 0)
-            --opsCounter_->at(opType);
-    }
-}
-
-std::string mv::OpModel::getOpName_(OpType opType)
-{
-    return opType.toString() + "_" + std::to_string(opsCount(opType));
+    log(Logger::MessageType::Debug, "Deleted");
 }
 
 mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator other)
@@ -96,7 +28,7 @@ mv::Data::OpListIterator mv::OpModel::switchContext(Control::OpListIterator othe
     return opsGraph_->get_first_iterator(other);
 }
 
-mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const std::string& name)
+/*mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, DType dType, Order order, const std::string& name)
 {
 
     if (*input_ != opEnd())
@@ -447,60 +379,93 @@ mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator inputT
         incrementOpsCounter_(OpType::FullyConnected);
     return result;
 
-}
+}*/
 
 mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)
 {
-    return findSourceOp_(tensor);
+
+    if (!tensor->hasAttr("sourceOp"))
+        return opEnd();
+    
+    auto it = ops_->find(tensor->get<std::string>("sourceOp"));
+    if (it == ops_->end())
+        throw RuntimeError(*this, "Source op " + tensor->get<std::string>("sourceOp") + " of tensor " +
+            tensor->getName() + " does not belong to the model");
+    
+    return it->second;
+
 }
 
-bool mv::OpModel::removeOp(Data::OpListIterator op)
+mv::Data::TensorIterator mv::OpModel::defineOp(const std::string& opType, const std::vector<Data::TensorIterator>& inputs,
+            std::initializer_list<std::pair<std::string, Attribute>> args, std::string name)
+{
+
+    if (name.empty())
+    {
+        if (opsIndexCounter_->find(opType) != opsIndexCounter_->end())
+            name = opType + "_" + std::to_string(opsIndexCounter_->at(opType));
+        else
+            name = opType + "_0";
+    }
+
+    if (ops_->find(name) != ops_->end())
+        throw ArgumentError(*this, "op:name", name, "Duplicated op name");
+    
+    auto opNode = dataGraph_.node_insert(Op(*this, opType, name, inputs, args));
+
+    for (std::size_t i = 0; i < (*opNode).inputSlots(); ++i)
+        defineFlow(inputs[i], opNode, i);
+
+    incrementOpsInstanceCounter_(opType);
+    incrementOpsIndexCounter_(opType);
+
+    ops_->emplace(name, opNode);
+
+    log(Logger::MessageType::Info, "Defined " + (*opNode).toString());
+
+    if ((*opNode).outputSlots() > 0)
+        return (*opNode).getOutputTensor(0);
+
+    return tensorEnd();
+
+}
+
+void mv::OpModel::removeOp(Data::OpListIterator op)
 {
 
     if (op == opEnd())
-        return false;
+        throw ArgumentError(*this, "op:iterator", "end", "Invalid iterator passed for op removal");
 
     for (std::size_t j = 0; j < op->outputSlots(); ++j)
-    {
-        tensorsSources_->erase(op->getOutputTensor(j)->getName());
-        flowTensors_->erase(op->getOutputTensor(j));
-    }
+        tensors_->erase(op->getOutputTensor(j));
 
-    auto opCounterIt = opsCounter_->find(op->getOpType());
-    if (opCounterIt != opsCounter_->end())
-    {
-        --opCounterIt->second;
-        if (opCounterIt->second == 0)
-            opsCounter_->erase(opCounterIt);
+    decrementOpsInstanceCounter_(op->getOpType());
+    ops_->erase(op->getName());
 
-    }
+    log(Logger::MessageType::Info, "Removed " + op->toString());
 
     dataGraph_.node_erase(op);
-
-    return true;
-
+    
 }
 
 mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, std::size_t inputIdx)
 {
 
     if (!isValid(sourceTensor))
-        throw ArgumentError(*this, "source tensor", "invalid", "Invalid tensor passed for the data flow definition");
+        throw ArgumentError(*this, "sourceTensor", "invalid", "Invalid tensor passed for the data flow definition");
 
     if (!isValid(sinkOp))
-        throw ArgumentError(*this, "sink op", "invalid", "Invalid sink op passed for the data flow definition");
+        throw ArgumentError(*this, "sinkOp", "invalid", "Invalid sink op passed for the data flow definition");
 
-    auto sourceOp = findSourceOp_(sourceTensor);
-    sinkOp->setInputTensor(sourceTensor, inputIdx);
-    Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, std::make_shared<DataFlow>(sourceOp, 0, sinkOp, inputIdx, sourceTensor));
+    auto sourceOp = getSourceOp(sourceTensor);
+    if (sourceOp == opEnd())
+        throw ArgumentError(*this, "sourceTensor", "sourceless", "Defining flow using a tensor that does not have a source op is illegal");
+
+    Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, DataFlow(*this, sourceOp, 0, sinkOp, inputIdx, sourceTensor));
     
-    if (inputFlow != *dataFlowEnd_)
-    {
-        log(Logger::MessageType::Info, "Defined " + inputFlow->toString());
-        return inputFlow;
-    }
-    
-    throw RuntimeError(*this, "Unnable to create data flow");
+    dataFlows_->emplace(inputFlow->getName(), inputFlow);
+    log(Logger::MessageType::Info, "Defined " + inputFlow->toString());
+    return inputFlow;
 
 }
 
@@ -512,14 +477,15 @@ mv::Data::FlowListIterator mv::OpModel::defineFlow(Data::OpListIterator sourceOp
 
 }
 
-bool mv::OpModel::undefineFlow(Data::FlowListIterator flow)
+void mv::OpModel::undefineFlow(Data::FlowListIterator flow)
 {
 
     if (!ComputationModel::isValid(flow))
-        return false;
+        throw ArgumentError(*this, "flow:iterator", "invalid", "Invalid flow passed for deletion");
 
+    log(Logger::MessageType::Info, "Removed " + flow->toString());
+    dataFlows_->erase(flow->getName());
     dataGraph_.edge_erase(flow);
-    return true;
 
 }
 
@@ -563,7 +529,7 @@ mv::Data::FlowListIterator mv::OpModel::flowEnd() const
     return *dataFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
+/*mv::GroupContext::MemberIterator mv::OpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
 {
 
     std::shared_ptr<ComputationOp> ptr = newElement;
@@ -575,7 +541,7 @@ bool mv::OpModel::removeGroupElement(Data::OpListIterator element, GroupContext:
 {
     std::shared_ptr<ComputationOp> ptr = element;
     return removeGroupElement_(ptr, group);
-}
+}*/
 
 std::vector<mv::Shape> mv::OpModel::getInputShapes(Data::OpListIterator& op)
 {
@@ -610,10 +576,10 @@ std::size_t mv::OpModel::opsCount() const
     return dataGraph_.node_size();
 }
 
-std::size_t mv::OpModel::opsCount(OpType opType) const
+std::size_t mv::OpModel::opsCount(const std::string& opType) const
 {
-    if (opsCounter_->find(opType) != opsCounter_->end())
-        return opsCounter_->at(opType);
+    if (opsInstanceCounter_->find(opType) != opsInstanceCounter_->end())
+        return opsInstanceCounter_->at(opType);
     return 0;
 }
 
@@ -624,7 +590,7 @@ long long unsigned mv::OpModel::parametersCount() const
 
     for (auto it = *input_; it != opEnd(); ++it)
     {
-        if (it->getOpType() == OpType::Constant)
+        if (it->getOpType() == "Constant")
         {
             result += it->getOutputTensor(0)->getShape().totalSize();
         }

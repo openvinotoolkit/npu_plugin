@@ -32,7 +32,8 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn);
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"exposed"});
 
     }
 

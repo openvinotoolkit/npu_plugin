@@ -1,16 +1,16 @@
 #include "include/mcm/computation/flow/control_flow.hpp"
 
-mv::ControlFlow::ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink) :
-ComputationFlow("cf_" + source->getName() + "_" + sink->getName())
+mv::ControlFlow::ControlFlow(ComputationModel& model, Control::OpListIterator &source, Control::OpListIterator &sink) :
+ModelElement(model, "cf_" + source->getName() + "_" + sink->getName())
 {
-    log(Logger::MessageType::Info, "Initialized");
-    set<std::string>("sourceOp", source->getName());
-    set<std::string>("sinkOp", sink->getName());
+    log(Logger::MessageType::Debug, "Initialized");
+    set<std::string>("sourceOp", source->getName(), {"const"});
+    set<std::string>("sinkOp", sink->getName(), {"const"});
 }
 
 mv::ControlFlow::~ControlFlow()
 {
-    log(Logger::MessageType::Info, "Deleted");
+    log(Logger::MessageType::Debug, "Deleted");
 }
 
 /*mv::ControlFlow::ControlFlow(mv::json::Value &value):

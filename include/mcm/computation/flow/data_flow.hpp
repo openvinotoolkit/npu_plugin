@@ -1,29 +1,26 @@
 #ifndef DATA_FLOW_HPP_
 #define DATA_FLOW_HPP_
 
-#include "include/mcm/computation/flow/flow.hpp"
-#include "include/mcm/tensor/tensor.hpp"
+#include "include/mcm/computation/model/model_element.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
-#include "include/mcm/computation/op/computation_op.hpp"
+#include "include/mcm/computation/op/op.hpp"
 
 namespace mv
 {
 
-    class DataFlow : public ComputationFlow
+    class DataFlow : public ModelElement
     {
-
-        Data::TensorIterator data_;
 
     public:
 
-        DataFlow(const Data::OpListIterator& source, std::size_t outputIdx, const Data::OpListIterator& sink, 
+        DataFlow(ComputationModel& model, const Data::OpListIterator& source, std::size_t outputIdx, const Data::OpListIterator& sink, 
             std::size_t inputIdx, const Data::TensorIterator& data);
         ~DataFlow();
         /*DataFlow(mv::json::Value& value);
         DataFlow(mv::json::Value& value, const Data::TensorIterator& data);*/
-        Data::TensorIterator& getTensor();
+        Data::TensorIterator getTensor();
         std::string toString() const;
-        json::Value toJsonValue() const;
+        //json::Value toJsonValue() const;
         std::string getLogID() const override;
 
     };

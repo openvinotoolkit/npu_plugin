@@ -22,7 +22,7 @@ namespace mv
         static Logger& logger_;
 
         OpModel* model_;
-        CompositionalModelRecorder* recordedModel_;
+        //CompositionalModelRecorder* recordedModel_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
         json::Object compilationDescriptor_;
@@ -39,8 +39,8 @@ namespace mv
 
         PassManager& passManager();
         json::Object& compilationDescriptor();
-        CompositionalModel& model();
-        CompositionalModel& recordedModel();
+        OpModel& model();
+        //CompositionalModel& recordedModel();
 
         void loadModelFromJson(const std::string& path);
         bool initialize();

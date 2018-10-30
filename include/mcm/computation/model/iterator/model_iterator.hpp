@@ -7,11 +7,13 @@
 namespace mv
 {   
 
-    class ComputationOp;
+    //class ComputationOp;
+    class Op;
     class DataFlow;
     class ControlFlow;
 
-    using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
+    //using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
+    using computation_graph = conjoined_graph<Op, DataFlow, ControlFlow>;
 
     namespace IteratorDetail
     {
@@ -128,11 +130,6 @@ namespace mv
                 return (*this->it_).operator->();
             }
 
-            operator std::shared_ptr<ContentType>()
-            {
-                return *this->it_;
-            }
-
             operator bool() const
             {
                 //return (bool)ptr_;
@@ -185,11 +182,6 @@ namespace mv
             ContentType* operator->() const
             {
                 return this->it_->second.operator->();
-            }
-
-            operator std::shared_ptr<ContentType>()
-            {
-                return this->it_->second;
             }
 
             operator bool() const
@@ -277,12 +269,12 @@ namespace mv
 
             NodeContentType& operator*() const
             {
-                return *(*this->it_);
+                return *this->it_;
             }
 
             NodeContentType* operator->() const
             {
-                return (*this->it_).operator->();
+                return &(*this->it_);
             }
 
             template <class OtherIteratorType>
@@ -300,21 +292,6 @@ namespace mv
             std::size_t outputsSize()
             {
                 return this->it_->outputs_size();
-            }
-
-            operator std::shared_ptr<NodeContentType>&()
-            {
-                return *this->it_;
-            }
-
-            operator const std::shared_ptr<NodeContentType>&() const
-            {
-                return *this->it_;
-            }
-
-            operator const std::shared_ptr<NodeContentType>() const
-            {
-                return *this->it_;
             }
 
             OpIterator<GraphType, typename GraphType::node_child_iterator, NodeContentType, EdgeContentType> leftmostChild();
@@ -364,27 +341,12 @@ namespace mv
 
             EdgeContentType& operator*() const
             {
-                return  *(*this->it_);
+                return  *this->it_;
             }
 
             EdgeContentType* operator->() const
             {
-                return (*this->it_).operator->();
-            }
-
-            operator std::shared_ptr<EdgeContentType>&()
-            {
-                return *this->it_;
-            }
-
-            operator const std::shared_ptr<EdgeContentType>&() const
-            {
-                return *this->it_;
-            }
-
-            operator const std::shared_ptr<EdgeContentType>() const
-            {
-                return *this->it_;
+                return &(*this->it_);
             }
 
             FlowIterator<GraphType, typename GraphType::edge_child_iterator, EdgeContentType, NodeContentType> leftmostChild();

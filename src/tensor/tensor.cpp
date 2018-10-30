@@ -8,6 +8,9 @@ blockSize_(shape[-1]),
 blocks_(shape.totalSize() / blockSize_),
 shape_(shape)
 {
+
+    log(Logger::MessageType::Debug, "Initialized");
+
     set<Shape>("shape", shape_);
     set<Order>("order", order);
     set<DType>("dType", dType);
@@ -31,16 +34,20 @@ blockSize_(other.blockSize_),
 blocks_(other.blocks_.size()),
 shape_(other.shape_)
 {
+
+    log(Logger::MessageType::Debug, "Copied");
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_.begin() + i * blockSize_;
 
     if (isPopulated())
         data_ = other.data_;
+
 }
 
 mv::Tensor::~Tensor()
 {
-
+    log(Logger::MessageType::Debug, "Deleted");
 }
 
 std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
@@ -100,6 +107,7 @@ void mv::Tensor::populate(const std::vector<double>& data)
     else
         data_ = data;
     set("populated", true);
+    log(Logger::MessageType::Debug, "Populated");
 
 }
 
@@ -116,6 +124,8 @@ void mv::Tensor::unpopulate()
 
     data_.clear();
     set<bool>("populated", false);
+
+    log(Logger::MessageType::Debug, "Unpopulated");
 
 }
 
@@ -157,6 +167,7 @@ void mv::Tensor::setOrder(Order order)
 {
 
     set<Order>("order", order);
+    log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
     return;
 
 }

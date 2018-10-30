@@ -1,7 +1,7 @@
 #ifndef MV_BASE_REGISTRY_HPP_
 #define MV_BASE_REGISTRY_HPP_
 
-#include <unordered_map>
+#include <map>
 #include <string>
 #include <vector>
 #include <cassert>
@@ -18,7 +18,7 @@ namespace mv
             
         protected:
 
-            std::unordered_map<KeyType, EntryType*> reg_;
+            std::map<KeyType, EntryType*> reg_;
 
             Registry()
             {

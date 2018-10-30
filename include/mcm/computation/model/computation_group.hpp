@@ -2,75 +2,97 @@
 #define GROUP_HPP_
 
 #include <algorithm>
-#include <set>
-#include "include/mcm/base/element.hpp"
+#include <vector>
+#include <string>
+#include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/computation/model/iterator/control_context.hpp"
+#include "include/mcm/computation/model/model_element.hpp"
+#include "include/mcm/base/exception/logic_error.hpp"
 
 namespace mv
 {
 
-    class ComputationGroup : public Element
+    class Group;
+    using GroupIterator = IteratorDetail::ModelValueIterator<std::map<std::string, std::shared_ptr<Group>>::iterator, Group>;
+    class ComputationModel;
+
+    class Group : public ModelElement
     {
-    
-    public:
-
-        struct GroupOrderComparator
-        {
-
-            bool operator()(const std::weak_ptr<Element> &lhs, const std::weak_ptr<Element> &rhs)
-            {
-                return *lhs.lock() < *rhs.lock();
-            }
-
-        };
-
-    protected:
-
-        using MemberSet = std::set<std::weak_ptr<Element>, GroupOrderComparator>;
-        MemberSet members_;
-
-        virtual bool markMembmer_(Element &member);
-        virtual bool unmarkMembmer_(Element &member);
-                
-    public:
-
-        ComputationGroup(const std::string &name);
-        bool erase(MemberSet::iterator &member);
-        void clear();
-        MemberSet::iterator begin();
-        MemberSet::iterator end();
-        std::size_t size() const;
-        virtual std::string toString() const override;
-        virtual std::string getLogID() const override;
-
-        template <class ElementType>
-        MemberSet::iterator insert(std::shared_ptr<ElementType> newMember)
-        {
-            
-            if (markMembmer_(*newMember))
-            {
-
-                auto result = members_.insert(newMember);
-
-                if (result.second)
-                    return result.first;
-                else
-                    unmarkMembmer_(*newMember);
-
-            }
-
-            return members_.end();
-
-        }
-
-        template <class ElementType>
-        MemberSet::iterator find(ElementType& member)
-        {   
-            for (auto it = members_.begin(); it != members_.end(); ++it)
-                if (*(it->lock()) == member)
-                    return it;
-            return members_.end();
-        }
         
+        template <class IteratorType>
+        void include_(IteratorType it, std::vector<std::string>& memberList)
+        {   
+            if (std::find(memberList.begin(), memberList.end(), it->getName()) == memberList.end())
+            {
+                memberList.push_back(it->getName());
+                if (!it->hasAttr("groups"))
+                    it->template set<std::vector<std::string>>("groups", { getName() });
+                else
+                    it->template get<std::vector<std::string>>("groups").push_back(getName());
+            }
+        }
+
+        template <class IteratorType>
+        void exclude_(IteratorType it, std::vector<std::string>& memberList)
+        {   
+            if (std::find(memberList.begin(), memberList.end(), it->getName()) != memberList.end())
+            {
+                memberList.erase(std::remove(memberList.begin(), memberList.end(), it->getName()), memberList.end());
+                if (it->hasAttr("groups"))
+                {
+                    std::vector<std::string>& groupsList = it->template get<std::vector<std::string>>("groups");
+                    groupsList.erase(std::remove(groupsList.begin(), groupsList.end(), getName()), groupsList.end());
+                }
+                else
+                    throw LogicError(*this, "Marked member " + it->getName() + " was not labelled");
+            }
+        }
+
+        template <class IteratorType>
+        bool isMember_(IteratorType it, const std::vector<std::string>& memberList) const
+        {   
+            return std::find(memberList.begin(), memberList.end(), it->getName()) != memberList.end();
+        }
+
+    public:
+
+        Group(ComputationModel &model, const std::string &name);
+
+        void include(Data::OpListIterator op);
+        void include(Control::OpListIterator op);
+        void include(Data::FlowListIterator flow);
+        void include(Control::FlowListIterator flow);
+        void include(Data::TensorIterator tensor);
+        void include(GroupIterator group);
+        //void include(Control::StageIterator stage);
+
+        void exclude(Data::OpListIterator op);
+        void exclude(Control::OpListIterator op);
+        void exclude(Data::FlowListIterator flow);
+        void exclude(Control::FlowListIterator flow);
+        void exclude(Data::TensorIterator tensor);
+        void exclude(GroupIterator group);
+        //void exclude(Control::StageIterator stage);
+
+        bool isMember(Data::OpListIterator op) const;
+        bool isMember(Control::OpListIterator op) const;
+        bool isMember(Data::FlowListIterator flow) const;
+        bool isMember(Control::FlowListIterator flow) const;
+        bool isMember(Data::TensorIterator tensor) const;
+        bool isMember(GroupIterator group) const;
+        //bool isMember(Control::StageIterator stage) const;
+
+        std::vector<Data::OpListIterator> getOpMembers();
+        std::vector<Data::FlowListIterator> getDataFlowMembers();
+        std::vector<Control::FlowListIterator> getControlFlowMembers();
+        std::vector<Data::TensorIterator> getTensorMembers();
+        std::vector<GroupIterator> getGroupMembers();
+
+        void clear();
+        std::size_t size() const;
+        std::string toString() const override;
+        std::string getLogID() const override;
+
     };
 
 }

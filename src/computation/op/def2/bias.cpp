@@ -45,11 +45,11 @@ namespace mv
         };
     
         MV_REGISTER_OP(Bias)
-        .setInputs({"data"})
+        .setInputs({"data", "weights"})
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait("executable");
+        .setTypeTrait({"executable", "exposed"});
 
     }
 

@@ -3,10 +3,8 @@
 
 #include <string>
 #include <array>
+#include <functional>
 #include "include/mcm/base/element.hpp"
-#include "include/mcm/tensor/shape.hpp"
-#include "include/mcm/tensor/tensor.hpp"
-#include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 
@@ -18,7 +16,11 @@ namespace mv
     class ModelElement : public Element
     {
 
-        ComputationModel& model_;
+        std::reference_wrapper<ComputationModel> model_;
+
+    protected:
+
+        ComputationModel& getModel_();
 
     public:
 

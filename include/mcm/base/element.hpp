@@ -114,6 +114,14 @@ namespace mv
             return attrs_.at(name).get<AttrType>();
         }
 
+        template <class AttrType>
+        AttrType& get(const std::string &name)
+        {
+            if (!hasAttr(name))
+                throw ArgumentError(*this, "attribute identifer", name,  "Undefined identifier");
+            return attrs_.at(name).get<AttrType>();
+        }
+
     };
 
 }

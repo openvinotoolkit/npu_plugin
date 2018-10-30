@@ -71,7 +71,7 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait("executable");
+        .setTypeTrait({"executable", "exposed"});
 
     }
 

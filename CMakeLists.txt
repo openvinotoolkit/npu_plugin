@@ -37,7 +37,8 @@ file(GLOB base
     "src/base/json/null.cpp"
     "src/utils/parser/json_text.cpp"
     "src/base/exception/*.cpp"
-    "src/utils/*.cpp"
+    "src/utils/env_loader.cpp"
+    "src/utils/custom_math.cpp"
     "src/base/element.cpp"
     "src/computation/model/model_element.cpp"
     "src/tensor/shape.cpp"
@@ -51,48 +52,20 @@ file(GLOB base
     "src/tensor/order/row_interleaved.cpp"
     "src/tensor/dtype.cpp"
     "src/computation/model/computation_model.cpp"
-    "src/api/compositional_model.cpp"
     "src/computation/model/op_model.cpp"
     "src/computation/model/data_model.cpp"
     "src/computation/model/control_model.cpp"
     "src/computation/model/computation_element.cpp"
+    "src/api/compositional_model.cpp"
     "src/computation/op/computation_op.cpp"
     "src/computation/op/kernel_op.cpp"
     "src/computation/model/computation_group.cpp"
-    "src/computation/flow/flow.cpp"
     "src/computation/flow/control_flow.cpp"
     "src/computation/flow/data_flow.cpp"
     "src/computation/resource/memory_allocator.cpp"
     "src/computation/resource/computation_stage.cpp"
     "src/computation/resource/nce1.cpp"
     "src/computation/resource/nce1_utils.cpp"
-    "src/computation/op/source_op.cpp"
-    "src/computation/op/sink_op.cpp"
-    "src/computation/op/pool2d_op.cpp"
-    "src/computation/op/activation_op.cpp"
-    "src/computation/op/eltwise_op.cpp"
-    "src/computation/op/op_type.cpp"
-    "src/computation/op/def/add.cpp"
-    "src/computation/op/def/avgpool2d.cpp"
-    "src/computation/op/def/batch_norm.cpp"
-    "src/computation/op/def/bias.cpp"
-    "src/computation/op/def/concat.cpp"
-    "src/computation/op/def/constant.cpp"
-    "src/computation/op/def/conv2d.cpp"
-    "src/computation/op/def/divide.cpp"
-    "src/computation/op/def/matmul.cpp"
-    "src/computation/op/def/input.cpp"
-    "src/computation/op/def/maxpool2d.cpp"
-    "src/computation/op/def/multiply.cpp"
-    "src/computation/op/def/output.cpp"
-    "src/computation/op/def/relu.cpp"
-    "src/computation/op/def/prelu.cpp"
-    "src/computation/op/def/reshape.cpp"
-    "src/computation/op/def/scale.cpp"
-    "src/computation/op/def/softmax.cpp"
-    "src/computation/op/def/subtract.cpp"
-    "src/computation/op/def/fully_connected.cpp"
-    "src/computation/op/def/conversion.cpp"
     "src/computation/op/op_entry.cpp"
     "src/computation/op/op_registry.cpp"
     "src/computation/op/op.cpp"
@@ -104,7 +77,7 @@ file(GLOB logger
     "src/logger/log_sender.cpp"
 )
 
-file(GLOB pass
+#[[file(GLOB pass
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
@@ -117,25 +90,25 @@ file(GLOB pass
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
-)
+)]]
 
 file(GLOB op
     
 )
 
 file(GLOB compiler
-    "src/compiler/*"
+    #"src/compiler/*"
 )
 
 
 
 if (MSVC)
-    add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler} ${op})
+    add_library(cm OBJECT ${base} ${logger} ${compiler} ${op})
 else()
-    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${op})
-    add_subdirectory(python/api)
-	add_subdirectory(tests)
-	add_subdirectory(contrib/googletest)
+    add_library(cm SHARED ${base} ${logger} ${compiler} ${op})
+    #add_subdirectory(python/api)
+	#add_subdirectory(tests)
+	#add_subdirectory(contrib/googletest)
 endif()
 
 add_subdirectory(examples)

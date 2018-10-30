@@ -1,10 +1,12 @@
 #include "include/mcm/computation/op/op.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 
 mv::Op::Op(ComputationModel& model, const std::string& opType, const std::string& name, 
     const std::vector<Data::TensorIterator>& inputs, std::initializer_list<std::pair<std::string, Attribute>> args) :
-ModelElement(model, name),
-model_(model)
+ModelElement(model, name)
 {
+
+    log(Logger::MessageType::Debug, "Initialized");
 
     if (!op::OpRegistry::checkOpType(opType))
         throw ArgumentError(*this, "opType", opType, "Unregistered op type");
@@ -60,7 +62,7 @@ model_(model)
     std::vector<Tensor> outputsDef;
     op::OpRegistry::getOutputsDef(opType, inputs_, getAttrs_(), outputsDef);
 
-    DataModel dm(model_);
+    DataModel dm(getModel_());
     for (std::size_t i = 0; i < outputsDef.size(); ++i)
     {
         outputsDef[i].setName(getName() + outputsDef[i].getName());
@@ -75,6 +77,11 @@ model_(model)
 
     set<std::vector<std::string>>("traits", opTraits);
 
+}
+
+mv::Op::~Op()
+{
+    log(Logger::MessageType::Debug, "Deleted");
 }
 
 std::string mv::Op::getOpType() const
@@ -95,7 +102,7 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 
     std::vector<Tensor> outputsDef;
     op::OpRegistry::getOutputsDef(getOpType(), inputs_, getAttrs_(), outputsDef);
-    DataModel dm(model_);
+    DataModel dm(getModel_());
     for (std::size_t i = 0; i < outputsDef.size(); ++i)
     {
         *outputs_[i] = outputsDef[i];

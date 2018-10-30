@@ -1,7 +1,13 @@
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/op/op.hpp"
 
 mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
+{
+
+}
+
+mv::ControlModel::~ControlModel()
 {
 
 }
@@ -44,7 +50,7 @@ mv::Control::FlowListIterator mv::ControlModel::flowEnd()
     return *controlFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
+/*mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
 {
     std::shared_ptr<ComputationOp> ptr = element;
     return addGroupElement_(ptr, group);
@@ -179,7 +185,7 @@ mv::Control::StageMemberIterator mv::ControlModel::stageMemberEnd(Control::Stage
     }
     
     return Control::StageMemberIterator();
-}
+}*/
 
 mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp)
 {
@@ -190,10 +196,11 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
     if (!isValid(sinkOp))
         return flowEnd();
 
-    Control::FlowListIterator flow = controlGraph_.edge_insert(sourceOp, sinkOp, std::make_shared<ControlFlow>(sourceOp, sinkOp));
+    Control::FlowListIterator flow = controlGraph_.edge_insert(sourceOp, sinkOp, ControlFlow(*this, sourceOp, sinkOp));
 
     if (flow != *controlFlowEnd_)
     {
+        controlFlows_->emplace(flow->getName(), flow);
         log(Logger::MessageType::Info, "Defined " + flow->toString());
         return flow;
     }
@@ -221,6 +228,7 @@ bool mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
     if (!ComputationModel::isValid(flow))
         return false;
 
+    controlFlows_->erase(flow->getName());
     controlGraph_.edge_erase(flow);
     return true;
 

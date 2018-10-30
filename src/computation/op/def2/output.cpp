@@ -26,7 +26,8 @@ namespace mv
         MV_REGISTER_OP(Output)
         .setInputs({"data"})
         .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn);
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"exposed"});
 
     }
 

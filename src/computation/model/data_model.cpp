@@ -1,21 +1,15 @@
 #include "include/mcm/computation/model/data_model.hpp"
-
-/*mv::DataModel::DataModel(Logger::VerboseLevel verboseLevel, bool logTime) :
-ComputationModel(verboseLevel, logTime)
-{
-
-}
-
-mv::DataModel::DataModel(Logger& logger) :
-ComputationModel(logger)
-{
-
-}*/
+#include "include/mcm/computation/op/op.hpp"
 
 mv::DataModel::DataModel(ComputationModel& other) :
 ComputationModel(other)
 {
+    log(Logger::MessageType::Debug, "Bound");
+}
 
+mv::DataModel::~DataModel()
+{
+    log(Logger::MessageType::Debug, "Deleted");
 }
 
 mv::Data::OpListIterator mv::DataModel::switchContext(Control::OpListIterator other)
@@ -43,7 +37,7 @@ mv::Data::FlowListIterator mv::DataModel::flowEnd()
     return *dataFlowEnd_;
 }
 
-mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
+/*mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
 {
     std::shared_ptr<DataFlow> ptr = element;
     return addGroupElement_(ptr, group);
@@ -53,15 +47,15 @@ bool mv::DataModel::removeGroupElement(Data::FlowListIterator& element, GroupCon
 {
     std::shared_ptr<DataFlow> ptr = element;
     return removeGroupElement_(ptr, group);
-}
+}*/
 
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order)
 {
 
-    if (flowTensors_->find(name) != flowTensors_->end())
-        throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of an upopulated tensor name during the creation");
+    if (tensors_->find(name) != tensors_->end())
+        throw ArgumentError(*this, "Tensor::name", name, "Duplicated");
 
-    auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
+    auto result = tensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order));
     log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
     return result.first;
 
@@ -70,10 +64,10 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, co
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data)
 {
 
-    if (flowTensors_->find(name) != flowTensors_->end())
-        throw ArgumentError(*this, "Tensor::name", name, "Attempt of duplication of a populated tensor name during the creation");
+    if (tensors_->find(name) != tensors_->end())
+        throw ArgumentError(*this, "Tensor::name", name, "Duplicated");
 
-    auto result = flowTensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
+    auto result = tensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
     log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
     return result.first;
 
@@ -82,49 +76,37 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, co
 mv::Data::TensorIterator mv::DataModel::defineTensor(const Tensor& tensor)
 {
 
-    if (flowTensors_->find(tensor.getName()) != flowTensors_->end())
-        throw ArgumentError(*this, "Tensor::name", tensor.getName(), "Attempt of duplication of a tensor name during the copy creation");
+    if (tensors_->find(tensor.getName()) != tensors_->end())
+        throw ArgumentError(*this, "Tensor::name", tensor.getName(), "Duplicated");
 
-    auto result = flowTensors_->emplace(tensor.getName(), std::make_shared<Tensor>(tensor));
+    auto result = tensors_->emplace(tensor.getName(), std::make_shared<Tensor>(tensor));
     log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
     return result.first;
 
 }
 
-bool mv::DataModel::undefineTensor(const std::string& name)
+void mv::DataModel::undefineTensor(const std::string& name)
 {
 
-    if (flowTensors_->find(name) == flowTensors_->end())
-    {
-        log(Logger::MessageType::Error, "Unable to remove unexisting tensor " + name +
-            " from the computation model");
-        return false;
-    }
+    auto it = getTensor(name);
 
-    auto tensorSource = tensorsSources_->find(name);
-    if (tensorSource != tensorsSources_->end())
-    {
-        log(Logger::MessageType::Error, "Unable to remove the tensor " + name +
-            " that is an output of the operation " + tensorSource->second->getName() + " - source "
-            "operation has to be removed to achieve this");
-        return false;
-    }
+    if (it == tensorEnd())
+        throw ArgumentError(*this, "tensor:name", name, "Undefined");
 
-    flowTensors_->erase(name);
-    return true;
 
-}
+    if (it->hasAttr("sourceOp"))
+        throw ArgumentError(*this, "tensor:name", name, "Unable to delete a tensor that is an output of op " + it->get<std::string>("sourceOp")
+            + ", this is possible only by removing op itself");
 
-mv::Data::TensorIterator mv::DataModel::findTensor(const std::string& name)
-{
+    log(Logger::MessageType::Info, "Removed " + it->toString());
 
-    return ComputationModel::findTensor_(name);
-
+    tensors_->erase(name);
+    
 }
 
 unsigned mv::DataModel::tensorsCount() const
 {
-    return flowTensors_->size();
+    return tensors_->size();
 }
 
 bool mv::DataModel::addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize)

@@ -4,8 +4,8 @@ const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma24
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
-model_(new OpModel(modelName)),
-recordedModel_(new CompositionalModelRecorder(*model_, compositionalModelRecordingsPath_))
+model_(new OpModel(modelName))
+//recordedModel_(new CompositionalModelRecorder(*model_, compositionalModelRecordingsPath_))
 {
 
 }
@@ -41,7 +41,7 @@ recordedModel_(new CompositionalModelRecorder(*model_, compositionalModelRecordi
 mv::CompilationUnit::~CompilationUnit()
 {
 	delete model_;
-    delete recordedModel_;
+    //delete recordedModel_;
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
@@ -119,15 +119,15 @@ mv::json::Object& mv::CompilationUnit::compilationDescriptor()
     return compilationDescriptor_;
 }
 
-mv::CompositionalModel& mv::CompilationUnit::model()
+mv::OpModel& mv::CompilationUnit::model()
 {
     return *model_;
 }
 
-mv::CompositionalModel& mv::CompilationUnit::recordedModel()
+/*mv::CompositionalModel& mv::CompilationUnit::recordedModel()
 {
     return *recordedModel_;
-}
+}*/
 
 bool mv::CompilationUnit::initialize()
 {
