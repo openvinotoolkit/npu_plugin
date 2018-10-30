@@ -6,6 +6,7 @@
 * @author Patrick Doyle, Ian Hunter
 * @date 4/27/2018
 */
+#include <memory>
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
@@ -50,7 +51,7 @@ namespace mv
         *
         * @param graph_2_deploy (by reference) points to the graph you want to deploy
         */
-        unsigned long long serialize(mv::ControlModel& graph_2_deploy, const char* ofilename );
+        unsigned long long serialize(mv::ControlModel& graph_2_deploy);
 
         void print_mode();
     };

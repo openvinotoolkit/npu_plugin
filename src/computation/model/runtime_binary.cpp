@@ -1,28 +1,116 @@
 #include "include/mcm/computation/model/runtime_binary.hpp"
+#include <iostream>
 
-mv::RuntimeBinary::RuntimeBinary(std::string nameOfBinary, int sizeOfBinary) :
-name(nameOfBinary),
-size(sizeOfBinary)
+mv::RuntimeBinary::RuntimeBinary() :
+binaryName("NULL"),
+fileName("test_RTB_00.blob"),
+fileSize(0),
+bufferSize(0),
+RAMEnabled(true),
+fileEnabled(true),
+data(nullptr)
 {
 }
 
-int mv::RuntimeBinary::RuntimeBinary::getSize()
+mv::RuntimeBinary::~RuntimeBinary()
 {
-   return size ;
+    if(data)
+    {
+        delete [] data;
+    }
 }
 
 bool mv::RuntimeBinary::RuntimeBinary::getBuffer(std::string newName, int newSize)
 {
-   data = new char[newSize];
-   for( int i = 1; i < newSize-10; i = i + 1 ) {
-       data[i] = i ;
-   }
-   size = newSize;
-   return true ;
+    data = new char[newSize+RAMAlign];
+    bufferSize = newSize;
+    binaryName = newName;
+    // just for testing, fill RAM buffer with backgraound pattern
+    for (int i=0; i<newSize; i++)
+    {
+        data[i]=i;
+    }
+    return true ;
 }
 
-std::string mv::RuntimeBinary::RuntimeBinary::getName()
+bool mv::RuntimeBinary::RuntimeBinary::getBuffer(int newSize)
+{  
+    data = new char[newSize+RAMAlign];
+    bufferSize = newSize;
+    return true ;
+}
+
+bool mv::RuntimeBinary::RuntimeBinary::writeBuffer(char sourceBuf[4096], int numBytes)
 {
-   return name ;
+    for (int i=0; i<numBytes; i++)
+    {
+        data[fileSize+i] = sourceBuf[i];
+    }
+    fileSize += numBytes ;
+    return true ;
+}
+
+std::string mv::RuntimeBinary::RuntimeBinary::getBinaryName()
+{
+    return binaryName ;
+}
+
+std::string mv::RuntimeBinary::RuntimeBinary::getFileName()
+{
+    return fileName ;
+}
+
+bool mv::RuntimeBinary::RuntimeBinary::setFileName(std::string newName)
+{
+    fileName = newName;
+    return true ;
+}
+
+int mv::RuntimeBinary::RuntimeBinary::getFileSize()
+{
+    return fileSize ;
+}
+
+int mv::RuntimeBinary::RuntimeBinary::getBufferSize()
+{
+    return bufferSize ;
+}
+
+bool mv::RuntimeBinary::RuntimeBinary::getRAMEnabled()
+{
+    return RAMEnabled ;
+}
+
+bool mv::RuntimeBinary::RuntimeBinary::setRAMEnabled(bool flag)
+{
+    RAMEnabled = flag ;
+    return true ;
+}
+
+bool mv::RuntimeBinary::RuntimeBinary::getFileEnabled()
+{
+    return fileEnabled ;
+}
+
+bool mv::RuntimeBinary::RuntimeBinary::setFileEnabled(bool flag)
+{
+    fileEnabled = flag ; 
+    return true ;
+}
+
+bool mv::RuntimeBinary::RuntimeBinary::dumpBuffer(std::string testFileName)
+{
+    std::cout << " Dumping Blob RAM Buffer to "<< testFileName << " :bufferSize, fileSize = "<< bufferSize << " " << fileSize << std::endl;
+    FILE *testfp ;
+
+    if ((testfp = fopen(testFileName.c_str(), "wb")) == NULL)
+    {
+        std::cout << "ERROR: Could not open output file"<< testFileName << std::endl;
+    }
+
+    fwrite(&data,1,fileSize,testfp);
+    fclose(testfp);
+
+    return true ;
 }
 

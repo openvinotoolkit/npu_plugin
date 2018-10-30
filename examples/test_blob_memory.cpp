@@ -124,7 +124,9 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet18.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("resnet18.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     
     // Initialize compilation 

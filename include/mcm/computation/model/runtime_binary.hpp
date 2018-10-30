@@ -11,17 +11,32 @@ namespace mv
     
     protected:
         char* data;
-        int size;
-        std::string name;
+        int fileSize;
+        int bufferSize;
+        bool fileEnabled;
+        bool RAMEnabled;
+        std::string fileName;
+        std::string binaryName;
+        const int RAMAlign = 128 ;
+        int bytePointer ;
         
     public:
 
-        RuntimeBinary(std::string nameOfBinary, int sizeOfBuffer);
+        RuntimeBinary();
         ~RuntimeBinary();
-        bool getBuffer(int sizeOfBuffer);
-        int getSize();
-        std::string getName();
+        int getFileSize();
+        int getBufferSize();
+        bool getRAMEnabled();
+        bool getFileEnabled();
+        bool setRAMEnabled(bool flag);
+        bool setFileEnabled(bool flag);
+        std::string getBinaryName();
+        std::string getFileName();
+        bool setFileName(std::string newName);
         bool getBuffer(std::string newName, int newSize);
+        bool getBuffer(int newSize);
+        bool writeBuffer(char sourceBuf[4096], int numBytes);
+        bool dumpBuffer(std::string testFileName);
 
     };
 }

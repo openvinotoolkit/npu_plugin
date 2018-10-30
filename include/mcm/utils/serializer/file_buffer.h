@@ -3,6 +3,8 @@
 #define WBUFFER_HPP_
 
 #include <iostream>
+#include <memory>
+#include "include/mcm/computation/model/runtime_binary.hpp"
 
 // Generic 4KB output buffer supporting bit-level output to file.
 // Buffer empties at 3800 level. Assumes add size < 296 to prevent
@@ -12,17 +14,18 @@ class WBuffer
 {
     private:
         static const int wbuffer_size = 4096 ;
-        static const int wlevel = 3800 ;
+        static const int wlevel = 3800*8 ;      //buuffer empty level in bits
         char Data[wbuffer_size] ;
         int BitPointer ;
         FILE *fp ;
+        std::shared_ptr<mv::RuntimeBinary> bp ; 
 
     public:
         uint64_t FileSize ;
-        WBuffer()
+        WBuffer() :
+        BitPointer(0),
+        FileSize(0)
         {
-            BitPointer  = 0 ;
-            FileSize = 0 ;
         }
 
         int getPointer(){
@@ -58,7 +61,14 @@ class WBuffer
             // dump buffer if full
             if ((numbytes*8+BitPointer) > wlevel)
             {
-                fwrite(&Data,1,byte_pointer,fp);
+                if (bp->getFileEnabled())
+                {
+                    fwrite(&Data,1,byte_pointer,fp);
+                }
+                if (bp->getRAMEnabled())
+                {
+                    bp->writeBuffer(Data, byte_pointer);
+                }
                 FileSize+=byte_pointer;
                 BitPointer = BitPointer - (8*byte_pointer);
                 Data[0]=Data[byte_pointer] ;
@@ -90,8 +100,16 @@ class WBuffer
 
             // dump buffer if full
             if ((numbits+BitPointer) > wlevel)
+
             {
-                fwrite(&Data,1,bytes,fp);
+                if (bp->getFileEnabled())
+                {
+                    fwrite(&Data,1,bytes,fp);
+                }
+                if (bp->getRAMEnabled())
+                {
+                    bp->writeBuffer(Data, bytes);
+                }
                 FileSize+=bytes;
                 BitPointer = BitPointer - (8*bytes);
                 Data[0]=Data[bytes] ;
@@ -113,11 +131,16 @@ class WBuffer
              }
          }
 
-         void open(char const *out_file_name)
+         void open(std::shared_ptr<mv::RuntimeBinary> rtBin )
          {
-            if ((fp = fopen(out_file_name, "w")) == NULL)
+             bp = rtBin ; 
+             if (bp->getFileEnabled())
              {
-                 std::cout << "ERROR: Could not open output file" << std::endl;
+                 const char *cstr = bp->getFileName().c_str();
+                 if ((fp = fopen(cstr, "wb")) == NULL)
+                 {
+                     std::cout << "ERROR: Could not open output file" << std::endl;
+                 }
              }
          }
 
@@ -134,12 +157,23 @@ class WBuffer
                  {
                      Data[bytes] = Data[bytes]<<(8-j);
                      bytes++;
-                  }
-                  fwrite(&Data,1,bytes,fp);
-                  FileSize+=bytes;
-              }
-              fclose(fp);
-              return (FileSize);
+                 }
+                 if (bp->getFileEnabled())
+                 {   
+                     fwrite(&Data,1,bytes,fp);
+                 }
+                 if (bp->getRAMEnabled())
+                 {   
+                     bp->writeBuffer(Data, bytes);
+                 }
+                 FileSize+=bytes;
+             }
+   
+             if (bp->getFileEnabled())
+             {
+                 fclose(fp);
+             }
+             return (FileSize);
          }
 
 };
