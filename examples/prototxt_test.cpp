@@ -23,13 +23,15 @@ int main()
     auto conv = cm.conv2D(input, weights, stride, padding);
 
     /*Bias*/
-    mv::Shape biasShape = {3};
-    std::vector<double> biasData = mv::utils::generateSequence<double>(biasShape.totalSize());
+    std::vector<double> biasData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
     auto biasTensor = cm.constant(biasData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto bias = cm.bias(conv,biasTensor);
 
+    /*Relu*/
+    auto relu = cm.relu(bias);
+
     /*Softmax*/
-    auto softmax = cm.softmax(bias);
+    auto softmax = cm.softmax(relu);
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
