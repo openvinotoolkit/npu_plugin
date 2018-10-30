@@ -156,7 +156,7 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
             weights->setOrder(mv::OrderType::ColumnMajor);
-
+            
             std::vector<double> caffeModelWeights = (*weights).getData();
 
             for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
