@@ -131,7 +131,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*Specify if convolution has bias*/
 
             /* Case (1) Bias will be a seprate operation before the fuse bias pass*/
-            /* Case (2) Bias will be an attribute after the fuse bais pass*/
+            /* Case (2) Bias will be an attribute after the fuse bias pass*/
 
             // Case(1)
             if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
@@ -162,6 +162,8 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                     blobProtobias->add_double_data(caffeModelBias[i]);
                 }
             }
+
+            //TODO Case (2)
 
             /*add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
@@ -208,6 +210,36 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
             layerParamPrototxt->add_bottom(parentOpIt->getName());
             layerParamCaffeModel->add_bottom(parentOpIt->getName());
+
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a softmax parameter*/
+            //TODO: add this
+        }
+
+         if (opIt->getOpType() == mv::OpType::ReLU)
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Relu");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Relu");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+            auto parentOpIt1 = parentOpIt0.leftmostParent();
+            
+            layerParamPrototxt->add_bottom(parentOpIt1->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
               is generally taken to be the same as the name of the layer.
