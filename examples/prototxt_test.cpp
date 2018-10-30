@@ -13,13 +13,23 @@ int main()
 
     /*Create computation model*/
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+
+    /*Convolution*/
     mv::Shape kernelShape = {3, 3, 3, 3};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
     auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
     auto conv = cm.conv2D(input, weights, stride, padding);
-    auto softmax = cm.softmax(conv);
+
+    /*Bias*/
+    mv::Shape biasShape = {3};
+    std::vector<double> biasData = mv::utils::generateSequence<double>(biasShape.totalSize());
+    auto biasTensor = cm.constant(biasData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto bias = cm.bias(conv,biasTensor);
+
+    /*Softmax*/
+    auto softmax = cm.softmax(bias);
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
@@ -46,7 +56,7 @@ int main()
     // Run all passes
     unit.run();
 
-    system("dot -Tsvg prototxt.dot -o cm_protoxt.svg");
+    system("dot -Tsvg prototxt.dot -o protoxt.svg");
     
 
     return 0;

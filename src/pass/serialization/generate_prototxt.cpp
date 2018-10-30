@@ -17,45 +17,42 @@
 #include <iostream>
 #include <caffe/caffe.hpp>
 
-static void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput);
+static void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput);
 
 namespace mv
 {
 
-    namespace pass
-    {
+namespace pass
+{
 
-        MV_REGISTER_PASS(GenerateProto)
-        .setFunc(generateProtoFcn)
-        .setGenre(PassGenre::Serialization)
-        .defineArg(json::JSONType::String, "outputPrototxt")
-        .defineArg(json::JSONType::String, "outputCaffeModel")
-        .setDescription(
-            "Generates a caffe prototxt file"
-        );
-        
-    }
-
+MV_REGISTER_PASS(GenerateProto)
+    .setFunc(generateProtoFcn)
+    .setGenre(PassGenre::Serialization)
+    .defineArg(json::JSONType::String, "outputPrototxt")
+    .defineArg(json::JSONType::String, "outputCaffeModel")
+    .setDescription(
+        "Generates a caffe prototxt file");
 }
 
-void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput)
-{   
+} // namespace mv
+
+void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
+{
 
     using namespace mv;
 
     if (compDesc["GenerateProto"]["outputPrototxt"].get<std::string>().empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
-    
+
     if (compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>().empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
-        
 
     /*Create generated Prototxt and CaffeModel file names*/
-	std::string projectRootPath = utils::projectRootPath();
+    std::string projectRootPath = utils::projectRootPath();
     const std::string generatedCaffeFilesPath_ = "/generatedCaffeFiles/";
-	std::string savedPath = utils::projectRootPath() + generatedCaffeFilesPath_;
-	std::string generatedPrototxtFileName = savedPath + compDesc["GenerateProto"]["outputPrototxt"].get<std::string>();
-	std::string generatedCaffeModelFileName = savedPath + compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>();
+    std::string savedPath = utils::projectRootPath() + generatedCaffeFilesPath_;
+    std::string generatedPrototxtFileName = savedPath + compDesc["GenerateProto"]["outputPrototxt"].get<std::string>();
+    std::string generatedCaffeModelFileName = savedPath + compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>();
 
     /*Create Network objects*/
     caffe::NetParameter netParamPrototxt;
@@ -131,10 +128,40 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
 
-            /*Specify if it has bais*/
-            //TODO: add a check for bias
-            convParamPrototxt->set_bias_term(0);
-            convParamCaffeModel->set_bias_term(0);
+            /*Specify if convolution has bias*/
+
+            /* Case (1) Bias will be a seprate operation before the fuse bias pass*/
+            /* Case (2) Bias will be an attribute after the fuse bais pass*/
+
+            // Case(1)
+            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
+            {
+                convParamPrototxt->set_bias_term(1);
+                convParamCaffeModel->set_bias_term(1);
+
+                caffe::BiasParameter *biasParamCaffeModel = layerParamCaffeModel->mutable_bias_param();
+
+                /*add bias*/
+                caffe::BlobProto *blobProtobias = layerParamCaffeModel->add_blobs();
+                caffe::BlobShape *blobShapebias = blobProtobias->mutable_shape();
+
+                blobShapebias->add_dim(0);
+                blobShapebias->set_dim(0, opIt.leftmostChild()->getInputTensor(0)->get<mv::Shape>("shape")[2]);
+
+                blobProtobias->clear_double_data();
+                blobProtobias->clear_double_diff();
+
+                /*ColumnMajor is format for caffemodel*/
+                auto bias = opIt.leftmostChild()->getInputTensor(1);
+                bias->setOrder(mv::OrderType::ColumnMajor);
+
+                std::vector<double> caffeModelBias = (*bias).getData();
+
+                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
+                {
+                    blobProtobias->add_double_data(caffeModelBias[i]);
+                }
+            }
 
             /*add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
@@ -156,7 +183,7 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
             weights->setOrder(mv::OrderType::ColumnMajor);
-            
+
             std::vector<double> caffeModelWeights = (*weights).getData();
 
             for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
@@ -182,7 +209,7 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             layerParamPrototxt->add_bottom(parentOpIt->getName());
             layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
-             /*The top attribute stores the name of the output blob, which for convenience, 
+            /*The top attribute stores the name of the output blob, which for convenience, 
               is generally taken to be the same as the name of the layer.
             */
             layerParamPrototxt->add_top(opIt->getName());
@@ -196,6 +223,7 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
     /*create caffemodel*/
     std::fstream output(generatedCaffeModelFileName, std::ios::out | std::ios::binary);
     netParamCaffeModel.SerializeToOstream(&output);
+    output.close();
 
     /*create prototxt*/
     std::ofstream ofs;
