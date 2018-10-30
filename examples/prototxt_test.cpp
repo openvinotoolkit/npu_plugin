@@ -15,7 +15,7 @@ int main()
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
 
     /*Convolution*/
-    mv::Shape kernelShape = {3, 3, 3, 3};
+    mv::Shape kernelShape = {3, 3, 3, 4};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
     auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     std::array<unsigned short, 2> stride = {2, 2};
@@ -27,8 +27,16 @@ int main()
     auto biasTensor = cm.constant(biasData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto bias = cm.bias(conv,biasTensor);
 
+    /*Scale*/
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
+    auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto scale = cm.scale(conv,scaleTensor);
+ 
+    /*Pool*/
+    auto pool = cm.maxpool2D(bias, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    
     /*Relu*/
-    auto relu = cm.relu(bias);
+    auto relu = cm.relu(pool);
 
     /*Softmax*/
     auto softmax = cm.softmax(relu);
@@ -46,8 +54,8 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("prototext.blob");
-    unit.compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    ///unit.compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    //unit.compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     // Initialize compilation
@@ -59,6 +67,8 @@ int main()
     unit.run();
 
     system("dot -Tsvg prototxt.dot -o protoxt.svg");
+    //system("dot -Tsvg prototxt_adapt.dot -o prototxt_adapt.svg");
+    //system("dot -Tsvg prototxt_final.dot -o prototxt_final.svg");
     
 
     return 0;
