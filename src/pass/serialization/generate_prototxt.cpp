@@ -1,6 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/deployer/serializer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/utils/env_loader.hpp"
 
 #include <fcntl.h>
 #include <google/protobuf/io/coded_stream.h>
@@ -48,6 +49,14 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
     if (compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>().empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
         
+
+    /*Create generated Prototxt and CaffeModel file names*/
+	std::string projectRootPath = utils::projectRootPath();
+    const std::string generatedCaffeFilesPath_ = "/generatedCaffeFiles/";
+	std::string savedPath = utils::projectRootPath() + generatedCaffeFilesPath_;
+	std::string generatedPrototxtFileName = savedPath + compDesc["GenerateProto"]["outputPrototxt"].get<std::string>();
+	std::string generatedCaffeModelFileName = savedPath + compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>();
+
     /*Create Network objects*/
     caffe::NetParameter netParamPrototxt;
     caffe::NetParameter netParamCaffeModel;
@@ -185,12 +194,12 @@ void generateProtoFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
     }
 
     /*create caffemodel*/
-    std::fstream output(compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>(), std::ios::out | std::ios::binary);
+    std::fstream output(generatedCaffeModelFileName, std::ios::out | std::ios::binary);
     netParamCaffeModel.SerializeToOstream(&output);
 
     /*create prototxt*/
     std::ofstream ofs;
-    ofs.open(compDesc["GenerateProto"]["outputPrototxt"].get<std::string>(), std::ofstream::out | std::ofstream::trunc);
+    ofs.open(generatedPrototxtFileName, std::ofstream::out | std::ofstream::trunc);
     ofs << netParamPrototxt.Utf8DebugString();
     ofs.close();
 }
