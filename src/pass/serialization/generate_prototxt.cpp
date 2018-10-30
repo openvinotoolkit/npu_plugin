@@ -163,8 +163,8 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 }
             }
 
-            //TODO Case (2)
-
+            // //TODO Case (2)
+    
             /*add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShape = blobProto->mutable_shape();
@@ -194,6 +194,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
+        //TODO Set layer to have a softmax parameter - is this required?
         if (opIt->getOpType() == mv::OpType::Softmax)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -216,11 +217,9 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             */
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
-
-            /*Set layer to have a softmax parameter*/
-            //TODO: add this
         }
 
+        //TODO Set layer to have a Relu parameter - is this required?
          if (opIt->getOpType() == mv::OpType::ReLU)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -235,6 +234,68 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            //TODO Deal with fused ops here instead of going back two operations
+            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+            auto parentOpIt1 = parentOpIt0.leftmostParent();
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+           
+
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+        
+        if (opIt->getOpType() == mv::OpType::Scale)
+        {
+            std::cout << "In scale";
+            exit(1);
+
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Scale");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Scale");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(1));
+
+            //TODO Deal with fused ops here instead of going back two operations
+            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+            //auto parentOpIt1 = parentOpIt0.leftmostParent();
+            
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+    
+        if (opIt->getOpType() == mv::OpType::MaxPool2D)
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Pooling");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Pooling");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             auto parentOpIt1 = parentOpIt0.leftmostParent();
             
@@ -247,8 +308,13 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
-            /*Set layer to have a softmax parameter*/
-            //TODO: add this
+            /*Set layer to have a pooling parameter*/
+            caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
+            caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
+
+            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
         }
     }
 
