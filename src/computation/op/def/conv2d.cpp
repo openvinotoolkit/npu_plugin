@@ -145,7 +145,7 @@ void mv::op::Conv2D::gatherSerialFields()
 
                     descriptors[i].dataBaseAddr = 2 * input_width * input_line_start[h];    // TODO: Calculate 3f0 (1008)
 
-                    if( this->getInputTensor(0)->getOrder() == mv::OrderType::RowInterleaved )
+                    if( this->getInputTensor(0)->getOrder().isRowInterleaved() )
                     {
                         descriptors[i].dataBaseAddr *= inputChannelsPadded;    // TODO: Calculate 3f0 (1008)
                         // descriptors[i].dataLnStr = inputBlobTensor.strideY;
@@ -167,7 +167,7 @@ void mv::op::Conv2D::gatherSerialFields()
                     // descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h];  // TODO: Calculate 3f0 (1008)
                     descriptors[i].outBaseAddr = 42;  // TODO: Calculate 3f0 (1008)
 
-                    if( this->getOutputTensor(0)->getOrder() == mv::OrderType::RowInterleaved )
+                    if( this->getOutputTensor(0)->getOrder().isRowInterleaved() )
                     {
                         descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
                         // descriptors[i].outLnStr = outputBlobTensor.strideY;
