@@ -136,8 +136,8 @@ namespace mv
         int getBinaryName();
         std::string getBinaryFileName();
         void setBinaryFileName(std::string blobFileName);
-        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::string newName, int newSize);
-        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(int newSize);
+        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::string newName, uint32_t newSize);
+        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(uint32_t newSize);
         std::shared_ptr<mv::RuntimeBinary>  getBinaryBuffer();
 
         virtual std::string getLogID() const override;

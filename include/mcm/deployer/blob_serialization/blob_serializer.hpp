@@ -208,7 +208,7 @@ namespace mv
 
 
             // Calculate Blob Statistics
-            void calc(mv::ControlModel& cm);
+            uint32_t calc(mv::ControlModel& cm);
 
             void write_elf_header();
 

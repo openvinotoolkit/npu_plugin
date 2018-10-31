@@ -13,14 +13,14 @@ namespace mv
 
         printf("Serializer\n");
         std::shared_ptr<mv::RuntimeBinary> binaryPointer ;
+        uint32_t blobSize = 0;
         uint64_t fsize = 0 ;
         switch( output_format )
         {
             case mvblob_mode:
-                odata.calc(graph_2_deploy);
-                binaryPointer = graph_2_deploy.allocateBinaryBuffer("test01", 2000000000);                
+                blobSize = odata.calc(graph_2_deploy);
+                binaryPointer = graph_2_deploy.allocateBinaryBuffer("RAMBlob", blobSize);                
                 odata.open(binaryPointer);
-graph_2_deploy.getBinaryBuffer()->dumpBuffer("initial_RAM.blob");
                 odata.write_elf_header();
                 odata.write_mv_header();
                 odata.write_stage_section_header();

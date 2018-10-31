@@ -20,26 +20,18 @@ mv::RuntimeBinary::~RuntimeBinary()
     }
 }
 
-bool mv::RuntimeBinary::RuntimeBinary::getBuffer(std::string newName, int newSize)
+bool mv::RuntimeBinary::RuntimeBinary::getBuffer(std::string newName, uint32_t newSize)
 {
-    data = new char[newSize+RAMAlign];
     bufferSize = newSize;
+    data = new char[bufferSize];
     binaryName = newName;
-    // just for testing, fill RAM buffer with background pattern
-    for (int i=0; i<newSize; i=i+4)
-    {
-        data[i]=1;
-        data[i+1]=2;
-        data[i+2]=3;
-        data[i+3]=4;
-    }
     return true ;
 }
 
-bool mv::RuntimeBinary::RuntimeBinary::getBuffer(int newSize)
+bool mv::RuntimeBinary::RuntimeBinary::getBuffer(uint32_t newSize)
 {  
-    data = new char[newSize+RAMAlign];
     bufferSize = newSize;
+    data = new char[bufferSize];
     return true ;
 }
 

@@ -34,9 +34,7 @@ void generateBlobFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     // note: defaults from cm.RuntimeBinary constructor are disableRam , enableFile ,  mcmCompile.blob
     bool RAMEnable = false ;
     bool fileEnable = false ;
-    std::string blobFileName = "test03.blob"; 
-    std::cout << "DEBUG: starting generate_blob pass" << std::endl;
-
+    std::string blobFileName = "mcmCompile.blob"; 
  
     if (compDesc["GenerateBlob"]["enableRAMOutput"].get<bool>())
     {
@@ -56,7 +54,7 @@ void generateBlobFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
        cm.getBinaryBuffer()->setFileName(blobFileName) ;
     }
 
-    std::cout << "in seriialize pass, blob IO options: RAMe fileE filename " << RAMEnable << " " << fileEnable << " " << blobFileName << std::endl;
+    std::cout << "in seriialize pass, blob IO options: RAMe fileE filename = " << RAMEnable << " " << fileEnable << " " << blobFileName << std::endl;
  
     long long result = static_cast<long long>(serializer.serialize(cm));
     compOutput["blobSize"] = result;
