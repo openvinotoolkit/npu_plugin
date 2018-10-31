@@ -128,40 +128,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
 
-            /*Specify if convolution has bias*/
-
-            /* Case (1) Bias will be a seprate operation before the fuse bias pass*/
-            /* Case (2) Bias will be an attribute after the fuse bias pass*/
-
-            // Case(1)
-            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
-            {
-                convParamPrototxt->set_bias_term(1);
-                convParamCaffeModel->set_bias_term(1);
-
-                /*add bias*/
-                caffe::BlobProto *blobProtobias = layerParamCaffeModel->add_blobs();
-                caffe::BlobShape *blobShapebias = blobProtobias->mutable_shape();
-
-                blobShapebias->add_dim(0);
-                blobShapebias->set_dim(0, opIt.leftmostChild()->getInputTensor(0)->get<mv::Shape>("shape")[2]);
-
-                blobProtobias->clear_double_data();
-
-                /*ColumnMajor is format for caffemodel*/
-                auto bias = opIt.leftmostChild()->getInputTensor(1);
-                bias->setOrder(mv::OrderType::ColumnMajor);
-
-                std::vector<double> caffeModelBias = (*bias).getData();
-
-                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
-                {
-                    blobProtobias->add_double_data(caffeModelBias[i]);
-                }
-            }
-
-            //TODO Case (2)
-
             /*add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShape = blobProto->mutable_shape();
@@ -189,8 +155,38 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 blobProto->add_double_data(caffeModelWeights[i]);
             }
 
-            //TODO Impliment Case (2)
+            /*Specify if convolution has bias*/
+            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
+            {
+                convParamPrototxt->set_bias_term(1);
+                convParamCaffeModel->set_bias_term(1);
 
+                /*add bias*/
+                caffe::BlobProto *blobProtobias = layerParamCaffeModel->add_blobs();
+                caffe::BlobShape *blobShapebias = blobProtobias->mutable_shape();
+
+                blobShapebias->add_dim(0);
+                blobShapebias->set_dim(0, opIt.leftmostChild()->getInputTensor(0)->get<mv::Shape>("shape")[2]);
+
+                blobProtobias->clear_double_data();
+
+                /*ColumnMajor is format for caffemodel*/
+                auto bias = opIt.leftmostChild()->getInputTensor(1);
+                bias->setOrder(mv::OrderType::ColumnMajor);
+
+                std::vector<double> caffeModelBias = (*bias).getData();
+
+                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
+                {
+                    blobProtobias->add_double_data(caffeModelBias[i]);
+                }
+            }
+            else
+            {
+                /*No bias term - set false*/
+                convParamPrototxt->set_bias_term(0);
+                convParamCaffeModel->set_bias_term(0);
+            }
         }
 
         //TODO Set layer to have a softmax parameter - this may not be required, needs investigation
@@ -208,14 +204,32 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
-            layerParamPrototxt->add_bottom(parentOpIt->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
-            layerParamPrototxt->add_top(opIt->getName());
-            layerParamCaffeModel->add_top(opIt->getName());
+            /*Check if previosu op is bias*/
+            if (parentOpIt->getOpType() == mv::OpType::Bias)
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt->getInputTensor(0));
+
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+
+                /*The top attribute stores the name of the output blob, which for convenience, 
+                is generally taken to be the same as the name of the layer.
+                */
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt->getName());
+
+                /*The top attribute stores the name of the output blob, which for convenience, 
+                is generally taken to be the same as the name of the layer.
+                */
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
         }
 
         //TODO Set layer to have a relu parameter - this may not be required, needs investigation
@@ -490,8 +504,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
 
             // if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
-            //  throw RuntimeError(, "The generate prototxt pass does not handle constant"); 
-        
+            //  throw RuntimeError(, "The generate prototxt pass does not handle constant");
         }
 
         if (opIt->getOpType() == mv::OpType::Multiply)
