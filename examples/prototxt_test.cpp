@@ -22,42 +22,42 @@ int main()
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
     auto conv = cm.conv2D(input, weights, stride, padding);
 
-    /*Bias*/
-    std::vector<double> biasData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
-    auto biasTensor = cm.constant(biasData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    auto bias = cm.bias(conv,biasTensor);
+    // /*Bias*/
+    // std::vector<double> biasData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
+    // auto biasTensor = cm.constant(biasData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    // auto bias = cm.bias(conv,biasTensor);
 
-    /*Scale*/
-    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
-    auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    auto scale = cm.scale(bias,scaleTensor);
+    // /*Scale*/
+    // std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
+    // auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    // auto scale = cm.scale(bias,scaleTensor);
  
-    /*Max Pool*/
-    auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    // /*Max Pool*/
+    // auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
     
-    /*Relu*/
-    auto relu = cm.relu(pool);
+    // /*Relu*/
+    // auto relu = cm.relu(pool);
 
-    /*Average Pool*/
-    auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    // /*Average Pool*/
+    // auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
 
-    /*prelu*/
-    std::vector<double> data = mv::utils::generateSequence<double>(64);
-    auto slope = cm.constant(data, {64}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    auto prelu = cm.prelu(pool1, slope);
+    // /*prelu*/
+    // std::vector<double> data = mv::utils::generateSequence<double>(64);
+    // auto slope = cm.constant(data, {64}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    // auto prelu = cm.prelu(pool1, slope);
 
-    /*Add*/
-    std::vector<double> addingData = mv::utils::generateSequence<double>(prelu->getShape().totalSize());
-    auto addingDataTensor = cm.constant(addingData, {prelu->getShape()}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    auto addResult = cm.add(prelu, addingDataTensor);
+    // /*Add*/
+    // std::vector<double> addingData = mv::utils::generateSequence<double>(prelu->getShape().totalSize());
+    // auto addingDataTensor = cm.constant(addingData, {prelu->getShape()}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    // auto addResult = cm.add(prelu, addingDataTensor);
 
-    /*Multiply*/
-    std::vector<double> multiplyData = mv::utils::generateSequence<double>(addResult->getShape().totalSize());
-    auto multiplyDataTensor = cm.constant(multiplyData, {prelu->getShape()}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    auto multiplyResult = cm.multiply(addResult, multiplyDataTensor);
+    // /*Multiply*/
+    // std::vector<double> multiplyData = mv::utils::generateSequence<double>(addResult->getShape().totalSize());
+    // auto multiplyDataTensor = cm.constant(multiplyData, {prelu->getShape()}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    // auto multiplyResult = cm.multiply(addResult, multiplyDataTensor);
 
     /*Softmax*/
-    auto softmax = cm.softmax(multiplyResult);
+    auto softmax = cm.softmax(conv);
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
