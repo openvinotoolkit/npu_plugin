@@ -17,7 +17,6 @@ namespace mv
         bool RAMEnabled;
         std::string fileName;
         std::string binaryName;
-        int bytePointer ;
         
     public:
 

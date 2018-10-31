@@ -132,10 +132,6 @@ namespace mv
         Data::TensorIterator tensorEnd() const;
 
         void clear();
-        int getBinarySize();
-        int getBinaryName();
-        std::string getBinaryFileName();
-        void setBinaryFileName(std::string blobFileName);
         std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::string newName, uint32_t newSize);
         std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(uint32_t newSize);
         std::shared_ptr<mv::RuntimeBinary>  getBinaryBuffer();
