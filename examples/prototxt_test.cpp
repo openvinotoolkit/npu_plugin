@@ -46,6 +46,12 @@ int main()
     auto slope = cm.constant(data, {64}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto prelu = cm.prelu(pool1, slope);
 
+    mv::Shape preluShape = {29, 29, 64};
+    std::vector<double> addingData = mv::utils::generateSequence<double>(prelu->getShape().totalSize());
+    auto addingDataTensor = cm.constant(addingData, {prelu->getShape()}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+
+    auto res = cm.add(prelu, addingDataTensor);
+
     /*Softmax*/
     auto softmax = cm.softmax(prelu);
     cm.output(softmax);
