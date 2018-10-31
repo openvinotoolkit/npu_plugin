@@ -313,6 +313,43 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
         }
+
+         if (opIt->getOpType() == mv::OpType::AvgPool2D)
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Pooling");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Pooling");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            //TODO Deal with fused ops here instead of going back two operations
+            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+            //auto parentOpIt1 = parentOpIt0.leftmostParent();
+            
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a pooling parameter*/
+            caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
+            caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
+
+            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
+        }
     }
 
     /*create caffemodel*/

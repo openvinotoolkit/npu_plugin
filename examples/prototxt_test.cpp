@@ -32,14 +32,17 @@ int main()
     auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     auto scale = cm.scale(bias,scaleTensor);
  
-    /*Pool*/
+    /*Max Pool*/
     auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
     
     /*Relu*/
     auto relu = cm.relu(pool);
 
+    /*Average Pool*/
+    auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
+
     /*Softmax*/
-    auto softmax = cm.softmax(relu);
+    auto softmax = cm.softmax(pool1);
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
