@@ -26,7 +26,7 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            return a.get<DType>().toString();
+            return "DTypeType::" + a.get<DType>().toString();
         }
 
         MV_REGISTER_ATTR(DType)

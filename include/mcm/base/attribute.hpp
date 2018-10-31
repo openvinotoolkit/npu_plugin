@@ -322,8 +322,8 @@ namespace mv
         std::string getLogID() const override
         {
             if (!ptr_)
-                return "Attribute NULL";
-            return "Attribute " + getTypeName();
+                return "Attribute:NULL";
+            return "Attribute:" + getTypeName();
         }
 
     };

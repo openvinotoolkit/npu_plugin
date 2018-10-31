@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/api/compositional_model.hpp"
+#include "include/mcm/utils/recorded_compositional_model.hpp"
 
 int main()
 {
@@ -70,14 +71,16 @@ int main()
     m1.defineOp("Output", {conv});*/
 
     mv::op::OpRegistry::generateCompositionAPI();
+    mv::op::OpRegistry::generateRecordedCompositionAPI();
 
-    /*mv::OpModel om("testModel");
-    mv::CompositionalModel model(om);
+    mv::OpModel om("testModel");
+    mv::CompositionalModel model1(om);
+    mv::RecordedCompositionalModel model(model1);
 
     auto input = model.input(mv::DTypeType::Float16, mv::OrderType::ColumnMajor, {32, 32, 3});
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3u * 3u * 3u * 8u);
     auto weights = model.constant(mv::DTypeType::Float16, weights1Data, mv::OrderType::ColumnMajor, {3, 3, 3, 8});
     auto conv = model.conv(input, weights, {1, 1, 1, 1}, {2, 2});
-    auto output = model.output(conv);*/
+    auto output = model.output(conv);
 
 }

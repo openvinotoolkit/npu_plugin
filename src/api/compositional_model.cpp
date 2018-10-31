@@ -10,7 +10,12 @@ mv::CompositionalModel::CompositionalModel(OpModel& model) :
 
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::add(Data::TensorIterator data0, Data::TensorIterator data1, const std::string& name)
+mv::CompositionalModel::~CompositionalModel()
+{
+
+}
+
+mv::Data::TensorIterator mv::CompositionalModel::add(Data::TensorIterator data0, Data::TensorIterator data1, const std::string&name)
 {
     return defineOp(
         "Add",
@@ -24,7 +29,7 @@ mv::Data::TensorIterator mv::CompositionalModel::add(Data::TensorIterator data0,
     );
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::averagePool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModel::averagePool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string&name)
 {
     return defineOp(
         "AveragePool",
@@ -40,7 +45,7 @@ mv::Data::TensorIterator mv::CompositionalModel::averagePool(Data::TensorIterato
     );
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::batchNormalization(Data::TensorIterator data, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, const double& eps, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModel::batchNormalization(Data::TensorIterator data, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, const double& eps, const std::string&name)
 {
     return defineOp(
         "BatchNormalization",
@@ -58,7 +63,7 @@ mv::Data::TensorIterator mv::CompositionalModel::batchNormalization(Data::Tensor
     );
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::bias(Data::TensorIterator data, Data::TensorIterator weights, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModel::bias(Data::TensorIterator data, Data::TensorIterator weights, const std::string&name)
 {
     return defineOp(
         "Bias",
@@ -72,7 +77,7 @@ mv::Data::TensorIterator mv::CompositionalModel::bias(Data::TensorIterator data,
     );
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::constant(const DType& dType, const std::vector<double>& data, const Order& order, const Shape& shape, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModel::constant(const DType& dType, const std::vector<double>& data, const Order& order, const Shape& shape, const std::string&name)
 {
     return defineOp(
         "Constant",
@@ -88,7 +93,7 @@ mv::Data::TensorIterator mv::CompositionalModel::constant(const DType& dType, co
     );
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::conv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModel::conv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string&name)
 {
     return defineOp(
         "Conv",
@@ -104,7 +109,7 @@ mv::Data::TensorIterator mv::CompositionalModel::conv(Data::TensorIterator data,
     );
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::input(const DType& dType, const Order& order, const Shape& shape, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModel::input(const DType& dType, const Order& order, const Shape& shape, const std::string&name)
 {
     return defineOp(
         "Input",
@@ -119,7 +124,7 @@ mv::Data::TensorIterator mv::CompositionalModel::input(const DType& dType, const
     );
 }
 
-mv::Data::TensorIterator mv::CompositionalModel::output(Data::TensorIterator data, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModel::output(Data::TensorIterator data, const std::string&name)
 {
     return defineOp(
         "Output",

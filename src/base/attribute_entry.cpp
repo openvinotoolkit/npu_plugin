@@ -118,6 +118,15 @@ mv::attr::AttributeEntry& mv::attr::AttributeEntry::setToStringFunc(const std::f
     return *this;
 }
 
+mv::attr::AttributeEntry& mv::attr::AttributeEntry::setShortToStringFunc(const std::function<std::string(const Attribute&)>& f)
+{
+    auto pFunc = std::make_shared<ConcreteFunc<std::string, const Attribute&> >();
+    pFunc->f = f;
+    toShortStringFunc_ = pFunc;
+    return *this;
+}
+
+
 const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeEntry::getToStringFunc()
 {
 
@@ -129,6 +138,23 @@ const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeEntry
         return pFunc->f;
         
     throw AttributeError(*this, "Invalid types specified for to-string conversion function for type " + typeName_);
+
+}
+
+const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeEntry::getShortToStringFunc()
+{
+
+    if (!hasTypeTrait("large"))
+        throw AttributeError(*this, "Short-from to-string conversion is defined only for attributes with type trait large");
+
+    if (!toShortStringFunc_)
+        throw MasterError(*this, "Undefined to-string conversion (short-form) function for the argument type ");
+
+    auto pFunc = std::dynamic_pointer_cast<ConcreteFunc<std::string, const Attribute&> >(toShortStringFunc_);
+    if (pFunc)
+        return pFunc->f;
+        
+    throw AttributeError(*this, "Invalid types specified for to-string conversion (short-form) function for type " + typeName_);
 
 }
 

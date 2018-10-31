@@ -17,15 +17,16 @@ namespace mv
     public:
 
         CompositionalModel(OpModel& model);
+        virtual ~CompositionalModel();
 
-        Data::TensorIterator add(Data::TensorIterator data0, Data::TensorIterator data1, const std::string& name = "");
-        Data::TensorIterator averagePool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string& name = "");
-        Data::TensorIterator batchNormalization(Data::TensorIterator data, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, const double& eps, const std::string& name = "");
-        Data::TensorIterator bias(Data::TensorIterator data, Data::TensorIterator weights, const std::string& name = "");
-        Data::TensorIterator constant(const DType& dType, const std::vector<double>& data, const Order& order, const Shape& shape, const std::string& name = "");
-        Data::TensorIterator conv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string& name = "");
-        Data::TensorIterator input(const DType& dType, const Order& order, const Shape& shape, const std::string& name = "");
-        Data::TensorIterator output(Data::TensorIterator data, const std::string& name = "");
+        virtual Data::TensorIterator add(Data::TensorIterator data0, Data::TensorIterator data1, const std::string&name = "");
+        virtual Data::TensorIterator averagePool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string&name = "");
+        virtual Data::TensorIterator batchNormalization(Data::TensorIterator data, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, const double& eps, const std::string&name = "");
+        virtual Data::TensorIterator bias(Data::TensorIterator data, Data::TensorIterator weights, const std::string&name = "");
+        virtual Data::TensorIterator constant(const DType& dType, const std::vector<double>& data, const Order& order, const Shape& shape, const std::string&name = "");
+        virtual Data::TensorIterator conv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 4>& padding, const std::array<unsigned short, 2>& stride, const std::string&name = "");
+        virtual Data::TensorIterator input(const DType& dType, const Order& order, const Shape& shape, const std::string&name = "");
+        virtual Data::TensorIterator output(Data::TensorIterator data, const std::string&name = "");
 
         using OpModel::getSourceOp;
         using OpModel::addAttr;

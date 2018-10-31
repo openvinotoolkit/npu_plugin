@@ -57,6 +57,7 @@ file(GLOB base
     "src/computation/model/control_model.cpp"
     "src/computation/model/computation_element.cpp"
     "src/api/compositional_model.cpp"
+    "src/utils/recorded_compositional_model.cpp"
     "src/computation/op/computation_op.cpp"
     "src/computation/op/kernel_op.cpp"
     "src/computation/model/computation_group.cpp"

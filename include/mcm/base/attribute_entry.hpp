@@ -45,6 +45,7 @@ namespace mv
             std::shared_ptr<GenericFunc> toJSONFunc_;
             std::shared_ptr<GenericFunc> fromJSONFunc_;
             std::shared_ptr<GenericFunc> toStringFunc_;
+            std::shared_ptr<GenericFunc> toShortStringFunc_;
             std::set<std::string> typeTraits_;
 
         public:
@@ -57,6 +58,7 @@ namespace mv
             AttributeEntry& setToJSONFunc(const std::function<mv::json::Value(const Attribute&)>& f);
             AttributeEntry& setFromJSONFunc(const std::function<Attribute(const mv::json::Value&)>& f);
             AttributeEntry& setToStringFunc(const std::function<std::string(const Attribute&)>& f);
+            AttributeEntry& setShortToStringFunc(const std::function<std::string(const Attribute&)>& f);
             AttributeEntry& setTypeTrait(const std::string& trait);
 
             const std::string& getTypeName() const;
@@ -66,6 +68,7 @@ namespace mv
             const std::function<mv::json::Value(const Attribute&)>& getToJSONFunc();
             const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc();
             const std::function<std::string(const Attribute&)>& getToStringFunc();
+            const std::function<std::string(const Attribute&)>& getShortToStringFunc();
             bool hasTypeTrait(const std::string& trait);
             bool hasCheckFunc() const;
 

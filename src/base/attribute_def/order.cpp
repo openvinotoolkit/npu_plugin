@@ -26,7 +26,7 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            return a.get<Order>().toString();
+            return "OrderType::" + a.get<Order>().toString();
         }
 
         MV_REGISTER_ATTR(Order)

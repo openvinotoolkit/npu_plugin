@@ -9,7 +9,8 @@ namespace mv
 
 const std::set<std::string> mv::attr::AttributeRegistry::typeTraits_ = 
 {
-    // Currently no attribute type traits defined
+    // Large content - this attribute type can potentailly store a large content
+    "large"
 };
 
 const std::set<std::string> mv::attr::AttributeRegistry::instanceTraits_ = 
@@ -133,7 +134,7 @@ const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeR
     return getFromJSONFunc(getTypeID(typeName));
 }
 
-const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeRegistry::getToStringFunc(std::type_index typeID)
+const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeRegistry::getToStringFunc(std::type_index typeID, bool forceLong)
 {
 
     if (!checkType(typeID))
@@ -146,6 +147,8 @@ const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeRegis
 
     if (attrPtr)
     {
+        if (hasTypeTrait(typeID, "large") && forceLong)
+            return attrPtr->getShortToStringFunc();
         return attrPtr->getToStringFunc();
     }
 

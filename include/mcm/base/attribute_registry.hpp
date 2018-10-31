@@ -39,7 +39,7 @@ namespace mv
             static const std::function<mv::json::Value(const Attribute&)>& getToJSONFunc(std::type_index typeID);
             static const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc(std::type_index typeID);
             static const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc(std::string typeName);
-            static const std::function<std::string(const Attribute&)>& getToStringFunc(std::type_index typeID);
+            static const std::function<std::string(const Attribute&)>& getToStringFunc(std::type_index typeID, bool forceLong = false);
             static std::type_index getTypeID(const std::string& typeName);
             static bool checkTypeTrait(const std::string& typeTrait);
             static bool hasTypeTrait(std::type_index typeID, const std::string& trait);
