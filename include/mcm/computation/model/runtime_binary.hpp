@@ -34,7 +34,7 @@ namespace mv
         bool setFileName(std::string newName);
         bool getBuffer(std::string newName, uint32_t newSize);
         bool getBuffer(uint32_t newSize);
-        bool writeBuffer(char sourceBuf[4096], int numBytes);
+        bool writeBuffer(char *sourceBuf, int numBytes);
         bool dumpBuffer(std::string testFileName);
 
     };
