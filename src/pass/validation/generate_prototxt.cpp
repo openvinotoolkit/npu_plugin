@@ -160,7 +160,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 }
             }
 
-            // //TODO Case (2)
+            //TODO Case (2)
 
             /*add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
@@ -177,7 +177,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             blobShape->set_dim(3, parentOpIt1->get<mv::Shape>("shape")[0]);
 
             blobProto->clear_double_data();
-            blobProto->clear_double_diff();
 
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
@@ -189,9 +188,12 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             {
                 blobProto->add_double_data(caffeModelWeights[i]);
             }
+
+            //TODO Impliment Case (2)
+
         }
 
-        //TODO Set layer to have a softmax parameter - is this required?
+        //TODO Set layer to have a softmax parameter - this may not be required, needs investigation
         if (opIt->getOpType() == mv::OpType::Softmax)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -216,7 +218,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_top(opIt->getName());
         }
 
-        //TODO Set layer to have a Relu parameter - is this required?
+        //TODO Set layer to have a relu parameter - this may not be required, needs investigation
         if (opIt->getOpType() == mv::OpType::ReLU)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -244,8 +246,8 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_top(opIt->getName());
         }
 
-        //TODO Do you add two bottoms for the two inputs?
-        //Need to store the slope data in a blob in the layer? - Yes?
+        //TODO Do you add two bottoms for the two inputs? It appears not from t6-Enet model in MDK
+        //Need to store the slope data in a blob in the layer? - Yes done.
 
         if (opIt->getOpType() == mv::OpType::PReLU)
         {
@@ -283,7 +285,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             blobShapeprelu->set_dim(0, opIt->getInputTensor(0)->get<mv::Shape>("shape")[2]);
 
             blobProtoprelu->clear_double_data();
-            blobProtoprelu->clear_double_diff();
 
             /*ColumnMajor is format for caffemodel*/
             auto slopeData = opIt->getInputTensor(1);
@@ -297,8 +298,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        //TODO bias term
-        //Compositional model API does not support bias term for scale?
         if (opIt->getOpType() == mv::OpType::Scale)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -489,9 +488,12 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             eltwiseParamPrototxt->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
             eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
+
+            // if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
+            //  throw RuntimeError(, "The generate prototxt pass does not handle constant"); 
+        
         }
 
-        //confirm if multiple if equivalent to Caffe Eltwise Product
         if (opIt->getOpType() == mv::OpType::Multiply)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
