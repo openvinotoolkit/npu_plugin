@@ -25,10 +25,13 @@ bool mv::RuntimeBinary::RuntimeBinary::getBuffer(std::string newName, int newSiz
     data = new char[newSize+RAMAlign];
     bufferSize = newSize;
     binaryName = newName;
-    // just for testing, fill RAM buffer with backgraound pattern
-    for (int i=0; i<newSize; i++)
+    // just for testing, fill RAM buffer with background pattern
+    for (int i=0; i<newSize; i=i+4)
     {
-        data[i]=i;
+        data[i]=1;
+        data[i+1]=2;
+        data[i+2]=3;
+        data[i+3]=4;
     }
     return true ;
 }
@@ -108,7 +111,7 @@ bool mv::RuntimeBinary::RuntimeBinary::dumpBuffer(std::string testFileName)
         std::cout << "ERROR: Could not open output file"<< testFileName << std::endl;
     }
 
-    fwrite(&data,1,fileSize,testfp);
+    fwrite(data,1,fileSize,testfp);
     fclose(testfp);
 
     return true ;
