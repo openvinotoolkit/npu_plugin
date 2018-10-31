@@ -193,7 +193,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 blobProto->add_double_data(caffeModelWeights[i]);
             }
         }
-
+        
         //TODO Set layer to have a softmax parameter - is this required?
         if (opIt->getOpType() == mv::OpType::Softmax)
         {
@@ -279,8 +279,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_top(opIt->getName());
 
             /*Store slope data in a blob*/
-            caffe::PReLUParameter *preluParamCaffeModel = layerParamCaffeModel->mutable_prelu_param();
-
             caffe::BlobProto *blobProtoprelu = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShapeprelu = blobProtoprelu->mutable_shape();
 
@@ -368,6 +366,10 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
+
+            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
         }
 
         if (opIt->getOpType() == mv::OpType::AvgPool2D)
@@ -405,6 +407,10 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
+
+            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
         }
 
         //   if (opIt->getOpType() == mv::OpType::Add)
