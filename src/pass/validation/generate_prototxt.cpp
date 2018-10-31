@@ -139,8 +139,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 convParamPrototxt->set_bias_term(1);
                 convParamCaffeModel->set_bias_term(1);
 
-                caffe::BiasParameter *biasParamCaffeModel = layerParamCaffeModel->mutable_bias_param();
-
                 /*add bias*/
                 caffe::BlobProto *blobProtobias = layerParamCaffeModel->add_blobs();
                 caffe::BlobShape *blobShapebias = blobProtobias->mutable_shape();
@@ -149,7 +147,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 blobShapebias->set_dim(0, opIt.leftmostChild()->getInputTensor(0)->get<mv::Shape>("shape")[2]);
 
                 blobProtobias->clear_double_data();
-                blobProtobias->clear_double_diff();
 
                 /*ColumnMajor is format for caffemodel*/
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
@@ -193,7 +190,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 blobProto->add_double_data(caffeModelWeights[i]);
             }
         }
-        
+
         //TODO Set layer to have a softmax parameter - is this required?
         if (opIt->getOpType() == mv::OpType::Softmax)
         {
@@ -329,6 +326,44 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             */
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a conv parameter*/
+            caffe::ScaleParameter *scaleParamPrototxt = layerParamPrototxt->mutable_scale_param();
+            caffe::ScaleParameter *scaleParamCaffeModel = layerParamCaffeModel->mutable_scale_param();
+
+            /*Specify if scale has bias*/
+
+            /* Case (1) Bias will be a seprate operation before the fuse bias pass*/
+            /* Case (2) Bias will be an attribute after the fuse bias pass*/
+
+            // Case(1)
+            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
+            {
+                scaleParamPrototxt->set_bias_term(1);
+                scaleParamCaffeModel->set_bias_term(1);
+
+                /*add bias*/
+                caffe::BlobProto *blobProtobias = layerParamCaffeModel->add_blobs();
+                caffe::BlobShape *blobShapebias = blobProtobias->mutable_shape();
+
+                blobShapebias->add_dim(0);
+                blobShapebias->set_dim(0, opIt.leftmostChild()->getInputTensor(0)->get<mv::Shape>("shape")[2]);
+
+                blobProtobias->clear_double_data();
+
+                /*ColumnMajor is format for caffemodel*/
+                auto bias = opIt.leftmostChild()->getInputTensor(1);
+                bias->setOrder(mv::OrderType::ColumnMajor);
+
+                std::vector<double> caffeModelBias = (*bias).getData();
+
+                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
+                {
+                    blobProtobias->add_double_data(caffeModelBias[i]);
+                }
+            }
+
+            // TODO:Case(2)
         }
 
         if (opIt->getOpType() == mv::OpType::MaxPool2D)
@@ -413,42 +448,92 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
         }
 
-        //   if (opIt->getOpType() == mv::OpType::Add)
-        //     {
-        //         caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
-        //         caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+        if (opIt->getOpType() == mv::OpType::Add)
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
 
-        //         /*Set name and type of the layer*/
-        //         layerParamPrototxt->set_name(opIt->getName());
-        //         layerParamPrototxt->set_type("Eltwise");
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Eltwise");
 
-        //         layerParamCaffeModel->set_name(opIt->getName());
-        //         layerParamCaffeModel->set_type("Eltwise");
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Eltwise");
 
-        //         /*The bottom attribute stores the name of the input blob*/
-        //         auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
-        //         //TODO Deal with fused ops here instead of going back two operations
-        //         /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-        //         //auto parentOpIt1 = parentOpIt0.leftmostParent();
+            //TODO Deal with fused ops here instead of going back two operations
+            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+            //auto parentOpIt1 = parentOpIt0.leftmostParent();
 
-        //         layerParamPrototxt->add_bottom(parentOpIt0->getName());
-        //         layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamPrototxt->add_bottom(parentOpIt1->getName());
 
-        //         /*The top attribute stores the name of the output blob, which for convenience,
-        //           is generally taken to be the same as the name of the layer.
-        //         */
-        //         layerParamPrototxt->add_top(opIt->getName());
-        //         layerParamCaffeModel->add_top(opIt->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
-        //         /*Set layer to have a pooling parameter*/
-        //         caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
-        //         caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
+            /*The top attribute stores the name of the output blob, which for convenience,
+                  is generally taken to be the same as the name of the layer.
+                */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
 
-        //         poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
-        //         poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
-        //         poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
-        //     }
+            /*Set layer to have an eltwise parameter*/
+            layerParamPrototxt->has_eltwise_param();
+            layerParamCaffeModel->has_eltwise_param();
+
+            caffe::EltwiseParameter *eltwiseParamPrototxt = layerParamPrototxt->mutable_eltwise_param();
+            caffe::EltwiseParameter *eltwiseParamCaffeModel = layerParamCaffeModel->mutable_eltwise_param();
+
+            eltwiseParamPrototxt->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
+            eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
+        }
+
+        //confirm if multiple if equivalent to Caffe Eltwise Product
+        if (opIt->getOpType() == mv::OpType::Multiply)
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Eltwise");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Eltwise");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
+
+            //TODO Deal with fused ops here instead of going back two operations
+            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+            //auto parentOpIt1 = parentOpIt0.leftmostParent();
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamPrototxt->add_bottom(parentOpIt1->getName());
+
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+
+            /*The top attribute stores the name of the output blob, which for convenience,
+                  is generally taken to be the same as the name of the layer.
+                */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have an eltwise parameter*/
+            layerParamPrototxt->has_eltwise_param();
+            layerParamCaffeModel->has_eltwise_param();
+
+            caffe::EltwiseParameter *eltwiseParamPrototxt = layerParamPrototxt->mutable_eltwise_param();
+            caffe::EltwiseParameter *eltwiseParamCaffeModel = layerParamCaffeModel->mutable_eltwise_param();
+
+            eltwiseParamPrototxt->set_operation(caffe::EltwiseParameter_EltwiseOp_PROD);
+            eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_PROD);
+        }
     }
 
     /*create caffemodel*/
