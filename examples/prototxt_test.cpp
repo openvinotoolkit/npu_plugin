@@ -15,17 +15,18 @@ int main()
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
 
     /*Convolution*/
-    mv::Shape kernelShape = {3, 3, 3, 64};
+    mv::Shape kernelShape = {7, 7, 3, 64};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
     auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
     auto conv = cm.conv2D(input, weights, stride, padding);
 
-    // /*Bias*/
-    // std::vector<double> biasData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
-    // auto biasTensor = cm.constant(biasData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    // auto bias = cm.bias(conv,biasTensor);
+    /*Bias*/
+    mv::Shape biasShape = {64};
+    std::vector<double> biasData = mv::utils::generateSequence<double>(biasShape.totalSize());
+    auto biasTensor = cm.constant(biasData, biasShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto bias = cm.bias(conv,biasTensor);
 
     // /*Scale*/
     // std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
@@ -57,7 +58,7 @@ int main()
     // auto multiplyResult = cm.multiply(addResult, multiplyDataTensor);
 
     /*Softmax*/
-    auto softmax = cm.softmax(conv);
+    auto softmax = cm.softmax(bias);
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
