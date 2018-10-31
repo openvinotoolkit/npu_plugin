@@ -261,14 +261,14 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->set_type("Scale");
 
             /*The bottom attribute stores the name of the input blob*/
-            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(1));
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
 
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            //auto parentOpIt1 = parentOpIt0.leftmostParent();
+            auto parentOpIt1 = parentOpIt0.leftmostParent();
             
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            layerParamPrototxt->add_bottom(parentOpIt1->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
               is generally taken to be the same as the name of the layer.
@@ -294,10 +294,10 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            auto parentOpIt1 = parentOpIt0.leftmostParent();
+            //auto parentOpIt1 = parentOpIt0.leftmostParent();
             
-            layerParamPrototxt->add_bottom(parentOpIt1->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
               is generally taken to be the same as the name of the layer.

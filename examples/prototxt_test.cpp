@@ -30,10 +30,10 @@ int main()
     /*Scale*/
     std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
     auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    auto scale = cm.scale(conv,scaleTensor);
+    auto scale = cm.scale(bias,scaleTensor);
  
     /*Pool*/
-    auto pool = cm.maxpool2D(bias, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
     
     /*Relu*/
     auto relu = cm.relu(pool);
