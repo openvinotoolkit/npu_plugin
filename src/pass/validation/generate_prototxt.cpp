@@ -164,7 +164,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
 
             // //TODO Case (2)
-    
+
             /*add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShape = blobProto->mutable_shape();
@@ -220,7 +220,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
         }
 
         //TODO Set layer to have a Relu parameter - is this required?
-         if (opIt->getOpType() == mv::OpType::ReLU)
+        if (opIt->getOpType() == mv::OpType::ReLU)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -239,7 +239,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             auto parentOpIt1 = parentOpIt0.leftmostParent();
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
-           
 
             /*The top attribute stores the name of the output blob, which for convenience, 
               is generally taken to be the same as the name of the layer.
@@ -248,8 +247,11 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_top(opIt->getName());
         }
 
-           if (opIt->getOpType() == mv::OpType::PReLU)
-           {
+        //TODO Do you add two bottoms for the two inputs?
+        //Need to store the slope data in a blob in the layer? - Yes?
+
+        if (opIt->getOpType() == mv::OpType::PReLU)
+        {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
 
@@ -262,21 +264,46 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            //auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1)); //Is this needed??
 
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            auto parentOpIt1 = parentOpIt0.leftmostParent();
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
-           
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            //layerParamPrototxt->add_bottom(parentOpIt1->getName()); //Is this needed??
 
             /*The top attribute stores the name of the output blob, which for convenience, 
               is generally taken to be the same as the name of the layer.
             */
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Store slope data in a blob*/
+            caffe::PReLUParameter *preluParamCaffeModel = layerParamCaffeModel->mutable_prelu_param();
+
+            caffe::BlobProto *blobProtoprelu = layerParamCaffeModel->add_blobs();
+            caffe::BlobShape *blobShapeprelu = blobProtoprelu->mutable_shape();
+
+            blobShapeprelu->add_dim(0);
+            blobShapeprelu->set_dim(0, opIt->getInputTensor(0)->get<mv::Shape>("shape")[2]);
+
+            blobProtoprelu->clear_double_data();
+            blobProtoprelu->clear_double_diff();
+
+            /*ColumnMajor is format for caffemodel*/
+            auto slopeData = opIt->getInputTensor(1);
+            slopeData->setOrder(mv::OrderType::ColumnMajor);
+
+            std::vector<double> preluSlopeData = (*slopeData).getData();
+
+            for (unsigned i = 0; i < preluSlopeData.size(); ++i)
+            {
+                blobProtoprelu->add_double_data(preluSlopeData[i]);
+            }
         }
 
-        
+        //TODO bias term
+        //Compositional model API does not support bias term for scale?
         if (opIt->getOpType() == mv::OpType::Scale)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -295,7 +322,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             auto parentOpIt1 = parentOpIt0.leftmostParent();
-            
+
             layerParamPrototxt->add_bottom(parentOpIt1->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
@@ -305,7 +332,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
         }
-    
+
         if (opIt->getOpType() == mv::OpType::MaxPool2D)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -324,7 +351,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             //auto parentOpIt1 = parentOpIt0.leftmostParent();
-            
+
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
@@ -343,7 +370,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
         }
 
-         if (opIt->getOpType() == mv::OpType::AvgPool2D)
+        if (opIt->getOpType() == mv::OpType::AvgPool2D)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -361,7 +388,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             //auto parentOpIt1 = parentOpIt0.leftmostParent();
-            
+
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
@@ -379,6 +406,43 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
         }
+
+        //   if (opIt->getOpType() == mv::OpType::Add)
+        //     {
+        //         caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+        //         caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+        //         /*Set name and type of the layer*/
+        //         layerParamPrototxt->set_name(opIt->getName());
+        //         layerParamPrototxt->set_type("Eltwise");
+
+        //         layerParamCaffeModel->set_name(opIt->getName());
+        //         layerParamCaffeModel->set_type("Eltwise");
+
+        //         /*The bottom attribute stores the name of the input blob*/
+        //         auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+        //         //TODO Deal with fused ops here instead of going back two operations
+        //         /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+        //         //auto parentOpIt1 = parentOpIt0.leftmostParent();
+
+        //         layerParamPrototxt->add_bottom(parentOpIt0->getName());
+        //         layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+        //         /*The top attribute stores the name of the output blob, which for convenience,
+        //           is generally taken to be the same as the name of the layer.
+        //         */
+        //         layerParamPrototxt->add_top(opIt->getName());
+        //         layerParamCaffeModel->add_top(opIt->getName());
+
+        //         /*Set layer to have a pooling parameter*/
+        //         caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
+        //         caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
+
+        //         poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+        //         poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+        //         poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
+        //     }
     }
 
     /*create caffemodel*/
