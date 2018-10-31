@@ -38,27 +38,23 @@ void generateBlobFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
  
     if (compDesc["GenerateBlob"]["enableRAMOutput"].get<bool>())
     {
-        RAMEnable = compDesc["GenerateBlob"]["enableRAMOutput"].get<bool>() ;
-        cm.getBinaryBuffer()->setRAMEnabled(RAMEnable) ;
+        RAMEnable = true ;
     }
+    cm.getBinaryBuffer()->setRAMEnabled(RAMEnable) ;
 
     if (compDesc["GenerateBlob"]["enableFileOutput"].get<bool>())
     {
-       fileEnable = compDesc["GenerateBlob"]["enableFileOutput"].get<bool>() ;
-       cm.getBinaryBuffer()->setFileEnabled(fileEnable) ;
+        fileEnable = true ;
     }
+    cm.getBinaryBuffer()->setFileEnabled(fileEnable) ;
 
     if (!(compDesc["GenerateBlob"]["fileName"].get<std::string>().empty()))
     {
-       blobFileName = compDesc["GenerateBlob"]["fileName"].get<std::string>() ;
-       cm.getBinaryBuffer()->setFileName(blobFileName) ;
+        blobFileName = compDesc["GenerateBlob"]["fileName"].get<std::string>() ;
     }
+    cm.getBinaryBuffer()->setFileName(blobFileName) ;
 
-    std::cout << "in seriialize pass, blob IO options: RAMe fileE filename = " << RAMEnable << " " << fileEnable << " " << blobFileName << std::endl;
- 
     long long result = static_cast<long long>(serializer.serialize(cm));
     compOutput["blobSize"] = result;
-   
-    cm.getBinaryBuffer()->dumpBuffer("final_RAM.blob") ;  // for testing
 
 }

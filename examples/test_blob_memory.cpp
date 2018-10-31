@@ -124,7 +124,7 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("resnet18.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("resnet18t.blob");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
@@ -134,8 +134,10 @@ int main()
     //unit.passManager().disablePass(mv::PassGenre::Serialization);
     //unit.passManager().disablePass(mv::PassGenre::Adaptation);
 
+    mv::OpModel cm2(cm);
     // Run all passes
     unit.run();
+    cm2.getBinaryBuffer()->dumpBuffer("final_RAM.blob") ;
 
     //system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
     //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");

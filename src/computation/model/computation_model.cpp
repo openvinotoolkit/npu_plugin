@@ -286,7 +286,7 @@ controlOpEnd_(other.controlOpEnd_),
 controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_),
-binary_(std::make_shared<mv::RuntimeBinary>())
+binary_(other.binary_)
 {
     log(Logger::MessageType::MessageInfo, "Bound");
 }
