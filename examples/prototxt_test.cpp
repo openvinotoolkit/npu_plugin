@@ -15,7 +15,7 @@ int main()
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
 
     /*Convolution*/
-    mv::Shape kernelShape = {3, 3, 3, 4};
+    mv::Shape kernelShape = {3, 3, 3, 64};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
     auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
     std::array<unsigned short, 2> stride = {2, 2};
@@ -41,8 +41,13 @@ int main()
     /*Average Pool*/
     auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
 
+    /*prelu*/
+    std::vector<double> data = mv::utils::generateSequence<double>(64);
+    auto slope = cm.constant(data, {64}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto prelu = cm.prelu(pool1, slope);
+
     /*Softmax*/
-    auto softmax = cm.softmax(pool1);
+    auto softmax = cm.softmax(prelu);
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);

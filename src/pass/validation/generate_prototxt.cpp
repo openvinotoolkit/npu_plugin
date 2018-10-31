@@ -247,6 +247,35 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
         }
+
+           if (opIt->getOpType() == mv::OpType::PReLU)
+           {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("PReLU");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("PReLU");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            //TODO Deal with fused ops here instead of going back two operations
+            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
+            auto parentOpIt1 = parentOpIt0.leftmostParent();
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+           
+
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+
         
         if (opIt->getOpType() == mv::OpType::Scale)
         {
