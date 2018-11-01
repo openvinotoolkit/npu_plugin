@@ -66,9 +66,6 @@ import_array();
     {
         unit->initialize();
 
-        unit->passManager().disablePass(mv::PassGenre::Adaptation);
-        //unit->passManager().disablePass(mv::PassGenre::Validation);
-
         auto compOutput = unit->run();
         return (int)compOutput["passes"].last()["blobSize"].get<long long>();
     }
