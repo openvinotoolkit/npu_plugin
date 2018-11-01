@@ -62,29 +62,43 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {
-
         if (opIt->getOpType() == mv::OpType::Input)
         {
-            /*Don't create a LayerParameter for input */
+            /*Create layers*/
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
 
-            /* add input dimensions to the network objects*/
-            netParamPrototxt.add_input("Input_0");
-            netParamCaffeModel.add_input("Input_0");
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Input");
 
-            netParamPrototxt.add_input_dim(0);
-            netParamPrototxt.add_input_dim(1);
-            netParamPrototxt.add_input_dim(2);
-            netParamPrototxt.add_input_dim(3);
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Input");
 
-            netParamPrototxt.set_input_dim(0, 1);
-            netParamPrototxt.set_input_dim(1, 3);
-            netParamPrototxt.set_input_dim(2, 224);
-            netParamPrototxt.set_input_dim(3, 224);
+            /*Set layer to have a input parameter*/
+            caffe::InputParameter *inputParamPrototxt = layerParamPrototxt->mutable_input_param();
+            caffe::InputParameter *inputParamCaffeModel = layerParamCaffeModel->mutable_input_param();
+
+            caffe::BlobShape *blobShapePrototxt = inputParamPrototxt->add_shape();
+            caffe::BlobShape *blobShapeCaffeModel = inputParamCaffeModel->add_shape();
+
+            blobShapePrototxt->add_dim(0);
+            blobShapePrototxt->add_dim(1);
+            blobShapePrototxt->add_dim(2);
+            blobShapePrototxt->set_dim(0, opIt->get<mv::Shape>("shape")[2]);
+            blobShapePrototxt->set_dim(1, opIt->get<mv::Shape>("shape")[1]);
+            blobShapePrototxt->set_dim(2, opIt->get<mv::Shape>("shape")[0]);
+
+            blobShapeCaffeModel->add_dim(0);
+            blobShapeCaffeModel->add_dim(1);
+            blobShapeCaffeModel->add_dim(2);
+            blobShapeCaffeModel->set_dim(0, opIt->get<mv::Shape>("shape")[2]);
+            blobShapeCaffeModel->set_dim(1, opIt->get<mv::Shape>("shape")[1]);
+            blobShapeCaffeModel->set_dim(2, opIt->get<mv::Shape>("shape")[0]);
         }
 
         if (opIt->getOpType() == mv::OpType::Conv2D)
         {
-
             /*Create layers*/
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -96,14 +110,14 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Convolution");
 
-            /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            /*The bottom attribute stores the name of the input blob*/
             layerParamPrototxt->add_bottom(parentOpIt->getName());
             layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
+              is generally taken to be the same as the name of the layer*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -111,15 +125,15 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             caffe::ConvolutionParameter *convParamPrototxt = layerParamPrototxt->mutable_convolution_param();
             caffe::ConvolutionParameter *convParamCaffeModel = layerParamCaffeModel->mutable_convolution_param();
 
-            /*Set stride on ConvolutionParameter object*/
+            /*Set stride*/
             convParamPrototxt->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             convParamCaffeModel->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
 
-            /*Set padding on ConvolutionParameter object*/
+            /*Set padding*/
             convParamPrototxt->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             convParamCaffeModel->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
 
-            /*Set kernel on ConvolutionParameter object*/
+            /*Set kernel*/
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
             convParamPrototxt->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
             convParamCaffeModel->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
@@ -128,7 +142,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
 
-            /*add weights*/
+            /*Add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShape = blobProto->mutable_shape();
 
@@ -146,7 +160,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
-            weights->setOrder(mv::Order("NCHW"));
+            weights->setOrder(mv::Order("NCWH"));
 
             std::vector<double> caffeModelWeights = (*weights).getData();
 
@@ -173,7 +187,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 /*ColumnMajor is format for caffemodel*/
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
                 bias->setOrder(mv::Order("W"));
-
 
                 std::vector<double> caffeModelBias = (*bias).getData();
 
@@ -205,7 +218,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            /*Check if previosu op is bias*/
+            /*Check if previous op is bias*/
             if (parentOpIt->getOpType() == mv::OpType::Bias)
             {
                 auto parentOpIt1 = opModel.getSourceOp(parentOpIt->getInputTensor(0));
@@ -214,8 +227,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
                 /*The top attribute stores the name of the output blob, which for convenience, 
-                is generally taken to be the same as the name of the layer.
-                */
+                is generally taken to be the same as the name of the layer*/
                 layerParamPrototxt->add_top(opIt->getName());
                 layerParamCaffeModel->add_top(opIt->getName());
             }
@@ -224,15 +236,11 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 layerParamPrototxt->add_bottom(parentOpIt->getName());
                 layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
-                /*The top attribute stores the name of the output blob, which for convenience, 
-                is generally taken to be the same as the name of the layer.
-                */
                 layerParamPrototxt->add_top(opIt->getName());
                 layerParamCaffeModel->add_top(opIt->getName());
             }
         }
 
-        //TODO Set layer to have a relu parameter - this may not be required, needs investigation
         if (opIt->getOpType() == mv::OpType::ReLU)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -245,24 +253,32 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("ReLU");
 
-            /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            //TODO Deal with fused ops here instead of going back two operations
-            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            auto parentOpIt1 = parentOpIt0.leftmostParent();
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            if (parentOpIt0->getOpType() == mv::OpType::Bias)
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt0->getInputTensor(0));
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
-            layerParamPrototxt->add_top(opIt->getName());
-            layerParamCaffeModel->add_top(opIt->getName());
+                /*The bottom attribute stores the name of the input blob*/
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+
+                /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt0->getName());
+
+                /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
         }
 
-        //TODO Do you add two bottoms for the two inputs? It appears not from t6-Enet model in MDK
-        //Need to store the slope data in a blob in the layer? - Yes done.
-
+        //TODO - PRELU needs to be tested - disabled in cppwrapper.py 
         if (opIt->getOpType() == mv::OpType::PReLU)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -277,17 +293,12 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
-            //auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1)); //Is this needed??
 
-            //TODO Deal with fused ops here instead of going back two operations
-            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
-            //layerParamPrototxt->add_bottom(parentOpIt1->getName()); //Is this needed??
 
             /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
+              is generally taken to be the same as the name of the layer.*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -303,7 +314,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*ColumnMajor is format for caffemodel*/
             auto slopeData = opIt->getInputTensor(1);
             slopeData->setOrder(mv::Order("W"));
-
 
             std::vector<double> preluSlopeData = (*slopeData).getData();
 
@@ -328,19 +338,15 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            //TODO Deal with fused ops here instead of going back two operations
-            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             auto parentOpIt1 = parentOpIt0.leftmostParent();
 
             layerParamPrototxt->add_bottom(parentOpIt1->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
+              is generally taken to be the same as the name of the layer*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
-
 
             /*add scale data*/
             caffe::BlobProto *blobProtoscale = layerParamCaffeModel->add_blobs();
@@ -410,16 +416,11 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            //TODO Deal with fused ops here instead of going back two operations
-            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            //auto parentOpIt1 = parentOpIt0.leftmostParent();
-
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
+              is generally taken to be the same as the name of the layer*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -451,16 +452,11 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            //TODO Deal with fused ops here instead of going back two operations
-            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            //auto parentOpIt1 = parentOpIt0.leftmostParent();
-
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
+              is generally taken to be the same as the name of the layer*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -494,11 +490,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
             if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
-            throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Add");
-
-            //TODO Deal with fused ops here instead of going back two operations
-            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            //auto parentOpIt1 = parentOpIt0.leftmostParent();
+                throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Add");
 
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamPrototxt->add_bottom(parentOpIt1->getName());
@@ -507,8 +499,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience,
-                  is generally taken to be the same as the name of the layer.
-                */
+              is generally taken to be the same as the name of the layer*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -540,11 +531,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
             if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
-            throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Prodcut");
-
-            //TODO Deal with fused ops here instead of going back two operations
-            /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
-            //auto parentOpIt1 = parentOpIt0.leftmostParent();
+                throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Prodcut");
 
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamPrototxt->add_bottom(parentOpIt1->getName());
@@ -553,8 +540,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience,
-                  is generally taken to be the same as the name of the layer.
-                */
+             is generally taken to be the same as the name of the layer*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -586,19 +572,18 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamPrototxt->add_bottom(parentOpIt1->getName());
 
-            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
             /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
+              is generally taken to be the same as the name of the layer.*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
-        } 
+        }
 
-            if (opIt->getOpType() == mv::OpType::BatchNorm)
+        if (opIt->getOpType() == mv::OpType::BatchNorm)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -625,7 +610,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             */
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
-        } 
+        }
     }
 
     /*create caffemodel*/
