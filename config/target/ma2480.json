@@ -295,21 +295,7 @@
 
 		"finalize":
 		[
-                        "AlignConstOrder",
-			"MarkHardwareOperations",
-			"FuseReluMX",
-			"AddConversionLayers",
-			"MyriadXPaddings",
-			"OptimizePoolings",
-			"OptimizeConvolutions",
-			"SplitsOverH",
-			"ScaleFission",
-			"FormatMXWeights",
-			"ArrangeLinearExecution",
-			"AllocatePopulatedTensors",
-			"AllocateUnpopulatedTensors",
-                        "AllocateInputOutputTensors"
-			
+                  	
 		],
 
 		"serialize":
