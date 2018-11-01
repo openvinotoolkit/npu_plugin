@@ -240,10 +240,10 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*Set name and type of the layer*/
             layerParamPrototxt->set_name(opIt->getName());
-            layerParamPrototxt->set_type("Relu");
+            layerParamPrototxt->set_type("ReLU");
 
             layerParamCaffeModel->set_name(opIt->getName());
-            layerParamCaffeModel->set_type("Relu");
+            layerParamCaffeModel->set_type("ReLU");
 
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
@@ -302,7 +302,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*ColumnMajor is format for caffemodel*/
             auto slopeData = opIt->getInputTensor(1);
-            slopeData->setOrder(mv::Order("NCHW"));
+            slopeData->setOrder(mv::Order("W"));
 
 
             std::vector<double> preluSlopeData = (*slopeData).getData();
@@ -385,7 +385,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
 
                 bias->setOrder(mv::Order("W"));
-
 
                 std::vector<double> caffeModelBias = (*bias).getData();
 
@@ -494,6 +493,9 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
+            if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
+            throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Add");
+
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
             //auto parentOpIt1 = parentOpIt0.leftmostParent();
@@ -519,9 +521,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             eltwiseParamPrototxt->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
             eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
-
-            // if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
-            //  throw RuntimeError(, "The generate prototxt pass does not handle constant");
         }
 
         if (opIt->getOpType() == mv::OpType::Multiply)
@@ -539,6 +538,9 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
+
+            if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
+            throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Product");
 
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
@@ -565,6 +567,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             eltwiseParamPrototxt->set_operation(caffe::EltwiseParameter_EltwiseOp_PROD);
             eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_PROD);
+
         }
     }
 

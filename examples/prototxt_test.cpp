@@ -12,14 +12,14 @@ int main()
     mv::CompositionalModel &cm = unit.model();
 
     /*Create computation model*/
-    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16,  mv::Order("CHW"));
+    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16,  mv::Order("HWC"));
 
 
     /*Convolution*/
     mv::Shape kernelShape = {7, 7, 3, 64};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
 
-    auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16,  mv::Order("CHWN"));
+    auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16,  mv::Order("HWCN"));
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
     auto conv = cm.conv2D(input, weights, stride, padding);
@@ -38,39 +38,37 @@ int main()
     /*Scale bias*/
     mv::Shape scaleBiasShape = {64};
     std::vector<double> scaleBiasData = mv::utils::generateSequence<double>(scaleBiasShape.totalSize());
-    auto scaleBiasTensor = cm.constant(scaleBiasData, scaleBiasShape, mv::DTypeType::Float16,  mv::Order("W"));
+    auto scaleBiasTensor = cm.constant(scaleBiasData, scaleBiasShape, mv::DTypeType::Float16, mv::Order("W"));
     auto scaleBias = cm.bias(scale,scaleBiasTensor);
 
-
- 
-    // /*Max Pool*/
-    // auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    /*Max Pool*/
+    auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
     
-    // /*Relu*/
-    // auto relu = cm.relu(pool);
+    /*Relu*/
+    auto relu = cm.relu(pool);
 
-    // /*Average Pool*/
-    // auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    /*Average Pool*/
+    auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
 
-    // /*prelu*/
+    /*prelu*/ 
+    //Not supported in CPP wrapper
     // std::vector<double> data = mv::utils::generateSequence<double>(64);
-    // auto slope = cm.constant(data, {64}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    // auto slope = cm.constant(data, {64}, mv::DTypeType::Float16, mv::Order("W"));
     // auto prelu = cm.prelu(pool1, slope);
 
-    // /*Add*/
-    // std::vector<double> addingData = mv::utils::generateSequence<double>(prelu->getShape().totalSize());
-    // auto addingDataTensor = cm.constant(addingData, {prelu->getShape()}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    // auto addResult = cm.add(prelu, addingDataTensor);
+    /*Add*/
+    // std::vector<double> addingData = mv::utils::generateSequence<double>(pool1->getShape().totalSize());
+    // auto addingDataTensor = cm.constant(addingData, {pool1->getShape()}, mv::DTypeType::Float16, mv::Order("HWC"));
+    // auto addResult = cm.add(addingDataTensor, pool1);
 
     // /*Multiply*/
-    // std::vector<double> multiplyData = mv::utils::generateSequence<double>(addResult->getShape().totalSize());
-    // auto multiplyDataTensor = cm.constant(multiplyData, {prelu->getShape()}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    // auto multiplyResult = cm.multiply(addResult, multiplyDataTensor);
+    // std::vector<double> multiplyData = mv::utils::generateSequence<double>(pool1->getShape().totalSize());
+    // auto multiplyDataTensor = cm.constant(multiplyData, {pool1->getShape()}, mv::DTypeType::Float16, mv::Order("HWC"));
+    // auto multiplyResult = cm.multiply(pool1, multiplyDataTensor);
 
     /*Softmax*/
-    auto softmax = cm.softmax(scale);
+    auto softmax = cm.softmax(pool1);
 
- 
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
@@ -93,7 +91,7 @@ int main()
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Adaptation);
     //unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
 
     // Run all passes
     unit.run();
