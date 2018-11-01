@@ -540,7 +540,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
             if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
-            throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Product");
+            throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Prodcut");
 
             //TODO Deal with fused ops here instead of going back two operations
             /*If this pass runs before the fuse bias pass, then we need to traverse back two operations to get the bottom*/
@@ -567,8 +567,65 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             eltwiseParamPrototxt->set_operation(caffe::EltwiseParameter_EltwiseOp_PROD);
             eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_PROD);
-
         }
+
+        if (opIt->getOpType() == mv::OpType::Concat)
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Concat");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Concat");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        } 
+
+            if (opIt->getOpType() == mv::OpType::BatchNorm)
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Concat");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Concat");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+
+            /*The top attribute stores the name of the output blob, which for convenience, 
+              is generally taken to be the same as the name of the layer.
+            */
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        } 
     }
 
     /*create caffemodel*/
