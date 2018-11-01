@@ -85,16 +85,23 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             blobShapePrototxt->add_dim(0);
             blobShapePrototxt->add_dim(1);
             blobShapePrototxt->add_dim(2);
-            blobShapePrototxt->set_dim(0, opIt->get<mv::Shape>("shape")[2]);
-            blobShapePrototxt->set_dim(1, opIt->get<mv::Shape>("shape")[1]);
-            blobShapePrototxt->set_dim(2, opIt->get<mv::Shape>("shape")[0]);
+            blobShapePrototxt->add_dim(3);
+            blobShapePrototxt->set_dim(0, 1);
+            blobShapePrototxt->set_dim(1, opIt->get<mv::Shape>("shape")[2]);
+            blobShapePrototxt->set_dim(2, opIt->get<mv::Shape>("shape")[1]);
+            blobShapePrototxt->set_dim(3, opIt->get<mv::Shape>("shape")[0]);
 
             blobShapeCaffeModel->add_dim(0);
             blobShapeCaffeModel->add_dim(1);
             blobShapeCaffeModel->add_dim(2);
-            blobShapeCaffeModel->set_dim(0, opIt->get<mv::Shape>("shape")[2]);
-            blobShapeCaffeModel->set_dim(1, opIt->get<mv::Shape>("shape")[1]);
-            blobShapeCaffeModel->set_dim(2, opIt->get<mv::Shape>("shape")[0]);
+            blobShapeCaffeModel->add_dim(3);
+            blobShapeCaffeModel->set_dim(0, 1);
+            blobShapeCaffeModel->set_dim(1, opIt->get<mv::Shape>("shape")[2]);
+            blobShapeCaffeModel->set_dim(2, opIt->get<mv::Shape>("shape")[1]);
+            blobShapeCaffeModel->set_dim(3, opIt->get<mv::Shape>("shape")[0]);
+
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
         }
 
         if (opIt->getOpType() == mv::OpType::Conv2D)

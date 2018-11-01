@@ -14,7 +14,6 @@ int main()
     /*Create computation model*/
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16,  mv::Order("HWC"));
 
-
     /*Convolution*/
     mv::Shape kernelShape = {7, 7, 3, 64};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
