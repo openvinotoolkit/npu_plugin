@@ -12,26 +12,32 @@ int main()
     mv::CompositionalModel &cm = unit.model();
 
     /*Create computation model*/
-    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16,  mv::Order("CHW"));
 
     /*Convolution*/
     mv::Shape kernelShape = {7, 7, 3, 64};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16,  mv::Order("CHWN"));
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
     auto conv = cm.conv2D(input, weights, stride, padding);
 
-    /*Bias*/
-    mv::Shape biasShape = {64};
-    std::vector<double> biasData = mv::utils::generateSequence<double>(biasShape.totalSize());
-    auto biasTensor = cm.constant(biasData, biasShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    auto bias = cm.bias(conv,biasTensor);
+    /*convoultion bias*/
+    mv::Shape convBiasShape = {64};
+    std::vector<double> convBiasData = mv::utils::generateSequence<double>(convBiasShape.totalSize());
+    auto convBiasTensor = cm.constant(convBiasData, convBiasShape, mv::DTypeType::Float16,  mv::Order("W"));
+    auto convBias = cm.bias(conv,convBiasTensor);
 
-    // /*Scale*/
-    // std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
-    // auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
-    // auto scale = cm.scale(bias,scaleTensor);
+    /*Scale*/
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
+    auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto scale = cm.scale(convBias,scaleTensor);
+
+    /*Scale bias*/
+    mv::Shape scaleBiasShape = {64};
+    std::vector<double> scaleBiasData = mv::utils::generateSequence<double>(scaleBiasShape.totalSize());
+    auto scaleBiasTensor = cm.constant(scaleBiasData, scaleBiasShape, mv::DTypeType::Float16,  mv::Order("W"));
+    auto scaleBias = cm.bias(scale,scaleBiasTensor);
  
     // /*Max Pool*/
     // auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -58,7 +64,7 @@ int main()
     // auto multiplyResult = cm.multiply(addResult, multiplyDataTensor);
 
     /*Softmax*/
-    auto softmax = cm.softmax(bias);
+    auto softmax = cm.softmax(scale);
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);

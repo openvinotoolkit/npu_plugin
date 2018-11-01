@@ -146,7 +146,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
-            weights->setOrder(mv::OrderType::ColumnMajor);
+            weights->setOrder(mv::Order("NCHW"));
 
             std::vector<double> caffeModelWeights = (*weights).getData();
 
@@ -172,7 +172,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
                 /*ColumnMajor is format for caffemodel*/
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
-                bias->setOrder(mv::OrderType::ColumnMajor);
+                bias->setOrder(mv::Order("W"));
 
                 std::vector<double> caffeModelBias = (*bias).getData();
 
@@ -189,7 +189,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        //TODO Set layer to have a softmax parameter - this may not be required, needs investigation
         if (opIt->getOpType() == mv::OpType::Softmax)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -302,7 +301,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             /*ColumnMajor is format for caffemodel*/
             auto slopeData = opIt->getInputTensor(1);
-            slopeData->setOrder(mv::OrderType::ColumnMajor);
+            slopeData->setOrder(mv::Order("NCHW"));
 
             std::vector<double> preluSlopeData = (*slopeData).getData();
 
@@ -340,18 +339,33 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
-            /*Set layer to have a conv parameter*/
-            caffe::ScaleParameter *scaleParamPrototxt = layerParamPrototxt->mutable_scale_param();
-            caffe::ScaleParameter *scaleParamCaffeModel = layerParamCaffeModel->mutable_scale_param();
+            /*add scale data*/
+            caffe::BlobProto *blobProtoscale = layerParamCaffeModel->add_blobs();
+            caffe::BlobShape *blobShapescale = blobProtoscale->mutable_shape();
+
+            blobShapescale->add_dim(0);
+            blobShapescale->set_dim(0, opIt.leftmostChild()->getInputTensor(0)->get<mv::Shape>("shape")[2]);
+
+            blobProtoscale->clear_double_data();
+
+            /*ColumnMajor is format for caffemodel*/
+            auto scale = opIt->getInputTensor(1);
+            scale->setOrder(mv::Order("W"));
+
+            std::vector<double> caffeModelScale = (*scale).getData();
+
+            for (unsigned i = 0; i < caffeModelScale.size(); ++i)
+            {
+                blobProtoscale->add_double_data(caffeModelScale[i]);
+            }
 
             /*Specify if scale has bias*/
-
-            /* Case (1) Bias will be a seprate operation before the fuse bias pass*/
-            /* Case (2) Bias will be an attribute after the fuse bias pass*/
-
-            // Case(1)
             if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
             {
+                /*Set layer to have a scale parameter*/
+                caffe::ScaleParameter *scaleParamPrototxt = layerParamPrototxt->mutable_scale_param();
+                caffe::ScaleParameter *scaleParamCaffeModel = layerParamCaffeModel->mutable_scale_param();
+
                 scaleParamPrototxt->set_bias_term(1);
                 scaleParamCaffeModel->set_bias_term(1);
 
@@ -366,7 +380,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
                 /*ColumnMajor is format for caffemodel*/
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
-                bias->setOrder(mv::OrderType::ColumnMajor);
+                bias->setOrder(mv::Order("W"));
 
                 std::vector<double> caffeModelBias = (*bias).getData();
 
@@ -375,8 +389,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                     blobProtobias->add_double_data(caffeModelBias[i]);
                 }
             }
-
-            // TODO:Case(2)
         }
 
         if (opIt->getOpType() == mv::OpType::MaxPool2D)
