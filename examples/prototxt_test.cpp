@@ -14,9 +14,11 @@ int main()
     /*Create computation model*/
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16,  mv::Order("CHW"));
 
+
     /*Convolution*/
     mv::Shape kernelShape = {7, 7, 3, 64};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
+
     auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16,  mv::Order("CHWN"));
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
@@ -38,6 +40,8 @@ int main()
     std::vector<double> scaleBiasData = mv::utils::generateSequence<double>(scaleBiasShape.totalSize());
     auto scaleBiasTensor = cm.constant(scaleBiasData, scaleBiasShape, mv::DTypeType::Float16,  mv::Order("W"));
     auto scaleBias = cm.bias(scale,scaleBiasTensor);
+
+
  
     // /*Max Pool*/
     // auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -65,6 +69,8 @@ int main()
 
     /*Softmax*/
     auto softmax = cm.softmax(scale);
+
+ 
     cm.output(softmax);
 
     mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);

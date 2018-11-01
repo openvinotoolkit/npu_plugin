@@ -174,6 +174,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
                 bias->setOrder(mv::Order("W"));
 
+
                 std::vector<double> caffeModelBias = (*bias).getData();
 
                 for (unsigned i = 0; i < caffeModelBias.size(); ++i)
@@ -303,6 +304,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto slopeData = opIt->getInputTensor(1);
             slopeData->setOrder(mv::Order("NCHW"));
 
+
             std::vector<double> preluSlopeData = (*slopeData).getData();
 
             for (unsigned i = 0; i < preluSlopeData.size(); ++i)
@@ -338,6 +340,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             */
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
+
 
             /*add scale data*/
             caffe::BlobProto *blobProtoscale = layerParamCaffeModel->add_blobs();
@@ -380,7 +383,9 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
                 /*ColumnMajor is format for caffemodel*/
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
+
                 bias->setOrder(mv::Order("W"));
+
 
                 std::vector<double> caffeModelBias = (*bias).getData();
 
