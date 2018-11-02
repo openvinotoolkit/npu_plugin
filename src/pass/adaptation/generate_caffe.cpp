@@ -12,22 +12,19 @@ static void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &
 
 namespace mv
 {
-
-namespace pass
-{
-
-//TODO: This pass should be moved to a validation pass in future. It is a temporary adaptation pass until there is functionality to selectively
-//run validation passes when specified.
-
-MV_REGISTER_PASS(GenerateCaffe)
-    .setFunc(generateCaffeFcn)
-    .setGenre(PassGenre::Adaptation)
-    .defineArg(json::JSONType::String, "outputPrototxt")
-    .defineArg(json::JSONType::String, "outputCaffeModel")
-    .setDescription(
-        "Generates a caffe prototxt file");
-} // namespace pass
-
+    namespace pass
+    {
+        //TODO: This pass should be moved to a validation pass in future. It is a temporary adaptation pass until there is functionality to selectively
+        //run validation passes when specified.
+        
+        MV_REGISTER_PASS(GenerateCaffe)
+        .setFunc(generateCaffeFcn)
+        .setGenre(PassGenre::Adaptation)
+        .defineArg(json::JSONType::String, "outputPrototxt")
+        .defineArg(json::JSONType::String, "outputCaffeModel")
+        .setDescription("Generates a caffe prototxt file");
+        
+        } // namespace pass
 } // namespace mv
 
 void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
@@ -41,11 +38,8 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
         throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
 
     /*Create generated Prototxt and CaffeModel file names*/
-    std::string projectRootPath = utils::projectRootPath();
-    const std::string generatedCaffeFilesPath_ = "/generatedCaffeFiles/";
-    std::string savedPath = utils::projectRootPath() + generatedCaffeFilesPath_;
-    std::string generatedPrototxtFileName = savedPath + compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>();
-    std::string generatedCaffeModelFileName = savedPath + compDesc["GenerateCaffe"]["outputCaffeModel"].get<std::string>();
+    std::string generatedPrototxtFileName = compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>();
+    std::string generatedCaffeModelFileName = compDesc["GenerateCaffe"]["outputCaffeModel"].get<std::string>();
 
     /*Create Network objects*/
     caffe::NetParameter netParamPrototxt;
@@ -142,6 +136,118 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*Set number of output channels*/
             convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
+
+            /*Add weights*/
+            caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
+            caffe::BlobShape *blobShape = blobProto->mutable_shape();
+
+            blobShape->add_dim(0);
+            blobShape->add_dim(1);
+            blobShape->add_dim(2);
+            blobShape->add_dim(3);
+
+            blobShape->set_dim(0, parentOpIt1->get<mv::Shape>("shape")[3]);
+            blobShape->set_dim(1, parentOpIt1->get<mv::Shape>("shape")[2]);
+            blobShape->set_dim(2, parentOpIt1->get<mv::Shape>("shape")[1]);
+            blobShape->set_dim(3, parentOpIt1->get<mv::Shape>("shape")[0]);
+
+            blobProto->clear_double_data();
+
+            /*ColumnMajor is format for caffemodel*/
+            auto weights = opIt->getInputTensor(1);
+            weights->setOrder(mv::Order("NCWH"));
+
+            std::vector<double> caffeModelWeights = weights->getData();
+
+            for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
+            {
+                blobProto->add_double_data(caffeModelWeights[i]);
+            }
+
+            /*Specify if convolution has bias*/
+            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
+            {
+                convParamPrototxt->set_bias_term(1);
+                convParamCaffeModel->set_bias_term(1);
+
+                /*add bias*/
+                caffe::BlobProto *blobProtobias = layerParamCaffeModel->add_blobs();
+                caffe::BlobShape *blobShapebias = blobProtobias->mutable_shape();
+
+                blobShapebias->add_dim(0);
+                blobShapebias->set_dim(0, opIt.leftmostChild()->getInputTensor(0)->get<mv::Shape>("shape")[2]);
+
+                blobProtobias->clear_double_data();
+
+                /*ColumnMajor is format for caffemodel*/
+                auto bias = opIt.leftmostChild()->getInputTensor(1);
+                bias->setOrder(mv::Order("W"));
+
+                std::vector<double> caffeModelBias = bias->getData();
+
+                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
+                {
+                    blobProtobias->add_double_data(caffeModelBias[i]);
+                }
+            }
+            else
+            {
+                /*No bias term - set false*/
+                convParamPrototxt->set_bias_term(0);
+                convParamCaffeModel->set_bias_term(0);
+            }
+        }
+
+        if (opIt->getOpType() == mv::OpType::DepthwiseConv2D)
+        {
+            /*Create layers*/
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Convolution");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Convolution");
+
+            auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            /*The bottom attribute stores the name of the input blob*/
+            layerParamPrototxt->add_bottom(parentOpIt->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a conv parameter*/
+            caffe::ConvolutionParameter *convParamPrototxt = layerParamPrototxt->mutable_convolution_param();
+            caffe::ConvolutionParameter *convParamCaffeModel = layerParamCaffeModel->mutable_convolution_param();
+
+            /*Set stride*/
+            convParamPrototxt->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            convParamCaffeModel->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+
+            /*Set padding*/
+            convParamPrototxt->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamCaffeModel->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+
+            /*Set kernel*/
+            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
+            convParamPrototxt->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
+            convParamCaffeModel->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
+
+            /*Set number of output channels*/
+            convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
+            convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
+
+            /*Set group for deptwise convolution -> group equals number of kernel channels*/
+            convParamPrototxt->has_group();
+            convParamCaffeModel->has_group();
+
+            convParamPrototxt->set_group(parentOpIt1->get<mv::Shape>("shape")[2]);
+            convParamCaffeModel->set_group(parentOpIt1->get<mv::Shape>("shape")[2]);
 
             /*Add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();

@@ -19,10 +19,13 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
+
+SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
+
+if(VALIDATION)
 include_directories("/opt/movidius/caffe/include")
 include_directories("/opt/movidius/caffe/build/include")
 include_directories("/opt/movidius/caffe/build/include/caffe/proto")
-
 
 #Protobuf
 find_package(Protobuf REQUIRED)
@@ -34,6 +37,9 @@ find_package(Boost COMPONENTS regex system filesystem REQUIRED)
 #Caffe
 set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
 set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
+
+endif(VALIDATION)
+
 
 file(GLOB base
     "src/base/attribute_registry.cpp"
@@ -119,7 +125,9 @@ file(GLOB pass
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
     "src/target/target_descriptor.cpp"
-    "src/pass/adaptation/*.cpp"
+    "src/pass/adaptation/fuse_passes.cpp"
+    "src/pass/adaptation/remove_passes.cpp"
+    "src/pass/adaptation/replacement_passes.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/generate_blob.cpp"
@@ -128,9 +136,11 @@ file(GLOB pass
     "src/deployer/blob_serialization/*.cpp"
 )
 
+if(VALIDATION)
 file(GLOB pass_validation
 "src/pass/adaptation/generate_caffe.cpp"
 )
+endif(VALIDATION)
 
 file(GLOB compiler
     "src/compiler/*"
@@ -139,16 +149,24 @@ file(GLOB compiler
 if (MSVC)
     add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler})
 else()
-    #add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+
+if(VALIDATION)
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
-    #add_library(cm_validation SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
     target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
     target_compile_definitions(cm PRIVATE CPU_ONLY=1)
     add_subdirectory(python/api)
-        add_subdirectory(tests)
-        add_subdirectory(contrib/googletest)
-        #add_subdirectory(recordings)
-endif()
+    add_subdirectory(tests)
+    add_subdirectory(contrib/googletest)
+    #add_subdirectory(recordings)  
+else()
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    add_subdirectory(python/api)
+    add_subdirectory(tests)
+    add_subdirectory(contrib/googletest)
+    #add_subdirectory(recordings)
+endif(VALIDATION)
+
+endif(MSVC)
 
 add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)

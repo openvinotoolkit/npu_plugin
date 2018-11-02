@@ -50,8 +50,7 @@ int main()
     auto scaleBias = cm.bias(scale,scaleBiasTensor);
 
     /*Max Pool*/
-    auto pool = cm.maxpool2D(scale, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    
+    auto pool = cm.maxpool2D(scaleBias, {3, 3}, {2, 2}, {1, 1, 1, 1});
     /*Relu*/
     auto relu = cm.relu(pool);
 
