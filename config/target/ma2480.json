@@ -283,6 +283,7 @@
 	{
 		"adapt":
 		[
+			"GenerateCaffe",
 			"FuseBatchNorm",
 			"FuseBias",
 			"FuseScale",
@@ -309,6 +310,7 @@
 			"AllocatePopulatedTensors",
 			"AllocateUnpopulatedTensors",
 			"AllocateInputOutputTensors"
+                  	
 		],
 
 		"serialize":

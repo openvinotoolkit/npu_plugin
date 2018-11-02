@@ -125,17 +125,18 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet18.blob");
+    unit.compilationDescriptor()["GenerateProto"]["output"] = std::string("prototxt.txt");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     
     // Initialize compilation 
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    unit.passManager().disablePass(mv::PassGenre::Serialization);
     //unit.passManager().disablePass(mv::PassGenre::Adaptation);
 
     // Run all passes
     unit.run();
 
-    //system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+    system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
     //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
     //system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
     return 0;
