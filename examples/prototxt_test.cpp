@@ -88,9 +88,7 @@ int main()
 
     // Initialize compilation
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Adaptation);
-    //unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
+
 
     // Run all passes
     unit.run();
