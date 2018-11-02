@@ -9,14 +9,14 @@ namespace mv
     class RuntimeBinary 
     {
     
-    protected:
-        char* data;
-        uint32_t fileSize;
-        uint32_t bufferSize;
-        bool fileEnabled;
-        bool RAMEnabled;
-        std::string fileName;
-        std::string binaryName;
+    private:
+        char* data_;
+        std::size_t fileSize_;
+        std::size_t bufferSize_;
+        bool fileEnabled_;
+        bool RAMEnabled_;
+        std::string fileName_;
+        std::string binaryName_;
         
     public:
 
@@ -31,8 +31,9 @@ namespace mv
         std::string getBinaryName();
         std::string getFileName();
         bool setFileName(std::string newName);
-        bool getBuffer(std::string newName, uint32_t newSize);
-        bool getBuffer(uint32_t newSize);
+        bool setBinaryName(std::string newName);
+        bool getBuffer(std::string newName, std::size_t newSize);
+        bool getBuffer(std::size_t newSize);
         char* getDataPointer();
         bool writeBuffer(char *sourceBuf, int numBytes);
         bool dumpBuffer(std::string testFileName);

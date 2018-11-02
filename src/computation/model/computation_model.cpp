@@ -576,7 +576,7 @@ mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
     return flowTensors_->end();
 }
 
-std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::string newName, uint32_t newSize)
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::string newName, std::size_t newSize)
 {
     if (binary_->getBuffer(newName, newSize))
     {   
@@ -588,7 +588,7 @@ std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(s
     }
 }
 
-std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(uint32_t newSize)
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::size_t newSize)
 {
    if (binary_->getBuffer(newSize))
     {
