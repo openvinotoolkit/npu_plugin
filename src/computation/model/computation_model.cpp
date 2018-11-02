@@ -582,10 +582,7 @@ std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(s
     {   
         return binary_ ;
     }
-    else
-    {   
-        return nullptr ;
-    }
+    return nullptr ;
 }
 
 std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::size_t newSize)
@@ -594,10 +591,7 @@ std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(s
     {
         return binary_ ;
     }
-    else
-    {
-        return nullptr ;
-    }
+    return nullptr ;
 }
 
 std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::getBinaryBuffer()

@@ -58,7 +58,7 @@ namespace mv
         return -1; //To avoid warning
     }
 
-    uint32_t Blob_buffer::calc(mv::ControlModel& cm)
+    std::size_t Blob_buffer::calc(mv::ControlModel& cm)
     {
         /*
             Does a soft run through to calculate all offsets for use in blob.
@@ -71,7 +71,7 @@ namespace mv
         // set fixed header sizes for blob
         blob_stats.elf_header_size = 34 ;
         blob_stats.mv_header_size = 40 ;
-        uint32_t headers_data_size = blob_stats.elf_header_size+blob_stats.mv_header_size ;
+        std::size_t headers_data_size = blob_stats.elf_header_size+blob_stats.mv_header_size ;
         blob_stats.header_pad_size = align(headers_data_size,0x10)-headers_data_size;
         blob_stats.buffer_header_size = 0x10 ;
         blob_stats.weights_number_size = 2 ;          // TODO assume FP16
@@ -98,7 +98,7 @@ namespace mv
                 case OpType::DepthwiseConv2D:
                 case OpType::FullyConnected:
                 {
-                    uint32_t total_weight_size = 0 ;
+                    std::size_t total_weight_size = 0 ;
                     auto weight_tensor = it->getInputTensor(1);
                     auto weight_tensor_shape = weight_tensor->getShape();
 
@@ -136,14 +136,14 @@ namespace mv
 
                     // TAPS region
                     // calculate buffer sizes etc related to weights
-                    uint32_t weights_region_size = total_weight_size*blob_stats.weights_number_size;
+                    std::size_t weights_region_size = total_weight_size*blob_stats.weights_number_size;
                     blob_stats.weights_region_size += weights_region_size ;
                     blob_stats.data_buffer_count++ ;
 
                     // calculate buffer size related to bias
                     if (it->hasAttr("bias"))
                     {
-                        uint32_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
+                        std::size_t buffer_bias_values_len = dm.findTensor(it->get<std::string>("bias"))->getData().size() ;
                         blob_stats.bias_region_size += buffer_bias_values_len*blob_stats.weights_number_size;
                         blob_stats.data_buffer_count++ ;
                     }
@@ -210,7 +210,7 @@ namespace mv
                     blob_stats.stage_count++ ;
                     blob_stats.stage_section_size += (3+32+10)*4 ;
                     blob_stats.data_buffer_count++ ;   // uses buffer section (ala wts bias)
-                    uint32_t buffer_bias_values_len = ( it->getInputTensor(1)->getShape().totalSize() ) *blob_stats.weights_number_size;
+                    std::size_t buffer_bias_values_len = ( it->getInputTensor(1)->getShape().totalSize() ) *blob_stats.weights_number_size;
                     blob_stats.bias_region_size += buffer_bias_values_len ;
                 }
                 break;
@@ -300,18 +300,18 @@ namespace mv
     void Blob_buffer::write_mv_header()
     {
 
-        uint32_t mv_magic_number = BLOB_MAGIC_NUMBER;
-        uint32_t mv_version_major = BLOB_VERSION_MAJOR;
-        uint32_t mv_version_minor = BLOB_VERSION_MINOR;
-        uint32_t mv_num_shaves = 1;
+        std::size_t mv_magic_number = BLOB_MAGIC_NUMBER;
+        std::size_t mv_version_major = BLOB_VERSION_MAJOR;
+        std::size_t mv_version_minor = BLOB_VERSION_MINOR;
+        std::size_t mv_num_shaves = 1;
 
-        uint32_t mv_stage_section_offset = blob_stats.elf_header_size +
+        std::size_t mv_stage_section_offset = blob_stats.elf_header_size +
             blob_stats.mv_header_size + blob_stats.header_pad_size;
-        uint32_t mv_buffer_section_offset = mv_stage_section_offset +
+        std::size_t mv_buffer_section_offset = mv_stage_section_offset +
             blob_stats.stage_section_size;
-        uint32_t mv_relocation_offset = mv_buffer_section_offset +
+        std::size_t mv_relocation_offset = mv_buffer_section_offset +
             blob_stats.buffer_header_size + blob_stats.buffer_data_size;
-        uint32_t mv_permutation_enabled = 0x0000;
+        std::size_t mv_permutation_enabled = 0x0000;
 
         AddBytes(4, mv_magic_number);
         AddBytes(4, blob_stats.blob_file_size);
@@ -391,7 +391,7 @@ namespace mv
         std::cout << "--- Write Stages ---" << std::endl;
 
         Blob_stage conv_pool_stage;
-        uint32_t next_offset = 4*3 + 4*5 ;
+        std::size_t next_offset = 4*3 + 4*5 ;
         mv::OpModel om(cm);
         mv::DataModel dm(cm);
 
@@ -981,8 +981,8 @@ namespace mv
             }//Switch end
         }//For end
 
-        uint32_t buffer_section_offset = align(next_offset,0x10);
-        uint32_t stage_pad_size = buffer_section_offset - next_offset;
+        std::size_t buffer_section_offset = align(next_offset,0x10);
+        std::size_t stage_pad_size = buffer_section_offset - next_offset;
         if (stage_pad_size > 0)
             AddBytes(stage_pad_size, 0x00000000);
     }
@@ -992,8 +992,8 @@ namespace mv
 
         std::cout << "--- Write Buffer ---" << std::endl;
 
-        uint32_t buffer_header_pad_size = 3 ;
-        uint32_t buffer_header_pad_val = 0x002a ;
+        std::size_t buffer_header_pad_size = 3 ;
+        std::size_t buffer_header_pad_val = 0x002a ;
         mv_num_convert cvtr ;
 
         mv::DataModel dm(cm);
