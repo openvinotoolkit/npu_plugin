@@ -1,4 +1,6 @@
 build/
+meta/include/mcm/*
+meta/src/*
 *.user
 .vscode
 *.blob

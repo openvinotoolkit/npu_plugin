@@ -62,9 +62,9 @@ namespace mv
         MV_REGISTER_OP(AveragePool)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setArg<std::array<unsigned short, 4>>("padding")
-        .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 2>>("kSize")
+        .setArg<std::array<unsigned short, 2>>("stride")
+        .setArg<std::array<unsigned short, 4>>("padding")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

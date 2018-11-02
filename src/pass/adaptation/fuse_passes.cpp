@@ -1,6 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/api/compositional_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 
 static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
@@ -67,21 +68,21 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
 
-        if (opIt->getOpType() == OpType::Bias)
+        if (opIt->getOpType() == "Bias")
         {
             
             pass.log(Logger::MessageType::Debug, "Found Bias op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             
-            if (parentOpIt->getOpType() == OpType::Conv2D || parentOpIt->getOpType() == OpType::FullyConnected)
+            if (parentOpIt->getOpType() == "Conv" || parentOpIt->getOpType() == "FullyConnected")
             {
 
                 auto bias = *opIt->getInputTensor(1);
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasTensor = dm.findTensor(parentOpIt->get<std::string>("bias"));
+                    auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
                     biasTensor->add(bias);
                     pass.log(Logger::MessageType::Info, "Accumulatively fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
                 }
@@ -130,14 +131,14 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
 
-        if (opIt->getOpType() == OpType::Scale)
+        if (opIt->getOpType() == "Scale")
         {
             
             pass.log(Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             
-            if (parentOpIt->getOpType() == OpType::Conv2D)
+            if (parentOpIt->getOpType() == "Conv")
             {
 
                 auto scale = *opIt->getInputTensor(1);
@@ -147,7 +148,7 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasTensor = dm.findTensor(parentOpIt->get<std::string>("bias"));
+                    auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
                     biasTensor->multiply(scale);
                     pass.log(Logger::MessageType::Info, "Fused scale op " + opIt->getName() + " into " + 
                         parentOpIt->getName() + " bias attribute");
@@ -190,13 +191,13 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
 
-        if (opIt->getOpType() == OpType::ReLU)
+        if (opIt->getOpType() == "Relu")
         {
 
             pass.log(Logger::MessageType::Debug, "Found ReLU op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU));
+            om.addAttr(parentOpIt, "postOpType", "Relu");
 
             pass.log(Logger::MessageType::Info, "Fused ReLU op " + opIt->getName() + " into " + parentOpIt->getName());
 
@@ -234,11 +235,11 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
 
-        if (opIt->getOpType() == OpType::BatchNorm)
+        if (opIt->getOpType() == "BatchNormalization")
         {
 
             pass.log(Logger::MessageType::Debug, "Found BatchNorm op " + opIt->getName());
-            
+
             auto batchNormName = opIt->getName();
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             
@@ -250,14 +251,14 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
-            auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(),
+            auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), 
                 offsetParam.getOrder(), batchNormName + "_offset");
 
             Data::TensorIterator sourceTensor;
 
             if (bnMean.getShape().ndims() == 1)
             {
-                if (parentOpIt->getOpType() == OpType::Conv2D)
+                if (parentOpIt->getOpType() == "Conv")
                 {
                     parentOpIt->getInputTensor(1)->multiply(scaleParam);
                     sourceTensor = parentOpIt->getOutputTensor(0);

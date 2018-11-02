@@ -1,5 +1,5 @@
-#ifndef OP_MODEL_HPP_
-#define OP_MODEL_HPP_
+#ifndef MV_BASE_OP_MODEL_HPP_
+#define MV_BASE_OP_MODEL_HPP_
 
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/op/op.hpp"
@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    class OpModel : public ComputationModel//, public CompositionalModel
+    class BaseOpModel : public ComputationModel//, public CompositionalModel
     {
     	friend class CompositionalModelRecorder;
         /*bool defineDefaultControlFlow_(Data::OpListIterator op);
@@ -16,11 +16,11 @@ namespace mv
         
     public:
 
-        OpModel(const std::string& name);
-        OpModel(mv::json::Value& value);
-        virtual ~OpModel();
+        BaseOpModel(const std::string& name);
+        BaseOpModel(mv::json::Value& value);
+        virtual ~BaseOpModel() = 0;
 
-        OpModel(ComputationModel& model);
+        BaseOpModel(ComputationModel& model);
         //OpModel(CompositionalModel& model);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
@@ -95,4 +95,4 @@ namespace mv
 
 }
 
-#endif // OP_MODEL_HPP_
+#endif // MV_BASE_OP_MODEL_HPP_

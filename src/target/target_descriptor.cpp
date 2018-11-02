@@ -198,18 +198,13 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
                 return false;
             }
 
-            std::string opStr = jsonDescriptor["ops"][i].get<std::string>();
-            try
-            {
-                OpType op(opStr);
-                ops_.insert(op);
-                break;
-            }
-            catch (OpError& e)
+            std::string op = jsonDescriptor["ops"][i].get<std::string>();
+            if (!op::OpRegistry::checkOpType(op))
             {
                 reset();
                 return false;
             }
+            ops_.insert(op);
 
         }
 
@@ -296,7 +291,7 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
     root["ops"] = json::Array();
 
     for (auto it = ops_.begin(); it != ops_.end(); ++it)
-        root["ops"].append(it->toString());
+        root["ops"].append(*it);
 
     root["passes"]["adapt"] = json::Array();
     root["passes"]["optimize"] = json::Array();
@@ -493,17 +488,20 @@ bool mv::TargetDescriptor::removeValidPass(const std::string& pass)
     return false;
 }
 
-bool mv::TargetDescriptor::defineOp(OpType op)
+bool mv::TargetDescriptor::defineOp(const std::string& op)
 {
     if (ops_.find(op) == ops_.end())
     {
+        if (!op::OpRegistry::checkOpType(op))
+            return false;
+
         ops_.insert(op);
         return true;
     }
     return false;
 }
 
-bool mv::TargetDescriptor::undefineOp(OpType op)
+bool mv::TargetDescriptor::undefineOp(const std::string& op)
 {
     auto opIt = ops_.find(op);
     if (opIt != ops_.end())
@@ -514,7 +512,7 @@ bool mv::TargetDescriptor::undefineOp(OpType op)
     return false;
 }
 
-bool mv::TargetDescriptor::opSupported(OpType op) const
+bool mv::TargetDescriptor::opSupported(const std::string& op) const
 {
     if (ops_.find(op) != ops_.end())
         return true;

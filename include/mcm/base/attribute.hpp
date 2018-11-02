@@ -278,6 +278,7 @@ namespace mv
                     ++i;
                 }
             }
+            
             return result;
         }
 
@@ -286,6 +287,11 @@ namespace mv
             if (!ptr_)
                 throw AttributeError(*this, "Uninitialized (null) attribute dereference called for to-string conversion");
             return attr::AttributeRegistry::getToStringFunc(ptr_->getTypeID())(*this);
+        }
+
+        std::string toLongString() const
+        {
+            return attr::AttributeRegistry::getToStringFunc(ptr_->getTypeID(), true)(*this);
         }
 
         std::string getTypeName() const

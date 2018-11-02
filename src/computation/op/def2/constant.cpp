@@ -28,10 +28,10 @@ namespace mv
     
         MV_REGISTER_OP(Constant)
         .setOutputs({"output"})
+        .setArg<std::vector<double>>("data")
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
-        .setArg<std::vector<double>>("data")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"exposed"});

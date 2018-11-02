@@ -9,11 +9,11 @@
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/utils/parser/json_text.hpp"
 #include "include/mcm/base/json/string.hpp"
-#include "include/mcm/computation/op/op_type.hpp"
 #include "include/mcm/base/printable.hpp"
 #include "include/mcm/tensor/order.hpp"
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
 namespace mv
 {
@@ -38,13 +38,12 @@ namespace mv
 
         static std::string toString(Target target);
         static Target toTarget(const std::string& str);
-        static OpType toOpType(const std::string str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
         Target target_;
         DType globalDType_;
         Order globalOrder_;
-        std::set<OpType> ops_;
+        std::set<std::string> ops_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
 
         std::vector<std::string> adaptationPasses_;
@@ -76,9 +75,9 @@ namespace mv
         bool removeSerialPass(const std::string& pass);
         bool removeValidPass(const std::string& pass);
 
-        bool defineOp(OpType op);
-        bool undefineOp(OpType op);
-        bool opSupported(OpType op) const;
+        bool defineOp(const std::string& opType);
+        bool undefineOp(const std::string& opType);
+        bool opSupported(const std::string& opType) const;
 
         bool defineMemory(const std::string& name, long long size, std::size_t alignment, std::size_t dataTypeSize);
         bool undefineMemory(const std::string& name);

@@ -81,14 +81,24 @@ std::size_t mv::op::OpEntry::getOutputsCount() const
 
 bool mv::op::OpEntry::hasArg(const std::string& name) const
 {
-    return args_.find(name) != args_.end();
+    return std::find_if(args_.begin(), args_.end(),
+        [&name](std::pair<std::string, std::type_index> arg)->bool
+        {
+            return arg.first == name;
+        }
+    ) != args_.end();
 }
 
 std::type_index mv::op::OpEntry::argType(const std::string& name) const
 {
     if (!hasArg(name))
         throw OpError(*this, "Attempt of checking the type of an non-existing argument \"" + name + "\"");
-    return args_.at(name);
+    return std::find_if(args_.begin(), args_.end(),
+        [&name](std::pair<std::string, std::type_index> arg)->bool
+        {
+            return arg.first == name;
+        }
+    )->second;
 }
 
 std::vector<std::string> mv::op::OpEntry::argsList() const

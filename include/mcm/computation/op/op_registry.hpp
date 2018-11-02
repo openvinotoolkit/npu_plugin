@@ -21,15 +21,17 @@ namespace mv
 
             static const std::string compAPIHeaderPath_;
             static const std::string compAPISourcePath_;
-            static const std::string recordedCompAPIHeaderPath_;
-            static const std::string recordedCompAPISourcePath_;
+            static const std::string opModelHeaderPath_;
+            static const std::string opModelSourcePath_;
+            static const std::string recordedCompModelHeaderPath_;
+            static const std::string recordedCompModelSourcePath_;
 
             /**
              * @brief Legal op types traits
              */
             static const std::set<std::string> typeTraits_;
 
-            static std::string getCompositionDeclSig_(const std::string& opType, bool types, bool defaultArgs);
+            static std::string getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs);
             static std::string getCompositionDecl_(const std::string& opType);
             static std::string getCompositionDef_(const std::string& opType, const std::string& eol = "\n", const std::string& tab = "    ");
             static std::string getCompositionCall_(const std::string& opType);

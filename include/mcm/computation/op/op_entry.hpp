@@ -34,7 +34,7 @@ namespace mv
             std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
                 std::vector<Tensor>&)> outputDef_;
             std::vector<std::string> outputLabels_;
-            std::map<std::string, std::type_index> args_;
+            std::vector<std::pair<std::string, std::type_index>> args_;
             std::set<std::string> typeTraits_;
 
         public:
@@ -78,7 +78,7 @@ namespace mv
                     throw AttributeError("OpEntry", "Attempt of setting argument of an unregistered attribute type "
                         + std::string(typeid(AttrType).name()) + " \"" + name + "\" for ");
 
-                args_.emplace(name, typeid(AttrType));
+                args_.push_back({name, typeid(AttrType)});
                 return *this;
 
             }

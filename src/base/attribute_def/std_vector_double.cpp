@@ -42,10 +42,25 @@ namespace mv
             return output;
         }
 
+        static std::string toLongString(const Attribute& a)
+        {
+            std::string output = "{";
+            auto vec = a.get<std::vector<double>>();
+            if (vec.size() > 0)
+            {
+                for (std::size_t i = 0; i < vec.size() - 1; ++i)
+                    output += std::to_string(vec[i]) + ", ";
+                output += std::to_string(vec.back());
+            }
+            return output + "}";
+        }
+
         MV_REGISTER_ATTR(std::vector<double>)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+            .setToStringFunc(toString)
+            .setToLongStringFunc(toLongString)
+            .setTypeTrait("large");
 
     }
 

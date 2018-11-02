@@ -148,7 +148,7 @@ const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeRegis
     if (attrPtr)
     {
         if (hasTypeTrait(typeID, "large") && forceLong)
-            return attrPtr->getShortToStringFunc();
+            return attrPtr->getToLongStringFunc();
         return attrPtr->getToStringFunc();
     }
 

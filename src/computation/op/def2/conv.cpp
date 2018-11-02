@@ -67,8 +67,8 @@ namespace mv
         MV_REGISTER_OP(Conv)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
-        .setArg<std::array<unsigned short, 4>>("padding")
         .setArg<std::array<unsigned short, 2>>("stride")
+        .setArg<std::array<unsigned short, 4>>("padding")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
