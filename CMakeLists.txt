@@ -130,7 +130,7 @@ file(GLOB pass
 )
 
 file(GLOB pass_validation
-"src/pass/validation/generate_prototxt.cpp"
+"src/pass/adaptation/generate_prototxt.cpp"
 )
 
 file(GLOB compiler
