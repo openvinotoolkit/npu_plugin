@@ -58,6 +58,7 @@ namespace mv
 
 void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
+    
 
     using namespace mv;
 

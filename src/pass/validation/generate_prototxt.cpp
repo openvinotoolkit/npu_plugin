@@ -25,9 +25,13 @@ namespace mv
 namespace pass
 {
 
+/*TODO This pass should be moved to a validation pass in future. It is a temporary adaptation pass until there is functionality to selectively
+run validation passes when specified.
+
+*/
 MV_REGISTER_PASS(GenerateProto)
     .setFunc(generateProtoFcn)
-    .setGenre(PassGenre::Validation)
+    .setGenre(PassGenre::Adaptation)
     .defineArg(json::JSONType::String, "outputPrototxt")
     .defineArg(json::JSONType::String, "outputCaffeModel")
     .setDescription(
@@ -38,7 +42,6 @@ MV_REGISTER_PASS(GenerateProto)
 
 void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
 {
-
     using namespace mv;
 
     if (compDesc["GenerateProto"]["outputPrototxt"].get<std::string>().empty())
@@ -58,7 +61,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
     caffe::NetParameter netParamPrototxt;
     caffe::NetParameter netParamCaffeModel;
 
-    mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(model);
+    mv::OpModel opModel(model);
 
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {
@@ -179,6 +182,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*Specify if convolution has bias*/
             if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
             {
+                 std::cout << "setting bias term" << std::endl;
                 convParamPrototxt->set_bias_term(1);
                 convParamCaffeModel->set_bias_term(1);
 
