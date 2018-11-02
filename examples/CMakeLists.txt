@@ -14,9 +14,6 @@ target_link_libraries(cm_two_branch cm)
 add_executable(cm_resnet18 cm_resnet18.cpp)
 target_link_libraries(cm_resnet18 cm)
 
-add_executable(test_blob_memory test_blob_memory.cpp)
-target_link_libraries(test_blob_memory cm)
-
 add_executable(cm_resnet50 cm_resnet50.cpp)
 target_link_libraries(cm_resnet50 cm)
 
