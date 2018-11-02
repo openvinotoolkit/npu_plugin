@@ -19,7 +19,6 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
-
 include_directories("/opt/movidius/caffe/include")
 include_directories("/opt/movidius/caffe/build/include")
 include_directories("/opt/movidius/caffe/build/include/caffe/proto")
@@ -130,7 +129,7 @@ file(GLOB pass
 )
 
 file(GLOB pass_validation
-"src/pass/adaptation/generate_prototxt.cpp"
+"src/pass/adaptation/generate_caffe.cpp"
 )
 
 file(GLOB compiler

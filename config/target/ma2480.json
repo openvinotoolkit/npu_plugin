@@ -283,7 +283,7 @@
 	{
 		"adapt":
 		[
-			"GenerateProto",
+			"GenerateCaffe",
 			"FuseBatchNorm",
 			"FuseBias",
 			"FuseScale",

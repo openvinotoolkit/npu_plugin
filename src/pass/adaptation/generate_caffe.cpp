@@ -8,7 +8,7 @@
 #include "caffe.pb.h"
 #include <caffe/caffe.hpp>
 
-static void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput);
+static void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput);
 
 namespace mv
 {
@@ -19,8 +19,8 @@ namespace pass
 //TODO: This pass should be moved to a validation pass in future. It is a temporary adaptation pass until there is functionality to selectively
 //run validation passes when specified.
 
-MV_REGISTER_PASS(GenerateProto)
-    .setFunc(generateProtoFcn)
+MV_REGISTER_PASS(GenerateCaffe)
+    .setFunc(generateCaffeFcn)
     .setGenre(PassGenre::Adaptation)
     .defineArg(json::JSONType::String, "outputPrototxt")
     .defineArg(json::JSONType::String, "outputCaffeModel")
@@ -30,22 +30,22 @@ MV_REGISTER_PASS(GenerateProto)
 
 } // namespace mv
 
-void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
+void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
 {
     using namespace mv;
 
-    if (compDesc["GenerateProto"]["outputPrototxt"].get<std::string>().empty())
+    if (compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>().empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
 
-    if (compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>().empty())
+    if (compDesc["GenerateCaffe"]["outputCaffeModel"].get<std::string>().empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
 
     /*Create generated Prototxt and CaffeModel file names*/
     std::string projectRootPath = utils::projectRootPath();
     const std::string generatedCaffeFilesPath_ = "/generatedCaffeFiles/";
     std::string savedPath = utils::projectRootPath() + generatedCaffeFilesPath_;
-    std::string generatedPrototxtFileName = savedPath + compDesc["GenerateProto"]["outputPrototxt"].get<std::string>();
-    std::string generatedCaffeModelFileName = savedPath + compDesc["GenerateProto"]["outputCaffeModel"].get<std::string>();
+    std::string generatedPrototxtFileName = savedPath + compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>();
+    std::string generatedCaffeModelFileName = savedPath + compDesc["GenerateCaffe"]["outputCaffeModel"].get<std::string>();
 
     /*Create Network objects*/
     caffe::NetParameter netParamPrototxt;

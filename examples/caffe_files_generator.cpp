@@ -1,3 +1,12 @@
+/**
+ * @brief Example presenting generation of Caffe prototxt and CaffeModel files
+ * 
+ * In this example a model is composed using MCMCompiler's Composition API. Then
+ * the compilation is for target MA2480 is initialized and compilation passes scheduled by 
+ * target descriptor are executed. Included GenerateCaffe pass will generate Caffe files.
+ * 
+ */
+
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
@@ -49,22 +58,6 @@ int main()
     /*Average Pool*/
     auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
 
-    /*prelu*/ 
-    //Not supported in CPP wrapper
-    // std::vector<double> data = mv::utils::generateSequence<double>(64);
-    // auto slope = cm.constant(data, {64}, mv::DTypeType::Float16, mv::Order("W"));
-    // auto prelu = cm.prelu(pool1, slope);
-
-    /*Add*/
-    // std::vector<double> addingData = mv::utils::generateSequence<double>(pool1->getShape().totalSize());
-    // auto addingDataTensor = cm.constant(addingData, {pool1->getShape()}, mv::DTypeType::Float16, mv::Order("HWC"));
-    // auto addResult = cm.add(addingDataTensor, pool1);
-
-    // /*Multiply*/
-    // std::vector<double> multiplyData = mv::utils::generateSequence<double>(pool1->getShape().totalSize());
-    // auto multiplyDataTensor = cm.constant(multiplyData, {pool1->getShape()}, mv::DTypeType::Float16, mv::Order("HWC"));
-    // auto multiplyResult = cm.multiply(pool1, multiplyDataTensor);
-
     /*Softmax*/
     auto softmax = cm.softmax(pool1);
 
@@ -80,8 +73,8 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("prototext.blob");
-    //unit.compilationDescriptor()["GenerateProto"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    //unit.compilationDescriptor()["GenerateProto"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     // Initialize compilation
@@ -89,11 +82,6 @@ int main()
 
     // Run all passes
     unit.run();
-
-    system("dot -Tsvg prototxt.dot -o protoxt.svg");
-    //system("dot -Tsvg prototxt_adapt.dot -o prototxt_adapt.svg");
-    //system("dot -Tsvg prototxt_final.dot -o prototxt_final.svg");
-    
 
     return 0;
 }
