@@ -2,19 +2,10 @@
 #include "include/mcm/deployer/serializer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/utils/env_loader.hpp"
-
-#include <fcntl.h>
 #include <google/protobuf/io/coded_stream.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/text_format.h>
-#include <stdint.h>
-#include <algorithm>
-#include <fstream> // NOLINT(readability/streams)
-#include <string>
-#include <vector>
-#include <string>
 #include "caffe.pb.h"
-#include <iostream>
 #include <caffe/caffe.hpp>
 
 static void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput);
@@ -85,6 +76,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             caffe::BlobShape *blobShapePrototxt = inputParamPrototxt->add_shape();
             caffe::BlobShape *blobShapeCaffeModel = inputParamCaffeModel->add_shape();
 
+            /*Dimensions for prototxt*/
             blobShapePrototxt->add_dim(0);
             blobShapePrototxt->add_dim(1);
             blobShapePrototxt->add_dim(2);
@@ -94,6 +86,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             blobShapePrototxt->set_dim(2, opIt->get<mv::Shape>("shape")[1]);
             blobShapePrototxt->set_dim(3, opIt->get<mv::Shape>("shape")[0]);
 
+            /*Dimensions for caffemodel*/
             blobShapeCaffeModel->add_dim(0);
             blobShapeCaffeModel->add_dim(1);
             blobShapeCaffeModel->add_dim(2);
@@ -172,7 +165,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto weights = opIt->getInputTensor(1);
             weights->setOrder(mv::Order("NCWH"));
 
-            std::vector<double> caffeModelWeights = (*weights).getData();
+            std::vector<double> caffeModelWeights = weights->getData();
 
             for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
             {
@@ -182,7 +175,6 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             /*Specify if convolution has bias*/
             if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
             {
-                 std::cout << "setting bias term" << std::endl;
                 convParamPrototxt->set_bias_term(1);
                 convParamCaffeModel->set_bias_term(1);
 
@@ -199,7 +191,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 auto bias = opIt.leftmostChild()->getInputTensor(1);
                 bias->setOrder(mv::Order("W"));
 
-                std::vector<double> caffeModelBias = (*bias).getData();
+                std::vector<double> caffeModelBias = bias->getData();
 
                 for (unsigned i = 0; i < caffeModelBias.size(); ++i)
                 {
@@ -237,8 +229,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 layerParamPrototxt->add_bottom(parentOpIt1->getName());
                 layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
-                /*The top attribute stores the name of the output blob, which for convenience, 
-                is generally taken to be the same as the name of the layer*/
+                /*The top attribute stores the name of the output blob*/
                 layerParamPrototxt->add_top(opIt->getName());
                 layerParamCaffeModel->add_top(opIt->getName());
             }
@@ -273,8 +264,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
                 /*The bottom attribute stores the name of the input blob*/
                 layerParamPrototxt->add_bottom(parentOpIt1->getName());
 
-                /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer*/
+                /*The top attribute stores the name of the output blob*/
                 layerParamPrototxt->add_top(opIt->getName());
                 layerParamCaffeModel->add_top(opIt->getName());
             }
@@ -282,8 +272,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             {
                 layerParamPrototxt->add_bottom(parentOpIt0->getName());
 
-                /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer*/
+                /*The top attribute stores the name of the output blob*/
                 layerParamPrototxt->add_top(opIt->getName());
                 layerParamCaffeModel->add_top(opIt->getName());
             }
@@ -326,7 +315,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto slopeData = opIt->getInputTensor(1);
             slopeData->setOrder(mv::Order("W"));
 
-            std::vector<double> preluSlopeData = (*slopeData).getData();
+            std::vector<double> preluSlopeData = slopeData->getData();
 
             for (unsigned i = 0; i < preluSlopeData.size(); ++i)
             {
@@ -354,8 +343,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_bottom(parentOpIt1->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer*/
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -372,7 +360,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto scale = opIt->getInputTensor(1);
             scale->setOrder(mv::Order("W"));
 
-            std::vector<double> caffeModelScale = (*scale).getData();
+            std::vector<double> caffeModelScale = scale->getData();
 
             for (unsigned i = 0; i < caffeModelScale.size(); ++i)
             {
@@ -403,7 +391,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
                 bias->setOrder(mv::Order("W"));
 
-                std::vector<double> caffeModelBias = (*bias).getData();
+                std::vector<double> caffeModelBias = bias->getData();
 
                 for (unsigned i = 0; i < caffeModelBias.size(); ++i)
                 {
@@ -430,8 +418,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer*/
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -466,8 +453,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer*/
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
