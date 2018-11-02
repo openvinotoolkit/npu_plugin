@@ -35,6 +35,11 @@ bool mv::RuntimeBinary::RuntimeBinary::getBuffer(uint32_t newSize)
     return true ;
 }
 
+char* mv::RuntimeBinary::RuntimeBinary::getDataPointer()
+{
+    return data ;
+}
+
 bool mv::RuntimeBinary::RuntimeBinary::writeBuffer(char* sourceBuf, int numBytes)
 {
     for (int i=0; i<numBytes; i++)
