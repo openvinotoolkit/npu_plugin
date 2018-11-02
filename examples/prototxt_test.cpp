@@ -70,8 +70,6 @@ int main()
 
     cm.output(softmax);
 
-    mv::OpModel &opModel = dynamic_cast<mv::OpModel &>(cm);
-
     // Load target descriptor for the selected target to the compilation unit
     if (!unit.loadTargetDescriptor(mv::Target::ma2480))
         exit(1);
@@ -88,7 +86,6 @@ int main()
 
     // Initialize compilation
     unit.initialize();
-
 
     // Run all passes
     unit.run();
