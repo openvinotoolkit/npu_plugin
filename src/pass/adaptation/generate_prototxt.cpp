@@ -16,10 +16,9 @@ namespace mv
 namespace pass
 {
 
-/*TODO This pass should be moved to a validation pass in future. It is a temporary adaptation pass until there is functionality to selectively
-run validation passes when specified.
+//TODO: This pass should be moved to a validation pass in future. It is a temporary adaptation pass until there is functionality to selectively
+//run validation passes when specified.
 
-*/
 MV_REGISTER_PASS(GenerateProto)
     .setFunc(generateProtoFcn)
     .setGenre(PassGenre::Adaptation)
@@ -27,7 +26,7 @@ MV_REGISTER_PASS(GenerateProto)
     .defineArg(json::JSONType::String, "outputCaffeModel")
     .setDescription(
         "Generates a caffe prototxt file");
-}
+} // namespace pass
 
 } // namespace mv
 
@@ -119,8 +118,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamPrototxt->add_bottom(parentOpIt->getName());
             layerParamCaffeModel->add_bottom(parentOpIt->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer*/
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -278,7 +276,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        //TODO - PRELU needs to be tested - disabled in cppwrapper.py 
+        //TODO - PRELU needs to be tested - disabled in cppwrapper.py
         if (opIt->getOpType() == mv::OpType::PReLU)
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -495,8 +493,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience,
-              is generally taken to be the same as the name of the layer*/
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -536,8 +533,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience,
-             is generally taken to be the same as the name of the layer*/
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
 
@@ -574,8 +570,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_bottom(parentOpIt0->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.*/
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
         }
@@ -602,9 +597,7 @@ void generateProtoFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
             layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
-            /*The top attribute stores the name of the output blob, which for convenience, 
-              is generally taken to be the same as the name of the layer.
-            */
+            /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
         }
