@@ -22,15 +22,24 @@ mv::RuntimeBinary::~RuntimeBinary()
 
 bool mv::RuntimeBinary::RuntimeBinary::getBuffer(std::string newName, std::size_t newSize)
 {
-    bufferSize_ = newSize;
-    data_ = new char[bufferSize_];
+//    bufferSize_ = newSize;
+//    data_ = new char[bufferSize_];
     binaryName_ = newName;
-    return true ;
+    if (getBuffer(newSize))
+    {
+        return true ;
+    }
+    return false;
 }
 
 bool mv::RuntimeBinary::RuntimeBinary::getBuffer(std::size_t newSize)
 {  
     bufferSize_ = newSize;
+    if (data_ )
+    {
+        std::cout << "WARNING: RuntimeBinary already exists. Destroying previous allocation." << std::endl;
+        delete [] data_;
+    }
     data_ = new char[bufferSize_];
     return true ;
 }

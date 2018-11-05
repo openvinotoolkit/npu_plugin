@@ -630,6 +630,16 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     unit.initialize();
     mv::OpModel cm2(cm);
 
+    // test get name and size methods
+    cm2.getBinaryBuffer()->getBuffer("testName1",4000) ;
+    EXPECT_EQ ("testName1", cm2.getBinaryBuffer()->getBinaryName()) << "ERROR: Unable to read name of RuntimeBinary";
+    EXPECT_EQ (4000,cm2.getBinaryBuffer()->getBufferSize() ) << "ERROR: incorrect size of RuntimeBinary";
+
+    // test handling multiple calls to allocate data_ buffer
+    cm2.getBinaryBuffer()->getBuffer("testName2",2000) ;
+    EXPECT_EQ ("testName2", cm2.getBinaryBuffer()->getBinaryName()) << "ERROR: Unable to read name of RuntimeBinary";
+    EXPECT_EQ (2000,cm2.getBinaryBuffer()->getBufferSize() ) << "ERROR: incorrect size of RuntimeBinary";
+
     // Run all passes
     unit.run();
     cm2.getBinaryBuffer()->dumpBuffer("final_RAM1.blob") ;
