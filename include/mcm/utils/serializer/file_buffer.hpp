@@ -1,8 +1,8 @@
-
 #ifndef WBUFFER_HPP_
 #define WBUFFER_HPP_
 
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include "include/mcm/computation/model/runtime_binary.hpp"
 
@@ -17,7 +17,7 @@ class WBuffer
         static const int wlevel = 3800*8 ;      //buuffer empty level in bits
         char Data[wbuffer_size] ;
         int BitPointer ;
-        FILE *fp ;
+        std::ofstream outputFile ;
         std::shared_ptr<mv::RuntimeBinary> bp ; 
 
     public:
@@ -63,7 +63,10 @@ class WBuffer
             {
                 if (bp->getFileEnabled())
                 {
-                    fwrite(&Data,1,byte_pointer,fp);
+                    for (int i=0; i<byte_pointer; i++)
+                    {
+                        outputFile << Data[i];
+                    }
                 }
                 if (bp->getRAMEnabled())
                 {
@@ -104,7 +107,10 @@ class WBuffer
             {
                 if (bp->getFileEnabled())
                 {
-                    fwrite(&Data,1,bytes,fp);
+                    for (int i=0; i<bytes; i++)
+                    {   
+                        outputFile << Data[i];
+                    }
                 }
                 if (bp->getRAMEnabled())
                 {
@@ -136,10 +142,10 @@ class WBuffer
              bp = rtBin ; 
              if (bp->getFileEnabled())
              {
-                 const char *cstr = bp->getFileName().c_str();
-                 if ((fp = fopen(cstr, "wb")) == NULL)
+                 outputFile.open(bp->getFileName(), std::ios::out | std::ios::binary);
+                 if (!(outputFile.is_open()))
                  {
-                     std::cout << "ERROR: Could not open output file" << std::endl;
+                     std::cout << "ERROR: Could not open output file " << bp->getFileName() << std::endl;
                  }
              }
          }
@@ -160,7 +166,10 @@ class WBuffer
                  }
                  if (bp->getFileEnabled())
                  {   
-                     fwrite(&Data,1,bytes,fp);
+                    for (int i=0; i<bytes; i++)
+                    {   
+                        outputFile << Data[i];
+                    }
                  }
                  if (bp->getRAMEnabled())
                  {   
@@ -171,7 +180,7 @@ class WBuffer
    
              if (bp->getFileEnabled())
              {
-                 fclose(fp);
+                 outputFile.close();
              }
              return (FileSize);
          }

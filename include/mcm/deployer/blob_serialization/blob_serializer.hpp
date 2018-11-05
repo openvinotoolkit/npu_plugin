@@ -9,7 +9,7 @@
 */
 #include "include/mcm/computation/model/op_model.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
-#include "include/mcm/utils/serializer/file_buffer.h"
+#include "include/mcm/utils/serializer/file_buffer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/deployer/blob_serialization/myriadX_hardware_descriptors.hpp"
 #include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
@@ -39,67 +39,67 @@ namespace mv
     class Blob_stage
     {
         public:
-            std::size_t next ;
-            std::size_t op_type ;
-            std::size_t implementation  ;
-            std::size_t preop_type  ;
-            std::size_t postop_type ;
+            std::uint32_t next ;
+            std::uint32_t op_type ;
+            std::uint32_t implementation  ;
+            std::uint32_t preop_type  ;
+            std::uint32_t postop_type ;
 
-            std::size_t radixX;
-            std::size_t radixY;
-            std::size_t radixStrideX;
-            std::size_t radixStrideY;
-            std::size_t padX;
-            std::size_t padY;
-            std::size_t padStyle;
-            std::size_t dilation;
+            std::uint32_t radixX;
+            std::uint32_t radixY;
+            std::uint32_t radixStrideX;
+            std::uint32_t radixStrideY;
+            std::uint32_t padX;
+            std::uint32_t padY;
+            std::uint32_t padStyle;
+            std::uint32_t dilation;
 
-            std::size_t InputDimX;
-            std::size_t InputDimY;
-            std::size_t InputDimZ;
-            std::size_t InputStrideX;
-            std::size_t InputStrideY;
-            std::size_t InputStrideZ;
-            std::size_t InputOffset;
-            std::size_t InputLocation;
-            std::size_t InputDataType;
-            std::size_t InputOrder;
-            std::size_t Input1Offset;
-            std::size_t Input1Location;
-            std::size_t TBOffset;
+            std::uint32_t InputDimX;
+            std::uint32_t InputDimY;
+            std::uint32_t InputDimZ;
+            std::uint32_t InputStrideX;
+            std::uint32_t InputStrideY;
+            std::uint32_t InputStrideZ;
+            std::uint32_t InputOffset;
+            std::uint32_t InputLocation;
+            std::uint32_t InputDataType;
+            std::uint32_t InputOrder;
+            std::uint32_t Input1Offset;
+            std::uint32_t Input1Location;
+            std::uint32_t TBOffset;
 
-            std::size_t OutputDimX;
-            std::size_t OutputDimY;
-            std::size_t OutputDimZ;
-            std::size_t OutputStrideX;
-            std::size_t OutputStrideY;
-            std::size_t OutputStrideZ;
-            std::size_t OutputOffset;
-            std::size_t OutputLocation;
-            std::size_t OutputDataType;
-            std::size_t OutputOrder;
+            std::uint32_t OutputDimX;
+            std::uint32_t OutputDimY;
+            std::uint32_t OutputDimZ;
+            std::uint32_t OutputStrideX;
+            std::uint32_t OutputStrideY;
+            std::uint32_t OutputStrideZ;
+            std::uint32_t OutputOffset;
+            std::uint32_t OutputLocation;
+            std::uint32_t OutputDataType;
+            std::uint32_t OutputOrder;
 
-            std::size_t TapsDimX;
-            std::size_t TapsDimY;
-            std::size_t TapsDimZ;
-            std::size_t TapsStrideX;
-            std::size_t TapsStrideY;
-            std::size_t TapsStrideZ;
-            std::size_t TapsOffset;
-            std::size_t TapsLocation;
-            std::size_t TapsDataType;
-            std::size_t TapsOrder;
+            std::uint32_t TapsDimX;
+            std::uint32_t TapsDimY;
+            std::uint32_t TapsDimZ;
+            std::uint32_t TapsStrideX;
+            std::uint32_t TapsStrideY;
+            std::uint32_t TapsStrideZ;
+            std::uint32_t TapsOffset;
+            std::uint32_t TapsLocation;
+            std::uint32_t TapsDataType;
+            std::uint32_t TapsOrder;
 
-            std::size_t BiasDimX;
-            std::size_t BiasDimY;
-            std::size_t BiasDimZ;
-            std::size_t BiasStrideX;
-            std::size_t BiasStrideY;
-            std::size_t BiasStrideZ;
-            std::size_t BiasOffset;
-            std::size_t BiasLocation;
-            std::size_t BiasDataType;
-            std::size_t BiasOrder;
+            std::uint32_t BiasDimX;
+            std::uint32_t BiasDimY;
+            std::uint32_t BiasDimZ;
+            std::uint32_t BiasStrideX;
+            std::uint32_t BiasStrideY;
+            std::uint32_t BiasStrideZ;
+            std::uint32_t BiasOffset;
+            std::uint32_t BiasLocation;
+            std::uint32_t BiasDataType;
+            std::uint32_t BiasOrder;
 
             Blob_stage()
             {
@@ -170,26 +170,26 @@ namespace mv
 
     struct blob_summary
     {
-        std::size_t elf_header_size;
-        std::size_t mv_header_size;
-        std::size_t header_pad_size;
-        std::size_t stage_section_size;
-        std::size_t buffer_header_size;
-        std::size_t buffer_data_size;
-        std::size_t buffer_data_pad_size;
-        std::size_t relocation_section_size;
-        std::size_t weights_region_size;
-        std::size_t bias_region_size;
-        std::size_t weights_number_size;
-        std::size_t tensor_number_size;
-        std::size_t stage_count;
-        std::size_t data_buffer_count;
-        std::size_t elt_count;
-        std::size_t input_size;
-        std::size_t output_size;
-        std::size_t blob_file_size;
-        std::vector<std::size_t> relocbuf_list = {  } ;
-        std::vector<std::size_t> relocadr_list = {  } ;
+        std::uint32_t elf_header_size;
+        std::uint32_t mv_header_size;
+        std::uint32_t header_pad_size;
+        std::uint32_t stage_section_size;
+        std::uint32_t buffer_header_size;
+        std::uint32_t buffer_data_size;
+        std::uint32_t buffer_data_pad_size;
+        std::uint32_t relocation_section_size;
+        std::uint32_t weights_region_size;
+        std::uint32_t bias_region_size;
+        std::uint32_t weights_number_size;
+        std::uint32_t tensor_number_size;
+        std::uint32_t stage_count;
+        std::uint32_t data_buffer_count;
+        std::uint32_t elt_count;
+        std::uint32_t input_size;
+        std::uint32_t output_size;
+        std::uint32_t blob_file_size;
+        std::vector<std::uint32_t> relocbuf_list = {  } ;
+        std::vector<std::uint32_t> relocadr_list = {  } ;
     };
 
     class Blob_buffer : public WBuffer
