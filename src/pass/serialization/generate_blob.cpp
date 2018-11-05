@@ -66,7 +66,7 @@ void generateBlobFcn(mv::ComputationModel& model, mv::TargetDescriptor& td, mv::
     }
     cm.getBinaryBuffer()->setFileName(blobFileName) ;
 
-    long long result = static_cast<long long>(serializer.serialize(model, td);
+    long long result = static_cast<long long>(serializer.serialize(model, td));
     compOutput["blobSize"] = result;
 
 }
