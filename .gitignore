@@ -8,7 +8,6 @@ meta/src/*
 *.json
 *:*
 *.svg
-*.txt
 recordings/
 *.prototxt
 *.caffemodel
