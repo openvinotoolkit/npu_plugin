@@ -24,7 +24,8 @@ namespace mv
         MV_REGISTER_PASS(GenerateBlob)
         .setFunc(generateBlobFcn)
         .setGenre(PassGenre::Serialization)
-        .defineArg(json::JSONType::String, "output")
+        .defineArg(json::JSONType::Bool, "enableFileOutput")
+        .defineArg(json::JSONType::Bool, "enableRAMOutput")
         .setDescription(
             "Generates an executable blob file"
         );
@@ -38,11 +39,34 @@ void generateBlobFcn(mv::ComputationModel& model, mv::TargetDescriptor& td, mv::
 
     using namespace mv;
 
-    if (compDesc["GenerateBlob"]["output"].get<std::string>().empty())
-        throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
-
+    mv::ControlModel cm(model);
     mv::Serializer serializer(mv::mvblob_mode);
-    long long result = static_cast<long long>(serializer.serialize(model, td, compDesc["GenerateBlob"]["output"].get<std::string>().c_str()));
+
+    // Set output parameters for this serialization from config JSON object
+    // note: defaults from cm.RuntimeBinary constructor are disableRam , enableFile ,  mcmCompile.blob
+    bool RAMEnable = false ;
+    bool fileEnable = false ;
+    std::string blobFileName = "mcmCompile.blob"; 
+ 
+    if (compDesc["GenerateBlob"]["enableRAMOutput"].get<bool>())
+    {
+        RAMEnable = true ;
+    }
+    cm.getBinaryBuffer()->setRAMEnabled(RAMEnable) ;
+
+    if (compDesc["GenerateBlob"]["enableFileOutput"].get<bool>())
+    {
+        fileEnable = true ;
+    }
+    cm.getBinaryBuffer()->setFileEnabled(fileEnable) ;
+
+    if (!(compDesc["GenerateBlob"]["fileName"].get<std::string>().empty()))
+    {
+        blobFileName = compDesc["GenerateBlob"]["fileName"].get<std::string>() ;
+    }
+    cm.getBinaryBuffer()->setFileName(blobFileName) ;
+
+    long long result = static_cast<long long>(serializer.serialize(model, td);
     compOutput["blobSize"] = result;
 
 }

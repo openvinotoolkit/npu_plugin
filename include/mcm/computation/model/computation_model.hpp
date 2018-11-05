@@ -13,6 +13,7 @@
 #include "include/mcm/computation/flow/data_flow.hpp"
 #include "include/mcm/computation/flow/control_flow.hpp"
 #include "include/mcm/computation/model/computation_group.hpp"
+#include "include/mcm/computation/model/runtime_binary.hpp"
 #include "include/mcm/computation/resource/computation_stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 
@@ -57,6 +58,7 @@ namespace mv
             - obtaining a capability of shallow coping the ComputationModel that is exploited by e.g. switchable contexts (OpModel, DataModel)
         */
         std::shared_ptr<computation_graph> opsGraph_;
+        std::shared_ptr<mv::RuntimeBinary> binary_;
         computation_graph::first_graph &dataGraph_;
         computation_graph::second_graph &controlGraph_;
         /*
@@ -130,6 +132,9 @@ namespace mv
         Data::TensorIterator tensorEnd() const;
 
         void clear();
+        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::string newName, std::size_t newSize);
+        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::size_t newSize);
+        std::shared_ptr<mv::RuntimeBinary>  getBinaryBuffer();
 
         virtual std::string getLogID() const override;
         //json::Value toJSON() const override;
