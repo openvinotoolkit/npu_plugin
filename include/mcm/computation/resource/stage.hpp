@@ -23,6 +23,7 @@ namespace mv
 
         bool isMember(Control::OpListIterator op) const;
         std::vector<Control::OpListIterator> getMembers();
+        void clear();
     
         std::size_t getIdx() const;
         std::string toString() const override;

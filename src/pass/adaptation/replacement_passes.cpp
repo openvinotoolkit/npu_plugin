@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
@@ -32,7 +32,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {   
 
-        if (opIt->getOpType() == OpType::FullyConnected)
+        if (opIt->getOpType() == "FullyConnected")
         {
             
             pass.log(Logger::MessageType::Debug, "Found FullyConnected op " + opIt->getName());
@@ -50,7 +50,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
                 sourceTensor->getOrder(), opIt->getName() + "_weights");
 
-            auto conv2D = om.conv2D(sourceTensor, weights, {1, 1}, {0, 0, 0, 0});
+            auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0});
             pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());
 
             if (opIt->hasAttr("bias"))

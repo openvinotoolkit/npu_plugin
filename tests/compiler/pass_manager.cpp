@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 #include "include/mcm/pass/pass_manager.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
 static void setPassReg()
 {

@@ -217,6 +217,7 @@ void mv::Tensor::broadcast(const Shape& shape)
         }
 
         set<Shape>("shape", sO);
+        shape_ = sO;
         data_ = dataBuf;
 
     }

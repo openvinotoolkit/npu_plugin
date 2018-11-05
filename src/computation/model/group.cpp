@@ -1,4 +1,4 @@
-#include "include/mcm/computation/model/computation_group.hpp"
+#include "include/mcm/computation/model/group.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"

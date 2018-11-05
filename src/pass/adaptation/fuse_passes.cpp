@@ -1,7 +1,6 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/api/compositional_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 
 static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);

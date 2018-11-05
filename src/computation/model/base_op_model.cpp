@@ -6,12 +6,6 @@ ComputationModel(name)
     log(Logger::MessageType::Debug, "Initialized");
 }
 
-/*mv::BaseOpModel::BaseOpModel(mv::json::Value& value) :
-ComputationModel(value)
-{
-
-}*/
-
 mv::BaseOpModel::BaseOpModel(ComputationModel& other) :
 ComputationModel(other)
 {
@@ -27,359 +21,6 @@ mv::Data::OpListIterator mv::BaseOpModel::switchContext(Control::OpListIterator 
 {
     return opsGraph_->get_first_iterator(other);
 }
-
-/*mv::Data::TensorIterator mv::BaseOpModel::input(const Shape& shape, DType dType, Order order, const std::string& name)
-{
-
-    if (*input_ != opEnd())
-    {
-        log(Logger::MessageType::Error, "Unable to define input - already defined (multi-input models currently not supported");
-        return tensorEnd();
-    }
-
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Input);
-
-    *input_ = dataGraph_.node_insert(std::make_shared<op::Input>(shape, dType, order, opName));
-    
-    if (*input_ == opEnd())
-    {
-        log(Logger::MessageType::Error, "Unable to allocate a new input op");
-        return tensorEnd();
-    }
-
-    auto outputTensor = defineOutputTensor_(*input_, 0);
-    (*input_)->setOutputTensor(outputTensor, 0);
-    incrementOpsCounter_(OpType::Input);
-    log(Logger::MessageType::Info, "Defined " + (*input_)->toString());
-    return outputTensor;
-
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::output(Data::TensorIterator inputTensor, const std::string& name)
-{
-    
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Output);
-    
-    auto outputIt = dataGraph_.node_insert(std::make_shared<op::Output>(opName));
-
-    if (outputIt == dataGraph_.node_end())
-    {
-        log(Logger::MessageType::Error, "Unable to allocate a new output op");
-        return tensorEnd();
-    }
-
-    defineFlow(inputTensor, outputIt, 0);
-    incrementOpsCounter_(OpType::Output);
-    *output_ = outputIt;
-    log(Logger::MessageType::Info, "Defined " + (*output_)->toString());
-
-    return inputTensor;
-
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::constant(const std::vector<double>& data, const Shape& shape, 
-    DType dType, Order order, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Constant);
-    Data::OpListIterator constantIt = dataGraph_.node_insert(std::make_shared<op::Constant>(data, shape, dType, order, opName));
-    auto outputTensor = defineOutputTensor_(constantIt, 0);
-    constantIt->setOutputTensor(outputTensor, 0);
-    incrementOpsCounter_(OpType::Constant);
-    log(Logger::MessageType::Info, "Defined " + constantIt->toString());
-    return outputTensor;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::conv2D(Data::TensorIterator inputTensor, Data::TensorIterator filtersTensor, 
-    std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Conv2D);
-    auto conv = dataGraph_.node_insert(std::make_shared<op::Conv2D>(stride, padding, opName));
-    Data::TensorIterator inputs[] = {inputTensor, filtersTensor};
-    auto result = defineOp_(conv, inputs, 2);;
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Conv2D);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::matMul(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::MatMul);
-    auto matMulIt = dataGraph_.node_insert(std::make_shared<op::MatMul>(opName));
-    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
-    auto result = defineOp_(matMulIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::MatMul);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::maxpool2D(Data::TensorIterator inputTensor, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::MaxPool2D);
-    auto poolIt = dataGraph_.node_insert(std::make_shared<op::MaxPool2D>(kernelSize, stride, padding, opName));
-    Data::TensorIterator inputs[] = {inputTensor};
-    auto result = defineOp_(poolIt, inputs, 1);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::MaxPool2D);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::avgpool2D(Data::TensorIterator inputTensor, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::AvgPool2D);
-    auto poolIt = dataGraph_.node_insert(std::make_shared<op::AvgPool2D>(kernelSize, stride, padding, opName));
-    Data::TensorIterator inputs[] = {inputTensor};
-    auto result = defineOp_(poolIt, inputs, 1);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::AvgPool2D);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::concat(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Concat);
-    Data::OpListIterator concatIt = dataGraph_.node_insert(std::make_shared<op::Concat>(opName));
-    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
-    auto result = defineOp_(concatIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Concat);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::batchNorm(Data::TensorIterator inputTensor, Data::TensorIterator meanTensor, Data::TensorIterator varianceTensor, Data::TensorIterator offsetTensor, Data::TensorIterator scaleTensor, double varianceEps, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::BatchNorm);
-    Data::OpListIterator batchNormIt = dataGraph_.node_insert(std::make_shared<op::BatchNorm>(varianceEps, opName));
-    Data::TensorIterator inputs[] = {inputTensor, meanTensor, varianceTensor, offsetTensor, scaleTensor};
-    auto result = defineOp_(batchNormIt, inputs, 5);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::BatchNorm);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::scale(Data::TensorIterator inputTensor, Data::TensorIterator scaleTensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Scale);
-    Data::OpListIterator scaleIt = dataGraph_.node_insert(std::make_shared<op::Scale>(opName));
-    Data::TensorIterator inputs[] = {inputTensor, scaleTensor};
-    auto result = defineOp_(scaleIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Scale);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::relu(Data::TensorIterator inputTensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::ReLU);
-    Data::OpListIterator reluIt = dataGraph_.node_insert(std::make_shared<op::ReLU>(opName));
-    Data::TensorIterator inputs[] = {inputTensor};
-    auto result = defineOp_(reluIt, inputs, 1);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::ReLU);
-    return result;
-}
-
-
-mv::Data::TensorIterator mv::BaseOpModel::prelu(Data::TensorIterator inputTensor, Data::TensorIterator negativeSlope, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::PReLU);
-
-    std::cout << "Create Preluit" << std::endl;
-    Data::OpListIterator preluIt = dataGraph_.node_insert(std::make_shared<op::PReLU>(opName));
-    std::cout << "Create inputs" << std::endl;
-    Data::TensorIterator inputs[] = {inputTensor, negativeSlope};
-
-    std::cout << "DEFINE" << std::endl;
-
-    auto result = defineOp_(preluIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::PReLU);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::conversion(Data::TensorIterator inputTensor, Order targetOrder, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Conversion);
-    Data::OpListIterator conversionIt = dataGraph_.node_insert(std::make_shared<op::Conversion>(opName, targetOrder));
-    Data::TensorIterator inputs[] = {inputTensor};
-    auto result = defineOp_(conversionIt, inputs, 1);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Conversion);
-    return result;
-}
-mv::Data::TensorIterator mv::BaseOpModel::softmax(Data::TensorIterator inputTensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Softmax);
-    Data::OpListIterator softmaxIt = dataGraph_.node_insert(std::make_shared<op::Softmax>(opName));
-    Data::TensorIterator inputs[] = {inputTensor};
-    auto result = defineOp_(softmaxIt, inputs, 1);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Softmax);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::add(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Add);
-    Data::OpListIterator addIt = dataGraph_.node_insert(std::make_shared<op::Add>(opName));
-    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
-    auto result = defineOp_(addIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Add);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::subtract(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Subtract);
-    Data::OpListIterator subtractIt = dataGraph_.node_insert(std::make_shared<op::Subtract>(opName));
-    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
-    auto result = defineOp_(subtractIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Subtract);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::multiply(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Multiply);
-    Data::OpListIterator multiplyIt = dataGraph_.node_insert(std::make_shared<op::Multiply>(opName));
-    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
-    auto result = defineOp_(multiplyIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Multiply);
-    return result;
-
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::divide(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, const std::string& name)
-{   
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Divide);
-    Data::OpListIterator divideIt = dataGraph_.node_insert(std::make_shared<op::Divide>(opName));
-    Data::TensorIterator inputs[] = {input0Tensor, input1Tensor};
-    auto result = defineOp_(divideIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Divide);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::reshape(Data::TensorIterator inputTensor, const Shape& shape, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Reshape);
-    Data::OpListIterator reshapeIt = dataGraph_.node_insert(std::make_shared<op::Reshape>(shape, opName));
-    Data::TensorIterator inputs[] = {inputTensor};
-    auto result = defineOp_(reshapeIt, inputs, 1);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Reshape);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::bias(Data::TensorIterator inputTensor, Data::TensorIterator biasesTensor, const std::string& name)
-{   
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::Bias);
-    Data::OpListIterator biasIt = dataGraph_.node_insert(std::make_shared<op::Bias>(opName));
-    Data::TensorIterator inputs[] = {inputTensor, biasesTensor};
-    auto result = defineOp_(biasIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::Bias);
-    return result;
-}
-
-mv::Data::TensorIterator mv::BaseOpModel::fullyConnected(Data::TensorIterator inputTensor, Data::TensorIterator weightsTensor, const std::string& name)
-{
-    std::string opName;
-    if (name != "")
-        opName = name;
-    else
-        opName = getOpName_(OpType::FullyConnected);
-
-    Data::OpListIterator fullyConnectedIt = dataGraph_.node_insert(std::make_shared<op::FullyConnected>(opName));
-    Data::TensorIterator inputs[] = {inputTensor, weightsTensor};
-    auto result = defineOp_(fullyConnectedIt, inputs, 2);
-    if (isValid(result))
-        incrementOpsCounter_(OpType::FullyConnected);
-    return result;
-
-}*/
 
 mv::Data::OpListIterator mv::BaseOpModel::getSourceOp(Data::TensorIterator tensor)
 {
@@ -412,17 +53,32 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
         throw ArgumentError(*this, "op:name", name, "Duplicated op name");
     
     auto opNode = dataGraph_.node_insert(Op(*this, opType, name, inputs, args));
-
-    for (std::size_t i = 0; i < (*opNode).inputSlots(); ++i)
-        defineFlow(inputs[i], opNode, i);
-
     incrementOpsInstanceCounter_(opType);
     incrementOpsIndexCounter_(opType);
 
     ops_->emplace(name, opNode);
 
+    for (std::size_t i = 0; i < (*opNode).inputSlots(); ++i)
+        defineFlow(inputs[i], opNode, i);
+
     log(Logger::MessageType::Info, "Defined " + (*opNode).toString());
 
+    // Assumes single input/output
+    if (opType == "Input")
+    {
+        if (*input_ == opEnd())
+            *input_ = opNode;
+        else
+            throw LogicError(*this, "Attempt of multi-input model definiton - currently unsupported");
+    }
+    else if (opType == "Output")
+    {
+        if (*output_ == opEnd())
+            *output_ = opNode;
+        else
+            throw LogicError(*this, "Attempt of multi-output model definiton - currently unsupported");
+    }
+    
     if ((*opNode).outputSlots() > 0)
         return (*opNode).getOutputTensor(0);
 
@@ -430,7 +86,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
 
 }
 
-void mv::BaseOpModel::removeOp(Data::OpListIterator op)
+void mv::BaseOpModel::removeOp(Data::OpListIterator& op)
 {
 
     if (op == opEnd())
@@ -443,8 +99,8 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
     ops_->erase(op->getName());
 
     log(Logger::MessageType::Info, "Removed " + op->toString());
-
     dataGraph_.node_erase(op);
+    op = opEnd();
     
 }
 
@@ -477,7 +133,7 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::OpListIterator sour
 
 }
 
-void mv::BaseOpModel::undefineFlow(Data::FlowListIterator flow)
+void mv::BaseOpModel::undefineFlow(Data::FlowListIterator& flow)
 {
 
     if (!ComputationModel::isValid(flow))
@@ -486,22 +142,8 @@ void mv::BaseOpModel::undefineFlow(Data::FlowListIterator flow)
     log(Logger::MessageType::Info, "Removed " + flow->toString());
     dataFlows_->erase(flow->getName());
     dataGraph_.edge_erase(flow);
+    flow = flowEnd();
 
-}
-
-bool mv::BaseOpModel::isValid() const
-{
-    return ComputationModel::isValid();
-}
-
-bool mv::BaseOpModel::isValid(const Data::TensorIterator &it) const
-{
-    return ComputationModel::isValid(it);
-}
-
-bool mv::BaseOpModel::isValid(const Data::OpListIterator &it) const
-{
-    return ComputationModel::isValid(it);
 }
 
 mv::Data::OpListIterator mv::BaseOpModel::getInput()
@@ -529,43 +171,47 @@ mv::Data::FlowListIterator mv::BaseOpModel::flowEnd() const
     return *dataFlowEnd_;
 }
 
-/*mv::GroupContext::MemberIterator mv::BaseOpModel::addGroupElement(Data::OpListIterator newElement, GroupContext::GroupIterator group)
+void mv::BaseOpModel::addGroupElement(Data::OpListIterator element, GroupIterator group)
 {
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while including op to a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while including op to a group");
 
-    std::shared_ptr<ComputationOp> ptr = newElement;
-    return addGroupElement_(ptr, group);
-
+    group->include(element);
 }
 
-bool mv::BaseOpModel::removeGroupElement(Data::OpListIterator element, GroupContext::GroupIterator group)
+void mv::BaseOpModel::removeGroupElement(Data::OpListIterator element, GroupIterator group)
 {
-    std::shared_ptr<ComputationOp> ptr = element;
-    return removeGroupElement_(ptr, group);
-}*/
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while excluding op from a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while excluding op from a group");
+    group->exclude(element);
+}
 
-std::vector<mv::Shape> mv::BaseOpModel::getInputShapes(Data::OpListIterator& op)
+std::vector<mv::Shape> mv::BaseOpModel::getInputShapes(Data::OpListIterator op)
 {
+
+    if (!isValid(op))
+        throw ArgumentError(*this, "op", "invalid", "Invalid op iterator passed getting inputs shapes");
 
     std::vector<Shape> shapes;
-
     for (auto it = op.leftmostInput(); it != *dataFlowEnd_; ++it)
-    {
         shapes.push_back(it->getTensor()->getShape());
-    }
-
     return shapes;
 
 }
 
-std::vector<mv::Shape> mv::BaseOpModel::getOutputShapes(Data::OpListIterator& op)
+std::vector<mv::Shape> mv::BaseOpModel::getOutputShapes(Data::OpListIterator op)
 {
 
-    std::vector<Shape> shapes;
+    if (!isValid(op))
+        throw ArgumentError(*this, "op", "invalid", "Invalid op iterator passed getting outputs shap");
 
+    std::vector<Shape> shapes;
     for (auto it = op.leftmostOutput(); it != *dataFlowEnd_; ++it)
-    {
         shapes.push_back(it->getTensor()->getShape());
-    }
 
     return shapes;
 

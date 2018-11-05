@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
@@ -13,7 +13,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     auto input = om.input({64, 64, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3);
     auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape.totalSize());
@@ -29,7 +29,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     auto bnoffsetOp = om.getSourceOp(bnoffset);
     auto bnscale = om.constant(scaleData, convShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
     om.output(batchnorm);
@@ -51,13 +51,13 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     
     // Check replacament for batchnorm multiplicative component
     auto mulOp = convOp.leftmostChild();
-    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Multiply);
+    ASSERT_EQ(mulOp->getOpType(), "Multiply");
     ASSERT_EQ(mulOp.childrenSize(), 1);
     ASSERT_TRUE(mulOp->getInputTensor(1)->isPopulated());
 
     // Check replacement for batchnorm additive component
     auto addOp = mulOp.leftmostChild();
-    ASSERT_EQ(addOp->getOpType(), mv::OpType::Add);
+    ASSERT_EQ(addOp->getOpType(), "Add");
     ASSERT_EQ(addOp.childrenSize(), 1);
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
@@ -89,7 +89,7 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape[-1]);
@@ -105,7 +105,7 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     auto bnoffsetOp = om.getSourceOp(bnoffset);
     auto bnscale = om.constant(scaleData, {convShape[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
     om.output(batchnorm);
@@ -127,7 +127,7 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 
     // Check replacement for batchnorm additive component
     auto addOp = convOp.leftmostChild();
-    ASSERT_EQ(addOp->getOpType(), mv::OpType::Bias);
+    ASSERT_EQ(addOp->getOpType(), "Bias");
     ASSERT_EQ(addOp.childrenSize(), 1);
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 

@@ -1,4 +1,4 @@
-#include "include/mcm/computation/resource/computation_stage.hpp"
+#include "include/mcm/computation/resource/stage.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
@@ -13,7 +13,7 @@ ModelElement(model, "stage" + std::to_string(idx))
 void mv::Stage::include(Control::OpListIterator op)
 {
     if (op->hasAttr("stage"))
-        throw RuntimeError(*this, "Op " + op->getName() + " has stage already assgined");
+        throw RuntimeError(*this, "Op " + op->getName() + " has stage already assigned");
     op->set<std::size_t>("idx", getIdx());
     get<std::vector<std::string>>("members").push_back(op->getName());
 }
@@ -59,6 +59,14 @@ std::vector<mv::Control::OpListIterator> mv::Stage::getMembers()
 
     return output;
 
+}
+
+void mv::Stage::clear()
+{
+    auto members = getMembers();
+    for (auto memberIt = members.begin(); memberIt != members.end(); ++memberIt)
+        (*memberIt)->erase("stage");
+    get<std::vector<std::string>>("members").clear();
 }
 
 std::size_t mv::Stage::getIdx() const

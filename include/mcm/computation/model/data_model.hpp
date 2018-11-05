@@ -30,14 +30,17 @@ namespace mv
         Data::FlowListIterator flowBegin();
         Data::FlowListIterator flowEnd();
 
-        /*GroupContext::MemberIterator addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group);
-        bool removeGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group);
+        void addGroupElement(Data::FlowListIterator element, GroupIterator group);
+        void addGroupElement(Data::TensorIterator element, GroupIterator group);
+        void removeGroupElement(Data::FlowListIterator element, GroupIterator group);
+        void removeGroupElement(Data::TensorIterator element, GroupIterator group);
         using ComputationModel::addGroupElement;
-        using ComputationModel::removeGroupElement;*/
+        using ComputationModel::removeGroupElement;
 
         Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
         Data::TensorIterator defineTensor(const Tensor& tensor);
+        void undefineTensor(Data::TensorIterator& tensor);
         void undefineTensor(const std::string& name);
         unsigned tensorsCount() const;
 

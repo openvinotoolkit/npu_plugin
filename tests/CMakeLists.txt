@@ -53,8 +53,8 @@ add_executable(mcm_unit_tests
     ${base_src}
     ${tensor}
     ${op_src}
-    ${pass_src}
-    ${compiler_src}
+    #${pass_src}
+    #${compiler_src}
     ${model_src}
 )
 

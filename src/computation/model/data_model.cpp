@@ -37,17 +37,43 @@ mv::Data::FlowListIterator mv::DataModel::flowEnd()
     return *dataFlowEnd_;
 }
 
-/*mv::GroupContext::MemberIterator mv::DataModel::addGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
+void mv::DataModel::addGroupElement(Data::FlowListIterator element, GroupIterator group)
 {
-    std::shared_ptr<DataFlow> ptr = element;
-    return addGroupElement_(ptr, group);
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while including data flow to a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while including data flow to a group");
+
+    group->include(element);
 }
 
-bool mv::DataModel::removeGroupElement(Data::FlowListIterator& element, GroupContext::GroupIterator& group)
+void mv::DataModel::addGroupElement(Data::TensorIterator element, GroupIterator group)
 {
-    std::shared_ptr<DataFlow> ptr = element;
-    return removeGroupElement_(ptr, group);
-}*/
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while including tensor to a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while including tensor to a group");
+
+    group->include(element);
+}
+
+void mv::DataModel::removeGroupElement(Data::FlowListIterator element, GroupIterator group)
+{
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while excluding data flow from a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while excluding data flow from a group");
+    group->exclude(element);
+}
+
+void mv::DataModel::removeGroupElement(Data::TensorIterator element, GroupIterator group)
+{
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while excluding tensor from a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while excluding tensor from a group");
+    group->exclude(element);
+}
 
 mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order)
 {

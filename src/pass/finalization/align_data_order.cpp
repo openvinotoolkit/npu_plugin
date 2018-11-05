@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
@@ -42,7 +42,7 @@ void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::Constant)
+        if (opIt->getOpType() == "Constant")
         {
 
             if (opIt.childrenSize() > 1)
@@ -78,9 +78,8 @@ void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
 void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 {
 
-    if(parentIt->getOpType() == mv::OpType::Output) {
+    if(parentIt->getOpType() == "Output")
         return;
-    }
 
     parentIt->set<unsigned>("traversed_CR", 1);
 
@@ -91,7 +90,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
     bool all_parents_resolved = true;
     while(1)
     {
-        if(paternityTest->getOpType() != mv::OpType::Constant)
+        if(paternityTest->getOpType() != "Constant")
             if(!paternityTest->hasAttr("traversed_CR") || paternityTest->get<unsigned>("traversed_CR") != 1)
             {
                 // std::cout << !paternityTest->hasAttr("traversed_CR") <<":"<< paternityTest->get<unsigned>("traversed_CR") << std::endl;
@@ -116,7 +115,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         auto source = parentIt;
         auto sink = childIt;
 
-        if(source->getOpType() == mv::OpType::Conversion || sink->getOpType() == mv::OpType::Conversion)
+        if(source->getOpType() == "Conversion" || sink->getOpType() == "Conversion")
         {
             compatibilityResolution(childIt, om);
             if(childIt == parentIt.rightmostChild()) break;
@@ -132,7 +131,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
             ++childIt;
             continue;
         }
-        if (source->getOpType() == mv::OpType::Constant)
+        if (source->getOpType() == "Constant")
         {
 
             compatibilityResolution(childIt, om);
@@ -163,7 +162,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         }
 
         //Concat as sink case
-        if(sink->getOpType() == mv::OpType::Concat){
+        if(sink->getOpType() == "Concat"){
             if (sourceIsSw){
                 // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
                 childIt->getInputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
@@ -187,7 +186,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         }
 
 
-        if(conversionNeeded && !(source->getOpType() == mv::OpType::Input) && !(sink->getOpType() == mv::OpType::Output))
+        if(conversionNeeded && !(source->getOpType() == "Input") && !(sink->getOpType() == "Output"))
         {
             // mv::Data::TensorIterator originalTensor = flowIt->getTensor();
             mv::Data::TensorIterator originalTensor = childIt->getInputTensor(0);
@@ -262,7 +261,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 
 
 //NOTE: This should not be done in such hardcoded way.
-void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "addConversionLayers " << std::endl;
@@ -273,7 +272,6 @@ void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     OpModel om(model);
 
     auto opIt = om.opBegin();
-
 
     compatibilityResolution(opIt, om);
     std::cout << "Added. " << std::endl;

@@ -50,104 +50,94 @@ mv::Control::FlowListIterator mv::ControlModel::flowEnd()
     return *controlFlowEnd_;
 }
 
-/*mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
+void mv::ControlModel::addGroupElement(Control::OpListIterator element, GroupIterator group)
 {
-    std::shared_ptr<ComputationOp> ptr = element;
-    return addGroupElement_(ptr, group);
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while including op to a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while including op to a group");
+
+    group->include(element);
 }
 
-mv::GroupContext::MemberIterator mv::ControlModel::addGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group)
+void mv::ControlModel::addGroupElement(Control::FlowListIterator element, GroupIterator group)
 {
-    std::shared_ptr<ControlFlow> ptr = element;
-    return addGroupElement_(ptr, group);
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while including control flow to a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while including control flow to a group");
+
+    group->include(element);
 }
 
-bool mv::ControlModel::removeGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group)
+void mv::ControlModel::removeGroupElement(Control::OpListIterator element, GroupIterator group)
 {
-    std::shared_ptr<ComputationOp> ptr = element;
-    return removeGroupElement_(ptr, group);
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while excluding op from a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while excluding op from a group");
+    group->exclude(element);
 }
 
-bool mv::ControlModel::removeGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group)
+void mv::ControlModel::removeGroupElement(Control::FlowListIterator element, GroupIterator group)
 {
-    std::shared_ptr<ControlFlow> ptr = element;
-    return removeGroupElement_(ptr, group);
+    if (!isValid(element))
+        throw ArgumentError(*this, "newElement:iterator", "invalid", "Invalid iterator passed while excluding control flow from a group");
+    if (!isValid(group))
+        throw ArgumentError(*this, "group:iterator", "invalid", "Invalid iterator passed while excluding control flow from a group");
+    group->exclude(element);
 }
 
 mv::Control::StageIterator mv::ControlModel::addStage()
 {   
     
-    //auto it = stages_->insert(stages_->end(), allocator_.make_owner<ComputationStage>(logger_, stages_->size()));
-    //return it;
-    return addStage_();
+    auto it = stages_->emplace(stages_->size(), std::make_shared<Stage>(*this, stages_->size()));
+    return it.first;
 
 }
 
 mv::Control::StageIterator mv::ControlModel::getStage(std::size_t stageIdx)
 {
-
     return stages_->find(stageIdx);
-
 }
 
-bool mv::ControlModel::removeStage(Control::StageIterator &stage)
+void mv::ControlModel::removeStage(Control::StageIterator& stage)
 {
-    if (stage != stageEnd())
-    {
-        stage->clear();
-        stages_->erase(stage->getIdx());
-        stage = stageEnd();
-        return true;
-    }
+
+    if (!isValid(stage))
+        throw ArgumentError(*this, "stage", "invalid", "Invalid stage iterator passed for stage deletion");
     
-    return false;
+    stage->clear();
+    stages_->erase(stage->getIdx());
+    stage = stageEnd();
 
 }
 
-bool mv::ControlModel::addToStage(Control::StageIterator &stage, Control::OpListIterator &op)
+void mv::ControlModel::addToStage(Control::StageIterator stage, Control::OpListIterator op)
 {
 
-    Data::OpListIterator it(opsGraph_->get_first_iterator(op));
-    return addToStage_(stage, it);
+    if (!isValid(stage))
+        throw ArgumentError(*this, "stage", "invalid", "Invalid stage iterator passed during appending an op to a stage");
+
+    if (!isValid(op))
+        throw ArgumentError(*this, "op", "invalid", "Invalid op iterator passed during appending an op to a stage");
+
+    stage->include(op);
 
 }
 
-bool mv::ControlModel::addToStage(Control::StageIterator &stage, Data::OpListIterator &op)
+void mv::ControlModel::removeFromStage(Control::OpListIterator op)
 {
 
-    //auto it = switchContext(op);
-    //return addToStage(stage, it);
-    return addToStage_(stage, op);
+    if (!isValid(op))
+        throw ArgumentError(*this, "stage", "invalid", "Invalid op iterator passed during removing an op from a stage");
 
-}
+    if (!op->hasAttr("stage"))
+        throw ArgumentError(*this, "op", "invalid", "Attempt of removing an unassigned op from a stage");
 
-bool mv::ControlModel::removeFromStage(Control::OpListIterator &op)
-{
+    auto stage = getStage(op->get<std::size_t>("stage"));
+    stage->exclude(op);
 
-    if (op->hasAttr("stage"))
-    {
-        auto stage = getStage(op->get<std::size_t>("stage"));
-
-        if (stage != stageEnd())
-        {
-            //allocator::owner_ptr<ComputationOp> ptr = op;
-            auto it = stage->find(*op);
-            if (it != stage->end())
-            {
-                stage->erase(it);
-                return true;
-            }
-        }
-    }
-
-    return false;
-
-}
-
-bool mv::ControlModel::removeFromStage(Data::OpListIterator &op)
-{   
-    auto it = switchContext(op);
-    return removeFromStage(it);
 }
 
 std::size_t mv::ControlModel::stageSize() const
@@ -164,28 +154,6 @@ mv::Control::StageIterator mv::ControlModel::stageEnd()
 {
     return stages_->end();
 }
-
-mv::Control::StageMemberIterator mv::ControlModel::stageMemberBegin(Control::StageIterator &stage)
-{
-
-    if (stage != stageEnd())
-    {
-        return stage->begin();
-    }
-    
-    return Control::StageMemberIterator();
-
-}
-
-mv::Control::StageMemberIterator mv::ControlModel::stageMemberEnd(Control::StageIterator &stage)
-{
-    if (stage != stageEnd())
-    {
-        return stage->end();
-    }
-    
-    return Control::StageMemberIterator();
-}*/
 
 mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp)
 {
@@ -221,16 +189,15 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator 
 
 } 
 
-
-bool mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
+void mv::ControlModel::undefineFlow(Control::FlowListIterator& flow)
 {
 
     if (!ComputationModel::isValid(flow))
-        return false;
+        throw ArgumentError(*this, "flow", "invalid", "An invalid flow iterator passed for flow deletion");
 
     controlFlows_->erase(flow->getName());
     controlGraph_.edge_erase(flow);
-    return true;
+    flow = flowEnd();
 
 }
 

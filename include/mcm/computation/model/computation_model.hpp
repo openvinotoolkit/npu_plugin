@@ -11,8 +11,8 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/flow/data_flow.hpp"
 #include "include/mcm/computation/flow/control_flow.hpp"
-#include "include/mcm/computation/model/computation_group.hpp"
-#include "include/mcm/computation/resource/computation_stage.hpp"
+#include "include/mcm/computation/model/group.hpp"
+#include "include/mcm/computation/resource/stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 
 namespace mv
@@ -20,30 +20,6 @@ namespace mv
 
     class ComputationModel : public LogSender
     {
-
-    private:
-
-        /*void addOutputTensorsJson(Data::OpListIterator insertedOp);
-        void addInputTensorsJson(Data::OpListIterator insertedOp);
-        mv::Data::OpListIterator addNodeFromJson(json::Value& node);
-        Control::FlowListIterator addControlFlowFromJson(json::Value& edge, std::map<std::string, Data::OpListIterator> &addedOperations);
-        Data::FlowListIterator addDataFlowFromJson(json::Value& edge, std::map<std::string, Data::OpListIterator> &addedOperations);*/
-
-        /*template <typename T, typename TIterator>
-        void handleGroupsForAddedElement(TIterator addedElement)
-        {
-            if(addedElement->hasAttr("groups"))
-            {
-                Attribute groupsAttr = addedElement->getAttr("groups");
-                std::vector<std::string> groupsVec = groupsAttr.getContent<std::vector<std::string>>();
-                for(unsigned j = 0; j < groupsVec.size(); ++j)
-                {
-                    std::shared_ptr<T> ptr = addedElement;
-                    mv::GroupContext::GroupIterator group = getGroup(groupsVec[j]);
-                    addGroupElement_(ptr, group);
-                }
-            }
-        }*/
 
     protected:
 
@@ -79,21 +55,11 @@ namespace mv
         std::shared_ptr<Control::FlowListIterator> controlFlowEnd_;
         std::shared_ptr<Data::OpListIterator> input_;
         std::shared_ptr<Data::OpListIterator> output_;
-
-        // Passing as value rather than reference allows to do implicit cast of the pointer type
-        /*GroupContext::MemberIterator addGroupElement_(std::shared_ptr<Element> element, mv::GroupContext::GroupIterator &group);
-        bool removeGroupElement_(std::weak_ptr<Element> element, mv::GroupContext::GroupIterator &group);*/
         
-        // Check if every operation has computation stage assigned
-        /*bool checkOpsStages_() const;
-        Control::StageIterator addStage_();
-        bool addToStage_(Control::StageIterator &stage, Data::OpListIterator &op);*/
-        //Data::TensorIterator defineOutputTensor_(Data::OpListIterator source, short unsigned outputIdx);
         Data::TensorIterator findTensor_(const std::string &name);
         void incrementOpsInstanceCounter_(const std::string& opType);
         void decrementOpsInstanceCounter_(const std::string& opType);
         void incrementOpsIndexCounter_(const std::string& opType);
-        //Data::OpListIterator findSourceOp_(Data::TensorIterator &tensor);
 
     public:
 
@@ -108,6 +74,7 @@ namespace mv
         ComputationModel(ComputationModel &other);
 
         virtual ~ComputationModel() = 0;
+
         /**
          * @brief Check basic logical cohesion of the computation model. Does not guarantee that the model can executed successfully on the
          * target platform
@@ -116,17 +83,22 @@ namespace mv
          * @return false Computation model is invalid.
          */
         bool isValid() const;
-        bool isValid(const Data::TensorIterator &it) const;
-        bool isValid(const Data::OpListIterator &it) const;
-        bool isValid(const Control::OpListIterator &it) const;
-        bool isValid(const Data::FlowListIterator &it) const;
-        bool isValid(const Control::FlowListIterator &it) const;
+        bool isValid(Data::TensorIterator it) const;
+        bool isValid(Data::OpListIterator it) const;
+        bool isValid(Control::OpListIterator it) const;
+        bool isValid(Data::FlowListIterator it) const;
+        bool isValid(Control::FlowListIterator it) const;
+        bool isValid(GroupIterator it) const;
+        bool isValid(Control::StageIterator it) const;
         
         GroupIterator addGroup(const std::string &name);
         GroupIterator groupBegin();
         GroupIterator groupEnd();
         bool hasGroup(const std::string &name);
         GroupIterator getGroup(const std::string& name);
+
+        void addGroupElement(GroupIterator element, GroupIterator group);
+        void removeGroupElement(GroupIterator element, GroupIterator group);
 
         Data::TensorIterator tensorBegin() const;
         Data::TensorIterator tensorEnd() const;

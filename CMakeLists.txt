@@ -64,11 +64,11 @@ file (GLOB model
     "src/computation/model/computation_element.cpp"
     "src/api/compositional_model.cpp"
     "src/utils/recorded_compositional_model.cpp"
-    "src/computation/model/computation_group.cpp"
+    "src/computation/model/group.cpp"
     "src/computation/flow/control_flow.cpp"
     "src/computation/flow/data_flow.cpp"
     "src/computation/resource/memory_allocator.cpp"
-    "src/computation/resource/computation_stage.cpp"
+    "src/computation/resource/stage.cpp"
     "src/computation/resource/nce1.cpp"
     "src/computation/resource/nce1_utils.cpp"
     "src/computation/op/op.cpp"
@@ -116,8 +116,8 @@ else()
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     #add_subdirectory(python/api)
-	#add_subdirectory(tests)
-	#add_subdirectory(contrib/googletest)
+	add_subdirectory(tests)
+	add_subdirectory(contrib/googletest)
 endif()
 
 add_subdirectory(examples)
