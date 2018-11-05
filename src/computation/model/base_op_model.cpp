@@ -86,7 +86,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
 
 }
 
-void mv::BaseOpModel::removeOp(Data::OpListIterator& op)
+void mv::BaseOpModel::removeOp(Data::OpListIterator op)
 {
 
     if (op == opEnd())
@@ -100,7 +100,6 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator& op)
 
     log(Logger::MessageType::Info, "Removed " + op->toString());
     dataGraph_.node_erase(op);
-    op = opEnd();
     
 }
 
@@ -133,7 +132,7 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::OpListIterator sour
 
 }
 
-void mv::BaseOpModel::undefineFlow(Data::FlowListIterator& flow)
+void mv::BaseOpModel::undefineFlow(Data::FlowListIterator flow)
 {
 
     if (!ComputationModel::isValid(flow))
@@ -142,7 +141,6 @@ void mv::BaseOpModel::undefineFlow(Data::FlowListIterator& flow)
     log(Logger::MessageType::Info, "Removed " + flow->toString());
     dataFlows_->erase(flow->getName());
     dataGraph_.edge_erase(flow);
-    flow = flowEnd();
 
 }
 

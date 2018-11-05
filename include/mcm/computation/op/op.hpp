@@ -29,6 +29,7 @@ namespace mv
         virtual ~Op();
 
         std::string getOpType() const;
+        bool hasTypeTrait(const std::string& typeTrait) const;
 
         void setInputTensor(Data::TensorIterator tensor, std::size_t idx);
 

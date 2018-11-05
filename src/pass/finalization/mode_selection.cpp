@@ -1,5 +1,5 @@
 ﻿#include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
@@ -153,7 +153,7 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
         return false;
 }
 
-mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
+mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel&)
 {
     mv::ModeSelectionNode source;
     source.parameters = mv::fillConvolutionParameters(convIterator, true);
@@ -162,7 +162,7 @@ mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpLis
     return nce.optimize_convolution(source);
 }
 
-void modeSelection(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void modeSelection(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "Mode selection pass" << std::endl;
     mv::OpModel om(model);
@@ -173,7 +173,7 @@ void modeSelection(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == mv::OpType::Conv2D)
+        if (opIterator->getOpType() == "Conv")
         {
 
             if(!opIterator->hasAttr("NCE1_Compatible"))

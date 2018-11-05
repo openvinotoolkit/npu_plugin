@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
@@ -22,7 +22,7 @@ namespace mv
 
 
 //NOTE: This should not be done in such hardcoded way.
-void formatMXWeights(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void formatMXWeights(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -38,7 +38,7 @@ void formatMXWeights(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
         {
             valid = sink->get<int>("NCE1_Compatible");
         }
-        if(source->getOpType() == mv::OpType::Constant && sink->getOpType() == mv::OpType::Conv2D && valid)
+        if(source->getOpType() == "Constant" && sink->getOpType() == "Conv" && valid)
         {
             auto weights = sink->getInputTensor(1);
             auto wshape = weights->getShape();

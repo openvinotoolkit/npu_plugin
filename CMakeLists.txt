@@ -81,7 +81,7 @@ file(GLOB logger
 )
 
 file(GLOB pass
-    "src/deployer/*.cpp"
+    #"src/deployer/*.cpp"
     #"src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
@@ -102,14 +102,14 @@ file(GLOB compiler
 add_subdirectory(meta)
 
 if (MSVC)
-    add_library(cm OBJECT ${model})
+    add_library(cm OBJECT ${compiler} ${pass})
     add_library(corebase OBJECT ${base} ${logger})
     add_library(model OBJECT ${model})
     target_link_libraries(cm corebase metamodel)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
 else()
-    add_library(cm SHARED ${model})
+    add_library(cm SHARED ${compiler} ${pass})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
     target_link_libraries(cm corebase metamodel)

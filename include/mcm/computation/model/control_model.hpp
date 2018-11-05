@@ -34,8 +34,9 @@ namespace mv
 
         Control::StageIterator addStage();
         Control::StageIterator getStage(std::size_t stageIdx);
-        void removeStage(Control::StageIterator &stage);
+        void removeStage(Control::StageIterator stage);
         void addToStage(Control::StageIterator stage, Control::OpListIterator op);
+        void addToStage(Control::StageIterator stage, Data::OpListIterator op);
         void removeFromStage(Control::OpListIterator op);
         std::size_t stageSize() const;
 
@@ -46,8 +47,8 @@ namespace mv
 
         Control::FlowListIterator defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp);
         Control::FlowListIterator defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp);
-        void undefineFlow(Control::FlowListIterator &flow);
-        void undefineFlow(Data::FlowListIterator &flow);
+        void undefineFlow(Control::FlowListIterator flow);
+        void undefineFlow(Data::FlowListIterator flow);
 
         virtual std::string getLogID() const override;
 

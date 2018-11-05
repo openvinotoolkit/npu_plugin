@@ -196,7 +196,7 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
             pass.log(Logger::MessageType::Debug, "Found ReLU op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            om.addAttr(parentOpIt, "postOpType", "Relu");
+            parentOpIt->set<std::string>("postOpType", "Relu");
 
             pass.log(Logger::MessageType::Info, "Fused ReLU op " + opIt->getName() + " into " + parentOpIt->getName());
 

@@ -101,7 +101,7 @@ mv::Control::StageIterator mv::ControlModel::getStage(std::size_t stageIdx)
     return stages_->find(stageIdx);
 }
 
-void mv::ControlModel::removeStage(Control::StageIterator& stage)
+void mv::ControlModel::removeStage(Control::StageIterator stage)
 {
 
     if (!isValid(stage))
@@ -109,7 +109,6 @@ void mv::ControlModel::removeStage(Control::StageIterator& stage)
     
     stage->clear();
     stages_->erase(stage->getIdx());
-    stage = stageEnd();
 
 }
 
@@ -124,6 +123,11 @@ void mv::ControlModel::addToStage(Control::StageIterator stage, Control::OpListI
 
     stage->include(op);
 
+}
+
+void mv::ControlModel::addToStage(Control::StageIterator stage, Data::OpListIterator op)
+{
+    addToStage(stage, switchContext(op));
 }
 
 void mv::ControlModel::removeFromStage(Control::OpListIterator op)
@@ -189,7 +193,7 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator 
 
 } 
 
-void mv::ControlModel::undefineFlow(Control::FlowListIterator& flow)
+void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
 {
 
     if (!ComputationModel::isValid(flow))
@@ -197,7 +201,6 @@ void mv::ControlModel::undefineFlow(Control::FlowListIterator& flow)
 
     controlFlows_->erase(flow->getName());
     controlGraph_.edge_erase(flow);
-    flow = flowEnd();
 
 }
 

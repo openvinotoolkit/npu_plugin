@@ -89,6 +89,13 @@ std::string mv::Op::getOpType() const
     return get<std::string>("opType");
 }
 
+bool mv::Op::hasTypeTrait(const std::string& typeTrait) const
+{
+    if (!op::OpRegistry::checkTypeTrait(typeTrait))
+        throw ArgumentError(*this, "typeTrait", typeTrait, "Testing against illegal type triat");
+    return op::OpRegistry::hasTypeTrait(getOpType(), typeTrait);
+}
+
 void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
 

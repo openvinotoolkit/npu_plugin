@@ -263,9 +263,6 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
 
-    if (!opPtr->hasTypeTrait("exposed"))
-        throw OpError("OpRegistry", "Call for CompositionAPI declaration generation for a non-exposed op type " + opType);
-
     if (opPtr->getOutputsCount() > 1)
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
 
@@ -326,7 +323,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
             output += ", ";
 
         if (types)
-            output += "const std::string&";
+            output += "const std::string& ";
         output += "name";
         
         if (defaultArgs)
@@ -453,9 +450,6 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
 
-    if (!opPtr->hasTypeTrait("exposed"))
-        throw OpError("OpRegistry", "Call for CompositionAPI definition generation for a non-exposed op type " + opType);
-
     if (opPtr->getOutputsCount() > 1)
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
 
@@ -506,8 +500,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
 
     incStream << tab << tab << "virtual ~CompositionalModel() = 0;" << eol << eol;
 
-    auto opsList = getOpTypes({"exposed"});
-    for (auto it = opsList.begin(); it != opsList.end(); ++it)
+    auto exposedOpsList = getOpTypes({"exposed"});
+    for (auto it = exposedOpsList.begin(); it != exposedOpsList.end(); ++it)
         incStream << tab << tab << "virtual " + getCompositionDecl_(*it) << " = 0;" << eol;
 
     incStream << eol << tab << tab << "virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;" << eol;
@@ -559,9 +553,14 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << tab << tab << "OpModel(ComputationModel& model);" << eol;
     incStream << tab << tab << "virtual ~OpModel();" << eol << eol;
 
+    auto opsList = getOpTypes();
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
-        incStream << tab << tab << getCompositionDecl_(*it) << " override;" << eol;
-
+    {
+        incStream << tab << tab << getCompositionDecl_(*it);
+        if (hasTypeTrait(*it, "exposed"))
+            incStream << " override";
+        incStream << ";" << eol;
+    }
     incStream << eol << tab << tab << "Data::OpListIterator getSourceOp(Data::TensorIterator tensor) override;" << eol;
     incStream << tab << tab << "void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) override;" << eol;
     incStream << tab << tab << "bool isValid() const override;" << eol;

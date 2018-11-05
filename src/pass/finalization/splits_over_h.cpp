@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
@@ -79,7 +79,7 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 
 //ASSUMPTION: This pass must be executed after the mode selection pass.
 //REASON: Paddings (and possibly modes) for each HW operation are needed.
-void splitsOverH(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void splitsOverH(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "Split over H pass " << std::endl;
     mv::OpModel om(model);
@@ -88,7 +88,7 @@ void splitsOverH(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
     {
-        if(operationIt->getOpType() != mv::OpType::Conv2D)
+        if(operationIt->getOpType() != "Conv")
             continue;
         if(!operationIt->hasAttr("NCE1_Compatible"))
             continue;

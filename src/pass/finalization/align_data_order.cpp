@@ -5,7 +5,7 @@
 
 static void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void compatibilityResolution(const mv::pass::PassEntry& pass, mv::Data::OpListIterator parentIt, mv::OpModel &om);
+static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
 {

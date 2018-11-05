@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
@@ -23,7 +23,7 @@ namespace mv
 
 //ASSUMPTION 1: This pass must be executed after the Mark Hardware Convolution pass.
 //REASON: There is no need to pad tensors not involved in HW operations at all.
-void myriadXPaddings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -31,7 +31,7 @@ void myriadXPaddings(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
     {
-        if(operationIt->getOpType() != mv::OpType::Conv2D)
+        if(operationIt->getOpType() != "Conv")
             continue;
         if(!operationIt->hasAttr("NCE1_Compatible"))
             continue;

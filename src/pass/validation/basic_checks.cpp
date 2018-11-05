@@ -1,7 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
 void checkTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput);
 
@@ -27,7 +27,7 @@ namespace mv
 
 }
 
-void checkTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& compOutput)
+void checkTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& compOutput)
 {
 
     using namespace mv;
@@ -44,7 +44,7 @@ void checkTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     for (auto it = om.opBegin(); it != om.opEnd(); ++it)
     {
 
-        if (it->getOpType() == OpType::Constant)
+        if (it->getOpType() == "Constant")
         {
 
             
@@ -83,7 +83,7 @@ void checkTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     for (auto it = dm.flowBegin(); it != dm.flowEnd(); ++it)
     {
 
-        if (it->getTensor()->isPopulated() && it.source()->getOpType() != OpType::Constant)
+        if (it->getTensor()->isPopulated() && it.source()->getOpType() != "Constant")
         {
 
             compOutput["valid"] = false;

@@ -73,7 +73,7 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        std::cout << opIterator->getOpType().toString() << std::endl;
+        std::cout << opIterator->getOpType() << std::endl;
         for (unsigned x = 0; x < opIterator->inputSlots(); x++)
         {
             auto inTensor = opIterator->getInputTensor(x);
@@ -134,7 +134,7 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
     std::cout << "Exiting allocate input and output" << std::endl;
 }
 
-void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "Allocate populated" << std::endl;
@@ -168,7 +168,7 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Computatio
                 mv::Shape original_shape = tIt->getShape();
                 std::vector<std::size_t> original_shape_v = original_shape;
                 std::vector<std::size_t> padded_shape_v = std::vector<std::size_t>(original_shape.ndims());
-                for(int i =0; i< original_shape_v.size();i++)
+                for(std::size_t i = 0; i< original_shape_v.size(); i++)
                     padded_shape_v[i] += original_shape_v[i] + rhs_paddings[i];
 
                 auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
@@ -188,7 +188,7 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Computatio
 
 
 
-void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "Allocate unpopulated" << std::endl;
@@ -215,7 +215,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Computat
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
 
-        if (opIterator->getOpType() == OpType::Concat)
+        if (opIterator->getOpType() == "Concat")
         {
 
             auto in0 = opIterator->getInputTensor(0);
@@ -360,7 +360,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Computat
 
 
         }
-        else if (opIterator->getOpType() == OpType::Input)
+        else if (opIterator->getOpType() == "Input")
         {
             std::cout << "Input" << std::endl;
             auto outTensor = opIterator->getOutputTensor(0);
@@ -372,7 +372,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Computat
             }
 
         }
-        else if (opIterator->getOpType() == OpType::Output)
+        else if (opIterator->getOpType() == "Output")
         {
             std::cout << "Output" << std::endl;
             auto inTensor = opIterator->getInputTensor(0);
@@ -385,7 +385,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Computat
 
         }
 
-        else if(opIterator->getOpType() == mv::OpType::ReLU)
+        else if(opIterator->getOpType() == "Relu")
         {
             auto inTensor = opIterator->getInputTensor(0);
             auto outTensor = opIterator->getOutputTensor(0);
@@ -401,7 +401,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Computat
         */
         else
         {
-            std::cout << opIterator->getOpType().toString() << std::endl;
+            std::cout << opIterator->getOpType() << std::endl;
 
             for (unsigned x = 0; x < opIterator->inputSlots(); x++)
             {

@@ -34,10 +34,10 @@ namespace mv
 
         Data::TensorIterator defineOp(const std::string& opType, const std::vector<Data::TensorIterator>& inputs,
             std::initializer_list<std::pair<std::string, Attribute>> args = {}, std::string name = "");
-        void removeOp(Data::OpListIterator &op);
+        void removeOp(Data::OpListIterator op);
         Data::FlowListIterator defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, std::size_t inputIdx);
         Data::FlowListIterator defineFlow(Data::OpListIterator sourceOp, std::size_t outputIdx, Data::OpListIterator sinkOp, std::size_t inputIdx);
-        void undefineFlow(Data::FlowListIterator &flow);
+        void undefineFlow(Data::FlowListIterator flow);
 
         void addGroupElement(Data::OpListIterator element, GroupIterator group);
         void removeGroupElement(Data::OpListIterator element, GroupIterator group);
