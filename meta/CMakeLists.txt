@@ -4,6 +4,8 @@ project(mcmComplier VERSION 0.0.1)
 add_executable(gen_composition_api gen_composition_api.cpp)
 target_link_libraries(gen_composition_api corebase)
 
+file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/meta/include/mcm ${CMAKE_SOURCE_DIR}/meta/src/)
+
 add_custom_command(
     OUTPUT
         ${CMAKE_SOURCE_DIR}/meta/include/mcm/compositional_model.hpp
