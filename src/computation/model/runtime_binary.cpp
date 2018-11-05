@@ -1,5 +1,6 @@
 #include "include/mcm/computation/model/runtime_binary.hpp"
 #include <iostream>
+#include <fstream>
 
 mv::RuntimeBinary::RuntimeBinary() :
 binaryName_("NULL"),
@@ -22,8 +23,6 @@ mv::RuntimeBinary::~RuntimeBinary()
 
 bool mv::RuntimeBinary::RuntimeBinary::getBuffer(std::string newName, std::size_t newSize)
 {
-//    bufferSize_ = newSize;
-//    data_ = new char[bufferSize_];
     binaryName_ = newName;
     if (getBuffer(newSize))
     {
@@ -116,16 +115,18 @@ bool mv::RuntimeBinary::RuntimeBinary::setFileEnabled(bool flag)
 bool mv::RuntimeBinary::RuntimeBinary::dumpBuffer(std::string testFileName)
 {
     std::cout << " Dumping Blob RAM Buffer to "<< testFileName << " :bufferSize_, fileSize_ = "<< bufferSize_ << " " << fileSize_ << std::endl;
-    FILE *testfp ;
-
-    if ((testfp = fopen(testFileName.c_str(), "wb")) == NULL)
+    std::ofstream dumpFile(testFileName, std::ios::out | std::ios::binary);
+    if (!(dumpFile.is_open()))
     {
         std::cout << "ERROR: Could not open output file"<< testFileName << std::endl;
+        return false ;
     }
 
-    fwrite(data_,1,fileSize_,testfp);
-    fclose(testfp);
+    for (int i=0; i<fileSize_; i++)
+    {
+        dumpFile << data_[i];
+    }
 
+    dumpFile.close();
     return true ;
 }
-

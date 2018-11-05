@@ -2,6 +2,8 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
+#include <iostream>
+#include <fstream>
 
     mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
     {
@@ -655,12 +657,11 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: RAM and file blobs do not match ";
 
     // check blob sizes
-    FILE *p_file = NULL;
-    p_file = fopen(RAMBlobPath.c_str(),"rb");
-    ASSERT_NE(p_file,nullptr) << "ERROR: RAM blob dump file does not exist ";
-    fseek(p_file,0,SEEK_END);
-    int RAMBlobSize = ftell(p_file);
-    fclose(p_file);    
+    std::ifstream p_file(RAMBlobPath, std::ios::in | std::ios::binary);
+    ASSERT_EQ(p_file.is_open(),true) << "ERROR: RAM blob dump file does not exist ";
+    p_file.seekg(0, std::ios::end);
+    auto RAMBlobSize = p_file.tellg();
+    p_file.close();
 
     EXPECT_GT (RAMBlobSize, 19000) << "ERROR: wrong RAM blob size ";
 
@@ -691,7 +692,7 @@ TEST (generate_blob, runtime_binary_RAM)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = false;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest1.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest2.blob");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = false;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
@@ -710,17 +711,21 @@ TEST (generate_blob, runtime_binary_RAM)
     std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMTest2.blob");
 
     // check blob sizes
-    FILE *p_file = NULL;
-    p_file = fopen(RAMBlobPath.c_str(),"rb");
-    ASSERT_NE(p_file,nullptr) << "ERROR: RAM blob dump file does not exist ";
-    fseek(p_file,0,SEEK_END);
-    int RAMBlobSize = ftell(p_file);
-    fclose(p_file);
-
-    
-    EXPECT_EQ(fopen(BlobPath.c_str(), "rb"), nullptr) << "ERROR: blob file RAMTest2.blob exists.";
+    std::ifstream p_file(RAMBlobPath, std::ios::in | std::ios::binary);
+    ASSERT_EQ(p_file.is_open(),true) << "ERROR: RAM blob dump file does not exist ";
+    p_file.seekg(0, std::ios::end);
+    auto RAMBlobSize = p_file.tellg();
+    p_file.close();
 
     EXPECT_GT (RAMBlobSize, 19000) << "ERROR: wrong RAM blob size ";
+
+    // file blob should not exist
+    std::ifstream b_file(BlobPath, std::ios::in | std::ios::binary);
+    if (b_file.is_open())
+    {
+        EXPECT_EQ(0,1) << "ERROR: blob file RAMTest2.blob exists.";
+        b_file.close();
+    }
 
 }
 
@@ -766,19 +771,17 @@ TEST (generate_blob, runtime_binary_FILE)
     std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMTest3.blob");
 
     // check blob sizes
-    FILE *p_file = NULL;
-    p_file = fopen(RAMBlobPath.c_str(),"rb");
-    ASSERT_NE(p_file,nullptr) << "ERROR: RAM blob dump file does not exist ";
-    fseek(p_file,0,SEEK_END);
-    int RAMBlobSize = ftell(p_file);
-    fclose(p_file);
+    std::ifstream p_file(RAMBlobPath, std::ios::in | std::ios::binary);
+    ASSERT_EQ(p_file.is_open(),true) << "ERROR: RAM blob dump file does not exist ";
+    p_file.seekg(0, std::ios::end);
+    auto RAMBlobSize = p_file.tellg();
+    p_file.close();
 
-    FILE *q_file = NULL;
-    q_file = fopen(BlobPath.c_str(),"rb");
-    ASSERT_NE(q_file,nullptr) << "ERROR: blob file does not exist ";
-    fseek(q_file,0,SEEK_END);
-    int BlobSize = ftell(q_file);
-    fclose(q_file);
+    std::ifstream q_file(BlobPath, std::ios::in | std::ios::binary);
+    ASSERT_EQ(q_file.is_open(),true) << "ERROR: blob file does not exist ";
+    q_file.seekg(0, std::ios::end);
+    auto BlobSize = q_file.tellg();
+    q_file.close();
 
     EXPECT_EQ (RAMBlobSize, 0) << "ERROR: wrong RAM blob size ";
     EXPECT_GT (BlobSize, 19000) << "ERROR: wrong blob file size ";
