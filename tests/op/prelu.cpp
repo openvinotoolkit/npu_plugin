@@ -14,7 +14,7 @@ TEST(ops, prelu)
     auto output = om.output(prelu);
 
     ASSERT_EQ(prelu->getShape(), mv::Shape({32, 32, 3}));
-    ASSERT_EQ(preluOp->getOpType(), "PRelu");
+    ASSERT_EQ(preluOp->getOpType(), "Prelu");
     ASSERT_EQ(preluOp->attrsCount(), 2);
     ASSERT_EQ(preluOp->inputSlots(), 2);
     ASSERT_EQ(preluOp->outputSlots(), 1);
