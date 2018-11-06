@@ -2,14 +2,14 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 
 TEST(tensor, populating)
 {
 
     mv::Shape tShape({5, 5});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)));
     t.populate(data);
 
     for (unsigned j = 0; j < tShape[0]; ++j)
@@ -34,7 +34,7 @@ TEST(tensor, populating)
         return s[0] + tShape[0] * (s[1] + tShape[1] * (s[2] + tShape[2] * s[3]));
     };
 
-    mv::Order order(mv::OrderType::ColumnMajor);
+    mv::Order mv::Order(mv::Order("CHW"));
 
     for (unsigned i = 0; i < 5; ++i)
         ASSERT_EQ(order.subToInd(tShape, subs[i]), idxFcn(subs[i]));
@@ -48,7 +48,7 @@ TEST(tensor, int_to_sub_column_major)
 
     mv::Shape tShape({32, 16, 8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
     t.populate(data);
 
     std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
@@ -77,7 +77,7 @@ TEST(tensor, sub_to_ind_row_major)
         return s[3] + tShape[3] * (s[2] + tShape[2] * (s[1] + tShape[1] * s[0]));
     };
 
-    mv::Order order(mv::OrderType::RowMajor);
+    mv::Order mv::Order(mv::Order("WHC"));
 
     for (unsigned i = 0; i < 5; ++i)
         ASSERT_EQ(order.subToInd(tShape, subs[i]), idxFcn(subs[i]));
@@ -89,7 +89,7 @@ TEST(tensor, ind_to_sub_row_major)
 
     mv::Shape tShape({32, 16, 8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("WHC"));
     t.populate(data);
 
     std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
@@ -118,7 +118,7 @@ TEST(tensor, sub_to_ind_planar)
         return s[3] + tShape[3] * (s[2] + tShape[2] * (s[0] + tShape[0] * s[1]));
     };
 
-    mv::Order order(mv::OrderType::RowMajorPlanar);
+    mv::Order mv::Order(mv::Order("HWC"));
 
     for (unsigned i = 0; i < 5; ++i)
         ASSERT_EQ(order.subToInd(tShape, subs[i]), idxFcn(subs[i]));
@@ -130,7 +130,7 @@ TEST(tensor, ind_to_sub_planar)
 
     mv::Shape tShape({32, 16, 8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
     t.populate(data);
 
     std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
@@ -143,7 +143,7 @@ TEST(tensor, ind_to_sub_planar)
         std::vector<std::size_t> sub = t.indToSub(idx[i]);
         ASSERT_EQ(t(sub), t(idx[i]));
     }
-    
+
 }*/
 
 TEST(tensor, column_major_to_row_major)
@@ -151,33 +151,33 @@ TEST(tensor, column_major_to_row_major)
 
     mv::Shape tShape({3, 3, 3, 3});
     std::vector<double> data = {
-        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 
-        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 
-        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 
-        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 
-        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f, 
-        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f, 
-        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f, 
-        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f, 
-        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f, 
+        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f,
+        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f,
+        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f,
+        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f,
+        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f,
+        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f,
+        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f,
+        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f,
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
     std::vector<double> reorderedData = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::OrderType::RowMajor);
+    t.setOrder(mv::Order(mv::Order::getRowMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -190,37 +190,37 @@ TEST(tensor, row_major_to_column_major)
     mv::Shape tShape({3, 3, 3, 3});
 
     std::vector<double> data = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
     std::vector<double> reorderedData = {
-        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 
-        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 
-        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 
-        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 
-        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f, 
-        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f, 
-        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f, 
-        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f, 
-        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f, 
+        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f,
+        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f,
+        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f,
+        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f,
+        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f,
+        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f,
+        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f,
+        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f,
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::OrderType::ColumnMajor);
+    t.setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
-        
+
 }
 
 TEST(tensor, column_major_to_planar)
@@ -228,33 +228,33 @@ TEST(tensor, column_major_to_planar)
 
     mv::Shape tShape({3, 3, 3, 3});
     std::vector<double> data = {
-        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 
-        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 
-        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 
-        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 
-        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f, 
-        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f, 
-        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f, 
-        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f, 
-        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f, 
+        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f,
+        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f,
+        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f,
+        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f,
+        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f,
+        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f,
+        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f,
+        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f,
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
     std::vector<double> reorderedData = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::OrderType::RowMajorPlanar);
+    t.setOrder(mv::Order("HWCN"));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -267,33 +267,33 @@ TEST(tensor, planar_to_column_major)
     mv::Shape tShape({3, 3, 3, 3});
 
     std::vector<double> data = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
     std::vector<double> reorderedData = {
-        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 
-        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f, 
-        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 
-        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f, 
-        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f, 
-        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f, 
-        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f, 
-        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f, 
-        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f, 
+        0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+        9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f, 16.0f,
+        17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f,
+        25.0f, 26.0f, 27.0f, 28.0f, 29.0f, 30.0f, 31.0f, 32.0f,
+        33.0f, 34.0f, 35.0f, 36.0f, 37.0f, 38.0f, 39.0f, 40.0f,
+        41.0f, 42.0f, 43.0f, 44.0f, 45.0f, 46.0f, 47.0f, 48.0f,
+        49.0f, 50.0f, 51.0f, 52.0f, 53.0f, 54.0f, 55.0f, 56.0f,
+        57.0f, 58.0f, 59.0f, 60.0f, 61.0f, 62.0f, 63.0f, 64.0f,
+        65.0f, 66.0f, 67.0f, 68.0f, 69.0f, 70.0f, 71.0f, 72.0f,
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
     t.populate(data);
-    t.setOrder(mv::OrderType::ColumnMajor);
+    t.setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -305,32 +305,32 @@ TEST(tensor, row_major_to_planar)
 
     mv::Shape tShape({3, 3, 3, 3});
     std::vector<double> data = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
     std::vector<double> reorderedData = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(4)));
     t.populate(data);
-    t.setOrder(mv::OrderType::RowMajorPlanar);
+    t.setOrder(mv::Order("HWCN"));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -343,32 +343,32 @@ TEST(tensor, planar_to_row_major)
     mv::Shape tShape({3, 3, 3, 3});
 
     std::vector<double> data = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
     std::vector<double> reorderedData = {
-        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f, 
-        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f, 
-        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f, 
-        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f, 
-        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f, 
-        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f, 
-        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f, 
-        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f, 
+        0.0f, 27.0f, 54.0f, 9.0f, 36.0f, 63.0f, 18.0f, 45.0f, 72.0f,
+        3.0f, 30.0f, 57.0f, 12.0f, 39.0f, 66.0f, 21.0f, 48.0f, 75.0f,
+        6.0f, 33.0f, 60.0f, 15.0f, 42.0f, 69.0f, 24.0f, 51.0f, 78.0f,
+        1.0f, 28.0f, 55.0f, 10.0f, 37.0f, 64.0f, 19.0f, 46.0f, 73.0f,
+        4.0f, 31.0f, 58.0f, 13.0f, 40.0f, 67.0f, 22.0f, 49.0f, 76.0f,
+        7.0f, 34.0f, 61.0f, 16.0f, 43.0f, 70.0f, 25.0f, 52.0f, 79.0f,
+        2.0f, 29.0f, 56.0f, 11.0f, 38.0f, 65.0f, 20.0f, 47.0f, 74.0f,
+        5.0f, 32.0f, 59.0f, 14.0f, 41.0f, 68.0f, 23.0f, 50.0f, 77.0f,
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
     t.populate(data);
-    t.setOrder(mv::OrderType::RowMajor);
+    t.setOrder(mv::Order(mv::Order::getRowMajorID(4)));
 
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(t(i), reorderedData[i]);
@@ -380,9 +380,9 @@ TEST(tensor, planar_to_row_major)
 
     mv::Shape tShape({32});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor tColumnMajor("t", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    mv::Tensor tRowMajor("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajor);
-    mv::Tensor tPlanar("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    mv::Tensor tColumnMajor("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
+    mv::Tensor tRowMajor("t", tShape, mv::DTypeType::Float16, mv::Order("WHC"));
+    mv::Tensor tPlanar("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
     tColumnMajor.populate(data);
     tRowMajor.populate(data);
     tPlanar.populate(data);
@@ -404,9 +404,9 @@ TEST(tensor, ind_to_sub_2d)
 
     mv::Shape tShape({8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor tColumnMajor("t", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    mv::Tensor tRowMajor("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajor);
-    mv::Tensor tPlanar("t", tShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    mv::Tensor tColumnMajor("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
+    mv::Tensor tRowMajor("t", tShape, mv::DTypeType::Float16, mv::Order(Order::getRowMajorID(3)));
+    mv::Tensor tPlanar("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
     tColumnMajor.populate(data);
     tRowMajor.populate(data);
     tPlanar.populate(data);
@@ -416,7 +416,7 @@ TEST(tensor, ind_to_sub_2d)
         auto subColumnMajor = tColumnMajor.indToSub(i);
         auto subRowMajor = tRowMajor.indToSub(i);
         auto subPlanar = tPlanar.indToSub(i);
-        
+
         ASSERT_EQ(tColumnMajor(subColumnMajor), data[i]);
         ASSERT_EQ(tRowMajor(subRowMajor), data[i]);
         ASSERT_EQ(tPlanar(subPlanar), data[i]);
@@ -431,7 +431,7 @@ TEST(tensor, augment)
     mv::Shape tShapeAugmented({8, 4, 4});
 
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
     t.populate(data);
     t.broadcast(tShapeAugmented);
 
@@ -452,8 +452,8 @@ TEST(tensor, add)
     std::vector<double> data1 = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(tShape.totalSize(), -start, -diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data1);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data2);
+    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -477,8 +477,8 @@ TEST(tensor, add_broadcast_vec)
     std::vector<double> data1 = mv::utils::generateSequence<double>(t1Shape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::OrderType::RowMajor, data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::OrderType::RowMajor, data2);
+    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order("WHC"), data1);
+    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(1)), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -503,8 +503,8 @@ TEST(tensor, add_broadcast_mat)
     std::vector<double> data1 = mv::utils::generateSequence<double>(t1Shape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data2);
+    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -526,8 +526,8 @@ TEST(tensor, add_broadcast_mat)
     std::vector<double> data1 = mv::utils::generateSequence<double>(t1Shape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data2);
+    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order("CHW"), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -548,8 +548,8 @@ TEST(tensor, subtract)
     mv::Shape tShape({32, 32, 3});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data);
+    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
+    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
 
     t1.subtract(t2);
 
@@ -573,8 +573,8 @@ TEST(tensor, multiply)
     for (unsigned i = 0; i < data2.size(); ++i)
         data2[i] = 1.0f / data1[i];
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data1);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data2);
+    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data2);
 
     t1.multiply(t2);
 
@@ -594,8 +594,8 @@ TEST(tensor, divide)
     mv::Shape tShape({32, 32, 3});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data);
+    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
+    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
 
     t1.divide(t2);
 
@@ -615,7 +615,7 @@ TEST(tensor, get_data)
     mv::Shape tShape({32, 32, 128});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, data);
+    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
 
     std::cout << t1.getData().size() << std::endl;
 

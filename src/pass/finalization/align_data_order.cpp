@@ -54,7 +54,7 @@ void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 if (opIt.leftmostChild()->get<int>("NCE1_Compatible") == 1)
                 {
                     //opIt->set<Order>("order", OrderType::RowMajorPlanar);
-                    opIt.leftmostOutput()->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                    opIt.leftmostOutput()->getTensor()->setOrder(Order(Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
                     pass.log(Logger::MessageType::Info, "Changed data order of the NCE executed op " + opIt->getName() + " to RowMajorPlanar");
                     continue;
                 }
@@ -63,7 +63,11 @@ void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
 
             // Constant is a parameter tensor for a software layer
             //opIt->set<Order>("order", OrderType::RowMajorPlanar);
-            opIt->getOutputTensor(0)->setOrder(OrderType::RowMajorPlanar);
+            //opIt->set<Order>("Order", Order("HWC"));
+            if (opIt.leftmostChild()->getOpType() == OpType::FullyConnected)
+                opIt->getOutputTensor(0)->setOrder(Order::getRowMajorID(opIt->getOutputTensor(0)->getShape().ndims()));
+            else
+                opIt->getOutputTensor(0)->setOrder(Order::getRowMajorPlanarID(opIt->getOutputTensor(0)->getShape().ndims()));
             pass.log(Logger::MessageType::Info, "Changed data order of the software executed op " + opIt->getName() + " to RowMajorPlanar");
 
         }
@@ -145,34 +149,41 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         int sinkIsHw = sink->get<int>("NCE1_Compatible");
         int sinkIsSw = !sinkIsHw;
         bool conversionNeeded = false;
-        mv::Order targetOrder = mv::OrderType::RowInterleaved;
+        mv::Order targetOrder = mv::Order("HCW");
 
         //Case 1
         if(sourceIsHw && sinkIsSw)
         {
-            targetOrder = mv::OrderType::RowMajorPlanar;
+            targetOrder = mv::Order("HWC");
             conversionNeeded = true;
         }
 
         //Case 2
         if(sourceIsSw && sinkIsHw)
         {
-            targetOrder = mv::OrderType::RowInterleaved;
+            targetOrder = mv::Order("HCW");
             conversionNeeded = true;
         }
 
         //Concat as sink case
-        if(sink->getOpType() == "Concat"){
-            if (sourceIsSw){
+        if(sink->getOpType() == "Concat")
+        {
+            if (sourceIsSw)
+            {
                 // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
                 childIt->getInputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
                 childIt->getOutputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
             }
             // Hardware ops
-            else if (sourceIsHw){
-                // flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
-                childIt->getInputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
-                childIt->getOutputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
+            else if (sourceIsHw)
+            {
+                // flowIt->getTensor()->setOrder(mv::OrderType::RowInterleaved);
+                for(unsigned i = 0; i < childIt->inputSlots(); i++)
+                {
+                    if(childIt->hasInputDef(i))
+                        childIt->getInputTensor(i)->setOrder(mv::Order("HCW"));
+                }
+                childIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));
                 sink->set<int>("NCE1_Compatible", 1);
             }
 
@@ -236,12 +247,12 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
             // Align memory order when no conversion is needed
             /// Software ops
             if (sourceIsSw && sinkIsSw)
-                // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
-                parentIt->getOutputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
+                // flowIt->getTensor()->setOrder(mv::Order("HWC"));
+                parentIt->getOutputTensor(0)->setOrder(mv::Order("HWC"));
             // Hardware ops
             else if (sourceIsHw && sinkIsHw)
-                // flowIt->getTensor()->setOrder(OrderType::RowInterleaved);
-                parentIt->getOutputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
+                // flowIt->getTensor()->setOrder(mv::OrderType::RowInterleaved);
+                parentIt->getOutputTensor(0)->setOrder(mv::Order("HWC"));
 
             // ++flowIt;
             std::cout << "Values aligned." << std::endl;

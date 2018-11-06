@@ -20,12 +20,34 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
+
+if(VALIDATION)
+include_directories("/opt/movidius/caffe/include")
+include_directories("/opt/movidius/caffe/build/include")
+include_directories("/opt/movidius/caffe/build/include/caffe/proto")
+
+#Protobuf
+find_package(Protobuf REQUIRED)
+include_directories(${PROTOBUF_INCLUDE_DIR})
+
+#Boost
+find_package(Boost COMPONENTS regex system filesystem REQUIRED)
+
+#Caffe
+set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
+set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
+
+endif(VALIDATION)
+
+
 file(GLOB base
     "src/base/attribute_registry.cpp"
     "src/base/attribute_entry.cpp"
     "src/base/attribute_def/*.cpp"
     "src/base/printable.cpp"
     "src/base/jsonable.cpp"
+    "src/base/binarizable.cpp"
     "src/base/json/object.cpp"
     "src/base/json/array.cpp"
     "src/base/json/value.cpp"
@@ -43,12 +65,6 @@ file(GLOB base
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
     "src/tensor/math.cpp"
-    "src/tensor/order.cpp"
-    "src/tensor/order/column_major_planar.cpp"
-    "src/tensor/order/column_major.cpp"
-    "src/tensor/order/row_major_planar.cpp"
-    "src/tensor/order/row_major.cpp"
-    "src/tensor/order/row_interleaved.cpp"
     "src/tensor/dtype.cpp"
     "src/computation/op/op_entry.cpp"
     "src/computation/op/op_registry.cpp"
@@ -56,6 +72,8 @@ file(GLOB base
 )
 
 file (GLOB model
+    "src/tensor/order/*.cpp"
+    "src/tensor/order/order_def/*.cpp"
     "src/computation/model/computation_model.cpp"
     "src/computation/model/base_op_model.cpp"
     "src/computation/model/op_model.cpp"
@@ -75,25 +93,34 @@ file (GLOB model
     "src/computation/model/model_element.cpp"
 )
 
+
 file(GLOB logger
     "src/logger/logger.cpp"
     "src/logger/log_sender.cpp"
 )
 
 file(GLOB pass
-    #"src/deployer/*.cpp"
-    #"src/deployer/blob_serialization/*.cpp"
+    "src/deployer/*.cpp"
+    "src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
     "src/pass/pass_entry.cpp"
     "src/target/target_descriptor.cpp"
-    "src/pass/adaptation/*.cpp"
+    "src/pass/adaptation/fuse_passes.cpp"
+    "src/pass/adaptation/remove_passes.cpp"
+    "src/pass/adaptation/replacement_passes.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
-    #[["src/pass/serialization/*.cpp"
+    "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"]]
 )
+
+if(VALIDATION)
+file(GLOB pass_validation
+"src/pass/adaptation/generate_caffe.cpp"
+)
+endif(VALIDATION)
 
 file(GLOB compiler
     "src/compiler/*"
@@ -109,17 +136,28 @@ if (MSVC)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
 else()
-    add_library(cm SHARED ${compiler} ${pass})
+if(VALIDATION)
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
     target_link_libraries(cm corebase metamodel)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
-    #add_subdirectory(python/api)
-	add_subdirectory(tests)
-	add_subdirectory(contrib/googletest)
-endif()
+    target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
+    target_compile_definitions(cm PRIVATE CPU_ONLY=1)
+    add_subdirectory(python/api)
+    add_subdirectory(tests)
+    add_subdirectory(contrib/googletest)
+    #add_subdirectory(recordings)  
+else()
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    add_subdirectory(python/api)
+    add_subdirectory(tests)
+    add_subdirectory(contrib/googletest)
+    #add_subdirectory(recordings)
+endif(VALIDATION)
+
+endif(MSVC)
 
 add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
-

@@ -126,6 +126,14 @@ mv::attr::AttributeEntry& mv::attr::AttributeEntry::setToLongStringFunc(const st
     return *this;
 }
 
+mv::attr::AttributeEntry& mv::attr::AttributeEntry::setToBinaryFunc(const std::function<std::vector<uint8_t>(const Attribute&)>& f)
+{
+    auto pFunc = std::make_shared<ConcreteFunc<std::vector<uint8_t>, const Attribute&>>();
+    pFunc->f = f;
+    toBinaryFunc_ = pFunc;
+    return *this;
+}
+
 
 const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeEntry::getToStringFunc()
 {

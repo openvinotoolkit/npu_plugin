@@ -165,7 +165,7 @@ TEST (graph_container, int_int_graph_contruction) {
 
 }
 
-TEST (graph_container, search_order) 
+TEST (graph_container, search_order)
 {
 
     int_int_graph g;
@@ -387,7 +387,7 @@ TEST (graph_container, int_int_graph_manipulation)
                 int cnt_node_dfs = 0 ;
                 for (graph::node_dfs_iterator dit = test_graph.node_begin(); dit != test_graph.node_end(); ++dit)
                 {
- //                   EXPECT_EQ (nr4_dfs_order[cnt_node_dfs], *dit) << "ERROR: wrong node order traversing depth first"; 
+ //                   EXPECT_EQ (nr4_dfs_order[cnt_node_dfs], *dit) << "ERROR: wrong node order traversing depth first";
                     std::cout << "checking int_int_graph at node " << *dit << std::endl;                
                     EXPECT_EQ (nr1_dfs_order[cnt_node_dfs], *dit) << "ERROR: wrong node order traversing depth first";
                     cnt_node_dfs++;

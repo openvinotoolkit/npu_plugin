@@ -81,7 +81,12 @@ class TestComposition(unittest.TestCase):
 
         c1_ = ca.conv2D(om, in_, bweights, 1, 1, 0, 0)
         c2_ = ca.conv2D(om, in_, eweights, 1, 1, 0, 0)
-        cc_ = ca.concat(om, c1_, c2_)
+        
+        vec = ca.pushVector(None, c1_)
+        vec = ca.pushVector(vec, c2_)
+
+        
+        cc_ = ca.concat(om, vec)
         ca.output(om, cc_)
 
         self.assertTrue(ca.isValid(om))

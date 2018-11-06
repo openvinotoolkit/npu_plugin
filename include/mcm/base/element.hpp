@@ -41,7 +41,7 @@ namespace mv
 
         const std::string &getName() const;
         void setName(const std::string& name);
-        
+
         bool hasAttr(const std::string &name) const;
         std::size_t attrsCount() const;
         std::vector<std::string> attrsKeys() const;
@@ -62,7 +62,7 @@ namespace mv
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw AttributeError("Unable to define the attribute '" + name + "' of an undefined"
                     " type " + typeid(AttrType).name());
-            
+
             Attribute newAttr = value;
             std::string errMsg;
             if (!attr::AttributeRegistry::checkValue<AttrType>(newAttr, errMsg))
@@ -81,7 +81,7 @@ namespace mv
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw ArgumentError(*this, "type", typeid(AttrType).name(), "Unregistered"
                     " type used for Attribute " + name + "initialization");
-            
+
             Attribute newAttr = value;
             std::string errMsg;
             if (!attr::AttributeRegistry::checkValue<AttrType>(newAttr, errMsg))
@@ -93,7 +93,8 @@ namespace mv
                 auto it = attrs_.emplace(std::piecewise_construct, std::forward_as_tuple(name), std::forward_as_tuple(value, traits));
                 if (!it.second)
                     throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
-                log(Logger::MessageType::Debug, "Attriubte '" + name + "' (" + it.first->second.getTypeName() +
+
+                log(Logger::MessageType::MessageDebug, "Attribute '" + name + "' (" + it.first->second.getTypeName() +
                     ") set to " + it.first->second.toString());
             }
             else
@@ -101,7 +102,8 @@ namespace mv
                 if (attrs_[name].hasTrait("const"))
                     throw AttributeError(*this, "Attempt of modification of a const attribute " + name);
                 attrs_[name] = value;
-                log(Logger::MessageType::Debug, "Attriubte '" + name + "' (" + attrs_[name].getTypeName() +
+
+                log(Logger::MessageType::MessageDebug, "Attribute '" + name + "' (" + attrs_[name].getTypeName() +
                     ") modified to " + attrs_[name].toString());
             }
         }

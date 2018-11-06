@@ -24,8 +24,7 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
-globalDType_(DTypeType::Float16),
-globalOrder_(OrderType::ColumnMajor)
+globalDType_(DTypeType::Float16)
 {
 
     if (!filePath.empty())
@@ -39,7 +38,6 @@ void mv::TargetDescriptor::reset()
 {
     target_ = Target::Unknown;
     globalDType_ = DTypeType::Float16;
-    globalOrder_ = OrderType::ColumnMajor;
     adaptationPasses_.clear();
     optimizationPasses_.clear();
     finalizationPasses_.clear();
@@ -109,25 +107,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
     }
 
-    if (jsonDescriptor["order"].valueType() != json::JSONType::Object)
-    {
-        reset();
-        return false;
-    }
-    else
-    {
-        if (!jsonDescriptor["order"].hasKey("global"))
-        {
-            reset();
-            return false;
-        }
-        else
-        {
-            globalOrder_ = Order(jsonDescriptor["order"]["global"].get<std::string>());
-        }
-
-    }
-
     if (jsonDescriptor.hasKey("passes"))
     {
 
@@ -181,7 +160,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
     }
 
-    if (jsonDescriptor["ops"].valueType() != json::JSONType::Array)
+    if (jsonDescriptor["ops"].valueType() != json::JSONType::Object)
     {
         reset();
         return false;
@@ -189,25 +168,44 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
     else
     {
 
-        for (unsigned i = 0; i < jsonDescriptor["ops"].size(); ++i)
+        std::vector<std::string> keys = jsonDescriptor["ops"].getKeys();
+
+        if (jsonDescriptor["ops"][i].valueType() != json::JSONType::String)
         {
-
-            if (jsonDescriptor["ops"][i].valueType() != json::JSONType::String)
-            {
-                reset();
-                return false;
-            }
-
-            std::string op = jsonDescriptor["ops"][i].get<std::string>();
-            if (!op::OpRegistry::checkOpType(op))
-            {
-                reset();
-                return false;
-            }
-            ops_.insert(op);
-
+            reset();
+            return false;
         }
 
+        std::string op = jsonDescriptor["ops"][i].get<std::string>();
+        if (!op::OpRegistry::checkOpType(op))
+        {
+            reset();
+            return false;
+        }
+        ops_.insert(op);
+
+
+        std::string op_name = keys[i];
+        mv::Element e(op_name);
+
+
+        for (unsigned j = 0; j < jsonDescriptor["ops"][op_name].size(); ++j) // Resource
+        {
+            std::vector<std::string> resource_keys = jsonDescriptor["ops"][op_name].getKeys();
+            std::string platform_name = resource_keys[j];
+
+            std::vector<std::string> serial_list;
+            for (unsigned k = 0; k < jsonDescriptor["ops"][op_name][platform_name]["serial_description"].size(); ++k) // Resource
+            {
+                std::string v = jsonDescriptor["ops"][op_name][platform_name]["serial_description"][k].get<std::string>();
+                serial_list.push_back(v);
+            }
+
+            e.set<std::vector<std::string>>("serial_view", serial_list);
+
+            serialDescriptions_.insert(std::make_pair(op_name+":"+platform_name, e));
+
+        }
     }
 
     if (jsonDescriptor["resources"].valueType() != json::JSONType::Object)
@@ -228,7 +226,7 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             for (std::size_t i = 0; i < jsonDescriptor["resources"]["memory"].size(); ++i)
             {
 
-                std::string name, orderStr;
+                std::string name;
                 long long size;
                 std::size_t alignment;
                 std::size_t dataTypeSize;
@@ -286,7 +284,6 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
 
     json::Object root;
     root["target"] = toString(target_);
-    root["order"] = globalOrder_.toString();
     root["dtype"] = globalDType_.toString();
     root["ops"] = json::Array();
 
@@ -331,11 +328,6 @@ void mv::TargetDescriptor::setTarget(Target target)
 void mv::TargetDescriptor::setDType(DType dType)
 {
     globalDType_ = dType;
-}
-
-void mv::TargetDescriptor::setOrder(Order order)
-{
-    globalOrder_ = order;
 }
 
 bool mv::TargetDescriptor::appendAdaptPass(const std::string& pass, int pos)
@@ -603,9 +595,9 @@ mv::DType mv::TargetDescriptor::getDType() const
     return globalDType_;
 }
 
-mv::Order mv::TargetDescriptor::getOrder() const
+mv::Element mv::TargetDescriptor::getSerialDefinition(std::string op_name, std::string platform_name) const
 {
-    return globalOrder_;
+    return serialDescriptions_.at(op_name+":"+platform_name);
 }
 
 const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const

@@ -37,7 +37,7 @@ namespace mv
             {
                 std::function<R(Args...)> f;
             };
-            
+
             std::type_index typeID_;
             std::string typeName_;
             std::string description_;
@@ -46,10 +46,10 @@ namespace mv
             std::shared_ptr<GenericFunc> fromJSONFunc_;
             std::shared_ptr<GenericFunc> toStringFunc_;
             std::shared_ptr<GenericFunc> toLongStringFunc_;
+            std::shared_ptr<GenericFunc> toBinaryFunc_;
             std::set<std::string> typeTraits_;
 
         public:
-
             AttributeEntry(const std::type_index& typeID);
 
             AttributeEntry& setName(const std::string& typeName);

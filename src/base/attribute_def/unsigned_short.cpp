@@ -26,10 +26,22 @@ namespace mv
             return std::to_string(a.get<unsigned short>());
         }
 
+        static std::vector<uint8_t> toBinary(const Attribute& a)
+        {
+            union Tmp
+            {
+                unsigned n;
+                uint8_t bytes[sizeof(unsigned short)];
+            };
+            Tmp tmp = {a.get<unsigned short>()};
+            return std::vector<uint8_t>(std::begin(tmp.bytes), std::end(tmp.bytes));
+        }
+
         MV_REGISTER_ATTR(unsigned short)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+            .setToStringFunc(toString)
+            .setToBinaryFunc(toBinary);
 
     }
 

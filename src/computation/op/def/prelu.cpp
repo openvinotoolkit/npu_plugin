@@ -34,3 +34,7 @@ bool mv::op::PReLU::isHardwarizeable(json::Object &)
 {
     return false;
 }
+
+void mv::op::PReLU::gatherSerialFields(){
+    this->set<unsigned>("serialID", 10);
+}

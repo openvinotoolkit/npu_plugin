@@ -11,3 +11,7 @@ bool mv::op::Add::isHardwarizeable(json::Object&)
 {
     return false;
 }
+
+void mv::op::Add::gatherSerialFields(){
+    this->set<unsigned>("SerialID", 12);
+}

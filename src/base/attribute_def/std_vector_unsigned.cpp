@@ -50,10 +50,30 @@ namespace mv
             return output;
         }
 
+        static std::vector<uint8_t> toBinary(const Attribute& a)
+        {
+            union Tmp
+            {
+                unsigned n;
+                uint8_t bytes[sizeof(unsigned)];
+            };
+            auto vec = a.get<std::vector<unsigned>>();
+            std::vector<uint8_t> toReturn(sizeof(unsigned) * vec.size(), 0);
+            unsigned i = 0;
+            for(auto v: vec)
+            {
+                Tmp tmp = {v};
+                for(unsigned j = 0; j < sizeof(unsigned); ++j)
+                    toReturn[i++] = tmp.bytes[j];
+            }
+            return toReturn;
+        }
+
         MV_REGISTER_DUPLICATE_ATTR(std::vector<unsigned>)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+            .setToStringFunc(toString)
+            .setToBinaryFunc(toBinary);
 
     }
 

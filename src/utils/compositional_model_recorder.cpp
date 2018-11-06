@@ -7,7 +7,7 @@ std::string mv::CompositionalModelRecorder::toString(const std::array<unsigned s
 
 std::string mv::CompositionalModelRecorder::toString(const std::array<unsigned short, 4>& arr)
 {
-	return "{" + std::to_string(arr[0]) + ", " + std::to_string(arr[1])  + ", " + 
+	return "{" + std::to_string(arr[0]) + ", " + std::to_string(arr[1])  + ", " +
 		std::to_string(arr[2]) + ", " + std::to_string(arr[3]) + ", " + "}";
 }
 
@@ -42,13 +42,13 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::input(const Shape& shap
 
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::Input) << " =" << " rc.input(mv::Shape"
-		<< shape.toString() << ", " << "mv::DTypeType::" << dType.toString() << ", " << "mv::OrderType::"
-		<< order.toString() << ")" << ";" << "\n";
+            << shape.toString() << ", " << "mv::DTypeType::" << dType.toString() << ", " << "mv::Order(\""
+            << order.toString() << "\"))" << ";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
 
-	auto result = modelRef_.input(shape, dType, order, name);
+    auto result = modelRef_.input(shape, dType, order, name);
 	return result;
 }
 
@@ -74,10 +74,9 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::output(Data::TensorIter
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vector<double>& data, const Shape& shape, 
-	DType dType, Order order, const std::string& name)
+mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vector<double>& data, const Shape& shape,
+    DType dType, Order order, const std::string& name)
 {
-
 	/*Create weights vector name e.g weights_0, weights_1 */
 	std::string weightsVectorName = "weights_" + std::to_string(weightsVectorCounter);
 	weightsVectorCounter++;
@@ -96,18 +95,41 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::constant(const std::vec
 
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(), std::ofstream::out | std::ofstream::app);
 	/*Construct a std::string and write to file*/
-	ss << "auto " << modelRef_.getOpName_(OpType::Constant) << " =" << " rc.constant(" 
-		<< weightsVectorName << ", " << "mv::Shape" << shape.toString() << ", " 
-		<< "mv::DTypeType::" << dType.toString() << ", " <<"mv::OrderType::" << order.toString() << ")" << ";" << "\n";;
+	ss << "auto " << modelRef_.getOpName_(OpType::Constant) << " =" << " rc.constant("
+		<< weightsVectorName << ", " << "mv::Shape" << shape.toString() << ", "
+        << "mv::DTypeType::" << dType.toString() << ", mv::Order(\"" << order.toString() << "\"))" << ";" << "\n";;
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
 
-	auto result = modelRef_.constant(data, shape, dType, order, name);
+    auto result = modelRef_.constant(data, shape, dType, order, name);
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::conv2D(Data::TensorIterator inputTensor, 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::depthwiseConv2D(Data::TensorIterator inputTensor,
+    Data::TensorIterator filtersTensor, std::array<unsigned short, 2> stride,
+    std::array<unsigned short, 4> padding, const std::string& name)
+{
+    /*get the name of the argument(s)*/
+    auto sourceIt0 = modelRef_.getSourceOp(inputTensor);
+    auto sourceIt1 = modelRef_.getSourceOp(filtersTensor);
+
+    /*open the recording file*/
+    outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
+
+    /*Construct a std::string and write to file*/
+    ss << "auto " << modelRef_.getOpName_(OpType::DepthwiseConv2D) << " =" << " rc.depthwiseConv2D("
+        << sourceIt0->getName() << ", " << sourceIt1->getName() << ", " << toString(stride)
+        << ", " << toString(padding) << ")" << ";" << "\n";
+    outputSourceFile << ss.str();
+    ss.str("");
+    outputSourceFile.close();
+
+    auto result = modelRef_.depthwiseConv2D(inputTensor, filtersTensor, stride, padding, name);
+    return result;
+}
+
+mv::Data::TensorIterator mv::CompositionalModelRecorder::conv2D(Data::TensorIterator inputTensor,
 	Data::TensorIterator filtersTensor, std::array<unsigned short, 2> stride,
 	std::array<unsigned short, 4> padding, const std::string& name)
 {
@@ -119,7 +141,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::conv2D(Data::TensorIter
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
 
 	/*Construct a std::string and write to file*/
-    ss << "auto " << modelRef_.getOpName_(OpType::Conv2D) << " =" << " rc.conv2D(" 
+    ss << "auto " << modelRef_.getOpName_(OpType::Conv2D) << " =" << " rc.conv2D("
 		<< sourceIt0->getName() << ", " << sourceIt1->getName() << ", " << toString(stride)
 		<< ", " << toString(padding) << ")" << ";" << "\n";
 	outputSourceFile << ss.str();
@@ -130,7 +152,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::conv2D(Data::TensorIter
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::matMul(Data::TensorIterator input0Tensor, 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::matMul(Data::TensorIterator input0Tensor,
 	Data::TensorIterator input1Tensor, const std::string& name)
 {
 	/*get the name of the argument(s)*/
@@ -151,8 +173,8 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::matMul(Data::TensorIter
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::maxpool2D(Data::TensorIterator inputTensor, 
-	std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::maxpool2D(Data::TensorIterator inputTensor,
+	std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride,
 	std::array<unsigned short, 4> padding, const std::string& name)
 {
 	/*get the name of the argument(s)*/
@@ -162,8 +184,8 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::maxpool2D(Data::TensorI
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
 
 	/*Construct a std::string and write to file*/
-	ss << "auto " << modelRef_.getOpName_(OpType::MaxPool2D) << " =" << " rc.maxpool2D(" 
-		<< sourceIt0->getName()<< ", " << toString(kernelSize) << ", " << toString(stride) 
+	ss << "auto " << modelRef_.getOpName_(OpType::MaxPool2D) << " =" << " rc.maxpool2D("
+		<< sourceIt0->getName()<< ", " << toString(kernelSize) << ", " << toString(stride)
 		<< ", " << toString(padding) << ")" << ";" << "\n";;
 	outputSourceFile << ss.str();
 	ss.str("");
@@ -173,8 +195,8 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::maxpool2D(Data::TensorI
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::avgpool2D(Data::TensorIterator inputTensor, 
-	std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::avgpool2D(Data::TensorIterator inputTensor,
+	std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride,
 	std::array<unsigned short, 4> padding, const std::string& name)
 {
 	/*get the name of the argument(s)*/
@@ -186,7 +208,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::avgpool2D(Data::TensorI
 	/*Construct a std::string and write to file*/
 	ss << "auto " << modelRef_.getOpName_(OpType::AvgPool2D) << " =" << " rc.avgpool2D(" << sourceIt0->getName()
 		<< ", " << toString(kernelSize) << ", " << toString(stride) << ", " << toString(padding)
-		<< ")" << ";" << "\n";;
+		<< ")" << ";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
@@ -195,24 +217,46 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::avgpool2D(Data::TensorI
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::concat(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::concat(std::vector<mv::Data::TensorIterator>& inputTensors,
 	const std::string& name)
 {
-	/*get the name of the argument(s)*/
-	auto sourceIt0 = modelRef_.getSourceOp(input0Tensor);
-	auto sourceIt1 = modelRef_.getSourceOp(input1Tensor);
+	/*Create concat vector name e.g concat_0, concat_1 */
+	std::string concatVectorName = "concat_" + std::to_string(weightsVectorCounter);
+	weightsVectorCounter++;
 
-	/*open the recording file*/
+    /*open the recording file*/
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
 
-	/*Construct a std::string and write to file*/
-	ss << "auto " << modelRef_.getOpName_(OpType::Concat) << " =" << " rc.concat(" << sourceIt0->getName() << ", " 
-		<< sourceIt1->getName() << ")" << ";" << "\n";
+	/*an array holding the names of the TensorIterators*/
+    unsigned num_inputs = inputTensors.size();
+
+    /*Begin the vector definition*/
+	ss << "std::vector<mv::Data::TensorIterator> " << concatVectorName << "= {";
+	outputSourceFile << ss.str();
+	ss.str("");
+
+    /*Finish the vector definition*/
+	for(unsigned i = 0; i!= num_inputs; i++){
+	ss << modelRef_.getSourceOp(inputTensors.at(i))->getName() << ", ";
+	}
+
+	/*Overwrite the last ',' and append the closing }*/
+	ss.seekp(-2,ss.cur);
+	ss << '}'  << ";" << "\n";
+	
+	/*write to file*/
+	outputSourceFile << ss.str();
+	ss.str("");
+
+	/*Construct a string of the CompositionalModel concat() call and write to file*/
+	ss << "auto " << modelRef_.getOpName_(OpType::Concat) << " =" << " rc.concat(";
+	ss << concatVectorName  << ")" << ";" << "\n";
+	
 	outputSourceFile << ss.str();
 	ss.str("");
 	outputSourceFile.close();
 
-	auto result = modelRef_.concat(input0Tensor, input1Tensor, name);
+	auto result = modelRef_.concat(inputTensors, name);
     return result;
 }
 
@@ -231,8 +275,8 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::batchNorm(Data::TensorI
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
 
 	/*Construct a std::string and write to file*/
-	ss << "auto " << modelRef_.getOpName_(OpType::BatchNorm) << " =" << " rc.batchNorm(" << sourceIt0->getName() 
-		<< ", " << sourceIt1->getName() << ", " << sourceIt2->getName() << ", " << sourceIt3->getName()<< ", " 
+	ss << "auto " << modelRef_.getOpName_(OpType::BatchNorm) << " =" << " rc.batchNorm(" << sourceIt0->getName()
+		<< ", " << sourceIt1->getName() << ", " << sourceIt2->getName() << ", " << sourceIt3->getName()<< ", "
 		<< sourceIt4->getName() << ", " << varianceEps << ")" << ";" << "\n";;
 	outputSourceFile << ss.str();
 	ss.str("");
@@ -291,7 +335,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::prelu(Data::TensorItera
 
 	/*Construct a std::string and write to file*/
 	// << ", " << negative_slope
-	ss << "auto " << modelRef_.getOpName_(OpType::PReLU) << " =" << " rc.prelu(" << sourceIt0->getName() 
+	ss << "auto " << modelRef_.getOpName_(OpType::PReLU) << " =" << " rc.prelu(" << sourceIt0->getName()
 		<< ", " << sourceIt1->getName() << ")" <<";" << "\n";;
 	outputSourceFile << ss.str();
 	ss.str("");
@@ -319,7 +363,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::softmax(Data::TensorIte
 	return result;
 }
 
-mv::Data::TensorIterator mv::CompositionalModelRecorder::add(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor, 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::add(Data::TensorIterator input0Tensor, Data::TensorIterator input1Tensor,
 	const std::string& name)
 {
 	/*get the name of the argument(s)*/
@@ -329,7 +373,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::add(Data::TensorIterato
 	/*open the recording file*/
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
 
-	ss << "auto " << modelRef_.getOpName_(OpType::Add) << " =" << " rc.add(" << sourceIt0->getName() << ", " 
+	ss << "auto " << modelRef_.getOpName_(OpType::Add) << " =" << " rc.add(" << sourceIt0->getName() << ", "
 		<< sourceIt1->getName() << ")" <<";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
@@ -350,7 +394,7 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::subtract(Data::TensorIt
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
 
 	/*Construct a std::string and write to file*/
-	ss << "auto " << modelRef_.getOpName_(OpType::Subtract) << " =" << " rc.subtract(" << sourceIt0->getName() << ", " 
+	ss << "auto " << modelRef_.getOpName_(OpType::Subtract) << " =" << " rc.subtract(" << sourceIt0->getName() << ", "
 		<< sourceIt1->getName() << ")" <<";" << "\n";
 	outputSourceFile << ss.str();
 	ss.str("");
@@ -464,6 +508,26 @@ mv::Data::TensorIterator mv::CompositionalModelRecorder::fullyConnected(Data::Te
 	return result;
 }
 
+mv::Data::TensorIterator mv::CompositionalModelRecorder::dropOut(Data::TensorIterator inputTensor,
+	const std::string& name)
+{
+	/*get the name of the argument(s)*/
+	auto sourceIt0 = modelRef_.getSourceOp(inputTensor);
+
+	/*open the recording file*/
+	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);
+
+	/*Construct a std::string and write to file*/
+	ss << "auto " << modelRef_.getOpName_(OpType::DropOut) << " =" << " rc.dropOut("
+		<< sourceIt0->getName() << ")" << ";" << "\n";;
+	outputSourceFile << ss.str();
+	ss.str("");
+	outputSourceFile.close();
+
+	auto result = modelRef_.dropOut(inputTensor, name);
+	return result;
+}
+
 mv::Data::OpListIterator mv::CompositionalModelRecorder::getSourceOp(Data::TensorIterator tensor)
 {
 	auto result = modelRef_.getSourceOp(tensor);
@@ -558,7 +622,7 @@ void mv::CompositionalModelRecorder::completeRecordedSourceFile() {
 
 	std::string projectRootPath = utils::projectRootPath();
 	std::string savedPath = utils::projectRootPath() + savedRecordingsPath_;
-	
+
 	/*Populate the 'compilation passes' and end of the source file i.e. return 0*/
 
 	outputSourceFile.open(recordedSourceFileNameCpp.c_str(),std::ofstream::out | std::ofstream::app);

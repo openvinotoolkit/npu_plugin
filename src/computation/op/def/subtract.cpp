@@ -11,3 +11,7 @@ bool mv::op::Subtract::isHardwarizeable(json::Object&)
 {
     return false;
 }
+
+void mv::op::Subtract::gatherSerialFields(){
+    this->set<unsigned>("SerialID", 12);
+}

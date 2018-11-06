@@ -39,16 +39,19 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto sourceTensor = parentOpIt->getOutputTensor(0);
+            std::cout << "parentOp name is" << parentOpIt->getName() << std::endl;
+            std::cout << "source tesnor name is" << sourceTensor->getName() << std::endl;
 
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
-
+            std::cout << "weightsData name is" << opIt->getInputTensor(1)->getName() << std::endl;
+            
             Tensor weigthsTensor = *(opIt->getInputTensor(1));
-            weigthsTensor.setOrder(OrderType::RowMajor);
+            weigthsTensor.setOrder(Order(Order::getRowMajorID(weigthsTensor.getShape().ndims())));
 
             auto weights = om.constant(weigthsTensor.getData(), {inputShape[0], inputShape[1], inputShape[2], 
                 opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
-                sourceTensor->getOrder(), opIt->getName() + "_weights");
+                Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
 
             auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0});
             pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());

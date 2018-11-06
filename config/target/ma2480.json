@@ -3,19 +3,271 @@
 	"target": "ma2480",
 
 	"ops":
-	[
-		"Conv2D",
-		"MatMul",
-		"MaxPool2D",
-		"AvgPool2D",
-		"ReLU",
-		"Softmax",
-		"Add",
-		"Subtract",
-		"Multiply",
-		"Divide",
-		"FullyConnected"
-	],
+
+	{
+		"Conv2D" : {
+			"MvTensor":{
+				"serial_description":[
+					"Attr:radixX",
+					"Attr:radixY",
+					"Attr:strideX",
+					"Attr:strideY",
+					"Attr:padX",
+					"Attr:padY",
+					"Attr:padStyle",
+					"Attr:dilation",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2"
+				]
+			},
+			"NCE1":{
+				"serial_description":[
+					"Attr:streamingMask",
+					"Attr:inputSize",
+					"Attr:outputSize",
+					"Attr:concatOffset",
+					"Attr:unloadCMX",
+					"Attr:overwriteInput",
+					"Attr:CMXSize",
+					"Attr:reluSHVAcc",
+					"Attr:shvNegSlope",
+					"Attr:shvPosSlope",
+					"Attr:desc_count",
+					"Attr:descriptors",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2",
+					"Tensor:0:3"
+				]
+			}
+		},
+		"DepthwiseConv2D":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:radixX",
+					"Attr:radixY",
+					"Attr:strideX",
+					"Attr:strideY",
+					"Attr:padX",
+					"Attr:padY",
+					"Attr:padStyle",
+					"Attr:dilation",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2"
+				]
+			}
+		},
+		"MatMul":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:radixX",
+					"Attr:radixY",
+					"Attr:strideX",
+					"Attr:strideY",
+					"Attr:padX",
+					"Attr:padY",
+					"Attr:padStyle",
+					"Attr:dilation",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2"
+				]
+			}
+		},
+		"MaxPool2D":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:radixX",
+					"Attr:radixY",
+					"Attr:strideX",
+					"Attr:strideY",
+					"Attr:padX",
+					"Attr:padY",
+					"Attr:padStyle",
+					"Tensor:0:0",
+					"Tensor:1:0"
+				]
+			},
+			"NCE1":{
+				"serial_description":[
+					"Attr:streamingMask",
+					"Attr:inputSize",
+					"Attr:outputSize",
+					"Attr:concatOffset",
+					"Attr:unloadCMX",
+					"Attr:overwriteInput",
+					"Attr:CMXSize",
+					"Attr:reluSHVAcc",
+					"Attr:shvNegSlope",
+					"Attr:shvPosSlope",
+					"Attr:desc_count",
+					"Attr:descriptors",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2",
+					"Tensor:0:3"
+				]
+			}
+		},
+		"AvgPool2D":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:radixX",
+					"Attr:radixY",
+					"Attr:strideX",
+					"Attr:strideY",
+					"Attr:padX",
+					"Attr:padY",
+					"Attr:padStyle",
+					"Tensor:0:0",
+					"Tensor:1:0"
+				]
+			},
+			"NCE1":{
+				"serial_description":[
+					"Attr:streamingMask",
+					"Attr:inputSize",
+					"Attr:outputSize",
+					"Attr:concatOffset",
+					"Attr:unloadCMX",
+					"Attr:overwriteInput",
+					"Attr:CMXSize",
+					"Attr:reluSHVAcc",
+					"Attr:shvNegSlope",
+					"Attr:shvPosSlope",
+					"Attr:desc_count",
+					"Attr:descriptors",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2",
+					"Tensor:0:3"
+				]
+			}
+		},
+		"ReLU":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:opX",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Attr:strideX",
+					"Attr:strideY"
+				]
+			}
+		},
+		"PReLU":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1"
+				]
+			}
+		},
+		"Softmax":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:axis",
+					"Tensor:0:0",
+					"Tensor:1:0"
+				]
+			}
+		},
+		"Scale":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2"
+				]
+			}
+		},
+		"Add":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1"
+				]
+			}
+		},
+		"Subtract":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1"
+				]
+			}
+		},
+		"Multiply":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1"
+				]
+			}
+		},
+		"Divide":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1"
+				]
+			}
+		},
+		"Conversion":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0"
+				]
+			}
+		},
+		"FullyConnected":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2"
+				]
+			},
+			"NCE1":{
+				"serial_description":[
+					"Attr:streamingMask",
+					"Attr:inputSize",
+					"Attr:outputSize",
+					"Attr:concatOffset",
+					"Attr:unloadCMX",
+					"Attr:overwriteInput",
+					"Attr:CMXSize",
+					"Attr:reluSHVAcc",
+					"Attr:shvNegSlope",
+					"Attr:shvPosSlope",
+					"Attr:desc_count",
+					"Attr:descriptors",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Tensor:0:1",
+					"Tensor:0:2",
+					"Tensor:0:3"
+				]
+			}
+		}
+	},
+
 
 	"order":
 	{
@@ -31,23 +283,26 @@
 	{
 		"adapt":
 		[
+			"GenerateCaffe",
 			"FuseBatchNorm",
 			"FuseBias",
 			"FuseScale",
 			"FuseBias",
 			"FuseScale",
 			"FuseBias",
-			"FullyConnectedAsConv2D"
+			"FullyConnectedAsConv2D",
+			"RemoveDropOut"
 		],
 
 		"finalize":
 		[
 			"AlignConstOrder",
-			"MarkHardwareConvolution",
+			"MarkHardwareOperations",
 			"FuseReluMX",
 			"AddConversionLayers",
 			"MyriadXPaddings",
-			"ModeSelection",
+			"OptimizePoolings",
+			"OptimizeConvolutions",
 			"SplitsOverH",
 			"ScaleFission",
 			"FormatMXWeights",
@@ -55,10 +310,12 @@
 			"AllocatePopulatedTensors",
 			"AllocateUnpopulatedTensors",
 			"AllocateInputOutputTensors"
+                  	
 		],
 
 		"serialize":
 		[
+			"PopulateSerialFields",
 			"GenerateBlob"
 		],
 

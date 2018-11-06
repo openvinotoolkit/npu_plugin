@@ -8,7 +8,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
@@ -193,7 +193,7 @@ namespace mv
         void placeBuffers_(unsigned stageIdx);
         std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, const mv::Shape& shape);
-        long computeStrides_(const Order& order, std::size_t currentDim, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
+        long computeStrides_(const Order& order, std::size_t idx, const mv::Shape& shape, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, std::deque<std::size_t>& leftStrides, std::deque<std::size_t>& rightStrides);
         void padBuffer_(BufferIterator buffer);
         void moveSlave_(BufferIterator slaveBuffer);

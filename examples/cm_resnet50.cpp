@@ -35,24 +35,24 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 {
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("HWC"));
     auto conv = model.conv2D(input, weights, stride, padding);
 
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     std::vector<double> bnScaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
     auto bnScale = model.scale(conv, bnScaleParam);
     
     std::vector<double> bnOffsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
     auto bnOffset = model.bias(bnScale, bnOffsetParam);
     
     std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
     auto scale = model.scale(bnOffset, scaleParam);
     
     std::vector<double> biasData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
     return model.bias(scale, biasParam);
 
 }
@@ -125,7 +125,7 @@ int main()
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet50
-    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("HWC"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -147,7 +147,7 @@ int main()
     auto res5c = residualBlock(cm, res5b, 512);
     auto pool5 = cm.avgpool2D(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
     std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::OrderType::RowMajorPlanar);
+    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::Order("HWC"));
     auto fc1000 = cm.fullyConnected(pool5, weights);
     auto softmax = cm.softmax(fc1000);
     cm.output(softmax);
@@ -168,6 +168,8 @@ int main()
     // Output BLOB - file name of the output binary
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet50.blob");
     //unit.compilationDescriptor()["GenerateJSON"]["output"] = std::string("resnet50.json");
+
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
 
     // Initialize compilation 
     unit.initialize();

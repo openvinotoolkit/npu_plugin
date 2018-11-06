@@ -8,7 +8,7 @@
 #include <iterator>
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
@@ -23,6 +23,7 @@ namespace mv
         std::size_t blockSize_;
         std::vector<std::vector<double>::iterator> blocks_;
         Shape shape_;
+        Order internalOrder_;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 

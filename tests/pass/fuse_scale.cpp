@@ -11,13 +11,13 @@ TEST(fuse_scale, case_conv)
 
     mv::OpModel om("testModel");
 
-    auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
-    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
+    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> scalesData = mv::utils::generateSequence<double>(32);
-    auto scales = om.constant(scalesData, {32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "biases");
+    auto scales = om.constant(scalesData, {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), "biases");
     auto scale = om.scale(conv, scales);
     auto scaleOp = om.getSourceOp(scale);
     om.output(scale);
@@ -38,8 +38,8 @@ TEST(fuse_scale, case_conv)
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
     
-    mv::Tensor scaleParam("scale", {32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, scalesData);
-    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, weightsData);
+    mv::Tensor scaleParam("scale", {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), scalesData);
+    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), weightsData);
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
 
     for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
@@ -52,16 +52,16 @@ TEST(fuse_scale, case_conv_bias_fused)
 
     mv::OpModel om("testModel");
 
-    auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
-    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "weights");
+    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
     auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> biasesData = mv::utils::generateSequence<double>(32);
-    auto biases = om.constant(biasesData, {32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "biases");
+    auto biases = om.constant(biasesData, {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), "biases");
     auto bias = om.bias(conv, biases);
     std::vector<double> scalesData = mv::utils::generateSequence<double>(32);
-    auto scales = om.constant(scalesData, {32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "scales");
+    auto scales = om.constant(scalesData, {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), "scales");
     auto scale = om.scale(bias, scales);
     auto scaleOp = om.getSourceOp(scale);
     om.output(scale);
@@ -83,9 +83,9 @@ TEST(fuse_scale, case_conv_bias_fused)
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
     
-    mv::Tensor scaleParam("scale", {32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, scalesData);
-    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, weightsData);
-    mv::Tensor originalBiases("originalBiases", {32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, biasesData);
+    mv::Tensor scaleParam("scale", {32}, mv::DTypeType::Float16, mv::Order("CHW"), scalesData);
+    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), weightsData);
+    mv::Tensor originalBiases("originalBiases", {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), biasesData);
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
     mv::Tensor newBiases = mv::math::multiply(originalBiases, scaleParam);
 

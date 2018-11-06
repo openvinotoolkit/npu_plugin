@@ -4,10 +4,11 @@
 
 TEST(ops, prelu)
 {
-    /*mv::OpModel om("testModel");
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    /*
+    mv::OpModel om("testModel");
+    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> data = mv::utils::generateSequence<double>(3);
-    auto slope = om.constant(data, {3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto slope = om.constant(data, {3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)));
 
     auto prelu = om.prelu(input, slope);
     auto preluOp = om.getSourceOp(prelu);

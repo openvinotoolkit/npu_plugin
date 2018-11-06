@@ -11,3 +11,8 @@ bool mv::op::Divide::isHardwarizeable(json::Object&)
 {
     return false;
 }
+
+
+void mv::op::Divide::gatherSerialFields(){
+    this->set<unsigned>("SerialID", 13);
+}

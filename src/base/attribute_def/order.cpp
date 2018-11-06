@@ -1,7 +1,7 @@
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/attribute.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 
 namespace mv
 {
@@ -19,7 +19,7 @@ namespace mv
         {
             if (v.valueType() != json::JSONType::String)
                 throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) + 
-                    " to mv::Order");
+                    " to Order");
             
             return Order(v.get<std::string>());
         }

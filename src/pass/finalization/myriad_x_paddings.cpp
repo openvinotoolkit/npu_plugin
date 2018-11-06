@@ -31,17 +31,17 @@ void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
     {
-        if(operationIt->getOpType() != "Conv")
-            continue;
         if(!operationIt->hasAttr("NCE1_Compatible"))
             continue;
         if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
 
-        operationIt->getInputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
-        operationIt->getOutputTensor(0)->setOrder(mv::OrderType::RowInterleaved);
-        // operationIt->getInputTensor(0)->setOrder(mv::OrderType::ColumnMajorPlanar);
-        // operationIt->getOutputTensor(0)->setOrder(mv::OrderType::ColumnMajorPlanar);
+        bool isConv = operationIt->getOpType() == mv::OpType::Conv2D;
+
+        operationIt->getInputTensor(0)->setOrder(mv::Order("HCW"));
+        operationIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));
+        // operationIt->getInputTensor(0)->setOrder(mv::Order("CHW"));
+        // operationIt->getOutputTensor(0)->setOrder(mv::Order("CHW"));
 
         auto input_tensor = operationIt->getInputTensor(0);
         auto input_tensor_dimension = input_tensor->getShape();
@@ -49,15 +49,11 @@ void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         auto output_tensor = operationIt->getOutputTensor(0);
         auto output_tensor_dimension = output_tensor->getShape();
 
-        auto weight_tensor = operationIt->getInputTensor(1);
-
         size_t input_width = input_tensor_dimension[0];
         size_t input_height = input_tensor_dimension[1];
-        size_t input_channels = input_tensor_dimension[2];
 
         size_t actual_input_height = nce.computeActualInputHeight(input_height);
         size_t actual_input_width = nce.computeActualInputWidth(input_width);
-        size_t actual_input_channels = nce.computeActualInputChannels(input_channels);
 
         size_t output_width = output_tensor_dimension[0];
         size_t output_height = output_tensor_dimension[1];
@@ -68,9 +64,7 @@ void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         //God please forgive me for the magic numbers
         std::vector<size_t> input_tensor_paddings(3);
         std::vector<size_t> output_tensor_paddings(3);
-        std::vector<size_t> weight_tensor_paddings(4);
 
-        //Channels need to be physically padded just for weights apparentely
         input_tensor_paddings[0] = actual_input_width - input_width;
         input_tensor_paddings[1] = actual_input_height - input_height;
         input_tensor_paddings[2] = 0;
@@ -78,11 +72,6 @@ void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         output_tensor_paddings[0] = actual_output_width - output_width;
         output_tensor_paddings[1] = actual_output_height - output_height;
         output_tensor_paddings[2] = 0;
-
-        weight_tensor_paddings[0] = 0;
-        weight_tensor_paddings[1] = 0;
-        weight_tensor_paddings[2] = actual_input_channels - input_channels;
-        weight_tensor_paddings[3] = 0;
 
         if(input_tensor->hasAttr("NCE1_Paddings"))
         {
@@ -102,17 +91,31 @@ void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 output_tensor_paddings[i] = std::max(output_tensor_paddings[i], existing_output_tensor_paddings[i]);
         }
 
-        if(weight_tensor->hasAttr("NCE1_Paddings"))
-        {
-            //Simple rule: greatest padding wins
-            std::vector<size_t> existing_weight_tensor_paddings = weight_tensor->get<std::vector<size_t>>("NCE1_Paddings");
-            weight_tensor->erase("NCE1_Paddings");
-            for(unsigned i = 0; i < existing_weight_tensor_paddings.size();++i)
-                weight_tensor_paddings[i] = std::max(weight_tensor_paddings[i], existing_weight_tensor_paddings[i]);
-        }
         input_tensor->set<std::vector<size_t>>("NCE1_Paddings", input_tensor_paddings);
         output_tensor->set<std::vector<size_t>>("NCE1_Paddings", output_tensor_paddings);
-        weight_tensor->set<std::vector<size_t>>("NCE1_Paddings", weight_tensor_paddings);
+
+        if(isConv)
+        {
+            auto weight_tensor = operationIt->getInputTensor(1);
+            std::vector<size_t> weight_tensor_paddings(4);
+
+
+            weight_tensor_paddings[0] = 0;
+            weight_tensor_paddings[1] = 0;
+            weight_tensor_paddings[2] = 0;
+            weight_tensor_paddings[3] = 0;
+
+            if(weight_tensor->hasAttr("NCE1_Paddings"))
+            {
+                //Simple rule: greatest padding wins
+                std::vector<size_t> existing_weight_tensor_paddings = weight_tensor->get<std::vector<size_t>>("NCE1_Paddings");
+                weight_tensor->erase("NCE1_Paddings");
+                for(unsigned i = 0; i < existing_weight_tensor_paddings.size();++i)
+                    weight_tensor_paddings[i] = std::max(weight_tensor_paddings[i], existing_weight_tensor_paddings[i]);
+            }
+
+            weight_tensor->set<std::vector<size_t>>("NCE1_Paddings", weight_tensor_paddings);
+        }
 
         operationIt->set<std::size_t>("NCE1_InputWidthPadded", actual_input_width);
         operationIt->set<std::size_t>("NCE1_OutputWidthPadded", actual_output_width);

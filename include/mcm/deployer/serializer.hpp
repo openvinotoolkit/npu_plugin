@@ -50,7 +50,7 @@ namespace mv
         *
         * @param graph_2_deploy (by reference) points to the graph you want to deploy
         */
-        unsigned long long serialize(mv::ControlModel& graph_2_deploy, const char* ofilename );
+        unsigned long long serialize(mv::ComputationModel& model, mv::TargetDescriptor& td, const char* ofilename );
 
         void print_mode();
     };

@@ -58,6 +58,7 @@ namespace mv
 
 void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
+    
 
     using namespace mv;
 
@@ -65,16 +66,17 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
     DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == "Bias")
-        {
-            
+        {            
             pass.log(Logger::MessageType::Debug, "Found Bias op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             
-            if (parentOpIt->getOpType() == "Conv" || parentOpIt->getOpType() == "FullyConnected")
+            if (parentOpIt->getOpType() == "Conv" ||
+                parentOpIt->getOpType() == "FullyConnected" ||
+                parentOpIt->getOpType() == "DepthwiseConv")
             {
 
                 auto bias = *opIt->getInputTensor(1);
@@ -92,14 +94,14 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                     om.addAttr(parentOpIt, "bias", biasTensor->getName());
                     pass.log(Logger::MessageType::Info, "Fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
                 }
-                
+
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
                 for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
                 {
                     std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                     sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
                 }
 
                 while(opIt.parentsSize() > 1)
@@ -108,7 +110,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                     ++paramOp;
                     om.removeOp(paramOp);
                 }
-                
+
                 om.removeOp(opIt);
                 opIt = parentOpIt;
 
@@ -122,17 +124,16 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
 void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    
+
     using namespace mv;
     OpModel om(model);
     DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == "Scale")
-        {
-            
+        {            
             pass.log(Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
@@ -160,7 +161,7 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
                 {
                     std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                     sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
                 }
 
                 while(opIt.parentsSize() > 1)
@@ -169,7 +170,7 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
                     ++paramOp;
                     om.removeOp(paramOp);
                 }
-                
+
                 om.removeOp(opIt);
                 opIt = parentOpIt;
 
@@ -183,12 +184,12 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
 
 void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-    
+
     using namespace mv;
     OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == "Relu")
         {
@@ -206,7 +207,7 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
             {
                 std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                 sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
             }
 
             while(opIt.parentsSize() > 1)
@@ -215,7 +216,7 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                 ++paramOp;
                 om.removeOp(paramOp);
             }
-            
+
             om.removeOp(opIt);
             opIt = parentOpIt;
 
@@ -227,21 +228,19 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
 void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
-
-    using namespace mv;   
+    using namespace mv;
     OpModel om(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == "BatchNormalization")
         {
-
             pass.log(Logger::MessageType::Debug, "Found BatchNorm op " + opIt->getName());
 
             auto batchNormName = opIt->getName();
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            
+
             auto bnMean = *opIt->getInputTensor(1);
             auto bnVar = *opIt->getInputTensor(2);
             auto bnOffset = *opIt->getInputTensor(3);
@@ -285,6 +284,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
             if (offsetParam.getShape().ndims() == 1)
                 sourceTensor = om.bias(sourceTensor, offset);  
+
             else
                 sourceTensor = om.add(sourceTensor, offset);
             pass.log(Logger::MessageType::Info, "Replaced additive term of BatchNorm op " + opIt->getName() + 
@@ -294,7 +294,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             {
                 std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
                 sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx); 
+                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
             }
 
             while(opIt.parentsSize() > 1)
@@ -303,7 +303,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 ++paramOp;
                 om.removeOp(paramOp);
             }
-            
+
             om.removeOp(opIt);
             opIt = parentOpIt;
 

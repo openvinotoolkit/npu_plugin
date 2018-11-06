@@ -11,3 +11,7 @@ bool mv::op::Multiply::isHardwarizeable(json::Object&)
 {
     return false;
 }
+
+void mv::op::Multiply::gatherSerialFields(){
+    this->set<unsigned>("SerialID", 13);
+}

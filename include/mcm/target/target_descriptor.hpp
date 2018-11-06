@@ -10,14 +10,15 @@
 #include "include/mcm/utils/parser/json_text.hpp"
 #include "include/mcm/base/json/string.hpp"
 #include "include/mcm/base/printable.hpp"
-#include "include/mcm/tensor/order.hpp"
+#include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/base/element.hpp"
 
 namespace mv
 {
-    
+
     enum class Target
     {
         ma2480,
@@ -42,8 +43,7 @@ namespace mv
 
         Target target_;
         DType globalDType_;
-        Order globalOrder_;
-        std::set<std::string> ops_;
+        std::set<OpType> ops_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
 
         std::vector<std::string> adaptationPasses_;
@@ -51,6 +51,9 @@ namespace mv
         std::vector<std::string> finalizationPasses_;
         std::vector<std::string> serializationPasses_;
         std::vector<std::string> validationPasses_;
+
+
+        std::map<std::string, mv::Element> serialDescriptions_;
 
     public:
 
@@ -61,7 +64,6 @@ namespace mv
 
         void setTarget(Target target);
         void setDType(DType dType);
-        void setOrder(Order order);
 
         bool appendAdaptPass(const std::string& pass, int pos = -1);
         bool appendOptPass(const std::string& pass, int pos = -1);
@@ -95,11 +97,12 @@ namespace mv
         const std::vector<std::string>& validPasses() const;
 
         Target getTarget() const;
-        Order getOrder() const;
         DType getDType() const;
 
+        mv::Element getSerialDefinition(std::string op_name, std::string platform_name) const;
+
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
-        
+
         std::string getLogID() const override;
 
     };

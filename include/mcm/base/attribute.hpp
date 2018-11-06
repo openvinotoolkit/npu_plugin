@@ -13,17 +13,18 @@
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/printable.hpp"
 #include "include/mcm/base/jsonable.hpp"
+#include "include/mcm/base/binarizable.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 
 namespace mv
 {
 
-    class Attribute : public Printable, public Jsonable, public LogSender
+    class Attribute : public Printable, public Jsonable, public LogSender, public Binarizable
     {
 
         struct AbstractObject
         {
-    
+
             virtual ~AbstractObject()
             {
 
@@ -42,9 +43,9 @@ namespace mv
             ValueType content_;
             const std::type_index typeID_;
             const std::string typeName_;
-            
+
             template <class InitType>
-            Object(InitType&& content) : 
+            Object(InitType&& content) :
             content_(std::forward<InitType>(content)),
             typeID_(typeid(ValueType)),
             typeName_(attr::AttributeRegistry::getTypeName(typeID_))
@@ -54,7 +55,7 @@ namespace mv
 
             virtual ~Object()
             {
-                
+
             }
 
             AbstractObject* clone() const override
@@ -106,9 +107,9 @@ namespace mv
                     throw AttributeError(*this, "Invalid JSON object passed for construction - missing field \"attrType\"");
 
                 if (val["attrType"].valueType() != json::JSONType::String)
-                    throw AttributeError(*this, "Invalid JSON object passed for construction - field \"attrType\" has a type of " 
+                    throw AttributeError(*this, "Invalid JSON object passed for construction - field \"attrType\" has a type of "
                         + json::Value::typeName(val["attrType"].valueType()) + " (should be string)");
-                
+
                 if (!attr::AttributeRegistry::checkType(val["attrType"].get<std::string>()))
                     throw AttributeError(*this, "Invalid JSON object passed for construction - field \"attrType\""
                         "specifies an unregistered type " + val["attrType"].get<std::string>());
@@ -135,7 +136,7 @@ namespace mv
             }()
         )
         {
-            
+
         }
 
         Attribute(const json::Value &val) :
@@ -144,14 +145,14 @@ namespace mv
             [this, val]()->const json::Object&
             {
                 if (val.valueType() != json::JSONType::Object)
-                throw AttributeError(*this, "Invalid JSON value passed for construction - value has a type of " + 
+                throw AttributeError(*this, "Invalid JSON value passed for construction - value has a type of " +
                     json::Value::typeName(val.valueType()) + " (should be json::Object)");
 
                 return val.get<json::Object>();
             }()
         )
         {
-                
+
         }
 
         Attribute() : ptr_(nullptr)
@@ -211,7 +212,7 @@ namespace mv
         {
             auto contentPtr_ = dynamic_cast<Object<typename std::decay<ValueType>::type>*>(ptr_);
             if (!contentPtr_)
-                throw AttributeError(*this, "Attempt of obtaining the value of attribute of type " + 
+                throw AttributeError(*this, "Attempt of obtaining the value of attribute of type " +
                     ptr_->getTypeName() + " as " + typeid(ValueType).name());
 
             return contentPtr_->content_;
@@ -262,7 +263,7 @@ namespace mv
         }
 
         json::Value toJSON() const override
-        {   
+        {
             if (!ptr_)
                 throw AttributeError(*this, "Uninitialized (null) attribute dereference called for to-JSON conversion");
             json::Object result;
@@ -292,6 +293,13 @@ namespace mv
         std::string toLongString() const
         {
             return attr::AttributeRegistry::getToStringFunc(ptr_->getTypeID(), true)(*this);
+        }
+
+        std::vector<uint8_t> toBinary() const override
+        {
+            if (!ptr_)
+                throw AttributeError(*this, "Uninitialized (null) attribute dereference called for to-string conversion");
+            return attr::AttributeRegistry::getToBinaryFunc(ptr_->getTypeID())(*this);
         }
 
         std::string getTypeName() const

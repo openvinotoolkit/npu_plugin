@@ -12,18 +12,8 @@
 #include "include/mcm/utils/serializer/file_buffer.h"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/deployer/blob_serialization/myriadX_hardware_descriptors.hpp"
-#include "include/mcm/deployer/blob_serialization/bDefinition.hpp"
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
-#include "include/mcm/deployer/blob_serialization/bConv_MX.hpp"
-#include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
-#include "include/mcm/deployer/blob_serialization/bPooling.hpp"
-#include "include/mcm/deployer/blob_serialization/bSoftmax.hpp"
-#include "include/mcm/deployer/blob_serialization/bRelu.hpp"
-#include "include/mcm/deployer/blob_serialization/bPRelu.hpp"
-#include "include/mcm/deployer/blob_serialization/bScale.hpp"
-#include "include/mcm/deployer/blob_serialization/bEltwise.hpp"
-#include "include/mcm/deployer/blob_serialization/bInnerProduct.hpp"
-#include "include/mcm/deployer/blob_serialization/bCompatibility.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
 #include <assert.h>
 
 #define BLOB_VERSION_MAJOR 2
@@ -123,6 +113,8 @@ namespace mv
                 InputStrideZ = 2 ;
                 InputOffset = 0 ;
                 InputLocation = 1 ;
+                Input1Offset = 0;
+                Input1Location = 1;
                 InputDataType = 0 ;
                 InputOrder = 0 ;
 
@@ -205,7 +197,7 @@ namespace mv
 
 
             // Calculate Blob Statistics
-            void calc(mv::ControlModel& cm);
+            void calc(mv::ControlModel& cm, mv::TargetDescriptor& td);
 
             void write_elf_header();
 
@@ -216,6 +208,8 @@ namespace mv
             void add_stage_IO_info(mv::Control::OpDFSIterator it, mv::Blob_stage conv_pool_stage);
 
             void write_stages(mv::ControlModel& cm);
+
+            void write_ops(mv::ComputationModel& model, mv::TargetDescriptor& td);
 
             void write_buffer_section(mv::ControlModel& cm);
 

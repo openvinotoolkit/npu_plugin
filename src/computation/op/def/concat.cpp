@@ -2,11 +2,45 @@
 
 mv::op::Concat::Concat(const std::string &name) :
 ComputationOp(OpType::Concat, name),
-SinkOp(OpType::Concat, 2, name),
-SourceOp(OpType::Concat, 1, name)
+SinkOp(OpType::Concat, 32, name),
+SourceOp(OpType::Concat, 1, name),
+active_inputs(0)
 {
     set<bool>("executable", true);
     set<int>("axis", 2);
+}
+
+
+bool mv::op::Concat::hasInputDef()
+{
+    active_inputs = 0;
+    if(inputs_.size() < 2){
+        return false;
+    }
+    for (std::size_t i = 0; i < inputSlots(); ++i)
+    {
+        if (hasInputDef(i)){
+            ++active_inputs;
+        }
+    }
+
+    if(active_inputs < 2)
+        return false;
+
+    return true;
+
+}
+bool mv::op::Concat::hasInputDef(std::size_t idx)
+{
+
+    Data::TensorIterator emptyIt;
+
+    if (inputs_[idx] == emptyIt){
+        return false;
+    }
+
+    return true;
+
 }
 
 mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
@@ -24,7 +58,7 @@ mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
 
     std::size_t lastDim = input0Shape[2];
 
-    for (std::size_t i = 1; i < inputSlots(); ++i)
+    for (std::size_t i = 1; i < active_inputs; ++i)
     {
         auto inputShape = getInputTensor(i)->getShape();
         if (inputShape.ndims() != 3)

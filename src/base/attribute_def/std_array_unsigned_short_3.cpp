@@ -49,12 +49,32 @@ namespace mv
             return output;
         }
 
+        static std::vector<uint8_t> toBinary(const Attribute& a)
+        {
+            union Tmp
+            {
+                unsigned short n;
+                uint8_t bytes[sizeof(unsigned short)];
+            };
+            auto vec = a.get<std::array<unsigned short, 3>>();
+            std::vector<uint8_t> toReturn(sizeof(unsigned short) * 3, 0);
+            unsigned i = 0;
+            for(auto v: vec)
+            {
+                Tmp tmp = {v};
+                for(unsigned j = 0; j < sizeof(unsigned); ++j)
+                    toReturn[i++] = tmp.bytes[j];
+            }
+            return toReturn;
+        }
+
         #define COMMA ,
 
         MV_REGISTER_ATTR(std::array<unsigned short COMMA 3>)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
-            .setToStringFunc(toString);
+            .setToStringFunc(toString)
+            .setToBinaryFunc(toBinary);
 
     }
 
