@@ -30,7 +30,7 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 {
 
 	std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-	auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NCHW"));
 	auto conv = model.conv2D(input, weights, stride, padding);
 
 	// For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
@@ -38,10 +38,10 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 	std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
 	std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
 	std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-	auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("CHW"));
-	auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("CHW"));
-	auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("CHW"));
-	auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
 	return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 
 }
@@ -110,7 +110,7 @@ int main()
     auto res5b = residualBlock(cm, res5a);
     auto pool5 = cm.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
     std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::Order("HW"));
     auto fc1000 = cm.fullyConnected(pool5, weights);
     auto softmax = cm.softmax(fc1000);
     cm.output(softmax);
