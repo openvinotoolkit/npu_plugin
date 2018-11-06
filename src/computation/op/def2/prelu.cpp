@@ -41,7 +41,7 @@ namespace mv
 
         };
     
-        MV_REGISTER_OP(PRelu)
+        MV_REGISTER_OP(Prelu)
         .setInputs({"data", "slope"})
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)

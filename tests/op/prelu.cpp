@@ -9,7 +9,7 @@ TEST(ops, prelu)
     std::vector<double> data = mv::utils::generateSequence<double>(3);
     auto slope = om.constant(data, {3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
 
-    auto prelu = om.pRelu(input, slope);
+    auto prelu = om.prelu(input, slope);
     auto preluOp = om.getSourceOp(prelu);
     auto output = om.output(prelu);
 
