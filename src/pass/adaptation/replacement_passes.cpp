@@ -49,7 +49,7 @@ void fullyConnectedAsConv2DFcn(mv::ComputationModel& model, mv::TargetDescriptor
 
             auto weights = om.constant(weigthsTensor.getData(), {inputShape[0], inputShape[1], inputShape[2], 
                 opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
-                sourceTensor->getOrder(), opIt->getName() + "_weights");
+                Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
 
             auto conv2D = om.conv2D(sourceTensor, weights, {1, 1}, {0, 0, 0, 0});
             if (opIt->hasAttr("bias"))
