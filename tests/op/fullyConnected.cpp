@@ -18,14 +18,8 @@ TEST(ops, fullyConnected)
     ASSERT_EQ(fullyConnectedOp->getOpType(), "FullyConnected");
     ASSERT_EQ(fullyConnectedOp->inputSlots(), 2);
     ASSERT_EQ(fullyConnectedOp->outputSlots(), 1);
-
-    auto keys = fullyConnectedOp->attrsKeys();
-
-    for (unsigned i = 0; i < keys.size(); i++) {
-        std::cout << "Key is " << keys[i] << std::endl;
-    }
-
     ASSERT_EQ(fullyConnectedOp->attrsCount(), 2);
+    ASSERT_EQ(fullyConnected->attrsCount(), 5);
 
     //ASSERT_TRUE(fullyConnectedOp->isExecutable());
 }
