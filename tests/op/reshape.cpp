@@ -16,6 +16,6 @@ TEST(ops, reshape)
     ASSERT_EQ(reshape->attrsCount(), 5);
     ASSERT_EQ(reshapeOp->inputSlots(), 1);
     ASSERT_EQ(reshapeOp->outputSlots(), 1);
-    //ASSERT_TRUE(biasOp->isExecutable());
+    //ASSERT_TRUE(reshapeOp->isExecutable());
 
 }

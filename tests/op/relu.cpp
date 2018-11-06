@@ -2,7 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-TEST(ops, ReLU)
+TEST(ops, relu)
 {
     mv::OpModel om("testModel");
     auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);

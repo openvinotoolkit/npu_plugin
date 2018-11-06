@@ -2,7 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-TEST(ops, maxpool)
+TEST(ops, maxPool)
 {
 
     mv::OpModel om("testModel");

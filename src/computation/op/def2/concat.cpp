@@ -18,26 +18,32 @@ namespace mv
                 
                 return {false, 0};
             }
-
-        std::size_t lastDim = inputs[0]->getShape()[2];
-        
-        for (std::size_t i = 1; i < inputs.size(); ++i)
-        {
-            auto inputShape = inputs[i]->getShape();
             
-            if (inputShape.ndims() != 3)
-            errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - must have a dimensionality of 3, "
-                " has " + std::to_string(inputShape.ndims());
+            std::size_t lastDim = inputs[0]->getShape()[2];
+            
+            for (std::size_t i = 1; i < inputs.size(); ++i)
+            {
+                auto inputShape = inputs[i]->getShape();
+            
+                if (inputShape.ndims() != 3)
+                {
+                    errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - must have a dimensionality of 3, "
+                        " has " + std::to_string(inputShape.ndims());
+                    
+                    return {false, 0};
+                }
                 
-            // TODO: based on concat axis, the other dimensions should match  
-            if (inputShape[0] != inputs[0]->getShape()[0] || inputShape[1] != inputs[0]->getShape()[1])
-            errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - inconsistent with the dimension of "
-                " the first input (input 0) ";
+                // TODO: based on concat axis, the other dimensions should match  
+                if (inputShape[0] != inputs[0]->getShape()[0] || inputShape[1] != inputs[0]->getShape()[1]) 
+                {
+                    errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - inconsistent with the dimension of "
+                        " the first input (input 0) ";
 
-             lastDim += inputShape[2];
-        }
+                    return {false, 0};
+                }
         
-        return {true, 0};
+                return {true, 0};
+            }
 
         };
                 
