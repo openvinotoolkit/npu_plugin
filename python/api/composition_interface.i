@@ -370,7 +370,7 @@ import_array();
     }
 
     mv::Data::TensorIterator dropOut(mv::CompositionalModel& o, mv::Data::TensorIterator input){
-        return o.dropOut(input);
+        return o.dropout(input);
     }
 
     mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope){
