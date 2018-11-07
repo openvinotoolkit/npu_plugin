@@ -179,10 +179,9 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
             {
                 // flowIt->getTensor()->setOrder(mv::OrderType::RowInterleaved);
                 for(unsigned i = 0; i < childIt->inputSlots(); i++)
-                {
-                    if(childIt->hasInputDef(i))
-                        childIt->getInputTensor(i)->setOrder(mv::Order("HCW"));
-                }
+
+                    childIt->getInputTensor(i)->setOrder(mv::Order("HCW"));
+
                 childIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));
                 sink->set<int>("NCE1_Compatible", 1);
             }

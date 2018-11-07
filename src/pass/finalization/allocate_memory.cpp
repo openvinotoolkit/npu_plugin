@@ -75,30 +75,27 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
     {
         for (unsigned x = 0; x < opIterator->inputSlots(); x++)
         {
-            if(opIterator->hasInputDef(x)){
-                auto inTensor = opIterator->getInputTensor(x);
-                if (!inTensor->isPopulated() &&
-                    (! inTensor->hasAttr("allocator")) &&
-                    (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
+            auto inTensor = opIterator->getInputTensor(x);
+            if (!inTensor->isPopulated() &&
+                (! inTensor->hasAttr("allocator")) &&
+                (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
+            {
+                auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
+                if (opIterator->hasAttr("NCE1_Compatible"))
                 {
-                    auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
-                    if (opIterator->hasAttr("NCE1_Compatible"))
+                    if (opIterator->get<int>("NCE1_Compatible"))
                     {
-                        if (opIterator->get<int>("NCE1_Compatible"))
+                        if (inTensor->hasAttr("NCE1_Paddings"))
                         {
-                            if (inTensor->hasAttr("NCE1_Paddings"))
-                            {
-                                std::cout << "Padding for hardware" << std::endl;
-                                auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-                                dm.padRight("ProgrammableInput", buf, paddings);
+                            std::cout << "Padding for hardware" << std::endl;
+                            auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                            dm.padRight("ProgrammableInput", buf, paddings);
 
-                            }
                         }
                     }
-
                 }
-            }
 
+            }
         }
         for (unsigned x = 0; x < opIterator->outputSlots(); x++)
         {
@@ -225,10 +222,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
             auto outputBuffer = dm.allocateTensor("IntermediateMemory", stageIt, outputTensor);
 
             // Allocate Inputs inside of that output
-            auto valid_inputs = 0;
-            for(unsigned i = 0; i != opIterator->inputSlots(); i++)
-                if(opIterator->hasInputDef(i))
-                    valid_inputs++;
+            unsigned valid_inputs = opIterator->inputSlots();
 
             //auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;

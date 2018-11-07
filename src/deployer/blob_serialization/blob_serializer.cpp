@@ -79,10 +79,14 @@ namespace mv
                     if(inOrOut == "0")
                     {
                         unsigned idx = stoi(index);
-                        if(it->hasInputDef(idx))
+                        try
+                        {
                             retrievedT = it->getInputTensor(idx);
-                        else
+                        }
+                        catch (...)
+                        {
                             retrievedT = dm.tensorEnd();
+                        }
                     }
                     else
                     {
@@ -341,10 +345,14 @@ namespace mv
                     if(inOrOut == "0")
                     {
                         unsigned idx = stoi(index);
-                        if(opIt->hasInputDef(idx))
+                        try
+                        {
                             retrievedT = opIt->getInputTensor(idx);
-                        else
+                        }
+                        catch(...)
+                        {
                             retrievedT = dm.tensorEnd();
+                        }
                     }
                     else
                     {
