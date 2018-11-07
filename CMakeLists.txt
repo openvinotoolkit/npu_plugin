@@ -113,7 +113,7 @@ file(GLOB pass
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
-    "src/deployer/blob_serialization/*.cpp"]]
+    "src/deployer/blob_serialization/*.cpp"
 )
 
 if(VALIDATION)

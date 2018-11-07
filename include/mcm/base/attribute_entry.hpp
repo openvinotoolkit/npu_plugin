@@ -58,6 +58,7 @@ namespace mv
             AttributeEntry& setToJSONFunc(const std::function<mv::json::Value(const Attribute&)>& f);
             AttributeEntry& setFromJSONFunc(const std::function<Attribute(const mv::json::Value&)>& f);
             AttributeEntry& setToStringFunc(const std::function<std::string(const Attribute&)>& f);
+            AttributeEntry& setToBinaryFunc(const std::function<std::vector<uint8_t>(const Attribute&)>& f);
             AttributeEntry& setToLongStringFunc(const std::function<std::string(const Attribute&)>& f);
             AttributeEntry& setTypeTrait(const std::string& trait);
 

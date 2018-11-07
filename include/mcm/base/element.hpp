@@ -94,7 +94,7 @@ namespace mv
                 if (!it.second)
                     throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
 
-                log(Logger::MessageType::MessageDebug, "Attribute '" + name + "' (" + it.first->second.getTypeName() +
+                log(Logger::MessageType::Debug, "Attribute '" + name + "' (" + it.first->second.getTypeName() +
                     ") set to " + it.first->second.toString());
             }
             else
@@ -103,7 +103,7 @@ namespace mv
                     throw AttributeError(*this, "Attempt of modification of a const attribute " + name);
                 attrs_[name] = value;
 
-                log(Logger::MessageType::MessageDebug, "Attribute '" + name + "' (" + attrs_[name].getTypeName() +
+                log(Logger::MessageType::Debug, "Attribute '" + name + "' (" + attrs_[name].getTypeName() +
                     ") modified to " + attrs_[name].toString());
             }
         }

@@ -298,7 +298,7 @@ namespace mv
         std::vector<uint8_t> toBinary() const override
         {
             if (!ptr_)
-                throw AttributeError(*this, "Uninitialized (null) attribute dereference called for to-string conversion");
+                throw AttributeError(*this, "Uninitialized (null) attribute dereference called for to-binary conversion");
             return attr::AttributeRegistry::getToBinaryFunc(ptr_->getTypeID())(*this);
         }
 
