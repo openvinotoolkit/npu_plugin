@@ -710,7 +710,7 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
 
     char* dataBuffer = cm2.getBinaryBuffer()->getDataPointer() ;
     char magicNumber = dataBuffer[35];
-    EXPECT_EQ (0x22, magicNumber) << "ERROR: wring data read from runtimeBinary data buffer ";
+    EXPECT_EQ (0x22, magicNumber) << "ERROR: wrong data read from runtimeBinary data buffer ";
 
     // compare blob file contents to RAM blob
     std::string RAMBlobPath = mv::utils::projectRootPath() + std::string("/build/tests/final_RAM1.blob");
