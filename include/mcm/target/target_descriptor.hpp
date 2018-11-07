@@ -43,7 +43,7 @@ namespace mv
 
         Target target_;
         DType globalDType_;
-        std::set<OpType> ops_;
+        std::set<std::string> ops_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
 
         std::vector<std::string> adaptationPasses_;
