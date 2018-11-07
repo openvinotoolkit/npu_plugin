@@ -171,8 +171,8 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
             if (sourceIsSw)
             {
                 // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
-                childIt->getInputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
-                childIt->getOutputTensor(0)->setOrder(mv::OrderType::RowMajorPlanar);
+                childIt->getInputTensor(0)->setOrder(mv::Order(mv::Order::getRowMajorPlanarID(childIt->getInputTensor(0)->getShape().ndims())));
+                childIt->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getRowMajorPlanarID(childIt->getOutputTensor(0)->getShape().ndims())));
             }
             // Hardware ops
             else if (sourceIsHw)
