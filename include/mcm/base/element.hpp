@@ -55,20 +55,17 @@ namespace mv
         void set(const std::string& name, const Attribute& attr);
         void erase(const std::string& name);
 
-        /*template <class AttrType>
+/*template <class AttrType>
         void set(const std::string& name, AttrType&& value)
         {
-
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw AttributeError("Unable to define the attribute '" + name + "' of an undefined"
                     " type " + typeid(AttrType).name());
-
             Attribute newAttr = value;
             std::string errMsg;
             if (!attr::AttributeRegistry::checkValue<AttrType>(newAttr, errMsg))
                 throw AttributeError("Unable to define the attribute '" + name + "' of type "
                     + newAttr.getTypeName() + " with an invalid value - " + errMsg);
-
             if (!hasAttr(name))
                 attrs_.emplace(name, std::move(value));
             else

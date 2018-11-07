@@ -35,8 +35,9 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 {
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
+
     auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("HWC"));
-    auto conv = model.conv2D(input, weights, stride, padding);
+    auto conv = model.conv(input, weights, stride, padding);
 
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     std::vector<double> bnScaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);

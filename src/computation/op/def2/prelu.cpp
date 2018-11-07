@@ -11,10 +11,17 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            if (inputs[0]->getShape() != inputs[1]->getShape())
+            if (inputs[1]->getShape().ndims() != 1) 
             {
-                errMsg = "Does not match the data0 shape " + inputs[1]->getShape().toString();
-                return {false, 1};
+                errMsg = "Incorrect shape " + inputs[1]->getShape().toString() + " of slope (must be a vector)";
+                return {false, 0};
+            }
+            
+            if (inputs[0]->getShape()[-1] != inputs[1]->getShape()[0]) 
+            {
+                errMsg = "Mismatch in channels dimensions between input (" + std::to_string(inputs[0]->getShape()[-1])
+                    + ") and slope (" + std::to_string(inputs[0]->getShape()[0]) + ")";
+                return {false, 0};
             }
 
             return {true, 0};
@@ -29,8 +36,8 @@ namespace mv
 
         };
     
-        MV_REGISTER_OP(Add)
-        .setInputs({"data0", "data1"})
+        MV_REGISTER_OP(Prelu)
+        .setInputs({"data", "slope"})
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)

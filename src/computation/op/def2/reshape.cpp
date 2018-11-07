@@ -8,12 +8,14 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            if (inputs[0]->getShape() != inputs[1]->getShape())
+            
+            if (inputs[0]->getShape().totalSize() != args.at("shape").get<mv::Shape>().totalSize())
             {
-                errMsg = "Does not match the data0 shape " + inputs[1]->getShape().toString();
+                errMsg = "Invalid conversino of the original shape " + inputs[0]->getShape().toString() + " and the output shape "
+                + args.at("shape").get<mv::Shape>().toString() + " - must have equal total number of elements";
                 return {false, 1};
             }
 
@@ -22,16 +24,15 @@ namespace mv
                 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
-
+            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), inputs[0]->getDType(), inputs[0]->getOrder()));
         };
     
-        MV_REGISTER_OP(Add)
-        .setInputs({"data0", "data1"})
+        MV_REGISTER_OP(Reshape)
+        .setInputs({"data0"})
         .setOutputs({"output"})
+        .setArg<mv::Shape>("shape")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

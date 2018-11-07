@@ -11,6 +11,7 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+
             if (inputs[0]->getShape() != inputs[1]->getShape())
             {
                 errMsg = "Does not match the data0 shape " + inputs[1]->getShape().toString();
@@ -18,6 +19,7 @@ namespace mv
             }
 
             return {true, 0};
+
         };
                 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
@@ -29,7 +31,7 @@ namespace mv
 
         };
     
-        MV_REGISTER_OP(Add)
+        MV_REGISTER_OP(Divide)
         .setInputs({"data0", "data1"})
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)

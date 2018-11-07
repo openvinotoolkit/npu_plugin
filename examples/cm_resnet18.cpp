@@ -28,22 +28,20 @@
  */
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto conv = model.conv(input, weights, stride, padding);
 
-	std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NCHW"));
-	auto conv = model.conv2D(input, weights, stride, padding);
-
-	// For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
-	std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-	std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-	std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-	std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-    auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-    auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-    auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-	return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
-
+    // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
+    std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    return model.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
 /**
@@ -88,7 +86,7 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 int main()
 {
     mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
-    mv::Logger::logFilter({std::regex("OpModel")}, true);
+    //mv::Logger::logFilter({std::regex("OpModel")}, true);
 
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet18");
@@ -117,8 +115,9 @@ int main()
     cm.output(softmax);
 
     // Load target descriptor for the selected target to the compilation unit
-    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480)){
         exit(1);
+    }
     
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
@@ -138,7 +137,7 @@ int main()
     unit.run();
 
     system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
-    //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
-    //system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
+    system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
+    system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
     return 0;
 }

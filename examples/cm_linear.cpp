@@ -1,6 +1,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
 int main()
