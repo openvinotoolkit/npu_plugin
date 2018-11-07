@@ -18,7 +18,7 @@ TEST(ops, maxPool2D)
     
 
     ASSERT_EQ(pool->getShape(), mv::Shape({4, 4, 3}));
-    ASSERT_EQ(poolOp->getOpType(), "Maxpool2D");
+    ASSERT_EQ(poolOp->getOpType(), "MaxPool");
     //ASSERT_EQ(poolOp->attrsCount(), 9);
     auto s0 = poolOp->get<std::array<unsigned short, 2>>("stride")[0];
     auto s1 = poolOp->get<std::array<unsigned short, 2>>("stride")[1];
