@@ -89,7 +89,7 @@ int main()
 {
 
     mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
-    mv::Logger::logFilter({std::regex("OpModel")}, true);
+    //mv::Logger::logFilter({std::regex("OpModel")}, true);
 
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet18");
@@ -118,8 +118,9 @@ int main()
     cm.output(softmax);
 
     // Load target descriptor for the selected target to the compilation unit
-    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480)){
         exit(1);
+    }
     
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
@@ -137,9 +138,9 @@ int main()
     // Run all passes
     unit.run();
 
-    //system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
-    //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
-    //system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
+    system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+    system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
+    system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
     return 0;
 
 }

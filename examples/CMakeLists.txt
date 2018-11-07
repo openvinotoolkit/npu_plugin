@@ -11,13 +11,11 @@ target_link_libraries(cm_linear cm)
 add_executable(cm_two_branch cm_two_branch.cpp)
 target_link_libraries(cm_two_branch cm)
 
-
+add_executable(cm_allocate_resources cm_allocate_resources.cpp)
+target_link_libraries(cm_allocate_resources cm)]]
 
 add_executable(cm_resnet50 cm_resnet50.cpp)
 target_link_libraries(cm_resnet50 cm)
-
-add_executable(cm_allocate_resources cm_allocate_resources.cpp)
-target_link_libraries(cm_allocate_resources cm)]]
 
 add_executable(cm_resnet18 cm_resnet18.cpp)
 target_link_libraries(cm_resnet18 cm)
