@@ -215,8 +215,6 @@ namespace mv
 
             void write_relocation_section(mv::ControlModel& cm);
 
-            int get_blob_enum(mv::OpType o, bool NCE1=false);
-
     };   // end class blob_buffer
 
 }
