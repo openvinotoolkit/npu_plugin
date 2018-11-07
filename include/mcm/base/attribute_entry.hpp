@@ -69,6 +69,7 @@ namespace mv
             const std::function<mv::json::Value(const Attribute&)>& getToJSONFunc();
             const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc();
             const std::function<std::string(const Attribute&)>& getToStringFunc();
+            const std::function<std::vector<uint8_t>(const Attribute&)>& getToBinaryFunc();
             const std::function<std::string(const Attribute&)>& getToLongStringFunc();
             bool hasTypeTrait(const std::string& trait);
             bool hasCheckFunc() const;

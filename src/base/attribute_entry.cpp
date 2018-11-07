@@ -84,6 +84,19 @@ const std::function<mv::json::Value(const mv::Attribute&)>& mv::attr::AttributeE
 
 }
 
+const std::function<std::vector<uint8_t>(const mv::Attribute&)>& mv::attr::AttributeEntry::getToBinaryFunc()
+{
+    if (!toBinaryFunc_)
+        throw MasterError(*this, "Undefined to-binary conversion function for the argument type " + typeName_);
+
+    auto pFunc = std::dynamic_pointer_cast<ConcreteFunc<std::vector<uint8_t>, const Attribute&> >(toBinaryFunc_);
+    if (pFunc)
+        return pFunc->f;
+
+    throw AttributeError(*this, "Invalid types specified for to-binary conversion function for type " + typeName_);
+}
+
+
 mv::attr::AttributeEntry& mv::attr::AttributeEntry::setFromJSONFunc(const std::function<Attribute(const mv::json::Value&)>& f)
 {
 
