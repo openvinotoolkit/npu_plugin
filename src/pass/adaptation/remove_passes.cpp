@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
 static void removeDropOut(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
