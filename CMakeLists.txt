@@ -64,6 +64,8 @@ file(GLOB base
     "src/base/element.cpp"
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
+    "src/tensor/order/*.cpp"
+    "src/tensor/order/order_def/*.cpp"
     "src/tensor/math.cpp"
     "src/tensor/dtype.cpp"
     "src/computation/op/op_entry.cpp"
@@ -72,8 +74,6 @@ file(GLOB base
 )
 
 file (GLOB model
-    "src/tensor/order/*.cpp"
-    "src/tensor/order/order_def/*.cpp"
     "src/computation/model/computation_model.cpp"
     "src/computation/model/base_op_model.cpp"
     "src/computation/model/op_model.cpp"
@@ -151,6 +151,11 @@ if(VALIDATION)
     #add_subdirectory(recordings)  
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    add_library(corebase SHARED ${base} ${logger})
+    add_library(model SHARED ${model})
+    target_link_libraries(cm corebase metamodel)
+    add_dependencies(cm generate-comp-api)
+    add_dependencies(model generate-comp-api)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
