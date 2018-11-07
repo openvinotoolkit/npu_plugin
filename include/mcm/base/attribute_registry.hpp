@@ -46,7 +46,47 @@ namespace mv
             static bool hasTypeTrait(std::type_index typeID, const std::string& trait);
             static bool checkInstanceTrait(const std::string& trait);
 
+            template <class AttrType>
+            static bool checkType()
+            {
+                return checkType(typeid(AttrType));
+            }
+
+            template <class AttrType>
+            static std::string getTypeName()
+            {
+                return getTypeName(typeid(AttrType));
+            }
+
+            template <class AttrType>
+            AttributeEntry& enter()
+            {
+                return Registry<std::type_index, AttributeEntry>::enter(typeid(AttrType));
+            }
+
+            // Enter or replace if the key is already present in the registry
+            template <class AttrType>
+            AttributeEntry& enterReplace()
+            {
+                return Registry<std::type_index, AttributeEntry>::enterReplace(typeid(AttrType));
+            }
+
+            template <class AttrType>
+            static bool checkValue(const Attribute& val, std::string& msg)
+            {
+                return checkValue(typeid(AttrType), val, msg);
+            }
+
+            template <class AttrType>
+            static bool hasTypeTrait(const std::string& trait)
+            {
+               return hasTypeTrait(typeid(AttrType), trait);
+            }
+
+
         };
+
+
 
         #define STRV(...) #__VA_ARGS__
         #define COMMA ,
