@@ -43,19 +43,19 @@ namespace mv
         {
 
             mv::Element e("serial_viewer");
-            if (it->getOpType() == mv::OpType::Input){
+            if (it->getOpType() == "input"){
                 blob_stats.stage_section_size += 4*5;
                 blob_stats.stage_count++;
                 continue;
-            }else if(it->getOpType() == mv::OpType::Output
-                || it->getOpType() == mv::OpType::Constant
-                || it->getOpType() == mv::OpType::Concat)
+            }else if(it->getOpType() == "output"
+                || it->getOpType() == "constant"
+                || it->getOpType() == "concat")
             {
                 continue;
             }else if (it->hasAttr("NCE1_Compatible") && it->get<int>("NCE1_Compatible")){
-                e = td.getSerialDefinition(it->getOpType().toString(), "NCE1");
+                e = td.getSerialDefinition(it->getOpType(), "NCE1");
             }else{
-                e = td.getSerialDefinition(it->getOpType().toString(), "MvTensor");
+                e = td.getSerialDefinition(it->getOpType(), "MvTensor");
             }
             std::vector<std::string> serial_instructions = e.get<std::vector<std::string>>("serial_view");
 
@@ -63,25 +63,31 @@ namespace mv
             for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s){
                 std::string instruction = s->substr(0, s->find(':'));
                 std::string name = s->substr(s->find(':')+1, s->size());
-                if(instruction == "Attr"){
+                if(instruction == "Attr")
+                {
                     auto attr = it->get(name);
                     auto b = attr.toBinary();
                     for( uint8_t byte : b)
                         blob_stats.stage_section_size += 1;
-                }else if(instruction == "Tensor"){
+                }
+                else if(instruction == "Tensor")
+                {
                     blob_stats.stage_section_size += 4*10;
 
                     // Only want to insert entries into reloc table that exist
                     std::string inOrOut = name.substr(0, name.find(':'));
                     std::string index = name.substr(name.find(':')+1, name.size());
                     mv::Data::TensorIterator retrievedT;
-                    if(inOrOut == "0"){
+                    if(inOrOut == "0")
+                    {
                         unsigned idx = stoi(index);
                         if(it->hasInputDef(idx))
                             retrievedT = it->getInputTensor(idx);
                         else
                             retrievedT = dm.tensorEnd();
-                    }else{
+                    }
+                    else
+                    {
                         unsigned idx = stoi(index);
                         retrievedT = it->getOutputTensor(idx);
                     }
@@ -260,10 +266,11 @@ namespace mv
 
         for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
         {
-            std::cout << "Writing Serial Fields for Op{" << opIt->getOpType().toString() << "}" <<std::endl;
+            std::cout << "Writing Serial Fields for Op{" << opIt->getOpType() << "}" <<std::endl;
 
             mv::Element e("serial_viewer");
-            if (opIt->getOpType() == mv::OpType::Input){
+            if (opIt->getOpType() == "input")
+            {
                 AddBytes(4, 0x20);
                 AddBytes(4, 5);
                 AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
@@ -272,70 +279,77 @@ namespace mv
                 next_offset += 4*5;
 
                 continue;
-            }else if(opIt->getOpType() == mv::OpType::Output
-                || opIt->getOpType() == mv::OpType::Constant
-                || opIt->getOpType() == mv::OpType::Concat)
-            {
-                continue;
-            }else if (opIt->hasAttr("NCE1_Compatible") && opIt->get<int>("NCE1_Compatible")){
-                e = td.getSerialDefinition(opIt->getOpType().toString(), "NCE1");
-            }else{
-                e = td.getSerialDefinition(opIt->getOpType().toString(), "MvTensor");
             }
+            else if(opIt->getOpType() == "output"
+                || opIt->getOpType() == "constant"
+                || opIt->getOpType() == "concat")
+                continue;
+            else if (opIt->hasAttr("NCE1_Compatible") && opIt->get<int>("NCE1_Compatible"))
+                e = td.getSerialDefinition(opIt->getOpType(), "NCE1");
+            else
+                e = td.getSerialDefinition(opIt->getOpType(), "MvTensor");
 
             std::vector<std::string> serial_instructions = e.get<std::vector<std::string>>("serial_view");
 
             // Calculate Offset to Next Pointer
-            for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s){
+            for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s)
+            {
                 std::string instruction = s->substr(0, s->find(':'));
                 std::string name = s->substr(s->find(':')+1, s->size());
-                if(instruction == "Attr"){
+                if(instruction == "Attr")
+                {
                     auto attr = opIt->get(name);
                     auto b = attr.toBinary();
-                    for( uint8_t byte : b)
+                    for(uint8_t byte : b)
                         next_offset += 1;
-                }else if(instruction == "Tensor"){
-                    next_offset += 4*10;
                 }
+                else if(instruction == "Tensor")
+                    next_offset += 4*10;
+
             }
             next_offset += 3*4 + 2*4;   // First few fields, Post/Pre Ops
 
 
             unsigned offset = next_offset;
 
-            if(opIt->getOutputTensor(0) == om.getOutput()->getInputTensor(0)){
-                // Final Layer. Unreliable Method to obtain...
-                offset = 0;
-            }else{
+            if(opIt->getOutputTensor(0) == om.getOutput()->getInputTensor(0))
+                offset = 0;// Final Layer. Unreliable Method to obtain...
+            else
                 offset = next_offset;
-            }
 
             // Some Construction and other Fields
             AddBytes(4, offset);
             AddBytes(4, opIt->get<unsigned>("SerialID"));   // TODO: Enum registers
             AddBytes(4, BLOB_DEFAULT_IMPLEMENTATION);
 
-            for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s){
+            for(auto s = serial_instructions.begin(); s != serial_instructions.end(); ++s)
+            {
                 std::string instruction = s->substr(0, s->find(':'));
                 std::string name = s->substr(s->find(':')+1, s->size());
-                if(instruction == "Attr"){
+                if(instruction == "Attr")
+                {
                     auto attr = opIt->get(name);
                     auto b = attr.toBinary();
                     for( uint8_t byte : b)
                         AddBytes(1, byte);
 
-                }else if(instruction == "Tensor"){
+                }
+                else if(instruction == "Tensor")
+                {
                     std::string inOrOut = name.substr(0, name.find(':'));
                     std::string index = name.substr(name.find(':')+1, name.size());
                     mv::Data::TensorIterator retrievedT;
                     std::cout << inOrOut << ":" << index << std::endl;
-                    if(inOrOut == "0"){
+                    if(inOrOut == "0")
+                    {
                         unsigned idx = stoi(index);
                         if(opIt->hasInputDef(idx))
                             retrievedT = opIt->getInputTensor(idx);
                         else
                             retrievedT = dm.tensorEnd();
-                    }else{
+                    }
+                    else
+                    {
                         unsigned idx = stoi(index);
                         retrievedT = opIt->getOutputTensor(idx);
                     }
@@ -346,7 +360,9 @@ namespace mv
 
                     Blob_Tensor bt = Blob_Tensor(dm, cm, this->reloc_table, retrievedT);
                     bt.write(this);
-                }else{
+                }
+                else
+                {
                     // throw mv::AttributeError(instruction, "Invalid Serialization Instruction");
                 }
             }
@@ -383,56 +399,56 @@ namespace mv
 
         if (dm.iterable("ConstantMemory", stg))
         {
-        for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
-        {
-            bool tight = true;
-            for ( auto s : bit->getStrides() )
-                if (s != 0)
-                    tight = false;
+            for(auto bit = dm.bufferBegin("ConstantMemory", stg); bit != dm.bufferEnd("ConstantMemory", stg); ++bit)
+            {
+                bool tight = true;
+                for ( auto s : bit->getStrides() )
+                    if (s != 0)
+                        tight = false;
 
-            // Push tensor's data
-            if (tight)
-            {
-                //auto data = bit->getData()->getData();
-                for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
+                // Push tensor's data
+                if (tight)
                 {
-                    uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
-                    AddBytes(2, fp16_val);
-                }
-            }
-            else
-            {
-                uint16_t fp16_val;
-                for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
-                {
-                    // TODO: lhs stride
-                    for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
+                    //auto data = bit->getData()->getData();
+                    for (std::size_t idx = 0; idx != bit->getData()->getShape().totalSize(); idx++)
                     {
-                        //std::cout << "x" ;
+                        uint16_t fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
+                        AddBytes(2, fp16_val);
+                    }
+                }
+                else
+                {
+                    uint16_t fp16_val;
+                    for (std::size_t block_idx = 0; block_idx != bit->getBlockNum(); block_idx++)
+                    {
+                        // TODO: lhs stride
+                        for (std::size_t elem_idx = 0; elem_idx != bit->getStrides()[block_idx] / 2; elem_idx++)    // TODO: not only FP16
+                        {
+                            //std::cout << "x" ;
+                            fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
+                            AddBytes(2, fp16_val);
+                        }
+
+                        //auto data = bit->getData()->getData();
+                        for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
+                        {
+                            //std::cout << "o" ;
+                            uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
+                            fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
+                            AddBytes(2, fp16_val);
+                        }
+                        //std::cout << std::endl;
+                    }
+                    for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
+                    {
                         fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
                         AddBytes(2, fp16_val);
                     }
+               }
 
-                    //auto data = bit->getData()->getData();
-                    for (std::size_t elem_idx = 0; elem_idx != (bit->getBlockSize() / 2); elem_idx++)    // TODO: not only FP16
-                    {
-                        //std::cout << "o" ;
-                        uint16_t idx = ((block_idx*bit->getBlockSize())/2) + elem_idx;
-                        fp16_val = cvtr.fp32_to_fp16(static_cast<float>(bit->getData()->at(idx)));  // Convert to fp16.
-                        AddBytes(2, fp16_val);
-                    }
-                    //std::cout << std::endl;
-                }
-                for (std::size_t elem_idx = 0; elem_idx < bit->getStrides()[bit->getBlockNum()] / 2; elem_idx++)    // TODO: not only FP16
-                {
-                    fp16_val = cvtr.fp32_to_fp16(static_cast<float>(0));  // Convert to fp16.
-                    AddBytes(2, fp16_val);
-                }
-           }
-
-            // Push alignment
-            for (std::size_t i = 0; i < bit->getPostAlign(); ++i)
-                AddBytes(1, 0);
+                // Push alignment
+                for (std::size_t i = 0; i < bit->getPostAlign(); ++i)
+                    AddBytes(1, 0);
             }
         }
     }
