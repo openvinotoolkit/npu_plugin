@@ -31,7 +31,7 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
     auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    auto conv = model.conv2D(input, weights, stride, padding);
+    auto conv = model.conv(input, weights, stride, padding);
 
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
@@ -42,7 +42,7 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
     auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
+    return model.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 
 }
 

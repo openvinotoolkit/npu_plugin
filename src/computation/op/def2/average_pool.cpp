@@ -54,7 +54,7 @@ namespace mv
 
         };
     
-        MV_REGISTER_OP(Averagepool2D)
+        MV_REGISTER_OP(Avgpool2D)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<std::array<unsigned short, 2>>("kSize")
