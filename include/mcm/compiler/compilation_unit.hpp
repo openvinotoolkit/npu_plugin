@@ -4,10 +4,10 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include "meta/include/mcm/recorded_compositional_model.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
-#include "include/mcm/utils/compositional_model_recorder.hpp"
 
 namespace mv
 {
@@ -22,7 +22,7 @@ namespace mv
         static Logger& logger_;
 
         OpModel* model_;
-        //CompositionalModelRecorder* recordedModel_;
+        RecordedCompositionalModel* recordedModel_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
         json::Object compilationDescriptor_;
@@ -40,7 +40,7 @@ namespace mv
         PassManager& passManager();
         json::Object& compilationDescriptor();
         OpModel& model();
-        //CompositionalModel& recordedModel();
+        CompositionalModel& recordedModel();
 
         void loadModelFromJson(const std::string& path);
         bool initialize();
