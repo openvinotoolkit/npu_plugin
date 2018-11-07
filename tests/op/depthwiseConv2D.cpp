@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
 TEST(ops, depthconv2D)

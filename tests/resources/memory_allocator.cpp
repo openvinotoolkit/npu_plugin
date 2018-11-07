@@ -3,7 +3,7 @@
 #include "mcm/computation/resource/memory_allocator.hpp"
 #include "mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
-#include "mcm/tensor/order.hpp"
+#include "mcm/tensor/order/order.hpp"
 #include "mcm/utils/data_generator.hpp"
 #include "gtest/gtest.h"
 
