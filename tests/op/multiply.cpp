@@ -22,6 +22,6 @@ TEST(ops, multiply)
     ASSERT_EQ(multiplyOp->attrsCount(), 2);
     ASSERT_EQ(multiplyOp->inputSlots(), 2);
     ASSERT_EQ(multiplyOp->outputSlots(), 1);
-    //ASSERT_TRUE(subtractOp->isExecutable());
+    //ASSERT_TRUE(multiplyOp->isExecutable());
 
 }

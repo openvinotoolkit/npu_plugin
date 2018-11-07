@@ -21,6 +21,6 @@ TEST(ops, conversion)
     ASSERT_EQ(conversionOp->attrsCount(), 3);
     ASSERT_EQ(conversionOp->inputSlots(), 1);
     ASSERT_EQ(conversionOp->outputSlots(), 1);
-    //ASSERT_TRUE(subtractOp->isExecutable());
+    //ASSERT_TRUE(conversionOp->isExecutable());
 
 }
