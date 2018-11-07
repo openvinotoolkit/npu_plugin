@@ -135,7 +135,7 @@ bool write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
 
     //This check has a sense only for cascades of poolings since HW convolutions still have to be optimized
     auto parent_op = om.getSourceOp(input_tensor);
-    if(parent_op->hasAttr("NCE1_Optimized") && (parent_op->getOpType() == mv::OpType::AvgPool2D || parent_op->getOpType() == mv::OpType::MaxPool2D))
+    if(parent_op->hasAttr("NCE1_Optimized") && (parent_op->getOpType() == "AvgPool" || parent_op->getOpType() == "MaxPool"))
         return true;
     else
         return false;
@@ -161,7 +161,7 @@ void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == mv::OpType::MaxPool2D || opIterator->getOpType() == mv::OpType::AvgPool2D)
+        if (opIterator->getOpType() == "MaxPool" || opIterator->getOpType() == "AvgPool")
         {
 
             if(!opIterator->hasAttr("NCE1_Compatible"))

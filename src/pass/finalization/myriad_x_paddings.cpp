@@ -36,7 +36,7 @@ void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
 
-        bool isConv = operationIt->getOpType() == mv::OpType::Conv2D;
+        bool isConv = operationIt->getOpType() == "Conv";
 
         operationIt->getInputTensor(0)->setOrder(mv::Order("HCW"));
         operationIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));

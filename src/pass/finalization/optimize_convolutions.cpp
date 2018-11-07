@@ -150,7 +150,7 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 
     //This check has a sense only for cascades of convolutions since HW poolings have already been optimized
     auto parent_op = om.getSourceOp(input_tensor);
-    if(parent_op->hasAttr("NCE1_Optimized") && parent_op->getOpType() == mv::OpType::Conv2D)
+    if(parent_op->hasAttr("NCE1_Optimized") && parent_op->getOpType() == "Conv")
         return true;
     else
         return false;

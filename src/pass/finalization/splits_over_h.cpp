@@ -42,7 +42,7 @@ unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator operationIt)
     //Assuming split over H is always possible from this point on
     unsigned max_output_channels_performed = (unsigned)operationIt->get("NCE1_MaxOutputChannelsPerformed").get<std::size_t>();
     std::cout << "Max output channels performed " << max_output_channels_performed << std::endl;
-    if(operationIt->getOpType() == mv::OpType::Conv2D)
+    if(operationIt->getOpType() == "Conv")
         return nce.computeMaxOutputLinesConvolution(output_width, max_output_channels_performed);
     else //Pooling
     {

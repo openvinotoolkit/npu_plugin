@@ -27,12 +27,11 @@ void removeDropOut(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json
     using namespace mv;
 
     OpModel om(model);
-    DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::DropOut)
+        if (opIt->getOpType() == "Dropout")
         {
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
 
