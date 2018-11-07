@@ -16,7 +16,6 @@ namespace mv
             {
                 errMsg = "Invalid conversino of the original shape " + inputs[0]->getShape().toString() + " and the output shape "
                 + args.at("shape").get<mv::Shape>().toString() + " - must have equal total number of elements";
-
                 return {false, 1};
             }
 

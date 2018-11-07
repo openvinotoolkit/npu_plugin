@@ -16,7 +16,6 @@ namespace mv
             {
                 errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 2, "
                     " has " + std::to_string(inputs[0]->getShape().ndims());
-
                 return {false, 1};
             }
 
@@ -24,7 +23,6 @@ namespace mv
             {
                 errMsg = "Invalid shape of the parameters tensor (input 1) - must have a dimensionality of 2, "
                     " has " + std::to_string(inputs[1]->getShape().ndims());
-
                 return {false, 1};
             }
 
@@ -32,7 +30,6 @@ namespace mv
             {
                 errMsg =  "Mismatch between the second dimensinon of the input tensor (input 0) " + std::to_string(inputs[0]->getShape()[1]) +
                 " and the first dimension of the parameters tensor (input 1) " + std::to_string(inputs[1]->getShape()[0]);
-
                 return {false, 1};
             }
 

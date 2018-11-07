@@ -29,7 +29,6 @@ namespace mv
                 {
                     errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - must have a dimensionality of 3, "
                         " has " + std::to_string(inputShape.ndims());
-                    
                     return {false, 0};
                 }
                 

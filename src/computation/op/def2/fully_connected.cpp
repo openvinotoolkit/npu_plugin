@@ -11,11 +11,11 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+
             if (inputs[1]->getShape().ndims() != 2)
             {
                 errMsg = "Invalid shape of the weights tensor (input 1) - must have a dimensionality of 2, "
                     " has " + std::to_string(inputs[1]->getShape().ndims());
-
                 return {false, 0};
             }
 
@@ -23,7 +23,6 @@ namespace mv
             {
                 errMsg = "Inconsistent total size of input tensor (input 0) " + std::to_string(inputs[0]->getShape().totalSize()) + 
                     " and 1st dimension of weights tensor (input 1) " + std::to_string(inputs[1]->getShape()[0]);
-                    
                 return {false, 0};
             }
 
@@ -35,7 +34,9 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
+
             outputs.push_back(mv::Tensor(":0", {1, inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder()));
+            
         };
     
         MV_REGISTER_OP(FullyConnected)
