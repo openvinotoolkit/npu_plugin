@@ -6,11 +6,11 @@ TEST(ops, multiply)
 {
 
     mv::OpModel om("testModel");
-    auto input0 = om.input({256, 512}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input0 = om.input({256, 512}, mv::DTypeType::Float16, mv::Order("HW"));
     std::vector<double> input1Data = mv::utils::generateSequence<double>(256u * 512u);
     std::vector<double> input2Data = mv::utils::generateSequence<double>(256u * 512u);
-    auto input1 = om.constant(input1Data, {256, 512}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
-    auto input2 = om.constant(input2Data, {256, 512}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input1 = om.constant(input1Data, {256, 512}, mv::DTypeType::Float16, mv::Order("HW"));
+    auto input2 = om.constant(input2Data, {256, 512}, mv::DTypeType::Float16, mv::Order("HW"));
 
     auto multiply = om.multiply(input1, input2);
     auto multiplyOp = om.getSourceOp(multiply);
