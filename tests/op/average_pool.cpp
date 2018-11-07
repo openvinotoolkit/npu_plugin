@@ -16,7 +16,6 @@ TEST(ops, averagePool2D)
     auto output = om.output(pool);
 
     
-
     ASSERT_EQ(pool->getShape(), mv::Shape({4, 4, 3}));
     ASSERT_EQ(poolOp->getOpType(), "AveragePool");
     //ASSERT_EQ(convOp->attrsCount(), 9);
