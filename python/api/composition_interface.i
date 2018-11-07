@@ -204,7 +204,7 @@ import_array();
     }
     mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs){
         /// Add a Concat Layer to the OpModel and return the relevant iterator.
-        return o.concat(*inputs);
+        return o.concat((*inputs)[0], (*inputs)[1]);
     }
 
     mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
@@ -316,7 +316,7 @@ import_array();
     }
 
     mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights){
-        return o.matMul(input, weights);
+        return o.matmul(input, weights);
     }
 
     mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding){

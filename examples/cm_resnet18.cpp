@@ -98,7 +98,7 @@ int main()
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
-    auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto res2a = residualConvBlock(cm, pool1, 64, {1, 1});
     auto res2b = residualBlock(cm, res2a);
     auto res3a = residualConvBlock(cm, res2b, 128, {2, 2});
@@ -107,7 +107,7 @@ int main()
     auto res4b = residualBlock(cm, res4a);
     auto res5a = residualConvBlock(cm, res4b, 512, {2, 2});
     auto res5b = residualBlock(cm, res5a);
-    auto pool5 = cm.avgpool2D(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
+    auto pool5 = cm.averagePool(res5b, {7, 7}, {1, 1,}, {0, 0, 0, 0});
     std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
     auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::Order("HW"));
     auto fc1000 = cm.fullyConnected(pool5, weights);

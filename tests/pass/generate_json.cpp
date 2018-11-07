@@ -21,7 +21,7 @@ TEST(generate_json, case1)
     auto input = om.input(mv::Shape(64, 64, 16), mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, mv::Shape(3, 3, 16, 32), mv::DTypeType::Float16, mv::Order("CHW"), "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> scalesData = mv::utils::generateSequence<double>(32);
     auto scales = om.constant(scalesData, mv::Shape(32), mv::DTypeType::Float16, mv::Order("CHW"), "biases");

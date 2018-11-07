@@ -14,7 +14,7 @@ TEST(fuse_scale, case_conv)
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> scalesData = mv::utils::generateSequence<double>(32);
     auto scales = om.constant(scalesData, {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), "biases");
@@ -55,7 +55,7 @@ TEST(fuse_scale, case_conv_bias_fused)
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> biasesData = mv::utils::generateSequence<double>(32);
     auto biases = om.constant(biasesData, {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), "biases");
@@ -92,7 +92,7 @@ TEST(fuse_scale, case_conv_bias_fused)
     for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
         ASSERT_FLOAT_EQ(convOp->getInputTensor(1)->getData()[i], newWeigths.getData()[i]);
 
-    auto biasVector = dm.findTensor(convOp->get<std::string>("bias"))->getData();
+    auto biasVector = dm.getTensor(convOp->get<std::string>("bias"))->getData();
     for (unsigned i = 0; i < biasVector.size(); ++i)
         ASSERT_FLOAT_EQ(biasVector[i], newBiases.getData()[i]);
 

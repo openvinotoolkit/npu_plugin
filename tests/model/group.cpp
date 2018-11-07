@@ -13,7 +13,7 @@ TEST(group, op_member_append)
     auto weightsOp = om.getSourceOp(weights);
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
     auto convOp = om.getSourceOp(conv);
-    auto pool = om.maxpool2D(input, {1, 1}, {1, 1}, {0, 0, 0, 0});
+    auto pool = om.maxPool(input, {1, 1}, {1, 1}, {0, 0, 0, 0});
     auto poolOp = om.getSourceOp(pool);
     om.output(conv);
     auto outputOp = convOp.leftmostChild();
@@ -54,7 +54,7 @@ TEST(group, op_member_remove)
     auto inputOp = om.getSourceOp(input);
     auto weights = om.constant(mv::utils::generateSequence<double>(1), {1, 1, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto weightsOp = om.getSourceOp(weights);
-    auto conv = om.conv2D(input, weights, {1, 1}, {0, 0, 0, 0});
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
     auto convOp = om.getSourceOp(conv);
     om.output(conv);
     auto outputOp = convOp.leftmostChild();

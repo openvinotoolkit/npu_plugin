@@ -42,7 +42,7 @@ TEST (generate_blob, blob_output_conv_01)
     auto input1 = test_cm.input({32, 32, 1}, mv::DTypeType::Float16, mv::Order("WHC"));
     std::vector<double> weights1Data({ 0.1111, 0.1121, 0.1131, 0.1141, 0.1151, 0.1161, 0.1171, 0.1181, 0.1191});
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
-    auto conv1 = test_cm.conv2D(input1, weights1, {4, 4}, {0, 0, 0, 0});
+    auto conv1 = test_cm.conv(input1, weights1, {4, 4}, {0, 0, 0, 0});
     auto output1 = test_cm.output(conv1);
 
     std::string blobName = "test_conv_01.blob";
@@ -81,7 +81,7 @@ TEST (generate_blob, blob_output_conv_02)
     std::vector<double> weightsData2 = mv::utils::generateSequence<double>(3u * 3u * 3u * 3u, 0.101, 0.001);
 
     auto weights2 = test_cm.constant(weightsData2, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, kN, C
-    auto conv2 = test_cm.conv2D(input2, weights2, {4, 4}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto conv2 = test_cm.conv(input2, weights2, {4, 4}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
     auto output2 = test_cm.output(conv2);
 
     std::string blobName = "test_conv_02.blob";
@@ -122,7 +122,7 @@ TEST (generate_blob, blob_output_conv_03)
     std::vector<double> weightsData3 = mv::utils::generateSequence(3u * 3u * 3u * 3u, 0.101, 0.001);
 
     auto weights3 = test_cm.constant(weightsData3, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
-    auto conv3 = test_cm.conv2D(input3, weights3, {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto conv3 = test_cm.conv(input3, weights3, {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
     auto output3 = test_cm.output(conv3);
 
     std::string blobName = "test_conv_03.blob";
@@ -158,7 +158,7 @@ TEST (generate_blob, blob_output_conv_04)
     std::vector<double> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.101, 0.001);
 
     auto weights4 = test_cm.constant(weightsData4, {5, 5, 3, 3}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, kN, C
-    auto conv4 = test_cm.conv2D(input4, weights4, {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
+    auto conv4 = test_cm.conv(input4, weights4, {2, 2}, {0, 0, 0, 0});   // input tensor, wieghts tensor, stridex, stridey, padx, pady
     auto output4 = test_cm.output(conv4);
     
     std::string blobName = "test_conv_04.blob";
@@ -196,8 +196,8 @@ TEST (generate_blob, blob_blur_edge_05)
     std::vector<double> edgeKData({ 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 });
     auto bweights = test_cm.constant(blurKData, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto eweights = test_cm.constant(edgeKData, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
-    auto conv1 = test_cm.conv2D(input5, bweights, {1, 1}, {0, 0, 0, 0});
-    auto conv2 = test_cm.conv2D(conv1, eweights, {1, 1}, {0, 0, 0, 0});
+    auto conv1 = test_cm.conv(input5, bweights, {1, 1}, {0, 0, 0, 0});
+    auto conv2 = test_cm.conv(conv1, eweights, {1, 1}, {0, 0, 0, 0});
     auto output = test_cm.output(conv2);
 
     std::string blobName = "test_conv_05.blob";
@@ -233,15 +233,15 @@ TEST (generate_blob, blob_4_ops)
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt61 = test_cm.conv2D(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
     // define first maxpool
-    auto maxpoolIt61 = test_cm.maxpool2D(convIt61,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto maxpoolIt61 = test_cm.maxPool(convIt61,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 1.000, 0.010);
     auto weightsIt62 = test_cm.constant(weightsData62, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt62 = test_cm.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
+    auto convIt62 = test_cm.conv(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
     // define second maxpool
-    auto maxpoolIt62 = test_cm.maxpool2D(convIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
+    auto maxpoolIt62 = test_cm.maxPool(convIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define output
     auto outIt6 = test_cm.output(maxpoolIt62);
 
@@ -280,31 +280,31 @@ TEST (generate_blob, blob_eltwise_add)
 
     // Define input as 1 64x64x3 image
     auto inIt7 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
-    auto maxpoolIt11= test_cm.maxpool2D(inIt7,{1,1}, {1, 1}, {0,0,0,0});
+    auto maxpoolIt11= test_cm.maxPool(inIt7,{1,1}, {1, 1}, {0,0,0,0});
     // define first convolution
     std::vector<double> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100, 0.010);
     auto weightsIt71 = test_cm.constant(weightsData71, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt71 = test_cm.conv2D(maxpoolIt11, weightsIt71, {2, 2}, {0, 0, 0, 0});
+    auto convIt71 = test_cm.conv(maxpoolIt11, weightsIt71, {2, 2}, {0, 0, 0, 0});
     // define first avgpool
-    auto avgpoolIt71 = test_cm.avgpool2D(convIt71,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto avgpoolIt71 = test_cm.averagePool(convIt71,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData72 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 10.000, 0.010);
     auto weightsIt72 = test_cm.constant(weightsData72, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt72 = test_cm.conv2D(avgpoolIt71, weightsIt72, {1, 1}, {0, 0, 0, 0});
+    auto convIt72 = test_cm.conv(avgpoolIt71, weightsIt72, {1, 1}, {0, 0, 0, 0});
     // define second avgpool
-    auto avgpoolIt72 = test_cm.avgpool2D(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
+    auto avgpoolIt72 = test_cm.averagePool(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define first convolution branch a
     std::vector<double> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 1.000, 0.010);
     auto weightsIt7a = test_cm.constant(weightsData7a, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt7a = test_cm.conv2D(inIt7, weightsIt7a, {2, 2}, {0, 0, 0, 0});
+    auto convIt7a = test_cm.conv(inIt7, weightsIt7a, {2, 2}, {0, 0, 0, 0});
     // define first maxpool branch a
-    auto maxpoolIt7a = test_cm.maxpool2D(convIt7a,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto maxpoolIt7a = test_cm.maxPool(convIt7a,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData7b = mv::utils::generateSequence(3u * 3u * 1u * 1u, 20.000, 0.010);
     auto weightsIt7b = test_cm.constant(weightsData7b, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt7b = test_cm.conv2D(maxpoolIt7a, weightsIt7b, {1, 1}, {0, 0, 0, 0});
+    auto convIt7b = test_cm.conv(maxpoolIt7a, weightsIt7b, {1, 1}, {0, 0, 0, 0});
     // define second maxpool
-    auto maxpoolIt7b = test_cm.maxpool2D(convIt7b,{3,3}, {2, 2}, {1, 1, 1, 1});
+    auto maxpoolIt7b = test_cm.maxPool(convIt7b,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define elementwise sum
     auto eltwiseIt7 = test_cm.add(maxpoolIt7b,avgpoolIt72);
     // define output
@@ -349,31 +349,31 @@ TEST (generate_blob, blob_eltwise_multiply)
 
     // Define input as 1 64x64x3 image
     auto inIt7 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
-    auto maxpoolIt11= test_cm.maxpool2D(inIt7,{1,1}, {1, 1}, {0,0,0,0});
+    auto maxpoolIt11= test_cm.maxPool(inIt7,{1,1}, {1, 1}, {0,0,0,0});
     // define first convolution
     std::vector<double> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100, 0.010);
     auto weightsIt71 = test_cm.constant(weightsData71, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt71 = test_cm.conv2D(maxpoolIt11, weightsIt71, {2, 2}, {0, 0, 0, 0});
+    auto convIt71 = test_cm.conv(maxpoolIt11, weightsIt71, {2, 2}, {0, 0, 0, 0});
     // define first avgpool
-    auto avgpoolIt71 = test_cm.avgpool2D(convIt71,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto avgpoolIt71 = test_cm.averagePool(convIt71,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData72 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 6550.0, 0.000);
     auto weightsIt72 = test_cm.constant(weightsData72, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt72 = test_cm.conv2D(avgpoolIt71, weightsIt72, {1, 1}, {0, 0, 0, 0});
+    auto convIt72 = test_cm.conv(avgpoolIt71, weightsIt72, {1, 1}, {0, 0, 0, 0});
     // define second avgpool
-    auto avgpoolIt72 = test_cm.avgpool2D(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
+    auto avgpoolIt72 = test_cm.averagePool(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define first convolution branch a
     std::vector<double> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt7a = test_cm.constant(weightsData7a, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt7a = test_cm.conv2D(inIt7, weightsIt7a, {2, 2}, {0, 0, 0, 0});
+    auto convIt7a = test_cm.conv(inIt7, weightsIt7a, {2, 2}, {0, 0, 0, 0});
     // define first maxpool branch a
-    auto maxpoolIt7a = test_cm.maxpool2D(convIt7a,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto maxpoolIt7a = test_cm.maxPool(convIt7a,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData7b = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
     auto weightsIt7b = test_cm.constant(weightsData7b, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt7b = test_cm.conv2D(maxpoolIt7a, weightsIt7b, {1, 1}, {0, 0, 0, 0});
+    auto convIt7b = test_cm.conv(maxpoolIt7a, weightsIt7b, {1, 1}, {0, 0, 0, 0});
     // define second maxpool
-    auto maxpoolIt7b = test_cm.maxpool2D(convIt7b,{3,3}, {2, 2}, {1, 1, 1, 1});
+    auto maxpoolIt7b = test_cm.maxPool(convIt7b,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define elementwise sum
     auto eltwiseIt7 = test_cm.multiply(maxpoolIt7b,avgpoolIt72);
     // define output
@@ -420,27 +420,27 @@ TEST (generate_blob, blob_softmax)
     // define first convolution
     std::vector<double> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100, 0.010);
     auto weightsIt71 = test_cm.constant(weightsData71, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt71 = test_cm.conv2D(inIt7, weightsIt71, {2, 2}, {0, 0, 0, 0});
+    auto convIt71 = test_cm.conv(inIt7, weightsIt71, {2, 2}, {0, 0, 0, 0});
     // define first avgpool
-    auto avgpoolIt71 = test_cm.avgpool2D(convIt71, {5, 5}, {3, 3}, {1, 1, 1, 1});
+    auto avgpoolIt71 = test_cm.averagePool(convIt71, {5, 5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData72 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 6550.0, 0.000);
     auto weightsIt72 = test_cm.constant(weightsData72, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt72 = test_cm.conv2D(avgpoolIt71, weightsIt72, {1, 1}, {0, 0, 0, 0});
+    auto convIt72 = test_cm.conv(avgpoolIt71, weightsIt72, {1, 1}, {0, 0, 0, 0});
     // define second avgpool
-    auto avgpoolIt72 = test_cm.avgpool2D(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
+    auto avgpoolIt72 = test_cm.averagePool(convIt72,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define first convolution branch a
     std::vector<double> weightsData7a = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt7a = test_cm.constant(weightsData7a, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt7a = test_cm.conv2D(inIt7, weightsIt7a, {2, 2}, {0, 0, 0, 0});
+    auto convIt7a = test_cm.conv(inIt7, weightsIt7a, {2, 2}, {0, 0, 0, 0});
     // define first maxpool branch a
-    auto maxpoolIt7a = test_cm.maxpool2D(convIt7a,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto maxpoolIt7a = test_cm.maxPool(convIt7a,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData7b = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
     auto weightsIt7b = test_cm.constant(weightsData7b, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt7b = test_cm.conv2D(maxpoolIt7a, weightsIt7b, {1, 1}, {0, 0, 0, 0});
+    auto convIt7b = test_cm.conv(maxpoolIt7a, weightsIt7b, {1, 1}, {0, 0, 0, 0});
     // define second maxpool
-    auto maxpoolIt7b = test_cm.maxpool2D(convIt7b, {3,3}, {2, 2}, {1, 1, 1, 1});
+    auto maxpoolIt7b = test_cm.maxPool(convIt7b, {3,3}, {2, 2}, {1, 1, 1, 1});
     // define elementwise sum
     auto eltwiseIt7 = test_cm.add(maxpoolIt7b,avgpoolIt72);
     auto softIt7 = test_cm.softmax(eltwiseIt7);
@@ -480,16 +480,16 @@ TEST (generate_blob, blob_convbias_convrelu)
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("WHC"));   // kh, kw, ins, outs
-    auto convIt61 = test_cm.conv2D(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
     std::vector<double> biasesData = { 64444.0 };
     auto biases = test_cm.constant(biasesData, {1}, mv::DTypeType::Float16, mv::Order("WHC"), "biases");
     auto bias1 = test_cm.bias(convIt61, biases);
     // define first maxpool
-    auto maxpoolIt61 = test_cm.maxpool2D(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto maxpoolIt61 = test_cm.maxPool(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
     auto weightsIt62 = test_cm.constant(weightsData62, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("WHC"));   // kh, kw, ins, outs
-    auto convIt62 = test_cm.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
+    auto convIt62 = test_cm.conv(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
     std::vector<double> meanData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
     std::vector<double> varianceData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
     std::vector<double> offsetData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
@@ -498,10 +498,10 @@ TEST (generate_blob, blob_convbias_convrelu)
     auto bnvariance = test_cm.constant(varianceData, convIt62->getShape(), mv::DTypeType::Float16, mv::Order("CHW"), "variance");
     auto bnoffset = test_cm.constant(offsetData, convIt62->getShape(), mv::DTypeType::Float16, mv::Order("CHW"), "offset");
     auto bnscale = test_cm.constant(scaleData, convIt62->getShape(), mv::DTypeType::Float16, mv::Order("CHW"), "scale");
-    auto batchnorm = test_cm.batchNorm(convIt62, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
+    auto batchnorm = test_cm.batchNormalization(convIt62, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
     auto reluIt62 = test_cm.relu(batchnorm);
     // define second maxpool
-    auto maxpoolIt62 = test_cm.maxpool2D(reluIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
+    auto maxpoolIt62 = test_cm.maxPool(reluIt62,{3,3}, {2, 2}, {1, 1, 1, 1});
     // define output
     auto outIt6 = test_cm.output(maxpoolIt62);
 
@@ -538,16 +538,16 @@ TEST (generate_blob, blob_scale)
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt61 = test_cm.conv2D(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
     std::vector<double> biasesData = { 64444.0 };
     auto biases = test_cm.constant(biasesData, {1}, mv::DTypeType::Float16, mv::Order("HWC"), "biases");
     auto bias1 = test_cm.bias(convIt61, biases);
     // define first maxpool
-    auto maxpoolIt61 = test_cm.maxpool2D(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
+    auto maxpoolIt61 = test_cm.maxPool(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
     // define second convolution
     std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
     auto weightsIt62 = test_cm.constant(weightsData62, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("CHW"));   // kh, kw, ins, outs
-    auto convIt62 = test_cm.conv2D(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
+    auto convIt62 = test_cm.conv(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0});
     // define scale
     std::vector<double> scalesData = { 6550.0 };
     auto scales = test_cm.constant(scalesData, {1}, mv::DTypeType::Float16, mv::Order("CHW"), "scales");

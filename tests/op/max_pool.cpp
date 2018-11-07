@@ -11,7 +11,7 @@ TEST(ops, maxPool2D)
     15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f});
     auto weights1 = om.constant(weightsData, {3, 3, 1, 3}, mv::DTypeType::Float16, mv::Order("NCHW"));
     auto conv = om.conv(input, weights1, {4, 4}, {1, 1, 1, 1});
-    auto pool = om.maxpool2D(conv, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool = om.maxPool(conv, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
     auto output = om.output(pool);
 
