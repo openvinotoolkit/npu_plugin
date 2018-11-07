@@ -157,6 +157,26 @@ const std::function<std::string(const mv::Attribute&)>& mv::attr::AttributeRegis
 
 }
 
+const std::function<std::vector<uint8_t>(const mv::Attribute&)>& mv::attr::AttributeRegistry::getToBinaryFunc(std::type_index typeID)
+{
+    if (!checkType(typeID))
+    {
+        throw AttributeError("AttributeRegistry", "Attempt of obtaining from-binary conversion function for an unregistered attribute type "
+            + std::string(typeID.name()));
+    }
+
+    AttributeEntry* const attrPtr = instance().find(typeID);
+
+    if (attrPtr)
+    {
+        return attrPtr->getToBinaryFunc();
+    }
+
+    throw MasterError("AttributeRegistry", "Registered attribute type " + std::string(typeID.name()) +
+        " not found in the attribute registry");
+}
+
+
 bool mv::attr::AttributeRegistry::checkTypeTrait(const std::string& typeTrait)
 {
     if (typeTraits_.find(typeTrait) != typeTraits_.end())
