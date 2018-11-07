@@ -33,8 +33,6 @@ namespace mv
         blob_stats.weights_region_size = 0 ;
         blob_stats.bias_region_size = 0 ;
 
-        int additional_buf = 0;
-
         mv::DataModel dm(cm);
 
         unsigned tensor_count = 0;
