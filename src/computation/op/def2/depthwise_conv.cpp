@@ -30,7 +30,7 @@ namespace mv
                 return {false, 1};
             }
 
-            if (inputs[2]->getShape()[3] != 1)
+            if (inputs[1]->getShape()[3] != 1)
             {
                 errMsg = "Number of output channels for weight shape does not match 1 " + std::to_string(inputs[0]->getShape()[3]);
                 return {false, 1};
