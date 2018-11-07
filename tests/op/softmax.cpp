@@ -16,6 +16,4 @@ TEST(ops, softmax)
     ASSERT_EQ(softmaxOp->inputSlots(), 1);
     ASSERT_EQ(softmaxOp->outputSlots(), 1);
     ASSERT_EQ(softmax->attrsCount(), 5);
-    //ASSERT_TRUE(reluOp->isExecutable());
-
 }
