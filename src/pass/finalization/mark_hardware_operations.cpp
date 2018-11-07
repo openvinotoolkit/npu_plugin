@@ -7,8 +7,8 @@
 #include "mcm/utils/custom_math.hpp"
 #include <math.h>
 
-static void markHardwareOperations(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+static void markHardwareOperations(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+static void scaleFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -33,7 +33,7 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareOperations(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object &)
 {
 
     //int amount_marked = 0;

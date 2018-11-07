@@ -2,7 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void removeDropOut(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -21,7 +21,7 @@ namespace mv
 
 }
 
-void removeDropOut(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void removeDropOut(const mv::pass::PassEntry& , mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
 {
 
     using namespace mv;

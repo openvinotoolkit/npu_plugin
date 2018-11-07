@@ -5,7 +5,7 @@
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
 
-static void modeSelection(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void modeSelectionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,8 +13,8 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(OptimizeConvolutions)
-        .setFunc(optimizeConvolutions)
+        MV_REGISTER_PASS(ModeSelection)
+        .setFunc(modeSelectionFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass selects the appropriate mode for each convolution executable by NCE"
@@ -165,7 +165,7 @@ mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpLis
     return nce.optimize_convolution(source);
 }
 
-void modeSelection(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void modeSelectionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "HW optimization convolution pass started" << std::endl;
     mv::OpModel om(model);

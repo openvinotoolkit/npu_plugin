@@ -6,7 +6,7 @@
 #include "include/mcm/computation/resource/nce1_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void optimizePoolings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -150,7 +150,7 @@ mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIte
     return nce.optimize_pooling(source);
 }
 
-void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void optimizePoolings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "HW pooling optimization pass started" << std::endl;
     mv::OpModel om(model);

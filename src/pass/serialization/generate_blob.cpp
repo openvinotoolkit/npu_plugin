@@ -3,9 +3,9 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 
-static void generateBlobFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput);
-static void PopulateSerialFieldsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput);
-static void writeSerialFieldsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput);
+static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&td, mv::json::Object& compDesc, mv::json::Object& compOutput);
+static void PopulateSerialFieldsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& compOutput);
+//static void writeSerialFieldsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput);
 
 namespace mv
 {
@@ -33,7 +33,7 @@ namespace mv
 
 }
 
-void generateBlobFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput)
+void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::json::Object& compDesc, mv::json::Object& compOutput)
 {   
 
     using namespace mv;
@@ -46,11 +46,14 @@ void generateBlobFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     compOutput["blobSize"] = result;
 
 }
-static void PopulateSerialFieldsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& ){
+void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& )
+{
     mv::OpModel om(model);
 
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt){
-        std::cout << "Populating Serial fields for Op{" << opIt->getOpType().toString() << "}" << std::endl;
-        opIt->gatherSerialFields();
+    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        std::cout << "Populating Serial fields for Op{" << opIt->getOpType() << "}" << std::endl;
+        //Short term fix: Big if-else acting like a switch
+        //Long term solution:
     }
 }
