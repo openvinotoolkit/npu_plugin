@@ -46,7 +46,7 @@ namespace mv
 
         };
     
-        MV_REGISTER_OP(Matmul)
+        MV_REGISTER_OP(MatMul)
         .setInputs({"data0", "data1"})
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)

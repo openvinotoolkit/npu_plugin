@@ -11,12 +11,12 @@ TEST(ops, matMul)
     auto input1 = om.constant(input1Data, {256, 512}, mv::DTypeType::Float16, mv::Order("HW"));
     auto input2 = om.constant(input2Data, {512, 256}, mv::DTypeType::Float16, mv::Order("HW"));
 
-    auto matmul = om.matmul(input1, input2);
+    auto matmul = om.matMul(input1, input2);
     auto matmulOp = om.getSourceOp(matmul);
     auto output = om.output(matmul);
 
     ASSERT_EQ(matmul->getShape(), mv::Shape({256, 256}));
-    ASSERT_EQ(matmulOp->getOpType(), "Matmul");
+    ASSERT_EQ(matmulOp->getOpType(), "MatMul");
     ASSERT_EQ(matmul->attrsCount(), 5);
     ASSERT_EQ(matmulOp->attrsCount(), 2);
     ASSERT_EQ(matmulOp->inputSlots(), 2);

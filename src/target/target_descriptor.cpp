@@ -170,43 +170,32 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
         std::vector<std::string> keys = jsonDescriptor["ops"].getKeys();
 
-        for (unsigned i = 0; i < keys.size(); ++i)  // Op Names
+        for (unsigned i = 0; i < keys.size(); ++i)
         {
-
-            if (jsonDescriptor["ops"][i].valueType() != json::JSONType::String)
+            std::string opStr = keys.at(i);
+            if (!op::OpRegistry::checkOpType(opStr))
             {
                 reset();
                 return false;
             }
+            ops_.insert(opStr);
+            mv::Element e(opStr);
 
-            std::string op = jsonDescriptor["ops"][i].get<std::string>();
-            if (!op::OpRegistry::checkOpType(op))
+            for (unsigned j = 0; j < jsonDescriptor["ops"][opStr].size(); ++j) // Resource
             {
-                reset();
-                return false;
-            }
-            ops_.insert(op);
-
-
-            std::string op_name = keys[i];
-            mv::Element e(op_name);
-
-
-            for (unsigned j = 0; j < jsonDescriptor["ops"][op_name].size(); ++j) // Resource
-            {
-                std::vector<std::string> resource_keys = jsonDescriptor["ops"][op_name].getKeys();
+                std::vector<std::string> resource_keys = jsonDescriptor["ops"][opStr].getKeys();
                 std::string platform_name = resource_keys[j];
 
                 std::vector<std::string> serial_list;
-                for (unsigned k = 0; k < jsonDescriptor["ops"][op_name][platform_name]["serial_description"].size(); ++k) // Resource
+                for (unsigned k = 0; k < jsonDescriptor["ops"][opStr][platform_name]["serial_description"].size(); ++k) // Resource
                 {
-                    std::string v = jsonDescriptor["ops"][op_name][platform_name]["serial_description"][k].get<std::string>();
+                    std::string v = jsonDescriptor["ops"][opStr][platform_name]["serial_description"][k].get<std::string>();
                     serial_list.push_back(v);
                 }
 
                 e.set<std::vector<std::string>>("serial_view", serial_list);
 
-                serialDescriptions_.insert(std::make_pair(op_name+":"+platform_name, e));
+                serialDescriptions_.insert(std::make_pair(opStr+":"+platform_name, e));
 
             }
         }
