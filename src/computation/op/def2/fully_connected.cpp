@@ -35,7 +35,9 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
-            outputs.push_back(mv::Tensor(":0", {1, inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder()));
+            std::string inputOrder = inputs[0]->getOrder().toString();
+            std::string outputOrder = inputOrder.substr(inputOrder.size() - 2);
+            outputs.push_back(mv::Tensor(":0", {1, inputs[1]->getShape()[1]}, inputs[0]->getDType(), Order(outputOrder)));
             
         };
     
