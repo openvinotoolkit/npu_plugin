@@ -12,7 +12,7 @@
 
 int main()
 {
-    mv::Logger::setVerboseLevel(mv::Logger::VerboseLevel::VerboseDebug);
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
 
     // Define the primary compilation unit
     mv::CompilationUnit unit("Test");
@@ -30,7 +30,7 @@ int main()
     auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16,  mv::Order("HWCN"));
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
-    auto conv = cm.conv2D(input, weights, stride, padding);
+    auto conv = cm.conv(input, weights, stride, padding);
 
     /*convoultion bias*/
     mv::Shape convBiasShape = {64};
@@ -50,12 +50,12 @@ int main()
     auto scaleBias = cm.bias(scale,scaleBiasTensor);
 
     /*Max Pool*/
-    auto pool = cm.maxpool2D(scaleBias, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool = cm.maxPool(scaleBias, {3, 3}, {2, 2}, {1, 1, 1, 1});
     /*Relu*/
     auto relu = cm.relu(pool);
 
     /*Average Pool*/
-    auto pool1 = cm.avgpool2D(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool1 = cm.averagePool(relu, {3, 3}, {2, 2}, {1, 1, 1, 1});
 
     /*Softmax*/
     auto softmax = cm.softmax(pool1);

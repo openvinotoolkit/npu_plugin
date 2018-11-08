@@ -48,7 +48,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
     serialPassQueue_ = targetDescriptor_.serialPasses();
     validPassQueue_ = targetDescriptor_.validPasses();
 
-    std::cout << "A" << std::endl;
+    //std::cout << "A" << std::endl;
     auto checkQueue = [this](const std::vector<std::string>& queue, PassGenre genre)
     {
         for (std::size_t i = 0; i < queue.size(); ++i)
