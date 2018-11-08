@@ -90,7 +90,7 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
 
-    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("CHW"), "weights");
+    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("NCHW"), "weights");
     auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
@@ -99,13 +99,13 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(convShape[-1]);
     std::vector<double> scaleData = mv::utils::generateSequence<double>(convShape[-1]);
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "mean");
+    auto bnmean = om.constant(meanData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "variance");
+    auto bnvariance = om.constant(varianceData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "variance");
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "offset");
+    auto bnoffset = om.constant(offsetData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "offset");
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "scale");
+    auto bnscale = om.constant(scaleData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
     auto batchnorm = om.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
@@ -134,11 +134,11 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
     // Check fusing
-    mv::Tensor mean("mean", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), meanData);
-    mv::Tensor variance("variance", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), varianceData);
-    mv::Tensor offset("offset", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), offsetData);
-    mv::Tensor scale("scale", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), scaleData);
-    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("CHW"), weightsData);
+    mv::Tensor mean("mean", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), meanData);
+    mv::Tensor variance("variance", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), varianceData);
+    mv::Tensor offset("offset", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), offsetData);
+    mv::Tensor scale("scale", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), scaleData);
+    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("NCHW"), weightsData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
     mv::Tensor offsetParam = mv::math::subtract(offset, 
@@ -241,13 +241,13 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(poolShape[-1]);
     std::vector<double> scaleData = mv::utils::generateSequence<double>(poolShape[-1]);
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "mean");
+    auto bnmean = om.constant(meanData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "variance");
+    auto bnvariance = om.constant(varianceData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "variance");
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "offset");
+    auto bnoffset = om.constant(offsetData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "offset");
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "scale");
+    auto bnscale = om.constant(scaleData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
     auto batchnorm = om.batchNormalization(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
@@ -282,10 +282,10 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
     // Check fusing
-    mv::Tensor mean("mean", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), meanData);
-    mv::Tensor variance("variance", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), varianceData);
-    mv::Tensor offset("offset", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), offsetData);
-    mv::Tensor scale("scale", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), scaleData);
+    mv::Tensor mean("mean", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), meanData);
+    mv::Tensor variance("variance", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), varianceData);
+    mv::Tensor offset("offset", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), offsetData);
+    mv::Tensor scale("scale", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), scaleData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
     mv::Tensor offsetParam = mv::math::subtract(offset, 
