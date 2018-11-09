@@ -146,7 +146,7 @@ bool mv::ComputationModel::isValid(Control::StageIterator it) const
 {
     if (it == Control::StageIterator(stages_->end()))
         return false;
-    if (stages_->find(it->get<std::size_t>("stage")) != stages_->end())
+    if (stages_->find(it->get<std::size_t>("idx")) != stages_->end())
         return true;
     return false;
 }

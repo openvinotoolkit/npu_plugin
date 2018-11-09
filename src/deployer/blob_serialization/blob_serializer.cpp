@@ -41,13 +41,13 @@ namespace mv
         {
 
             mv::Element e("serial_viewer");
-            if (it->getOpType() == "input"){
+            if (it->getOpType() == "Input"){
                 blob_stats.stage_section_size += 4*5;
                 blob_stats.stage_count++;
                 continue;
-            }else if(it->getOpType() == "output"
-                || it->getOpType() == "constant"
-                || it->getOpType() == "concat")
+            }else if(it->getOpType() == "Output"
+                || it->getOpType() == "Constant"
+                || it->getOpType() == "Concat")
             {
                 continue;
             }else if (it->hasAttr("NCE1_Compatible") && it->get<int>("NCE1_Compatible")){
@@ -270,7 +270,7 @@ namespace mv
             std::cout << "Writing Serial Fields for Op{" << opIt->getOpType() << "}" <<std::endl;
 
             mv::Element e("serial_viewer");
-            if (opIt->getOpType() == "input")
+            if (opIt->getOpType() == "Input")
             {
                 AddBytes(4, 0x20);
                 AddBytes(4, 5);
@@ -281,9 +281,9 @@ namespace mv
 
                 continue;
             }
-            else if(opIt->getOpType() == "output"
-                || opIt->getOpType() == "constant"
-                || opIt->getOpType() == "concat")
+            else if(opIt->getOpType() == "Output"
+                || opIt->getOpType() == "Constant"
+                || opIt->getOpType() == "Concat")
                 continue;
             else if (opIt->hasAttr("NCE1_Compatible") && opIt->get<int>("NCE1_Compatible"))
                 e = td.getSerialDefinition(opIt->getOpType(), "NCE1");
