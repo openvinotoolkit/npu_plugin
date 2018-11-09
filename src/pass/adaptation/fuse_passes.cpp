@@ -245,7 +245,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             auto bnVar = *opIt->getInputTensor(2);
             auto bnOffset = *opIt->getInputTensor(3);
             auto bnScale = *opIt->getInputTensor(4);
-            double bnEps = opIt->get<double>("varianceEps");
+            double bnEps = opIt->get<double>("eps");
 
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
