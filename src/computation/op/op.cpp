@@ -96,24 +96,55 @@ bool mv::Op::hasTypeTrait(const std::string& typeTrait) const
     return op::OpRegistry::hasTypeTrait(getOpType(), typeTrait);
 }
 
+//NOTE: In this function, cascade effect HAS to be handled.
+//One could potentially change the input tensor(E.G during a replacement pass) of an operation,
+//Causing the output tensor to change as well. But what if the old output tensor was referenced by a flow?
+
 void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
+    DataModel dm(getModel_());
 
-    inputs_[idx] = tensor;
+    inputs_[idx]->setName(tensor->getName());
+    inputs_[idx]->setDType(tensor->getDType());
+    inputs_[idx]->setOrder(tensor->getOrder());
+    inputs_[idx]->setShape(tensor->getShape());
+    if(inputs_[idx]->isPopulated())
+        std::cout << "WTF man" << std::endl;
+
     std::string errMsg;
     auto checkRes = op::OpRegistry::checkInputs(getOpType(), inputs_, getAttrs_(), errMsg);
 
-    if (!checkRes.first)
-        throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(getOpType(), checkRes.second) + " (" + 
+    if (!checkRes.first)        
+        throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(getOpType(), checkRes.second) + " (" +
             std::to_string(checkRes.second) + ") - " + errMsg);
 
     std::vector<Tensor> outputsDef;
     op::OpRegistry::getOutputsDef(getOpType(), inputs_, getAttrs_(), outputsDef);
-    DataModel dm(getModel_());
     for (std::size_t i = 0; i < outputsDef.size(); ++i)
     {
-        *outputs_[i] = outputsDef[i];
-        outputs_[i]->set<std::string>("sourceOp", getName(), {"const"});
+        //IDEA: If output tensor definition is updated (keeping the reference)
+        //There is no need to do a mess with flaws
+
+        //No need for any outputs_[i]->setName() call, it stays the same;
+        outputs_[i]->setDType(outputsDef[i].getDType());
+        outputs_[i]->setOrder(outputsDef[i].getOrder());
+        outputs_[i]->setShape(outputsDef[i].getShape());
+
+        if(outputs_[i]->hasAttr("flows"))
+        {
+            //Getting flows in which old output tensor was involved
+            auto keys = outputs_[i]->get<std::set<std::string>>("flows");
+
+            //Recursion on the flows
+            for(std::string key : keys)
+            {
+                auto currentFlow = dm.getDataFlow(key);
+                auto index = currentFlow->get<std::size_t>("sinkInput");
+                auto destOp = currentFlow.sink();
+                //recursion
+                destOp->setInputTensor(outputs_[i], index);
+            }
+        }
     }
 }
 

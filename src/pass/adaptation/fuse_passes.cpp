@@ -290,13 +290,31 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             pass.log(Logger::MessageType::Info, "Replaced additive term of BatchNorm op " + opIt->getName() + 
                 " with " + om.getSourceOp(sourceTensor)->getName());
 
-            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd();)
             {
+                auto destOp = sinkFlow.sink();
+
+                //The inputslots of what come after have to be changed to sourceTensor
+                //Set input tensor will take care of the cascade effect (hopefully)
                 std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
+                destOp->setInputTensor(sourceTensor, inputIdx);
+
+                //When all the inputslots have been changed, a new dataFlow has to be created
+                //But in order to be able to use the same inputIdx, we have to eliminate the current dataFlow first
+                //In order to keep iterator validity, we first increment the iterator and then delete a backup;
+                auto backup = sinkFlow;
+                ++sinkFlow;
+                om.undefineFlow(backup);
+
+                om.defineFlow(sourceTensor, destOp, inputIdx);
             }
 
+            //Batchnorm has to be eliminated, and with it:
+            //1) All dataflows (input and output)
+            //2) Output tensors
+            //3) Input operations, like it is already done.
+
+            //This loop, together with removeOp takes care of 3 and 2, only DFs need to be removed...
             while(opIt.parentsSize() > 1)
             {
                 auto paramOp = opIt.leftmostParent();
@@ -304,6 +322,11 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 om.removeOp(paramOp);
             }
 
+            //...But output DF have been removed in thep previous loop, we need to take care of input DF
+            for (Data::FlowSiblingIterator sourceFlow(opIt.leftmostInput()); sourceFlow != om.flowEnd(); ++sourceFlow)
+                om.undefineFlow(sourceFlow);
+
+            //Finally eliminate batch norm and keeping iterator validity.
             om.removeOp(opIt);
             opIt = parentOpIt;
 
