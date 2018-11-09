@@ -4,6 +4,8 @@
 int main()
 {
 
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
+
     // Define the primary compilation unit
     mv::CompilationUnit unit("cm_two_branch");
 
@@ -15,7 +17,7 @@ int main()
     auto pool2It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
     auto pool3It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
 
-    auto concat1It = cm.concat(pool3It, pool2It);
+    auto concat1It = cm.add(pool3It, pool2It);
     auto pool4It = cm.maxPool(concat1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
     cm.output(pool4It);
 
@@ -29,11 +31,13 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("cm_two_branch.blob");
+    
 
     // Initialize compilation
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    
     //unit.passManager().disablePass(mv::PassGenre::Adaptation);
+    unit.passManager().disablePass(mv::PassGenre::Adaptation, "GenerateCaffe");
 
     // Run all passes
     unit.run();
