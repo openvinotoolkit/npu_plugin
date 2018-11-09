@@ -51,11 +51,11 @@ TEST(memory_allocator, mulitple)
     auto t3 = dm.defineTensor("t3", s3, mv::DTypeType::Float16, order);
 
     mv::MemoryAllocator m("m1", 10000, 0, 2);
-    auto b1 = m.allocate(t1, 0);
-    auto b2 = m.allocate(t2, 0);
-    auto b3 = m.allocate(t3, 0);
+    //auto b1 = m.allocate(t1, 0);
+    //auto b2 = m.allocate(t2, 0);
+    //auto b3 = m.allocate(t3, 0);
 
-    std::cout << m.toString() << std::endl;
+    //std::cout << m.toString() << std::endl;
 
 }
 

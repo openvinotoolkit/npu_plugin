@@ -688,7 +688,7 @@ void mv::op::OpRegistry::generateRecordedCompositionAPI(const std::string& eol, 
     srcStream << tab << "srcStream_(outputPath + model_.getName() + \".cpp\", std::ios::out | std::ios::trunc)," << eol;
     srcStream << tab << "tab_(tab)" << eol;
     srcStream << "{" << eol;
-    srcStream << tab << "srcStream_ << \"#include \\\"" << utils::projectRootPath() << "\" << \"/include/mcm/api/compositional_model.hpp\\\"\""
+    srcStream << tab << "srcStream_ << \"#include \\\"" << utils::projectRootPath() << "\" << \"/meta/include/mcm/compositional_model.hpp\\\"\""
         "<< std::endl;" << eol;
     srcStream << tab << "srcStream_ << \"#include \\\"" << utils::projectRootPath() << "\" << \"/include/mcm/computation/model/op_model.hpp\\\"\""
         "<< std::endl;" << eol; 

@@ -141,7 +141,7 @@ bool write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
         return false;
 }
 
-mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel& om)
+mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel&)
 {
     mv::ModeSelectionNode source;
     source.parameters = mv::fillKernel2DOperationParameters(poolIterator, true);
@@ -150,7 +150,7 @@ mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIte
     return nce.optimize_pooling(source);
 }
 
-void optimizePoolings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void optimizePoolings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "HW pooling optimization pass started" << std::endl;
     mv::OpModel om(model);

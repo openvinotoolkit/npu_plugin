@@ -165,7 +165,7 @@ mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpLis
     return nce.optimize_convolution(source);
 }
 
-void modeSelectionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void modeSelectionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "HW optimization convolution pass started" << std::endl;
     mv::OpModel om(model);

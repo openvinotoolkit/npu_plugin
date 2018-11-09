@@ -17,7 +17,7 @@ if(NOT ${CMAKE_VERSION} VERSION_LESS "3.8.0")
     swig_add_library(composition_api LANGUAGE python SOURCES composition_interface.i)
 else()
     swig_add_module(composition_api python composition_interface.i)
-    message("Consider updating to a newer version of CMake")
+    message("Consider upgrading to a newer version of CMake (at least 3.8.0)")
 endif()
 
 swig_link_libraries(composition_api ${PYTHON_LIBRARIES} cm)
