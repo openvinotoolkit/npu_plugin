@@ -174,6 +174,29 @@ void mv::Tensor::setOrder(Order order)
 
 }
 
+void mv::Tensor::setDType(DType dtype)
+{
+
+    set<DType>("dtype", dtype);
+    log(Logger::MessageType::Debug, "Changed data type to " + dtype.toString());
+    return;
+
+}
+
+void mv::Tensor::setShape(const Shape& shape)
+{
+    if(isPopulated())
+    {
+        log(Logger::MessageType::Warning, "Changing shape of a populated tensor, experimental feature.");
+        if(shape.totalSize() != get<Shape>("shape").totalSize())
+            throw ArgumentError(*this, "CurrentTensor", "shape", "Unable to change shape of a populated tensor");
+    }
+    set<Shape>("shape", shape);
+    log(Logger::MessageType::Debug, "Changed shape to " + shape.toString());
+    return;
+}
+
+
 void mv::Tensor::broadcast(const Shape& shape)
 {
 

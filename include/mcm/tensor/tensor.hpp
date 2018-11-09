@@ -59,6 +59,7 @@ namespace mv
         DType getDType() const;
         void setOrder(Order order);
         Order getOrder() const;
+        void setShape(const Shape& shape);
         
         void add(const Tensor& other);
         void add(double val);
