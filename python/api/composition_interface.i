@@ -13,7 +13,6 @@ import_array();
 %module composition_api
 %{
     #include <include/mcm/compiler/compilation_unit.hpp>
-    #include <meta/include/mcm/recorded_compositional_model.hpp>
     #include <math.h>
     #include <iostream>
 

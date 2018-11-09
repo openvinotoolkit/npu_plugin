@@ -65,8 +65,7 @@ namespace mv
                 {
                     auto attr = it->get(name);
                     auto b = attr.toBinary();
-                    for( uint8_t byte : b)
-                        blob_stats.stage_section_size += 1;
+                    blob_stats.stage_section_size += b.size();
                 }
                 else if(instruction == "Tensor")
                 {
@@ -302,8 +301,7 @@ namespace mv
                 {
                     auto attr = opIt->get(name);
                     auto b = attr.toBinary();
-                    for(uint8_t byte : b)
-                        next_offset += 1;
+                    next_offset += b.size();
                 }
                 else if(instruction == "Tensor")
                     next_offset += 4*10;

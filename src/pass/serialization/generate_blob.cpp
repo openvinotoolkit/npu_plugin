@@ -73,7 +73,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto inputChannelsPadded = opIt->get<std::size_t>("NCE1_InputChannelsPadded");
                 auto outputChannelsPadded = opIt->get<std::size_t>("NCE1_OutputChannelsPadded");
                 auto inputWidthPadded = opIt->get<std::size_t>("NCE1_InputWidthPadded");
-                auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
+                //auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
                 auto desc_count = opIt->get<std::size_t>("NCE1_DescriptorSplits");
                 auto streamingMask = opIt->get<std::size_t>("NCE1_StreamingMask");
 
@@ -222,7 +222,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto inputChannelsPadded = opIt->get<std::size_t>("NCE1_InputChannelsPadded");
                 auto outputChannelsPadded = opIt->get<std::size_t>("NCE1_OutputChannelsPadded");
                 auto inputWidthPadded = opIt->get<std::size_t>("NCE1_InputWidthPadded");
-                auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
+                //auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
                 auto desc_count = opIt->get<std::size_t>("NCE1_DescriptorSplits");
                 auto streamingMask = opIt->get<std::size_t>("NCE1_StreamingMask");
 
@@ -344,7 +344,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         }
         else if(opIt->getOpType() == "DepthwiseConv")
         {
-            auto fp16_size = 2;
+            //auto fp16_size = 2;
 
             opIt->set<unsigned>("SerialID", 8);
 
@@ -379,7 +379,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto inputChannelsPadded = opIt->get<std::size_t>("NCE1_InputChannelsPadded");
                 auto outputChannelsPadded = opIt->get<std::size_t>("NCE1_OutputChannelsPadded");
                 auto inputWidthPadded = opIt->get<std::size_t>("NCE1_InputWidthPadded");
-                auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
+                //auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
                 auto desc_count = opIt->get<std::size_t>("NCE1_DescriptorSplits");
                 auto streamingMask = opIt->get<std::size_t>("NCE1_StreamingMask");
 
@@ -511,7 +511,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto inputChannelsPadded = opIt->get<std::size_t>("NCE1_InputChannelsPadded");
                 auto outputChannelsPadded = opIt->get<std::size_t>("NCE1_OutputChannelsPadded");
                 auto inputWidthPadded = opIt->get<std::size_t>("NCE1_InputWidthPadded");
-                auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
+                //auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
                 auto desc_count = opIt->get<std::size_t>("NCE1_DescriptorSplits");
                 auto streamingMask = opIt->get<std::size_t>("NCE1_StreamingMask");
 
@@ -520,8 +520,8 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto output_line_start = opIt->get<std::vector<size_t>>("NCE1_StartOutputLine");
                 auto input_line_start = opIt->get<std::vector<size_t>>("NCE1_StartInputLine");
 
-                auto radixX = opIt->get<std::array<short unsigned, 2>>("kSize")[0];
-                auto radixY = opIt->get<std::array<short unsigned, 2>>("kSize")[1];
+                //auto radixX = opIt->get<std::array<short unsigned, 2>>("kSize")[0];
+                //auto radixY = opIt->get<std::array<short unsigned, 2>>("kSize")[1];
 
                 opIt->set<unsigned>("SerialID", 34);    // To be moved?
 
@@ -600,11 +600,10 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                                 descriptors[i].outChStr = 42;
                             }
 
-                            int inChans = inputChannelsPadded;
-
-
+                            //int inChans = inputChannelsPadded;
                             for(unsigned j = 0; j != 32; j++)
                                 desc.push_back(((unsigned *) &descriptors[i])[j]);
+                                
                         }
 
                     }

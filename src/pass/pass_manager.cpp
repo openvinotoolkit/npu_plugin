@@ -58,6 +58,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
             if (passPtr == nullptr)
             {
                 reset();
+                log(mv::Logger::MessageType::Error, "Pass " + queue[i] + " not found in the PassRegistry");
                 return false;
             }
 
@@ -65,6 +66,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
             if (passGenres.find(genre) == passGenres.end())
             {
                 reset();
+                log(mv::Logger::MessageType::Error, "Pass " + queue[i] + " has an invalid genre " + toString(genre) + " assigned");
                 return false;
             }
 

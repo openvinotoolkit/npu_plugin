@@ -18,9 +18,7 @@ int main()
     om.output(conv);
     
     mv::DataModel dm(om);
-    unsigned tensorsCount = dm.tensorsCount();
-    unsigned opsCount = om.opsCount();
-
+    
     om.removeOp(convOp);
     std::cout << om.isValid(convOp) << std::endl;
     std::cout << dm.tensorsCount() << std::endl;

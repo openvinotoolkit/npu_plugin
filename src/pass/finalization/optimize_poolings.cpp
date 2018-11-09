@@ -141,7 +141,7 @@ bool write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
         return false;
 }
 
-mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel& om)
+mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel&)
 {
     mv::ModeSelectionNode source;
     source.parameters = mv::fillKernel2DOperationParameters(poolIterator, true);
