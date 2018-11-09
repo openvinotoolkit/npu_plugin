@@ -118,6 +118,13 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::TensorIterator sour
 
     Data::FlowListIterator inputFlow = dataGraph_.edge_insert(sourceOp, sinkOp, DataFlow(*this, sourceOp, 0, sinkOp, inputIdx, sourceTensor));
     
+    if(!sourceTensor->hasAttr("flows"))
+    {
+        std::set<std::string> toSet;
+        sourceTensor->set<std::set<std::string>>("flows", toSet);
+    }
+
+    sourceTensor->get<std::set<std::string>>("flows").insert(inputFlow->getName());
     dataFlows_->emplace(inputFlow->getName(), inputFlow);
     log(Logger::MessageType::Info, "Defined " + inputFlow->toString());
     return inputFlow;
@@ -139,6 +146,12 @@ void mv::BaseOpModel::undefineFlow(Data::FlowListIterator flow)
         throw ArgumentError(*this, "flow:iterator", "invalid", "Invalid flow passed for deletion");
 
     log(Logger::MessageType::Info, "Removed " + flow->toString());
+
+    //This is giving segfault. How is this possible?
+    if(!flow->getTensor()->hasAttr("flows"))
+        std::cout << flow->getTensor()->getName() << " is in a flow but has no attribute flows" << std::endl;
+    else
+        flow->getTensor()->get<std::set<std::string>>("flows").erase(flow->getName());
     dataFlows_->erase(flow->getName());
     dataGraph_.edge_erase(flow);
 
