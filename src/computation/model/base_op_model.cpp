@@ -93,17 +93,7 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
         throw ArgumentError(*this, "op:iterator", "end", "Invalid iterator passed for op removal");
 
     for (std::size_t j = 0; j < op->outputSlots(); ++j)
-    {
-        auto tensorToEliminate = op->getOutputTensor(j);
-        if(tensorToEliminate->hasAttr("flows"))
-        {
-            auto flowsStr = tensorToEliminate->get<std::set<std::string>>("flows");
-            for(auto flowStr : flowsStr)
-                undefineFlow(getDataFlow(flowStr));
-
-        }
-        tensors_->erase(tensorToEliminate);
-    }
+        tensors_->erase(op->getOutputTensor(j));
 
     decrementOpsInstanceCounter_(op->getOpType());
     ops_->erase(op->getName());
