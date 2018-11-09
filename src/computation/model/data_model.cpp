@@ -130,6 +130,11 @@ void mv::DataModel::undefineTensor(const std::string& name)
     
 }
 
+void mv::DataModel::undefineTensor(Data::TensorIterator tensor)
+{
+    undefineTensor(tensor->getName());
+}
+
 unsigned mv::DataModel::tensorsCount() const
 {
     return tensors_->size();
