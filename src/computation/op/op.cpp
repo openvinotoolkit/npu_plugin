@@ -104,12 +104,7 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
     DataModel dm(getModel_());
 
-    inputs_[idx]->setName(tensor->getName());
-    inputs_[idx]->setDType(tensor->getDType());
-    inputs_[idx]->setOrder(tensor->getOrder());
-    inputs_[idx]->setShape(tensor->getShape());
-    if(inputs_[idx]->isPopulated())
-        std::cout << "WTF man" << std::endl;
+    *inputs_[idx] = *tensor;
 
     std::string errMsg;
     auto checkRes = op::OpRegistry::checkInputs(getOpType(), inputs_, getAttrs_(), errMsg);
