@@ -42,8 +42,13 @@ TEST(fuse_scale, case_conv)
     mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), weightsData);
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
 
-    for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(convOp->getInputTensor(1)->getData()[i], newWeigths.getData()[i]);
+    auto originalWeightsTensor = convOp->getInputTensor(1)->getData();
+    auto originalWeightsTensorSize = originalWeightsTensor.size();
+
+    auto newWeightsTensor = newWeigths.getData();
+
+    for (unsigned i = 0; i < originalWeightsTensorSize; ++i)
+        ASSERT_FLOAT_EQ(originalWeightsTensor[i], newWeightsTensor[i]);
 
 }
 
@@ -83,18 +88,24 @@ TEST(fuse_scale, case_conv_bias_fused)
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
     
-    mv::Tensor scaleParam("scale", {32}, mv::DTypeType::Float16, mv::Order("CHW"), scalesData);
+    mv::Tensor scaleParam("scale", {32}, mv::DTypeType::Float16, mv::Order("W"), scalesData);
     mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), weightsData);
     mv::Tensor originalBiases("originalBiases", {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), biasesData);
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
     mv::Tensor newBiases = mv::math::multiply(originalBiases, scaleParam);
 
-    for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(convOp->getInputTensor(1)->getData()[i], newWeigths.getData()[i]);
+    auto originalWeightsData = convOp->getInputTensor(1)->getData();
+    auto originalWeightsDataSize = originalWeightsData.size();
+
+    auto newWeigthsData = newWeigths.getData();
+
+    for (unsigned i = 0; i < originalWeightsDataSize; ++i)
+        ASSERT_FLOAT_EQ(originalWeightsData[i], newWeigthsData[i]);
 
     auto biasVector = dm.getTensor(convOp->get<std::string>("bias"))->getData();
+    auto newBiasesData = newBiases.getData();
     for (unsigned i = 0; i < biasVector.size(); ++i)
-        ASSERT_FLOAT_EQ(biasVector[i], newBiases.getData()[i]);
+        ASSERT_FLOAT_EQ(biasVector[i], newBiasesData[i]);
 
 }
 
