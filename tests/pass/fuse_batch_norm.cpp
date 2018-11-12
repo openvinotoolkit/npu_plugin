@@ -72,20 +72,31 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     mv::Tensor offsetParam = mv::math::subtract(offset, 
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    ASSERT_EQ(mulOp->getInputTensor(1)->getData().size(), scaleParam.getData().size());
-    ASSERT_EQ(addOp->getInputTensor(1)->getData().size(), offsetParam.getData().size());
+    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    auto mulOpDataSize = mulOpData.size();
 
-    for (unsigned i = 0; i < mulOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(mulOp->getInputTensor(1)->getData()[i], scaleParam.getData()[i]);
+    auto scaleParamData = scaleParam.getData();
+    auto scaleParamDataSize = scaleParamData.size();
 
-    for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpDataSize = addOpData.size();
+
+    auto newOffsetData = offsetParam.getData();
+    auto newOffsetDataSize = newOffsetData.size();
+
+    ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
+    ASSERT_EQ(addOpDataSize, newOffsetDataSize);
+
+    for (unsigned i = 0; i < mulOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(mulOpData[i], scaleParamData[i]);
+
+    for (unsigned i = 0; i < addOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(addOpData[i], newOffsetData[i]);
    
 }
 
 TEST(fuse_batch_norm_pass, case_1dim_conv)
 {
-
     mv::OpModel om("testModel");
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
@@ -146,11 +157,18 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
 
+    auto newWeigthsData = newWeigths.getData();
+    auto originalWeightsFromConv = convOp->getInputTensor(1);
+    auto originalWeightsFromConvData = originalWeightsFromConv->getData();
+
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto offsetParamData = offsetParam.getData();
+
     for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(convOp->getInputTensor(1)->getData()[i], newWeigths.getData()[i]);
+        ASSERT_FLOAT_EQ(originalWeightsFromConvData[i], newWeigthsData[i]);
 
     for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+        ASSERT_FLOAT_EQ(addOpData[i], offsetParamData[i]);
 
 }
 
@@ -217,14 +235,26 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     mv::Tensor offsetParam = mv::math::subtract(offset, 
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    ASSERT_EQ(mulOp->getInputTensor(1)->getData().size(), scaleParam.getData().size());
-    ASSERT_EQ(addOp->getInputTensor(1)->getData().size(), offsetParam.getData().size());
+    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    auto mulOpDataSize = mulOpData.size();
 
-    for (unsigned i = 0; i < mulOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(mulOp->getInputTensor(1)->getData()[i], scaleParam.getData()[i]);
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpDataSize = addOpData.size();
 
-    for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+    auto offsetParamData = offsetParam.getData();
+    auto offsetParamDataSize = offsetParamData.size();
+
+    auto scaleParamData = scaleParam.getData();
+    auto scaleParamDataSize = scaleParamData.size();
+
+    ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
+    ASSERT_EQ(addOpDataSize, offsetParamDataSize);
+
+    for (unsigned i = 0; i < mulOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(mulOpData[i], scaleParamData[i]);
+
+    for (unsigned i = 0; i < addOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(addOpData[i], offsetParamData[i]);
 
 }
 
@@ -291,13 +321,25 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     mv::Tensor offsetParam = mv::math::subtract(offset, 
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    ASSERT_EQ(mulOp->getInputTensor(1)->getData().size(), scaleParam.getData().size());
-    ASSERT_EQ(addOp->getInputTensor(1)->getData().size(), offsetParam.getData().size());
+    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    auto mulOpDataSize = mulOpData.size();
 
-    for (unsigned i = 0; i < mulOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(mulOp->getInputTensor(1)->getData()[i], scaleParam.getData()[i]);
+    auto scaleParamData = scaleParam.getData();
+    auto scaleParamDataSize = scaleParamData.size();
 
-    for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpDataSize = addOpData.size();
+
+    auto newOffsetData = offsetParam.getData();
+    auto newOffsetDataSize = offsetData.size();
+
+    ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
+    ASSERT_EQ(addOpDataSize, newOffsetDataSize);
+
+    for (unsigned i = 0; i < mulOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(mulOpData[i], scaleParamData[i]);
+
+    for (unsigned i = 0; i < addOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(addOpData[i], newOffsetData[i]);
 
 }
