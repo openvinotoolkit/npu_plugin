@@ -163,16 +163,6 @@
 				]
 			}
 		},
-		"LocalResponseNormalization":{
-			"MvTensor":{
-				"serial_description":[
-					"Attr:size",
-					"Tensor:0:0",
-					"Tensor:1:0",
-					"Attr:bias",
-				]
-			}
-		},
 		"Prelu":{
 			"MvTensor":{
 				"serial_description":[
