@@ -304,27 +304,29 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 //In order to keep iterator validity, we first increment the iterator and then delete a backup;
                 auto backup = sinkFlow;
                 ++sinkFlow;
+
+                pass.log(Logger::MessageType::Info, "Undefined flow between " + backup.source()->getName() +
+                    " and " + backup.sink()->getName());
                 om.undefineFlow(backup);
 
-                om.defineFlow(sourceTensor, destOp, inputIdx);
+                auto newFlow = om.defineFlow(sourceTensor, destOp, inputIdx);
+
+                pass.log(Logger::MessageType::Info, "Defined new flow " + newFlow->getName() + " between " + newFlow.source()->getName() +
+                          " and " + newFlow.sink()->getName() + " with reference to tensor " + newFlow->getTensor()->getName() +
+                          " (expected " + sourceTensor->getName() + ")");
             }
 
-            //Batchnorm has to be eliminated, and with it:
+            //Batchnorm has to be eliminated, but first this things needs to be eliminated:
             //1) All dataflows (input and output)
-            //2) Output tensors
-            //3) Input operations, like it is already done.
+            //2) Input operations to Batchnorm(except the data) and their output tensors
 
-            //This loop, together with removeOp takes care of 3 and 2, only DFs need to be removed...
+            //This loop will take care of everything since removeOp handles flows as well
             while(opIt.parentsSize() > 1)
             {
                 auto paramOp = opIt.leftmostParent();
                 ++paramOp;
                 om.removeOp(paramOp);
             }
-
-            //...But output DF have been removed in thep previous loop, we need to take care of input DF
-            for (Data::FlowSiblingIterator sourceFlow(opIt.leftmostInput()); sourceFlow != om.flowEnd(); ++sourceFlow)
-                om.undefineFlow(sourceFlow);
 
             //Finally eliminate batch norm and keeping iterator validity.
             om.removeOp(opIt);
