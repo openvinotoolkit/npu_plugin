@@ -92,8 +92,18 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
     if (op == opEnd())
         throw ArgumentError(*this, "op:iterator", "end", "Invalid iterator passed for op removal");
 
+    //Removing input/output data flows from the model
+    //There is no need to call undefine flow, the graph structure will be handled by dataGraph_.node_erase(op)
+
+    for (Data::FlowSiblingIterator sourceFlow(op.leftmostInput()); sourceFlow != flowEnd(); ++sourceFlow)
+        dataFlows_->erase(sourceFlow->getName());
+
+    for (Data::FlowSiblingIterator sourceFlow(op.leftmostOutput()); sourceFlow != flowEnd(); ++sourceFlow)
+        dataFlows_->erase(sourceFlow->getName());
+
+    //Removing output tensors from the model
     for (std::size_t j = 0; j < op->outputSlots(); ++j)
-        tensors_->erase(op->getOutputTensor(j));
+        tensors_->erase(op->getOutputTensor(j)->getName());
 
     decrementOpsInstanceCounter_(op->getOpType());
     ops_->erase(op->getName());
@@ -147,11 +157,10 @@ void mv::BaseOpModel::undefineFlow(Data::FlowListIterator flow)
 
     log(Logger::MessageType::Info, "Removed " + flow->toString());
 
-    //This is giving segfault. How is this possible?
     if(!flow->getTensor()->hasAttr("flows"))
-        std::cout << flow->getTensor()->getName() << " is in a flow but has no attribute flows" << std::endl;
-    else
-        flow->getTensor()->get<std::set<std::string>>("flows").erase(flow->getName());
+        log(Logger::MessageType::Error, flow->getTensor()->getName() + " is in a flow but has no attribute flows");
+
+    flow->getTensor()->get<std::set<std::string>>("flows").erase(flow->getName());
     dataFlows_->erase(flow->getName());
     dataGraph_.edge_erase(flow);
 
