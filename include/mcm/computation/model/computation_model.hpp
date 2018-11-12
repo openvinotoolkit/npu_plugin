@@ -32,6 +32,7 @@ namespace mv
             - obtaining a capability of shallow coping the ComputationModel that is exploited by e.g. switchable contexts (OpModel, DataModel)
         */
         std::shared_ptr<computation_graph> opsGraph_;
+        std::shared_ptr<mv::RuntimeBinary> binary_;
         computation_graph::first_graph &dataGraph_;
         computation_graph::second_graph &controlGraph_;
         /*
@@ -111,6 +112,9 @@ namespace mv
         Control::FlowListIterator getControlFlow(const std::string& name);
 
         void clear();
+        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::string newName, std::size_t newSize);
+        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::size_t newSize);
+        std::shared_ptr<mv::RuntimeBinary>  getBinaryBuffer();
 
         std::reference_wrapper<ComputationModel> getRef();
 

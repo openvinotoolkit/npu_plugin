@@ -3,22 +3,30 @@
 
 namespace mv
 {
-    Serializer::Serializer(serializer_mode set_output_format){
+    Serializer::Serializer(serializer_mode set_output_format)
+    {
         output_format = set_output_format;
     }
 
-    unsigned long long Serializer::serialize(mv::ComputationModel& model, mv::TargetDescriptor& td, const char* ofilename )
+    unsigned long long Serializer::serialize(mv::ComputationModel& model, mv::TargetDescriptor& td )
     {
 
         mv::ControlModel graph_2_deploy(model);
         printf("Serializer\n");
 
+        std::shared_ptr<mv::RuntimeBinary> binaryPointer = graph_2_deploy.getBinaryBuffer() ;
+        std::size_t blobSize = 0;
         uint64_t fsize = 0 ;
+
         switch( output_format )
         {
             case mvblob_mode:
-                odata.calc(graph_2_deploy, td);
-                odata.open(ofilename);
+                blobSize = odata.calc(graph_2_deploy, td);
+                if (binaryPointer->getRAMEnabled())
+                {
+                    graph_2_deploy.allocateBinaryBuffer("RAMBlob", blobSize);
+                }
+                odata.open(binaryPointer);
                 odata.write_elf_header();
                 odata.write_mv_header();
                 odata.write_stage_section_header();

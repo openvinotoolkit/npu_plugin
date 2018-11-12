@@ -5,7 +5,7 @@
 
 namespace mv
 {
-    void Blob_buffer::calc(mv::ControlModel& cm, mv::TargetDescriptor& td)
+    uint32_t Blob_buffer::calc(mv::ControlModel& cm, mv::TargetDescriptor& td)
     {
         /*
             Does a soft run through to calculate all offsets for use in blob.
@@ -139,6 +139,8 @@ namespace mv
             blob_stats.buffer_header_size +
             blob_stats.buffer_data_size +
             blob_stats.relocation_section_size;
+
+        return blob_stats.blob_file_size ;
     }
 
     void Blob_buffer::write_elf_header()

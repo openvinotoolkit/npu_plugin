@@ -59,6 +59,7 @@ file(GLOB base
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
     "src/utils/parser/json_text.cpp"
+    "src/utils/serializer/file_buffer.cpp"
     "src/base/exception/*.cpp"
     "src/utils/env_loader.cpp"
     "src/utils/custom_math.cpp"

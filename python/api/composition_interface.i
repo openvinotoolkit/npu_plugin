@@ -42,9 +42,11 @@ import_array();
         unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
-        unit->compilationDescriptor()["GenerateBlob"]["output"] = std::string("cpp.blob");
         unit->compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppWrapperGeneratedPrototxt.prototxt");
         unit->compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppWrapperGeneratedWeights.caffemodel");
+        unit->compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("cpp.blob");
+        unit->compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+        unit->compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
         unit->compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = disableHardware;
 
         return unit;

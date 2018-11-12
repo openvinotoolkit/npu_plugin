@@ -6,10 +6,11 @@
 * @author Patrick Doyle, Ian Hunter
 * @date 4/27/2018
 */
+#include <memory>
 #include "include/mcm/computation/model/control_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
-#include "include/mcm/utils/serializer/file_buffer.h"
+#include "include/mcm/utils/serializer/file_buffer.hpp"
 #include "include/mcm/deployer/blob_serialization/blob_serializer.hpp"
 
 namespace mv
@@ -50,7 +51,7 @@ namespace mv
         *
         * @param graph_2_deploy (by reference) points to the graph you want to deploy
         */
-        unsigned long long serialize(mv::ComputationModel& model, mv::TargetDescriptor& td, const char* ofilename );
+        unsigned long long serialize(mv::ComputationModel& model, mv::TargetDescriptor& td );
 
         void print_mode();
     };

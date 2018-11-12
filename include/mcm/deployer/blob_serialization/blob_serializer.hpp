@@ -9,7 +9,7 @@
 */
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
-#include "include/mcm/utils/serializer/file_buffer.h"
+#include "include/mcm/utils/serializer/file_buffer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/deployer/blob_serialization/myriadX_hardware_descriptors.hpp"
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
@@ -177,8 +177,8 @@ namespace mv
         uint32_t input_size;
         uint32_t output_size;
         uint32_t blob_file_size;
-        std::vector<uint32_t> relocbuf_list = {  } ;
-        std::vector<uint32_t> relocadr_list = {  } ;
+        std::vector<std::uint32_t> relocbuf_list = {  } ;
+        std::vector<std::uint32_t> relocadr_list = {  } ;
     };
 
     class Blob_buffer : public WBuffer
@@ -197,7 +197,7 @@ namespace mv
 
 
             // Calculate Blob Statistics
-            void calc(mv::ControlModel& cm, mv::TargetDescriptor& td);
+            uint32_t calc(mv::ControlModel& cm, mv::TargetDescriptor& td);
 
             void write_elf_header();
 

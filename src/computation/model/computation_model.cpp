@@ -22,6 +22,7 @@ controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_e
 input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 selfRef_(*this)
+binary_(std::make_shared<mv::RuntimeBinary>())
 {
     
 }
@@ -47,6 +48,7 @@ controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_),
 selfRef_(other.selfRef_)
+binary_(other.binary_)
 {
     
 }
@@ -279,6 +281,29 @@ mv::Control::FlowListIterator mv::ComputationModel::getControlFlow(const std::st
 
     return it->second;
 
+}
+
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::string newName, std::size_t newSize)
+{
+    if (binary_->getBuffer(newName, newSize))
+    {   
+        return binary_ ;
+    }
+    return nullptr ;
+}
+
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::size_t newSize)
+{
+   if (binary_->getBuffer(newSize))
+    {
+        return binary_ ;
+    }
+    return nullptr ;
+}
+
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::getBinaryBuffer()
+{
+    return binary_ ;
 }
 
 void mv::ComputationModel::clear()
