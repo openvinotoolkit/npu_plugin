@@ -104,7 +104,8 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 {
     DataModel dm(getModel_());
 
-    *inputs_[idx] = *tensor;
+    //FUTURE: The method should check tensor validity at model level.
+    inputs_[idx] = tensor;
 
     std::string errMsg;
     auto checkRes = op::OpRegistry::checkInputs(getOpType(), inputs_, getAttrs_(), errMsg);
@@ -112,6 +113,9 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
     if (!checkRes.first)        
         throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(getOpType(), checkRes.second) + " (" +
             std::to_string(checkRes.second) + ") - " + errMsg);
+
+    if(hasAttr("invalid") && get<bool>("invalid"))
+        erase("invalid");
 
     std::vector<Tensor> outputsDef;
     op::OpRegistry::getOutputsDef(getOpType(), inputs_, getAttrs_(), outputsDef);

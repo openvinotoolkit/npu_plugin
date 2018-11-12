@@ -56,6 +56,32 @@ namespace mv
 
 }
 
+mv::Data::OpListIterator linkNewOperations(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+        opsToLink.push_back(sinkFlow.sink());
+
+    while(opIt.parentsSize() > 1)
+    {
+        auto paramOp = opIt.leftmostParent();
+        ++paramOp;
+        om.removeOp(paramOp);
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, j);
+        om.defineFlow(sourceTensor, opsToLink[j], j);
+    }
+
+    return opIt;
+}
+
 void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     
@@ -97,23 +123,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
-                for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-                {
-                    std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                    sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
-                }
-
-                while(opIt.parentsSize() > 1)
-                {
-                    auto paramOp = opIt.leftmostParent();
-                    ++paramOp;
-                    om.removeOp(paramOp);
-                }
-
-                om.removeOp(opIt);
-                opIt = parentOpIt;
-
+                opIt = linkNewOperations(parentOpIt, sourceTensor, om, opIt);
             }
 
         }
@@ -157,23 +167,7 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
 
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
-                for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-                {
-                    std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                    sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
-                }
-
-                while(opIt.parentsSize() > 1)
-                {
-                    auto paramOp = opIt.leftmostParent();
-                    ++paramOp;
-                    om.removeOp(paramOp);
-                }
-
-                om.removeOp(opIt);
-                opIt = parentOpIt;
-
+                opIt = linkNewOperations(parentOpIt, sourceTensor, om, opIt);
             }
 
         }
@@ -203,23 +197,7 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
-            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-            {
-                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
-            }
-
-            while(opIt.parentsSize() > 1)
-            {
-                auto paramOp = opIt.leftmostParent();
-                ++paramOp;
-                om.removeOp(paramOp);
-            }
-
-            om.removeOp(opIt);
-            opIt = parentOpIt;
-
+            opIt = linkNewOperations(parentOpIt, sourceTensor, om, opIt);
         }
 
     }
@@ -290,48 +268,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             pass.log(Logger::MessageType::Info, "Replaced additive term of BatchNorm op " + opIt->getName() + 
                 " with " + om.getSourceOp(sourceTensor)->getName());
 
-            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd();)
-            {
-                auto destOp = sinkFlow.sink();
-
-                //The inputslots of what come after have to be changed to sourceTensor
-                //Set input tensor will take care of the cascade effect (hopefully)
-                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                destOp->setInputTensor(sourceTensor, inputIdx);
-
-                //When all the inputslots have been changed, a new dataFlow has to be created
-                //But in order to be able to use the same inputIdx, we have to eliminate the current dataFlow first
-                //In order to keep iterator validity, we first increment the iterator and then delete a backup;
-                auto backup = sinkFlow;
-                ++sinkFlow;
-
-                pass.log(Logger::MessageType::Info, "Undefined flow between " + backup.source()->getName() +
-                    " and " + backup.sink()->getName());
-                om.undefineFlow(backup);
-
-                auto newFlow = om.defineFlow(sourceTensor, destOp, inputIdx);
-
-                pass.log(Logger::MessageType::Info, "Defined new flow " + newFlow->getName() + " between " + newFlow.source()->getName() +
-                          " and " + newFlow.sink()->getName() + " with reference to tensor " + newFlow->getTensor()->getName() +
-                          " (expected " + sourceTensor->getName() + ")");
-            }
-
-            //Batchnorm has to be eliminated, but first this things needs to be eliminated:
-            //1) All dataflows (input and output)
-            //2) Input operations to Batchnorm(except the data) and their output tensors
-
-            //This loop will take care of everything since removeOp handles flows as well
-            while(opIt.parentsSize() > 1)
-            {
-                auto paramOp = opIt.leftmostParent();
-                ++paramOp;
-                om.removeOp(paramOp);
-            }
-
-            //Finally eliminate batch norm and keeping iterator validity.
-            om.removeOp(opIt);
-            opIt = parentOpIt;
-
+            opIt = linkNewOperations(parentOpIt, sourceTensor, om, opIt);
         }
 
     }

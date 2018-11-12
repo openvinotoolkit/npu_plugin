@@ -93,13 +93,18 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
         throw ArgumentError(*this, "op:iterator", "end", "Invalid iterator passed for op removal");
 
     //Removing input/output data flows from the model
-    //There is no need to call undefine flow, the graph structure will be handled by dataGraph_.node_erase(op)
+    //There is no actual need to call undefineFlow, as the graph structure will be handled by dataGraph_.node_erase(op)
+    //But undefineFlow also removes the flow information from the tensor, so it's better to use it
 
     for (Data::FlowSiblingIterator sourceFlow(op.leftmostInput()); sourceFlow != flowEnd(); ++sourceFlow)
-        dataFlows_->erase(sourceFlow->getName());
+        undefineFlow(sourceFlow);
+        //dataFlows_->erase(sourceFlow->getName());
 
-    for (Data::FlowSiblingIterator sourceFlow(op.leftmostOutput()); sourceFlow != flowEnd(); ++sourceFlow)
-        dataFlows_->erase(sourceFlow->getName());
+    for (Data::FlowSiblingIterator sinkFlow(op.leftmostOutput()); sinkFlow != flowEnd(); ++sinkFlow)
+    {
+        sinkFlow.sink()->set<bool>("invalid", true);
+        undefineFlow(sinkFlow);
+    }
 
     //Removing output tensors from the model
     for (std::size_t j = 0; j < op->outputSlots(); ++j)
