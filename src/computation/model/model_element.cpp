@@ -3,7 +3,7 @@
 
 mv::ModelElement::ModelElement(ComputationModel& model, const std::string& name) :
 Element(name),
-model_(std::ref(model))
+model_(model.getRef())
 {
 
 }

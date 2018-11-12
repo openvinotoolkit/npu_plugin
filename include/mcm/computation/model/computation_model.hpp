@@ -55,6 +55,8 @@ namespace mv
         std::shared_ptr<Control::FlowListIterator> controlFlowEnd_;
         std::shared_ptr<Data::OpListIterator> input_;
         std::shared_ptr<Data::OpListIterator> output_;
+
+        std::reference_wrapper<ComputationModel> selfRef_;
         
         Data::TensorIterator findTensor_(const std::string &name);
         void incrementOpsInstanceCounter_(const std::string& opType);
@@ -109,6 +111,8 @@ namespace mv
         Control::FlowListIterator getControlFlow(const std::string& name);
 
         void clear();
+
+        std::reference_wrapper<ComputationModel> getRef();
 
         std::string getName() const;
         virtual std::string getLogID() const override;
