@@ -18,8 +18,10 @@ TEST(ops, divide)
 
     ASSERT_EQ(divide->getShape(), mv::Shape({256, 512}));
     ASSERT_EQ(divideOp->getOpType(), "Divide");
-    ASSERT_EQ(divide->attrsCount(), 5);
+    ASSERT_EQ(divide->attrsCount(), 6);
     ASSERT_EQ(divideOp->attrsCount(), 2);
     ASSERT_EQ(divideOp->inputSlots(), 2);
     ASSERT_EQ(divideOp->outputSlots(), 1);
+    ASSERT_TRUE(divideOp->hasTypeTrait("executable"));
+
 }

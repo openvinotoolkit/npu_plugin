@@ -17,6 +17,6 @@ TEST(ops, bias)
     ASSERT_EQ(biasOp->attrsCount(), 2);
     ASSERT_EQ(biasOp->inputSlots(), 2);
     ASSERT_EQ(biasOp->outputSlots(), 1);
-    //ASSERT_TRUE(biasOp->isExecutable());
+    ASSERT_TRUE(biasOp->hasTypeTrait("executable"));
 
 }

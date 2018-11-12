@@ -18,7 +18,6 @@ TEST(ops, fullyConnected)
     ASSERT_EQ(fullyConnectedOp->inputSlots(), 2);
     ASSERT_EQ(fullyConnectedOp->outputSlots(), 1);
     ASSERT_EQ(fullyConnectedOp->attrsCount(), 2);
-    ASSERT_EQ(fullyConnected->attrsCount(), 5);
-
-    //ASSERT_TRUE(fullyConnectedOp->isExecutable());
+    ASSERT_EQ(fullyConnected->attrsCount(), 6);
+    ASSERT_TRUE(fullyConnectedOp->hasTypeTrait("executable"));
 }

@@ -18,7 +18,7 @@ TEST(ops, prelu)
     ASSERT_EQ(preluOp->attrsCount(), 2);
     ASSERT_EQ(preluOp->inputSlots(), 2);
     ASSERT_EQ(preluOp->outputSlots(), 1);
-    ASSERT_EQ(prelu->attrsCount(), 5);
-    //ASSERT_TRUE(preluOp->isExecutable());
+    ASSERT_EQ(prelu->attrsCount(), 6);
+    ASSERT_TRUE(preluOp->hasTypeTrait("executable"));
 
 }

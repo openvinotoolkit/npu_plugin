@@ -22,7 +22,7 @@ TEST(ops, concat)
     ASSERT_EQ(concatOp->getOpType(), "Concat");
     ASSERT_EQ(concatOp->inputSlots(), 2);
     ASSERT_EQ(concatOp->outputSlots(), 1);
-    ASSERT_EQ(concat->attrsCount(), 5);
+    ASSERT_EQ(concat->attrsCount(), 6);
     ASSERT_EQ(concatOp->attrsCount(), 2);
-    //ASSERT_TRUE(concatOp->isExecutable());
+    ASSERT_TRUE(concatOp->hasTypeTrait("executable"));
 }

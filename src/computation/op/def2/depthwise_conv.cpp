@@ -64,7 +64,7 @@ namespace mv
 
             // Make sure that the result of subtract will not be negative
             mv::Shape outputShape({(inputs[0]->getShape()[0] + padding[0] + padding[1] - inputs[1]->getShape()[0]) / stride[0] + 1, (
-                inputs[0]->getShape()[1] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1, inputs[0]->getShape()[3]});
+                inputs[0]->getShape()[1] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1, inputs[0]->getShape()[2]});
 
             outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
 

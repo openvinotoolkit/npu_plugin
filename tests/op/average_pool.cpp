@@ -33,6 +33,6 @@ TEST(ops, averagePool2D)
     ASSERT_EQ(p3, 1);
     ASSERT_EQ(poolOp->inputSlots(), 1);
     ASSERT_EQ(poolOp->outputSlots(), 1);
-    //ASSERT_TRUE(convOp->isExecutable());
+    ASSERT_TRUE(poolOp->hasTypeTrait("executable"));
 
 }

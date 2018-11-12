@@ -13,9 +13,9 @@ TEST(ops, reshape)
     ASSERT_EQ(reshape->getShape(), mv::Shape({5, 5, 20}));
     ASSERT_EQ(reshapeOp->getOpType(), "Reshape");
     ASSERT_EQ(reshapeOp->attrsCount(), 3);
-    ASSERT_EQ(reshape->attrsCount(), 5);
+    ASSERT_EQ(reshape->attrsCount(), 6);
     ASSERT_EQ(reshapeOp->inputSlots(), 1);
     ASSERT_EQ(reshapeOp->outputSlots(), 1);
-    //ASSERT_TRUE(reshapeOp->isExecutable());
+    ASSERT_TRUE(reshapeOp->hasTypeTrait("executable"));
 
 }

@@ -15,7 +15,7 @@ TEST(ops, relu)
     ASSERT_EQ(reluOp->attrsCount(), 2);
     ASSERT_EQ(reluOp->inputSlots(), 1);
     ASSERT_EQ(reluOp->outputSlots(), 1);
-    ASSERT_EQ(relu->attrsCount(), 5);
-    //ASSERT_TRUE(reluOp->isExecutable());
+    ASSERT_EQ(relu->attrsCount(), 6);
+    ASSERT_TRUE(reluOp->hasTypeTrait("executable"));
 
 }

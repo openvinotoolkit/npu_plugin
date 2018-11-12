@@ -18,10 +18,10 @@ TEST(ops, subtract)
 
     ASSERT_EQ(subtract->getShape(), mv::Shape({256, 512}));
     ASSERT_EQ(subtractOp->getOpType(), "Subtract");
-    ASSERT_EQ(subtract->attrsCount(), 5);
+    ASSERT_EQ(subtract->attrsCount(), 6);
     ASSERT_EQ(subtractOp->attrsCount(), 2);
     ASSERT_EQ(subtractOp->inputSlots(), 2);
     ASSERT_EQ(subtractOp->outputSlots(), 1);
-    //ASSERT_TRUE(subtractOp->isExecutable());
+    ASSERT_TRUE(subtractOp->hasTypeTrait("executable"));
 
 }

@@ -13,9 +13,10 @@ TEST(ops, depthconv2D)
     auto convOp = om.getSourceOp(conv);
     auto output = om.output(conv);
 
-    ASSERT_EQ(output->getShape(), mv::Shape({8, 8, 1}));
+
+    ASSERT_EQ(conv->getShape(), mv::Shape({8, 8, 1}));
     ASSERT_EQ(convOp->getOpType(), "DepthwiseConv");
-    ASSERT_EQ(convOp->attrsCount(), 9);
+    ASSERT_EQ(convOp->attrsCount(), 4);
     auto s0 = convOp->get<std::array<unsigned short, 2>>("stride")[0];
     auto s1 = convOp->get<std::array<unsigned short, 2>>("stride")[1];
     ASSERT_EQ(s0, 4);
@@ -30,6 +31,6 @@ TEST(ops, depthconv2D)
     ASSERT_EQ(p3, 1);
     ASSERT_EQ(convOp->inputSlots(), 2);
     ASSERT_EQ(convOp->outputSlots(), 1);
-    //ASSERT_TRUE(convOp->isExecutable());
+    ASSERT_TRUE(convOp->hasTypeTrait("executable"));
 
 }
