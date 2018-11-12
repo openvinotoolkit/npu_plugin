@@ -149,7 +149,7 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
 
 mv::Data::TensorIterator mv::Op::getInputTensor(std::size_t idx)
 {
-    if (idx > inputs_.size())
+    if (idx >= inputs_.size())
         throw IndexError(*this, idx, "Exceeds the number of inputs");
     return inputs_[idx];
 }
@@ -182,7 +182,7 @@ std::vector<mv::Data::TensorIterator> mv::Op::getInputTensor()
 
 mv::Data::TensorIterator mv::Op::getOutputTensor(std::size_t idx)
 {
-     if (idx > inputs_.size())
+     if (idx >= outputs_.size())
         throw IndexError(*this, idx, "Exceeds the number of outputs");
     return outputs_[idx];
 }
