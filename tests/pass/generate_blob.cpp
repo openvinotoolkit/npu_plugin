@@ -712,6 +712,49 @@ TEST (generate_blob, blob_scale)
 
 }
 
+// test 10 : conv->leakyRelu
+TEST (generate_blob, blob_leakyRelu)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+
+    auto leakyRelu = test_cm.leakyRelu(convIt61,1);
+    // define output
+    auto output = test_cm.output(leakyRelu);
+
+    std::string blobName = "test_leakyrelu.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_tanh.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (1156LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
 // Create both RAM and file blobs
 TEST (generate_blob, runtime_binary_RAM_FILE)
 {
