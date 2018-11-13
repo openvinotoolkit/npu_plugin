@@ -10,7 +10,7 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 
         std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
         auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NCHW"));
-        auto conv = model.conv2D(input, weights, stride, padding);
+        auto conv = model.conv(input, weights, stride, padding);
         // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
         std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
         std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
@@ -20,7 +20,7 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
         auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
         auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
         auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-        return model.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
+        return model.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
 TEST (mv_num_convert, fp32_to_fp16)
@@ -695,7 +695,7 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
-    auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     cm.output(pool1);
 
     // Load target descriptor for the selected target to the compilation unit
@@ -765,7 +765,7 @@ TEST (generate_blob, runtime_binary_RAM)
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
-    auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     cm.output(pool1);
 
     // Load target descriptor for the selected target to the compilation unit
@@ -828,7 +828,7 @@ TEST (generate_blob, runtime_binary_FILE)
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
-    auto pool1 = cm.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     cm.output(pool1);
 
     // Load target descriptor for the selected target to the compilation unit

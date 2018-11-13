@@ -14,6 +14,8 @@
 #include "include/mcm/computation/model/group.hpp"
 #include "include/mcm/computation/resource/stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
+#include "include/mcm/computation/model/runtime_binary.hpp"
+
 
 namespace mv
 {

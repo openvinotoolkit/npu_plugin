@@ -73,6 +73,7 @@ file(GLOB base
     "src/computation/op/op_entry.cpp"
     "src/computation/op/op_registry.cpp"
     "src/computation/op/def2/*.cpp"
+    "src/computation/model/runtime_binary.cpp"
 )
 
 file (GLOB model
@@ -93,6 +94,7 @@ file (GLOB model
     "src/computation/resource/nce1_utils.cpp"
     "src/computation/op/op.cpp"
     "src/computation/model/model_element.cpp"
+   
 )
 
 
@@ -148,7 +150,7 @@ if(VALIDATION)
     target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
     target_compile_definitions(cm PRIVATE CPU_ONLY=1)
     add_subdirectory(python/api)
-    add_subdirectory(tests)
+    #add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
     #add_subdirectory(recordings)  
 else()
@@ -159,7 +161,7 @@ else()
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     add_subdirectory(python/api)
-    add_subdirectory(tests)
+    #add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
     #add_subdirectory(recordings)
 endif(VALIDATION)
