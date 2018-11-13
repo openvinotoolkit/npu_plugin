@@ -2,25 +2,25 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
+#include "meta/include/mcm/op_model.hpp"
 #include <iostream>
 #include <fstream>
 
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
-
-        std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-        auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NCHW"));
-        auto conv = model.conv(input, weights, stride, padding);
-        // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
-        std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-        std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-        std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-        std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-        auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-        auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-        auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-        auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-        return model.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NCHW"));
+    auto conv = model.conv(input, weights, stride, padding);
+    // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
+    std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
+    auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    return model.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
 TEST (mv_num_convert, fp32_to_fp16)
@@ -695,7 +695,7 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     mv::CompilationUnit unit("RAMtest1");
 
     // Obtain compositional model from the compilation unit
-    mv::CompositionalModel& cm = unit.model();
+    mv::OpModel& cm = unit.model();
 
     // Compose the model for ResNet18
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
@@ -719,24 +719,23 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
 
     // Initialize compilation 
     unit.initialize();
-    mv::OpModel cm2(cm);
 
     // test get name and size methods
-    cm2.getBinaryBuffer()->getBuffer("testName1",4000) ;
-    EXPECT_EQ ("testName1", cm2.getBinaryBuffer()->getBinaryName()) << "ERROR: Unable to read name of RuntimeBinary";
-    EXPECT_EQ (4000,cm2.getBinaryBuffer()->getBufferSize() ) << "ERROR: incorrect size of RuntimeBinary";
+    cm.getBinaryBuffer()->getBuffer("testName1",4000) ;
+    EXPECT_EQ ("testName1", cm.getBinaryBuffer()->getBinaryName()) << "ERROR: Unable to read name of RuntimeBinary";
+    EXPECT_EQ (4000, cm.getBinaryBuffer()->getBufferSize() ) << "ERROR: incorrect size of RuntimeBinary";
 
     // test handling multiple calls to allocate data_ buffer
-    cm2.getBinaryBuffer()->getBuffer("testName2",2000) ;
-    EXPECT_EQ ("testName2", cm2.getBinaryBuffer()->getBinaryName()) << "ERROR: Unable to read name of RuntimeBinary";
-    EXPECT_EQ (2000,cm2.getBinaryBuffer()->getBufferSize() ) << "ERROR: incorrect size of RuntimeBinary";
+    cm.getBinaryBuffer()->getBuffer("testName2",2000) ;
+    EXPECT_EQ ("testName2", cm.getBinaryBuffer()->getBinaryName()) << "ERROR: Unable to read name of RuntimeBinary";
+    EXPECT_EQ (2000, cm.getBinaryBuffer()->getBufferSize() ) << "ERROR: incorrect size of RuntimeBinary";
 
     // Run all passes
     unit.initialize();
     unit.run();
-    cm2.getBinaryBuffer()->dumpBuffer("final_RAM1.blob") ;
+    cm.getBinaryBuffer()->dumpBuffer("final_RAM1.blob") ;
 
-    char* dataBuffer = cm2.getBinaryBuffer()->getDataPointer() ;
+    char* dataBuffer = cm.getBinaryBuffer()->getDataPointer() ;
     char magicNumber = dataBuffer[35];
     EXPECT_EQ (0x22, magicNumber) << "ERROR: wrong data read from runtimeBinary data buffer ";
 
@@ -765,7 +764,7 @@ TEST (generate_blob, runtime_binary_RAM)
     mv::CompilationUnit unit("RAMtest2");
 
     // Obtain compositional model from the compilation unit
-    mv::CompositionalModel& cm = unit.model();
+    mv::OpModel& cm = unit.model();
 
     // Compose the model for ResNet18
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
@@ -789,12 +788,11 @@ TEST (generate_blob, runtime_binary_RAM)
 
     // Initialize compilation 
     unit.initialize();
-    mv::OpModel cm2(cm);
 
     // Run all passes
     unit.initialize();
     unit.run();
-    cm2.getBinaryBuffer()->dumpBuffer("final_RAM2.blob") ;
+    cm.getBinaryBuffer()->dumpBuffer("final_RAM2.blob") ;
 
     std::cout << "in RTB test: after dump" << std::endl;
 
@@ -828,7 +826,7 @@ TEST (generate_blob, runtime_binary_FILE)
     mv::CompilationUnit unit("RAMtest3");
 
     // Obtain compositional model from the compilation unit
-    mv::CompositionalModel& cm = unit.model();
+    mv::OpModel& cm = unit.model();
 
     // Compose the model for ResNet18
     auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
@@ -852,12 +850,11 @@ TEST (generate_blob, runtime_binary_FILE)
 
     // Initialize compilation 
     unit.initialize();
-    mv::OpModel cm2(cm);
 
     // Run all passes
     unit.initialize();
     unit.run();
-    cm2.getBinaryBuffer()->dumpBuffer("final_RAM3.blob") ;
+    cm.getBinaryBuffer()->dumpBuffer("final_RAM3.blob") ;
 
     std::string RAMBlobPath = mv::utils::projectRootPath() + std::string("/build/tests/final_RAM3.blob");
     std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMTest3.blob");
