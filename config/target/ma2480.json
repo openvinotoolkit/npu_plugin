@@ -163,12 +163,42 @@
 				]
 			}
 		},
+		"Elu":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:alpha",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Attr:strideX",
+					"Attr:strideY"
+				]
+			}
+		},
+		"LeakyRelu":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:alpha",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Attr:strideX",
+					"Attr:strideY"
+				]
+			}
+		},
 		"Prelu":{
 			"MvTensor":{
 				"serial_description":[
 					"Tensor:0:0",
 					"Tensor:1:0",
 					"Tensor:0:1"
+				]
+			}
+		},
+		"Sigmoid":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0"
 				]
 			}
 		},
@@ -200,6 +230,14 @@
 				]
 			}
 		},
+		"Tanh":{
+			"MvTensor":{
+				"serial_description":[
+					"Tensor:0:0",
+					"Tensor:1:0"
+				]
+			}
+		},
 		"Subtract":{
 			"MvTensor":{
 				"serial_description":[
@@ -224,6 +262,16 @@
 					"Tensor:0:0",
 					"Tensor:1:0",
 					"Tensor:0:1"
+				]
+			}
+		},
+		"LocalResponseNormalization":{
+			"MvTensor":{
+				"serial_description":[
+					"Attr:size",
+					"Tensor:0:0",
+					"Tensor:1:0",
+					"Attr:bias"
 				]
 			}
 		},

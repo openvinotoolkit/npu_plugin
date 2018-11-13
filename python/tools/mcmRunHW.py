@@ -41,7 +41,7 @@ out_y = a["Layers..."][-1]["Op..."]["Buffers..."][1]["y"]
 out_z = a["Layers..."][-1]["Op..."]["Buffers..."][1]["z"]
 
 #Already generated test.npy
-#gen_data(in_y, in_x, in_z)
+gen_data(in_y, in_x, in_z)
 
 in_x = str(in_x)
 in_y = str(in_y)
