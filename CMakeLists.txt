@@ -20,8 +20,8 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
-SET(VALIDATION true)
+SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+#SET(VALIDATION true)
 
 if(VALIDATION)
 include_directories("/opt/movidius/caffe/include")

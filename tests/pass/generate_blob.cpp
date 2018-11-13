@@ -73,13 +73,15 @@ TEST (generate_blob, blob_output_conv_01)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
-    unit.initialize();
+    unit.passManager().disablePass(mv::PassGenre::Validation);
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -116,12 +118,15 @@ TEST (generate_blob, blob_output_conv_02)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -159,15 +164,14 @@ TEST (generate_blob, blob_output_conv_03)
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_01.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -205,15 +209,14 @@ TEST (generate_blob, blob_output_conv_04)
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_01.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -252,15 +255,14 @@ TEST (generate_blob, blob_blur_edge_05)
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_01.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -307,15 +309,14 @@ TEST (generate_blob, blob_4_ops)
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_01.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -386,11 +387,14 @@ TEST (generate_blob, blob_eltwise_add)
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -462,11 +466,14 @@ TEST (generate_blob, blob_eltwise_multiply)
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -534,15 +541,14 @@ TEST (generate_blob, blob_softmax)
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_softmax.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+    unit.initialize();
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -601,14 +607,14 @@ TEST (generate_blob, blob_convbias_convrelu)
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_convbias_convrelu.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+    unit.initialize();
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -659,14 +665,14 @@ TEST (generate_blob, blob_scale)
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_scale.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
-    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
+    unit.initialize();
+//    unit.passManager().disablePass(mv::PassGenre::Validation);
+//    unit.passManager().disablePass(mv::PassGenre::Serialization);
+//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     unit.initialize();
     auto compOutput = unit.run();

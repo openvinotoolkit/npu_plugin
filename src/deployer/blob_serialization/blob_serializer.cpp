@@ -41,20 +41,21 @@ namespace mv
         {
 
             mv::Element e("serial_viewer");
-            if (it->getOpType() == "Input"){
+            if (it->getOpType() == "Input")
+            {
                 blob_stats.stage_section_size += 4*5;
                 blob_stats.stage_count++;
                 continue;
-            }else if(it->getOpType() == "Output"
+            }
+            else if(it->getOpType() == "Output"
                 || it->getOpType() == "Constant"
                 || it->getOpType() == "Concat")
-            {
                 continue;
-            }else if (it->hasAttr("NCE1_Compatible") && it->get<int>("NCE1_Compatible")){
+
+            else if (it->hasAttr("NCE1_Compatible") && it->get<int>("NCE1_Compatible"))
                 e = td.getSerialDefinition(it->getOpType(), "NCE1");
-            }else{
+            else
                 e = td.getSerialDefinition(it->getOpType(), "MvTensor");
-            }
             std::vector<std::string> serial_instructions = e.get<std::vector<std::string>>("serial_view");
 
             // Calculate Offset to Next Pointer
