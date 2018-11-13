@@ -159,11 +159,14 @@ TEST (generate_blob, blob_output_conv_03)
     auto output3 = test_cm.output(conv3);
 
     std::string blobName = "test_conv_03.blob";
+
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
 
@@ -206,9 +209,10 @@ TEST (generate_blob, blob_output_conv_04)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
 
@@ -252,9 +256,12 @@ TEST (generate_blob, blob_blur_edge_05)
 
     std::string blobName = "test_conv_05.blob";
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
 
@@ -308,7 +315,10 @@ TEST (generate_blob, blob_4_ops)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
 
