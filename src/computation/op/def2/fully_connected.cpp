@@ -36,8 +36,8 @@ namespace mv
         {
 
             std::string inputOrder = inputs[0]->getOrder().toString();
-            std::string outputOrder = inputOrder.substr(inputOrder.size() - 2);
-            outputs.push_back(mv::Tensor(":0", {1, inputs[1]->getShape()[1]}, inputs[0]->getDType(), Order(outputOrder)));
+            inputOrder.erase(std::remove_if(inputOrder.begin(), inputOrder.end(), [](unsigned char x){return (x != 'H') && (x != 'W');}), inputOrder.end());
+            outputs.push_back(mv::Tensor(":0", {1, inputs[1]->getShape()[1]}, inputs[0]->getDType(), Order(inputOrder)));
             
         };
     
