@@ -75,8 +75,8 @@ TEST (generate_blob, blob_output_conv_01)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -120,8 +120,8 @@ TEST (generate_blob, blob_output_conv_02)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
     //unit.passManager().disablePass(mv::PassGenre::Validation);
@@ -169,6 +169,7 @@ TEST (generate_blob, blob_output_conv_03)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -215,6 +216,7 @@ TEST (generate_blob, blob_output_conv_04)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -264,6 +266,7 @@ TEST (generate_blob, blob_blur_edge_05)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -321,6 +324,7 @@ TEST (generate_blob, blob_4_ops)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -396,9 +400,9 @@ TEST (generate_blob, blob_eltwise_add)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -475,9 +479,9 @@ TEST (generate_blob, blob_eltwise_multiply)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -546,13 +550,16 @@ TEST (generate_blob, blob_softmax)
     auto outIt7 = test_cm.output(softIt7);
 
     std::string blobName = "test_softmax_09.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["output"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -616,9 +623,13 @@ TEST (generate_blob, blob_convbias_convrelu)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -674,9 +685,13 @@ TEST (generate_blob, blob_scale)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -718,13 +733,15 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_testblob.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = false;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMTest1.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest1");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     // Initialize compilation 
@@ -787,13 +804,15 @@ TEST (generate_blob, runtime_binary_RAM)
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_testblob.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = false;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest2.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest2");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = false;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     // Initialize compilation 
@@ -849,13 +868,15 @@ TEST (generate_blob, runtime_binary_FILE)
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_testblob.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = false;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMTest3.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest3");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     // Initialize compilation 
