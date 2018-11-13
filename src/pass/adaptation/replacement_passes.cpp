@@ -1,6 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/pass/common_functions.hpp"
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
@@ -63,22 +64,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 pass.log(Logger::MessageType::Info, "Moved Bias attribute of FullyConnected op " + opIt->getName() + " to " + conv2D->getName());
             }
 
-            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-            {
-                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(conv2D, sinkFlow.sink(), inputIdx); 
-            }
-
-            while(opIt.parentsSize() > 1)
-            {
-                auto paramOp = opIt.leftmostParent();
-                ++paramOp;
-                om.removeOp(paramOp);
-            }
-            
-            om.removeOp(opIt);
-            opIt = parentOpIt;
+            opIt = linkNewOperations(parentOpIt, conv2D, om, opIt);
 
         }
 
