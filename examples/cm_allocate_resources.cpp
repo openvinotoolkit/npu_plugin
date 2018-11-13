@@ -15,13 +15,13 @@ int main()
 
     // Compose model - use Composition API to create ops and obtain tensors
     auto input = cm.input({128, 128, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
-    auto weights1 = cm.constant(weights1Data, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto weights1 = cm.constant(weights1Data, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::Order("NCHW"));
     auto conv1 = cm.conv(input, weights1, {2, 2}, {1, 1, 1, 1});
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto weights2 = cm.constant(weights2Data, {5, 5, 8, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto weights2 = cm.constant(weights2Data, {5, 5, 8, 16}, mv::DTypeType::Float16, mv::Order("NCHW"));
     auto conv2 = cm.conv(pool1, weights2, {2, 2}, {2, 2, 2, 2});
     auto pool2 = cm.maxPool(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
-    auto weights3 = cm.constant(weights3Data, {4, 4, 16, 32}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto weights3 = cm.constant(weights3Data, {4, 4, 16, 32}, mv::DTypeType::Float16, mv::Order("NCHW"));
     auto conv3 = cm.conv(pool2, weights3, {1, 1}, {0, 0, 0, 0});
     cm.output(conv3);
 
@@ -46,7 +46,6 @@ int main()
     // Output BLOB - file name of the output binary
     unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("allocate_resouces.blob");
     unit.compilationDescriptor()["GenerateJSON"]["output"] = std::string("allocate_resouces.json");
-
 
 
     // Initialize compilation
