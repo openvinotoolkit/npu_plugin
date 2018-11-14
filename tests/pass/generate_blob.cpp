@@ -749,7 +749,7 @@ TEST (generate_blob, blob_leakyRelu)
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1156LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 // test 10 : conv->elu
 TEST (generate_blob, blob_elu)
@@ -860,7 +860,6 @@ TEST (generate_blob, blob_tanh)
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
