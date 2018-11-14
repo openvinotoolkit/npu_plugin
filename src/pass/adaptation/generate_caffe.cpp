@@ -382,6 +382,155 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             }
         }
 
+        if (opIt->getOpType() == "Elu")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("ELU");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("ELU");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a LRN parameter*/
+            caffe::ELUParameter *eluParamPrototxt = layerParamPrototxt->mutable_elu_param();
+            caffe::ELUParameter *eluParamCaffeModel = layerParamCaffeModel->mutable_elu_param();
+
+            eluParamPrototxt->set_alpha(opIt->get<double>("alpha"));
+            eluParamCaffeModel->set_alpha(opIt->get<double>("apha"));
+        }
+
+        if (opIt->getOpType() == "LeakyRelu")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("ReLU");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("ReLU");
+
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            if (parentOpIt0->getOpType() == "Bias")
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt0->getInputTensor(0));
+
+                /*The bottom attribute stores the name of the input blob*/
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt0->getName());
+
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+
+            /*Set layer to have a Relu parameter*/
+            caffe::ReLUParameter *reluParamPrototxt = layerParamPrototxt->mutable_relu_param();
+            caffe::ReLUParameter *reluParamCaffeModel = layerParamCaffeModel->mutable_relu_param();
+
+            reluParamPrototxt->set_negative_slope(opIt->get<double>("alpha"));
+            reluParamCaffeModel->set_negative_slope(opIt->get<double>("alpha"));
+        }
+
+        //TODO Need to add bias parameter for LRN 
+        if (opIt->getOpType() == "LocalResponseNormalization")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("LRN");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("LRN");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a LRN parameter*/
+            caffe::LRNParameter *lrnParamPrototxt = layerParamPrototxt->mutable_lrn_param();
+            caffe::LRNParameter *lrnParamCaffeModel = layerParamCaffeModel->mutable_lrn_param();
+
+            lrnParamPrototxt->set_local_size(opIt->get<unsigned>("size"));
+            lrnParamCaffeModel->set_local_size(opIt->get<unsigned>("size"));
+
+        }
+        if (opIt->getOpType() == "Tanh")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("TanH");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("TanH");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+
+        if (opIt->getOpType() == "Sigmoid")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Sigmoid");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Sigmoid");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+
         //TODO - PRELU needs to be tested - disabled in cppwrapper.py
         if (opIt->getOpType() == "Prelu")
         {

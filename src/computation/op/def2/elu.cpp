@@ -19,7 +19,7 @@ namespace mv
                 return {false, 0};
             }
             
-            auto alpha = args.at("alpha").get<unsigned>();
+            auto alpha = args.at("alpha").get<double>();
 
             if (alpha < 0)
             {
@@ -42,7 +42,7 @@ namespace mv
     
         MV_REGISTER_OP(Elu)
         .setInputs({"data"})
-        .setArg<unsigned>("alpha") 
+        .setArg<double>("alpha") 
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
