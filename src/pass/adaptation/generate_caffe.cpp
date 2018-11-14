@@ -409,7 +409,7 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             caffe::ELUParameter *eluParamCaffeModel = layerParamCaffeModel->mutable_elu_param();
 
             eluParamPrototxt->set_alpha(opIt->get<double>("alpha"));
-            eluParamCaffeModel->set_alpha(opIt->get<double>("apha"));
+            eluParamCaffeModel->set_alpha(opIt->get<double>("alpha"));
         }
 
         if (opIt->getOpType() == "LeakyRelu")
