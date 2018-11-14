@@ -738,8 +738,8 @@ TEST (generate_blob, blob_leakyRelu)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("leakyRelu.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("leakyRelu.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -777,8 +777,8 @@ TEST (generate_blob, blob_elu)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("elu.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("elu.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -815,8 +815,8 @@ TEST (generate_blob, blob_sigmoid)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("sigmoid.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("sigmoid.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -853,8 +853,8 @@ TEST (generate_blob, blob_tanh)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("tanh.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("tanh.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -891,8 +891,8 @@ TEST (generate_blob, blob_lrn)
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("lrn.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("lrn.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
