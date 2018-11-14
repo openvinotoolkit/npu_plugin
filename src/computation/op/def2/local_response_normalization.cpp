@@ -36,8 +36,8 @@ namespace mv
         MV_REGISTER_OP(LocalResponseNormalization)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setArg<mv::Order>("bias")
-        .setArg<mv::Order>("size")
+        .setArg<unsigned>("size")
+        .setArg<unsigned>("bias")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

@@ -157,7 +157,7 @@ class SerializedDescriptor:
                 ("rsvd8", [15, None]),
                 ("poolType", [1, None]),
 
-                # Line 4
+                # Line 430
                 ("dataBaseAddr", [32, None, HEX]),
                 ("t0", [10, None]),
                 ("a0", [10, None]),
@@ -677,7 +677,7 @@ blob_format = Struct(
                 ),
                 # leakyrelu
                 42: Struct(
-                    "alpha" / Int32ul,
+                    "opX" / Int32ul,
                     "Buffers..." / Struct(
                         "x" / Int32ul,
                         "y" / Int32ul,
@@ -692,6 +692,71 @@ blob_format = Struct(
                     )[2],
                     "postStrideX" / Int32ul,
                     "postStrideY" / Int32ul,
+                ),
+ 		        # elu
+                23: Struct(
+                    "opX" / Int32ul,
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[2],
+                    "postStrideX" / Int32ul,
+                    "postStrideY" / Int32ul,
+                ),
+		        #sigmoid
+    		    19: Struct(
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[2],
+                ),
+		        #tanh
+    		    21: Struct(
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[2],
+                ),
+		        #lrn
+    		    11: Struct(
+                    "size" / Int32ul,
+                    "Buffers..." / Struct(
+                        "x" / Int32ul,
+                        "y" / Int32ul,
+                        "z" / Int32ul,
+                        "x_S" / Int32ul,
+                        "y_S" / Int32ul,
+                        "z_S" / Int32ul,
+                        "offset" / Int32ul,
+                        "location" / Int32ul,
+                        "datatype" / Int32ul,
+                        "order" / Int32ul,
+                    )[2],
+                    "bias" / Int32ul,
                 ),
                 # prelu
                 10: Struct(
@@ -721,7 +786,7 @@ blob_format = Struct(
                         "location" / Int32ul,
                         "datatype" / Int32ul,
                         "order" / Int32ul,
-                    )[3]
+                    )[3],
                 ),
                 # eltwise_prod
                 13: Struct(
@@ -754,7 +819,7 @@ blob_format = Struct(
                     )[3]
                 ),
 
-                # Hardware Convolution
+                # Hardware Convoparse_filelution
                 33: Struct(
                     "OpMode" / Int32ul,
                     "inputSize" / Int32ul,
@@ -840,9 +905,23 @@ blob_format = Struct(
             ),
             # LeakyRelu
             42: Struct(
-                "alpha" / Int32ul,
+                "opX" / Int32ul,
                 "postStrideX" / Int32ul,
                 "postStrideY" / Int32ul
+            ),
+	        # ELU
+            23: Struct(
+                "opX" / Int32ul,
+                "postStrideX" / Int32ul,
+                "postStrideY" / Int32ul
+            ),	
+	     # Sigmoid
+            19: Struct(
+           
+            ),	
+	     # Tanh
+            21: Struct(
+           
             ),
             # # Bias
             # 9: Struct(
@@ -899,7 +978,7 @@ def main():
                     # val = struct.pack(">I", int(x.hex()))
                     # print(x.hex(), type(x.hex()))
                     val = x.hex()
-                    # print("Original:  ", val)
+                    print("Original:  ", val)
                     # print("Hex: L:", val[:4], "R:", val[4:])
                     lval = val[:4]
                     rval = val[4:]

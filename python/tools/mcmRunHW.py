@@ -47,9 +47,17 @@ in_x = str(in_x)
 in_y = str(in_y)
 in_z = str(in_z)
 
+print("In x :", in_x)
+print("In y :", in_y)
+print("In z :", in_z)
+
 out_x = str(out_x)
 out_y = str(out_y)
 out_z = str(out_z)
+
+print("out x :", out_x)
+print("out y :", out_y)
+print("out z :", out_z)
 
 GLOBALS.USING_MA2480 = True
 #os.system('python3 $MCM_HOME/python/tools/run_blob.py ' + blob_path + ' \(1,' +in_y+','+in_x+','+in_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+image_path+' -res '+blob_res)
