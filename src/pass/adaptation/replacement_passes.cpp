@@ -74,12 +74,8 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
-            std::cout << "weightsData name is" << opIt->getInputTensor(1)->getName() << std::endl;
-            
-            Tensor weigthsTensor = *(opIt->getInputTensor(1));
-            weigthsTensor.setOrder(Order(Order::getRowMajorID(weigthsTensor.getShape().ndims())));
 
-            auto weights = om.constant(weigthsTensor.getData(), {inputShape[0], inputShape[1], inputShape[2], 
+            auto weights = om.constant(weightsData, {inputShape[0], inputShape[1], inputShape[2],
                 opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
                 Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
 
