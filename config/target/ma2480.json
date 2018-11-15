@@ -167,10 +167,10 @@
 			"MvTensor":{
 				"serial_description":[
 					"Attr:alpha",
-					"Tensor:0:0",
-					"Tensor:1:0",
 					"Attr:strideX",
-					"Attr:strideY"
+					"Attr:strideY",
+					"Tensor:0:0",
+					"Tensor:1:0"
 				]
 			}
 		},

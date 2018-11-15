@@ -696,6 +696,8 @@ blob_format = Struct(
  		        # elu
                 23: Struct(
                     "alpha" / Int32ul,
+                    "postStrideX" / Int32ul,
+                    "postStrideY" / Int32ul,
                     "Buffers..." / Struct(
                         "x" / Int32ul,
                         "y" / Int32ul,
@@ -707,9 +709,7 @@ blob_format = Struct(
                         "location" / Int32ul,
                         "datatype" / Int32ul,
                         "order" / Int32ul,
-                    )[2],
-                    "postStrideX" / Int32ul,
-                    "postStrideY" / Int32ul,
+                    )[2]
                 ),
 		        #sigmoid
     		    19: Struct(
