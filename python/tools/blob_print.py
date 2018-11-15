@@ -695,7 +695,7 @@ blob_format = Struct(
                 ),
  		        # elu
                 23: Struct(
-                    "opX" / Int32ul,
+                    "alpha" / Int32ul,
                     "Buffers..." / Struct(
                         "x" / Int32ul,
                         "y" / Int32ul,
@@ -911,7 +911,7 @@ blob_format = Struct(
             ),
 	        # ELU
             23: Struct(
-                "opX" / Int32ul,
+                "alpha" / Int32ul,
                 "postStrideX" / Int32ul,
                 "postStrideY" / Int32ul
             ),	

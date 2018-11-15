@@ -671,7 +671,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         }
         else if(opIt->getOpType() == "Elu")
         {
-            opIt->set<double>("alpha", opIt->get<double>("alpha")); 
+            opIt->set<unsigned>("alpha", opIt->get<unsigned>("alpha")); 
             opIt->set<unsigned>("strideX", 0);
             opIt->set<unsigned>("strideY", 0);
             opIt->set<unsigned>("SerialID", 23);

@@ -765,7 +765,7 @@ TEST (generate_blob_WDDM, blob_elu)
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
     auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
 
-    auto elu = test_cm.elu(convIt61,1.0);
+    auto elu = test_cm.elu(convIt61,1);
     // define output
     auto output = test_cm.output(elu);
 

@@ -408,8 +408,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             caffe::ELUParameter *eluParamPrototxt = layerParamPrototxt->mutable_elu_param();
             caffe::ELUParameter *eluParamCaffeModel = layerParamCaffeModel->mutable_elu_param();
 
-            eluParamPrototxt->set_alpha(opIt->get<double>("alpha"));
-            eluParamCaffeModel->set_alpha(opIt->get<double>("alpha"));
+            eluParamPrototxt->set_alpha(opIt->get<unsigned>("alpha"));
+            eluParamCaffeModel->set_alpha(opIt->get<unsigned>("alpha"));
         }
 
         //Note: This is meant to be the equivalent of Onnx Gemm. It can either be MatMul for fullyConnected ops. 
