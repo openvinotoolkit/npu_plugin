@@ -23,8 +23,8 @@ target_link_libraries(cm_resnet18 cm)
 add_executable(test_f test.cpp)
 target_link_libraries(test_f cm)
 
-add_executable(lrn lrn.cpp)
-target_link_libraries(lrn cm)
+#add_executable(lrn lrn.cpp)
+#target_link_libraries(lrn cm)
 
 if(VALIDATION)
 add_executable(caffe_files_generator caffe_files_generator.cpp)
