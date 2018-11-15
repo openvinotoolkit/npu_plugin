@@ -412,6 +412,30 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             eluParamCaffeModel->set_alpha(opIt->get<double>("alpha"));
         }
 
+        //Note: This is meant to be the equivalent of Onnx Gemm. It can either be MatMul for fullyConnected ops. 
+        if (opIt->getOpType() == "MatMul")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("InnerProduct");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("InnerProduct");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+
         if (opIt->getOpType() == "LeakyRelu")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -837,24 +861,30 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             /*Set name and type of the layer*/
             layerParamPrototxt->set_name(opIt->getName());
-            layerParamPrototxt->set_type("Concat");
+            layerParamPrototxt->set_type("BatchNorm");
 
             layerParamCaffeModel->set_name(opIt->getName());
-            layerParamCaffeModel->set_type("Concat");
+            layerParamCaffeModel->set_type("BatchNorm");
 
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
-            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
-
-            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
             /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a pooling parameter*/
+            caffe::BatchNormParameter *batchNormParamPrototxt = layerParamPrototxt->mutable_batch_norm_param();
+            caffe::BatchNormParameter *batchNormParamCaffeModel = layerParamCaffeModel->mutable_batch_norm_param();
+
+            batchNormParamPrototxt->set_use_global_stats(true);
+            batchNormParamPrototxt->set_eps(opIt->get<double>("eps"));
+
+            batchNormParamCaffeModel->set_use_global_stats(true);
+            batchNormParamCaffeModel->set_eps(opIt->get<double>("eps"));
         }
     }
 
