@@ -713,7 +713,7 @@ TEST (generate_blob, blob_scale)
 }
 
 // test 10 : conv->leakyRelu
-TEST (generate_blob, blob_leakyRelu)
+TEST (generate_blob_WDDM, blob_leakyRelu)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -734,7 +734,7 @@ TEST (generate_blob, blob_leakyRelu)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_tanh.dot");
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("leakyrelu.dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
@@ -752,7 +752,7 @@ TEST (generate_blob, blob_leakyRelu)
     EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 // test 10 : conv->elu
-TEST (generate_blob, blob_elu)
+TEST (generate_blob_WDDM, blob_elu)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -773,7 +773,7 @@ TEST (generate_blob, blob_elu)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_tanh.dot");
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("elu.dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
@@ -790,7 +790,7 @@ TEST (generate_blob, blob_elu)
     // compare filesize written to expected
     EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
-TEST (generate_blob, blob_sigmoid)
+TEST (generate_blob_WDDM, blob_sigmoid)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -811,7 +811,7 @@ TEST (generate_blob, blob_sigmoid)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_tanh.dot");
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("sigmoid.dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
@@ -828,7 +828,7 @@ TEST (generate_blob, blob_sigmoid)
     // compare filesize written to expected
     EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
-TEST (generate_blob, blob_tanh)
+TEST (generate_blob_WDDM, blob_tanh)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -849,7 +849,7 @@ TEST (generate_blob, blob_tanh)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_tanh.dot");
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("tanh.dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
@@ -865,7 +865,7 @@ TEST (generate_blob, blob_tanh)
     // compare filesize written to expected
     EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
-TEST (generate_blob, blob_lrn)
+TEST (generate_blob_WDDM, blob_lrn)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -887,7 +887,7 @@ TEST (generate_blob, blob_lrn)
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_tanh.dot");
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("lrn.dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
