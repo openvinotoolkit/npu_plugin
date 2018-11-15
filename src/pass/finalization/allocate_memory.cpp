@@ -372,7 +372,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
 
                 }
             }
-            for (unsigned x = 0; x < opIterator->outputSlots(); x++)
+            for (unsigned x = 0; x < opIterator->outputSlots(); ++x)
             {
 
                 auto outTensor = opIterator->getOutputTensor(x);
