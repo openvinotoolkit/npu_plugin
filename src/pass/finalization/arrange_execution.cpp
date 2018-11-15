@@ -1,8 +1,8 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
-static void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -21,7 +21,7 @@ namespace mv
 
 }
 
-void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "Arrange execution" << std::endl;
@@ -40,7 +40,7 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
         {
             nextOp = currentOp.leftmostChild();
             cm.defineFlow(currentOp, nextOp);
-            if (nextOp->getOpType() != OpType::Output)
+            if (nextOp->getOpType() != "Output")
             {
                 auto stage = cm.addStage();
                 cm.addToStage(stage, nextOp);
@@ -57,7 +57,7 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
                 {
                     std::size_t result = 0;
                     for (auto parent = nextOp.leftmostParent(); parent != om.opEnd(); ++parent)
-                        if (parent->isExecutable() || parent->getOpType() == OpType::Input)
+                        if (parent->hasTypeTrait("executable") || parent->getOpType() == "Input")
                             ++result;
                     return result;
                 };
@@ -65,7 +65,7 @@ void arrangeLinearExecutionFcn(mv::ComputationModel& model, mv::TargetDescriptor
                 while (nextOp.parentsSize() == 1 || executableParents() == 1)
                 {
                     cm.defineFlow(currentOp, nextOp);
-                    if (nextOp->getOpType() != OpType::Output)
+                    if (nextOp->getOpType() != "Output")
                     {
                         auto stage = cm.addStage();
                         cm.addToStage(stage, nextOp);

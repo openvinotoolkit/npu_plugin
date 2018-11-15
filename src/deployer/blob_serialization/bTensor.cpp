@@ -119,7 +119,7 @@ namespace mv
         mv::Control::StageIterator stg = cm.getStage(0);
 
         unsigned D1_stride = 0, D1_block = 0;
-        unsigned D2_stride = 0, D2_block = 0;
+        unsigned D2_stride = 0; //, D2_block = 0;
         int block = 0;
 
         bool is_tight = false;
@@ -208,7 +208,7 @@ namespace mv
                         {
                             // 2nd dimension stride
                             D2_stride = blk_stride - D1_stride;  // wraparound
-                            D2_block = block;
+                            //D2_block = block;
                             break;  // no further striding support over 2D
                         }
                         else

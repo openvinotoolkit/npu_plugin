@@ -12,7 +12,8 @@ namespace mv
     public:
 
         explicit AttributeError(const LogSender& sender, const std::string& whatArg);
-
+        explicit AttributeError(const std::string& senderID, const std::string& whatArg);
+        
     };
 
 }

@@ -2,14 +2,14 @@
 #include <iostream>
 #include <fstream>
 
-mv::RuntimeBinary::RuntimeBinary() :
-binaryName_("NULL"),
-fileName_("mcmCompile.blob"),
-fileSize_(0),
-bufferSize_(0),
-RAMEnabled_(true),
-fileEnabled_(true),
-data_(nullptr)
+mv::RuntimeBinary::RuntimeBinary()
+    : data_(nullptr),
+    fileSize_(0),
+    bufferSize_(0),
+    fileEnabled_(true),
+    RAMEnabled_(true),
+    fileName_("mcmCompile.blob"),
+    binaryName_("NULL")
 {
 }
 
@@ -122,10 +122,8 @@ bool mv::RuntimeBinary::RuntimeBinary::dumpBuffer(std::string testFileName)
         return false ;
     }
 
-    for (int i=0; i<fileSize_; i++)
-    {
+    for (unsigned i = 0; i < fileSize_; i++)
         dumpFile << data_[i];
-    }
 
     dumpFile.close();
     return true ;

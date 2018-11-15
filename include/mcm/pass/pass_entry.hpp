@@ -6,6 +6,8 @@
 #include <set>
 #include <map>
 #include "include/mcm/target/target_descriptor.hpp"
+#include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm/base/exception/master_error.hpp"
 
 namespace mv
 {
@@ -26,86 +28,34 @@ namespace mv
     namespace pass
     {
 
-        class PassEntry
+        class PassEntry : public LogSender
         {
 
             std::string name_;
             std::set<PassGenre> passGenre_;
             std::string description_;
             std::map<std::string, json::JSONType> requiredArgs_;
-            std::function<void(ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)> passFunc_;
+            std::function<void(const PassEntry& pass, ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)> passFunc_;
 
         public:
 
-            PassEntry(const std::string& name) :
-            name_(name)
-            {
+            PassEntry(const std::string& name);
+            PassEntry& setGenre(PassGenre passGenre);
+            PassEntry& setGenre(const std::initializer_list<PassGenre> &passGenres);
+            PassEntry& setDescription(const std::string& description);
+            PassEntry& setFunc(const std::function<void(const PassEntry&, ComputationModel&, TargetDescriptor&, 
+                json::Object&, json::Object&)>& passFunc);
+            PassEntry& defineArg(json::JSONType argType, std::string argName);
 
-            }
+            const std::string getName() const;
+            const std::set<PassGenre> getGenre() const;
+            const std::string getDescription() const;
+            const std::map<std::string, json::JSONType>& getArgs() const;
+            std::size_t argsCount() const;
 
-            inline PassEntry& setGenre(PassGenre passGenre)
-            {
-                assert(passGenre_.find(passGenre) == passGenre_.end() && "Duplicated pass genre definition");
-                passGenre_.insert(passGenre);
-                return *this;
-            }
-
-            inline PassEntry& setGenre(const std::initializer_list<PassGenre> &passGenres)
-            {
-                for (auto it = passGenres.begin(); it != passGenres.end(); ++it)
-                    assert(passGenre_.find(*it) == passGenre_.end() && "Duplicated pass genre definition");
-                passGenre_.insert(passGenres);
-                return *this;
-            }
-
-            inline PassEntry& setDescription(const std::string& description)
-            {
-                description_ = description;
-                return *this;
-            }
-
-            inline PassEntry& setFunc(const std::function<void(ComputationModel&, TargetDescriptor&, json::Object&, json::Object&)>& passFunc)
-            {
-                passFunc_ = passFunc;
-                return *this;
-            }
-
-            inline const std::string getName() const
-            {
-                return name_;
-            }
-
-            inline const std::set<PassGenre> getGenre() const
-            {
-                return passGenre_;
-            }
-
-            inline const std::string getDescription() const
-            {
-                return description_;
-            }
-
-            inline PassEntry& defineArg(json::JSONType argType, std::string argName)
-            {
-                assert(requiredArgs_.find(argName) == requiredArgs_.end() && "Duplicated pass argument definition");
-                requiredArgs_.emplace(argName, argType);
-                return *this;
-            }
-
-            inline const std::map<std::string, json::JSONType>& getArgs() const
-            {
-                return requiredArgs_;
-            }
+            void run(ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor, json::Object& output) const;
             
-            inline std::size_t argsCount() const
-            {
-                return requiredArgs_.size();
-            }
-
-            inline void run(ComputationModel& model, TargetDescriptor& targetDescriptor, json::Object& compDescriptor, json::Object& output) const
-            {
-                passFunc_(model, targetDescriptor, compDescriptor, output);
-            }
+            std::string getLogID() const override;
 
 
         };

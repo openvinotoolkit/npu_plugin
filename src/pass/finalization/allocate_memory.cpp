@@ -1,11 +1,11 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
-static void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void allocateInputOutputTensors(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void allocateInputOutputTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 // static void allocateForImplicitConcat();
 
@@ -44,7 +44,7 @@ namespace mv
 
 
 
-void allocateInputOutputTensors(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "Allocate input/output tensors" << std::endl;
 
@@ -75,30 +75,27 @@ void allocateInputOutputTensors(mv::ComputationModel& model, mv::TargetDescripto
     {
         for (unsigned x = 0; x < opIterator->inputSlots(); x++)
         {
-            if(opIterator->hasInputDef(x)){
-                auto inTensor = opIterator->getInputTensor(x);
-                if (!inTensor->isPopulated() &&
-                    (! inTensor->hasAttr("allocator")) &&
-                    (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
+            auto inTensor = opIterator->getInputTensor(x);
+            if (!inTensor->isPopulated() &&
+                (! inTensor->hasAttr("allocator")) &&
+                (inTensor->hasAttr("modelInput") && inTensor->get<bool>("modelInput")))
+            {
+                auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
+                if (opIterator->hasAttr("NCE1_Compatible"))
                 {
-                    auto buf = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
-                    if (opIterator->hasAttr("NCE1_Compatible"))
+                    if (opIterator->get<int>("NCE1_Compatible"))
                     {
-                        if (opIterator->get<int>("NCE1_Compatible"))
+                        if (inTensor->hasAttr("NCE1_Paddings"))
                         {
-                            if (inTensor->hasAttr("NCE1_Paddings"))
-                            {
-                                std::cout << "Padding for hardware" << std::endl;
-                                auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
-                                dm.padRight("ProgrammableInput", buf, paddings);
+                            std::cout << "Padding for hardware" << std::endl;
+                            auto paddings = inTensor->get<std::vector<std::size_t>>("NCE1_Paddings");
+                            dm.padRight("ProgrammableInput", buf, paddings);
 
-                            }
                         }
                     }
-
                 }
-            }
 
+            }
         }
         for (unsigned x = 0; x < opIterator->outputSlots(); x++)
         {
@@ -135,7 +132,7 @@ void allocateInputOutputTensors(mv::ComputationModel& model, mv::TargetDescripto
     std::cout << "Exiting allocate input and output" << std::endl;
 }
 
-void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "Allocate populated" << std::endl;
@@ -169,7 +166,7 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
                 mv::Shape original_shape = tIt->getShape();
                 std::vector<std::size_t> original_shape_v = original_shape;
                 std::vector<std::size_t> padded_shape_v = std::vector<std::size_t>(original_shape.ndims());
-                for(unsigned i =0; i< original_shape_v.size();i++)
+                for(std::size_t i = 0; i< original_shape_v.size(); i++)
                     padded_shape_v[i] += original_shape_v[i] + rhs_paddings[i];
 
                 auto buf = dm.allocateTensor("ConstantMemory", stageIt, tIt);
@@ -189,7 +186,7 @@ void allocatePopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescript
 
 
 
-void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "Allocate unpopulated" << std::endl;
@@ -215,7 +212,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == OpType::Concat)
+        if (opIterator->getOpType() == "Concat")
         {
             // Allocate Output
             auto outputTensor = opIterator->getOutputTensor(0);
@@ -225,10 +222,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             auto outputBuffer = dm.allocateTensor("IntermediateMemory", stageIt, outputTensor);
 
             // Allocate Inputs inside of that output
-            auto valid_inputs = 0;
-            for(unsigned i = 0; i != opIterator->inputSlots(); i++)
-                if(opIterator->hasInputDef(i))
-                    valid_inputs++;
+            unsigned valid_inputs = opIterator->inputSlots();
 
             //auto axis = opIterator->get<int>("axis");
             unsigned int channel_index = 0;
@@ -303,7 +297,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
             }
         }
-        else if (opIterator->getOpType() == OpType::Input)
+        else if (opIterator->getOpType() == "Input")
         {
             std::cout << "Input" << std::endl;
             auto outTensor = opIterator->getOutputTensor(0);
@@ -315,7 +309,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
             }
 
         }
-        else if (opIterator->getOpType() == OpType::Output)
+        else if (opIterator->getOpType() == "Output")
         {
             std::cout << "Output" << std::endl;
             auto inTensor = opIterator->getInputTensor(0);
@@ -328,7 +322,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
         }
 
-        else if(opIterator->getOpType() == mv::OpType::ReLU)
+        else if(opIterator->getOpType() == "Relu")
         {
             auto inTensor = opIterator->getInputTensor(0);
             auto outTensor = opIterator->getOutputTensor(0);
@@ -344,7 +338,6 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
         */
         else
         {
-
             for (unsigned x = 0; x < opIterator->inputSlots(); x++)
             {
 
@@ -379,7 +372,7 @@ void allocateUnpopulatedTensorsFcn(mv::ComputationModel& model, mv::TargetDescri
 
                 }
             }
-            for (unsigned x = 0; x < opIterator->outputSlots(); x++)
+            for (unsigned x = 0; x < opIterator->outputSlots(); ++x)
             {
 
                 auto outTensor = opIterator->getOutputTensor(x);

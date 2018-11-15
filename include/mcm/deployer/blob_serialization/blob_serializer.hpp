@@ -7,7 +7,7 @@
 * @author Patrick Doyle, Ian Hunter
 * @date 4/27/2018
 */
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/serializer/file_buffer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
@@ -214,8 +214,6 @@ namespace mv
             void write_buffer_section(mv::ControlModel& cm);
 
             void write_relocation_section(mv::ControlModel& cm);
-
-            int get_blob_enum(mv::OpType o, bool NCE1=false);
 
     };   // end class blob_buffer
 

@@ -20,7 +20,8 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
+SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+#SET(VALIDATION true)
 
 if(VALIDATION)
 include_directories("/opt/movidius/caffe/include")
@@ -43,6 +44,7 @@ endif(VALIDATION)
 
 file(GLOB base
     "src/base/attribute_registry.cpp"
+    "src/base/attribute_entry.cpp"
     "src/base/attribute_def/*.cpp"
     "src/base/printable.cpp"
     "src/base/jsonable.cpp"
@@ -59,60 +61,40 @@ file(GLOB base
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
     "src/base/exception/*.cpp"
-    "src/utils/*.cpp"
+    "src/utils/env_loader.cpp"
+    "src/utils/custom_math.cpp"
     "src/base/element.cpp"
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
-    "src/tensor/math.cpp"
-    "src/tensor/dtype.cpp"
     "src/tensor/order/*.cpp"
     "src/tensor/order/order_def/*.cpp"
+    "src/tensor/math.cpp"
+    "src/tensor/dtype.cpp"
+    "src/computation/op/op_entry.cpp"
+    "src/computation/op/op_registry.cpp"
+    "src/computation/op/def2/*.cpp"
+    "src/computation/model/runtime_binary.cpp"
+)
+
+file (GLOB model
     "src/computation/model/computation_model.cpp"
-    "src/api/compositional_model.cpp"
+    "src/computation/model/base_op_model.cpp"
     "src/computation/model/op_model.cpp"
     "src/computation/model/data_model.cpp"
     "src/computation/model/control_model.cpp"
     "src/computation/model/computation_element.cpp"
-    "src/computation/op/computation_op.cpp"
-    "src/computation/op/kernel_op.cpp"
-    "src/computation/model/computation_group.cpp"
-    "src/computation/model/runtime_binary.cpp"
-    "src/computation/flow/flow.cpp"
+    "src/api/compositional_model.cpp"
+    "src/utils/recorded_compositional_model.cpp"
+    "src/computation/model/group.cpp"
     "src/computation/flow/control_flow.cpp"
     "src/computation/flow/data_flow.cpp"
     "src/computation/resource/memory_allocator.cpp"
-    "src/computation/resource/computation_stage.cpp"
+    "src/computation/resource/stage.cpp"
     "src/computation/resource/nce1.cpp"
     "src/computation/resource/nce1_utils.cpp"
-    "src/computation/op/source_op.cpp"
-    "src/computation/op/sink_op.cpp"
-    "src/computation/op/pool2d_op.cpp"
-    "src/computation/op/activation_op.cpp"
-    "src/computation/op/eltwise_op.cpp"
-    "src/computation/op/op_type.cpp"
-    "src/computation/op/def/add.cpp"
-    "src/computation/op/def/avgpool2d.cpp"
-    "src/computation/op/def/batch_norm.cpp"
-    "src/computation/op/def/bias.cpp"
-    "src/computation/op/def/concat.cpp"
-    "src/computation/op/def/constant.cpp"
-    "src/computation/op/def/conv2d.cpp"
-    "src/computation/op/def/depthwise_conv2d.cpp"
-    "src/computation/op/def/divide.cpp"
-    "src/computation/op/def/matmul.cpp"
-    "src/computation/op/def/input.cpp"
-    "src/computation/op/def/maxpool2d.cpp"
-    "src/computation/op/def/multiply.cpp"
-    "src/computation/op/def/output.cpp"
-    "src/computation/op/def/relu.cpp"
-    "src/computation/op/def/prelu.cpp"
-    "src/computation/op/def/reshape.cpp"
-    "src/computation/op/def/scale.cpp"
-    "src/computation/op/def/softmax.cpp"
-    "src/computation/op/def/subtract.cpp"
-    "src/computation/op/def/fully_connected.cpp"
-    "src/computation/op/def/conversion.cpp"
-    "src/computation/op/def/drop_out.cpp"
+    "src/computation/op/op.cpp"
+    "src/computation/model/model_element.cpp"
+   
 )
 
 
@@ -126,14 +108,15 @@ file(GLOB pass
     "src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
     "src/pass/pass_manager.cpp"
+    "src/pass/pass_entry.cpp"
     "src/target/target_descriptor.cpp"
+    "src/pass/common_functions.cpp"
     "src/pass/adaptation/fuse_passes.cpp"
     "src/pass/adaptation/remove_passes.cpp"
     "src/pass/adaptation/replacement_passes.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
-    "src/pass/serialization/generate_blob.cpp"
-    "src/pass/serialization/generate_json.cpp"
+    "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
 )
@@ -148,12 +131,23 @@ file(GLOB compiler
     "src/compiler/*"
 )
 
-if (MSVC)
-    add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler})
-else()
+add_subdirectory(meta)
 
+if (MSVC)
+    add_library(cm OBJECT ${compiler} ${pass})
+    add_library(corebase OBJECT ${base} ${logger})
+    add_library(model OBJECT ${model})
+    target_link_libraries(cm corebase metamodel)
+    add_dependencies(cm generate-comp-api)
+    add_dependencies(model generate-comp-api)
+else()
 if(VALIDATION)
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
+    add_library(corebase SHARED ${base} ${logger})
+    add_library(model SHARED ${model})
+    target_link_libraries(cm corebase metamodel)
+    add_dependencies(cm generate-comp-api)
+    add_dependencies(model generate-comp-api)
     target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
     target_compile_definitions(cm PRIVATE CPU_ONLY=1)
     add_subdirectory(python/api)
@@ -162,6 +156,11 @@ if(VALIDATION)
     #add_subdirectory(recordings)  
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    add_library(corebase SHARED ${base} ${logger})
+    add_library(model SHARED ${model})
+    target_link_libraries(cm corebase metamodel)
+    add_dependencies(cm generate-comp-api)
+    add_dependencies(model generate-comp-api)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)

@@ -2,7 +2,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
@@ -21,7 +21,7 @@ TEST(generate_json, case1)
     auto input = om.input(mv::Shape(64, 64, 16), mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, mv::Shape(3, 3, 16, 32), mv::DTypeType::Float16, mv::Order("CHW"), "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> scalesData = mv::utils::generateSequence<double>(32);
     auto scales = om.constant(scalesData, mv::Shape(32), mv::DTypeType::Float16, mv::Order("CHW"), "biases");

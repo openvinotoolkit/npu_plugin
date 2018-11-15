@@ -1,10 +1,10 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
 
-static void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void myriadXPaddings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -23,7 +23,7 @@ namespace mv
 
 //ASSUMPTION 1: This pass must be executed after the Mark Hardware Convolution pass.
 //REASON: There is no need to pad tensors not involved in HW operations at all.
-void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -36,7 +36,7 @@ void myriadXPaddings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
         if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
 
-        bool isConv = operationIt->getOpType() == mv::OpType::Conv2D;
+        bool isConv = operationIt->getOpType() == "Conv";
 
         operationIt->getInputTensor(0)->setOrder(mv::Order("HCW"));
         operationIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));

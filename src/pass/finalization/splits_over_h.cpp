@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
@@ -7,7 +7,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 
 
-static void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void splitsOverH(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -42,7 +42,7 @@ unsigned computeMaxLines(mv::Nce1& nce, mv::Data::OpListIterator operationIt)
     //Assuming split over H is always possible from this point on
     unsigned max_output_channels_performed = (unsigned)operationIt->get("NCE1_MaxOutputChannelsPerformed").get<std::size_t>();
     std::cout << "Max output channels performed " << max_output_channels_performed << std::endl;
-    if(operationIt->getOpType() == mv::OpType::Conv2D)
+    if(operationIt->getOpType() == "Conv")
         return nce.computeMaxOutputLinesConvolution(output_width, max_output_channels_performed);
     else //Pooling
     {
@@ -68,8 +68,8 @@ std::vector<mv::SplitOverHSolution> computeSplitsOverH(mv::Nce1& nce, mv::Data::
 }
 
 //ASSUMPTION: This pass must be executed after the mode selection pass.
-//REASON: Paddings and modes for each HW operation are needed.
-void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& pobj, mv::json::Object&)
+//REASON: Paddings (and possibly modes) for each HW operation are needed.
+void splitsOverH(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "Split over H pass " << std::endl;
     mv::OpModel om(model);
@@ -83,7 +83,9 @@ void splitsOverH(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
         if(!operationIt->get<int>("NCE1_Compatible"))
             continue;
 
-        if(operationIt->getOpType() == mv::OpType::Conv2D || operationIt->getOpType() == mv::OpType::AvgPool2D || operationIt->getOpType() == mv::OpType::MaxPool2D)
+        if(operationIt->getOpType() == "Conv" ||
+           operationIt->getOpType() == "AvgPool" ||
+           operationIt->getOpType() == "MaxPool")
         {
 
             std::vector<mv::SplitOverHSolution> splits = computeSplitsOverH(nce, operationIt);

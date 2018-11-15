@@ -170,40 +170,32 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
 
         std::vector<std::string> keys = jsonDescriptor["ops"].getKeys();
 
-        for (unsigned i = 0; i < keys.size(); ++i)  // Op Names
+        for (unsigned i = 0; i < keys.size(); ++i)
         {
             std::string opStr = keys.at(i);
-            try
-            {
-                OpType op(opStr);
-                ops_.insert(op);
-            }
-            catch (OpError& e)
+            if (!op::OpRegistry::checkOpType(opStr))
             {
                 reset();
                 return false;
             }
+            ops_.insert(opStr);
+            mv::Element e(opStr);
 
-
-            std::string op_name = keys[i];
-            mv::Element e(op_name);
-
-
-            for (unsigned j = 0; j < jsonDescriptor["ops"][op_name].size(); ++j) // Resource
+            for (unsigned j = 0; j < jsonDescriptor["ops"][opStr].size(); ++j) // Resource
             {
-                std::vector<std::string> resource_keys = jsonDescriptor["ops"][op_name].getKeys();
+                std::vector<std::string> resource_keys = jsonDescriptor["ops"][opStr].getKeys();
                 std::string platform_name = resource_keys[j];
 
                 std::vector<std::string> serial_list;
-                for (unsigned k = 0; k < jsonDescriptor["ops"][op_name][platform_name]["serial_description"].size(); ++k) // Resource
+                for (unsigned k = 0; k < jsonDescriptor["ops"][opStr][platform_name]["serial_description"].size(); ++k) // Resource
                 {
-                    std::string v = jsonDescriptor["ops"][op_name][platform_name]["serial_description"][k].get<std::string>();
+                    std::string v = jsonDescriptor["ops"][opStr][platform_name]["serial_description"][k].get<std::string>();
                     serial_list.push_back(v);
                 }
 
                 e.set<std::vector<std::string>>("serial_view", serial_list);
 
-                serialDescriptions_.insert(std::make_pair(op_name+":"+platform_name, e));
+                serialDescriptions_.insert(std::make_pair(opStr+":"+platform_name, e));
 
             }
         }
@@ -289,7 +281,7 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
     root["ops"] = json::Array();
 
     for (auto it = ops_.begin(); it != ops_.end(); ++it)
-        root["ops"].append(it->toString());
+        root["ops"].append(*it);
 
     root["passes"]["adapt"] = json::Array();
     root["passes"]["optimize"] = json::Array();
@@ -481,17 +473,20 @@ bool mv::TargetDescriptor::removeValidPass(const std::string& pass)
     return false;
 }
 
-bool mv::TargetDescriptor::defineOp(OpType op)
+bool mv::TargetDescriptor::defineOp(const std::string& op)
 {
     if (ops_.find(op) == ops_.end())
     {
+        if (!op::OpRegistry::checkOpType(op))
+            return false;
+
         ops_.insert(op);
         return true;
     }
     return false;
 }
 
-bool mv::TargetDescriptor::undefineOp(OpType op)
+bool mv::TargetDescriptor::undefineOp(const std::string& op)
 {
     auto opIt = ops_.find(op);
     if (opIt != ops_.end())
@@ -502,7 +497,7 @@ bool mv::TargetDescriptor::undefineOp(OpType op)
     return false;
 }
 
-bool mv::TargetDescriptor::opSupported(OpType op) const
+bool mv::TargetDescriptor::opSupported(const std::string& op) const
 {
     if (ops_.find(op) != ops_.end())
         return true;

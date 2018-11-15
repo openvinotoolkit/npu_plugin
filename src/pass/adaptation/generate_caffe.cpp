@@ -8,7 +8,7 @@
 #include "caffe.pb.h"
 #include <caffe/caffe.hpp>
 
-static void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput);
+static void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput);
 
 namespace mv
 {
@@ -27,7 +27,7 @@ namespace mv
         } // namespace pass
 } // namespace mv
 
-void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
+void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
 {
     using namespace mv;
 
@@ -49,7 +49,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
     for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
     {
-        if (opIt->getOpType() == mv::OpType::Input)
+        if (opIt->getOpType() == "Input")
         {
             /*Create layers*/
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -93,7 +93,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_top(opIt->getName());
         }
 
-        if (opIt->getOpType() == mv::OpType::Conv2D)
+        if (opIt->getOpType() == "Conv")
         {
             /*Create layers*/
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -165,7 +165,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
 
             /*Specify if convolution has bias*/
-            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
+            if (opIt.leftmostChild()->getOpType() == "Bias")
             {
                 convParamPrototxt->set_bias_term(1);
                 convParamCaffeModel->set_bias_term(1);
@@ -198,7 +198,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        if (opIt->getOpType() == mv::OpType::DepthwiseConv2D)
+        if (opIt->getOpType() == "DepthwiseConv")
         {
             /*Create layers*/
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
@@ -277,7 +277,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
 
             /*Specify if convolution has bias*/
-            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
+            if (opIt.leftmostChild()->getOpType() == "Bias")
             {
                 convParamPrototxt->set_bias_term(1);
                 convParamCaffeModel->set_bias_term(1);
@@ -310,7 +310,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        if (opIt->getOpType() == mv::OpType::Softmax)
+        if (opIt->getOpType() == "Softmax")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -326,7 +326,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
 
             /*Check if previous op is bias*/
-            if (parentOpIt->getOpType() == mv::OpType::Bias)
+            if (parentOpIt->getOpType() == "Bias")
             {
                 auto parentOpIt1 = opModel.getSourceOp(parentOpIt->getInputTensor(0));
 
@@ -347,7 +347,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        if (opIt->getOpType() == mv::OpType::ReLU)
+        if (opIt->getOpType() == "Relu")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -361,7 +361,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
 
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            if (parentOpIt0->getOpType() == mv::OpType::Bias)
+            if (parentOpIt0->getOpType() == "Bias")
             {
                 auto parentOpIt1 = opModel.getSourceOp(parentOpIt0->getInputTensor(0));
 
@@ -383,7 +383,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
         }
 
         //TODO - PRELU needs to be tested - disabled in cppwrapper.py
-        if (opIt->getOpType() == mv::OpType::PReLU)
+        if (opIt->getOpType() == "Prelu")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -427,7 +427,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        if (opIt->getOpType() == mv::OpType::Scale)
+        if (opIt->getOpType() == "Scale")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -472,7 +472,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
 
             /*Specify if scale has bias*/
-            if (opIt.leftmostChild()->getOpType() == mv::OpType::Bias)
+            if (opIt.leftmostChild()->getOpType() == "Bias")
             {
                 /*Set layer to have a scale parameter*/
                 caffe::ScaleParameter *scaleParamPrototxt = layerParamPrototxt->mutable_scale_param();
@@ -504,7 +504,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             }
         }
 
-        if (opIt->getOpType() == mv::OpType::MaxPool2D)
+        if (opIt->getOpType() == "MaxPool")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -539,7 +539,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
         }
 
-        if (opIt->getOpType() == mv::OpType::AvgPool2D)
+        if (opIt->getOpType() == "AveragePool")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -574,7 +574,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
         }
 
-        if (opIt->getOpType() == mv::OpType::Add)
+        if (opIt->getOpType() == "Add")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -590,7 +590,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
-            if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
+            if (parentOpIt0->getOpType() == "Constant" || parentOpIt1->getOpType() == "Constant")
                 throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Add");
 
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
@@ -614,7 +614,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_SUM);
         }
 
-        if (opIt->getOpType() == mv::OpType::Multiply)
+        if (opIt->getOpType() == "Multiply")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -630,7 +630,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
-            if (parentOpIt0->getOpType() == mv::OpType::Constant || parentOpIt1->getOpType() == mv::OpType::Constant)
+            if (parentOpIt0->getOpType() == "Constant" || parentOpIt1->getOpType() == "Constant")
                 throw RuntimeError(*parentOpIt0, "The generate prototxt pass does not handle constant inputs to Eltwise Prodcut");
 
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
@@ -654,7 +654,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             eltwiseParamCaffeModel->set_operation(caffe::EltwiseParameter_EltwiseOp_PROD);
         }
 
-        if (opIt->getOpType() == mv::OpType::Concat)
+        if (opIt->getOpType() == "Concat")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
@@ -681,7 +681,7 @@ void generateCaffeFcn(mv::ComputationModel &model, mv::TargetDescriptor &, mv::j
             layerParamCaffeModel->add_top(opIt->getName());
         }
 
-        if (opIt->getOpType() == mv::OpType::BatchNorm)
+        if (opIt->getOpType() == "BatchNormalization")
         {
             caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
             caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();

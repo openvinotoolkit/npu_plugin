@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
@@ -12,8 +12,9 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     mv::OpModel om("testModel");
     auto input = om.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3);
+
     auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape.totalSize());
@@ -29,7 +30,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     auto bnoffsetOp = om.getSourceOp(bnoffset);
     auto bnscale = om.constant(scaleData, convShape, mv::DTypeType::Float16, mv::Order("CHW"), "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
     om.output(batchnorm);
@@ -51,13 +52,13 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     
     // Check replacament for batchnorm multiplicative component
     auto mulOp = convOp.leftmostChild();
-    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Multiply);
+    ASSERT_EQ(mulOp->getOpType(), "Multiply");
     ASSERT_EQ(mulOp.childrenSize(), 1);
     ASSERT_TRUE(mulOp->getInputTensor(1)->isPopulated());
 
     // Check replacement for batchnorm additive component
     auto addOp = mulOp.leftmostChild();
-    ASSERT_EQ(addOp->getOpType(), mv::OpType::Add);
+    ASSERT_EQ(addOp->getOpType(), "Add");
     ASSERT_EQ(addOp.childrenSize(), 1);
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
@@ -71,25 +72,37 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     mv::Tensor offsetParam = mv::math::subtract(offset, 
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    ASSERT_EQ(mulOp->getInputTensor(1)->getData().size(), scaleParam.getData().size());
-    ASSERT_EQ(addOp->getInputTensor(1)->getData().size(), offsetParam.getData().size());
+    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    auto mulOpDataSize = mulOpData.size();
 
-    for (unsigned i = 0; i < mulOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(mulOp->getInputTensor(1)->getData()[i], scaleParam.getData()[i]);
+    auto scaleParamData = scaleParam.getData();
+    auto scaleParamDataSize = scaleParamData.size();
 
-    for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpDataSize = addOpData.size();
+
+    auto newOffsetData = offsetParam.getData();
+    auto newOffsetDataSize = newOffsetData.size();
+
+    ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
+    ASSERT_EQ(addOpDataSize, newOffsetDataSize);
+
+    for (unsigned i = 0; i < mulOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(mulOpData[i], scaleParamData[i]);
+
+    for (unsigned i = 0; i < addOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(addOpData[i], newOffsetData[i]);
    
 }
 
 TEST(fuse_batch_norm_pass, case_1dim_conv)
 {
-
     mv::OpModel om("testModel");
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
-    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("CHW"), "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+
+    auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("NCHW"), "weights");
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape[-1]);
@@ -97,15 +110,15 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(convShape[-1]);
     std::vector<double> scaleData = mv::utils::generateSequence<double>(convShape[-1]);
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "mean");
+    auto bnmean = om.constant(meanData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "variance");
+    auto bnvariance = om.constant(varianceData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "variance");
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "offset");
+    auto bnoffset = om.constant(offsetData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "offset");
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "scale");
+    auto bnscale = om.constant(scaleData, {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNorm(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
     om.output(batchnorm);
@@ -127,16 +140,16 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 
     // Check replacement for batchnorm additive component
     auto addOp = convOp.leftmostChild();
-    ASSERT_EQ(addOp->getOpType(), mv::OpType::Bias);
+    ASSERT_EQ(addOp->getOpType(), "Bias");
     ASSERT_EQ(addOp.childrenSize(), 1);
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
     // Check fusing
-    mv::Tensor mean("mean", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), meanData);
-    mv::Tensor variance("variance", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), varianceData);
-    mv::Tensor offset("offset", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), offsetData);
-    mv::Tensor scale("scale", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), scaleData);
-    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("CHW"), weightsData);
+    mv::Tensor mean("mean", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), meanData);
+    mv::Tensor variance("variance", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), varianceData);
+    mv::Tensor offset("offset", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), offsetData);
+    mv::Tensor scale("scale", {convShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), scaleData);
+    mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("NCHW"), weightsData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
     mv::Tensor offsetParam = mv::math::subtract(offset, 
@@ -144,11 +157,18 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
 
+    auto newWeigthsData = newWeigths.getData();
+    auto originalWeightsFromConv = convOp->getInputTensor(1);
+    auto originalWeightsFromConvData = originalWeightsFromConv->getData();
+
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto offsetParamData = offsetParam.getData();
+
     for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(convOp->getInputTensor(1)->getData()[i], newWeigths.getData()[i]);
+        ASSERT_FLOAT_EQ(originalWeightsFromConvData[i], newWeigthsData[i]);
 
     for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+        ASSERT_FLOAT_EQ(addOpData[i], offsetParamData[i]);
 
 }
 
@@ -157,7 +177,7 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
 
     mv::OpModel om("testModel");
     auto input = om.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
-    auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool = om.maxPool(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
     auto poolShape = pool->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(poolShape.totalSize());
@@ -173,7 +193,7 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     auto bnoffsetOp = om.getSourceOp(bnoffset);
     auto bnscale = om.constant(scaleData, poolShape, mv::DTypeType::Float16, mv::Order("CHW"), "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNorm(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
     om.output(batchnorm);
@@ -195,13 +215,13 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     
     // Check replacament for batchnorm multiplicative component
     auto mulOp = poolOp.leftmostChild();
-    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Multiply);
+    ASSERT_EQ(mulOp->getOpType(), "Multiply");
     ASSERT_EQ(mulOp.childrenSize(), 1);
     ASSERT_TRUE(mulOp->getInputTensor(1)->isPopulated());
 
     // Check replacement for batchnorm additive component
     auto addOp = mulOp.leftmostChild();
-    ASSERT_EQ(addOp->getOpType(), mv::OpType::Add);
+    ASSERT_EQ(addOp->getOpType(), "Add");
     ASSERT_EQ(addOp.childrenSize(), 1);
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
@@ -215,14 +235,26 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     mv::Tensor offsetParam = mv::math::subtract(offset, 
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    ASSERT_EQ(mulOp->getInputTensor(1)->getData().size(), scaleParam.getData().size());
-    ASSERT_EQ(addOp->getInputTensor(1)->getData().size(), offsetParam.getData().size());
+    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    auto mulOpDataSize = mulOpData.size();
 
-    for (unsigned i = 0; i < mulOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(mulOp->getInputTensor(1)->getData()[i], scaleParam.getData()[i]);
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpDataSize = addOpData.size();
 
-    for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+    auto offsetParamData = offsetParam.getData();
+    auto offsetParamDataSize = offsetParamData.size();
+
+    auto scaleParamData = scaleParam.getData();
+    auto scaleParamDataSize = scaleParamData.size();
+
+    ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
+    ASSERT_EQ(addOpDataSize, offsetParamDataSize);
+
+    for (unsigned i = 0; i < mulOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(mulOpData[i], scaleParamData[i]);
+
+    for (unsigned i = 0; i < addOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(addOpData[i], offsetParamData[i]);
 
 }
 
@@ -231,7 +263,7 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
 
     mv::OpModel om("testModel");
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
-    auto pool = om.maxpool2D(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
+    auto pool = om.maxPool(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto poolOp = om.getSourceOp(pool);
     auto poolShape = pool->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(poolShape[-1]);
@@ -239,15 +271,15 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     std::vector<double> offsetData = mv::utils::generateSequence<double>(poolShape[-1]);
     std::vector<double> scaleData = mv::utils::generateSequence<double>(poolShape[-1]);
     double eps = 1e-3;
-    auto bnmean = om.constant(meanData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "mean");
+    auto bnmean = om.constant(meanData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "mean");
     auto bnmeanOp = om.getSourceOp(bnmean);
-    auto bnvariance = om.constant(varianceData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "variance");
+    auto bnvariance = om.constant(varianceData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "variance");
     auto bnvarianceOp = om.getSourceOp(bnvariance);
-    auto bnoffset = om.constant(offsetData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "offset");
+    auto bnoffset = om.constant(offsetData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "offset");
     auto bnoffsetOp = om.getSourceOp(bnoffset);
-    auto bnscale = om.constant(scaleData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), "scale");
+    auto bnscale = om.constant(scaleData, {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), "scale");
     auto bnscaleOp = om.getSourceOp(bnscale);
-    auto batchnorm = om.batchNorm(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
+    auto batchnorm = om.batchNormalization(pool, bnmean, bnvariance, bnoffset, bnscale, eps);
     auto batchnormOp = om.getSourceOp(batchnorm);
 
     om.output(batchnorm);
@@ -269,33 +301,45 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     
     // Check replacament for batchnorm multiplicative component
     auto mulOp = poolOp.leftmostChild();
-    ASSERT_EQ(mulOp->getOpType(), mv::OpType::Scale);
+    ASSERT_EQ(mulOp->getOpType(), "Scale");
     ASSERT_EQ(mulOp.childrenSize(), 1);
     ASSERT_TRUE(mulOp->getInputTensor(1)->isPopulated());
 
     // Check replacement for batchnorm additive component
     auto addOp = mulOp.leftmostChild();
-    ASSERT_EQ(addOp->getOpType(), mv::OpType::Bias);
+    ASSERT_EQ(addOp->getOpType(), "Bias");
     ASSERT_EQ(addOp.childrenSize(), 1);
     ASSERT_TRUE(addOp->getInputTensor(1)->isPopulated());
 
     // Check fusing
-    mv::Tensor mean("mean", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), meanData);
-    mv::Tensor variance("variance", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), varianceData);
-    mv::Tensor offset("offset", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), offsetData);
-    mv::Tensor scale("scale", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("CHW"), scaleData);
+    mv::Tensor mean("mean", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), meanData);
+    mv::Tensor variance("variance", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), varianceData);
+    mv::Tensor offset("offset", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), offsetData);
+    mv::Tensor scale("scale", {poolShape[-1]}, mv::DTypeType::Float16, mv::Order("W"), scaleData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
     mv::Tensor offsetParam = mv::math::subtract(offset, 
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    ASSERT_EQ(mulOp->getInputTensor(1)->getData().size(), scaleParam.getData().size());
-    ASSERT_EQ(addOp->getInputTensor(1)->getData().size(), offsetParam.getData().size());
+    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    auto mulOpDataSize = mulOpData.size();
 
-    for (unsigned i = 0; i < mulOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(mulOp->getInputTensor(1)->getData()[i], scaleParam.getData()[i]);
+    auto scaleParamData = scaleParam.getData();
+    auto scaleParamDataSize = scaleParamData.size();
 
-    for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(addOp->getInputTensor(1)->getData()[i], offsetParam.getData()[i]);
+    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpDataSize = addOpData.size();
+
+    auto newOffsetData = offsetParam.getData();
+    auto newOffsetDataSize = offsetData.size();
+
+    ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
+    ASSERT_EQ(addOpDataSize, newOffsetDataSize);
+
+    for (unsigned i = 0; i < mulOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(mulOpData[i], scaleParamData[i]);
+
+    for (unsigned i = 0; i < addOpDataSize; ++i)
+        ASSERT_FLOAT_EQ(addOpData[i], newOffsetData[i]);
 
 }

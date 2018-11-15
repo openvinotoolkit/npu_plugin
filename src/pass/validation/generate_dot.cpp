@@ -1,9 +1,9 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
-void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -26,7 +26,7 @@ namespace mv
 
 }
 
-void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
 
     using namespace mv;
@@ -59,8 +59,8 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
 
         for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
         {
-            if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output
-                || opIt->getOpType() == OpType::Constant))
+            if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"
+                || opIt->getOpType() == "Constant"))
             {
                 std::string nodeDef = "\t\"" + opIt->getName() + "\" [shape=box,";
 
@@ -75,7 +75,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                     }
                     else
                     {
-                        nodeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + opIt->getOpType().toString() + "</FONT></TD></TR>";
+                        nodeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + opIt->getOpType() + "</FONT></TD></TR>";
                     }
                     nodeDef += "</TABLE>>";
                 }
@@ -104,8 +104,8 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
 
             for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
             {
-                if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->isExecutable() || opIt->getOpType() == OpType::Input || opIt->getOpType() == OpType::Output
-                || opIt->getOpType() == OpType::Constant))
+                if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"
+                || opIt->getOpType() == "Constant"))
                 {
                     for (auto dataIt = opIt.leftmostOutput(); dataIt != dataModel.flowEnd(); ++dataIt)
                     {
@@ -228,7 +228,7 @@ void generateDotFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json
                     }
                     else
                     {
-                        edgeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + flowIt.sink()->getOpType().toString() + "</FONT></TD></TR>";
+                        edgeDef += "<TR><TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + flowIt.sink()->getOpType() + "</FONT></TD></TR>";
                     }
 
                     edgeDef += "</TABLE>>];";

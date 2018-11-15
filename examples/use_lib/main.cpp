@@ -4,8 +4,8 @@
 int main()
 {
 
-    mv::OpModel om(mv::Logger::VerboseLevel::VerboseInfo);
-    auto inIt = om.input(mv::Shape(1, 32, 32, 3), mv::DType::Float, mv::Order::NWHC);
+    mv::OpModel om("test");
+    auto inIt = om.input({1, 32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
     auto outIt = om.output(inIt);
     
     if (om.isValid())

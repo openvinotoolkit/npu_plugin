@@ -9,6 +9,8 @@ blocks_(shape.totalSize() / blockSize_),
 shape_(shape),
 internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
 {
+
+    log(Logger::MessageType::Debug, "Initialized");
     if(order.size() != shape.ndims())
         throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
     set<Shape>("shape", shape_);
@@ -35,16 +37,20 @@ blocks_(other.blocks_.size()),
 shape_(other.shape_),
 internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
 {
+
+    log(Logger::MessageType::Debug, "Copied");
+
     for (std::size_t i = 0; i < blocks_.size(); ++i)
         blocks_[i] = data_.begin() + i * blockSize_;
 
     if (isPopulated())
         data_ = other.data_;
+
 }
 
 mv::Tensor::~Tensor()
 {
-
+    log(Logger::MessageType::Debug, "Deleted");
 }
 
 std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
@@ -103,6 +109,7 @@ void mv::Tensor::populate(const std::vector<double>& data)
     else
         data_ = data;
     set("populated", true);
+    log(Logger::MessageType::Debug, "Populated");
 
 }
 
@@ -119,6 +126,8 @@ void mv::Tensor::unpopulate()
 
     data_.clear();
     set<bool>("populated", false);
+
+    log(Logger::MessageType::Debug, "Unpopulated");
 
 }
 
@@ -160,9 +169,34 @@ void mv::Tensor::setOrder(Order order)
 {
 
     set<Order>("order", order);
+    log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
     return;
 
 }
+
+void mv::Tensor::setDType(DType dtype)
+{
+
+    set<DType>("dtype", dtype);
+    log(Logger::MessageType::Debug, "Changed data type to " + dtype.toString());
+    return;
+
+}
+
+void mv::Tensor::setShape(const Shape& shape)
+{
+    if(isPopulated())
+    {
+        log(Logger::MessageType::Warning, "Changing shape of a populated tensor, experimental feature.");
+        if(shape.totalSize() != get<Shape>("shape").totalSize())
+            throw ArgumentError(*this, "CurrentTensor", "shape", "Unable to change shape of a populated tensor");
+    }
+    set<Shape>("shape", shape);
+    shape_ = shape;
+    log(Logger::MessageType::Debug, "Changed shape to " + shape_.toString());
+    return;
+}
+
 
 void mv::Tensor::broadcast(const Shape& shape)
 {
@@ -209,6 +243,7 @@ void mv::Tensor::broadcast(const Shape& shape)
         }
 
         set<Shape>("shape", sO);
+        shape_ = sO;
         data_ = dataBuf;
 
     }
@@ -432,6 +467,25 @@ double& mv::Tensor::operator()(const std::vector<std::size_t>& sub)
     return at(sub);
 }
 
+mv::Tensor& mv::Tensor::operator=(const Tensor& other)
+{
+    
+    Element::operator=(other);
+    data_ = std::vector<double>(other.data_.size());
+    blockSize_ = other.blockSize_;
+    blocks_ = std::vector<std::vector<double>::iterator>(other.blocks_.size());
+    shape_ = other.shape_;
+
+    for (std::size_t i = 0; i < blocks_.size(); ++i)
+        blocks_[i] = data_.begin() + i * blockSize_;
+
+    if (isPopulated())
+        data_ = other.data_;
+
+    return *this;
+
+}
+
 const double& mv::Tensor::operator()(const std::vector<std::size_t>& sub) const
 {
     return at(sub);
@@ -439,5 +493,6 @@ const double& mv::Tensor::operator()(const std::vector<std::size_t>& sub) const
 
 std::string mv::Tensor::getLogID() const
 {
-    return "Tensor " + getName();
+    return "Tensor:" + getName();
 }
+

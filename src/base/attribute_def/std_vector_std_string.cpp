@@ -44,8 +44,8 @@ namespace mv
             if (vec.size() > 0)
             {
                 for (std::size_t i = 0; i < vec.size() - 1; ++i)
-                    output += vec[i] + ", ";
-                output += *vec.rbegin();
+                    output += "\"" + vec[i] + "\", ";
+                output += "\"" + *vec.rbegin() + "\"";
             }
             output += "}";
             return output;

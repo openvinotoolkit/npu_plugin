@@ -25,6 +25,8 @@ namespace mv
 
         std::string name_;
         virtual std::string attrsToString_() const;
+        void forceErase_(const std::string& name);
+        const std::map<std::string, Attribute>& getAttrs_() const;
 
     public:
 
@@ -53,20 +55,17 @@ namespace mv
         void set(const std::string& name, const Attribute& attr);
         void erase(const std::string& name);
 
-        /*template <class AttrType>
+/*template <class AttrType>
         void set(const std::string& name, AttrType&& value)
         {
-
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw AttributeError("Unable to define the attribute '" + name + "' of an undefined"
                     " type " + typeid(AttrType).name());
-
             Attribute newAttr = value;
             std::string errMsg;
             if (!attr::AttributeRegistry::checkValue<AttrType>(newAttr, errMsg))
                 throw AttributeError("Unable to define the attribute '" + name + "' of type "
                     + newAttr.getTypeName() + " with an invalid value - " + errMsg);
-
             if (!hasAttr(name))
                 attrs_.emplace(name, std::move(value));
             else
@@ -74,7 +73,7 @@ namespace mv
         }*/
 
         template <class AttrType>
-        void set(const std::string& name, const AttrType& value)
+        void set(const std::string& name, const AttrType& value, std::initializer_list<std::string> traits = {})
         {
             if (!attr::AttributeRegistry::checkType<AttrType>())
                 throw ArgumentError(*this, "type", typeid(AttrType).name(), "Unregistered"
@@ -88,22 +87,34 @@ namespace mv
 
             if (!hasAttr(name))
             {
-                auto it = attrs_.emplace(name, value);
+                auto it = attrs_.emplace(std::piecewise_construct, std::forward_as_tuple(name), std::forward_as_tuple(value, traits));
                 if (!it.second)
                     throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
-                log(Logger::MessageType::MessageDebug, "Attribute '" + name + "' (" + it.first->second.getTypeName() +
+
+                log(Logger::MessageType::Debug, "Attribute '" + name + "' (" + it.first->second.getTypeName() +
                     ") set to " + it.first->second.toString());
             }
             else
             {
+                if (attrs_[name].hasTrait("const"))
+                    throw AttributeError(*this, "Attempt of modification of a const attribute " + name);
                 attrs_[name] = value;
-                log(Logger::MessageType::MessageDebug, "Attribute '" + name + "' (" + attrs_[name].getTypeName() +
+
+                log(Logger::MessageType::Debug, "Attribute '" + name + "' (" + attrs_[name].getTypeName() +
                     ") modified to " + attrs_[name].toString());
             }
         }
 
         template <class AttrType>
         const AttrType& get(const std::string &name) const
+        {
+            if (!hasAttr(name))
+                throw ArgumentError(*this, "attribute identifer", name,  "Undefined identifier");
+            return attrs_.at(name).get<AttrType>();
+        }
+
+        template <class AttrType>
+        AttrType& get(const std::string &name)
         {
             if (!hasAttr(name))
                 throw ArgumentError(*this, "attribute identifer", name,  "Undefined identifier");

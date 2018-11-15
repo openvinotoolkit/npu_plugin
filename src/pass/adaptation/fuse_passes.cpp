@@ -1,12 +1,12 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 
-static void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -56,7 +56,37 @@ namespace mv
 
 }
 
-void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    while(opIt.parentsSize() > 1)
+    {
+        auto paramOp = opIt.leftmostParent();
+        ++paramOp;
+        om.removeOp(paramOp);
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
+    }
+
+    return opIt;
+}
+
+void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     
 
@@ -68,49 +98,36 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::Bias)
-        {
+        if (opIt->getOpType() == "Bias")
+        {            
+            pass.log(Logger::MessageType::Debug, "Found Bias op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-
-            if (parentOpIt->getOpType() == OpType::Conv2D ||
-                parentOpIt->getOpType() == OpType::DepthwiseConv2D ||
-                parentOpIt->getOpType() == OpType::FullyConnected)
+            
+            if (parentOpIt->getOpType() == "Conv" ||
+                parentOpIt->getOpType() == "FullyConnected" ||
+                parentOpIt->getOpType() == "DepthwiseConv")
             {
 
                 auto bias = *opIt->getInputTensor(1);
 
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasTensor = dm.findTensor(parentOpIt->get<std::string>("bias"));
+                    auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
                     biasTensor->add(bias);
+                    pass.log(Logger::MessageType::Info, "Accumulatively fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
                 }
                 else
                 {
                     std::string biasTensorName = parentOpIt->getName() + "_bias";
                     auto biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData());
                     om.addAttr(parentOpIt, "bias", biasTensor->getName());
+                    pass.log(Logger::MessageType::Info, "Fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
                 }
 
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
-                for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-                {
-                    std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                    sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
-                }
-
-                while(opIt.parentsSize() > 1)
-                {
-                    auto paramOp = opIt.leftmostParent();
-                    ++paramOp;
-                    om.removeOp(paramOp);
-                }
-
-                om.removeOp(opIt);
-                opIt = parentOpIt;
-
+                opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
             }
 
         }
@@ -119,7 +136,7 @@ void fuseBiasFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
 
 }
 
-void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -129,42 +146,32 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::Scale)
-        {
+        if (opIt->getOpType() == "Scale")
+        {            
+            pass.log(Logger::MessageType::Debug, "Found Scale op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-
-            if (parentOpIt->getOpType() == OpType::Conv2D)
+            
+            if (parentOpIt->getOpType() == "Conv")
             {
 
                 auto scale = *opIt->getInputTensor(1);
                 parentOpIt->getInputTensor(1)->multiply(scale);
 
+                pass.log(Logger::MessageType::Info, "Fused scale op " + opIt->getName() + " into " + parentOpIt->getName());
+
                 if (parentOpIt->hasAttr("bias"))
                 {
-                    auto biasTensor = dm.findTensor(parentOpIt->get<std::string>("bias"));
+                    auto biasTensor = dm.getTensor(parentOpIt->get<std::string>("bias"));
                     biasTensor->multiply(scale);
+                    pass.log(Logger::MessageType::Info, "Fused scale op " + opIt->getName() + " into " + 
+                        parentOpIt->getName() + " bias attribute");
+
                 }
 
                 auto sourceTensor = parentOpIt->getOutputTensor(0);
 
-                for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-                {
-                    std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                    sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                    om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
-                }
-
-                while(opIt.parentsSize() > 1)
-                {
-                    auto paramOp = opIt.leftmostParent();
-                    ++paramOp;
-                    om.removeOp(paramOp);
-                }
-
-                om.removeOp(opIt);
-                opIt = parentOpIt;
-
+                opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
             }
 
         }
@@ -173,7 +180,7 @@ void fuseScaleFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::
 
 }
 
-void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -182,38 +189,26 @@ void fuseReluFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::O
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::ReLU)
+        if (opIt->getOpType() == "Relu")
         {
 
+            pass.log(Logger::MessageType::Debug, "Found ReLU op " + opIt->getName());
+
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU));
+            parentOpIt->set<std::string>("postOpType", "Relu");
+
+            pass.log(Logger::MessageType::Info, "Fused ReLU op " + opIt->getName() + " into " + parentOpIt->getName());
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
-            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-            {
-                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
-            }
-
-            while(opIt.parentsSize() > 1)
-            {
-                auto paramOp = opIt.leftmostParent();
-                ++paramOp;
-                om.removeOp(paramOp);
-            }
-
-            om.removeOp(opIt);
-            opIt = parentOpIt;
-
+            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
         }
 
     }
 
 }
 
-void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     using namespace mv;
     OpModel om(model);
@@ -221,8 +216,9 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::BatchNorm)
+        if (opIt->getOpType() == "BatchNormalization")
         {
+            pass.log(Logger::MessageType::Debug, "Found BatchNorm op " + opIt->getName());
 
             auto batchNormName = opIt->getName();
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
@@ -231,26 +227,31 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
             auto bnVar = *opIt->getInputTensor(2);
             auto bnOffset = *opIt->getInputTensor(3);
             auto bnScale = *opIt->getInputTensor(4);
-            double bnEps = opIt->get<double>("varianceEps");
+            double bnEps = opIt->get<double>("eps");
 
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
-            auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), offsetParam.getOrder(), batchNormName + "_offset");
+            auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), 
+                offsetParam.getOrder(), batchNormName + "_offset");
 
             Data::TensorIterator sourceTensor;
 
             if (bnMean.getShape().ndims() == 1)
             {
-                if (parentOpIt->getOpType() == OpType::Conv2D)
+                if (parentOpIt->getOpType() == "Conv")
                 {
                     parentOpIt->getInputTensor(1)->multiply(scaleParam);
                     sourceTensor = parentOpIt->getOutputTensor(0);
+                    pass.log(Logger::MessageType::Info, "Fused multiplicative term of BatchNorm op " + opIt->getName() + 
+                        " into " + parentOpIt->getName());
                 }
                 else
                 {
                     auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
                     sourceTensor = om.scale(opIt->getInputTensor(0), scale);
                     parentOpIt = om.getSourceOp(sourceTensor);
+                    pass.log(Logger::MessageType::Info, "Replaced multiplicative term of BatchNorm op " + opIt->getName() + 
+                        " with " + parentOpIt->getName());
                 }
             }
             else
@@ -258,35 +259,20 @@ void fuseBatchNormFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
                 auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
                 sourceTensor = om.multiply(opIt->getInputTensor(0), scale);
                 parentOpIt = om.getSourceOp(sourceTensor);
+                pass.log(Logger::MessageType::Info, "Replaced multiplicative term of BatchNorm op " + opIt->getName() + 
+                    " with " + parentOpIt->getName());
 
             }
 
             if (offsetParam.getShape().ndims() == 1)
-            {
-                sourceTensor = om.bias(sourceTensor, offset);
-            }
+                sourceTensor = om.bias(sourceTensor, offset);  
+
             else
-            {
                 sourceTensor = om.add(sourceTensor, offset);
-            }
+            pass.log(Logger::MessageType::Info, "Replaced additive term of BatchNorm op " + opIt->getName() + 
+                " with " + om.getSourceOp(sourceTensor)->getName());
 
-            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-            {
-                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(sourceTensor, sinkFlow.sink(), inputIdx);
-            }
-
-            while(opIt.parentsSize() > 1)
-            {
-                auto paramOp = opIt.leftmostParent();
-                ++paramOp;
-                om.removeOp(paramOp);
-            }
-
-            om.removeOp(opIt);
-            opIt = parentOpIt;
-
+            opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
         }
 
     }

@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 
@@ -12,7 +12,7 @@ TEST(fuse_bias, case_conv)
     auto input = om.input({64, 64, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
-    auto conv = om.conv2D(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
     auto convOp = om.getSourceOp(conv);
     std::vector<double> biasesData = mv::utils::generateSequence<double>(32);
     auto biases = om.constant(biasesData, {32}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)), "biases");
@@ -36,7 +36,7 @@ TEST(fuse_bias, case_conv)
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
 
-    for (unsigned i = 0; i < dm.findTensor(convOp->get<std::string>("bias"))->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(dm.findTensor(convOp->get<std::string>("bias"))->getData()[i], biasesData[i]);
+    for (unsigned i = 0; i < dm.getTensor(convOp->get<std::string>("bias"))->getData().size(); ++i)
+        ASSERT_FLOAT_EQ(dm.getTensor(convOp->get<std::string>("bias"))->getData()[i], biasesData[i]);
 
 }

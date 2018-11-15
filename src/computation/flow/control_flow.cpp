@@ -1,16 +1,16 @@
 #include "include/mcm/computation/flow/control_flow.hpp"
 
-mv::ControlFlow::ControlFlow(Control::OpListIterator &source, Control::OpListIterator &sink) :
-ComputationFlow("cf_" + source->getName() + "_" + sink->getName())
+mv::ControlFlow::ControlFlow(ComputationModel& model, Control::OpListIterator &source, Control::OpListIterator &sink) :
+ModelElement(model, "cf_" + source->getName() + "_" + sink->getName())
 {
-    log(Logger::MessageType::MessageInfo, "Initialized");
-    set<std::string>("sourceOp", source->getName());
-    set<std::string>("sinkOp", sink->getName());
+    log(Logger::MessageType::Debug, "Initialized");
+    set<std::string>("sourceOp", source->getName(), {"const"});
+    set<std::string>("sinkOp", sink->getName(), {"const"});
 }
 
 mv::ControlFlow::~ControlFlow()
 {
-    log(Logger::MessageType::MessageInfo, "Deleted");
+    log(Logger::MessageType::Debug, "Deleted");
 }
 
 /*mv::ControlFlow::ControlFlow(mv::json::Value &value):
@@ -21,7 +21,7 @@ ComputationFlow(value)
 
 std::string mv::ControlFlow::toString() const
 {
-    return "control flow '" + name_ + "' " + Element::attrsToString_();
+    return getLogID() + Element::attrsToString_();
 }
 
 /*mv::json::Value mv::ControlFlow::toJsonValue() const
@@ -30,3 +30,8 @@ std::string mv::ControlFlow::toString() const
     //toReturn["type"] = mv::Jsonable::toJsonValue("control_flow");
     return toReturn;
 }*/
+
+std::string mv::ControlFlow::getLogID() const
+{
+    return "ControlFlow:" + name_;
+}

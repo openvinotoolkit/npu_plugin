@@ -1,22 +1,27 @@
-#include "include/mcm/tensor/tensor.hpp"
-#include "include/mcm/tensor/math.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include "meta/include/mcm/recorded_compositional_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 
 int main()
 {
+    mv::OpModel om("TestModel");
 
-    double start = -100.0f;
-    double diff = 0.5f;
-
-    mv::Shape tShape({64, 64, 1024});
-    std::vector<double> data1 = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
-    //std::vector<double> data2 = mv::utils::generateSequence<double>(tShape.totalSize(), -start, -diff);
-
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
-    //mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order(Order::getRowMajorID(3));, data2);
-
-    //auto t3 = mv::math::add(t1, t2);
-
-    std::cout << t1.getShape().totalSize() << std::endl;
+    auto input = om.input({32, 32, 1}, mv::DTypeType::Float16, mv::Order("CHW"));
+    std::vector<double> weightsData({1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f,
+    15.0f, 16.0f, 17.0f, 18.0f, 19.0f, 20.0f, 21.0f, 22.0f, 23.0f, 24.0f, 25.0f, 26.0f, 27.0f});
+    auto weights1 = om.constant(weightsData, {3, 3, 1, 3}, mv::DTypeType::Float16, mv::Order("NCHW"));
+    auto conv = om.conv(input, weights1, {4, 4}, {1, 1, 1, 1});
+    auto convOp = om.getSourceOp(conv);
+    om.output(conv);
+    
+    mv::DataModel dm(om);
+    
+    om.removeOp(convOp);
+    std::cout << om.isValid(convOp) << std::endl;
+    std::cout << dm.tensorsCount() << std::endl;
+    std::cout << om.opsCount() << std::endl;
+    return 0;
 }

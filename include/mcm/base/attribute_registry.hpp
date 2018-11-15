@@ -15,233 +15,78 @@ namespace mv
 
     namespace attr
     {
-
+        // TODO Checks for setting type traits
         class AttributeRegistry : public Registry<std::type_index, AttributeEntry>
         {
-
-            class AttributeRegLogSender : public LogSender
-            {
-
-            public:
-
-                std::string getLogID() const override
-                {
-                    return "AttributeRegistry";
-                }
-
-            };
+            
+            /**
+             * @brief Legal attribute types traits
+             */
+            static const std::set<std::string> typeTraits_;
+            
+            /**
+             * @brief Legal attribute instances traits
+             */
+            static const std::set<std::string> instanceTraits_;
 
         public:
 
             static AttributeRegistry& instance();
-
-            inline static bool checkType(const std::type_index& typeID)
-            {
-                return instance().find(typeID) != nullptr;
-            }
-
-            inline static bool checkType(const std::string& typeName)
-            {
-                return checkType(getTypeID(typeName));
-            }
+            static bool checkType(const std::type_index& typeID);
+            static bool checkType(const std::string& typeName);
+            static std::string getTypeName(std::type_index typeID);
+            static bool checkValue(std::type_index typeID, const Attribute& val, std::string& msg);
+            static const std::function<mv::json::Value(const Attribute&)>& getToJSONFunc(std::type_index typeID);
+            static const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc(std::type_index typeID);
+            static const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc(std::string typeName);
+            static const std::function<std::string(const Attribute&)>& getToStringFunc(std::type_index typeID, bool forceLong = false);
+            static const std::function<std::vector<uint8_t>(const Attribute&)>& getToBinaryFunc(std::type_index typeID);
+            static std::type_index getTypeID(const std::string& typeName);
+            static bool checkTypeTrait(const std::string& typeTrait);
+            static bool hasTypeTrait(std::type_index typeID, const std::string& trait);
+            static bool checkInstanceTrait(const std::string& trait);
 
             template <class AttrType>
-            inline static bool checkType()
+            static bool checkType()
             {
                 return checkType(typeid(AttrType));
             }
 
-            inline static std::string getTypeName(std::type_index typeID)
-            {
-
-                if (!checkType(typeID))
-                {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining the name of an unregistered attribute type "
-                        + std::string(typeID.name()));
-                }
-
-                AttributeEntry* const attrPtr = instance().find(typeID);
-
-                if (attrPtr)
-                {
-                    return attrPtr->getTypeName();
-                }
-
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
-                    " not found in the attribute registry");
-
-            }
-
             template <class AttrType>
-            inline static std::string getTypeName()
+            static std::string getTypeName()
             {
                 return getTypeName(typeid(AttrType));
             }
 
-            inline static std::type_index getTypeID(const std::string& typeName)
-            {
-                for (auto it = instance().reg_.begin(); it != instance().reg_.end(); ++it)
-                    if (it->second->getTypeName() == typeName)
-                        return it->first;
-                throw AttributeError(AttributeRegLogSender(), "Type ID undefined for an unregistered attribute type "
-                        + typeName);
-            }
-
             template <class AttrType>
-            inline AttributeEntry& enter()
+            AttributeEntry& enter()
             {
                 return Registry<std::type_index, AttributeEntry>::enter(typeid(AttrType));
             }
 
             // Enter or replace if the key is already present in the registry
             template <class AttrType>
-            inline AttributeEntry& enterReplace()
+            AttributeEntry& enterReplace()
             {
                 return Registry<std::type_index, AttributeEntry>::enterReplace(typeid(AttrType));
             }
 
-            inline static bool checkValue(std::type_index typeID, const Attribute& val, std::string& msg)
-            {
-
-                if (!checkType(typeID))
-                {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of checking the value for an unregistered attribute type "
-                        + std::string(typeID.name()));
-                }
-
-                AttributeEntry* const attrPtr = instance().find(typeID);
-
-                if (attrPtr)
-                {
-                    if (!attrPtr->hasCheckFunc())
-                        return true;
-                    auto fcnPtr = attrPtr->getCheckFunc();
-                    return fcnPtr(val, msg);
-                }
-
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
-                    " not found in the attribute registry");
-
-            }
-
             template <class AttrType>
-            inline static bool checkValue(const Attribute& val, std::string& msg)
+            static bool checkValue(const Attribute& val, std::string& msg)
             {
                 return checkValue(typeid(AttrType), val, msg);
             }
 
-            inline static const std::function<mv::json::Value(const Attribute&)>& getToJSONFunc(std::type_index typeID)
-            {
-
-                if (!checkType(typeID))
-                {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-JSON conversion function for an unregistered attribute type "
-                        + std::string(typeID.name()));
-                }
-
-                AttributeEntry* const attrPtr = instance().find(typeID);
-
-                if (attrPtr)
-                {
-                    return attrPtr->getToJSONFunc();
-                }
-
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
-                    " not found in the attribute registry");
-            }
-
-            inline static const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc(std::type_index typeID)
-            {
-                if (!checkType(typeID))
-                {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining from-JSON conversion function for an unregistered attribute type "
-                        + std::string(typeID.name()));
-                }
-
-                AttributeEntry* const attrPtr = instance().find(typeID);
-
-                if (attrPtr)
-                {
-                    return attrPtr->getFromJSONFunc();
-                }
-
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
-                    " not found in the attribute registry");
-            }
-
-            inline static const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc(std::string typeName)
-            {
-                return getFromJSONFunc(getTypeID(typeName));
-            }
-
-            inline static const std::function<std::string(const Attribute&)>& getToStringFunc(std::type_index typeID)
-            {
-
-                if (!checkType(typeID))
-                {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-string conversion function for an unregistered attribute type "
-                        + std::string(typeID.name()));
-                }
-
-                AttributeEntry* const attrPtr = instance().find(typeID);
-
-                if (attrPtr)
-                {
-                    return attrPtr->getToStringFunc();
-                }
-
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
-                    " not found in the attribute registry");
-
-            }
-
-            inline static const std::function<std::vector<uint8_t>(const Attribute&)>& getToBinaryFunc(std::type_index typeID)
-            {
-
-                if (!checkType(typeID))
-                {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of obtaining to-string conversion function for an unregistered attribute type "
-                        + std::string(typeID.name()));
-                }
-
-                AttributeEntry* const attrPtr = instance().find(typeID);
-
-                if (attrPtr)
-                {
-                    return attrPtr->getToBinaryFunc();
-                }
-
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
-                    " not found in the attribute registry");
-
-            }
-
-            inline static bool hasTrait(std::type_index typeID, const std::string& trait)
-            {
-                if (!checkType(typeID))
-                {
-                    throw AttributeError(AttributeRegLogSender(), "Attempt of checking type trait for an unregistered attribute type "
-                        + std::string(typeID.name()));
-                }
-
-                AttributeEntry* const attrPtr = instance().find(typeID);
-
-                if (attrPtr)
-                {
-                    return attrPtr->hasTrait(trait);
-                }
-
-                throw MasterError(AttributeRegLogSender(), "Registered attribute type " + std::string(typeID.name()) +
-                    " not found in the attribute registry");
-            }
-
             template <class AttrType>
-            inline static bool hasTrait(const std::string& trait)
+            static bool hasTypeTrait(const std::string& trait)
             {
-                return hasTrait(typeid(AttrType), trait);
+               return hasTypeTrait(typeid(AttrType), trait);
             }
+
 
         };
+
+
 
         #define STRV(...) #__VA_ARGS__
         #define COMMA ,

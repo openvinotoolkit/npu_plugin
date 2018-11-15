@@ -1,5 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
@@ -7,8 +7,8 @@
 #include "mcm/utils/custom_math.hpp"
 #include <math.h>
 
-static void markHardwareOperations(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+static void markHardwareOperations(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+static void scaleFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -33,7 +33,7 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareOperations(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object &)
 {
 
     //int amount_marked = 0;
@@ -52,22 +52,55 @@ void markHardwareOperations(mv::ComputationModel& model, mv::TargetDescriptor&, 
         // std::cout << " "opIterator->getName() << std::endl;
         if (!disableHardware)
         {
-            if(!opIterator->isHardwarizeable(compDesc))// || amount_marked >= mark_limit)
+
+            if (opIterator->getOpType() == "Conv")
+            {
+                auto padding = opIterator->get<std::array<unsigned short, 4>>("padding");
+                auto stride = opIterator->get<std::array<unsigned short, 2>>("stride");
+
+                auto input = opIterator->getInputTensor(0);
+                auto inputShape = input->getShape();
+                auto weights = opIterator->getInputTensor(1);
+                auto weightsShape = weights->getShape();
+
+                // Check for supported padding
+                if ((padding[0] != 0 && padding[0] != weightsShape[0]/2) || (padding[2] != 0 && padding[2] != weightsShape[1]/2))
+                {
+                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                    continue;
+                }
+
+                // Check for supported kernel sizes
+                if(weightsShape[0] > 15 || weightsShape[1] > 15)
+                {
+                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                    continue;
+                }
+
+                // Check for supported strides
+                if(stride[0] > 8 || stride[1] > 8)
+                {
+                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                    continue;
+                }
+
+                om.addAttr(opIterator, "NCE1_Compatible", (int)1);
+                om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
+
+            }
+            else
             {
                 om.addAttr(opIterator, "NCE1_Compatible", (int)0);
                 continue;
             }
 
-            om.addAttr(opIterator, "NCE1_Compatible", (int)1);
-            om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
-            //++amount_marked;
         }
         else
             om.addAttr(opIterator, "NCE1_Compatible", (int)0);
     }
 }
 
-void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
 {
 
     using namespace mv;
@@ -97,7 +130,7 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         opName =opIt->getName();
-        if ((opIt->getOpType() == OpType::Conv2D)&&(opIt->hasAttr("NCE1_Compatible")))
+        if (opIt->getOpType() == "Conv" && opIt->hasAttr("NCE1_Compatible"))
         {
             if (opIt->get<int>("NCE1_Compatible") == 1)
             {
@@ -115,7 +148,7 @@ void scaleFissionFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::jso
 
                     if (opIt->hasAttr("bias"))
                     {
-                        auto biasTensor = dm.findTensor(opIt->get<std::string>("bias"));
+                        auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
                         std::vector<double> scaleUpBData = mv::utils::generateSequence<double>(biasTensor->getShape().totalSize(), upNum, 0.0f);
                         std::string scaleUpBTensorName = opName + "_scale_bias";
                         auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), mv::DTypeType::Float16, mv::Order("HWC"), scaleUpBData);

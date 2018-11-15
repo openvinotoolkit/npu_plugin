@@ -1,4 +1,6 @@
 build/
+meta/include/mcm/*
+meta/src/*
 *.user
 .vscode
 *.blob
@@ -6,7 +8,6 @@ build/
 *.json
 *:*
 *.svg
-*.txt
 recordings/
 *.prototxt
 *.caffemodel

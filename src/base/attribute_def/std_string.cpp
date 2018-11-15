@@ -24,7 +24,7 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            return a.get<std::string>();
+            return "\"" + a.get<std::string>() + "\"";
         }
 
         MV_REGISTER_ATTR(std::string)

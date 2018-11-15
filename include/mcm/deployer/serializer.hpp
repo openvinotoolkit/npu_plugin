@@ -8,7 +8,7 @@
 */
 #include <memory>
 #include "include/mcm/computation/model/control_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/serializer/file_buffer.hpp"
 #include "include/mcm/deployer/blob_serialization/blob_serializer.hpp"

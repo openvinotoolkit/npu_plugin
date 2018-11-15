@@ -82,5 +82,5 @@ mv::DType::operator mv::DTypeType() const
 
 std::string mv::DType::getLogID() const
 {
-    return toString();
+    return "DType:" + toString();
 }

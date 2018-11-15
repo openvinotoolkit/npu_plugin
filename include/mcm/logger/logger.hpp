@@ -5,30 +5,32 @@
 #include <string>
 #include <unordered_map>
 #include <iostream>
+#include <regex>
+#include <list>
 
 namespace mv
 {
+
+    enum class VerboseLevel
+    {
+        Silent,
+        Error,
+        Warning,
+        Info,
+        Debug
+    };
 
     class Logger
     {
 
     public:
 
-        enum class VerboseLevel
-        {
-            VerboseSilent,
-            VerboseError,
-            VerboseWarning,
-            VerboseInfo,
-            VerboseDebug
-        };
-
         enum class MessageType
         {
-            MessageDebug,
-            MessageInfo,
-            MessageWarning,
-            MessageError
+            Debug,
+            Info,
+            Warning,
+            Error
         };
 
     private:
@@ -36,6 +38,8 @@ namespace mv
         VerboseLevel verboseLevel_;
         bool logTime_;
         std::string indent_;
+        std::list<std::regex> filterList_;
+        bool filterPositive_;
         
         std::string getTime_() const;
         void logMessage_(MessageType messageType, std::string content) const;
@@ -57,6 +61,8 @@ namespace mv
         static void setVerboseLevel(VerboseLevel verboseLevel);
         static void enableLogTime();
         static void disableLogTime();
+        static void logFilter(std::list<std::regex> filterList, bool filterPositive);
+        static void clearFilter();
 
     };
 

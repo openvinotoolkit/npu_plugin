@@ -9,14 +9,14 @@ mv::ConvolutionParameters mv::fillKernel2DOperationParameters(mv::Data::OpListIt
     auto input_dimensions = input_tensor->getShape();
     auto output_dimensions = output_tensor->getShape();
 
-    if(opIterator->getOpType() == mv::OpType::Conv2D)
+    if(opIterator->getOpType() == "conv")
     {
         auto weigth_tensor = opIterator->getInputTensor(1);
         auto kernel_dimensions = weigth_tensor->getShape();
         to_return.kernel_width = kernel_dimensions[0];
         to_return.kernel_height = kernel_dimensions[1];
     }
-    else if(opIterator->getOpType() == mv::OpType::AvgPool2D || opIterator->getOpType() == mv::OpType::MaxPool2D)
+    else if(opIterator->getOpType() == "avgpool" || opIterator->getOpType() == "maxpool")
     {
         auto kernel_dimensions = opIterator->get<std::array<short unsigned, 2>>("kSize");
         to_return.kernel_width = kernel_dimensions[0];

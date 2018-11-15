@@ -6,7 +6,7 @@
 TEST(json, double_value)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     double x = 1.0;
     mv::json::Value v = x;
@@ -18,14 +18,14 @@ TEST(json, double_value)
     ASSERT_ANY_THROW(v.get<mv::json::Object>());
     ASSERT_ANY_THROW(v.get<mv::json::Null>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
 TEST(json, int_value)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     long long x = 1;
     mv::json::Value v = x;
@@ -37,14 +37,14 @@ TEST(json, int_value)
     ASSERT_ANY_THROW(v.get<mv::json::Object>());
     ASSERT_ANY_THROW(v.get<mv::json::Null>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
 TEST(json, string_value)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     std::string x = "str";
     mv::json::Value v = x;
@@ -56,14 +56,14 @@ TEST(json, string_value)
     ASSERT_ANY_THROW(v.get<mv::json::Object>());
     ASSERT_ANY_THROW(v.get<mv::json::Null>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
 TEST(json, bool_value)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     bool x = true;
     mv::json::Value v = x;
@@ -75,14 +75,14 @@ TEST(json, bool_value)
     ASSERT_ANY_THROW(v.get<mv::json::Object>());
     ASSERT_ANY_THROW(v.get<mv::json::Null>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
 TEST(json, object_value)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     mv::json::Object x;
     x["a1"] = 1.0;
@@ -95,14 +95,14 @@ TEST(json, object_value)
     ASSERT_ANY_THROW(v.get<bool>());
     ASSERT_ANY_THROW(v.get<mv::json::Null>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
 TEST(json, array_value)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     mv::json::Array x;
     x.append(1.0);
@@ -115,14 +115,14 @@ TEST(json, array_value)
     ASSERT_ANY_THROW(v.get<mv::json::Object>());
     ASSERT_ANY_THROW(v.get<mv::json::Null>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
 TEST(json, null_value)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     mv::json::Value v;
     ASSERT_ANY_THROW(v.get<mv::json::Array>());
@@ -133,7 +133,7 @@ TEST(json, null_value)
     ASSERT_ANY_THROW(v.get<mv::json::Object>());
     ASSERT_ANY_THROW(v.get<mv::json::Null>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 

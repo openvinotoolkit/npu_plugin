@@ -48,7 +48,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
     serialPassQueue_ = targetDescriptor_.serialPasses();
     validPassQueue_ = targetDescriptor_.validPasses();
 
-    std::cout << "A" << std::endl;
+    //std::cout << "A" << std::endl;
     auto checkQueue = [this](const std::vector<std::string>& queue, PassGenre genre)
     {
         for (std::size_t i = 0; i < queue.size(); ++i)
@@ -58,6 +58,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
             if (passPtr == nullptr)
             {
                 reset();
+                log(mv::Logger::MessageType::Error, "Pass " + queue[i] + " not found in the PassRegistry");
                 return false;
             }
 
@@ -65,6 +66,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
             if (passGenres.find(genre) == passGenres.end())
             {
                 reset();
+                log(mv::Logger::MessageType::Error, "Pass " + queue[i] + " has an invalid genre " + toString(genre) + " assigned");
                 return false;
             }
 
@@ -393,7 +395,9 @@ mv::json::Object& mv::PassManager::step()
         json::Object& lastPassOutput = compOutput_["passes"].last().get<json::Object>();
         lastPassOutput["name"] = passPtr->getName();
         lastPassOutput["genre"] = toString(currentStage_->first);
+        log(Logger::MessageType::Info, "Starting pass " + passPtr->getName());
         passPtr->run(*model_, targetDescriptor_, compDescriptor_, lastPassOutput);
+        log(Logger::MessageType::Info, "Finished pass " + passPtr->getName());
         currentPass_++;
 
         return compOutput_;
@@ -437,13 +441,13 @@ bool mv::PassManager::validDescriptors() const
 
     if (!ready())
     {
-        log(Logger::MessageType::MessageError, "Pass manager not initialized");
+        log(Logger::MessageType::Error, "Pass manager not initialized");
         return false;
     }
 
     if (targetDescriptor_.getTarget() == Target::Unknown)
     {
-        log(Logger::MessageType::MessageError, "Target descriptor has an undefined target");
+        log(Logger::MessageType::Error, "Target descriptor has an undefined target");
         return false;
     }
 
@@ -461,14 +465,14 @@ bool mv::PassManager::validDescriptors() const
                 {
                     if (compDescriptor_[passPtr->getName()].valueType() != json::JSONType::Object)
                     {
-                        log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid "
+                        log(Logger::MessageType::Error, "Compilation descriptor has an invalid "
                             "arguments definition for the pass " + passPtr->getName());
                         return false;
                     }
                 }
                 else
                 {
-                    log(Logger::MessageType::MessageError, "Compilation descriptor misses "
+                    log(Logger::MessageType::Error, "Compilation descriptor misses "
                             "arguments definition for the pass " + passPtr->getName());
                     return false;
                 }
@@ -480,14 +484,14 @@ bool mv::PassManager::validDescriptors() const
                     {
                         if (compDescriptor_[passPtr->getName()][argIt->first].valueType() != argIt->second)
                         {
-                            log(Logger::MessageType::MessageError, "Compilation descriptor has an invalid value "
+                            log(Logger::MessageType::Error, "Compilation descriptor has an invalid value "
                                 "for the argument " + argIt->first + " from the pass " + passPtr->getName());
                             return false;
                         }
                     }
                     else
                     {
-                        log(Logger::MessageType::MessageError, "Compilation descriptor misses a value "
+                        log(Logger::MessageType::Error, "Compilation descriptor misses a value "
                             "for the argument " + argIt->first + " from the pass " + passPtr->getName());
                         return false;
                     }

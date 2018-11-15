@@ -1,11 +1,11 @@
 ﻿#include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
 
-static void optimizeConvolutions(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void optimizeConvolutionsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -14,7 +14,7 @@ namespace mv
     {
 
         MV_REGISTER_PASS(OptimizeConvolutions)
-        .setFunc(optimizeConvolutions)
+        .setFunc(optimizeConvolutionsFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass selects the appropriate mode for each convolution executable by NCE"
@@ -150,13 +150,13 @@ bool write_hardware_attributes(mv::OpModel& om, mv::Data::OpListIterator convIte
 
     //This check has a sense only for cascades of convolutions since HW poolings have already been optimized
     auto parent_op = om.getSourceOp(input_tensor);
-    if(parent_op->hasAttr("NCE1_Optimized") && parent_op->getOpType() == mv::OpType::Conv2D)
+    if(parent_op->hasAttr("NCE1_Optimized") && parent_op->getOpType() == "Conv")
         return true;
     else
         return false;
 }
 
-mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel& om)
+mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpListIterator convIterator, mv::OpModel&)
 {
     mv::ModeSelectionNode source;
     source.parameters = mv::fillKernel2DOperationParameters(convIterator, true);
@@ -165,7 +165,7 @@ mv::ModeSelectionResult optimize_convolution_nce1(mv::Nce1& nce, mv::Data::OpLis
     return nce.optimize_convolution(source);
 }
 
-void optimizeConvolutions(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void optimizeConvolutionsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "HW optimization convolution pass started" << std::endl;
     mv::OpModel om(model);
@@ -176,7 +176,7 @@ void optimizeConvolutions(mv::ComputationModel& model, mv::TargetDescriptor&, mv
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == mv::OpType::Conv2D)
+        if (opIterator->getOpType() == "Conv")
         {
 
             if(!opIterator->hasAttr("NCE1_Compatible"))

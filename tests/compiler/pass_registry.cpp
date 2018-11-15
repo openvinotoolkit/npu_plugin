@@ -1,20 +1,20 @@
 #include <algorithm>
 #include "gtest/gtest.h"
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
 static void setPassReg()
 {
 
-    std::function<void(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> foo = 
-    [](mv::ComputationModel& model, mv::TargetDescriptor& desc, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> foo = 
+    [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& desc, mv::json::Object&, mv::json::Object&)
     {   
         if (desc.getTarget() == mv::Target::Unknown)
             throw mv::ArgumentError(model, "target", "unknown", "Test pass does not accept target decriptor"
                 " with undefined target");
         mv::OpModel om(model);
         //om.clear();
-        om.input({1}, mv::DTypeType::Float16, mv::Order("CHW"), "customInput");
+        om.input({1}, mv::DTypeType::Float16, mv::Order("W"), "customInput");
         om.addAttr(om.getInput(), "test", (bool)true);
     };
 

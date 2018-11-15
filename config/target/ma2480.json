@@ -5,7 +5,7 @@
 	"ops":
 
 	{
-		"Conv2D" : {
+		"Conv" : {
 			"MvTensor":{
 				"serial_description":[
 					"Attr:radixX",
@@ -44,7 +44,7 @@
 				]
 			}
 		},
-		"DepthwiseConv2D":{
+		"DepthwiseConv":{
 			"MvTensor":{
 				"serial_description":[
 					"Attr:radixX",
@@ -80,7 +80,7 @@
 				]
 			}
 		},
-		"MaxPool2D":{
+		"MaxPool":{
 			"MvTensor":{
 				"serial_description":[
 					"Attr:radixX",
@@ -116,7 +116,7 @@
 				]
 			}
 		},
-		"AvgPool2D":{
+		"AveragePool":{
 			"MvTensor":{
 				"serial_description":[
 					"Attr:radixX",
@@ -152,7 +152,7 @@
 				]
 			}
 		},
-		"ReLU":{
+		"Relu":{
 			"MvTensor":{
 				"serial_description":[
 					"Attr:opX",
@@ -163,7 +163,7 @@
 				]
 			}
 		},
-		"PReLU":{
+		"Prelu":{
 			"MvTensor":{
 				"serial_description":[
 					"Tensor:0:0",

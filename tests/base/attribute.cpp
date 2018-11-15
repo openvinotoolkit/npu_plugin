@@ -250,13 +250,13 @@ TEST(attribute, reassign_type)
 TEST(attribute, get_failure)
 {
     
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     double v1 = 1.0;
     mv::Attribute a1 = v1;
     ASSERT_ANY_THROW(a1.get<int>());
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }
 
@@ -268,11 +268,11 @@ class UnregisteredAttr
 TEST(attribute, def_failure)
 {
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseSilent);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Silent);
 
     UnregisteredAttr v1;
     ASSERT_ANY_THROW(mv::Attribute a1 = v1);
 
-    mv::Logger::instance().setVerboseLevel(mv::Logger::VerboseLevel::VerboseError);
+    mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Error);
 
 }

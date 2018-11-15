@@ -1,28 +1,28 @@
 #include "gtest/gtest.h"
 #include "include/mcm/pass/pass_manager.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 
 static void setPassReg()
 {
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> adaptPass1 = 
-        [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> adaptPass1 = 
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "adapt1", (bool)true);
 
     };
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> adaptPass2 = 
-        [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> adaptPass2 = 
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "adapt2", (bool)true);
 
     };
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> validPass1 =
-        [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&) 
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> validPass1 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&) 
     {   
         mv::OpModel om(model);
         if (!om.getInput()->hasAttr("valid"))
@@ -32,32 +32,32 @@ static void setPassReg()
 
     };
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> optPass1 = 
-        [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> optPass1 = 
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "opt1", (bool)true);
 
     };
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> finalPass1 =
-        [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> finalPass1 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "final1", (bool)true);
 
     };
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> serialPass1 = 
-        [](mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> serialPass1 = 
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "serial1", (bool)true);
 
     };
 
-    std::function<void(mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> passWithArg = 
-        [](mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> passWithArg = 
+        [](const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
     {   
 
     };
@@ -117,7 +117,7 @@ TEST(pass_manager, invalid_execution)
 
     setPassReg();
     mv::OpModel model("testModel");
-    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order("W"));
     model.output(input);
 
     mv::PassManager pm;
@@ -154,7 +154,7 @@ TEST(pass_manager, execution)
 
     setPassReg();
     mv::OpModel model("testModel");
-    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = model.input({1}, mv::DTypeType::Float16, mv::Order("W"));
     model.output(input);
 
     mv::PassManager pm;

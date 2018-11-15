@@ -12,6 +12,7 @@ namespace mv
     public:
 
         explicit IndexError(const LogSender& sender, long long idx, const std::string& whatArg);
+        explicit IndexError(const std::string& senderID, long long idx, const std::string& whatArg);
 
     };
 

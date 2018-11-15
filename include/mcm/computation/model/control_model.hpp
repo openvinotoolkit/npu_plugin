@@ -4,7 +4,6 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
-#include "include/mcm/computation/op/computation_op.hpp"
 
 namespace mv
 {
@@ -15,6 +14,7 @@ namespace mv
     public:
 
         ControlModel(ComputationModel &ComputationModel);
+        virtual ~ControlModel();
 
         Control::OpListIterator switchContext(Data::OpListIterator other);
 
@@ -25,32 +25,30 @@ namespace mv
         Control::FlowListIterator getOutput();
         Control::FlowListIterator flowEnd();
 
-        GroupContext::MemberIterator addGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group);
-        GroupContext::MemberIterator addGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group);
-        bool removeGroupElement(Control::OpListIterator &element, GroupContext::GroupIterator &group);
-        bool removeGroupElement(Control::FlowListIterator &element, GroupContext::GroupIterator &group);
+        void addGroupElement(Control::OpListIterator element, GroupIterator group);
+        void addGroupElement(Control::FlowListIterator element, GroupIterator group);
+        void removeGroupElement(Control::OpListIterator element, GroupIterator group);
+        void removeGroupElement(Control::FlowListIterator element, GroupIterator group);
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
 
         Control::StageIterator addStage();
         Control::StageIterator getStage(std::size_t stageIdx);
-        bool removeStage(Control::StageIterator &stage);
-        bool addToStage(Control::StageIterator &stage, Control::OpListIterator &op);
-        bool addToStage(Control::StageIterator &stage, Data::OpListIterator &op);
-        bool removeFromStage(Control::OpListIterator &op);
-        bool removeFromStage(Data::OpListIterator &op);
+        void removeStage(Control::StageIterator stage);
+        void addToStage(Control::StageIterator stage, Control::OpListIterator op);
+        void addToStage(Control::StageIterator stage, Data::OpListIterator op);
+        void removeFromStage(Control::OpListIterator op);
         std::size_t stageSize() const;
 
         Control::StageIterator stageBegin();
         Control::StageIterator stageEnd();
 
-        Control::StageMemberIterator stageMemberBegin(Control::StageIterator &stage);
-        Control::StageMemberIterator stageMemberEnd(Control::StageIterator &stage);
+        std::vector<Control::OpListIterator> getStageMembers(Control::StageIterator stage);
 
         Control::FlowListIterator defineFlow(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp);
         Control::FlowListIterator defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp);
-        bool undefineFlow(Control::FlowListIterator flow);
-        bool undefineFlow(Data::FlowListIterator flow);
+        void undefineFlow(Control::FlowListIterator flow);
+        void undefineFlow(Data::FlowListIterator flow);
 
         virtual std::string getLogID() const override;
 

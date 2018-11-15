@@ -1,10 +1,10 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
-static void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
@@ -31,7 +31,7 @@ namespace mv
 
 }
 
-void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -42,7 +42,7 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::Constant)
+        if (opIt->getOpType() == "Constant")
         {
 
             if (opIt.childrenSize() > 1)
@@ -53,19 +53,23 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
             {
                 if (opIt.leftmostChild()->get<int>("NCE1_Compatible") == 1)
                 {
-                    //opIt->set<Order>("Order", mv::Order("HWC"));
+                    //opIt->set<Order>("order", OrderType::RowMajorPlanar);
                     opIt.leftmostOutput()->getTensor()->setOrder(Order(Order::getRowMajorID(opIt.leftmostOutput()->getTensor()->getShape().ndims())));
+                    pass.log(Logger::MessageType::Info, "Changed data order of the NCE executed op " + opIt->getName() + " to RowMajorPlanar");
                     continue;
                 }
 
             }
 
             // Constant is a parameter tensor for a software layer
+            //opIt->set<Order>("order", OrderType::RowMajorPlanar);
             //opIt->set<Order>("Order", Order("HWC"));
-            if (opIt.leftmostChild()->getOpType() == OpType::FullyConnected)
+            if (opIt.leftmostChild()->getOpType() == "FullyConnected")
                 opIt->getOutputTensor(0)->setOrder(Order::getRowMajorID(opIt->getOutputTensor(0)->getShape().ndims()));
-            else 
+            else
                 opIt->getOutputTensor(0)->setOrder(Order::getRowMajorPlanarID(opIt->getOutputTensor(0)->getShape().ndims()));
+            pass.log(Logger::MessageType::Info, "Changed data order of the software executed op " + opIt->getName() + " to RowMajorPlanar");
+
         }
 
     }
@@ -78,9 +82,8 @@ void alignConstOrderFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::
 void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 {
 
-    if(parentIt->getOpType() == mv::OpType::Output) {
+    if(parentIt->getOpType() == "Output")
         return;
-    }
 
     parentIt->set<unsigned>("traversed_CR", 1);
 
@@ -91,7 +94,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
     bool all_parents_resolved = true;
     while(1)
     {
-        if(paternityTest->getOpType() != mv::OpType::Constant)
+        if(paternityTest->getOpType() != "Constant")
             if(!paternityTest->hasAttr("traversed_CR") || paternityTest->get<unsigned>("traversed_CR") != 1)
             {
                 // std::cout << !paternityTest->hasAttr("traversed_CR") <<":"<< paternityTest->get<unsigned>("traversed_CR") << std::endl;
@@ -116,7 +119,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         auto source = parentIt;
         auto sink = childIt;
 
-        if(source->getOpType() == mv::OpType::Conversion || sink->getOpType() == mv::OpType::Conversion)
+        if(source->getOpType() == "Conversion" || sink->getOpType() == "Conversion")
         {
             compatibilityResolution(childIt, om);
             if(childIt == parentIt.rightmostChild()) break;
@@ -132,7 +135,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
             ++childIt;
             continue;
         }
-        if (source->getOpType() == mv::OpType::Constant)
+        if (source->getOpType() == "Constant")
         {
 
             compatibilityResolution(childIt, om);
@@ -163,27 +166,22 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         }
 
         //Concat as sink case
-        if(sink->getOpType() == mv::OpType::Concat)
+        if(sink->getOpType() == "Concat")
         {
             if (sourceIsSw)
             {
-                // flowIt->getTensor()->setOrder(mv::Order("HWC"));
-                for(unsigned i = 0; i < childIt->inputSlots(); i++)
-                {
-                    if(childIt->hasInputDef(i))
-                        childIt->getInputTensor(i)->setOrder(mv::Order("HWC"));
-                }
-                childIt->getOutputTensor(0)->setOrder(mv::Order("HWC"));
+                // flowIt->getTensor()->setOrder(OrderType::RowMajorPlanar);
+                childIt->getInputTensor(0)->setOrder(mv::Order(mv::Order::getRowMajorPlanarID(childIt->getInputTensor(0)->getShape().ndims())));
+                childIt->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getRowMajorPlanarID(childIt->getOutputTensor(0)->getShape().ndims())));
             }
             // Hardware ops
             else if (sourceIsHw)
             {
                 // flowIt->getTensor()->setOrder(mv::OrderType::RowInterleaved);
                 for(unsigned i = 0; i < childIt->inputSlots(); i++)
-                {
-                    if(childIt->hasInputDef(i))
-                        childIt->getInputTensor(i)->setOrder(mv::Order("HCW"));
-                }
+
+                    childIt->getInputTensor(i)->setOrder(mv::Order("HCW"));
+
                 childIt->getOutputTensor(0)->setOrder(mv::Order("HCW"));
                 sink->set<int>("NCE1_Compatible", 1);
             }
@@ -198,7 +196,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
         }
 
 
-        if(conversionNeeded && !(source->getOpType() == mv::OpType::Input) && !(sink->getOpType() == mv::OpType::Output))
+        if(conversionNeeded && !(source->getOpType() == "Input") && !(sink->getOpType() == "Output"))
         {
             // mv::Data::TensorIterator originalTensor = flowIt->getTensor();
             mv::Data::TensorIterator originalTensor = childIt->getInputTensor(0);
@@ -273,7 +271,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 
 
 //NOTE: This should not be done in such hardcoded way.
-void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     std::cout << "addConversionLayers " << std::endl;
@@ -284,7 +282,6 @@ void addConversionLayersFcn(mv::ComputationModel& model, mv::TargetDescriptor&, 
     OpModel om(model);
 
     auto opIt = om.opBegin();
-
 
     compatibilityResolution(opIt, om);
     std::cout << "Added. " << std::endl;

@@ -165,5 +165,5 @@ mv::Shape mv::Shape::augment(const Shape& s, std::size_t ndims)
 
 std::string mv::Shape::getLogID() const
 {
-    return "Shape " + toString();
+    return "Shape:" + toString();
 }

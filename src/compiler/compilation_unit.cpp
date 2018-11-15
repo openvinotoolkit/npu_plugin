@@ -5,7 +5,7 @@ const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/rec
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
-recordedModel_(new CompositionalModelRecorder(*model_, compositionalModelRecordingsPath_))
+recordedModel_(new RecordedCompositionalModel(*model_, compositionalModelRecordingsPath_))
 {
 
 }
@@ -52,7 +52,7 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
     }
     catch (ArgumentError& e)
     {
-        log(Logger::MessageType::MessageError, e.what());
+        log(Logger::MessageType::Error, e.what());
         return false;
     }
 
@@ -119,7 +119,7 @@ mv::json::Object& mv::CompilationUnit::compilationDescriptor()
     return compilationDescriptor_;
 }
 
-mv::CompositionalModel& mv::CompilationUnit::model()
+mv::OpModel& mv::CompilationUnit::model()
 {
     return *model_;
 }

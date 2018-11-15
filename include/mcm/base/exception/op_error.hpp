@@ -12,6 +12,7 @@ namespace mv
     public:
             
         explicit OpError(const LogSender& sender, const std::string& whatArg);
+        explicit OpError(const std::string& senderID, const std::string& whatArg);
         
     };
 

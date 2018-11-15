@@ -1,12 +1,12 @@
 ﻿#include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/nce1.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void optimizePoolingsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -15,7 +15,7 @@ namespace mv
     {
 
         MV_REGISTER_PASS(OptimizePoolings)
-        .setFunc(optimizePoolings)
+        .setFunc(optimizePoolingsFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass optimizes each pooling layer for the NCE"
@@ -135,13 +135,13 @@ bool write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
 
     //This check has a sense only for cascades of poolings since HW convolutions still have to be optimized
     auto parent_op = om.getSourceOp(input_tensor);
-    if(parent_op->hasAttr("NCE1_Optimized") && (parent_op->getOpType() == mv::OpType::AvgPool2D || parent_op->getOpType() == mv::OpType::MaxPool2D))
+    if(parent_op->hasAttr("NCE1_Optimized") && (parent_op->getOpType() == "AvgPool" || parent_op->getOpType() == "MaxPool"))
         return true;
     else
         return false;
 }
 
-mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel& om)
+mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIterator poolIterator, mv::OpModel&)
 {
     mv::ModeSelectionNode source;
     source.parameters = mv::fillKernel2DOperationParameters(poolIterator, true);
@@ -150,7 +150,7 @@ mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIte
     return nce.optimize_pooling(source);
 }
 
-void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void optimizePoolingsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "HW pooling optimization pass started" << std::endl;
     mv::OpModel om(model);
@@ -161,7 +161,7 @@ void optimizePoolings(mv::ComputationModel& model, mv::TargetDescriptor&, mv::js
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == mv::OpType::MaxPool2D || opIterator->getOpType() == mv::OpType::AvgPool2D)
+        if (opIterator->getOpType() == "MaxPool" || opIterator->getOpType() == "AvgPool")
         {
 
             if(!opIterator->hasAttr("NCE1_Compatible"))

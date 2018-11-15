@@ -53,7 +53,8 @@ mv::Element::Element(const json::Value& content)
         auto it = attrs_.emplace(key, content[key]);
         if (!it.second)
             throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
-        log(Logger::MessageType::MessageDebug, "Attribute '" + key + "' (" + it.first->second.getTypeName() +
+
+        log(Logger::MessageType::Debug, "Attribute '" + key + "' (" + it.first->second.getTypeName() +
                     ") set to " + it.first->second.toString());
 
     }
@@ -66,7 +67,7 @@ mv::Element::~Element()
 
 std::string mv::Element::getLogID() const
 {
-    return "Element '" + name_ + "'";
+    return "Element:" + name_;
 }
 
 mv::Element& mv::Element::operator=(const Element &other)
@@ -124,9 +125,19 @@ std::string mv::Element::attrsToString_() const
 
     std::string result;
     for (auto it = attrs_.cbegin(); it != attrs_.cend(); ++it)
-        result += "\n'" +  it->first + "' (" + it->second.getTypeName() + "): " + it->second.toString();
+        result += "\n\"" +  it->first + "\" (" + it->second.getTypeName() + "): " + it->second.toString();
     return result;
 
+}
+
+void mv::Element::forceErase_(const std::string& name)
+{
+    attrs_.erase(name);
+}
+
+const std::map<std::string, mv::Attribute>& mv::Element::getAttrs_() const
+{
+    return attrs_;
 }
 
 mv::Attribute& mv::Element::get(const std::string& name)
@@ -141,7 +152,7 @@ void mv::Element::set(const std::string& name, const Attribute& attr)
     auto it = attrs_.emplace(name, attr);
     if (!it.second)
         throw RuntimeError(*this, "Unable to emplace a new element in attributes dictionary");
-    log(Logger::MessageType::MessageDebug, "Attribute '" + name + "' (" + it.first->second.getTypeName() +
+    log(Logger::MessageType::Debug, "Attribute '" + name + "' (" + it.first->second.getTypeName() +
         ") set to " + it.first->second.toString());
 }
 
@@ -149,6 +160,8 @@ void mv::Element::erase(const std::string& name)
 {
     if (!hasAttr(name))
         throw ArgumentError(*this, "attribute identifer", name,  "Undefined identifier");
+    if (attrs_[name].hasTrait("const"))
+        throw AttributeError(*this, "Attempt of deletion of a const attribute " + name);
     attrs_.erase(name);
 }
 

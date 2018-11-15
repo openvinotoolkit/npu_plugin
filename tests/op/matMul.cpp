@@ -1,23 +1,26 @@
 #include "gtest/gtest.h"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
 TEST(ops, matMul)
 {
-
     mv::OpModel om("testModel");
     auto input0 = om.input({256, 512}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(512u * 100u);
-    auto input1 = om.constant(weightsData, {512, 100}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)));
-    auto matMul = om.matMul(input0, input1);
-    auto matMulOp = om.getSourceOp(matMul);
-    auto output = om.output(matMul);
+    std::vector<double> input1Data = mv::utils::generateSequence<double>(256u * 512u);
+    std::vector<double> input2Data = mv::utils::generateSequence<double>(256u * 512u);
+    auto input1 = om.constant(input1Data, {256, 512}, mv::DTypeType::Float16, mv::Order("HW"));
+    auto input2 = om.constant(input2Data, {512, 256}, mv::DTypeType::Float16, mv::Order("HW"));
 
-    ASSERT_EQ(output->getShape(), mv::Shape({256, 100}));
-    ASSERT_EQ(matMulOp->getOpType(), mv::OpType::MatMul);
-    ASSERT_EQ(matMulOp->attrsCount(), 7);
-    ASSERT_EQ(matMulOp->inputSlots(), 2);
-    ASSERT_EQ(matMulOp->outputSlots(), 1);
-    ASSERT_TRUE(matMulOp->isExecutable());
+    auto matmul = om.matMul(input1, input2);
+    auto matmulOp = om.getSourceOp(matmul);
+    auto output = om.output(matmul);
+
+    ASSERT_EQ(matmul->getShape(), mv::Shape({256, 256}));
+    ASSERT_EQ(matmulOp->getOpType(), "MatMul");
+    ASSERT_EQ(matmul->attrsCount(), 6);
+    ASSERT_EQ(matmulOp->attrsCount(), 2);
+    ASSERT_EQ(matmulOp->inputSlots(), 2);
+    ASSERT_EQ(matmulOp->outputSlots(), 1);
+    ASSERT_TRUE(matmulOp->hasTypeTrait("executable"));
 
 }

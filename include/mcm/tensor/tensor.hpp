@@ -59,6 +59,7 @@ namespace mv
         DType getDType() const;
         void setOrder(Order order);
         Order getOrder() const;
+        void setShape(const Shape& shape);
         
         void add(const Tensor& other);
         void add(double val);
@@ -103,6 +104,8 @@ namespace mv
         {
             return subToInd_(getShape(), sub);
         }
+
+        Tensor& operator=(const Tensor& other);
 
         std::string toString() const override;
         virtual std::string getLogID() const override;

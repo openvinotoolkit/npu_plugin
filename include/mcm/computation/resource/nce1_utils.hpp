@@ -2,7 +2,7 @@
 #define NCE1_UTILS_HPP
 
 #include "mcm/computation/resource/nce1.hpp"
-#include "mcm/computation/op/computation_op.hpp"
+#include "mcm/computation/op/op.hpp"
 
 namespace mv
 {

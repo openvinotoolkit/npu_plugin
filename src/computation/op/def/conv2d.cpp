@@ -30,7 +30,7 @@ mv::Tensor mv::op::Conv2D::getOutputDef(std::size_t idx)
 
     if (inputShape[2] != weightsShape[2])
         throw(OpError(*this, "Mismatch in channels dimensions between input tensor (input 0) and weights tensor (input 1) - "
-            " input" + std::to_string(inputShape[3]) + ", weights " + std::to_string(weightsShape[2])));
+            " input " + std::to_string(inputShape[2]) + ", weights " + std::to_string(weightsShape[2])));
 
     auto padding = get<std::array<unsigned short, 4>>("padding");
     auto stride = get<std::array<unsigned short, 2>>("stride");
@@ -53,30 +53,7 @@ mv::Tensor mv::op::Conv2D::getOutputDef(std::size_t idx)
 
 bool mv::op::Conv2D::isHardwarizeable(json::Object&)
 {
-    auto padding = get<std::array<unsigned short, 4>>("padding");
-    auto stride = get<std::array<unsigned short, 2>>("stride");
-
-    auto input = getInputTensor(0);
-    auto inputShape = input->getShape();
-    auto weights = getInputTensor(1);
-    auto weightsShape = weights->getShape();
-
-    // Check for supported padding
-    if((padding[0] != 0 && padding[0] != weightsShape[0]/2) || (padding[2] != 0 && padding[2] != weightsShape[1]/2))
-        return false;
-
-    // Check for supported kernel sizes
-    if(weightsShape[0] > 15 || weightsShape[1] > 15)
-        return false;
-
-    // Check for supported strides
-    if(stride[0] > 8 || stride[1] > 8)
-        return false;
-
-
-    // Should handle dilation (WTF?) here
-
-    return true;
+    return false;
 }
 
 

@@ -1,5 +1,9 @@
+/*#ifndef INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_HPP_
+#define INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_HPP_
+=======
 #ifndef INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_
 #define INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_
+>>>>>>> master
 
 #include "include/mcm/api/compositional_model.hpp"
 #include "include/mcm/computation/model/op_model.hpp"
@@ -18,10 +22,14 @@ namespace mv
 	{
 
 		OpModel& modelRef_;
-		std::ofstream outputSourceFile; /*Recorded source file*/
-		std::ofstream outputWeightsFile; /*Recorded weights file*/
-		std::ostringstream ss; /*Stream for source file*/
-		std::ostringstream ws; /*Stream for weights file*/
+		// Recorded source file
+		std::ofstream outputSourceFile;
+		// Recorded weights file
+		std::ofstream outputWeightsFile;
+		// Stream for source file
+		std::ostringstream ss;
+		// Stream for weights file
+		std::ostringstream ws;
 		std::string recordedSourceFileName;
 		std::string recordedWeghtsFileName;
 		std::string recordedSourceFileNameCpp;
@@ -57,9 +65,11 @@ namespace mv
 		virtual Data::TensorIterator reshape(Data::TensorIterator input, const Shape& shape, const std::string& name = "") override;
 		virtual Data::TensorIterator bias(Data::TensorIterator input, Data::TensorIterator biases, const std::string& name = "") override;
 		virtual Data::TensorIterator fullyConnected(Data::TensorIterator input, Data::TensorIterator weights, const std::string& name = "") override;
-		virtual Data::TensorIterator dropOut(Data::TensorIterator input, const std::string& name = "") override;
-		void createRecordedSourceFiles(); /*Create two files to store the generated source code and weight vector definitions*/
-		void completeRecordedSourceFile(); /*Populate the 'compilation passes' and end of the source file */
+		// Create two files to store the generated source code and weight vector definitions
+		void createRecordedSourceFiles();
+		// Populate the 'compilation passes' and end of the source file 
+		void completeRecordedSourceFile();
+
 		void writeWeightsToFile(const std::vector<double>& weightsData, std::string weightsVectorName);
 
 		bool isValid() const override;
@@ -74,4 +84,4 @@ namespace mv
 	};
 
 }
-#endif /* INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_ */
+#endif //  INCLUDE_MCM_UTILS_COMPOSITIONAL_MODEL_RECORDER_HPP_ */

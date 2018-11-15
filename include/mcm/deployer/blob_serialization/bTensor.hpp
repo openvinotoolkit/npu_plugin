@@ -5,7 +5,7 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/deployer/blob_serialization/bRelocation.hpp"
 #include "include/mcm/deployer/blob_serialization/blob_serializer.hpp"
 

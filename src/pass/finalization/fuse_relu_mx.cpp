@@ -1,9 +1,9 @@
 #include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/computation/model/op_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 
-static void fuseReluMXFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseReluMXFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -23,7 +23,7 @@ namespace mv
 
 }
 
-void fuseReluMXFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseReluMXFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -34,7 +34,7 @@ void fuseReluMXFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
 
-        if (opIt->getOpType() == OpType::ReLU)
+        if (opIt->getOpType() == "Relu")
         {
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
@@ -42,7 +42,7 @@ void fuseReluMXFcn(mv::ComputationModel& model, mv::TargetDescriptor&, mv::json:
                 continue;
             if(!parentOpIt->get<int>("NCE1_Compatible"))
                 continue;
-            om.addAttr(parentOpIt, "postOpType", OpType(OpType::ReLU));
+            parentOpIt->set<std::string>("postOpType", "Relu");
 
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
