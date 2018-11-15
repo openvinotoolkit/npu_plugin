@@ -67,11 +67,13 @@ int main()
         exit(1);
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("prototxt.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("prototxt.dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("prototext.blob");
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;

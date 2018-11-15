@@ -192,7 +192,8 @@ void mv::Tensor::setShape(const Shape& shape)
             throw ArgumentError(*this, "CurrentTensor", "shape", "Unable to change shape of a populated tensor");
     }
     set<Shape>("shape", shape);
-    log(Logger::MessageType::Debug, "Changed shape to " + shape.toString());
+    shape_ = shape;
+    log(Logger::MessageType::Debug, "Changed shape to " + shape_.toString());
     return;
 }
 

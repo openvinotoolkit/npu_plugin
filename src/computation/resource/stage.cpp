@@ -65,7 +65,7 @@ void mv::Stage::clear()
 {
     auto members = getMembers();
     for (auto memberIt = members.begin(); memberIt != members.end(); ++memberIt)
-        (*memberIt)->erase("stage");
+        (*memberIt)->erase("idx");
     get<std::vector<std::string>>("members").clear();
 }
 

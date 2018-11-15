@@ -925,7 +925,7 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest1");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest1.blob");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
@@ -960,7 +960,7 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
 
     // compare blob file contents to RAM blob
     std::string RAMBlobPath = mv::utils::projectRootPath() + std::string("/build/tests/final_RAM1.blob");
-    std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMTest1.blob");
+    std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMtest1.blob");
     std::string command = "diff \"" + BlobPath + "\" \"" + RAMBlobPath + "\"";
     EXPECT_EQ (0, system(command.c_str())) << "ERROR: RAM and file blobs do not match ";
 
@@ -996,7 +996,7 @@ TEST (generate_blob, runtime_binary_RAM)
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest2");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest2.blob");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = false;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
@@ -1018,7 +1018,7 @@ TEST (generate_blob, runtime_binary_RAM)
     std::cout << "in RTB test: after dump" << std::endl;
 
     std::string RAMBlobPath = mv::utils::projectRootPath() + std::string("/build/tests/final_RAM2.blob");
-    std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMTest2.blob");
+    std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMtest2.blob");
 
     // check blob sizes
     std::ifstream p_file(RAMBlobPath, std::ios::in | std::ios::binary);
@@ -1033,7 +1033,7 @@ TEST (generate_blob, runtime_binary_RAM)
     std::ifstream b_file(BlobPath, std::ios::in | std::ios::binary);
     if (b_file.is_open())
     {
-        EXPECT_EQ(0,1) << "ERROR: blob file RAMTest2.blob exists.";
+        EXPECT_EQ(0,1) << "ERROR: blob file RAMtest2.blob exists.";
         b_file.close();
     }
 
@@ -1060,7 +1060,7 @@ TEST (generate_blob, runtime_binary_FILE)
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest3");
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest3.blob");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
@@ -1080,7 +1080,7 @@ TEST (generate_blob, runtime_binary_FILE)
     cm.getBinaryBuffer()->dumpBuffer("final_RAM3.blob") ;
 
     std::string RAMBlobPath = mv::utils::projectRootPath() + std::string("/build/tests/final_RAM3.blob");
-    std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMTest3.blob");
+    std::string BlobPath = mv::utils::projectRootPath() + std::string("/build/tests/RAMtest3.blob");
 
     // check blob sizes
     std::ifstream p_file(RAMBlobPath, std::ios::in | std::ios::binary);

@@ -110,6 +110,7 @@ file(GLOB pass
     "src/pass/pass_manager.cpp"
     "src/pass/pass_entry.cpp"
     "src/target/target_descriptor.cpp"
+    "src/pass/common_functions.cpp"
     "src/pass/adaptation/fuse_passes.cpp"
     "src/pass/adaptation/remove_passes.cpp"
     "src/pass/adaptation/replacement_passes.cpp"

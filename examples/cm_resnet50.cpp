@@ -36,24 +36,24 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
 
-    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("HWC"));
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("HWCN"));
     auto conv = model.conv(input, weights, stride, padding);
 
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     std::vector<double> bnScaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
+    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
     auto bnScale = model.scale(conv, bnScaleParam);
     
     std::vector<double> bnOffsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
+    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
     auto bnOffset = model.bias(bnScale, bnOffsetParam);
     
     std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
+    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
     auto scale = model.scale(bnOffset, scaleParam);
     
     std::vector<double> biasData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("HWC"));
+    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
     return model.bias(scale, biasParam);
 
 }
@@ -148,7 +148,7 @@ int main()
     auto res5c = residualBlock(cm, res5b, 512);
     auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
     std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::Order("HWC"));
+    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DTypeType::Float16, mv::Order("HW"));
     auto fc1000 = cm.fullyConnected(pool5, weights);
     auto softmax = cm.softmax(fc1000);
     cm.output(softmax);
@@ -157,20 +157,17 @@ int main()
     if (!unit.loadTargetDescriptor(mv::Target::ma2480))
         exit(1);
 
-    // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
-    // Output DOT - file name (base)
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("resnet50.dot");
-    // Output DOT - scope of visualization - executable operations, data flow, control flow
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
-    // Output DOT - content included in the visualization - full content
+    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet50.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    // Output DOT - HTML-like flag - enable HTML-like formatting
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    // Output BLOB - file name of the output binary
-    unit.compilationDescriptor()["GenerateBlob"]["output"] = std::string("resnet50.blob");
-    //unit.compilationDescriptor()["GenerateJSON"]["output"] = std::string("resnet50.json");
-
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("resnet50.blob");
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     // Initialize compilation 
     unit.initialize();

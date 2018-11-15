@@ -21,6 +21,36 @@ namespace mv
 
 }
 
+mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    while(opIt.parentsSize() > 1)
+    {
+        auto paramOp = opIt.leftmostParent();
+        ++paramOp;
+        om.removeOp(paramOp);
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
+    }
+
+    return opIt;
+}
+
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
@@ -44,12 +74,8 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
-            std::cout << "weightsData name is" << opIt->getInputTensor(1)->getName() << std::endl;
-            
-            Tensor weigthsTensor = *(opIt->getInputTensor(1));
-            weigthsTensor.setOrder(Order(Order::getRowMajorID(weigthsTensor.getShape().ndims())));
 
-            auto weights = om.constant(weigthsTensor.getData(), {inputShape[0], inputShape[1], inputShape[2], 
+            auto weights = om.constant(weightsData, {inputShape[0], inputShape[1], inputShape[2],
                 opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
                 Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
 
@@ -63,22 +89,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                 pass.log(Logger::MessageType::Info, "Moved Bias attribute of FullyConnected op " + opIt->getName() + " to " + conv2D->getName());
             }
 
-            for (Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-            {
-                std::size_t inputIdx = sinkFlow->get<std::size_t>("sinkInput");
-                sinkFlow.sink()->erase("input" + std::to_string(inputIdx));
-                om.defineFlow(conv2D, sinkFlow.sink(), inputIdx); 
-            }
-
-            while(opIt.parentsSize() > 1)
-            {
-                auto paramOp = opIt.leftmostParent();
-                ++paramOp;
-                om.removeOp(paramOp);
-            }
-            
-            om.removeOp(opIt);
-            opIt = parentOpIt;
+            opIt = linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
 
         }
 
