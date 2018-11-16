@@ -4,8 +4,6 @@
 int main()
 {
 
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
-
     // Define the primary compilation unit
     mv::CompilationUnit unit("cm_two_branch");
 
@@ -47,9 +45,9 @@ int main()
     // Run all passes
     unit.run();
 
-    system("dot -Tsvg cm_two_branch.dot -o cm_two_branch.svg");
-    system("dot -Tsvg cm_two_branch_adapt.dot -o cm_two_branch_adapt.svg");
-    system("dot -Tsvg cm_two_branch_final.dot -o cm_two_branch_final.svg");
+    //system("dot -Tsvg cm_two_branch.dot -o cm_two_branch.svg");
+    //system("dot -Tsvg cm_two_branch_adapt.dot -o cm_two_branch_adapt.svg");
+    //system("dot -Tsvg cm_two_branch_final.dot -o cm_two_branch_final.svg");
     return 0;
 
 }

@@ -164,10 +164,10 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     auto addOpData = addOp->getInputTensor(1)->getData();
     auto offsetParamData = offsetParam.getData();
 
-    for (unsigned i = 0; i < convOp->getInputTensor(1)->getData().size(); ++i)
+    for (unsigned i = 0; i < originalWeightsFromConvData.size(); ++i)
         ASSERT_FLOAT_EQ(originalWeightsFromConvData[i], newWeigthsData[i]);
-
-    for (unsigned i = 0; i < addOp->getInputTensor(1)->getData().size(); ++i)
+        
+    for (unsigned i = 0; i < addOpData.size(); ++i)
         ASSERT_FLOAT_EQ(addOpData[i], offsetParamData[i]);
 
 }
