@@ -5,4 +5,9 @@
 namespace mv
 {
     MV_REGISTER_ORDER(W).setContiguityVector({0});
+    MV_REGISTER_ORDER(N).setContiguityVector({0});
+    MV_REGISTER_ORDER(C).setContiguityVector({0});
+    MV_REGISTER_ORDER(H).setContiguityVector({0});
+    MV_REGISTER_ORDER(T).setContiguityVector({0});
+
 }
