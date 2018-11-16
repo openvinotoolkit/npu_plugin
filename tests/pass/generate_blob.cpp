@@ -699,7 +699,6 @@ TEST (generate_blob, blob_scale)
 //    unit.passManager().disablePass(mv::PassGenre::Serialization);
 //    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
