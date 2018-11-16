@@ -86,7 +86,7 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 //NOT WORKING :(
 int main()
 {
-    
+
     //mv::Logger::logFilter({std::regex("OpModel")}, true);
 
     // Define the primary compilation unit
@@ -140,8 +140,8 @@ int main()
     // Run all passes
     unit.run();
 
-    system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
-    system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
-    system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
+    //system("dot -Tsvg cm_resnet18.dot -o cm_resnet18.svg");
+    //system("dot -Tsvg cm_resnet18_adapt.dot -o cm_resnet18_adapt.svg");
+    //system("dot -Tsvg cm_resnet18_final.dot -o cm_resnet18_final.svg");
     return 0;
 }
