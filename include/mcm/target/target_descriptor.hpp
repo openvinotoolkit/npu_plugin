@@ -44,6 +44,7 @@ namespace mv
         Target target_;
         DType globalDType_;
         std::set<std::string> ops_;
+        std::set<std::string> postOps_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
 
         std::vector<std::string> adaptationPasses_;
@@ -80,6 +81,8 @@ namespace mv
         bool defineOp(const std::string& opType);
         bool undefineOp(const std::string& opType);
         bool opSupported(const std::string& opType) const;
+        bool opSupportedAsPostOp(const std::string& opType) const;
+
 
         bool defineMemory(const std::string& name, long long size, std::size_t alignment, std::size_t dataTypeSize);
         bool undefineMemory(const std::string& name);

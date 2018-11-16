@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 
 static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -15,6 +16,13 @@ namespace mv
         .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Replaces the fullyConnected op with conv2D using 1x1 kernels"
+        );
+
+        MV_REGISTER_PASS(StandaloneActivationAsPostOps)
+        .setFunc(standaloneActivationAsPostOpsFcn)
+        .setGenre(PassGenre::Adaptation)
+        .setDescription(
+            "Replaces unsupported standalone activation operations with identity operation + postOp activation"
         );
     
     }
@@ -69,8 +77,6 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto sourceTensor = parentOpIt->getOutputTensor(0);
-            std::cout << "parentOp name is" << parentOpIt->getName() << std::endl;
-            std::cout << "source tesnor name is" << sourceTensor->getName() << std::endl;
 
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
@@ -94,5 +100,35 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
         }
 
     }
+}
 
+void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::json::Object&, mv::json::Object&)
+{
+    using namespace mv;
+
+    OpModel om(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        std::string opType(opIt->getOpType());
+        if(!targetDescriptor.opSupported(opType) && targetDescriptor.opSupportedAsPostOp(opType))
+        {
+            pass.log(Logger::MessageType::Debug, "Found " + opType + " - " + opIt->getName());
+
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            auto sourceTensor = parentOpIt->getOutputTensor(0);
+
+            auto identity = om.identity(sourceTensor);
+            auto identityOp = om.getSourceOp(identity);
+            identityOp->set("postOpType", opType);
+            std::vector<std::string> attrKeys(opIt->attrsKeys());
+
+            for(auto attrKey : attrKeys)
+                identityOp->set(attrKey, opIt->get(attrKey));
+
+            pass.log(Logger::MessageType::Info, "Replaced " + opType + " with identity+postOp " + identityOp->getName());
+
+            opIt = linkNewOperationsReplacement(parentOpIt, identity, om, opIt);
+        }
+    }
 }

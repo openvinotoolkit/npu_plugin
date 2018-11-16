@@ -76,15 +76,19 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
-        std::cout << "Populating Serial fields for Op{" << opIt->getOpType() << "}" << std::endl;
+        std::string opType(opIt->getOpType());
+        std::cout << "Populating Serial fields for Op{" << opType << "}" << std::endl;
         //Short term fix: Big if-else acting like a switch
         //Long term solution: Move everything to Target Descriptor
 
-        if(opIt->getOpType() == "Add")
-        {
+        if(opType == "Add")
             opIt->set<unsigned>("SerialID", 12);
+
+        else if(opType == "Identity")
+        {
+
         }
-        else if(opIt->getOpType() == "AveragePool")
+        else if(opType == "AveragePool")
         {
             auto fp16_size = 2;
 
@@ -217,23 +221,23 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             }
         }
-        else if(opIt->getOpType() == "BatchNormalization")
+        else if(opType == "BatchNormalization")
         {
 
         }
-        else if(opIt->getOpType() == "Bias")
+        else if(opType == "Bias")
         {
 
         }
-        else if(opIt->getOpType() == "Concat")
+        else if(opType == "Concat")
         {
 
         }
-        else if(opIt->getOpType() == "Constant")
+        else if(opType == "Constant")
         {
 
         }
-        else if(opIt->getOpType() == "Conv")
+        else if(opType == "Conv")
         {
             auto fp16_size = 2;
 
@@ -362,11 +366,10 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 opIt->set<unsigned>("dilation",  1);
             }
         }
-        else if(opIt->getOpType() == "Conversion")
-        {
+        else if(opType == "Conversion")
             opIt->set<unsigned>("SerialID", 37);
-        }
-        else if(opIt->getOpType() == "DepthwiseConv")
+
+        else if(opType == "DepthwiseConv")
         {
             //auto fp16_size = 2;
 
@@ -381,15 +384,14 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             opIt->set<unsigned>("padStyle",  2);
             opIt->set<unsigned>("dilation",  1);
         }
-        else if(opIt->getOpType() == "Divide")
-        {
+        else if(opType == "Divide")
             opIt->set<unsigned>("SerialID", 13);
-        }
-        else if(opIt->getOpType() == "Dropout")
+
+        else if(opType == "Dropout")
         {
 
         }
-        else if(opIt->getOpType() == "Fullyconnected")
+        else if(opType == "Fullyconnected")
         {
             auto fp16_size = 2;
 
@@ -514,15 +516,14 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 opIt->set<unsigned>("SerialID", 4);
             }
         }
-        else if(opIt->getOpType() == "Input")
+        else if(opType == "Input")
         {
 
         }
-        else if(opIt->getOpType() == "MatMul")
-        {
+        else if(opType == "MatMul")
             opIt->set<unsigned>("SerialID", 8);
-        }
-        else if(opIt->getOpType() == "MaxPool")
+
+        else if(opType == "MaxPool")
         {
             auto fp16_size = 2;
 
@@ -650,43 +651,36 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
             }
         }
-        else if(opIt->getOpType() == "Multiply")
-        {
+        else if(opType == "Multiply")
             opIt->set<unsigned>("SerialID", 13);
-        }
-        else if(opIt->getOpType() == "Output")
+        else if(opType == "Output")
         {
 
         }
-        else if(opIt->getOpType() == "Prelu")
-        {
+        else if(opType == "Prelu")
             opIt->set<unsigned>("serialID", 10);
-        }
-        else if(opIt->getOpType() == "Relu")
+        else if(opType == "Relu")
         {
             opIt->set<unsigned>("opX", 0);
             opIt->set<unsigned>("strideX", 0);
             opIt->set<unsigned>("strideY", 0);
             opIt->set<unsigned>("SerialID", 6);
         }
-        else if(opIt->getOpType() == "Reshape")
+        else if(opType == "Reshape")
         {
 
         }
-        else if(opIt->getOpType() == "Scale")
-        {
+        else if(opType == "Scale")
             opIt->set<unsigned>("serialID", 15);
-        }
-        else if(opIt->getOpType() == "Softmax")
+        else if(opType == "Softmax")
         {
             opIt->set<unsigned>("axis", 1);
             opIt->set<unsigned>("SerialID", 3);
         }
-        else if(opIt->getOpType() == "Subtract")
-        {
+        else if(opType == "Subtract")
             opIt->set<unsigned>("SerialID", 12);
-        }
+
         else
-            std::cout << "Unsupported serialization operation " << opIt->getOpType() << std::endl;
+            std::cout << "Unsupported serialization operation " << opType << std::endl;
     }
 }

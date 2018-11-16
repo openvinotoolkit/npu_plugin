@@ -201,6 +201,47 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         }
     }
 
+    if (jsonDescriptor["postOps"].valueType() != json::JSONType::Object)
+    {
+        reset();
+        return false;
+    }
+    else
+    {
+
+        std::vector<std::string> keys = jsonDescriptor["postOps"].getKeys();
+
+        for (unsigned i = 0; i < keys.size(); ++i)
+        {
+            std::string opStr = keys.at(i);
+            if (!op::OpRegistry::checkOpType(opStr))
+            {
+                reset();
+                return false;
+            }
+            postOps_.insert(opStr);
+            mv::Element e(opStr);
+
+            for (unsigned j = 0; j < jsonDescriptor["ops"][opStr].size(); ++j) // Resource
+            {
+                std::vector<std::string> resource_keys = jsonDescriptor["ops"][opStr].getKeys();
+                std::string platform_name = resource_keys[j];
+
+                std::vector<std::string> serial_list;
+                for (unsigned k = 0; k < jsonDescriptor["ops"][opStr][platform_name]["serial_description"].size(); ++k) // Resource
+                {
+                    std::string v = jsonDescriptor["ops"][opStr][platform_name]["serial_description"][k].get<std::string>();
+                    serial_list.push_back(v);
+                }
+
+                e.set<std::vector<std::string>>("serial_view", serial_list);
+
+                serialDescriptions_.insert(std::make_pair(opStr+":"+platform_name, e));
+
+            }
+        }
+    }
+
     if (jsonDescriptor["resources"].valueType() != json::JSONType::Object)
     {
         reset();
@@ -503,6 +544,14 @@ bool mv::TargetDescriptor::opSupported(const std::string& op) const
         return true;
     return false;
 }
+
+bool mv::TargetDescriptor::opSupportedAsPostOp(const std::string& op) const
+{
+    if (postOps_.find(op) != postOps_.end())
+        return true;
+    return false;
+}
+
 
 bool mv::TargetDescriptor::defineMemory(const std::string& name, long long size, std::size_t alignment, std::size_t dataTypeSize)
 {
