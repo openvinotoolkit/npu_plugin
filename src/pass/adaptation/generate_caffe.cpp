@@ -739,13 +739,15 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
-            poolingParamPrototxt->set_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
             
 
             poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
-            poolingParamCaffeModel->set_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
         }
 
@@ -777,12 +779,14 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
-            poolingParamPrototxt->set_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
 
             poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
-            poolingParamCaffeModel->set_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
         }
 
