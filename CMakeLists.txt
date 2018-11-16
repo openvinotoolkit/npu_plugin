@@ -12,32 +12,40 @@ endif()
 add_compile_options(-std=c++11)
 
 if (MSVC)
+
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
+    SET(VALIDATION false)
+
 else()
+
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
+    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
-#SET(VALIDATION true)
-
 if(VALIDATION)
-include_directories("/opt/movidius/caffe/include")
-include_directories("/opt/movidius/caffe/build/include")
-include_directories("/opt/movidius/caffe/build/include/caffe/proto")
 
-#Protobuf
-find_package(Protobuf REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIR})
+    include_directories("/opt/movidius/caffe/include")
+    include_directories("/opt/movidius/caffe/build/include")
+    include_directories("/opt/movidius/caffe/build/include/caffe/proto")
 
-#Boost
-find_package(Boost COMPONENTS regex system filesystem REQUIRED)
+    #Protobuf
+    find_package(Protobuf REQUIRED)
+    include_directories(${PROTOBUF_INCLUDE_DIR})
 
-#Caffe
-set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
-set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
+    #Boost
+    find_package(Boost COMPONENTS regex system filesystem REQUIRED)
+
+    #Caffe
+    set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
+    set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
+
+    file(GLOB pass_validation
+        "src/pass/adaptation/generate_caffe.cpp"
+    )
 
 endif(VALIDATION)
 
@@ -120,12 +128,6 @@ file(GLOB pass
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
 )
-
-if(VALIDATION)
-file(GLOB pass_validation
-"src/pass/adaptation/generate_caffe.cpp"
-)
-endif(VALIDATION)
 
 file(GLOB compiler
     "src/compiler/*"
