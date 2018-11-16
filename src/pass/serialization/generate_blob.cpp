@@ -680,7 +680,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         {
             std::cout << opIt->getOpType() << std::endl;
 
-            opIt->set<double>("alpha", opIt->get<double>("alpha"));
+            opIt->set<unsigned>("alpha", opIt->get<unsigned>("alpha"));
             opIt->set<unsigned>("strideX", 0);
             opIt->set<unsigned>("strideY", 0);
             opIt->set<unsigned>("SerialID", 42);
