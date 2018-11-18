@@ -283,6 +283,7 @@
 	{
 		"adapt":
 		[
+			"ConvolutionDilation",
 			"FuseBatchNorm",
 			"FuseBias",
 			"FuseScale",

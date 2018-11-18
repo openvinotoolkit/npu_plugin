@@ -122,6 +122,7 @@ file(GLOB pass
     "src/pass/adaptation/fuse_passes.cpp"
     "src/pass/adaptation/remove_passes.cpp"
     "src/pass/adaptation/replacement_passes.cpp"
+    "src/pass/adaptation/conv_dilation_pass.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
@@ -153,7 +154,7 @@ if(VALIDATION)
     target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
     target_compile_definitions(cm PRIVATE CPU_ONLY=1)
     add_subdirectory(python/api)
-    add_subdirectory(tests)
+    #add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
     #add_subdirectory(recordings)  
 else()
@@ -164,7 +165,7 @@ else()
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     add_subdirectory(python/api)
-    add_subdirectory(tests)
+    #add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
     #add_subdirectory(recordings)
 endif(VALIDATION)
