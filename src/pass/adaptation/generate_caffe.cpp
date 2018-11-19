@@ -750,14 +750,16 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
             caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
 
-            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
             
 
-            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
@@ -803,13 +805,15 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
             caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
 
-            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
 
-            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
