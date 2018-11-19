@@ -723,28 +723,43 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Pooling");
 
-            /*The bottom attribute stores the name of the input blob*/
-            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            /*Check if previous op is bias*/
+            if (parentOpIt->getOpType() == "Bias")
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt->getInputTensor(0));
 
-            /*The top attribute stores the name of the output blob*/
-            layerParamPrototxt->add_top(opIt->getName());
-            layerParamCaffeModel->add_top(opIt->getName());
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt->getName());
+
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+        
             /*Set layer to have a pooling parameter*/
             caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
             caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
 
-            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
             
 
-            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
@@ -763,27 +778,42 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Pooling");
 
-            /*The bottom attribute stores the name of the input blob*/
-            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+                 auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            /*Check if previous op is bias*/
+            if (parentOpIt->getOpType() == "Bias")
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt->getInputTensor(0));
 
-            /*The top attribute stores the name of the output blob*/
-            layerParamPrototxt->add_top(opIt->getName());
-            layerParamCaffeModel->add_top(opIt->getName());
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt->getName());
+
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
 
             /*Set layer to have a pooling parameter*/
             caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
             caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
 
-            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
 
-            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
             poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
