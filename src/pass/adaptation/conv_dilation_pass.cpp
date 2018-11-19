@@ -30,7 +30,7 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        if (opIt->getOpType() == "ConvDilated")
+        if (opIt->getOpType() == "Conv")
         {
             /*Get the kernel attributes*/
             auto nonDialtedKernel = opIt->getInputTensor(1);
@@ -39,10 +39,6 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
             auto nonDialtedKernelKernelInputChannels = nonDialtedKernel->get<mv::Shape>("shape")[2];
             auto nonDialtedKernelKernelOutpuChannels = nonDialtedKernel->get<mv::Shape>("shape")[3];
             auto dilationFactor = opIt->get<unsigned>("dilation");
-            nonDialtedKernel->setOrder(mv::Order::getColMajorID(4));
-
-            std::cout << "Dilation factor " << dilationFactor << std::endl;
-            std::cout << "Non dilated shape: " << nonDialtedKernel->getShape().toString() << std::endl;
 
             /** Calculate dilated kernel shape
               *
@@ -55,49 +51,48 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
                                                       nonDialtedKernelWidth + (nonDialtedKernelWidth - 1) * (dilationFactor - 1),
                                                       nonDialtedKernelKernelInputChannels, nonDialtedKernelKernelOutpuChannels});
 
-            std::cout << "New shape: " << dilatedKernelShape.toString() << std::endl;
-
             /*Populate dilated tensor with zeros*/
             std::vector<double> defaultData(dilatedKernelShape.totalSize(), 0);
+
+            /*Create Tensor*/
             mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
-            for (unsigned oc = 0; oc < nonDialtedKernelKernelOutpuChannels; ++oc) {
-                for (unsigned ic = 0; ic < nonDialtedKernelKernelInputChannels; ++ic) {
-                    for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelKernelHeight; ++kcolumn) {
-                        for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow) {
-                    
-                            std::cout << "Non dilated kernel index is " << krow << ", " << kcolumn << ", " << ic << ", " << oc << std::endl;
+
+            for (unsigned oc = 0; oc < nonDialtedKernelKernelOutpuChannels; ++oc)
+            {
+                for (unsigned ic = 0; ic < nonDialtedKernelKernelInputChannels; ++ic)
+                {
+                    for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelKernelHeight; ++kcolumn)
+                    {
+                        for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow)
+                        {
 
                             if (krow != 0 || kcolumn != 0)
                             {
-                                std::cout << "Dilated kernel index is     " << krow + (dilationFactor -1)*krow << ", " << kcolumn + (dilationFactor -1)*kcolumn << ", " << ic << ", " << oc << std::endl;
-                                dilatedKernel.at({krow + (dilationFactor -1)*krow, kcolumn + (dilationFactor -1)*kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
+                                dilatedKernel.at({krow + (dilationFactor - 1) * krow, kcolumn + (dilationFactor - 1) * kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
                             }
-                            
                             else
                             {
-                                std::cout << "Dilated kernel index is     " << krow << ", " << kcolumn << ", " << ic << ", " << oc << std::endl;
                                 dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
                             }
-
-                            
                         }
                     }
                 }
             }
-   
-         auto nonDialtedKernelOp = opIt.rightmostParent();
 
-         std::cout << "Righmost parent is " << nonDialtedKernelOp->getName();
-         om.removeOp(nonDialtedKernelOp);
-        opIt->setInputTensor(dilatedKernel, 1);
+            auto nonDialtedKernelOp = opIt.rightmostParent();
+
+            auto dilatedConstant = om.constant(
+                dilatedKernel.getData(),
+                dilatedKernelShape,
+                dilatedKernel.getDType(),
+                dilatedKernel.getOrder(),
+                nonDialtedKernelOp->getName() + "_Dilated");
+
+            om.removeOp(nonDialtedKernelOp);
+            om.defineFlow(dilatedConstant, opIt, 1);
+            opIt->setInputTensor(dilatedConstant, 1);
         }
-
-        
     }
 
-    
-
-
-    std::cout << "exiting dilation pass " << std::endl;
-    exit(1);
+    std::cout << "Exiting Dilation Pass " << std::endl;
 }

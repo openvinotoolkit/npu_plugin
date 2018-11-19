@@ -69,6 +69,7 @@ namespace mv
         .setOutputs({"output"})
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
+        .setArg<unsigned>("dilation")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
