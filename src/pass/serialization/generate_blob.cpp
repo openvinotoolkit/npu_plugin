@@ -85,9 +85,8 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             opIt->set<unsigned>("SerialID", 12);
 
         else if(opType == "Identity")
-        {
+            opIt->set<unsigned>("SerialID", 19);
 
-        }
         else if(opType == "AveragePool")
         {
             auto fp16_size = 2;
@@ -658,7 +657,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
         }
         else if(opType == "Prelu")
-            opIt->set<unsigned>("serialID", 10);
+            opIt->set<unsigned>("SerialID", 10);
         else if(opType == "Relu")
         {
             opIt->set<unsigned>("opX", 0);
@@ -671,7 +670,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
         }
         else if(opType == "Scale")
-            opIt->set<unsigned>("serialID", 15);
+            opIt->set<unsigned>("SerialID", 15);
         else if(opType == "Softmax")
         {
             opIt->set<unsigned>("axis", 1);
