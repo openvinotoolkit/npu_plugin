@@ -310,12 +310,6 @@
 		}
 	},
 
-
-	"order":
-	{
-		"global": "RowMajorPlanar"
-	},
-
 	"dtype":
 	{
 		"global": "Float16"
