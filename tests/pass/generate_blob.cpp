@@ -712,6 +712,114 @@ TEST (generate_blob, blob_scale)
 
 }
 
+TEST (generate_blob_WDDM, blob_maxpool1)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+
+    // define first maxpool
+    auto maxpoolIt = test_cm.maxPool(inIt,{5,5}, {3, 3}, {2, 2, 2, 2});
+
+    // define output
+    auto output = test_cm.output(maxpoolIt);
+
+    std::string blobName = "test_maxpool1";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName+"_sw.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+"_sw.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+"_sw.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+"_sw.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+
+    unit.initialize();
+    auto compOutput = unit.run();
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+
+}
+
+TEST (generate_blob_WDDM, blob_maxpool2)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({65, 65, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+
+    // define first maxpool
+    auto maxpoolIt = test_cm.maxPool(inIt,{5,5}, {3, 3}, {0, 0, 0, 0});
+
+    // define output
+    auto output = test_cm.output(maxpoolIt);
+
+    std::string blobName = "test_maxpool2.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool2.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool2.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool2.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
+TEST (generate_blob_WDDM, blob_maxpool3)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({65, 65, 3}, mv::DTypeType::Float16, mv::Order("CHW"));  // {w,h,c}
+
+    // define first maxpool
+    auto maxpoolIt = test_cm.maxPool(inIt, {7,5}, {2, 2}, {1, 1, 2, 2});   // w,w,h,h
+
+    // define output
+    auto output = test_cm.output(maxpoolIt);
+
+    std::string blobName = "test_maxpool3.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool3.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool3.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool3.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
 // test 10 : conv->leakyRelu
 TEST (generate_blob_WDDM, blob_leakyRelu)
 {
