@@ -93,6 +93,7 @@ bool mv::PassManager::initialize(ComputationModel &model, const TargetDescriptor
 
     if (!model.isValid())
     {
+        log(mv::Logger::MessageType::Error, "Invalid input model - might miss input or output or be disjoint");
         reset();
         return false;
     }

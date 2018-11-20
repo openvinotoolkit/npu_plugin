@@ -44,6 +44,15 @@ namespace mv
                 return {false, 1};
             }
 
+            auto dilationFactor = args.at("dilationFactor").get<unsigned>();
+
+            if (dilationFactor < 1) {
+
+                errMsg = "Dilation factor must be greater than or equal to one";
+                return {false, 1};
+
+            }
+
             return {true, 0};
 
         };
@@ -55,13 +64,13 @@ namespace mv
 
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
-
+           
             // Make sure that the result of subtract will not be negative
             mv::Shape outputShape({(inputs[0]->getShape()[0] + padding[0] + padding[1] - inputs[1]->getShape()[0]) / stride[0] + 1, (
                 inputs[0]->getShape()[1] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1, inputs[1]->getShape()[3]});
 
             outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
-
+        
         };
     
         MV_REGISTER_OP(Conv)
@@ -69,6 +78,7 @@ namespace mv
         .setOutputs({"output"})
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
+        .setArg<unsigned>("dilationFactor")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

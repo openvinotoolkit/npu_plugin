@@ -38,7 +38,7 @@ import_array();
 
         // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
         unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
-        unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+        unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
         unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
@@ -209,9 +209,9 @@ import_array();
     }
 
     mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY){
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor){
         /// Add a Convolutional Layer to the OpModel and return the relevant iterator
-        return o.conv(input, filters, {strideX, strideY}, {padX, padX, padY, padY});
+        return o.conv(input, filters, {strideX, strideY}, {padX, padX, padY, padY}, dilationFactor);
     }
 
     mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
@@ -221,7 +221,7 @@ import_array();
     }
 
     mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor)
     {
         /// This differs from the above because caffe calculates output sizes differently.
         /// To compensate, we add values to pad.
@@ -260,7 +260,7 @@ import_array();
         if (padY == 0)
             adj_Y = 0;
 
-        return o.conv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)});
+        return o.conv(input, filters, {strideX, strideY}, {padX , (short unsigned )(padX- adj_X), padY, (short unsigned )(padY - adj_Y)}, dilationFactor);
     }
 
     mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
@@ -457,9 +457,9 @@ std::vector<double> * getData(double * d, std::size_t len);
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape);
 mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input);
 mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor);
 mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor);
 mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator depthwiseConv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,

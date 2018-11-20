@@ -319,6 +319,8 @@
 	{
 		"adapt":
 		[
+			"ConvolutionDilation",
+                        "GenerateCaffe",
 			"FuseBatchNorm",
 			"FuseBias",
 			"FuseScale",
@@ -326,7 +328,6 @@
 			"FuseScale",
 			"FuseBias",
 			"FullyConnectedAsConv2D",
-			"GenerateCaffe",
 			"RemoveDropOut"
 		],
 

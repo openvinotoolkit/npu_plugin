@@ -7,8 +7,6 @@
 int main()
 {
 
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
-
     // Define blank computation model (op view)
     mv::OpModel om("Model1");
 

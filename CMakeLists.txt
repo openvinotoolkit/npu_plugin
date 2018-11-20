@@ -12,32 +12,40 @@ endif()
 add_compile_options(-std=c++11)
 
 if (MSVC)
+
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
+    SET(VALIDATION false)
+
 else()
+
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
+    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
-#SET(VALIDATION true)
-
 if(VALIDATION)
-include_directories("/opt/movidius/caffe/include")
-include_directories("/opt/movidius/caffe/build/include")
-include_directories("/opt/movidius/caffe/build/include/caffe/proto")
 
-#Protobuf
-find_package(Protobuf REQUIRED)
-include_directories(${PROTOBUF_INCLUDE_DIR})
+    include_directories("/opt/movidius/caffe/include")
+    include_directories("/opt/movidius/caffe/build/include")
+    include_directories("/opt/movidius/caffe/build/include/caffe/proto")
 
-#Boost
-find_package(Boost COMPONENTS regex system filesystem REQUIRED)
+    #Protobuf
+    find_package(Protobuf REQUIRED)
+    include_directories(${PROTOBUF_INCLUDE_DIR})
 
-#Caffe
-set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
-set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
+    #Boost
+    find_package(Boost COMPONENTS regex system filesystem REQUIRED)
+
+    #Caffe
+    set(Caffe_INCLUDE_DIRS "/opt/movidius/caffe/build/include/caffe/proto;/opt/movidius/caffe/include;/opt/movidius/caffe/build/include")
+    set(Caffe_LIBRARIES "/opt/movidius/caffe/build/lib/libcaffe.so")
+
+    file(GLOB pass_validation
+        "src/pass/adaptation/generate_caffe.cpp"
+    )
 
 endif(VALIDATION)
 
@@ -113,19 +121,14 @@ file(GLOB pass
     "src/pass/common_functions.cpp"
     "src/pass/adaptation/fuse_passes.cpp"
     "src/pass/adaptation/remove_passes.cpp"
-    "src/pass/adaptation/replacement_passes.cpp"
+    #"src/pass/adaptation/replacement_passes.cpp"
+    "src/pass/adaptation/conv_dilation_pass.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
 )
-
-if(VALIDATION)
-file(GLOB pass_validation
-"src/pass/adaptation/generate_caffe.cpp"
-)
-endif(VALIDATION)
 
 file(GLOB compiler
     "src/compiler/*"
@@ -152,7 +155,7 @@ if(VALIDATION)
     target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
     target_compile_definitions(cm PRIVATE CPU_ONLY=1)
     add_subdirectory(python/api)
-    add_subdirectory(tests)
+    #add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
     #add_subdirectory(recordings)  
 else()
@@ -163,7 +166,7 @@ else()
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     add_subdirectory(python/api)
-    add_subdirectory(tests)
+    #add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
     #add_subdirectory(recordings)
 endif(VALIDATION)

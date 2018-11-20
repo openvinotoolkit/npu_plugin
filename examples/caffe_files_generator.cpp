@@ -12,7 +12,6 @@
 
 int main()
 {
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
 
     // Define the primary compilation unit
     mv::CompilationUnit unit("Test");

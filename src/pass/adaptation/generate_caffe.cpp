@@ -137,6 +137,10 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
 
+            /*Set dilation*/
+            convParamPrototxt->add_dilation(opIt->get<unsigned>("dilationFactor"));
+            convParamCaffeModel->add_dilation(opIt->get<unsigned>("dilationFactor"));
+
             /*Add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
             caffe::BlobShape *blobShape = blobProto->mutable_shape();
