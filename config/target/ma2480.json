@@ -326,7 +326,7 @@
 			"FuseScale",
 			"FuseBias",
 			"FullyConnectedAsConv2D",
-			"StandaloneActivationAsPostOps",
+			"GenerateCaffe",
 			"RemoveDropOut"
 		],
 
