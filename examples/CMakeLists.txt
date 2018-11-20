@@ -20,6 +20,15 @@ target_link_libraries(cm_resnet50 cm)
 add_executable(cm_resnet18 cm_resnet18.cpp)
 target_link_libraries(cm_resnet18 cm)
 
+add_executable(standalone_softmax standalone_softmax.cpp)
+target_link_libraries(standalone_softmax cm)
+
+add_executable(standalone_relu standalone_relu.cpp)
+target_link_libraries(standalone_relu cm)
+
+add_executable(standalone_prelu standalone_prelu.cpp)
+target_link_libraries(standalone_prelu cm)
+
 add_executable(test_f test.cpp)
 target_link_libraries(test_f cm)
 
