@@ -16,7 +16,7 @@ TEST(ops, conv2D)
 
     ASSERT_EQ(conv->getShape(), mv::Shape({8, 8, 3}));
     ASSERT_EQ(convOp->getOpType(), "Conv");
-    ASSERT_EQ(convOp->attrsCount(), 4);
+    ASSERT_EQ(convOp->attrsCount(), 5);
     auto s0 = convOp->get<std::array<unsigned short, 2>>("stride")[0];
     auto s1 = convOp->get<std::array<unsigned short, 2>>("stride")[1];
     ASSERT_EQ(s0, 4);
