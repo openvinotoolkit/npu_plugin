@@ -14,7 +14,7 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 3 * 3);
 
     auto weights = om.constant(weightsData, {3, 3, 3, 3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)), "weights");
-    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1}, 1);
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape.totalSize());
@@ -102,7 +102,7 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
 
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DTypeType::Float16, mv::Order("NCHW"), "weights");
-    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1});
+    auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1}, 1);
     auto convOp = om.getSourceOp(conv);
     auto convShape = conv->getShape();
     std::vector<double> meanData = mv::utils::generateSequence<double>(convShape[-1]);
