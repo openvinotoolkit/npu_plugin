@@ -46,7 +46,7 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
               * dilatedHeight = kh + (kh - 1)(df - 1)
               *
               */
-
+             
             mv::Shape dilatedKernelShape = mv::Shape({nonDialtedKernelWidth + (nonDialtedKernelWidth - 1) * (dilationFactor - 1),
                                                       nonDialtedKernelWidth + (nonDialtedKernelWidth - 1) * (dilationFactor - 1),
                                                       nonDialtedKernelKernelInputChannels, nonDialtedKernelKernelOutpuChannels});
@@ -57,28 +57,21 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
             /*Create Tensor*/
             mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
 
-            for (unsigned oc = 0; oc < nonDialtedKernelKernelOutpuChannels; ++oc)
-            {
-                for (unsigned ic = 0; ic < nonDialtedKernelKernelInputChannels; ++ic)
-                {
-                    for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelKernelHeight; ++kcolumn)
-                    {
-                        for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow)
-                        {
+            for (unsigned oc = 0; oc < nonDialtedKernelKernelOutpuChannels; ++oc) {
+                for (unsigned ic = 0; ic < nonDialtedKernelKernelInputChannels; ++ic) {
+                    for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelKernelHeight; ++kcolumn) {
+                        for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow) {
 
+                            /*Copy non-dilated weights into the dilated kernel*/
                             if (krow != 0 || kcolumn != 0)
-                            {
                                 dilatedKernel.at({krow + (dilationFactor - 1) * krow, kcolumn + (dilationFactor - 1) * kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
-                            }
                             else
-                            {
                                 dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
                             }
                         }
                     }
                 }
-            }
-
+            
             auto nonDialtedKernelOp = opIt.rightmostParent();
 
             auto dilatedConstant = om.constant(
@@ -93,6 +86,5 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
             opIt->setInputTensor(dilatedConstant, 1);
         }
     }
-
     std::cout << "Exiting Dilation Pass " << std::endl;
 }
