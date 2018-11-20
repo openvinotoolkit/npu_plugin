@@ -18,6 +18,15 @@ const std::unordered_map<std::size_t, std::string> mv::Order::colMajorID_ =
     {5, "TNCHW"}
 };
 
+const std::unordered_map<std::size_t, std::string> mv::Order::colMajorPlanarID_ =
+{
+    {1, "W"},
+    {2, "WH"},
+    {3, "CWH"},
+    {4, "NCWH"},
+    {5, "TNCWH"}
+};
+
 const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID_ =
 {
     {1, "W"},
