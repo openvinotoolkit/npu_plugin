@@ -29,7 +29,7 @@ int main()
     auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16,  mv::Order("HWCN"));
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
-    auto conv = cm.conv(input, weights, stride, padding);
+    auto conv = cm.conv(input, weights, stride, padding, 1);
 
     /*convoultion bias*/
     mv::Shape convBiasShape = {64};

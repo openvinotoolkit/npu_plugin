@@ -15,7 +15,7 @@ int main()
     auto input1 = test_cm.input({225, 225, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCWH"));
-    auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0});
+    auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0}, 1);
     auto output = test_cm.output(conv1);
 
     std::string blobName = "wddm_conv1";
