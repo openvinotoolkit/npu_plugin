@@ -284,7 +284,14 @@
 		"adapt":
 		[
 			"ConvolutionDilation",
-                        "GenerateCaffe"
+                        "GenerateCaffe",
+			"FuseBatchNorm",
+			"FuseBias",
+			"FuseScale",
+			"FuseBias",
+			"FuseScale",
+			"FuseBias",
+			"RemoveDropOut"
 		],
 
 		"finalize":

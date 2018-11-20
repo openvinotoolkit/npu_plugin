@@ -32,13 +32,17 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
     {
         if (opIt->getOpType() == "Conv")
         {
+            auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+
+            if (dilationFactor > 1) {
+            
             /*Get the kernel attributes*/
             auto nonDialtedKernel = opIt->getInputTensor(1);
             auto nonDialtedKernelWidth = nonDialtedKernel->get<mv::Shape>("shape")[0];
             auto nonDialtedKernelKernelHeight = nonDialtedKernel->get<mv::Shape>("shape")[1];
             auto nonDialtedKernelKernelInputChannels = nonDialtedKernel->get<mv::Shape>("shape")[2];
             auto nonDialtedKernelKernelOutpuChannels = nonDialtedKernel->get<mv::Shape>("shape")[3];
-            auto dilationFactor = opIt->get<unsigned>("dilation");
+            
 
             /** Calculate dilated kernel shape
               *
@@ -84,6 +88,10 @@ void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::
             om.removeOp(nonDialtedKernelOp);
             om.defineFlow(dilatedConstant, opIt, 1);
             opIt->setInputTensor(dilatedConstant, 1);
+        }
+        else {
+             std::cout << "Dilation not required " << std::endl;
+        }
         }
     }
     std::cout << "Exiting Dilation Pass " << std::endl;
