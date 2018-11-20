@@ -210,6 +210,7 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
 void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
+    std::cout << "Fusing batch norm" << std::endl;
     using namespace mv;
     OpModel om(model);
 
