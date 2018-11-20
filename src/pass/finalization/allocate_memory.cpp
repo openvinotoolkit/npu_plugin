@@ -321,17 +321,6 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
             }
 
         }
-
-        else if(opIterator->getOpType() == "Relu")
-        {
-            auto inTensor = opIterator->getInputTensor(0);
-            auto outTensor = opIterator->getOutputTensor(0);
-            std::vector<std::size_t> empty_padding(outTensor->getShape().ndims());
-
-            dm.deallocateTensor("IntermediateMemory", stageIt, inTensor);
-            auto outBuf = dm.allocateTensor("IntermediateMemory", stageIt, outTensor);
-            dm.allocateTensor("IntermediateMemory", outBuf, inTensor, empty_padding, empty_padding);
-        }
         /*
             For each input and output, allocate if it has not already been done.
             Don't allocate for Concat or I/O layers as they are already accounted for.
