@@ -129,6 +129,7 @@ endif(VALIDATION)
 
 file(GLOB compiler
     "src/compiler/*"
+    "src/utils/hardware_tests.cpp"
 )
 
 add_subdirectory(meta)
