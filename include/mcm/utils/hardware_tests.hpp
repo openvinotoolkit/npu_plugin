@@ -6,7 +6,15 @@
 
 namespace mv
 {
-    void HWTest(mv::CompilationUnit& unit, std::string outputName);
+    struct ReturnCodes
+    {
+        int mcmBlobOnHardware;
+        int fathomCompilation;
+        int fathomVsCaffe;
+        int fathomVsMcm;
+    };
+
+    ReturnCodes HWTest(mv::CompilationUnit& unit, std::string outputName);
 }
 
 
