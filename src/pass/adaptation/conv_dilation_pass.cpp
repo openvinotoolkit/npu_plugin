@@ -5,21 +5,21 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 
-static void convDilation(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &);
+static void convDilationFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &);
 
 namespace mv
 {
     namespace pass
     {
         MV_REGISTER_PASS(ConvolutionDilation)
-            .setFunc(convDilation)
+            .setFunc(convDilationFcn)
             .setGenre(PassGenre::Adaptation)
             .setDescription(
                 "This pass dilates a kernel");
     }
 }
 
-void convDilation(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
 {
 
     using namespace mv;
