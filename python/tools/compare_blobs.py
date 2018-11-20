@@ -5,7 +5,9 @@ import numpy as np
 import argparse
 
 base = os.environ.get('MDK_HOME')
+mcmBase = os.environ.get('MCM_HOME')
 assert base is not None, "Please set MDK_HOME environment variable"
+assert mcmBase is not None, "Please set MCM_HOME environment variable"
 
 sys.path.append(os.path.join(base, "projects/Fathom/src2/"))
 
@@ -75,8 +77,8 @@ else:
 
 test_inputB = test_inputA = "Debug"
 
-os.system('python3 ./run_blob.py ' + blob1_path + ' \(1,' +Ain_y+','+Ain_x+','+Ain_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+test_inputA+' -res ' + blob1_res)
-os.system('python3 ./run_blob.py ' + blob2_path + ' \(1,' +Bin_y+','+Bin_x+','+Bin_z+'\) \('+out_y+','+out_x+','+out_z+'\)  -i '+test_inputB+' -res ' + blob2_res)
+os.system('python3 ' + mcmBase + '/python/tools/run_blob.py ' + blob1_path + ' \(1,' +Ain_y+','+Ain_x+','+Ain_z+'\) \('+out_y+','+out_x+','+out_z+'\) -i '+test_inputA+' -res ' + blob1_res)
+os.system('python3 ' + mcmBase + '/python/tools/run_blob.py ' + blob2_path + ' \(1,' +Bin_y+','+Bin_x+','+Bin_z+'\) \('+out_y+','+out_x+','+out_z+'\)  -i '+test_inputB+' -res ' + blob2_res)
 
 blob1_np = np.load('./' + blob1_res + '.npy')
 blob2_np = np.load('./' + blob2_res + '.npy')
