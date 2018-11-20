@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void formatMXWeights(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -12,7 +12,7 @@ namespace mv
     namespace pass
     {
         MV_REGISTER_PASS(FormatMXWeights)
-        .setFunc(formatMXWeights)
+        .setFunc(formatMXWeightsFcn)
         .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass reshapes relevant Convolution weights for the MyriadX NCE"
@@ -20,74 +20,56 @@ namespace mv
     }
 }
 
-
-//NOTE: This should not be done in such hardcoded way.
-void formatMXWeights(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
 {
+
+    using namespace mv;
+
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto flowIt = dm.flowBegin();
-    while (flowIt != dm.flowEnd())
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        auto source = flowIt.source();
-        auto sink = flowIt.sink();
-
-        bool valid = false;
-        if(sink->hasAttr("NCE1_Compatible"))
+        if (opIt->getOpType() == "Conv")
         {
-            valid = sink->get<int>("NCE1_Compatible");
-        }
-        if(source->getOpType() == "Constant" && sink->getOpType() == "Conv" && valid)
-        {
-            auto weights = sink->getInputTensor(1);
-            auto wshape = weights->getShape();
+            auto oldWeights = opIt->getInputTensor(1);
+            auto oldWeightsOp = om.getSourceOp(oldWeights);
+            auto wshape = oldWeights->getShape();
 
-            if(weights->hasAttr("NCE1_WeightTransformed") && weights->get<bool>("NCE1_WeightTransformed") == true)
-            {
-                ++flowIt;
+            if(oldWeights->hasAttr("NCE1_WeightTransformed") && oldWeights->get<bool>("NCE1_WeightTransformed"))
                 continue;
-            }
 
-            auto padding = weights->get<std::vector<size_t>>("NCE1_Paddings");
+            auto padding = oldWeights->get<std::vector<size_t>>("NCE1_Paddings");
 
-            //for (auto v : padding)
-                //std::cout << "PAD: " << v << std::endl;
-
-            //
             auto original_output_channel = wshape[3];
             auto original_output_channel_padding = padding[3];
             auto original_input_channel_padding = padding[2];
 
             original_output_channel += original_output_channel_padding;
-
             unsigned floor_output_channel = mv::ceil_division(original_output_channel, 8);
-
             mv::Shape new_shape = mv::Shape({floor_output_channel, wshape[2] + original_input_channel_padding, wshape[0], wshape[1], 8});
 
-            std::cout << "oldShape: " << wshape.toString() << std::endl;
-            std::cout << "newShape: " << new_shape.toString() << std::endl;
-
+            pass.log(Logger::MessageType::Info, "Changing weight shape from " + wshape.toString() + " to " + new_shape.toString());
 
             std::vector<double> new_data(new_shape.totalSize(), 0);
-            mv::Tensor backup_tensor("backup", new_shape, weights->getDType(), mv::Order(mv::Order::getRowMajorID(new_shape.ndims())), new_data);
+            mv::Tensor backup_tensor("backup", new_shape, oldWeights->getDType(), mv::Order(mv::Order::getRowMajorID(new_shape.ndims())), new_data);
             for(unsigned kx = 0; kx < wshape[0]; ++kx)
                 for(unsigned ky = 0; ky < wshape[1]; ++ky)
                     for(unsigned ic = 0; ic < wshape[2]; ++ic)
                         for(unsigned oc = 0; oc < wshape[3]; ++oc)
-                            backup_tensor.at({oc/8,ic,ky,kx,oc%8}) = weights->at({kx, ky, ic, oc});
+                            backup_tensor.at({oc/8,ic,ky,kx,oc%8}) = oldWeights->at({kx, ky, ic, oc});
             new_data = backup_tensor.getData();
 
-            auto new_op = om.constant(
+            auto new_weights = om.constant(
                 new_data,
                 new_shape,
                 backup_tensor.getDType(),
                 backup_tensor.getOrder(),
-                source->getName() + "_MxWeights"
+                oldWeights->getName() + "_MxWeights"
             );
 
-            new_op->set<bool>("NCE1_WeightTransformed", true);
-            new_op->set<std::vector<size_t>>("NCE1_Paddings",
+            new_weights->set<bool>("NCE1_WeightTransformed", true);
+            new_weights->set<std::vector<size_t>>("NCE1_Paddings",
                 {0,
                  0,
                  0,
@@ -95,24 +77,12 @@ void formatMXWeights(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                  0
                 });
 
-            unsigned i = 0;
-            for(; i < sink->inputSlots(); ++i)
-                if(sink->getInputTensor(i) == flowIt->getTensor())
-                    break;
+            om.removeOp(oldWeightsOp);
+            om.defineFlow(new_weights, opIt, 1);
 
-            auto flowToEliminate = flowIt;
-            ++flowIt;
-
-            om.undefineFlow(flowToEliminate);
-            sink->erase(std::string("input") + std::to_string(i));
-            om.defineFlow(new_op, sink, i);
-            om.removeOp(source);
-
-        }
-        else
-        {
-            ++flowIt;
+            //TODO: This can't be done like this due to getOutputDef getting called
+            opIt->setInputTensor(new_weights, 1);
         }
     }
-    std::cout << "exiting formatMXweights pass " << std::endl;
+    std::cout << "Exiting FormatMX Weights Pass " << std::endl;
 }
