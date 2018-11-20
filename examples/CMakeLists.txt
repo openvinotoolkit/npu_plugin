@@ -29,6 +29,9 @@ target_link_libraries(standalone_relu cm)
 add_executable(standalone_prelu standalone_prelu.cpp)
 target_link_libraries(standalone_prelu cm)
 
+add_executable(hw_convolution hw_convolution.cpp)
+target_link_libraries(hw_convolution cm)
+
 add_executable(test_f test.cpp)
 target_link_libraries(test_f cm)
 
