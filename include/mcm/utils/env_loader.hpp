@@ -10,6 +10,7 @@ namespace mv
     {
 
         std::string projectRootPath();
+        std::string mdkRootPath();
 
     }
 
