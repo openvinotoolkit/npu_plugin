@@ -45,9 +45,14 @@ file(GLOB nce1
     "nce1/*.cpp"
 )
 
+file(GLOB hw
+    "hw/*.cpp"
+)
+
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp
     #${nce1}
+    ${hw}
     ${graph_src}
     ${resources}
     ${base_src}
