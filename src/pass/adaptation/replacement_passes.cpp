@@ -118,17 +118,38 @@ void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::Compu
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto sourceTensor = parentOpIt->getOutputTensor(0);
 
-            auto identity = om.identity(sourceTensor);
-            auto identityOp = om.getSourceOp(identity);
-            identityOp->set("postOpType", opType);
+            auto parentOpItType = parentOpIt->getOpType();
+
+            Data::OpListIterator opToUse;
+
+            //Input, Costant, Concat are not real operations, so we need to introduce an identity op
+            if(parentOpItType == "Input" ||
+               parentOpItType == "Costant" ||
+               parentOpItType == "Concat")
+            {
+                sourceTensor = om.identity(sourceTensor);
+                auto identityOp = om.getSourceOp(sourceTensor);
+                opToUse = identityOp;
+                pass.log(Logger::MessageType::Info, "Replaced " + opType + " with identity+postOp " + opToUse->getName());
+
+            }
+            else //no need for identity op, everything can be attached directly to previous op
+            {
+                opToUse = parentOpIt;
+                pass.log(Logger::MessageType::Info, "Replaced " + opType + " by fusing it as a postOp to " + opToUse->getName());
+            }
+
+            opToUse->set("postOpType", opType);
             std::vector<std::string> attrKeys(opIt->attrsKeys());
 
             for(auto attrKey : attrKeys)
-                identityOp->set(attrKey, opIt->get(attrKey));
+            {
+                auto attrToSet = opIt->get(attrKey);
+                opToUse->set(attrKey, attrToSet);
+            }
 
-            pass.log(Logger::MessageType::Info, "Replaced " + opType + " with identity+postOp " + identityOp->getName());
 
-            opIt = linkNewOperationsReplacement(parentOpIt, identity, om, opIt);
+            opIt = linkNewOperationsReplacement(parentOpIt, sourceTensor, om, opIt);
         }
     }
 }
