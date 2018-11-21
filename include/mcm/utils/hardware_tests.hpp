@@ -10,6 +10,7 @@ namespace mv
     {
         int mcmBlobOnHardware;
         int fathomCompilation;
+        int diffOutput;
         int fathomVsCaffe;
         int fathomVsMcm;
     };

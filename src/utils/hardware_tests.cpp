@@ -22,8 +22,14 @@ mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName)
     std::cout << command1 << std::endl;
     toReturn.fathomCompilation = system(command1.c_str());
 
+    //1b) Run diff on blobs
+    std::cout << "DIFF COMMAND ON BLOBS" << std::endl;
+    std::string diffCommand("diff " + outputName + ".blob graph");
+    std::cout << diffCommand << std::endl;
+    toReturn.diffOutput = system(diffCommand.c_str());
+
     //2) Compare python and caffe
-    std::cout << "COMPARING PYTHON AND CAFFE" << std::endl;
+    std::cout << "COMPARING FATHOM AND CAFFE" << std::endl;
     std::string command3("python3 " + mv::utils::mdkRootPath() + "/projects/Fathom/src2/mvNCCheck.py " + outputName + ".prototxt -w " + outputName + ".caffemodel ");
     std::cout << command3 << std::endl;
     toReturn.fathomVsCaffe = system(command3.c_str());
