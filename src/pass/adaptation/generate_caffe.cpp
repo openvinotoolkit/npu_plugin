@@ -257,8 +257,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             convParamCaffeModel->add_kernel_size(parentOpIt1->get<mv::Shape>("shape")[0]);
 
             /*Set number of output channels*/
-            convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
-            convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
+            convParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[2]);
+            convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[2]);
 
             /*Set group for deptwise convolution -> group equals number of kernel channels*/
             convParamPrototxt->has_group();
