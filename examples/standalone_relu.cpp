@@ -12,7 +12,6 @@ int main()
     mv::CompositionalModel& om = unit.model();
 
     auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
-    std::vector<double> data = mv::utils::generateSequence<double>(3);
     auto relu = om.relu(input);
     auto output = om.output(relu);
 
@@ -32,5 +31,6 @@ int main()
 
     unit.initialize();
 
-    mv::HWTest(unit, outputName);
+    auto returnValue = mv::HWTest(unit, outputName);
+    printReport(returnValue, std::cout);
 }

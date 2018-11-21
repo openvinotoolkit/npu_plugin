@@ -42,3 +42,14 @@ mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName)
 
     return toReturn;
 }
+
+void mv::printReport(mv::ReturnCodes returnValue, std::ostream& out)
+{
+    out << "FINAL REPORT" << std::endl;
+    out << "MCM RUN ON HW " << returnValue.mcmBlobOnHardware << std::endl;
+    out << "FATHOM COMPILATION " << returnValue.fathomCompilation << std::endl;
+    out << "BLOB DIFF " << returnValue.diffOutput << std::endl;
+    out << "FATHOM VS CAFFE " << returnValue.fathomVsCaffe << std::endl;
+    out << "FATHOM VS MCM " << returnValue.fathomVsMcm << std::endl;
+}
+

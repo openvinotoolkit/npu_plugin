@@ -18,21 +18,21 @@ int main()
     auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0}, 1);
     auto output = test_cm.output(conv1);
 
-    std::string blobName = "wddm_conv1";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName+".blob";
+    std::string outputName = "wddm_conv1";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = outputName + ".blob";
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(outputName + ".prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(outputName + ".caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    mv::HWTest(unit, blobName);
-
+    auto returnValue = mv::HWTest(unit, outputName);
+    printReport(returnValue, std::cout);
 }

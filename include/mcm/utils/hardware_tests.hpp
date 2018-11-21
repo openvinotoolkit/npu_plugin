@@ -3,6 +3,7 @@
 
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include <string>
+#include <iostream>
 
 namespace mv
 {
@@ -16,6 +17,8 @@ namespace mv
     };
 
     ReturnCodes HWTest(mv::CompilationUnit& unit, std::string outputName);
+    void printReport(mv::ReturnCodes returnValue, std::ostream& out);
+
 }
 
 
