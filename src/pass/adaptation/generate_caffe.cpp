@@ -513,8 +513,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             caffe::ReLUParameter *reluParamPrototxt = layerParamPrototxt->mutable_relu_param();
             caffe::ReLUParameter *reluParamCaffeModel = layerParamCaffeModel->mutable_relu_param();
 
-            reluParamPrototxt->set_negative_slope(opIt->get<double>("alpha"));
-            reluParamCaffeModel->set_negative_slope(opIt->get<double>("alpha"));
+            reluParamPrototxt->set_negative_slope(opIt->get<unsigned>("alpha"));
+            reluParamCaffeModel->set_negative_slope(opIt->get<unsigned>("alpha"));
         }
 
         //TODO Need to add bias parameter for LRN 
