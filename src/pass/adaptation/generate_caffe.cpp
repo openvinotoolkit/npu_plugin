@@ -139,8 +139,12 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             convParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[3]);
 
             /*Set dilation*/
-            convParamPrototxt->add_dilation(opIt->get<unsigned>("dilationFactor"));
-            convParamCaffeModel->add_dilation(opIt->get<unsigned>("dilationFactor"));
+//            convParamPrototxt->add_dilation(opIt->get<unsigned>("dilationFactor"));
+//            convParamCaffeModel->add_dilation(opIt->get<unsigned>("dilationFactor"));
+
+            //This pass is executed after conv_dilation_pass, so there are no dilated convolutions in the model
+            convParamPrototxt->add_dilation(1);
+            convParamCaffeModel->add_dilation(1);
 
             /*Add weights*/
             caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
