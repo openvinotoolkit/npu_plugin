@@ -159,7 +159,7 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
-            weights->setOrder(mv::Order("NCWH"));
+            weights->setOrder(mv::Order("NCHW"));
 
             std::vector<double> caffeModelWeights = weights->getData();
 
@@ -271,7 +271,7 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             /*ColumnMajor is format for caffemodel*/
             auto weights = opIt->getInputTensor(1);
-            weights->setOrder(mv::Order("NCWH"));
+            weights->setOrder(mv::Order("NCHW"));
 
             std::vector<double> caffeModelWeights = weights->getData();
 

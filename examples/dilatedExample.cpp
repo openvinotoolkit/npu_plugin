@@ -17,7 +17,7 @@ int main()
     auto input = cm.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3);
     auto weights1 = cm.constant(weightsData, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCWH"));
-    auto conv = cm.conv(input, weights1, {1, 1}, {1, 1, 1, 1}, 1);
+    auto conv = cm.conv(input, weights1, {1, 1}, {1, 1, 1, 1}, 2);
     auto output = cm.output(conv);
 
     // Load target descriptor for the selected target to the compilation unit
