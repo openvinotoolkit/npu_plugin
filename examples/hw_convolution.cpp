@@ -33,6 +33,6 @@ int main()
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    auto returnValue = mv::HWTest(unit, outputName);
+    auto returnValue = mv::HWTest(unit, outputName, true);
     printReport(returnValue, std::cout);
 }
