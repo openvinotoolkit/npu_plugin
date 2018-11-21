@@ -9,7 +9,7 @@
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NCHW"));
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NHWC"));
     auto conv = model.conv(input, weights, stride, padding);
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
@@ -928,6 +928,40 @@ TEST (generate_blob_WDDM, blob_avgpool2)
 
     // compare filesize written to expected
     EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
+TEST (generate_blob_WDDM, blob_conv1)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    auto input1 = test_cm.input({225, 225, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
+    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));
+    auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0});
+    auto output = test_cm.output(conv1);
+
+    std::string blobName = "wddm_conv1";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName+".blob";
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (444LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 
 // test 10 : conv->leakyRel
