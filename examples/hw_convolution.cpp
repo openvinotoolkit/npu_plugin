@@ -28,7 +28,7 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(outputName + ".prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(outputName + ".caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
