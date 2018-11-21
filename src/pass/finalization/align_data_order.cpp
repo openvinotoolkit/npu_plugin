@@ -247,7 +247,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
             /// Software ops
             if (sourceIsSw && sinkIsSw)
                 // flowIt->getTensor()->setOrder(mv::Order("HWC"));
-                parentIt->getOutputTensor(0)->setOrder(mv::Order("HWC"));
+                parentIt->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getRowMajorPlanarID(parentIt->getOutputTensor(0)->getShape().ndims())));
             // Hardware ops
             else if (sourceIsHw && sinkIsHw)
                 // flowIt->getTensor()->setOrder(mv::OrderType::RowInterleaved);
