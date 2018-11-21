@@ -38,7 +38,7 @@ import_array();
 
         // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
         unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
-        unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("ExecOpControlModel");
+        unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
         unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
         unit->compilationDescriptor()["GenerateDot"]["html"] = true;
         unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");

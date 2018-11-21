@@ -29,6 +29,7 @@ namespace mv
 
 void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
 {
+    std::cout << "Generating Caffe files" << std::endl;
     using namespace mv;
 
     if (compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>().empty())
@@ -159,7 +160,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             std::vector<double> caffeModelWeights = weights->getData();
 
-            for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
+            for (unsigned i = 0; i < 50; ++i)
+            //for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
             {
                 blobProto->add_double_data(caffeModelWeights[i]);
             }
@@ -185,7 +187,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
                 std::vector<double> caffeModelBias = bias->getData();
 
-                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
+                for (unsigned i = 0; i < 50; ++i)
+                //for (unsigned i = 0; i < caffeModelBias.size(); ++i)
                 {
                     blobProtobias->add_double_data(caffeModelBias[i]);
                 }
@@ -271,7 +274,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             std::vector<double> caffeModelWeights = weights->getData();
 
-            for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
+            for (unsigned i = 0; i < 50; ++i)
+            //for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
             {
                 blobProto->add_double_data(caffeModelWeights[i]);
             }
@@ -297,7 +301,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
                 std::vector<double> caffeModelBias = bias->getData();
 
-                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
+                for (unsigned i = 0; i < 50; ++i)
+                //for (unsigned i = 0; i < caffeModelBias.size(); ++i)
                 {
                     blobProtobias->add_double_data(caffeModelBias[i]);
                 }
@@ -464,7 +469,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             std::vector<double> caffeModelWeights = weights->getData();
 
-            for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
+            for (unsigned i = 0; i < 50; ++i)
+            //for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
             {
                 blobProto->add_double_data(caffeModelWeights[i]);
             }
@@ -628,7 +634,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             std::vector<double> preluSlopeData = slopeData->getData();
 
-            for (unsigned i = 0; i < preluSlopeData.size(); ++i)
+            for (unsigned i = 0; i < 50; ++i)
+            //for (unsigned i = 0; i < preluSlopeData.size(); ++i)
             {
                 blobProtoprelu->add_double_data(preluSlopeData[i]);
             }
@@ -673,7 +680,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             std::vector<double> caffeModelScale = scale->getData();
 
-            for (unsigned i = 0; i < caffeModelScale.size(); ++i)
+            for (unsigned i = 0; i < 50; ++i)
+            //for (unsigned i = 0; i < caffeModelScale.size(); ++i)
             {
                 blobProtoscale->add_double_data(caffeModelScale[i]);
             }
@@ -704,7 +712,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
                 std::vector<double> caffeModelBias = bias->getData();
 
-                for (unsigned i = 0; i < caffeModelBias.size(); ++i)
+                for (unsigned i = 0; i < 50; ++i)
+                //for (unsigned i = 0; i < caffeModelBias.size(); ++i)
                 {
                     blobProtobias->add_double_data(caffeModelBias[i]);
                 }
