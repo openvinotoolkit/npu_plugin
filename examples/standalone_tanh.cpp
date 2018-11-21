@@ -13,7 +13,6 @@ int main()
     mv::CompositionalModel& om = unit.model();
 
     auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
-    std::vector<double> data = mv::utils::generateSequence<double>(3);
     auto tanh = om.tanh(input);
     auto output = om.output(tanh);
 
