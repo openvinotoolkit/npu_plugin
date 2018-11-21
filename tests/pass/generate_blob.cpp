@@ -21,7 +21,7 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
     auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
     auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
     return model.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
-}https://github.com/movidius/mcmCompiler/commit/9766576ebab2b899d3b9412367138750ac22be08
+}
 
 TEST (mv_num_convert, fp32_to_fp16)
 {
