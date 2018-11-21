@@ -7,6 +7,7 @@
 #include <iostream>
 #include <fstream>
 
+//NOTE: Does not work just for input size mismatch, op is actually ok
 int main()
 {
     mv::CompilationUnit unit("FullyConnected");
