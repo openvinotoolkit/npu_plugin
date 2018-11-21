@@ -276,8 +276,8 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             blobShape->add_dim(2);
             blobShape->add_dim(3);
 
-            blobShape->set_dim(0, parentOpIt1->get<mv::Shape>("shape")[3]);
-            blobShape->set_dim(1, parentOpIt1->get<mv::Shape>("shape")[2]);
+            blobShape->set_dim(0, parentOpIt1->get<mv::Shape>("shape")[2]);
+            blobShape->set_dim(1, parentOpIt1->get<mv::Shape>("shape")[3]);
             blobShape->set_dim(2, parentOpIt1->get<mv::Shape>("shape")[1]);
             blobShape->set_dim(3, parentOpIt1->get<mv::Shape>("shape")[0]);
 
