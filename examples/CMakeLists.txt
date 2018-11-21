@@ -23,8 +23,17 @@ target_link_libraries(cm_resnet18 cm)
 add_executable(standalone_softmax standalone_softmax.cpp)
 target_link_libraries(standalone_softmax cm)
 
+add_executable(standalone_tanh standalone_tanh.cpp)
+target_link_libraries(standalone_tanh cm)
+
+add_executable(standalone_sigmoid standalone_sigmoid.cpp)
+target_link_libraries(standalone_sigmoid cm)
+
 add_executable(standalone_relu standalone_relu.cpp)
 target_link_libraries(standalone_relu cm)
+
+add_executable(standalone_elu standalone_elu.cpp)
+target_link_libraries(standalone_elu cm)
 
 add_executable(standalone_prelu standalone_prelu.cpp)
 target_link_libraries(standalone_prelu cm)
