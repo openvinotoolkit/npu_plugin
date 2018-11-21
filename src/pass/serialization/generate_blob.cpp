@@ -390,7 +390,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         {
 
         }
-        else if(opType == "Fullyconnected")
+        else if(opType == "FullyConnected")
         {
             auto fp16_size = 2;
 
