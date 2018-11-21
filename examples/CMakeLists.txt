@@ -32,6 +32,9 @@ target_link_libraries(standalone_sigmoid cm)
 add_executable(standalone_relu standalone_relu.cpp)
 target_link_libraries(standalone_relu cm)
 
+add_executable(standalone_leaky_relu standalone_leaky_relu.cpp)
+target_link_libraries(standalone_leaky_relu cm)
+
 add_executable(standalone_elu standalone_elu.cpp)
 target_link_libraries(standalone_elu cm)
 
