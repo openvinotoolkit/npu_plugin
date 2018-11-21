@@ -703,7 +703,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         }
         else if(opIt->getOpType() == "Scale")
         {
-            opIt->set<unsigned>("serialID", 15);
+            opIt->set<unsigned>("SerialID", 15);
         }
         else if(opIt->getOpType() == "Softmax")
         {

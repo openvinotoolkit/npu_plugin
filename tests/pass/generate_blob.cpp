@@ -10,8 +10,9 @@
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
-    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NCHW"));
+    auto weights = model.constant(weightsData, kernelShape, mv::DTypeType::Float16, mv::Order("NHWC"));
     auto conv = model.conv(input, weights, stride, padding, 1);
+
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
     std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
     std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
@@ -28,6 +29,32 @@ TEST (mv_num_convert, fp32_to_fp16)
 {
    mv_num_convert cvtr ;
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(2.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(3.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(4.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(5.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(6.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(7.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(8.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(9.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(10.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(11.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(12.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(13.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(14.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(15.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(16.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(17.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(18.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(19.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(20.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(21.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(22.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(23.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(24.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(25.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(26.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(27.0f),0x3c00 );
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625f),0x3c01 );
    EXPECT_EQ(cvtr.fp32_to_fp16(-2.0f),0xc000 );
    EXPECT_EQ(cvtr.fp32_to_fp16(65504.0f),0x7bff );
@@ -931,6 +958,41 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 
+TEST (generate_blob_WDDM, blob_conv1)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    auto input1 = test_cm.input({225, 225, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
+    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));
+//    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCWH"));
+    auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0}, 1);
+    auto output = test_cm.output(conv1);
+
+    std::string blobName = "wddm_conv1";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName+".blob";
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (444LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
 // test 10 : conv->leakyRel
 TEST (generate_blob_WDDM, blob_leakyRelu)
 {
@@ -1318,4 +1380,3 @@ TEST (generate_blob, runtime_binary_FILE)
     EXPECT_GT (BlobSize, 19000) << "ERROR: wrong blob file size ";
 
 }
-

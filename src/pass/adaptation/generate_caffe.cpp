@@ -125,9 +125,14 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             convParamPrototxt->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             convParamCaffeModel->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
 
+           /*Set padding*/
+            convParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
+
             /*Set padding*/
-            convParamPrototxt->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
-            convParamCaffeModel->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
+
 
             /*Set kernel*/
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
@@ -238,9 +243,13 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             convParamPrototxt->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
             convParamCaffeModel->add_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
 
+             /*Set padding*/
+            convParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
+
             /*Set padding*/
-            convParamPrototxt->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
-            convParamCaffeModel->add_pad(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            convParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
 
             /*Set kernel*/
             auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
