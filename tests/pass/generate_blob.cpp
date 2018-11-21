@@ -27,6 +27,32 @@ TEST (mv_num_convert, fp32_to_fp16)
 {
    mv_num_convert cvtr ;
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(2.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(3.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(4.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(5.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(6.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(7.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(8.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(9.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(10.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(11.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(12.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(13.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(14.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(15.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(16.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(17.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(18.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(19.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(20.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(21.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(22.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(23.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(24.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(25.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(26.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(27.0f),0x3c00 );
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625f),0x3c01 );
    EXPECT_EQ(cvtr.fp32_to_fp16(-2.0f),0xc000 );
    EXPECT_EQ(cvtr.fp32_to_fp16(65504.0f),0x7bff );
@@ -939,6 +965,7 @@ TEST (generate_blob_WDDM, blob_conv1)
     auto input1 = test_cm.input({225, 225, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));
+//    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCWH"));
     auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0});
     auto output = test_cm.output(conv1);
 
