@@ -942,7 +942,7 @@ TEST (generate_blob_WDDM, blob_leakyRelu)
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
-    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
 
     auto leakyRelu = test_cm.leakyRelu(convIt61,1.0);
     // define output
@@ -981,7 +981,7 @@ TEST (generate_blob_WDDM, blob_elu)
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
-    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
 
     auto elu = test_cm.elu(convIt61,1);
     // define output
@@ -1019,7 +1019,7 @@ TEST (generate_blob_WDDM, blob_sigmoid)
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
-    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
 
     auto sigmoid = test_cm.sigmoid(convIt61);
     // define output
@@ -1057,7 +1057,7 @@ TEST (generate_blob_WDDM, blob_tanh)
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
-    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
 
     auto tanh = test_cm.tanh(convIt61);
     // define output
@@ -1095,7 +1095,7 @@ TEST (generate_blob_WDDM, blob_lrn)
     mv::Shape kernelShape = {5, 5, 3, 1};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
     auto weightsIt = test_cm.constant(weightsData, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
-    auto convIt = test_cm.conv(inIt6, weightsIt, {2, 2}, {0, 0, 0, 0});
+    auto convIt = test_cm.conv(inIt6, weightsIt, {2, 2}, {0, 0, 0, 0}, 1);
 
     auto lrn = test_cm.localResponseNormalization(convIt,1,5);
     // define output
