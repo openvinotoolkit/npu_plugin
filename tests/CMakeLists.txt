@@ -52,7 +52,7 @@ file(GLOB hw
 add_executable(mcm_unit_tests 
     mcm_unit_tests.cpp
     #${nce1}
-    ${hw}
+    #${hw}
     ${graph_src}
     ${resources}
     ${base_src}
