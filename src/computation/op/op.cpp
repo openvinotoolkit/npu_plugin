@@ -100,48 +100,52 @@ bool mv::Op::hasTypeTrait(const std::string& typeTrait) const
 //One could potentially change the input tensor(E.G during a replacement pass) of an operation,
 //Causing the output tensor to change as well. But what if the old output tensor was referenced by a flow?
 
-void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
+void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx, bool cascade)
 {
     DataModel dm(getModel_());
 
     //FUTURE: The method should check tensor validity at model level.
     inputs_[idx] = tensor;
 
-    std::string errMsg;
-    auto checkRes = op::OpRegistry::checkInputs(getOpType(), inputs_, getAttrs_(), errMsg);
-
-    if (!checkRes.first)        
-        throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(getOpType(), checkRes.second) + " (" +
-            std::to_string(checkRes.second) + ") - " + errMsg);
-
-    if(hasAttr("invalid") && get<bool>("invalid"))
-        erase("invalid");
-
-    std::vector<Tensor> outputsDef;
-    op::OpRegistry::getOutputsDef(getOpType(), inputs_, getAttrs_(), outputsDef);
-    for (std::size_t i = 0; i < outputsDef.size(); ++i)
+    //NOTE: Sometimes we don't want to check the new inputs and generate new outputs
+    if(cascade)
     {
-        //IDEA: If output tensor definition is updated (keeping the reference)
-        //There is no need to do a mess with flaws
+        std::string errMsg;
+        auto checkRes = op::OpRegistry::checkInputs(getOpType(), inputs_, getAttrs_(), errMsg);
 
-        //No need for any outputs_[i]->setName() call, it stays the same;
-        outputs_[i]->setDType(outputsDef[i].getDType());
-        outputs_[i]->setOrder(outputsDef[i].getOrder());
-        outputs_[i]->setShape(outputsDef[i].getShape());
+        if (!checkRes.first)
+            throw OpError(*this, "Invalid input " + op::OpRegistry::getInputLabel(getOpType(), checkRes.second) + " (" +
+                std::to_string(checkRes.second) + ") - " + errMsg);
 
-        if(outputs_[i]->hasAttr("flows"))
+        if(hasAttr("invalid") && get<bool>("invalid"))
+            erase("invalid");
+
+        std::vector<Tensor> outputsDef;
+        op::OpRegistry::getOutputsDef(getOpType(), inputs_, getAttrs_(), outputsDef);
+        for (std::size_t i = 0; i < outputsDef.size(); ++i)
         {
-            //Getting flows in which old output tensor was involved
-            auto keys = outputs_[i]->get<std::set<std::string>>("flows");
+            //IDEA: If output tensor definition is updated (keeping the reference)
+            //There is no need to do a mess with flaws
 
-            //Recursion on the flows
-            for(std::string key : keys)
+            //No need for any outputs_[i]->setName() call, it stays the same;
+            outputs_[i]->setDType(outputsDef[i].getDType());
+            outputs_[i]->setOrder(outputsDef[i].getOrder());
+            outputs_[i]->setShape(outputsDef[i].getShape());
+
+            if(outputs_[i]->hasAttr("flows"))
             {
-                auto currentFlow = dm.getDataFlow(key);
-                auto index = currentFlow->get<std::size_t>("sinkInput");
-                auto destOp = currentFlow.sink();
-                //recursion
-                destOp->setInputTensor(outputs_[i], index);
+                //Getting flows in which old output tensor was involved
+                auto keys = outputs_[i]->get<std::set<std::string>>("flows");
+
+                //Recursion on the flows
+                for(std::string key : keys)
+                {
+                    auto currentFlow = dm.getDataFlow(key);
+                    auto index = currentFlow->get<std::size_t>("sinkInput");
+                    auto destOp = currentFlow.sink();
+                    //recursion
+                    destOp->setInputTensor(outputs_[i], index);
+                }
             }
         }
     }

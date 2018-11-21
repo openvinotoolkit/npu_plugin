@@ -31,7 +31,7 @@ namespace mv
         std::string getOpType() const;
         bool hasTypeTrait(const std::string& typeTrait) const;
 
-        void setInputTensor(Data::TensorIterator tensor, std::size_t idx);
+        void setInputTensor(Data::TensorIterator tensor, std::size_t idx, bool cascade = true);
 
         Data::TensorIterator getInputTensor(std::size_t idx);
         Data::TensorIterator getInputTensor(const std::string& label);

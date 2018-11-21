@@ -82,8 +82,7 @@ void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &m
                 om.removeOp(oldWeightsOp);
                 om.defineFlow(new_weights, opIt, 1);
 
-                //TODO: This can't be done like this due to getOutputDef getting called
-                opIt->setInputTensor(new_weights, 1);
+                opIt->setInputTensor(new_weights, 1, false);
             }
         }
     }
