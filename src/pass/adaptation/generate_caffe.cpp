@@ -29,6 +29,7 @@ namespace mv
 
 void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
 {
+    std::cout << "Generating Caffe files" << std::endl;
     using namespace mv;
 
     if (compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>().empty())
@@ -386,6 +387,213 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             }
         }
 
+        if (opIt->getOpType() == "Elu")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("ELU");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("ELU");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a LRN parameter*/
+            caffe::ELUParameter *eluParamPrototxt = layerParamPrototxt->mutable_elu_param();
+            caffe::ELUParameter *eluParamCaffeModel = layerParamCaffeModel->mutable_elu_param();
+
+            eluParamPrototxt->set_alpha(opIt->get<unsigned>("alpha"));
+            eluParamCaffeModel->set_alpha(opIt->get<unsigned>("alpha"));
+        }
+
+         //TODO add bias
+         if (opIt->getOpType() == "FullyConnected")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("InnerProduct");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("InnerProduct");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a Inner product parameter*/
+            caffe::InnerProductParameter *innerProductParamPrototxt = layerParamPrototxt->mutable_inner_product_param();
+            caffe::InnerProductParameter *innerProductParamCaffeModel = layerParamCaffeModel->mutable_inner_product_param();
+
+            /*Get the num_output parameter for inner product from the weights tensor*/
+            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
+            
+            /*Set the number of output channels*/
+            innerProductParamPrototxt->set_num_output(parentOpIt1->get<mv::Shape>("shape")[-1]);
+            innerProductParamCaffeModel->set_num_output(parentOpIt1->get<mv::Shape>("shape")[-1]);
+
+             /*Add weights to caffemodel*/
+            caffe::BlobProto *blobProto = layerParamCaffeModel->add_blobs();
+            caffe::BlobShape *blobShape = blobProto->mutable_shape();
+
+            blobShape->add_dim(0);
+            blobShape->add_dim(1);
+           
+            blobShape->set_dim(0, parentOpIt1->get<mv::Shape>("shape")[1]);
+            blobShape->set_dim(1, parentOpIt1->get<mv::Shape>("shape")[0]);
+
+            blobProto->clear_double_data();
+
+            /*ColumnMajor is format for caffemodel*/
+            auto weights = opIt->getInputTensor(1);
+            weights->setOrder(mv::Order("WH"));
+
+            std::vector<double> caffeModelWeights = weights->getData();
+
+            for (unsigned i = 0; i < caffeModelWeights.size(); ++i)
+            {
+                blobProto->add_double_data(caffeModelWeights[i]);
+            }
+        }
+
+        if (opIt->getOpType() == "LeakyRelu")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("ReLU");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("ReLU");
+
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            if (parentOpIt0->getOpType() == "Bias")
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt0->getInputTensor(0));
+
+                /*The bottom attribute stores the name of the input blob*/
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt0->getName());
+
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+
+            /*Set layer to have a Relu parameter*/
+            caffe::ReLUParameter *reluParamPrototxt = layerParamPrototxt->mutable_relu_param();
+            caffe::ReLUParameter *reluParamCaffeModel = layerParamCaffeModel->mutable_relu_param();
+
+            reluParamPrototxt->set_negative_slope(opIt->get<double>("alpha"));
+            reluParamCaffeModel->set_negative_slope(opIt->get<double>("alpha"));
+        }
+
+        //TODO Need to add bias parameter for LRN 
+        if (opIt->getOpType() == "LocalResponseNormalization")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("LRN");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("LRN");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a LRN parameter*/
+            caffe::LRNParameter *lrnParamPrototxt = layerParamPrototxt->mutable_lrn_param();
+            caffe::LRNParameter *lrnParamCaffeModel = layerParamCaffeModel->mutable_lrn_param();
+
+            lrnParamPrototxt->set_local_size(opIt->get<unsigned>("size"));
+            lrnParamCaffeModel->set_local_size(opIt->get<unsigned>("size"));
+
+        }
+        if (opIt->getOpType() == "Tanh")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("TanH");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("TanH");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+
+        if (opIt->getOpType() == "Sigmoid")
+        {
+            caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+            caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+            /*Set name and type of the layer*/
+            layerParamPrototxt->set_name(opIt->getName());
+            layerParamPrototxt->set_type("Sigmoid");
+
+            layerParamCaffeModel->set_name(opIt->getName());
+            layerParamCaffeModel->set_type("Sigmoid");
+
+            /*The bottom attribute stores the name of the input blob*/
+            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+            layerParamPrototxt->add_bottom(parentOpIt0->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+            /*The top attribute stores the name of the output blob*/
+            layerParamPrototxt->add_top(opIt->getName());
+            layerParamCaffeModel->add_top(opIt->getName());
+        }
+
         //TODO - PRELU needs to be tested - disabled in cppwrapper.py
         if (opIt->getOpType() == "Prelu")
         {
@@ -520,26 +728,46 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Pooling");
 
-            /*The bottom attribute stores the name of the input blob*/
-            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+            auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            /*Check if previous op is bias*/
+            if (parentOpIt->getOpType() == "Bias")
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt->getInputTensor(0));
 
-            /*The top attribute stores the name of the output blob*/
-            layerParamPrototxt->add_top(opIt->getName());
-            layerParamCaffeModel->add_top(opIt->getName());
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt1->getName());
 
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt->getName());
+
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+        
             /*Set layer to have a pooling parameter*/
             caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
             caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
 
-            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
+            
 
-            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_MAX);
         }
 
@@ -555,26 +783,45 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
             layerParamCaffeModel->set_name(opIt->getName());
             layerParamCaffeModel->set_type("Pooling");
 
-            /*The bottom attribute stores the name of the input blob*/
-            auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+                 auto parentOpIt = opModel.getSourceOp(opIt->getInputTensor(0));
 
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+            /*Check if previous op is bias*/
+            if (parentOpIt->getOpType() == "Bias")
+            {
+                auto parentOpIt1 = opModel.getSourceOp(parentOpIt->getInputTensor(0));
 
-            /*The top attribute stores the name of the output blob*/
-            layerParamPrototxt->add_top(opIt->getName());
-            layerParamCaffeModel->add_top(opIt->getName());
+                layerParamPrototxt->add_bottom(parentOpIt1->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+
+                /*The top attribute stores the name of the output blob*/
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
+            else
+            {
+                layerParamPrototxt->add_bottom(parentOpIt->getName());
+                layerParamCaffeModel->add_bottom(parentOpIt->getName());
+
+                layerParamPrototxt->add_top(opIt->getName());
+                layerParamCaffeModel->add_top(opIt->getName());
+            }
 
             /*Set layer to have a pooling parameter*/
             caffe::PoolingParameter *poolingParamPrototxt = layerParamPrototxt->mutable_pooling_param();
             caffe::PoolingParameter *poolingParamCaffeModel = layerParamCaffeModel->mutable_pooling_param();
 
-            poolingParamPrototxt->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamPrototxt->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamPrototxt->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamPrototxt->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamPrototxt->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamPrototxt->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
 
-            poolingParamCaffeModel->set_kernel_size(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_w(opIt->get<std::array<unsigned short, 2>>("kSize")[0]);
+            poolingParamCaffeModel->set_kernel_h(opIt->get<std::array<unsigned short, 2>>("kSize")[1]);
             poolingParamCaffeModel->set_stride(opIt->get<std::array<unsigned short, 2>>("stride")[0]);
+            poolingParamCaffeModel->set_pad_w(opIt->get<std::array<unsigned short, 4>>("padding")[0]);
+            poolingParamCaffeModel->set_pad_h(opIt->get<std::array<unsigned short, 4>>("padding")[2]);
             poolingParamCaffeModel->set_pool(caffe::PoolingParameter_PoolMethod_AVE);
         }
 
@@ -692,25 +939,55 @@ void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &mod
 
             /*Set name and type of the layer*/
             layerParamPrototxt->set_name(opIt->getName());
-            layerParamPrototxt->set_type("Concat");
+            layerParamPrototxt->set_type("BatchNorm");
 
             layerParamCaffeModel->set_name(opIt->getName());
-            layerParamCaffeModel->set_type("Concat");
+            layerParamCaffeModel->set_type("BatchNorm");
 
             /*The bottom attribute stores the name of the input blob*/
             auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
-            auto parentOpIt1 = opModel.getSourceOp(opIt->getInputTensor(1));
 
             layerParamPrototxt->add_bottom(parentOpIt0->getName());
-            layerParamPrototxt->add_bottom(parentOpIt0->getName());
-
-            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
-            layerParamCaffeModel->add_bottom(parentOpIt1->getName());
+            layerParamCaffeModel->add_bottom(parentOpIt0->getName());
 
             /*The top attribute stores the name of the output blob*/
             layerParamPrototxt->add_top(opIt->getName());
             layerParamCaffeModel->add_top(opIt->getName());
+
+            /*Set layer to have a pooling parameter*/
+            caffe::BatchNormParameter *batchNormParamPrototxt = layerParamPrototxt->mutable_batch_norm_param();
+            caffe::BatchNormParameter *batchNormParamCaffeModel = layerParamCaffeModel->mutable_batch_norm_param();
+
+            batchNormParamPrototxt->set_use_global_stats(true);
+            batchNormParamPrototxt->set_eps(opIt->get<double>("eps"));
+
+            batchNormParamCaffeModel->set_use_global_stats(true);
+            batchNormParamCaffeModel->set_eps(opIt->get<double>("eps"));
         }
+
+           //Note: This is meant to be the equivalent of Onnx Gemm. It can either be MatMul or fullyConnected ops. 
+        // if (opIt->getOpType() == "MatMul")
+        // {
+        //     caffe::LayerParameter *layerParamPrototxt = netParamPrototxt.add_layer();
+        //     caffe::LayerParameter *layerParamCaffeModel = netParamCaffeModel.add_layer();
+
+        //     /*Set name and type of the layer*/
+        //     layerParamPrototxt->set_name(opIt->getName());
+        //     layerParamPrototxt->set_type("InnerProduct");
+
+        //     layerParamCaffeModel->set_name(opIt->getName());
+        //     layerParamCaffeModel->set_type("InnerProduct");
+
+        //     /*The bottom attribute stores the name of the input blob*/
+        //     auto parentOpIt0 = opModel.getSourceOp(opIt->getInputTensor(0));
+
+        //     layerParamPrototxt->add_bottom(parentOpIt0->getName());
+        //     layerParamCaffeModel->add_bottom(parentOpIt0->getName());
+
+        //     /*The top attribute stores the name of the output blob*/
+        //     layerParamPrototxt->add_top(opIt->getName());
+        //     layerParamCaffeModel->add_top(opIt->getName());
+        // }
     }
 
     /*create caffemodel*/

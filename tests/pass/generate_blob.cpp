@@ -699,7 +699,6 @@ TEST (generate_blob, blob_scale)
 //    unit.passManager().disablePass(mv::PassGenre::Serialization);
 //    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -712,6 +711,417 @@ TEST (generate_blob, blob_scale)
 
 }
 
+TEST (generate_blob_WDDM, blob_maxpool1)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+
+    // define first maxpool
+    auto maxpoolIt = test_cm.maxPool(inIt,{5,5}, {3, 3}, {2, 2, 2, 2});
+
+    // define output
+    auto output = test_cm.output(maxpoolIt);
+
+    std::string blobName = "test_maxpool1";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName+"_sw.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+"_sw.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+"_sw.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+"_sw.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+
+    unit.initialize();
+    auto compOutput = unit.run();
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+
+}
+
+TEST (generate_blob_WDDM, blob_maxpool2)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({65, 65, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+
+    // define first maxpool
+    auto maxpoolIt = test_cm.maxPool(inIt,{5,5}, {3, 3}, {0, 0, 0, 0});
+
+    // define output
+    auto output = test_cm.output(maxpoolIt);
+
+    std::string blobName = "test_maxpool2.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool2.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool2.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool2.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
+TEST (generate_blob_WDDM, blob_maxpool3)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({65, 65, 3}, mv::DTypeType::Float16, mv::Order("CHW"));  // {w,h,c}
+
+    // define first maxpool
+    auto maxpoolIt = test_cm.maxPool(inIt, {7,5}, {2, 2}, {1, 1, 2, 2});   // w,w,h,h
+
+    // define output
+    auto output = test_cm.output(maxpoolIt);
+
+    std::string blobName = "test_maxpool3.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool3.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool3.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool3.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
+TEST (generate_blob_WDDM, blob_maxpool4)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({1920, 1080, 4}, mv::DTypeType::Float16, mv::Order("CHW"));  // {w,h,c}
+
+    // define first maxpool
+    auto maxpoolIt = test_cm.maxPool(inIt, {8,8}, {8, 8}, {0, 0, 0, 0});   // w,w,h,h
+
+    // define output
+    auto output = test_cm.output(maxpoolIt);
+
+    std::string blobName = "test_maxpool4.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool4.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool4.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool4.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
+TEST (generate_blob_WDDM, blob_avgpool1)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({256, 100, 3}, mv::DTypeType::Float16, mv::Order("CHW"));  // {w,h,c}
+
+    // define first maxpool
+    auto avgpoolIt = test_cm.averagePool(inIt, {4,4}, {4, 4}, {0,0,0,0});   // w,w,h,h
+
+    // define output
+    auto output = test_cm.output(avgpoolIt);
+
+    std::string blobName = "avgpool1";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = "test_"+blobName+".blob";
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
+TEST (generate_blob_WDDM, blob_avgpool2)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input 
+    auto inIt = test_cm.input({255, 99, 3}, mv::DTypeType::Float16, mv::Order("CHW"));  // {w,h,c}
+
+    // define first maxpool
+    auto avgpoolIt = test_cm.averagePool(inIt, {4,2}, {3, 3}, {2, 2, 1, 1});   // w,w,h,h
+
+    // define output
+    auto output = test_cm.output(avgpoolIt);
+
+    std::string blobName = "avgpool2";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = "test_"+blobName+".blob";
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (292LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+
+// test 10 : conv->leakyRel
+TEST (generate_blob_WDDM, blob_leakyRelu)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+
+    auto leakyRelu = test_cm.leakyRelu(convIt61,1.0);
+    // define output
+    auto output = test_cm.output(leakyRelu);
+
+    std::string blobName = "test_leakyrelu.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("leakyrelu.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("leakyRelu.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("leakyRelu.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+// test 10 : conv->elu
+TEST (generate_blob_WDDM, blob_elu)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+
+    auto elu = test_cm.elu(convIt61,1);
+    // define output
+    auto output = test_cm.output(elu);
+
+    std::string blobName = "test_elu.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("elu.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("elu.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("elu.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+TEST (generate_blob_WDDM, blob_sigmoid)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+
+    auto sigmoid = test_cm.sigmoid(convIt61);
+    // define output
+    auto output = test_cm.output(sigmoid);
+
+    std::string blobName = "test_sigmoid.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("sigmoid.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("sigmoid.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("sigmoid.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+TEST (generate_blob_WDDM, blob_tanh)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0});
+
+    auto tanh = test_cm.tanh(convIt61);
+    // define output
+    auto output = test_cm.output(tanh);
+
+    std::string blobName = "test_tanh.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("tanh.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("tanh.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("tanh.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
+TEST (generate_blob_WDDM, blob_lrn)
+{
+
+    mv::CompilationUnit unit("testModel");
+    mv::CompositionalModel& test_cm = unit.model();
+
+    // Define input as 1 64x64x3 image
+    auto inIt6 = test_cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+    // define first convolution  3D conv
+    mv::Shape kernelShape = {5, 5, 3, 1};
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
+    auto weightsIt = test_cm.constant(weightsData, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt = test_cm.conv(inIt6, weightsIt, {2, 2}, {0, 0, 0, 0});
+
+    auto lrn = test_cm.localResponseNormalization(convIt,1,5);
+    // define output
+    auto output = test_cm.output(lrn);
+
+    std::string blobName = "test_lrn.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
+    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("lrn.dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("lrn.prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("lrn.caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+
+    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.initialize();
+
+    unit.initialize();
+    auto compOutput = unit.run();
+
+    // compare filesize written to expected
+    EXPECT_EQ (1156LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+}
 // Create both RAM and file blobs
 TEST (generate_blob, runtime_binary_RAM_FILE)
 {

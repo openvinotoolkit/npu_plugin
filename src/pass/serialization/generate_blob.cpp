@@ -665,13 +665,47 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
             opIt->set<unsigned>("strideY", 0);
             opIt->set<unsigned>("SerialID", 6);
         }
-        else if(opType == "Reshape")
+        else if(opIt->getOpType() == "Elu")
+        {
+            opIt->set<unsigned>("alpha", opIt->get<unsigned>("alpha")); 
+            opIt->set<unsigned>("strideX", 0);
+            opIt->set<unsigned>("strideY", 0);
+            opIt->set<unsigned>("SerialID", 23);
+        }
+        else if(opIt->getOpType() == "LeakyRelu")
+        {
+            std::cout << opIt->getOpType() << std::endl;
+
+            opIt->set<unsigned>("alpha", opIt->get<unsigned>("alpha"));
+            opIt->set<unsigned>("strideX", 0);
+            opIt->set<unsigned>("strideY", 0);
+            opIt->set<unsigned>("SerialID", 42);
+
+    
+        }
+        else if(opIt->getOpType() == "LocalResponseNormalization")
+        {
+            opIt->set<unsigned>("size", opIt->get<unsigned>("size")); 
+            opIt->set<unsigned>("bias", opIt->get<unsigned>("bias")); 
+            opIt->set<unsigned>("SerialID", 11);
+        }
+        else if(opIt->getOpType() == "Reshape")
         {
 
         }
-        else if(opType == "Scale")
-            opIt->set<unsigned>("SerialID", 15);
-        else if(opType == "Softmax")
+        else if(opIt->getOpType() == "Sigmoid")
+        {
+            opIt->set<unsigned>("SerialID", 19);
+        }
+        else if(opIt->getOpType() == "Tanh")
+        {
+            opIt->set<unsigned>("SerialID", 21);
+        }
+        else if(opIt->getOpType() == "Scale")
+        {
+            opIt->set<unsigned>("serialID", 15);
+        }
+        else if(opIt->getOpType() == "Softmax")
         {
             opIt->set<unsigned>("axis", 1);
             opIt->set<unsigned>("SerialID", 3);
