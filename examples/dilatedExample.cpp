@@ -1,13 +1,14 @@
-
-
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/utils/serializer/Fp16Convert.h"
+#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/utils/hardware_tests.hpp"
+
+#include <iostream>
+#include <fstream>
 
 int main()
 {
-
-    //mv::Logger::logFilter({std::regex("OpModel")}, true);
-
     // Define the primary compilation unit
     mv::CompilationUnit unit("DilatedExample");
 
@@ -26,27 +27,21 @@ int main()
     }
     
     // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("test.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("dilation.blob");
+    std::string outputName = "DilatedExample";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = outputName + ".blob";
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(outputName + ".prototxt");
+    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(outputName + ".caffemodel");
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
     
-    // Initialize compilation 
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
-    //unit.passManager().disablePass(mv::PassGenre::Adaptation);
 
-    // Run all passes
-    unit.run();
-
-    system("dot -Tsvg test.dot -o test.svg");
-    system("dot -Tsvg test_adapt.dot -o test_adapt.svg");
-    system("dot -Tsvg test_final.dot -o test_final.svg");
+    auto returnValue = mv::HWTest(unit, outputName);
+    printReport(returnValue, std::cout);
     return 0;
 }
