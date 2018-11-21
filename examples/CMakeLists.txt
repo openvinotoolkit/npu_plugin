@@ -44,6 +44,9 @@ target_link_libraries(standalone_prelu cm)
 add_executable(hw_convolution hw_convolution.cpp)
 target_link_libraries(hw_convolution cm)
 
+add_executable(depthwise_convolution depthwise_convolution.cpp)
+target_link_libraries(depthwise_convolution cm)
+
 add_executable(fully_connected fully_connected.cpp)
 target_link_libraries(fully_connected cm)
 
