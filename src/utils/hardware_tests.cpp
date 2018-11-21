@@ -1,6 +1,6 @@
 #include "include/mcm/utils/hardware_tests.hpp"
 
-mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName)
+mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName, bool fathomHardware)
 {
     auto compOutput = unit.run();
 
@@ -19,6 +19,8 @@ mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName)
     //1) Compile generated prototxt with fathom
     std::cout << "COMPILING GENERATED PROTOTXT WITH FATHOM" << std::endl;
     std::string command1("python3 " + mv::utils::mdkRootPath() + "/projects/Fathom/src2/mvNCCompile.py " + outputName + ".prototxt -w " + outputName + ".caffemodel ");
+    if(fathomHardware)
+        command1 += " --ma2480";
     std::cout << command1 << std::endl;
     toReturn.fathomCompilation = system(command1.c_str());
 

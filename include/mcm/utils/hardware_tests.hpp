@@ -16,7 +16,7 @@ namespace mv
         int fathomVsMcm;
     };
 
-    ReturnCodes HWTest(mv::CompilationUnit& unit, std::string outputName);
+    ReturnCodes HWTest(mv::CompilationUnit& unit, std::string outputName, bool fathomHardware = false);
     void printReport(mv::ReturnCodes returnValue, std::ostream& out);
 
 }
