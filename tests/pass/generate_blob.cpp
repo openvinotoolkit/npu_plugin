@@ -2,6 +2,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
+#include "include/mcm/utils/hardware_tests.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include <iostream>
 #include <fstream>
