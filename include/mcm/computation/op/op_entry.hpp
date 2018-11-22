@@ -14,7 +14,7 @@
 #include "include/mcm/base/printable.hpp"
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
-#include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/computation/model/iterator/tensor.hpp"
 
 namespace mv
 {

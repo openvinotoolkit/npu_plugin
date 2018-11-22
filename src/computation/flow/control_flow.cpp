@@ -1,6 +1,6 @@
 #include "include/mcm/computation/flow/control_flow.hpp"
 
-mv::ControlFlow::ControlFlow(ComputationModel& model, Control::OpListIterator &source, Control::OpListIterator &sink) :
+mv::ControlFlow::ControlFlow(ComputationModel& model, detailControlFlow::OpListIterator source, detailControlFlow::OpListIterator sink) :
 ModelElement(model, "cf_" + source->getName() + "_" + sink->getName())
 {
     log(Logger::MessageType::Debug, "Initialized");

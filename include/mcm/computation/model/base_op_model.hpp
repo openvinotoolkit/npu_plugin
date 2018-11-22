@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    class BaseOpModel : public ComputationModel//, public CompositionalModel
+    class BaseOpModel : public ComputationModel
     {
     	friend class CompositionalModelRecorder;
         /*bool defineDefaultControlFlow_(Data::OpListIterator op);

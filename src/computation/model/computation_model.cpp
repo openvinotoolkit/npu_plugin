@@ -3,7 +3,7 @@
 
 mv::ComputationModel::ComputationModel(const std::string& name) :
 name_(name),
-opsGraph_(std::make_shared<computation_graph>(computation_graph())),
+opsGraph_(std::make_shared<conjoined_graph<Op, DataFlow, ControlFlow>>()),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
