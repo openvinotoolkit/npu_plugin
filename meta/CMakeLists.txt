@@ -41,7 +41,7 @@ if (MSVC)
 		$<TARGET_OBJECTS:corebase>
 	)
 else()
-	add_library(metamodel OBJECT
+	add_library(metamodel SHARED
 		${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
 		${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
 		${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
