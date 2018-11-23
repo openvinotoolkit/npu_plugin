@@ -3,6 +3,7 @@
 
 #include <string>
 #include <fstream>
+#include <cctype>
 #include "include/mcm/base/registry.hpp"
 #include "include/mcm/computation/op/op_entry.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
@@ -29,7 +30,7 @@ namespace mv
             /**
              * @brief Legal op types traits
              */
-            static const std::set<std::string> typeTraits_;
+            std::set<std::string> typeTraits_;
 
             static std::string getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs);
             static std::string getCompositionDecl_(const std::string& opType);
@@ -40,6 +41,8 @@ namespace mv
             static std::vector<std::string> getStringifiedArgsCall_(const std::string opType);
             static std::string getLabelNameStringifyCall_(const std::string& label, const std::string& name, std::size_t idx,
                 const std::string& indent, const std::string& eol);
+
+			OpRegistry();
 
         public:
 

@@ -2,6 +2,7 @@
 #define NCE1_HPP
 
 #include <map>
+#include <array>
 #include "mcm/algorithms/dijkstra.hpp"
 
 namespace mv

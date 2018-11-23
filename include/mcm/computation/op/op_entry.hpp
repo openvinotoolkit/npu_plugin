@@ -5,6 +5,8 @@
 #include <functional>
 #include <set>
 #include <map>
+#include <array>
+#include <vector>
 #include <typeindex>
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/base/exception/master_error.hpp"
