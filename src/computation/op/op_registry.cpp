@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    MV_DEFINE_REGISTRY(std::string, mv::op::OpEntry)
+    MV_DEFINE_REGISTRY(op::OpRegistry, std::string, mv::op::OpEntry)
 
 }
 
@@ -15,16 +15,22 @@ const std::string mv::op::OpRegistry::opModelSourcePath_ = "meta/src/op_model.cp
 const std::string mv::op::OpRegistry::recordedCompModelHeaderPath_ = "meta/include/mcm/recorded_compositional_model.hpp";
 const std::string mv::op::OpRegistry::recordedCompModelSourcePath_ = "meta/src/recorded_compositional_model.cpp";
 
-const std::set<std::string> mv::op::OpRegistry::typeTraits_ = 
+/*const std::set<std::string> mv::op::OpRegistry::typeTraits_ = 
 {
     "executable",   // An op is doing some processing of inputs
     "exposed"       // An op definition call is exposed in CompositionAPI
-};
+};*/
+
+mv::op::OpRegistry::OpRegistry()
+{
+	typeTraits_.insert("executable");
+	typeTraits_.insert("exposed");
+}
 
 mv::op::OpRegistry& mv::op::OpRegistry::instance()
 {
     
-    return static_cast<OpRegistry&>(Registry<std::string, OpEntry>::instance());
+    return Registry<OpRegistry, std::string, OpEntry>::instance();
 
 }
 
@@ -215,7 +221,7 @@ const std::vector<std::string>& mv::op::OpRegistry::getOutputLabel(const std::st
 
 bool mv::op::OpRegistry::checkTypeTrait(const std::string& typeTrait)
 {
-    if (typeTraits_.find(typeTrait) != typeTraits_.end())
+    if (instance().typeTraits_.find(typeTrait) != instance().typeTraits_.end())
         return true;
     return false;
 }
@@ -489,8 +495,9 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << "*/" << eol << eol;
 
     incStream << "#ifndef MV_COMPOSITIONAL_MODEL_HPP_" << eol;
-    incStream << "#define MV_COMPOSITIONAL_MODEL_HPP_" << eol << eol; 
-    incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol << eol;
+    incStream << "#define MV_COMPOSITIONAL_MODEL_HPP_" << eol << eol;
+    incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol;
+    incStream << "#include \"include/mcm/computation/model/iterator/tensor.hpp\"" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;

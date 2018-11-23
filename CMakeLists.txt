@@ -19,7 +19,7 @@ if (MSVC)
 else()
 
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
-    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 
 endif()
 
@@ -138,11 +138,12 @@ file(GLOB compiler
 add_subdirectory(meta)
 
 if (MSVC)
-    add_library(cm OBJECT ${compiler} ${pass})
+    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
+	target_link_libraries(cm corebase metamodel)
     add_library(corebase OBJECT ${base} ${logger})
-    add_library(model OBJECT ${model})
-    target_link_libraries(cm corebase metamodel)
-    add_dependencies(cm generate-comp-api)
+    add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
+    target_link_libraries(model corebase)
+    add_dependencies(cm generate-comp-api)	
     add_dependencies(model generate-comp-api)
 else()
 if(VALIDATION)

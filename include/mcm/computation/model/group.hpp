@@ -6,6 +6,7 @@
 #include <string>
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
+#include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/computation/model/model_element.hpp"
 #include "include/mcm/base/exception/logic_error.hpp"
 

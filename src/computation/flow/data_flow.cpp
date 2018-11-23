@@ -1,8 +1,8 @@
 #include "include/mcm/computation/flow/data_flow.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-mv::DataFlow::DataFlow(ComputationModel& model, const Data::OpListIterator& source, std::size_t outputIdx, const Data::OpListIterator& sink, 
-    std::size_t inputIdx, const Data::TensorIterator& data) :
+mv::DataFlow::DataFlow(ComputationModel& model, Data::OpListIterator source, std::size_t outputIdx, Data::OpListIterator sink, 
+    std::size_t inputIdx, Data::TensorIterator data) :
 ModelElement(model, "df_" + source->getName() + std::to_string(outputIdx) + "_" + sink->getName() + std::to_string(inputIdx))
 {
     log(Logger::MessageType::Debug, "Initialized");

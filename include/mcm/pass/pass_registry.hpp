@@ -15,7 +15,7 @@ namespace mv
     namespace pass
     {   
 
-        class PassRegistry : public Registry<std::string, PassEntry>
+        class PassRegistry : public Registry<PassRegistry, std::string, PassEntry>
         {
             
 
@@ -29,7 +29,7 @@ namespace mv
         };
 
         #define MV_REGISTER_PASS(Name)                          \
-            MV_REGISTER_ENTRY(std::string, PassEntry, #Name)    \
+            MV_REGISTER_ENTRY(PassRegistry, std::string, PassEntry, #Name)    \
                               
     }
 

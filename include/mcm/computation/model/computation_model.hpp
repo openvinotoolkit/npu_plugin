@@ -4,9 +4,11 @@
 #include <memory>
 #include <map>
 #include <string>
-#include "include/mcm/graph/graph.hpp"
+#include "include/mcm/graph/conjoined_graph.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
+#include "include/mcm/computation/model/iterator/stage.hpp"
+#include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/computation/flow/data_flow.hpp"
@@ -15,7 +17,6 @@
 #include "include/mcm/computation/resource/stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/computation/model/runtime_binary.hpp"
-
 
 namespace mv
 {
@@ -33,10 +34,10 @@ namespace mv
             having unhandled bad allocation errors, particularly STL exceptions)
             - obtaining a capability of shallow coping the ComputationModel that is exploited by e.g. switchable contexts (OpModel, DataModel)
         */
-        std::shared_ptr<computation_graph> opsGraph_;
+        std::shared_ptr<conjoined_graph<Op, DataFlow, ControlFlow>> opsGraph_;
         std::shared_ptr<mv::RuntimeBinary> binary_;
-        computation_graph::first_graph &dataGraph_;
-        computation_graph::second_graph &controlGraph_;
+        dataGraph &dataGraph_;
+        controlGraph &controlGraph_;
         /*
         There are two reasons to use sets as underlying containers:
         - All operations complexity n * log(n)
@@ -114,9 +115,9 @@ namespace mv
         Control::FlowListIterator getControlFlow(const std::string& name);
 
         void clear();
-        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::string newName, std::size_t newSize);
-        std::shared_ptr<mv::RuntimeBinary>  allocateBinaryBuffer(std::size_t newSize);
-        std::shared_ptr<mv::RuntimeBinary>  getBinaryBuffer();
+        std::shared_ptr<mv::RuntimeBinary> allocateBinaryBuffer(std::string newName, std::size_t newSize);
+        std::shared_ptr<mv::RuntimeBinary> allocateBinaryBuffer(std::size_t newSize);
+        std::shared_ptr<mv::RuntimeBinary> getBinaryBuffer();
 
         std::reference_wrapper<ComputationModel> getRef();
 

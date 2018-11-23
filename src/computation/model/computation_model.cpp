@@ -3,7 +3,8 @@
 
 mv::ComputationModel::ComputationModel(const std::string& name) :
 name_(name),
-opsGraph_(std::make_shared<computation_graph>(computation_graph())),
+opsGraph_(std::make_shared<conjoined_graph<Op, DataFlow, ControlFlow>>()),
+binary_(std::make_shared<mv::RuntimeBinary>()),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
 ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
@@ -21,8 +22,7 @@ controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end()
 controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
 input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
-selfRef_(*this),
-binary_(std::make_shared<mv::RuntimeBinary>())
+selfRef_(*this)
 {
     
 }
@@ -30,6 +30,7 @@ binary_(std::make_shared<mv::RuntimeBinary>())
 mv::ComputationModel::ComputationModel(ComputationModel &other) :
 name_(other.name_),
 opsGraph_(other.opsGraph_),
+binary_(other.binary_),
 dataGraph_(other.dataGraph_),
 controlGraph_(other.controlGraph_),
 ops_(other.ops_),
@@ -47,8 +48,7 @@ controlOpEnd_(other.controlOpEnd_),
 controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_),
-selfRef_(other.selfRef_),
-binary_(other.binary_)
+selfRef_(other.selfRef_)
 {
     
 }
