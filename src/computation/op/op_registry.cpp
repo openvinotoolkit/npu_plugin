@@ -15,11 +15,17 @@ const std::string mv::op::OpRegistry::opModelSourcePath_ = "meta/src/op_model.cp
 const std::string mv::op::OpRegistry::recordedCompModelHeaderPath_ = "meta/include/mcm/recorded_compositional_model.hpp";
 const std::string mv::op::OpRegistry::recordedCompModelSourcePath_ = "meta/src/recorded_compositional_model.cpp";
 
-const std::set<std::string> mv::op::OpRegistry::typeTraits_ = 
+/*const std::set<std::string> mv::op::OpRegistry::typeTraits_ = 
 {
     "executable",   // An op is doing some processing of inputs
     "exposed"       // An op definition call is exposed in CompositionAPI
-};
+};*/
+
+mv::op::OpRegistry::OpRegistry()
+{
+	typeTraits_.insert("executable");
+	typeTraits_.insert("exposed");
+}
 
 mv::op::OpRegistry& mv::op::OpRegistry::instance()
 {
@@ -215,7 +221,7 @@ const std::vector<std::string>& mv::op::OpRegistry::getOutputLabel(const std::st
 
 bool mv::op::OpRegistry::checkTypeTrait(const std::string& typeTrait)
 {
-    if (typeTraits_.find(typeTrait) != typeTraits_.end())
+    if (instance().typeTraits_.find(typeTrait) != instance().typeTraits_.end())
         return true;
     return false;
 }

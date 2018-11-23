@@ -30,7 +30,7 @@ namespace mv
             /**
              * @brief Legal op types traits
              */
-            static const std::set<std::string> typeTraits_;
+            std::set<std::string> typeTraits_;
 
             static std::string getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs);
             static std::string getCompositionDecl_(const std::string& opType);
@@ -44,6 +44,7 @@ namespace mv
 
         public:
 
+			OpRegistry();
             static OpRegistry& instance();
 
             static std::vector<std::string> getOpTypes(std::initializer_list<std::string> traits = {});
@@ -71,8 +72,9 @@ namespace mv
             
         };
 
-        #define MV_REGISTER_OP(Name)                          \
-            MV_REGISTER_ENTRY(OpRegistry, std::string, OpEntry, #Name)    \
+        #define MV_REGISTER_OP(Name)															\
+            static ATTRIBUTE_UNUSED(OpEntry& CONCATENATE(__ ## OpEntry ## __, __COUNTER__)) =	\
+                mv::op::OpRegistry::instance().enter(STRV(Name))
 
 
     }
