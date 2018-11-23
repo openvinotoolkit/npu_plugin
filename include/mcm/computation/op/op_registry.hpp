@@ -16,7 +16,7 @@ namespace mv
     namespace op
     {
 
-        class OpRegistry : public Registry<std::string, OpEntry>
+        class OpRegistry : public Registry<OpRegistry, std::string, OpEntry>
         {
 
             static const std::string compAPIHeaderPath_;
@@ -71,7 +71,7 @@ namespace mv
         };
 
         #define MV_REGISTER_OP(Name)                          \
-            MV_REGISTER_ENTRY(std::string, OpEntry, #Name)    \
+            MV_REGISTER_ENTRY(OpRegistry, std::string, OpEntry, #Name)    \
 
 
     }

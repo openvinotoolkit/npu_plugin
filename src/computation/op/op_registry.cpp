@@ -4,7 +4,7 @@
 namespace mv
 {
 
-    MV_DEFINE_REGISTRY(std::string, mv::op::OpEntry)
+    MV_DEFINE_REGISTRY(op::OpRegistry, std::string, mv::op::OpEntry)
 
 }
 
@@ -24,7 +24,7 @@ const std::set<std::string> mv::op::OpRegistry::typeTraits_ =
 mv::op::OpRegistry& mv::op::OpRegistry::instance()
 {
     
-    return static_cast<OpRegistry&>(Registry<std::string, OpEntry>::instance());
+    return Registry<OpRegistry, std::string, OpEntry>::instance();
 
 }
 
