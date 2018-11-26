@@ -1,36 +1,40 @@
-#include "include/mcm/computation/op/def/input.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::Input::Input(Shape outputShape, DType dType, Order order, const std::string &name) :
-ComputationOp(OpType::Input, name),
-SourceOp(OpType::Input, 1, name)
+namespace mv
 {
 
-    set<Shape>("shape", outputShape);
-    set<DType>("dType", dType);
-    set<Order>("order", order);
-    set<bool>("executable", false);
+    namespace op
+    {
 
-}
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::string&) -> std::pair<bool, std::size_t>
+        {
 
-void mv::op::Input::setOutputTensor(Data::TensorIterator tensor, std::size_t idx)
-{
-    SourceOp::setOutputTensor(tensor, idx);
-}
+            return {true, 0};
 
-mv::Tensor mv::op::Input::getOutputDef(std::size_t idx)
-{
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
+        {
 
-    // Will throw on error
-    validOutputDef_(idx);
+            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(), 
+                args.at("order").get<mv::Order>()));
 
-    auto outputShape = get<Shape>("shape");
-    auto dType = get<DType>("dType");
-    auto order = get<Order>("order");
+        };
+    
+        MV_REGISTER_OP(Input)
+        .setOutputs({"output"})
+        .setArg<mv::Shape>("shape")
+        .setArg<mv::DType>("dType")
+        .setArg<mv::Order>("order")
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"exposed"});
 
-    return Tensor(name_ + ":0", outputShape, dType, order);
-}
+    }
 
-bool mv::op::Input::isHardwarizeable(json::Object&)
-{
-    return false;
 }

@@ -1,33 +1,38 @@
-#include "include/mcm/computation/op/def/conversion.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::Conversion::Conversion(const std::string &name, Order targetOrder):
-ComputationOp(mv::OpType::Conversion, name),
-SinkOp(mv::OpType::Conversion, 1, name),
-SourceOp(mv::OpType::Conversion, 1, name)
-{
-    set<Order>("order", targetOrder);
-    set<bool>("executable", true);
-}
-
-mv::Tensor mv::op::Conversion::getOutputDef(std::size_t idx)
+namespace mv
 {
 
-    // Will throw on error
-    validOutputDef_(idx);
+    namespace op
+    {
 
-    auto input = getInputTensor(0);
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::string&) -> std::pair<bool, std::size_t>
+        {
 
-    //Target order handled here
-    return Tensor(name_ + ":0", input->getShape(), input->getDType(), get<Order>("order"));
+            return {true, 0};
 
-}
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
+        {
 
-bool mv::op::Conversion::isHardwarizeable(mv::json::Object&)
-{
-    return false;
-}
+            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), args.at("order").get<Order>()));
 
-void mv::op::Conversion::gatherSerialFields()
-{
-    this->set<unsigned>("SerialID", 37);
+        };
+    
+        MV_REGISTER_OP(Conversion)
+        .setInputs({"data"})
+        .setOutputs({"output"})
+        .setArg<mv::Order>("order")
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"executable"});
+
+    }
+
 }

@@ -1,28 +1,34 @@
-#include "include/mcm/computation/op/def/output.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::Output::Output(const std::string &name) : 
-ComputationOp(OpType::Output, name),
-SinkOp(OpType::Output, 1, name)
-{
-    set<bool>("executable", false);
-}
-
-
-void mv::op::Output::setInputTensor(Data::TensorIterator tensor, std::size_t idx)
+namespace mv
 {
 
-    SinkOp::setInputTensor(tensor, idx);
-    set<Shape>("shape",  tensor->getShape());
+    namespace op
+    {
 
-}
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::string&) -> std::pair<bool, std::size_t>
+        {
 
-mv::Tensor mv::op::Output::getOutputDef(std::size_t)
-{
-    throw(OpError(*this, "Attempt of obtaining the output tensor"));
-}
+            return {true, 0};
 
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, std::vector<Tensor>&)
+        {
 
-bool mv::op::Output::isHardwarizeable(json::Object&)
-{
-    return false;
+        };
+    
+        MV_REGISTER_OP(Output)
+        .setInputs({"data"})
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"exposed"});
+
+    }
+
 }

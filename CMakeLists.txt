@@ -80,7 +80,7 @@ file(GLOB base
     "src/tensor/dtype.cpp"
     "src/computation/op/op_entry.cpp"
     "src/computation/op/op_registry.cpp"
-    "src/computation/op/def2/*.cpp"
+    "src/computation/op/def/*.cpp"
     "src/computation/model/runtime_binary.cpp"
 )
 

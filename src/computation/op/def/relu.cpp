@@ -1,20 +1,37 @@
-#include "include/mcm/computation/op/def/relu.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::ReLU::ReLU(const std::string &name) :
-ComputationOp(OpType::ReLU, name),
-ActivationOp(OpType::ReLU, name)
+namespace mv
 {
-    set<bool>("executable", true);
-}
 
-bool mv::op::ReLU::isHardwarizeable(json::Object&)
-{
-    return false;
-}
+    namespace op
+    {
 
-void mv::op::ReLU::gatherSerialFields(){
-    this->set<unsigned>("opX", 0);
-    this->set<unsigned>("strideX", 0);
-    this->set<unsigned>("strideY", 0);
-    this->set<unsigned>("SerialID", 6);
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::string&) -> std::pair<bool, std::size_t>
+        {
+
+            return {true, 0};
+
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+        {
+
+            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+
+        };
+    
+        MV_REGISTER_OP(Relu)
+        .setInputs({"data"})
+        .setOutputs({"output"})
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"executable", "exposed"});
+
+    }
+
 }
