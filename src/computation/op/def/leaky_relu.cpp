@@ -42,7 +42,7 @@ namespace mv
     
         MV_REGISTER_OP(LeakyRelu)
         .setInputs({"data"})
-        .setArg<unsigned>("alpha")
+        .setArg<unsigned>("alpha", 1.0)
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)

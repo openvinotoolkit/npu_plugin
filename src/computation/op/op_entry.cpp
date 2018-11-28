@@ -127,6 +127,16 @@ std::type_index mv::op::OpEntry::argType(const std::string& name) const
     ));
 }
 
+/* 
+std::vector<std::string> mv::op::OpEntry::argsList() const
+{
+    std::vector<std::string> list;
+    list.reserve((args_.size()));
+    for (auto &arg : args_)
+        list.push_back(arg.first);
+    return list;
+} */
+
 std::vector<std::string> mv::op::OpEntry::argsList() const
 {
     std::vector<std::string> list;
