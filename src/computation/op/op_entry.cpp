@@ -79,7 +79,7 @@ std::size_t mv::op::OpEntry::getOutputsCount() const
     return outputLabels_.size();
 }
 
-bool mv::op::OpEntry::hasArg(const std::string& name) const
+/*  bool mv::op::OpEntry::hasArg(const std::string& name) const
 {
     return std::find_if(args_.begin(), args_.end(),
         [&name](std::pair<std::string, std::type_index> arg)->bool
@@ -87,18 +87,44 @@ bool mv::op::OpEntry::hasArg(const std::string& name) const
             return arg.first == name;
         }
     ) != args_.end();
+}  */
+
+//correct
+bool mv::op::OpEntry::hasArg(const std::string& name) const
+{
+    return std::find_if(args_.begin(), args_.end(),
+        [&name](std::tuple<std::string, std::type_index, Attribute> arg)->bool
+        {
+            return std::get<0>(arg) == name;
+        }
+    ) != args_.end();
 }
 
+/* std::type_index mv::op::OpEntry::argType(const std::string& name) const
+{
+    if (!hasArg(name))
+        throw OpError(*this, "Attempt of checking the type of an non-existing argument \"" + name + "\"");
+    
+    return std::find_if(args_.begin(), args_.end(),
+        [&name](std::pair<std::string, std::type_index> arg)->bool 
+        {
+            return arg.first == name;
+        }
+        )->second;
+}  */
+
+//correct - SO
 std::type_index mv::op::OpEntry::argType(const std::string& name) const
 {
     if (!hasArg(name))
         throw OpError(*this, "Attempt of checking the type of an non-existing argument \"" + name + "\"");
-    return std::find_if(args_.begin(), args_.end(),
-        [&name](std::pair<std::string, std::type_index> arg)->bool
+    
+    return std::get<1>(*std::find_if(args_.begin(), args_.end(),
+        [&name](std::tuple<std::string, std::type_index, Attribute> arg)->bool
         {
-            return arg.first == name;
+            return std::get<0>(arg) == name;
         }
-    )->second;
+    ));
 }
 
 std::vector<std::string> mv::op::OpEntry::argsList() const
@@ -106,7 +132,7 @@ std::vector<std::string> mv::op::OpEntry::argsList() const
     std::vector<std::string> list;
     list.reserve((args_.size()));
     for (auto &arg : args_)
-        list.push_back(arg.first);
+        list.push_back(std::get<0>(arg));
     return list;
 }
 

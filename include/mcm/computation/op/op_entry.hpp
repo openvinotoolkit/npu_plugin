@@ -36,7 +36,7 @@ namespace mv
             std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
                 std::vector<Tensor>&)> outputDef_;
             std::vector<std::string> outputLabels_;
-            std::vector<std::pair<std::string, std::type_index>> args_;
+            std::vector<std::tuple<std::string, std::type_index, Attribute>> args_;
             std::set<std::string> typeTraits_;
 
         public:
@@ -73,14 +73,14 @@ namespace mv
             std::string getLogID() const override;
 
             template <class AttrType>
-            inline OpEntry& setArg(const std::string& name)
+            inline OpEntry& setArg(const std::string& name, Attribute val = Attribute())
             {
 
                 if (!attr::AttributeRegistry::checkType<AttrType>())
                     throw AttributeError("OpEntry", "Attempt of setting argument of an unregistered attribute type "
                         + std::string(typeid(AttrType).name()) + " \"" + name + "\" for ");
 
-                args_.push_back({name, typeid(AttrType)});
+                args_.push_back({name, typeid(AttrType), val});
                 return *this;
 
             }
