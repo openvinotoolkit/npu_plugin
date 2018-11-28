@@ -40,7 +40,7 @@ namespace mv
             std::set<std::string> typeTraits_;
 
         public:
-
+    
             OpEntry(const std::string& opType);
 
             OpEntry& setInputs(std::vector<std::string> labels);
@@ -80,7 +80,7 @@ namespace mv
                     throw AttributeError("OpEntry", "Attempt of setting argument of an unregistered attribute type "
                         + std::string(typeid(AttrType).name()) + " \"" + name + "\" for ");
 
-                args_.push_back({name, typeid(AttrType), val});
+                args_.emplace_back(name, typeid(AttrType), val);
                 return *this;
 
             }
