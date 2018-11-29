@@ -26,6 +26,10 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+#For MVNC API
+include_directories("/usr/local/include")
+set(MVNC_API_LIBRARY "/usr/local/lib/libmvnc.so")
+
 if(VALIDATION)
 
     include_directories("/opt/movidius/caffe/include")
@@ -135,6 +139,9 @@ file(GLOB compiler
     "src/utils/hardware_tests.cpp"
 )
 
+file(GLOB deployer
+    "src/deployer/executor/*"
+)
 add_subdirectory(meta)
 
 if (MSVC)
@@ -161,9 +168,12 @@ if(VALIDATION)
     #add_subdirectory(recordings)  
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+    add_library(dep SHARED ${deployer})
+
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
     target_link_libraries(cm corebase metamodel)
+    target_link_libraries(dep ${MVNC_API_LIBRARY})
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     add_subdirectory(python/api)
