@@ -5,6 +5,10 @@ add_executable(graph_basic graph_basic.cpp)
 
 add_executable(graph_conjoined graph_conjoined.cpp)
 
+add_executable(argtest argtest.cpp)
+target_link_libraries(argtest cm)
+
+#[[
 if (MSVC)
 
 	add_executable(cm_linear cm_linear.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -101,3 +105,4 @@ else()
 	endif(VALIDATION)
 
 endif(MSVC)
+]]

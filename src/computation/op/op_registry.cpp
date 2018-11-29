@@ -75,6 +75,22 @@ std::vector<std::string> mv::op::OpRegistry::argsList(const std::string& opType)
     
 }
 
+//method to return list of attributes with default values and the default values
+std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpRegistry::argsListWithDefaultValues(const std::string& opType)
+{
+    if (!checkOpType(opType))
+        throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
+    
+    OpEntry* const opPtr1 = instance().find(opType);
+
+    if (!opPtr1)
+        throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
+
+    return opPtr1->argsListWithDefaultValues();
+    
+}
+
+
 std::type_index mv::op::OpRegistry::argType(const std::string& opType, const std::string& argName)
 {
 

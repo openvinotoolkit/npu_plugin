@@ -36,7 +36,7 @@ namespace mv
             std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
                 std::vector<Tensor>&)> outputDef_;
             std::vector<std::string> outputLabels_;
-            std::vector<std::tuple<std::string, std::type_index, Attribute>> args_;
+            std::vector<std::tuple<std::string, std::type_index, Attribute>> args_; //Attribute holds default value
             std::set<std::string> typeTraits_;
 
         public:
@@ -58,7 +58,8 @@ namespace mv
             std::size_t getOutputsCount() const;
             bool hasArg(const std::string& name) const;
             std::type_index argType(const std::string& name) const;
-            std::vector<std::string> argsList() const;
+            std::vector<std::string> argsList() const; 
+            std::vector<std::pair<std::string, Attribute>> argsListWithDefaultValues() const;
             std::pair<bool, std::size_t> checkInputs(const std::vector<Data::TensorIterator>& inputs, 
                 const std::map<std::string, Attribute>& args, std::string& errMsg);
             void getOutputsDef(const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
@@ -73,7 +74,7 @@ namespace mv
             std::string getLogID() const override;
 
             template <class AttrType>
-            inline OpEntry& setArg(const std::string& name, Attribute val = Attribute())
+            inline OpEntry& setArg(const std::string& name, Attribute val = Attribute()) //if argument is specified in leakyrelu.cpp op definition then it is optional in rest of the code
             {
 
                 if (!attr::AttributeRegistry::checkType<AttrType>())
