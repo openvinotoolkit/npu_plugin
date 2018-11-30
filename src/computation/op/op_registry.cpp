@@ -314,45 +314,68 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
 
         std::string argsDef = "";
         auto argsList = opPtr->argsList();
-        auto argsListWithDefaultValues = opPtr->argsListWithDefaultValues(); //Get attrbitewith default values
-        bool defaultArgument = false;
+        auto argsListWithDefaultValues = opPtr->argsListWithDefaultValues(); /*Get arg list with default values*/
+        bool defaultValueFlag = false; /*Flag to indicate arg has default value*/
+        std::string defaultValue = "";
+
         if (argsList.size() > 0)
         {
             for (std::size_t i = 0; i < argsList.size() - 1; ++i)
             {
                 if (types)
                 {
+                    auto attributeName = argsList[i];
                     auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(argsList[i]));
                     argsDef += "const " + argTypeName + "& ";
+
+                    /*Check if arg has a defualt value*/
+                    auto it = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),
+                        [&attributeName](std::pair<std::string, Attribute>& element)->bool
+                        { 
+                        return element.first == attributeName;
+                        } 
+                    );
+
+                    if (it != argsListWithDefaultValues.end()) { 
+                        defaultValue = it->second.toString();
+                        defaultValueFlag = true;
+                    }
+
+                    if(defaultValueFlag  && defaultArgs){
+                        argsDef += argsList[i] + " = " + defaultValue + ", ";
+                        defaultValueFlag = false;
+                    }
+                    else {
+                    argsDef += argsList[i] + ", ";  
+                    }
                 }    
-                
-                argsDef += argsList[i] + ", ";
-
-                auto attributeName = argsList[i];
-                auto it = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),[&attributeName](std::pair<std::string, Attribute>& element)
-                { 
-                    return element.first == attributeName;
-                } 
-                );
-
-                if (it != argsListWithDefaultValues.end()) { 
-                defaultArgument = true;
-            }
             }
 
             if (types)
             {
+                auto attributeName = argsList.back();
                 auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(argsList.back()));
                 argsDef += "const " + argTypeName + "& ";
-            }
-            
-            argsDef += argsList.back(); //no defualt argument
 
-            if(defaultArgument)
-                 argsDef += "defualt ";
+                /*Check if arg has a defualt value*/
+                auto it = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),
+                    [&attributeName](std::pair<std::string, Attribute>& element)->bool
+                    { 
+                    return element.first == attributeName;
+                    } 
+                );
+
+                if (it != argsListWithDefaultValues.end()) { 
+                defaultValue = it->second.toString();
+                defaultValueFlag = true;
+                }
+
+            }
+            argsDef += argsList.back();
+
+            if(defaultValueFlag  && defaultArgs) 
+                argsDef += " = " + defaultValue;
             
-            argsDef += "defualt ";
-        
         }
 
         output += inputsDef;

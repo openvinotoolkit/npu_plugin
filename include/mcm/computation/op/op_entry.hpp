@@ -26,7 +26,6 @@ namespace mv
 
         class OpEntry : public LogSender
         {
-            
             std::string opType_;
             std::string description_;
             std::set<std::string> opTraits_;
@@ -40,7 +39,6 @@ namespace mv
             std::set<std::string> typeTraits_;
 
         public:
-    
             OpEntry(const std::string& opType);
 
             OpEntry& setInputs(std::vector<std::string> labels);

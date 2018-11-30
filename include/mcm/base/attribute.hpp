@@ -21,6 +21,7 @@ namespace mv
 
     class Attribute : public Printable, public Jsonable, public LogSender, public Binarizable
     {
+        //friend std::vector<std::pair<std::string, Attribute>> mv::op::OpEntry::argsListWithDefaultValues() const;
 
         struct AbstractObject
         {
@@ -340,7 +341,6 @@ namespace mv
                 return "Attribute:NULL";
             return "Attribute:" + getTypeName();
         }
-
     };
 
 }
