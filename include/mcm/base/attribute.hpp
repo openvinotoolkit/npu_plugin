@@ -21,7 +21,8 @@ namespace mv
 
     class Attribute : public Printable, public Jsonable, public LogSender, public Binarizable
     {
-        //friend std::vector<std::pair<std::string, Attribute>> mv::op::OpEntry::argsListWithDefaultValues() const;
+        
+        //friend class mv::op::OpEntry;
 
         struct AbstractObject
         {
