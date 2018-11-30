@@ -20,7 +20,6 @@ ModelElement(model, name)
     auto argList = op::OpRegistry::argsList(opType); //get list of arguments in ops registry
     auto opsRegistryListSize = argList.size(); //get size of the original ops registry list
     auto argsListWithDefaultValues = op::OpRegistry::argsListWithDefaultValues(opType); //get list of arguments with default values
-
     for (auto it = args.begin(); it != args.end(); ++it) //for every argument (for the op type) passed to contructor
     {
         auto argIt = std::find(argList.begin(), argList.end(), it->first); // get an iterator to argument (name string) in list of arguments registered get list of arguments in ops registry
@@ -31,20 +30,27 @@ ModelElement(model, name)
                 throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +  
                     attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " + 
                     attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
+                        
+            std::cout << "first in args is " << it->first << " second in args is " << it->second.toString() << std::endl;
             
-            //check if has a default value (not mandatory)
-            //if you find the arg in the default args list then it is not mandatory and can be removed from the list
-            if(std::find(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(), *it) != argsListWithDefaultValues.end()) {
-                set(it->first, it->second); //set attrbute name and type 
+           
+           std::cout << "for optype " << opType << " size of op registry list is " << argList.size() << std::endl;
+           std::cout << "for optype " << opType << " size of default list is " << argsListWithDefaultValues.size() << std::endl;
+           
+           //If the arg is in the default args list then it is not mandatory and can be removed from the list
+           auto it1 = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),[&it](std::pair<std::string, Attribute> element)
+                { 
+                    return element.first == it->first;
+                });
+            
+            if (it1 != argsListWithDefaultValues.end()) {
+                std::cout << "argument is not mandatory and can be removed from the list" << std::endl;
+                set(it->first, it->second); //set attribute name and type 
                 argList.erase(argIt); //erase it from list of arguments in ops registry
             }
-             else {
-                set(it->first, it->second); //set attrbute name and type
-                
+            else {
+                 set(it->first, it->second); //set attrbute name and type
             }
-            
-            // if not at end of the list that matches attribute name in args passed to constructor
-       
         }
         else
             throw ArgumentError(*this, "arg", it->first, "Invalid argument");
@@ -59,7 +65,7 @@ ModelElement(model, name)
         list += argList.back();
         throw ArgumentError(*this, "arg", list, "Missing arguments");
     }
-
+    
     //this is ok checking inputs only
     if (inputs.size() != op::OpRegistry::getInputsCount(opType))
         throw ArgumentError(*this, "inputs:size", std::to_string(inputs.size()), "Does not match the registered inputs count " +

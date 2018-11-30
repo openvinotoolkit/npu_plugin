@@ -314,6 +314,8 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
 
         std::string argsDef = "";
         auto argsList = opPtr->argsList();
+        auto argsListWithDefaultValues = opPtr->argsListWithDefaultValues(); //Get attrbitewith default values
+        bool defaultArgument = false;
         if (argsList.size() > 0)
         {
             for (std::size_t i = 0; i < argsList.size() - 1; ++i)
@@ -325,6 +327,17 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
                 }    
                 
                 argsDef += argsList[i] + ", ";
+
+                auto attributeName = argsList[i];
+                auto it = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),[&attributeName](std::pair<std::string, Attribute>& element)
+                { 
+                    return element.first == attributeName;
+                } 
+                );
+
+                if (it != argsListWithDefaultValues.end()) { 
+                defaultArgument = true;
+            }
             }
 
             if (types)
@@ -332,8 +345,14 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
                 auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(argsList.back()));
                 argsDef += "const " + argTypeName + "& ";
             }
-            argsDef += argsList.back();
+            
+            argsDef += argsList.back(); //no defualt argument
 
+            if(defaultArgument)
+                 argsDef += "defualt ";
+            
+            argsDef += "defualt ";
+        
         }
 
         output += inputsDef;

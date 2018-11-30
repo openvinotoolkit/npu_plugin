@@ -120,7 +120,7 @@ std::vector<std::string> mv::op::OpEntry::argsList() const
     
     std::for_each(args_.begin(), args_.end(),[&list](std::tuple<std::string, std::type_index, Attribute> arg)
         {
-            if (&std::get<2>(arg) != nullptr)
+            if (std::get<2>(arg).ptr_ != nullptr)
                 list.push_back(make_pair(std::get<0>(arg),std::get<2>(arg)));
         }
     );

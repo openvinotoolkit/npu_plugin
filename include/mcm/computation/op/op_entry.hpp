@@ -80,7 +80,7 @@ namespace mv
                 if (!attr::AttributeRegistry::checkType<AttrType>())
                     throw AttributeError("OpEntry", "Attempt of setting argument of an unregistered attribute type "
                         + std::string(typeid(AttrType).name()) + " \"" + name + "\" for ");
-
+               
                 args_.emplace_back(name, typeid(AttrType), val);
                 return *this;
 
