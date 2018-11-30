@@ -69,12 +69,12 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 // Create both RAM and file blobs
 int main()
 {
-
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
 
     //mv::Logger::logFilter({std::regex("OpModel")}, true);
-
+#if 0
     // Define the primary compilation unit
-   /* mv::CompilationUnit unit("ResNet18");
+    mv::CompilationUnit unit("ResNet18");
 
     // Obtain compositional model from the compilation unit
     mv::OpModel& cm = unit.model();
@@ -111,7 +111,7 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("resnet18.blob");
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
+    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
@@ -123,7 +123,8 @@ int main()
 
     // Run all passes
     unit.run();
-    */
+
+#else
  // Define the primary compilation unit
     mv::CompilationUnit unit("RAMtest1");
 
@@ -164,8 +165,8 @@ int main()
     // Run all passes
     unit.initialize();
     unit.run();
+#endif
     //Create Configuration
     mv::Configuration config(cm.getBinaryBuffer());
-    std::cout << "After config construct" << std::endl;
     mv::Executor exec(config);
 }

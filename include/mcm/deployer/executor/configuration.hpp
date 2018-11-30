@@ -31,8 +31,9 @@ namespace mv
         std::string inputFilePath_;
         std::shared_ptr<mv::RuntimeBinary> binaryPointer_;
 
-    public:
+        std::string targetToString() const;
 
+    public:
         Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer);
         Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
             Target target, Protocol protocol,

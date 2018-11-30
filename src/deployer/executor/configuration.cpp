@@ -9,6 +9,7 @@ namespace mv
         binaryPointer_(binaryPointer)
     {
     }
+
     Configuration::Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
         Target target, Protocol protocol,
         InputMode inputMode, const std::string& inputFilePath): binaryPointer_(binaryPointer)
@@ -18,6 +19,7 @@ namespace mv
         setInputMode(inputMode);
         setInputFilePath(inputFilePath);
     }
+
     Configuration::Configuration(const Configuration &c):
         target_(c.target_),
         protocol_(c.protocol_),
@@ -26,16 +28,19 @@ namespace mv
         binaryPointer_(c.binaryPointer_)
     {
     }
+
     void Configuration::setTarget(Target target)
     {
         target_ = target;
     }
+
     void Configuration::setProtocol(Protocol protocol)
     {
         if (protocol == Protocol::Unknown)
             throw ArgumentError(*this, "protocol", "unknown", "Defining protocol as unknown is illegal");
         protocol_ = protocol;
     }
+
     void Configuration::setInputMode(InputMode inputMode)
     {
         if (inputMode == InputMode::Unknown)
@@ -54,25 +59,43 @@ namespace mv
     {
         return target_;
     }
+
     Protocol Configuration::getProtocol() const
     {
         return protocol_;
     }
+
     InputMode Configuration::getInputMode() const
     {
         return inputMode_;
     }
+
     std::string Configuration::getInputFilePath() const
     {
         return inputFilePath_;
     }
+
+    std::string Configuration::targetToString() const
+    {
+        switch (target_)
+        {
+
+            case Target::ma2480:
+                return "ma2480";
+
+            default:
+                return "unknown";
+
+        }
+    }
+
     std::string Configuration::getLogID() const
     {
-        return "Configuration";
+        return "Configuration" + targetToString();
     }
+
     std::shared_ptr<mv::RuntimeBinary> Configuration::getRuntimePointer() const
     {
         return binaryPointer_;
     }
-
 }

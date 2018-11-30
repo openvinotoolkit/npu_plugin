@@ -4,14 +4,16 @@ namespace mv
 {
     Executor::Executor(mv::Configuration& config) : configuration_(config)
     {
-        log(mv::Logger::MessageType::Info, "Inside Executor");
+        log(mv::Logger::MessageType::Info, "Initialize Executor");
         openDevice();
         loadGraph();
         allocateFifos();
     }
+
     bool Executor::checkTargetMatches(mv::Target target, ncDeviceHwVersion_t hwVersion)
     {
-        switch(target) {
+        switch(target)
+        {
             case mv::Target::ma2480:
                 if (hwVersion == NC_MA2480)
                     return true;
@@ -21,17 +23,22 @@ namespace mv
         }
         return false;
     }
+
     void Executor::openDevice()
     {
         int loglevel = 2; //TODO make it configuratable?
         int idx = 0;
+        log(mv::Logger::MessageType::Info, "openning device");
+
         ncStatus_t retCode = ncGlobalSetOption(NC_RW_LOG_LEVEL, &loglevel, sizeof(loglevel));
-        while (retCode == NC_OK) {
+        while (retCode == NC_OK)
+        {
             retCode = ncDeviceCreate(idx, &deviceHandle_);
             if (retCode == NC_DEVICE_NOT_FOUND)
                 throw RuntimeError(*this, "Requested device is not found! please connect your device!");
             if (retCode != NC_OK)
                 throw RuntimeError(*this, "ncDeviceCreate failed");
+
             ncDeviceHwVersion_t hwVersion;
             unsigned int size = sizeof(hwVersion);
             retCode = ncDeviceGetOption(deviceHandle_, NC_RO_DEVICE_HW_VERSION, &hwVersion, &size);
@@ -46,10 +53,13 @@ namespace mv
         retCode = ncDeviceOpen(deviceHandle_);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncDeviceOpen failed");
-
+        log(mv::Logger::MessageType::Info, "Device Opened successfully!");
     }
+
     void Executor::loadGraph()
     {
+        log(mv::Logger::MessageType::Info, "loading graph");
+
         ncStatus_t retCode = ncGraphCreate("graph", &graphHandle_);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncGraphCreate failed");
@@ -73,9 +83,13 @@ namespace mv
                 errorReason = "graph version incompatible";
             throw RuntimeError(*this, "ncGraphCreate failed: " + errorReason);
         }
+        log(mv::Logger::MessageType::Info, "Graph Loading done successfully!");
     }
+
     void Executor::allocateFifos()
     {
+        log(mv::Logger::MessageType::Info, "Allocating Fifos");
+
         // Get number of inputs/outputs
         unsigned int size = sizeof(int);
         ncStatus_t retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_INPUT_COUNT, &numInputs_,  &size);
@@ -88,13 +102,13 @@ namespace mv
         // Read tensor descriptors
         size = sizeof(struct ncTensorDescriptor_t) * numInputs_;
         struct ncTensorDescriptor_t* inputTensorDesc = new ncTensorDescriptor_t[numInputs_];
-        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS, &inputTensorDesc,  &size);
+        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS, &inputTensorDesc[0],  &size);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncGraphGetOption on NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS failed");
 
         size = sizeof(struct ncTensorDescriptor_t) * numOutputs_;
         struct ncTensorDescriptor_t* outputTensorDesc = new ncTensorDescriptor_t[numOutputs_];
-        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_OUTPUT_TENSOR_DESCRIPTORS, &outputTensorDesc,  &size);
+        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_OUTPUT_TENSOR_DESCRIPTORS, &outputTensorDesc[0],  &size);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncGraphGetOption on NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS failed");
 
@@ -102,7 +116,7 @@ namespace mv
         buffersIn_ = new ncFifoHandle_t*[numInputs_];
         for (int i = 0; i < numInputs_; i++)
         {
-            std::string fifoname = "FifoIn" + i;
+            std::string fifoname = "FifoIn" + std::to_string (i);
             retCode = ncFifoCreate(fifoname.c_str(), NC_FIFO_HOST_WO, &buffersIn_[i]);
             if(retCode != NC_OK)
                 throw RuntimeError(*this, "ncFifoCreate failed");
@@ -113,7 +127,7 @@ namespace mv
         buffersOut_ = new ncFifoHandle_t*[numOutputs_];
         for (int i = 0; i < numOutputs_; i++)
         {
-            std::string fifoname = "FifoOut" + i;
+            std::string fifoname = "FifoOut" + std::to_string (i);
             retCode = ncFifoCreate(fifoname.c_str(), NC_FIFO_HOST_RO, &buffersOut_[i]);
             if(retCode != NC_OK)
                 throw RuntimeError(*this, "ncFifoCreate failed");
@@ -124,9 +138,13 @@ namespace mv
         //delete allocated memory
         delete inputTensorDesc;
         delete outputTensorDesc;
+        log(mv::Logger::MessageType::Info, "Fifos Allocated Successfully!");
     }
+
     void Executor::destroyAll()
     {
+        log(mv::Logger::MessageType::Info, "Starting to destroy all!");
+
         ncStatus_t  retCode = ncGraphDestroy(&graphHandle_);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncGraphDestroy failed");
@@ -135,14 +153,13 @@ namespace mv
         {
             retCode = ncFifoDestroy(&buffersIn_[i]);
             if(retCode != NC_OK)
-                throw RuntimeError(*this, "ncFifoDestroy failed");
+                throw RuntimeError(*this, "Input fifo ncFifoDestroy failed");
         }
-        buffersOut_ = new ncFifoHandle_t*[numOutputs_];
         for (int i = 0; i < numOutputs_; i++)
         {
             retCode = ncFifoDestroy(&buffersOut_[i]);
             if(retCode != NC_OK)
-                throw RuntimeError(*this, "ncFifoDestroy failed");
+                throw RuntimeError(*this, "output Fifo ncFifoDestroy failed");
         }
 
         delete buffersIn_;
@@ -151,14 +168,17 @@ namespace mv
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncDeviceClose failed");
     }
-    Executor::~Executor() {
+
+    Executor::~Executor()
+    {
         destroyAll();
     }
     //mv::Tensor Executor::execute() {
     //    mv::Tensor res = new mv::Tensor();
     //    return res;
 
-    char* Executor::execute() {
+    char* Executor::execute()
+    {
         //TODO load image
         // Assume one input for now
         char* inputImage;
@@ -188,6 +208,7 @@ namespace mv
         //TODO need to delete result
         return result;
     }
+
     std::string Executor::getLogID() const
     {
         return "Executor";
