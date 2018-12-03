@@ -18,6 +18,8 @@ namespace mv
         //Array of buffers to support multi input/output
         struct ncFifoHandle_t ** buffersIn_;
 		struct ncFifoHandle_t ** buffersOut_;
+        struct ncTensorDescriptor_t* inputTensorDesc_;
+        struct ncTensorDescriptor_t* outputTensorDesc_;
         int numInputs_;
         int numOutputs_;
 

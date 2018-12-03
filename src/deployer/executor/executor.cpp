@@ -101,72 +101,85 @@ namespace mv
 
         // Read tensor descriptors
         size = sizeof(struct ncTensorDescriptor_t) * numInputs_;
-        struct ncTensorDescriptor_t* inputTensorDesc = new ncTensorDescriptor_t[numInputs_];
-        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS, &inputTensorDesc[0],  &size);
+        inputTensorDesc_ = new ncTensorDescriptor_t[numInputs_];
+        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS, &inputTensorDesc_[0],  &size);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncGraphGetOption on NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS failed");
 
         size = sizeof(struct ncTensorDescriptor_t) * numOutputs_;
-        struct ncTensorDescriptor_t* outputTensorDesc = new ncTensorDescriptor_t[numOutputs_];
-        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_OUTPUT_TENSOR_DESCRIPTORS, &outputTensorDesc[0],  &size);
+        outputTensorDesc_ = new ncTensorDescriptor_t[numOutputs_];
+        retCode = ncGraphGetOption(graphHandle_, NC_RO_GRAPH_OUTPUT_TENSOR_DESCRIPTORS, &outputTensorDesc_[0],  &size);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncGraphGetOption on NC_RO_GRAPH_INPUT_TENSOR_DESCRIPTORS failed");
 
         //Allocate Fifos
+        ncFifoDataType_t dataType = NC_FIFO_FP16;
         buffersIn_ = new ncFifoHandle_t*[numInputs_];
         for (int i = 0; i < numInputs_; i++)
         {
-            std::string fifoname = "FifoIn" + std::to_string (i);
+            std::string fifoname = "FifoIn" + std::to_string(i);
             retCode = ncFifoCreate(fifoname.c_str(), NC_FIFO_HOST_WO, &buffersIn_[i]);
             if(retCode != NC_OK)
                 throw RuntimeError(*this, "ncFifoCreate failed");
-            retCode = ncFifoAllocate(buffersIn_[i], deviceHandle_, &inputTensorDesc[i], 2);
+            retCode = ncFifoSetOption(buffersIn_[i], NC_RW_FIFO_DATA_TYPE, &dataType,
+                         sizeof(dataType));
+            if(retCode != NC_OK)
+                throw RuntimeError(*this, "ncFifoSetOption of NC_RW_FIFO_DATA_TYPE failed");
+            retCode = ncFifoAllocate(buffersIn_[i], deviceHandle_, &inputTensorDesc_[i], 2);
             if(retCode != NC_OK)
                 throw RuntimeError(*this, "ncFifoAllocate failed");
         }
         buffersOut_ = new ncFifoHandle_t*[numOutputs_];
         for (int i = 0; i < numOutputs_; i++)
         {
-            std::string fifoname = "FifoOut" + std::to_string (i);
+            std::string fifoname = "FifoOut" + std::to_string(i);
             retCode = ncFifoCreate(fifoname.c_str(), NC_FIFO_HOST_RO, &buffersOut_[i]);
             if(retCode != NC_OK)
                 throw RuntimeError(*this, "ncFifoCreate failed");
-            retCode = ncFifoAllocate(buffersOut_[i], deviceHandle_, &outputTensorDesc[i], 2);
+            retCode = ncFifoSetOption(buffersOut_[i], NC_RW_FIFO_DATA_TYPE, &dataType,
+                         sizeof(dataType));
+            if(retCode != NC_OK)
+                throw RuntimeError(*this, "ncFifoSetOption of NC_RW_FIFO_DATA_TYPE failed");
+            retCode = ncFifoAllocate(buffersOut_[i], deviceHandle_, &outputTensorDesc_[i], 2);
             if(retCode != NC_OK)
                 throw RuntimeError(*this, "ncFifoAllocate failed");
         }
-        //delete allocated memory
-        delete inputTensorDesc;
-        delete outputTensorDesc;
+
         log(mv::Logger::MessageType::Info, "Fifos Allocated Successfully!");
     }
 
     void Executor::destroyAll()
     {
         log(mv::Logger::MessageType::Info, "Starting to destroy all!");
-
-        ncStatus_t  retCode = ncGraphDestroy(&graphHandle_);
-        if(retCode != NC_OK)
-            throw RuntimeError(*this, "ncGraphDestroy failed");
-
-        for (int i = 0; i < numInputs_; i++)
-        {
-            retCode = ncFifoDestroy(&buffersIn_[i]);
+        ncStatus_t retCode;
+        try {
+            for (int i = 0; i < numInputs_; i++)
+            {
+                retCode = ncFifoDestroy(&buffersIn_[i]);
+                if(retCode != NC_OK)
+                    throw RuntimeError(*this, "Input fifo ncFifoDestroy failed");
+            }
+            for (int i = 0; i < numOutputs_; i++)
+            {
+                retCode = ncFifoDestroy(&buffersOut_[i]);
+                if(retCode != NC_OK)
+                    throw RuntimeError(*this, "output Fifo ncFifoDestroy failed");
+            }
+            retCode = ncGraphDestroy(&graphHandle_);
             if(retCode != NC_OK)
-                throw RuntimeError(*this, "Input fifo ncFifoDestroy failed");
-        }
-        for (int i = 0; i < numOutputs_; i++)
-        {
-            retCode = ncFifoDestroy(&buffersOut_[i]);
-            if(retCode != NC_OK)
-                throw RuntimeError(*this, "output Fifo ncFifoDestroy failed");
-        }
+                throw RuntimeError(*this, "ncGraphDestroy failed");
 
-        delete buffersIn_;
-        delete buffersOut_;
-        retCode = ncDeviceClose(deviceHandle_);
-        if(retCode != NC_OK)
-            throw RuntimeError(*this, "ncDeviceClose failed");
+            delete buffersIn_;
+            delete buffersOut_;
+            retCode = ncDeviceClose(deviceHandle_);
+            if(retCode != NC_OK)
+                throw RuntimeError(*this, "ncDeviceClose failed");
+        } catch (RuntimeError e) {
+            log(mv::Logger::MessageType::Error, e.what());
+        }
+        //delete allocated memory
+        delete inputTensorDesc_;
+        delete outputTensorDesc_;
     }
 
     Executor::~Executor()
