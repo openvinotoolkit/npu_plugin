@@ -18,12 +18,9 @@
 
 namespace mv
 {
-
     class Attribute : public Printable, public Jsonable, public LogSender, public Binarizable
     {
         
-        //friend class mv::op::OpEntry;
-
         struct AbstractObject
         {
 
@@ -78,7 +75,7 @@ namespace mv
 
         };
 
-        //AbstractObject* ptr_;
+        AbstractObject* ptr_;
         std::set<std::string> traits_;
         std::function<Attribute(const mv::json::Value&)> fromJSONFunc_;
 
@@ -90,7 +87,6 @@ namespace mv
         }
 
     public:
-        AbstractObject* ptr_; //moved here from private
 
         template <class ValueType>
         Attribute(const ValueType& val, std::initializer_list<std::string> traits = {}) : 

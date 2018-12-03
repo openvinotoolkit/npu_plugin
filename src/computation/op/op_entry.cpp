@@ -111,7 +111,7 @@ std::vector<std::string> mv::op::OpEntry::argsList() const
     return list;
 }
 
- std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpEntry::argsListWithDefaultValues() const
+std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpEntry::argsListWithDefaultValues() const
 {
     std::vector<std::pair<std::string, Attribute>> list;
     list.reserve((args_.size()));
@@ -119,7 +119,7 @@ std::vector<std::string> mv::op::OpEntry::argsList() const
     std::for_each(args_.begin(), args_.end(),
         [&list](std::tuple<std::string, std::type_index, Attribute> arg)
         {
-            if (std::get<2>(arg).ptr_ != nullptr)
+            if (std::get<2>(arg).valid())
                 list.push_back(make_pair(std::get<0>(arg),std::get<2>(arg)));
         }
     );
