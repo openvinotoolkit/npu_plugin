@@ -169,5 +169,5 @@ int main()
     //Create Configuration
     mv::Configuration config(cm.getBinaryBuffer());
     mv::Executor exec(config);
-    exec.execute();
+    mv::Tensor res = exec.execute();
 }

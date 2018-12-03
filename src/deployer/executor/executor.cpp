@@ -1,5 +1,5 @@
 #include "include/mcm/deployer/executor/executor.hpp"
-
+#include <utility>
 namespace mv
 {
     Executor::Executor(mv::Configuration& config) : configuration_(config)
@@ -113,6 +113,61 @@ namespace mv
         log(mv::Logger::MessageType::Info, "Graph Loading done successfully!");
     }
 
+    std::pair<mv::Order, mv::Shape> Executor::getTensorOrderAndShape(ncTensorDescriptor_t& td)
+    {
+        unsigned int max = std::max(std::max(td.hStride, td.wStride), td.cStride);
+        if (max == td.hStride) {
+            if (std::max(td.wStride, td.cStride) == td. wStride)
+            {
+                Order o("NHWC");
+                Shape s({td.n, td.h, td.w, td.c});
+                std::pair<mv::Order, mv::Shape> res(o,s);
+                return res;
+            }
+            else
+            {
+                Order o("NHCW");
+                Shape s({td.n, td.h, td.c, td.w});
+                std::pair<mv::Order, mv::Shape> res(o,s);
+                return res;
+            }
+        }
+        else if (max == td.cStride)
+        {
+            if (std::max(td.wStride, td.hStride) == td.hStride)
+            {
+                Order o("NCHW");
+                Shape s({td.n, td.c, td.h, td.w});
+                std::pair<mv::Order, mv::Shape> res(o,s);
+                return res;
+            }
+            else
+            {
+                Order o("NCWH");
+                Shape s({td.n, td.c, td.w, td.h});
+                std::pair<mv::Order, mv::Shape> res(o,s);
+                return res;
+            }
+        }
+        else
+        { //W is major
+            if (std::max(td.hStride, td.cStride) == td.hStride)
+            {
+                Order o("NWHC");
+                Shape s({td.n, td.w, td.h, td.c});
+                std::pair<mv::Order, mv::Shape> res(o,s);
+                return res;
+            }
+            else
+            {
+                Order o("NWCH");
+                Shape s({td.n, td.w, td.c, td.h});
+                std::pair<mv::Order, mv::Shape> res(o,s);
+                return res;
+            }
+        }
+    }
+
     void Executor::allocateFifos()
     {
         log(mv::Logger::MessageType::Info, "Allocating Fifos");
@@ -213,11 +268,8 @@ namespace mv
     {
         destroyAll();
     }
-    //mv::Tensor Executor::execute() {
-    //    mv::Tensor res = new mv::Tensor();
-    //    return res;
 
-    char* Executor::execute()
+    mv::Tensor Executor::execute()
     {
         // Assume one input for now
         unsigned int imageSize = inputTensorDesc_[0].totalSize;
@@ -244,11 +296,28 @@ namespace mv
         char *result = new char[elementDataSize];
 
         void *userParam;
-        unsigned int outputDataSize;
-        retCode = ncFifoReadElem(buffersOut_[0], result, &outputDataSize, &userParam);
-        //TODO Convert to mvTensor
-        //TODO need to delete result
-        return result;
+        retCode = ncFifoReadElem(buffersOut_[0], result, &elementDataSize, &userParam);
+        if(retCode != NC_OK)
+            throw RuntimeError(*this, "ncFifoReadElem failed");
+        log(mv::Logger::MessageType::Info, "read result from fifo successfully!");
+
+        //Convert to mvTensor
+        unsigned int numberOfElements = elementDataSize/2; //fp16 == 2 bytes
+        std::vector<double> tensorData(numberOfElements);
+        unsigned short* resultUS = (unsigned short*) result;
+        for (unsigned int i=0; i < numberOfElements; i++)
+            tensorData[i] = (double) resultUS[i];
+
+        std::pair<mv::Order, mv::Shape> t = getTensorOrderAndShape(outputTensorDesc_[0]);
+        mv::Order order = t.first;
+        mv::Shape shape = t.second;
+
+        mv::Tensor resultTensor("result", shape, DType(mv::DTypeType::Float16), order);
+        resultTensor.populate(tensorData);
+
+        delete imageData;
+        delete result;
+        return resultTensor;
     }
 
     std::string Executor::getLogID() const
