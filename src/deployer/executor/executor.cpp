@@ -56,6 +56,33 @@ namespace mv
         log(mv::Logger::MessageType::Info, "Device Opened successfully!");
     }
 
+    void Executor::getInputData(unsigned int imageSize, char* imageData)
+    {
+
+        if (configuration_.getInputMode() == mv::InputMode::FILE)
+        {
+            std::ifstream inputFile (configuration_.getInputFilePath(), std::ios::in | std::ios::binary);
+            if (inputFile.fail())
+                throw ArgumentError(*this, "Input File",
+                    configuration_.getInputFilePath(), " Input file not found!");
+            if (!inputFile.read (imageData, imageSize))
+                throw RuntimeError(*this, "input file doesn't have enough data!");
+        }
+        else
+        {
+            if (configuration_.getInputMode() == mv::InputMode::ALL_ONE)
+            {
+                std::vector<unsigned short> myvector(imageSize/2);
+                std::fill_n(myvector.begin(), myvector.size(), 1);
+                memcpy(imageData, &myvector[0], imageSize);
+            }
+            else
+            {
+                memset(imageData, 0, imageSize);
+            }
+        }
+    }
+
     void Executor::loadGraph()
     {
         log(mv::Logger::MessageType::Info, "loading graph");
@@ -192,14 +219,16 @@ namespace mv
 
     char* Executor::execute()
     {
-        //TODO load image
         // Assume one input for now
-        char* inputImage;
-        unsigned int imageSize = 0;
+        unsigned int imageSize = inputTensorDesc_[0].totalSize;
+        char* imageData = new char[imageSize];
+        getInputData(imageSize, imageData);
+
         // Write tensor to input fifo
-        ncStatus_t retCode = ncFifoWriteElem(buffersIn_[0], inputImage, &imageSize, 0);
+        ncStatus_t retCode = ncFifoWriteElem(buffersIn_[0], imageData, &imageSize, 0);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncFifoWriteElem failed");
+        log(mv::Logger::MessageType::Info, "Load input fifo successfully!");
 
         // queue inference
         retCode = ncGraphQueueInference(graphHandle_, &buffersIn_[0], 1, &buffersOut_[0], 1);

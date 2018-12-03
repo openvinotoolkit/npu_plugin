@@ -28,7 +28,7 @@ namespace mv
         void allocateFifos();
         void destroyAll();
         bool checkTargetMatches(mv::Target target, ncDeviceHwVersion_t hwVersion);
-
+        void getInputData(unsigned int imageSize, char* imageData);
     public:
         Executor(mv::Configuration& configuration);
         //mv::Tensor execute();
