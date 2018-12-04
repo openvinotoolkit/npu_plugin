@@ -29,11 +29,16 @@ namespace mv
         Protocol protocol_;
         InputMode inputMode_;
         std::string inputFilePath_;
+        std::string graphFilePath_;
         std::shared_ptr<mv::RuntimeBinary> binaryPointer_;
 
         std::string targetToString() const;
 
     public:
+        Configuration(std::string& graphFilePath);
+        Configuration(std::string& graphFilePath,
+            Target target, Protocol protocol,
+            InputMode inputMode, const std::string& inputFilePath);
         Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer);
         Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
             Target target, Protocol protocol,
@@ -48,6 +53,7 @@ namespace mv
         Protocol getProtocol() const;
         InputMode getInputMode() const;
         std::string getInputFilePath( ) const;
+        std::string getGraphFilePath( ) const;
         std::string getLogID() const override;
         std::shared_ptr<mv::RuntimeBinary> getRuntimePointer() const;
     };

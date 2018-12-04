@@ -2,17 +2,43 @@
 
 namespace mv
 {
+    Configuration::Configuration(std::string& graphFilePath):
+        target_(mv::Target::Unknown), //unknown == any device is good.
+        protocol_(Protocol::USB_VSC),
+        inputMode_(InputMode::ALL_ZERO),
+        binaryPointer_(NULL)
+    {
+        if (graphFilePath.empty())
+            throw ArgumentError(*this, "graphFilePath", "Empty", "Defining graphFilePath as empty path is illegal");
+        graphFilePath_ = graphFilePath;
+    }
+    Configuration::Configuration(std::string& graphFilePath,
+        Target target, Protocol protocol,
+        InputMode inputMode, const std::string& inputFilePath):
+        binaryPointer_(NULL)
+    {
+        if (graphFilePath.empty())
+            throw ArgumentError(*this, "graphFilePath", "Empty", "Defining graphFilePath as empty path is illegal");
+        graphFilePath_ = graphFilePath;
+        setTarget(target);
+        setProtocol(protocol);
+        setInputMode(inputMode);
+        setInputFilePath(inputFilePath);
+    }
     Configuration::Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer):
         target_(mv::Target::Unknown), //unknown == any device is good.
         protocol_(Protocol::USB_VSC),
         inputMode_(InputMode::ALL_ZERO),
+        graphFilePath_(""),
         binaryPointer_(binaryPointer)
     {
     }
 
     Configuration::Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
         Target target, Protocol protocol,
-        InputMode inputMode, const std::string& inputFilePath): binaryPointer_(binaryPointer)
+        InputMode inputMode, const std::string& inputFilePath):
+        graphFilePath_(""),
+        binaryPointer_(binaryPointer)
     {
         setTarget(target);
         setProtocol(protocol);
@@ -25,6 +51,7 @@ namespace mv
         protocol_(c.protocol_),
         inputMode_(c.inputMode_),
         inputFilePath_(c.inputFilePath_),
+        graphFilePath_(c.graphFilePath_),
         binaryPointer_(c.binaryPointer_)
     {
     }
@@ -73,6 +100,11 @@ namespace mv
     std::string Configuration::getInputFilePath() const
     {
         return inputFilePath_;
+    }
+
+    std::string Configuration::getGraphFilePath( ) const
+    {
+        return graphFilePath_;
     }
 
     std::string Configuration::targetToString() const

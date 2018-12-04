@@ -7,6 +7,8 @@ add_executable(graph_conjoined graph_conjoined.cpp)
 
 add_executable(deployer_example deployer_example.cpp)
 target_link_libraries(deployer_example cm dep)
+add_executable(dep_graph_file_example dep_graph_file_example.cpp)
+target_link_libraries(dep_graph_file_example cm dep)
 if (MSVC)
 
 	add_executable(cm_linear cm_linear.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)

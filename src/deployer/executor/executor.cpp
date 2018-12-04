@@ -88,12 +88,29 @@ namespace mv
         log(mv::Logger::MessageType::Info, "loading graph");
 
         ncStatus_t retCode = ncGraphCreate("graph", &graphHandle_);
-        if(retCode != NC_OK)
+        if (retCode != NC_OK)
             throw RuntimeError(*this, "ncGraphCreate failed");
 
-        void* graphFileBuf = configuration_.getRuntimePointer()->getDataPointer();
-        unsigned int graphFileLen = configuration_.getRuntimePointer()->getBufferSize();
+        void* graphFileBuf = NULL;
+        unsigned int graphFileLen = 0;
+        if (configuration_.getGraphFilePath().empty())
+        {
+            graphFileBuf = configuration_.getRuntimePointer()->getDataPointer();
+            graphFileLen = configuration_.getRuntimePointer()->getBufferSize();
+        }
+        else
+        {
+            std::ifstream inputFile (configuration_.getGraphFilePath(), std::ios::in | std::ios::binary);
+            if (inputFile.fail())
+                throw ArgumentError(*this, "graphFilePath", configuration_.getGraphFilePath(), "file doesn't seem to exist");
 
+            inputFile.seekg (0, inputFile.end);
+            graphFileLen = inputFile.tellg();
+            inputFile.seekg (0, inputFile.beg);
+            graphFileBuf = new char[graphFileLen];
+            if (!inputFile.read ((char*)graphFileBuf, graphFileLen))
+                throw RuntimeError(*this, "Error reading graph file");
+        }
         retCode = ncGraphAllocate(deviceHandle_, graphHandle_, graphFileBuf, graphFileLen);
         if(retCode != NC_OK)
         {
