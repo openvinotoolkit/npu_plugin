@@ -1,5 +1,5 @@
 #include "include/mcm/deployer/executor/executor.hpp"
-#include <utility>
+
 namespace mv
 {
     Executor::Executor(mv::Configuration& config) : configuration_(config)
@@ -130,58 +130,28 @@ namespace mv
         log(mv::Logger::MessageType::Info, "Graph Loading done successfully!");
     }
 
-    std::pair<mv::Order, mv::Shape> Executor::getTensorOrderAndShape(ncTensorDescriptor_t& td)
+    mv::Order Executor::getTensorOrder(ncTensorDescriptor_t& td)
     {
         unsigned int max = std::max(std::max(td.hStride, td.wStride), td.cStride);
         if (max == td.hStride) {
             if (std::max(td.wStride, td.cStride) == td. wStride)
-            {
-                Order o("NHWC");
-                Shape s({td.n, td.h, td.w, td.c});
-                std::pair<mv::Order, mv::Shape> res(o,s);
-                return res;
-            }
+                return Order("NHWC");
             else
-            {
-                Order o("NHCW");
-                Shape s({td.n, td.h, td.c, td.w});
-                std::pair<mv::Order, mv::Shape> res(o,s);
-                return res;
-            }
+                return Order("NHCW");
         }
         else if (max == td.cStride)
         {
             if (std::max(td.wStride, td.hStride) == td.hStride)
-            {
-                Order o("NCHW");
-                Shape s({td.n, td.c, td.h, td.w});
-                std::pair<mv::Order, mv::Shape> res(o,s);
-                return res;
-            }
+                return Order("NCHW");
             else
-            {
-                Order o("NCWH");
-                Shape s({td.n, td.c, td.w, td.h});
-                std::pair<mv::Order, mv::Shape> res(o,s);
-                return res;
-            }
+                return Order("NCWH");
         }
         else
         { //W is major
             if (std::max(td.hStride, td.cStride) == td.hStride)
-            {
-                Order o("NWHC");
-                Shape s({td.n, td.w, td.h, td.c});
-                std::pair<mv::Order, mv::Shape> res(o,s);
-                return res;
-            }
+                return Order("NWHC");
             else
-            {
-                Order o("NWCH");
-                Shape s({td.n, td.w, td.c, td.h});
-                std::pair<mv::Order, mv::Shape> res(o,s);
-                return res;
-            }
+                return Order("NWCH");
         }
     }
 
@@ -324,10 +294,8 @@ namespace mv
         unsigned short* resultUS = (unsigned short*) result;
         for (unsigned int i=0; i < numberOfElements; i++)
             tensorData[i] = (double) resultUS[i];
-
-        std::pair<mv::Order, mv::Shape> t = getTensorOrderAndShape(outputTensorDesc_[0]);
-        mv::Order order = t.first;
-        mv::Shape shape = t.second;
+        Shape shape({outputTensorDesc_[0].w, outputTensorDesc_[0].h, outputTensorDesc_[0].c, outputTensorDesc_[0].n});
+        Order order = getTensorOrder(outputTensorDesc_[0]);
 
         mv::Tensor resultTensor("result", shape, DType(mv::DTypeType::Float16), order);
         resultTensor.populate(tensorData);

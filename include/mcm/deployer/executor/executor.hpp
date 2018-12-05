@@ -29,7 +29,7 @@ namespace mv
         void destroyAll();
         bool checkTargetMatches(mv::Target target, ncDeviceHwVersion_t hwVersion);
         void getInputData(unsigned int imageSize, char* imageData);
-        std::pair<mv::Order, mv::Shape> getTensorOrderAndShape(ncTensorDescriptor_t& td);
+        mv::Order getTensorOrder(ncTensorDescriptor_t& td);
     public:
         Executor(mv::Configuration& configuration);
         mv::Tensor execute();
