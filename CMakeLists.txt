@@ -26,6 +26,9 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+# Add FlatBuffers to our build. 
+set(FLATBUFFERS_SRC_DIR ${PROJECT_SOURCE_DIR}/contrib/flatbuffers)
+     
 if(VALIDATION)
 
     include_directories("/opt/movidius/caffe/include")
@@ -65,7 +68,7 @@ file(GLOB base
     "src/base/json/number_float.cpp"
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
-    "src/base/json/null.cpp"
+    "src/base/json/null.cpp"samples
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
     "src/base/exception/*.cpp"
@@ -104,7 +107,6 @@ file (GLOB model
     "src/computation/model/model_element.cpp"
    
 )
-
 
 file(GLOB logger
     "src/logger/logger.cpp"
@@ -158,6 +160,7 @@ if(VALIDATION)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
+    add_subdirectory(${FLATBUFFERS_SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build)
     #add_subdirectory(recordings)  
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
@@ -169,6 +172,7 @@ else()
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
+    add_subdirectory(${FLATBUFFERS_SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build)
     #add_subdirectory(recordings)
 endif(VALIDATION)
 

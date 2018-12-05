@@ -1,0 +1,54 @@
+include "memoryManagement.fbs";
+
+namespace MVCNN;
+
+// Structure of Original Network.
+table SourceStructure{
+  links: [Link];
+  first_ID: [uint];
+}
+
+//
+table Link{
+  thisID: uint;
+  name: string;
+  sourceID: [uint]; // Produces this node
+  sinkID: [uint];   // Consumes this node
+}
+
+table Barrier{
+  /// Overview:
+  /// This object represents closely a Barrier in the device.
+  /// Details of exact consumers and producers are delegated to those same
+  /// producers and consumers.
+  ///
+  /// @field barrier_id - This is an optional field to force a barrier to use
+  /// a specific barrier (note: a value given here only guarantees that any other
+  /// barrier with that ID will run on the same unit, it does not guarantee a particular
+  /// unit)
+  barrier_id: short; // Use this to override default barrier management
+  consumer_count: short;
+  producer_count: short;
+}
+
+table BarrierReference{
+  /// Overview:
+  /// A BarrierReference is a tasks' accessor into it's barrier
+  /// dependency and influence.
+  ///
+  /// @field wait_barrier - An Id of the barrier that will free this
+  /// task to run. You should always only need to wait on one barrier
+  /// as they support multiple references.
+  /// Because there is only one, we cannot have an empty value.
+  /// Therefore indexing should start at 1, with a value of 0 indicating
+  /// that there is no blocking barrier (for example at the start of a network)
+  ///
+  /// @field update_barriers - Ids of barriers that will be at least partially
+  /// unlocked when this task is complete.
+  /// An empty list indicates that no barriers are reliant on this task.
+  ///
+
+  wait_barrier: uint;
+  update_barriers: [uint];
+
+}
