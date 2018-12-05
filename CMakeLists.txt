@@ -140,7 +140,7 @@ file(GLOB compiler
 )
 
 file(GLOB deployer
-    "src/deployer/executor/*"
+    "src/utils/deployer/*"
 )
 add_subdirectory(meta)
 

@@ -3,8 +3,8 @@
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/hardware_tests.hpp"
 #include "meta/include/mcm/op_model.hpp"
-#include "include/mcm/deployer/executor/configuration.hpp"
-#include "include/mcm/deployer/executor/executor.hpp"
+#include "include/mcm/utils/deployer/configuration.hpp"
+#include "include/mcm/utils/deployer/executor.hpp"
 
 #include <iostream>
 #include <fstream>

@@ -3,7 +3,7 @@
 
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/computation/model/runtime_binary.hpp"
-#include "include/mcm/deployer/executor/configuration.hpp"
+#include "include/mcm/utils/deployer/configuration.hpp"
 #include "include/mcm/tensor/tensor.hpp"
 #include "mvnc.h"
 
