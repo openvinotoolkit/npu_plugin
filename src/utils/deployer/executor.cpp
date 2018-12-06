@@ -62,6 +62,8 @@ namespace mv
         if (configuration_.getInputMode() == mv::InputMode::FILE)
         {
             std::ifstream inputFile (configuration_.getInputFilePath(), std::ios::in | std::ios::binary);
+            log(mv::Logger::MessageType::Info, "loading input image from: " + configuration_.getInputFilePath());
+
             if (inputFile.fail())
                 throw ArgumentError(*this, "Input File",
                     configuration_.getInputFilePath(), " Input file not found!");
@@ -73,7 +75,7 @@ namespace mv
             if (configuration_.getInputMode() == mv::InputMode::ALL_ONE)
             {
                 std::vector<unsigned short> myvector(imageSize/2);
-                std::fill_n(myvector.begin(), myvector.size(), 1);
+                std::fill_n(myvector.begin(), myvector.size(), 0x3c00);//fp32_to_fp16(1.0)
                 memcpy(imageData, &myvector[0], imageSize);
             }
             else

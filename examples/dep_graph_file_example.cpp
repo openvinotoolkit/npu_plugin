@@ -5,8 +5,7 @@ int main()
 {
     mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
     //Create Configuration
-    std::string graphFile(std::getenv("MDK_HOME"));
-    graphFile += "/projects/Fathom/ncsdk/examples/caffe/GoogLeNet/graph";
+    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
     mv::Configuration config(graphFile);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
     mv::Executor exec(config);
@@ -15,7 +14,18 @@ int main()
     std::cout << "res Shape " << res.getShape().toString() << std::endl;
     std::cout << "ndims " << res.getShape().ndims() << std::endl;
     std::cout << "totalSize " << res.getShape().totalSize() << std::endl;
+    unsigned short max = 0;
+    unsigned int max_idx = 0;
     for (unsigned int i=0; i < res.getShape().totalSize(); i++)
-        if (res(i) != 0)
-            std::cout << "res[" << i << "] = " << res(i) << std::endl;
+    {
+        if (res(i) > max)
+        {
+            max = res(i);
+            max_idx = i;
+        }
+        //if (res(i) != 0)
+        //    std::cout << "res[" << i << "] = " << res(i) << std::endl;
+
+    }
+    std::cout << "res max idx " << max_idx << " val " << max << std::endl;
 }
