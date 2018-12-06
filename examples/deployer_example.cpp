@@ -171,14 +171,21 @@ int main()
 
     auto compOutput = unit.run();
 #endif
-    //Create Configuration
-    mv::Configuration config(cm.getBinaryBuffer());
-    mv::Executor exec(config);
-    mv::Tensor res = exec.execute();
-    std::cout << "res Order " << res.getOrder().toString() << std::endl;
-    std::cout << "res Shape " << res.getShape().toString() << std::endl;
-    std::cout << "ndims " << res.getShape().ndims() << std::endl;
-    std::cout << "totalSize " << res.getShape().totalSize() << std::endl;
+    try {
+        //Create Configuration
+        mv::Configuration config(cm.getBinaryBuffer());
+        mv::Executor exec(config);
+        mv::Tensor res = exec.execute();
+        std::cout << "res Order " << res.getOrder().toString() << std::endl;
+        std::cout << "res Shape " << res.getShape().toString() << std::endl;
+        std::cout << "ndims " << res.getShape().ndims() << std::endl;
+        std::cout << "totalSize " << res.getShape().totalSize() << std::endl;
+    }
+    catch (...)
+    {
+
+    }
+
     //for (unsigned int i=0; i < res.getShape().totalSize(); i++)
     //    if (res(i) != 0)
     //        std::cout << "res[" << i << "] = " << res(i) << std::endl;
