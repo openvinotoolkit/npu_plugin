@@ -5,7 +5,7 @@ int main()
 {
     mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
     //Create Configuration
-    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
+    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
     mv::Configuration config(graphFile);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
     mv::Executor exec(config);

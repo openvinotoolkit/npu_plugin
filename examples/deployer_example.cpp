@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 
+#ifdef RESNET18_TEST
 mv::Data::TensorIterator convBatchNormBlock1(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
@@ -65,14 +66,14 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 	return model.relu(res);
 
 }
-
+#endif
 // Create both RAM and file blobs
 int main()
 {
     mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
 
     //mv::Logger::logFilter({std::regex("OpModel")}, true);
-#if 0
+#ifdef RESNET18_TEST
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet18");
 
@@ -126,23 +127,35 @@ int main()
 
 #else
  // Define the primary compilation unit
-    mv::CompilationUnit unit("RAMtest1");
-
-    // Obtain compositional model from the compilation unit
+    mv::CompilationUnit unit("gold11Model");
     mv::OpModel& cm = unit.model();
 
-    // Compose the model for ResNet18
-    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
-    auto conv1 = convBatchNormBlock1(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
-    conv1 = cm.relu(conv1);
-    auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    cm.output(pool1);
+    // Define input as 1 64x64x3 image
+    auto inIt6 = cm.input({64, 64, 3}, mv::DTypeType::Float16, mv::Order("WHC"));
+    // define first convolution  3D conv
+    std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
+    auto weightsIt61 = cm.constant(weightsData61, {5, 5, 3, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt61 = cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
 
-    // Load target descriptor for the selected target to the compilation unit
-    //EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
-    unit.loadTargetDescriptor(mv::Target::ma2480);
-    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest1.blob");
+    std::vector<double> biasesData = { 64444.0 };
+    auto biases = cm.constant(biasesData, {1}, mv::DTypeType::Float16, mv::Order("W"), "biases");
+    auto bias1 = cm.bias(convIt61, biases);
+    // define first maxpool
+    auto maxpoolIt61 = cm.maxPool(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
+    // define second convolution
+    std::vector<double> weightsData62 = mv::utils::generateSequence(3u * 3u * 1u * 1u, 65504.0, 0.000);
+    auto weightsIt62 = cm.constant(weightsData62, {3, 3, 1, 1}, mv::DTypeType::Float16, mv::Order("NCHW"));   // kh, kw, ins, outs
+    auto convIt62 = cm.conv(maxpoolIt61, weightsIt62, {1, 1}, {0, 0, 0, 0}, 1);
+
+    // define scale
+    std::vector<double> scalesData = { 6550.0 };
+    auto scales = cm.constant(scalesData, {1}, mv::DTypeType::Float16, mv::Order("W"), "scales");
+    auto scaleIt62 = cm.scale(convIt62, scales);
+    // define output
+    auto outIt6 = cm.output(scaleIt62);
+
+    std::string blobName = "test_scale_11.blob";
+    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
     unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
     unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
@@ -153,21 +166,20 @@ int main()
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
     unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
-    // Initialize compilation
+    unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    // test get name and size methods
-    cm.getBinaryBuffer()->getBuffer("testName1",4000) ;
-
-    // test handling multiple calls to allocate data_ buffer
-    cm.getBinaryBuffer()->getBuffer("testName2",2000) ;
-
-    // Run all passes
-    unit.initialize();
-    unit.run();
+    auto compOutput = unit.run();
 #endif
     //Create Configuration
     mv::Configuration config(cm.getBinaryBuffer());
     mv::Executor exec(config);
     mv::Tensor res = exec.execute();
+    std::cout << "res Order " << res.getOrder().toString() << std::endl;
+    std::cout << "res Shape " << res.getShape().toString() << std::endl;
+    std::cout << "ndims " << res.getShape().ndims() << std::endl;
+    std::cout << "totalSize " << res.getShape().totalSize() << std::endl;
+    //for (unsigned int i=0; i < res.getShape().totalSize(); i++)
+    //    if (res(i) != 0)
+    //        std::cout << "res[" << i << "] = " << res(i) << std::endl;
 }
