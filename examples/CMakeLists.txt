@@ -5,10 +5,6 @@ add_executable(graph_basic graph_basic.cpp)
 
 add_executable(graph_conjoined graph_conjoined.cpp)
 
-add_executable(deployer_example deployer_example.cpp)
-target_link_libraries(deployer_example cm dep)
-add_executable(dep_graph_file_example dep_graph_file_example.cpp)
-target_link_libraries(dep_graph_file_example cm dep)
 if (MSVC)
 
 	add_executable(cm_linear cm_linear.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -102,6 +98,10 @@ else()
 	add_executable(caffe_files_generator caffe_files_generator.cpp)
 	target_link_libraries(caffe_files_generator cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
 	target_compile_definitions(caffe_files_generator PRIVATE CPU_ONLY=1)
+	add_executable(deployer_example deployer_example.cpp)
+	target_link_libraries(deployer_example cm dep)
+	add_executable(dep_graph_file_example dep_graph_file_example.cpp)
+	target_link_libraries(dep_graph_file_example cm dep)
 	endif(VALIDATION)
 
 endif(MSVC)
