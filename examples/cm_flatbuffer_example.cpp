@@ -8,24 +8,9 @@
 #include "include/mcm/utils/serializer/fakeGuest.hpp"
 #include "include/mcm/utils/serializer/fakeHost.hpp"
 
-int main( int , char**  )
+ int main( int , char**  )
 {
-    const char * file_name = "VPU3.cpp.bin";
-
-    std::cout << "\n#### GraphFile v3 Tests ####" << std::endl;
-
-    fGraphHost h = fGraphHost();
-    flatbuffers::FlatBufferBuilder fbb;
-
-    std::cout << "==== Serialize ====" << std::endl;
-
-    serialize(&h, &fbb, file_name);
-
-    std::cout << "==== DeSerialize ====" << std::endl;
-
-    //auto g = deserialize(file_name);
-
-    return 0;
-
-   
+    Blob blob("/home/john/vpu_3.blob");
+    const auto graph = GetGraphFile(blob.get_ptr());
+    deserialize(graph, true);
 }

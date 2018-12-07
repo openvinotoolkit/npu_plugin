@@ -1,8 +1,8 @@
 #include <stdio.h>
-#include "contrib/flatbuffers/keenBayFBSchema/compiledSchemas/graphfile_generated.h"
 #include <iostream>
 #include <fstream>
-#include "include/mcm/utils/serializer/fakeGuest.hpp"
+
+#include "graphfile_generated.h"
 
 #ifndef __DESERIALIZE__
 

@@ -1,0 +1,52 @@
+include "fileHeader.fbs";
+include "structure.fbs";
+include "memoryManagement.fbs";
+include "dma.fbs";
+include "nnController.fbs";
+include "nnNCE2.fbs";
+include "upaNCE.fbs";
+include "software.fbs";
+
+namespace MVCNN;
+
+file_identifier "BLOB";
+file_extension "blob";
+
+table GraphFile {
+
+    /// Overview:
+    ///    TBC
+    ///
+    /// @field barrier_table - A list of barriers to be consumed by the
+    /// device for its own scheduling.
+    /// If you are manually scheduling barriers with leon tasks, you do not need to
+    /// populate this field.
+    header: SummaryHeader;
+    task_lists: [TaskList];
+    barrier_table: [Barrier];
+    binary_data: [BinaryData] (force_align:64);
+}
+
+
+table TaskList{
+  content: [Task];
+}
+
+union SpecificTask{
+    MvTensorTask,
+    UPADMATask,
+    NNDMATask,
+    NCE1Task,
+    NCE2Task,
+    NNTensorTask,
+    ControllerTask
+}
+
+table Task{
+    nodeID: uint;
+    sourceTaskIDs: [uint];
+    associated_barriers: BarrierReference;
+    task: SpecificTask;
+}
+
+root_type GraphFile;
