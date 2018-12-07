@@ -95,7 +95,7 @@ namespace mv
             if (retCode != NC_OK)
                 throw RuntimeError(*this, "ncGraphCreate failed");
 
-            void* graphFileBuf = NULL;
+            void* graphFileBuf = nullptr;
             unsigned int graphFileLen = 0;
             if (configuration_.getGraphFilePath().empty())
             {

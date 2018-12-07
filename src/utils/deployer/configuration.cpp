@@ -8,7 +8,7 @@ namespace mv
             target_(Target::Unknown), //unknown == any device is good.
             protocol_(Protocol::USB_VSC),
             inputMode_(InputMode::ALL_ZERO),
-            binaryPointer_(NULL)
+            binaryPointer_(nullptr)
         {
             if (graphFilePath.empty())
                 throw ArgumentError(*this, "graphFilePath", "Empty", "Defining graphFilePath as empty path is illegal");
@@ -17,7 +17,7 @@ namespace mv
         Configuration::Configuration(std::string& graphFilePath,
             Target target, Protocol protocol,
             InputMode inputMode, const std::string& inputFilePath):
-            binaryPointer_(NULL)
+            binaryPointer_(nullptr)
         {
             if (graphFilePath.empty())
                 throw ArgumentError(*this, "graphFilePath", "Empty", "Defining graphFilePath as empty path is illegal");
