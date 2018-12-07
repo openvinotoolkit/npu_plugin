@@ -14,7 +14,6 @@ namespace mv
     {
         class Executor : public LogSender
         {
-            Configuration configuration_;
             ncDeviceHandle_t *deviceHandle_;
             ncGraphHandle_t *graphHandle_;
             //Array of buffers to support multi input/output
@@ -25,16 +24,16 @@ namespace mv
             int numInputs_;
             int numOutputs_;
 
-            void openDevice();
-            void loadGraph();
+            void openDevice(Configuration& configuration);
+            void loadGraph(Configuration& configuration);
             void allocateFifos();
             void destroyAll();
             bool checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion);
-            void getInputData(unsigned int imageSize, char* imageData);
+            void getInputData(Configuration& configuration, unsigned int imageSize, char* imageData);
             Order getTensorOrder(ncTensorDescriptor_t& td);
         public:
-            Executor(Configuration& configuration);
-            Tensor execute();
+            Executor();
+            Tensor execute(Configuration& configuration);
             std::string getLogID() const override;
             ~Executor();
         };

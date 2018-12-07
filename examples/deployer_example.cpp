@@ -63,8 +63,8 @@ int main()
     try {
         //Create Configuration
         Configuration config(cm.getBinaryBuffer());
-        Executor exec(config);
-        Tensor res = exec.execute();
+        Executor exec;
+        Tensor res = exec.execute(config);
         std::cout << "res Order " << res.getOrder().toString() << std::endl;
         std::cout << "res Shape " << res.getShape().toString() << std::endl;
         std::cout << "ndims " << res.getShape().ndims() << std::endl;

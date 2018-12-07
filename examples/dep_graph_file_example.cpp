@@ -11,8 +11,8 @@ int main()
     std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
     Configuration config(graphFile);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
-    Executor exec(config);
-    Tensor res = exec.execute();
+    Executor exec;
+    Tensor res = exec.execute(config);
     std::cout << "res Order " << res.getOrder().toString() << std::endl;
     std::cout << "res Shape " << res.getShape().toString() << std::endl;
     std::cout << "ndims " << res.getShape().ndims() << std::endl;

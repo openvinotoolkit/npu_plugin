@@ -4,12 +4,8 @@ namespace mv
 {
     namespace exe
     {
-        Executor::Executor(Configuration& config) : configuration_(config)
+        Executor::Executor()
         {
-            log(Logger::MessageType::Info, "Initialize Executor");
-            openDevice();
-            loadGraph();
-            allocateFifos();
         }
 
         bool Executor::checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion)
@@ -26,7 +22,7 @@ namespace mv
             return false;
         }
 
-        void Executor::openDevice()
+        void Executor::openDevice(Configuration& configuration)
         {
             int loglevel = 2; //TODO make it configuratable?
             int idx = 0;
@@ -47,7 +43,7 @@ namespace mv
                 if(retCode != NC_OK)
                     throw RuntimeError(*this, "ncDeviceGetOption failed on NC_RO_DEVICE_HW_VERSION");
 
-                if (checkTargetMatches(configuration_.getTarget(), hwVersion))
+                if (checkTargetMatches(configuration.getTarget(), hwVersion))
                     break;
                 idx++;
             }
@@ -58,23 +54,23 @@ namespace mv
             log(Logger::MessageType::Info, "Device Opened successfully!");
         }
 
-        void Executor::getInputData(unsigned int imageSize, char* imageData)
+        void Executor::getInputData(Configuration& configuration, unsigned int imageSize, char* imageData)
         {
 
-            if (configuration_.getInputMode() == InputMode::FILE)
+            if (configuration.getInputMode() == InputMode::FILE)
             {
-                std::ifstream inputFile (configuration_.getInputFilePath(), std::ios::in | std::ios::binary);
-                log(Logger::MessageType::Info, "loading input image from: " + configuration_.getInputFilePath());
+                std::ifstream inputFile (configuration.getInputFilePath(), std::ios::in | std::ios::binary);
+                log(Logger::MessageType::Info, "loading input image from: " + configuration.getInputFilePath());
 
                 if (inputFile.fail())
                     throw ArgumentError(*this, "Input File",
-                        configuration_.getInputFilePath(), " Input file not found!");
+                        configuration.getInputFilePath(), " Input file not found!");
                 if (!inputFile.read (imageData, imageSize))
                     throw RuntimeError(*this, "input file doesn't have enough data!");
             }
             else
             {
-                if (configuration_.getInputMode() == InputMode::ALL_ONE)
+                if (configuration.getInputMode() == InputMode::ALL_ONE)
                 {
                     std::vector<unsigned short> myvector(imageSize/2);
                     std::fill_n(myvector.begin(), myvector.size(), 0x3c00);//fp32_to_fp16(1.0)
@@ -87,7 +83,7 @@ namespace mv
             }
         }
 
-        void Executor::loadGraph()
+        void Executor::loadGraph(Configuration& configuration)
         {
             log(Logger::MessageType::Info, "loading graph");
 
@@ -97,16 +93,16 @@ namespace mv
 
             void* graphFileBuf = nullptr;
             unsigned int graphFileLen = 0;
-            if (configuration_.getGraphFilePath().empty())
+            if (configuration.getGraphFilePath().empty())
             {
-                graphFileBuf = configuration_.getRuntimePointer()->getDataPointer();
-                graphFileLen = configuration_.getRuntimePointer()->getBufferSize();
+                graphFileBuf = configuration.getRuntimePointer()->getDataPointer();
+                graphFileLen = configuration.getRuntimePointer()->getBufferSize();
             }
             else
             {
-                std::ifstream inputFile (configuration_.getGraphFilePath(), std::ios::in | std::ios::binary);
+                std::ifstream inputFile (configuration.getGraphFilePath(), std::ios::in | std::ios::binary);
                 if (inputFile.fail())
-                    throw ArgumentError(*this, "graphFilePath", configuration_.getGraphFilePath(), "file doesn't seem to exist");
+                    throw ArgumentError(*this, "graphFilePath", configuration.getGraphFilePath(), "file doesn't seem to exist");
 
                 inputFile.seekg (0, inputFile.end);
                 graphFileLen = inputFile.tellg();
@@ -257,15 +253,19 @@ namespace mv
 
         Executor::~Executor()
         {
-            destroyAll();
         }
 
-        Tensor Executor::execute()
+        Tensor Executor::execute(Configuration& configuration)
         {
+            log(Logger::MessageType::Info, "Initialize Executor");
+            openDevice(configuration);
+            loadGraph(configuration);
+            allocateFifos();
+
             // Assume one input for now
             unsigned int imageSize = inputTensorDesc_[0].totalSize;
             char* imageData = new char[imageSize];
-            getInputData(imageSize, imageData);
+            getInputData(configuration, imageSize, imageData);
             // Write tensor to input fifo
             ncStatus_t retCode = ncFifoWriteElem(buffersIn_[0], imageData, &imageSize, 0);
             if(retCode != NC_OK)
@@ -305,6 +305,7 @@ namespace mv
 
             delete imageData;
             delete result;
+            destroyAll();
             return resultTensor;
         }
 

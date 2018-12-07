@@ -14,8 +14,8 @@ TEST(basic_test, goldAllZero)
     std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
     Configuration config(graphFile);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
-    Executor exec(config);
-    Tensor res = exec.execute();
+    Executor exec;
+    Tensor res = exec.execute(config);
 
     unsigned short max = 0;
     unsigned int max_idx = 0;
@@ -47,8 +47,8 @@ TEST(basic_test, gold01AllOnes)
     Configuration config(graphFile);
     config.setInputMode(InputMode::ALL_ONE);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
-    Executor exec(config);
-    Tensor res = exec.execute();
+    Executor exec;
+    Tensor res = exec.execute(config);
 
     unsigned short max = 0;
     unsigned int max_idx = 0;
@@ -81,8 +81,8 @@ TEST(basic_test, goldFromFile)
     config.setInputMode(InputMode::FILE);
     config.setInputFilePath(utils::projectRootPath() + std::string("/tests/data/nps_guitar.bin"));
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
-    Executor exec(config);
-    Tensor res = exec.execute();
+    Executor exec;
+    Tensor res = exec.execute(config);
     unsigned short max = 0;
     unsigned int max_idx = 0;
     for (unsigned int i=0; i < res.getShape().totalSize(); i++)
