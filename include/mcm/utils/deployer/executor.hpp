@@ -10,33 +10,35 @@
 
 namespace mv
 {
-    class Executor : public LogSender
+    namespace exe
     {
-        mv::Configuration configuration_;
-        ncDeviceHandle_t *deviceHandle_;
-        ncGraphHandle_t *graphHandle_;
-        //Array of buffers to support multi input/output
-        struct ncFifoHandle_t ** buffersIn_;
-		struct ncFifoHandle_t ** buffersOut_;
-        struct ncTensorDescriptor_t* inputTensorDesc_;
-        struct ncTensorDescriptor_t* outputTensorDesc_;
-        int numInputs_;
-        int numOutputs_;
+        class Executor : public LogSender
+        {
+            Configuration configuration_;
+            ncDeviceHandle_t *deviceHandle_;
+            ncGraphHandle_t *graphHandle_;
+            //Array of buffers to support multi input/output
+            struct ncFifoHandle_t ** buffersIn_;
+            struct ncFifoHandle_t ** buffersOut_;
+            struct ncTensorDescriptor_t* inputTensorDesc_;
+            struct ncTensorDescriptor_t* outputTensorDesc_;
+            int numInputs_;
+            int numOutputs_;
 
-        void openDevice();
-        void loadGraph();
-        void allocateFifos();
-        void destroyAll();
-        bool checkTargetMatches(mv::Target target, ncDeviceHwVersion_t hwVersion);
-        void getInputData(unsigned int imageSize, char* imageData);
-        mv::Order getTensorOrder(ncTensorDescriptor_t& td);
-    public:
-        Executor(mv::Configuration& configuration);
-        mv::Tensor execute();
-        std::string getLogID() const override;
-        ~Executor();
-    };
-
+            void openDevice();
+            void loadGraph();
+            void allocateFifos();
+            void destroyAll();
+            bool checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion);
+            void getInputData(unsigned int imageSize, char* imageData);
+            Order getTensorOrder(ncTensorDescriptor_t& td);
+        public:
+            Executor(Configuration& configuration);
+            Tensor execute();
+            std::string getLogID() const override;
+            ~Executor();
+        };
+    }
 }
 
 #endif // EXECUTOR_HPP_

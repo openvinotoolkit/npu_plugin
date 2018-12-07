@@ -5,16 +5,17 @@
 
 #include <chrono>
 #include <thread>
-
+using namespace mv;
+using namespace exe;
 TEST(basic_test, goldAllZero)
 {
-    //mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+    //Logger::setVerboseLevel(VerboseLevel::Info);
     //Create Configuration
-    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
-    mv::Configuration config(graphFile);
+    std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
+    Configuration config(graphFile);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
-    mv::Executor exec(config);
-    mv::Tensor res = exec.execute();
+    Executor exec(config);
+    Tensor res = exec.execute();
 
     unsigned short max = 0;
     unsigned int max_idx = 0;
@@ -40,14 +41,14 @@ TEST(basic_test, gold01AllOnes)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
-    //mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+    //Logger::setVerboseLevel(VerboseLevel::Info);
     //Create Configuration
-    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
-    mv::Configuration config(graphFile);
-    config.setInputMode(mv::InputMode::ALL_ONE);
+    std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
+    Configuration config(graphFile);
+    config.setInputMode(InputMode::ALL_ONE);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
-    mv::Executor exec(config);
-    mv::Tensor res = exec.execute();
+    Executor exec(config);
+    Tensor res = exec.execute();
 
     unsigned short max = 0;
     unsigned int max_idx = 0;
@@ -72,16 +73,16 @@ TEST(basic_test, gold01AllOnes)
 TEST(basic_test, goldFromFile)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
-    //mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+    //Logger::setVerboseLevel(VerboseLevel::Info);
     //Create Configuration
-    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
+    std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
 
-    mv::Configuration config(graphFile);
-    config.setInputMode(mv::InputMode::FILE);
-    config.setInputFilePath(mv::utils::projectRootPath() + std::string("/tests/data/nps_guitar.bin"));
+    Configuration config(graphFile);
+    config.setInputMode(InputMode::FILE);
+    config.setInputFilePath(utils::projectRootPath() + std::string("/tests/data/nps_guitar.bin"));
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
-    mv::Executor exec(config);
-    mv::Tensor res = exec.execute();
+    Executor exec(config);
+    Tensor res = exec.execute();
     unsigned short max = 0;
     unsigned int max_idx = 0;
     for (unsigned int i=0; i < res.getShape().totalSize(); i++)
