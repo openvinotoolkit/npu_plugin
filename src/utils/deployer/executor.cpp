@@ -58,9 +58,6 @@ namespace mv
                 std::ifstream inputFile (configuration.getInputFilePath(), std::ios::in | std::ios::binary);
                 log(Logger::MessageType::Info, "loading input image from: " + configuration.getInputFilePath());
 
-                if (inputFile.fail())
-                    throw ArgumentError(*this, "Input File",
-                        configuration.getInputFilePath(), " Input file not found!");
                 if (!inputFile.read (imageData, imageSize))
                     throw RuntimeError(*this, "input file doesn't have enough data!");
             }
@@ -97,8 +94,6 @@ namespace mv
             else
             {
                 std::ifstream inputFile (configuration.getGraphFilePath(), std::ios::in | std::ios::binary);
-                if (inputFile.fail())
-                    throw ArgumentError(*this, "graphFilePath", configuration.getGraphFilePath(), "file doesn't seem to exist");
 
                 inputFile.seekg (0, inputFile.end);
                 graphFileLen = inputFile.tellg();

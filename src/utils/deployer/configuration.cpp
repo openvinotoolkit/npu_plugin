@@ -4,23 +4,32 @@ namespace mv
 {
     namespace exe
     {
-        Configuration::Configuration(std::string& graphFilePath):
+        void Configuration::checkFileExists(const std::string& fileName, const std::string& argName)
+        {
+            if (fileName.empty())
+                throw ArgumentError(*this, argName, "Empty", "Defining file path is illegal");
+            std::ifstream checkFile(fileName, std::ios::in | std::ios::binary);
+            if (checkFile.fail())
+                    throw ArgumentError(*this, argName,
+                        fileName, " File not found!");
+        }
+
+        Configuration::Configuration(const std::string& graphFilePath):
             target_(Target::Unknown), //unknown == any device is good.
             protocol_(Protocol::USB_VSC),
             inputMode_(InputMode::ALL_ZERO),
             binaryPointer_(nullptr)
         {
-            if (graphFilePath.empty())
-                throw ArgumentError(*this, "graphFilePath", "Empty", "Defining graphFilePath as empty path is illegal");
+            checkFileExists(graphFilePath, "Graph File");
             graphFilePath_ = graphFilePath;
         }
-        Configuration::Configuration(std::string& graphFilePath,
+
+        Configuration::Configuration(const std::string& graphFilePath,
             Target target, Protocol protocol,
             InputMode inputMode, const std::string& inputFilePath):
             binaryPointer_(nullptr)
         {
-            if (graphFilePath.empty())
-                throw ArgumentError(*this, "graphFilePath", "Empty", "Defining graphFilePath as empty path is illegal");
+            checkFileExists(graphFilePath, "Graph File");
             graphFilePath_ = graphFilePath;
             setTarget(target);
             setProtocol(protocol);
@@ -79,8 +88,7 @@ namespace mv
 
         void Configuration::setInputFilePath(const std::string& inputFilePath)
         {
-            if (inputFilePath.empty())
-                throw ArgumentError(*this, "inputFilePath", "Empty", "Defining inputFilePath as empty path is illegal");
+            checkFileExists(inputFilePath, "Input File");
             inputFilePath_ = inputFilePath;
         }
 
@@ -128,7 +136,7 @@ namespace mv
             return "Configuration" + targetToString();
         }
 
-        std::shared_ptr<RuntimeBinary> Configuration::getRuntimePointer() const
+        std::shared_ptr<RuntimeBinary> Configuration::getRuntimePointer()
         {
             return binaryPointer_;
         }

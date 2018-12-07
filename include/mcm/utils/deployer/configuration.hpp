@@ -35,10 +35,11 @@ namespace mv
             std::shared_ptr<mv::RuntimeBinary> binaryPointer_;
 
             std::string targetToString() const;
+            void checkFileExists(const std::string& fileName, const std::string& argName);
 
         public:
-            Configuration(std::string& graphFilePath);
-            Configuration(std::string& graphFilePath,
+            Configuration(const std::string& graphFilePath);
+            Configuration(const std::string& graphFilePath,
                 Target target, Protocol protocol,
                 InputMode inputMode, const std::string& inputFilePath);
             Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer);
@@ -57,7 +58,7 @@ namespace mv
             std::string getInputFilePath( ) const;
             std::string getGraphFilePath( ) const;
             std::string getLogID() const override;
-            std::shared_ptr<mv::RuntimeBinary> getRuntimePointer() const;
+            std::shared_ptr<mv::RuntimeBinary> getRuntimePointer();
         };
     }
 }
