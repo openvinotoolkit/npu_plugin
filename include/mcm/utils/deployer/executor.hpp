@@ -32,10 +32,8 @@ namespace mv
             void getInputData(Configuration& configuration, unsigned int imageSize, char* imageData);
             Order getTensorOrder(ncTensorDescriptor_t& td);
         public:
-            Executor();
             Tensor execute(Configuration& configuration);
             std::string getLogID() const override;
-            ~Executor();
         };
     }
 }

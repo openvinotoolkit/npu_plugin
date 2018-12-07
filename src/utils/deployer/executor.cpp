@@ -4,10 +4,6 @@ namespace mv
 {
     namespace exe
     {
-        Executor::Executor()
-        {
-        }
-
         bool Executor::checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion)
         {
             switch(target)
@@ -249,10 +245,6 @@ namespace mv
             //delete allocated memory
             delete inputTensorDesc_;
             delete outputTensorDesc_;
-        }
-
-        Executor::~Executor()
-        {
         }
 
         Tensor Executor::execute(Configuration& configuration)
