@@ -26,9 +26,6 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
-#For MVNC API
-set(MVNC_API_LIBRARY "/usr/local/lib/libmvnc.so")
-
 if(VALIDATION)
 
     include_directories("/opt/movidius/caffe/include")
@@ -38,6 +35,9 @@ if(VALIDATION)
     #Protobuf
     find_package(Protobuf REQUIRED)
     include_directories(${PROTOBUF_INCLUDE_DIR})
+
+    #MVNC
+    find_library(mvnc REQUIRED)
 
     #Boost
     find_package(Boost COMPONENTS regex system filesystem REQUIRED)
@@ -157,7 +157,7 @@ if(VALIDATION)
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
     add_library(dep SHARED ${deployer})
-    target_link_libraries(dep ${MVNC_API_LIBRARY})
+    target_link_libraries(dep mvnc)
 
     target_link_libraries(cm corebase metamodel)
     add_dependencies(cm generate-comp-api)

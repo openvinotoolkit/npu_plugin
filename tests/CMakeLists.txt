@@ -65,10 +65,12 @@ add_executable(mcm_unit_tests
     ${compiler_src}
     ${model_src}
 )
+
 add_executable(deployer_unit_tests
     mcm_unit_tests.cpp
     ${deployer_src}
 )
+
 target_link_libraries (mcm_unit_tests gtest m)
 target_link_libraries(mcm_unit_tests cm)
 target_link_libraries(mcm_unit_tests dep)
