@@ -49,9 +49,7 @@ file(GLOB hw
     "hw/*.cpp"
 )
 
-file(GLOB deployer_src
-    "deployer/*.cpp"
-)
+
 add_executable(mcm_unit_tests
     mcm_unit_tests.cpp
     #${nce1}
@@ -65,19 +63,21 @@ add_executable(mcm_unit_tests
     ${compiler_src}
     ${model_src}
 )
-
+if(VALIDATION)
+file(GLOB deployer_src
+    "deployer/*.cpp"
+)
 add_executable(deployer_unit_tests
     mcm_unit_tests.cpp
     ${deployer_src}
 )
-
-target_link_libraries (mcm_unit_tests gtest m)
-target_link_libraries(mcm_unit_tests cm)
-target_link_libraries(mcm_unit_tests dep)
-
 target_link_libraries (deployer_unit_tests gtest m)
 target_link_libraries(deployer_unit_tests cm)
 target_link_libraries(deployer_unit_tests dep)
+endif(VALIDATION)
+
+target_link_libraries (mcm_unit_tests gtest m)
+target_link_libraries(mcm_unit_tests cm)
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
