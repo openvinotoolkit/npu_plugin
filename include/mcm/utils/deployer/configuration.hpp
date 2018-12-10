@@ -11,6 +11,7 @@ namespace mv
 {
     namespace exe
     {
+
         enum class Protocol
         {
             USB_VSC,
@@ -27,6 +28,7 @@ namespace mv
 
         class Configuration : public LogSender
         {
+
             mv::Target target_;
             Protocol protocol_;
             InputMode inputMode_;
@@ -34,10 +36,10 @@ namespace mv
             std::string graphFilePath_;
             std::shared_ptr<mv::RuntimeBinary> binaryPointer_;
 
-            std::string targetToString() const;
-            void checkFileExists(const std::string& fileName, const std::string& argName);
+            void checkFileExists_(const std::string& fileName, const std::string& argName);
 
         public:
+
             Configuration(const std::string& graphFilePath);
             Configuration(const std::string& graphFilePath,
                 Target target, Protocol protocol,
@@ -47,6 +49,7 @@ namespace mv
                 Target target, Protocol protocol,
                 InputMode inputMode, const std::string& inputFilePath);
             Configuration(const Configuration &c);
+            
             void setTarget(Target target);
             void setProtocol(Protocol protocol);
             void setInputMode(InputMode inputMode);
@@ -60,7 +63,9 @@ namespace mv
             std::string getLogID() const override;
             std::shared_ptr<mv::RuntimeBinary> getRuntimePointer();
         };
+
     }
+
 }
 
 #endif // CONFIGURATION_HPP_
