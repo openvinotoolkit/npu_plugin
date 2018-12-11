@@ -1,5 +1,4 @@
 #include "gtest/gtest.h"
-#include "include/mcm/utils/deployer/configuration.hpp"
 #include "include/mcm/utils/deployer/executor.hpp"
 #include "include/mcm/utils/deployer/deployer_utils.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
@@ -11,18 +10,15 @@ using namespace exe;
 TEST(basic_test, goldAllZero)
 {
     //Logger::setVerboseLevel(VerboseLevel::Info);
-    //Create Configuration
     //std::string graphFile = utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
     std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
-    Configuration config(graphFile);
-    std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
     Executor exec;
     Order order("NHWC");
     Shape shape({64, 64 ,3 ,1});
     //Shape shape({224, 224 ,3 ,1});
 
-    Tensor inputTensor = mv::exe::dep_utils::getInputData(InputMode::ALL_ZERO, order, shape);
-    Tensor res = exec.execute(config, inputTensor);
+    Tensor inputTensor = mv::exe::dep_utils::getInputData(mv::exe::dep_utils::InputMode::ALL_ZERO, order, shape);
+    Tensor res = exec.execute(graphFile, inputTensor);
 
     unsigned short max = 0;
     unsigned int max_idx = 0;
@@ -49,18 +45,16 @@ TEST(basic_test, gold01AllOnes)
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
     //Logger::setVerboseLevel(VerboseLevel::Info);
-    //Create Configuration
     //std::string graphFile = utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
     std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
-    Configuration config(graphFile);
 
     Shape shape({32, 32, 1, 1});
     //Shape shape({224, 224 ,3 ,1});
 
     Order order("NHWC");
     Executor exec;
-    Tensor inputTensor = mv::exe::dep_utils::getInputData(InputMode::ALL_ONE, order, shape);
-    Tensor res = exec.execute(config, inputTensor);
+    Tensor inputTensor = mv::exe::dep_utils::getInputData(mv::exe::dep_utils::InputMode::ALL_ONE, order, shape);
+    Tensor res = exec.execute(graphFile, inputTensor);
 
     unsigned short max = 0;
     unsigned int max_idx = 0;
@@ -86,10 +80,8 @@ TEST(basic_test, goldFromFile)
 {
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
     //Logger::setVerboseLevel(VerboseLevel::Info);
-    //Create Configuration
     //std::string graphFile = utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
     std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
-    Configuration config(graphFile);
     //Shape shape({224, 224 ,3 ,1});
     Shape shape({32, 32, 1, 1});
 
@@ -97,7 +89,7 @@ TEST(basic_test, goldFromFile)
     Executor exec;
     std::string inputFile = utils::projectRootPath() + std::string("/tests/data/nps_guitar.bin");
     Tensor inputTensor = mv::exe::dep_utils::getInputData(inputFile, order, shape);
-    Tensor res = exec.execute(config, inputTensor);
+    Tensor res = exec.execute(graphFile, inputTensor);
 
     unsigned short max = 0;
     unsigned int max_idx = 0;

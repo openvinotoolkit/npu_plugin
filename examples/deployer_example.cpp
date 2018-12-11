@@ -3,7 +3,6 @@
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/utils/hardware_tests.hpp"
 #include "meta/include/mcm/op_model.hpp"
-#include "include/mcm/utils/deployer/configuration.hpp"
 #include "include/mcm/utils/deployer/executor.hpp"
 #include "include/mcm/utils/deployer/deployer_utils.hpp"
 
@@ -62,14 +61,12 @@ int main()
 
     auto compOutput = unit.run();
     try {
-        //Create Configuration
-        Configuration config(cm.getBinaryBuffer());
         Executor exec;
         Order order("NHWC");
         Shape shape({64, 64 ,3 ,1});
 
-        Tensor inputTensor = mv::exe::dep_utils::getInputData(InputMode::ALL_ZERO, order, shape);
-        Tensor res = exec.execute(config, inputTensor);
+        Tensor inputTensor = mv::exe::dep_utils::getInputData(mv::exe::dep_utils::InputMode::ALL_ZERO, order, shape);
+        Tensor res = exec.execute(cm.getBinaryBuffer(), inputTensor);
 
         std::cout << "res Order " << res.getOrder().toString() << std::endl;
         std::cout << "res Shape " << res.getShape().toString() << std::endl;

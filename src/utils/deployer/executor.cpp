@@ -1,10 +1,18 @@
 #include "include/mcm/utils/deployer/executor.hpp"
 #include "include/mcm/utils/deployer/deployer_utils.hpp"
 
-bool mv::exe::Executor::checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion)
+mv::exe::Executor::Executor(Target target,
+    Protocol protocol):
+    target_(target),
+    protocol_(protocol)
+    {
+
+    }
+
+bool mv::exe::Executor::checkTargetMatches(ncDeviceHwVersion_t hwVersion)
 {
 
-    switch(target)
+    switch(target_)
     {
         case Target::ma2480:
             if (hwVersion == NC_MA2480)
@@ -19,7 +27,7 @@ bool mv::exe::Executor::checkTargetMatches(Target target, ncDeviceHwVersion_t hw
 
 }
 
-void mv::exe::Executor::openDevice(Configuration& configuration)
+void mv::exe::Executor::openDevice()
 {
 
     int loglevel = 2; //TODO make it configuratable?
@@ -41,7 +49,7 @@ void mv::exe::Executor::openDevice(Configuration& configuration)
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncDeviceGetOption failed on NC_RO_DEVICE_HW_VERSION");
 
-        if (checkTargetMatches(configuration.getTarget(), hwVersion))
+        if (checkTargetMatches(hwVersion))
             break;
         idx++;
     }
@@ -53,7 +61,8 @@ void mv::exe::Executor::openDevice(Configuration& configuration)
 
 }
 
-void mv::exe::Executor::loadGraph(Configuration& configuration)
+void mv::exe::Executor::loadGraph(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
+    const std::string& graphFilePath)
 {
 
     log(Logger::MessageType::Info, "loading graph");
@@ -64,14 +73,14 @@ void mv::exe::Executor::loadGraph(Configuration& configuration)
 
     void* graphFileBuf = nullptr;
     unsigned int graphFileLen = 0;
-    if (configuration.getGraphFilePath().empty())
+    if (graphFilePath.empty())
     {
-        graphFileBuf = configuration.getRuntimePointer()->getDataPointer();
-        graphFileLen = configuration.getRuntimePointer()->getBufferSize();
+        graphFileBuf = binaryPointer->getDataPointer();
+        graphFileLen = binaryPointer->getBufferSize();
     }
     else
     {
-        std::ifstream inputFile (configuration.getGraphFilePath(), std::ios::in | std::ios::binary);
+        std::ifstream inputFile (graphFilePath, std::ios::in | std::ios::binary);
 
         inputFile.seekg (0, inputFile.end);
         graphFileLen = inputFile.tellg();
@@ -208,14 +217,27 @@ void mv::exe::Executor::destroyAll()
     //delete allocated memory
     delete inputTensorDesc_;
     delete outputTensorDesc_;
-    
+
 }
 
-mv::Tensor mv::exe::Executor::execute(Configuration& configuration, Tensor& inputTensor)
+mv::Tensor mv::exe::Executor::execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
+    Tensor& inputTensor)
+{
+    return execute(binaryPointer, "", inputTensor);
+}
+
+mv::Tensor mv::exe::Executor::execute(const std::string& graphFilePath,
+    Tensor& inputTensor)
+{
+    return execute(nullptr, graphFilePath, inputTensor);
+}
+
+mv::Tensor mv::exe::Executor::execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
+    const std::string& graphFilePath, Tensor& inputTensor)
 {
     log(Logger::MessageType::Info, "Initialize Executor");
-    openDevice(configuration);
-    loadGraph(configuration);
+    openDevice();
+    loadGraph(binaryPointer, graphFilePath);
     allocateFifos();
 
     // Assume one input for now
@@ -274,6 +296,28 @@ mv::Tensor mv::exe::Executor::execute(Configuration& configuration, Tensor& inpu
     destroyAll();
     return resultTensor;
 
+}
+
+void mv::exe::Executor::setTarget(Target target)
+{
+    target_ = target;
+}
+
+void mv::exe::Executor::setProtocol(Protocol protocol)
+{
+    if (protocol == Protocol::Unknown)
+        throw ArgumentError(*this, "protocol", "unknown", "Defining protocol as unknown is illegal");
+    protocol_ = protocol;
+}
+
+mv::Target mv::exe::Executor::getTarget() const
+{
+    return target_;
+}
+
+mv::exe::Protocol mv::exe::Executor::getProtocol() const
+{
+    return protocol_;
 }
 
 std::string mv::exe::Executor::getLogID() const

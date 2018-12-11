@@ -1,4 +1,3 @@
-#include "include/mcm/utils/deployer/configuration.hpp"
 #include "include/mcm/utils/deployer/executor.hpp"
 #include "include/mcm/utils/deployer/deployer_utils.hpp"
 
@@ -8,16 +7,14 @@ using namespace exe;
 int main()
 {
     Logger::setVerboseLevel(VerboseLevel::Info);
-    //Create Configuration
     std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
-    Configuration config(graphFile);
-    std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
+    std::cout << "graph file " << graphFile << std::endl;
     Executor exec;
     Order order("NHWC");
     Shape shape({64, 64 ,3 ,1});
 
-    Tensor inputTensor = mv::exe::dep_utils::getInputData(InputMode::ALL_ZERO, order, shape);
-    Tensor res = exec.execute(config, inputTensor);
+    Tensor inputTensor = mv::exe::dep_utils::getInputData(mv::exe::dep_utils::InputMode::ALL_ZERO, order, shape);
+    Tensor res = exec.execute(graphFile, inputTensor);
     std::cout << "res Order " << res.getOrder().toString() << std::endl;
     std::cout << "res Shape " << res.getShape().toString() << std::endl;
     std::cout << "ndims " << res.getShape().ndims() << std::endl;

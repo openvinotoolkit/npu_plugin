@@ -3,8 +3,9 @@
 
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/computation/model/runtime_binary.hpp"
-#include "include/mcm/utils/deployer/configuration.hpp"
 #include "include/mcm/tensor/tensor.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
+
 #include "mvnc.h"
 
 
@@ -12,6 +13,12 @@ namespace mv
 {
     namespace exe
     {
+        enum class Protocol
+        {
+            USB_VSC,
+            Unknown
+        };
+
         class Executor : public LogSender
         {
             ncDeviceHandle_t *deviceHandle_;
@@ -23,15 +30,28 @@ namespace mv
             struct ncTensorDescriptor_t* outputTensorDesc_;
             int numInputs_;
             int numOutputs_;
+            Target target_;
+            Protocol protocol_;
 
-            void openDevice(Configuration& configuration);
-            void loadGraph(Configuration& configuration);
+            void openDevice();
+            void loadGraph(std::shared_ptr<mv::RuntimeBinary> binaryPointer, const std::string& graphFilePath);
             void allocateFifos();
             void destroyAll();
-            bool checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion);
+            Tensor execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer, const std::string& graphFilePath, Tensor& inputTensor);
+            bool checkTargetMatches(ncDeviceHwVersion_t hwVersion);
         public:
-            Tensor execute(Configuration& configuration, Tensor& inputTensor);
+            Executor(Target target = Target::Unknown, Protocol protocol = Protocol::USB_VSC);
+            Tensor execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer, Tensor& inputTensor);
+            Tensor execute(const std::string& graphFilePath, Tensor& inputTensor);
+
             std::string getLogID() const override;
+
+            void setTarget(Target target);
+            void setProtocol(Protocol protocol);
+
+            Target getTarget() const;
+            Protocol getProtocol() const;
+
         };
     }
 }
