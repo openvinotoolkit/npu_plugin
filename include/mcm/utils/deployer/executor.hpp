@@ -29,10 +29,8 @@ namespace mv
             void allocateFifos();
             void destroyAll();
             bool checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion);
-            void getInputData(Configuration& configuration, unsigned int imageSize, char* imageData);
-            Order getTensorOrder(ncTensorDescriptor_t& td);
         public:
-            Tensor execute(Configuration& configuration);
+            Tensor execute(Configuration& configuration, Tensor& inputTensor);
             std::string getLogID() const override;
         };
     }

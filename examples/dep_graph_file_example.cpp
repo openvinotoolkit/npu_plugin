@@ -1,5 +1,6 @@
 #include "include/mcm/utils/deployer/configuration.hpp"
 #include "include/mcm/utils/deployer/executor.hpp"
+#include "include/mcm/utils/deployer/deployer_utils.hpp"
 
 using namespace mv;
 using namespace exe;
@@ -12,7 +13,11 @@ int main()
     Configuration config(graphFile);
     std::cout << "Configuration graph file " << config.getGraphFilePath() << std::endl;
     Executor exec;
-    Tensor res = exec.execute(config);
+    Order order("NHWC");
+    Shape shape({64, 64 ,3 ,1});
+
+    Tensor inputTensor = mv::exe::dep_utils::getInputData(InputMode::ALL_ZERO, order, shape);
+    Tensor res = exec.execute(config, inputTensor);
     std::cout << "res Order " << res.getOrder().toString() << std::endl;
     std::cout << "res Shape " << res.getShape().toString() << std::endl;
     std::cout << "ndims " << res.getShape().ndims() << std::endl;

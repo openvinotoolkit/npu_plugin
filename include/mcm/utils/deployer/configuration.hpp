@@ -29,10 +29,8 @@ namespace mv
         class Configuration : public LogSender
         {
 
-            mv::Target target_;
+            Target target_;
             Protocol protocol_;
-            InputMode inputMode_;
-            std::string inputFilePath_;
             std::string graphFilePath_;
             std::shared_ptr<mv::RuntimeBinary> binaryPointer_;
 
@@ -42,23 +40,18 @@ namespace mv
 
             Configuration(const std::string& graphFilePath);
             Configuration(const std::string& graphFilePath,
-                Target target, Protocol protocol,
-                InputMode inputMode, const std::string& inputFilePath);
+                Target target, Protocol protocol);
             Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer);
             Configuration(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
                 Target target, Protocol protocol,
                 InputMode inputMode, const std::string& inputFilePath);
             Configuration(const Configuration &c);
-            
+
             void setTarget(Target target);
             void setProtocol(Protocol protocol);
-            void setInputMode(InputMode inputMode);
-            void setInputFilePath(const std::string& inputFilePath);
 
             Target getTarget() const;
             Protocol getProtocol() const;
-            InputMode getInputMode() const;
-            std::string getInputFilePath( ) const;
             std::string getGraphFilePath( ) const;
             std::string getLogID() const override;
             std::shared_ptr<mv::RuntimeBinary> getRuntimePointer();

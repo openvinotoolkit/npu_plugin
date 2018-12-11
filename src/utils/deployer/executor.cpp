@@ -1,4 +1,5 @@
 #include "include/mcm/utils/deployer/executor.hpp"
+#include "include/mcm/utils/deployer/deployer_utils.hpp"
 
 bool mv::exe::Executor::checkTargetMatches(Target target, ncDeviceHwVersion_t hwVersion)
 {
@@ -52,31 +53,6 @@ void mv::exe::Executor::openDevice(Configuration& configuration)
 
 }
 
-void mv::exe::Executor::getInputData(Configuration& configuration, unsigned int imageSize, char* imageData)
-{
-
-    if (configuration.getInputMode() == InputMode::FILE)
-    {
-        std::ifstream inputFile (configuration.getInputFilePath(), std::ios::in | std::ios::binary);
-        log(Logger::MessageType::Info, "loading input image from: " + configuration.getInputFilePath());
-
-        if (!inputFile.read (imageData, imageSize))
-            throw RuntimeError(*this, "input file doesn't have enough data!");
-    }
-    else
-    {
-        if (configuration.getInputMode() == InputMode::ALL_ONE)
-        {
-            std::vector<unsigned short> myvector(imageSize/2);
-            std::fill_n(myvector.begin(), myvector.size(), 0x3c00);//fp32_to_fp16(1.0)
-            memcpy(imageData, &myvector[0], imageSize);
-        }
-        else
-            memset(imageData, 0, imageSize);
-    }
-
-}
-
 void mv::exe::Executor::loadGraph(Configuration& configuration)
 {
 
@@ -124,39 +100,6 @@ void mv::exe::Executor::loadGraph(Configuration& configuration)
     }
 
     log(Logger::MessageType::Info, "Graph Loading done successfully!");
-
-}
-
-mv::Order mv::exe::Executor::getTensorOrder(ncTensorDescriptor_t& td)
-{
-    unsigned int max = std::max(std::max(td.hStride, td.wStride), td.cStride);
-
-    if (max == td.hStride)
-    {
-
-        if (std::max(td.wStride, td.cStride) == td. wStride)
-            return Order("NHWC");
-        else
-            return Order("NHCW");
-
-    }
-    else if (max == td.cStride)
-    {
-
-        if (std::max(td.wStride, td.hStride) == td.hStride)
-            return Order("NCHW");
-        else
-            return Order("NCWH");
-    }
-    else
-    { 
-        //W is major
-        if (std::max(td.hStride, td.cStride) == td.hStride)
-            return Order("NWHC");
-        else
-            return Order("NWCH");
-
-    }
 
 }
 
@@ -268,7 +211,7 @@ void mv::exe::Executor::destroyAll()
     
 }
 
-mv::Tensor mv::exe::Executor::execute(Configuration& configuration)
+mv::Tensor mv::exe::Executor::execute(Configuration& configuration, Tensor& inputTensor)
 {
     log(Logger::MessageType::Info, "Initialize Executor");
     openDevice(configuration);
@@ -276,11 +219,20 @@ mv::Tensor mv::exe::Executor::execute(Configuration& configuration)
     allocateFifos();
 
     // Assume one input for now
+    //Check size and order of the input tensor
     unsigned int imageSize = inputTensorDesc_[0].totalSize;
-    char* imageData = new char[imageSize];
-    getInputData(configuration, imageSize, imageData);
+    if (imageSize/2 != inputTensor.getShape().totalSize())
+        throw RuntimeError(*this, "size of input tensor doesn't match expected size by blob");
+
+    Order graphInputOrder = mv::exe::dep_utils::getTensorOrder(inputTensorDesc_[0]);
+    if (graphInputOrder != inputTensor.getOrder())
+        throw RuntimeError(*this, "Order of input tensor doesn't match expected order by blob");
     // Write tensor to input fifo
-    ncStatus_t retCode = ncFifoWriteElem(buffersIn_[0], imageData, &imageSize, 0);
+    std::vector<double> temp = inputTensor.getData();
+    unsigned short* imageData = new unsigned short[imageSize/2];
+    std::copy(std::begin(temp), std::end(temp), imageData);
+
+    ncStatus_t retCode = ncFifoWriteElem(buffersIn_[0],imageData, &imageSize, 0);
     if(retCode != NC_OK)
         throw RuntimeError(*this, "ncFifoWriteElem failed");
     log(Logger::MessageType::Info, "Load input fifo successfully!");
@@ -310,15 +262,15 @@ mv::Tensor mv::exe::Executor::execute(Configuration& configuration)
     unsigned short* resultUS = (unsigned short*) result;
     for (unsigned int i = 0; i < numberOfElements; i++)
         tensorData[i] = (double) resultUS[i];
-        
+
     Shape shape({outputTensorDesc_[0].w, outputTensorDesc_[0].h, outputTensorDesc_[0].c, outputTensorDesc_[0].n});
-    Order order = getTensorOrder(outputTensorDesc_[0]);
+    Order order = mv::exe::dep_utils::getTensorOrder(outputTensorDesc_[0]);
 
     Tensor resultTensor("result", shape, DType(DTypeType::Float16), order);
     resultTensor.populate(tensorData);
 
-    delete imageData;
     delete result;
+    delete imageData;
     destroyAll();
     return resultTensor;
 
