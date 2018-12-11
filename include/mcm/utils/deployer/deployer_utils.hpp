@@ -53,10 +53,10 @@ namespace mv
             void checkFileExists(const std::string& fileName)
             {
                 if (fileName.empty())
-                    std::runtime_error(fileName + "is Empty");
+                    throw std::runtime_error(fileName + "is Empty");
                 std::ifstream checkFile(fileName, std::ios::in | std::ios::binary);
                 if (checkFile.fail())
-                    std::runtime_error(fileName + " File not found!");
+                    throw std::runtime_error(fileName + " File not found!");
             }
 
 
@@ -92,8 +92,7 @@ namespace mv
                 std::unique_ptr<unsigned short[]> imageData(new unsigned short[dataSize]);
 
                 if (!inputFile.read(reinterpret_cast<char *>(imageData.get()), dataSize*2))
-                    std::runtime_error("generateInputData failed on read from file");
-
+                    throw std::runtime_error("generateInputData failed on read from file");
                 return convertDataToTensor(order, shape, imageData.get(), dataSize);
             }
 
