@@ -18,6 +18,7 @@ std::string file_name_two;
 
 class MyTestEnvironment : public testing::Environment {
  public:
+
   explicit MyTestEnvironment(const std::string &command_line_arg_one, const std::string &command_line_arg_two) {
       
     file_name_one = command_line_arg_one;
@@ -25,9 +26,7 @@ class MyTestEnvironment : public testing::Environment {
   }
 };
 
-
-
-//need to break up
+// //need to break up
 TEST(graphFile, header_SummaryHeader_version_Version)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -39,42 +38,6 @@ TEST(graphFile, header_SummaryHeader_version_Version)
     EXPECT_EQ(graph1->header()->version()->minorV(),graph2->header()->version()->minorV());
     EXPECT_EQ(graph1->header()->version()->patchV(),graph2->header()->version()->patchV());
     EXPECT_EQ(graph1->header()->version()->hash()->c_str(),graph2->header()->version()->hash()->c_str());
-}
-
-TEST(graphFile, header_SummaryHeader_task_count)	
-{
-    Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
-    const auto graph1 = GetGraphFile(blob_1.get_ptr());
-    const auto graph2 = GetGraphFile(blob_2.get_ptr());
-
-    //Is task_cout present in graph1
-    auto taskCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_TASK_COUNT);
-
-    if(taskCountPresentGraph1) {
-        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_TASK_COUNT)); //Check if present in graph2
-        EXPECT_EQ(graph1->header()->task_count(),graph2->header()->task_count()); //Test if equal
-    }
-    else
-        SUCCEED();
-}
-
-TEST(graphFile, header_SummaryHeader_layer_count)	
-{
-    Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
-    const auto graph1 = GetGraphFile(blob_1.get_ptr());
-    const auto graph2 = GetGraphFile(blob_2.get_ptr());
-
-    //Is layer_cout present in graph1
-    auto layerCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_LAYER_COUNT);
-    
-    if(layerCountPresentGraph1) {
-        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_LAYER_COUNT)); //Check if present in graph2
-        EXPECT_EQ(graph1->header()->layer_count(),graph2->header()->layer_count()); //Then test if equal
-    }
-    else
-        SUCCEED();
 }
 
 TEST(graphFile, header_SummaryHeader_net_input_TensorReference_dimensions)	
@@ -91,7 +54,8 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_dimensions)
         ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_INPUT)); //Check if present in graph2
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
-
+            
+            //are dimensions present
             auto dimensionsPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_DIMENSIONS);
 
             if(dimensionsPresentGraph1) {
@@ -140,7 +104,73 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_strides)
         SUCCEED();
 }
 
-// //Need to update to check if TensorReference table (contains dimension field) is present
+TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_IndirectDataReference_data_index)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    //Is net_output present in graph1
+    auto netOutputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
+
+     if(netOutputPresentGraph1) {
+        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
+
+        for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
+      
+                EXPECT_EQ(graph1->header()->net_output()->Get(i)->data()->data_index(),graph2->header()->net_output()->Get(i)->data()->data_index());
+        }  
+    } 
+    else
+        SUCCEED();
+}
+
+TEST(graphFile, header_SummaryHeader_net_input_TensorReference_locale)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    //Is net_output present in graph1
+    auto netinputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
+
+     if(netinputPresentGraph1) {
+        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
+
+        for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
+      
+                EXPECT_EQ(graph1->header()->net_input()->Get(i)->locale(),graph2->header()->net_input()->Get(i)->locale());
+        }  
+    } 
+    else
+        SUCCEED();
+}
+
+TEST(graphFile, header_SummaryHeader_net_input_TensorReference_data_dtype)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    //Is net_output present in graph1
+    auto netInputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
+
+     if(netInputPresentGraph1) {
+        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
+
+        for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
+      
+                EXPECT_EQ(graph1->header()->net_input()->Get(i)->data_dtype(),graph2->header()->net_input()->Get(i)->data_dtype());
+        }  
+    } 
+    else
+        SUCCEED();
+}
+
+
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_dimensions)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -172,7 +202,6 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_dimensions)
         SUCCEED();
 }
 
-// //Need to update to check if TensorReference table (contains dimension field) is present
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_strides)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -204,72 +233,6 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_strides)
         SUCCEED();
 }
 
-TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_dtype)	
-{
-    Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
-    const auto graph1 = GetGraphFile(blob_1.get_ptr());
-    const auto graph2 = GetGraphFile(blob_2.get_ptr());
-
-    //Is net_output present in graph1
-    auto netOutputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
-
-     if(netOutputPresentGraph1) {
-        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
-
-        for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
-      
-                EXPECT_EQ(graph1->header()->net_output()->Get(i)->data_dtype(),graph2->header()->net_output()->Get(i)->data_dtype());
-        }  
-    } 
-    else
-        SUCCEED();
-}
-
-TEST(graphFile, header_SummaryHeader_net_input_TensorReference_data_dtype)	
-{
-    Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
-    const auto graph1 = GetGraphFile(blob_1.get_ptr());
-    const auto graph2 = GetGraphFile(blob_2.get_ptr());
-
-    //Is net_output present in graph1
-    auto netInputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
-
-     if(netInputPresentGraph1) {
-        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
-
-        for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
-      
-                EXPECT_EQ(graph1->header()->net_input()->Get(i)->data_dtype(),graph2->header()->net_input()->Get(i)->data_dtype());
-        }  
-    } 
-    else
-        SUCCEED();
-}
-
-TEST(graphFile, header_SummaryHeader_net_input_TensorReference_locale)	
-{
-    Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
-    const auto graph1 = GetGraphFile(blob_1.get_ptr());
-    const auto graph2 = GetGraphFile(blob_2.get_ptr());
-
-    //Is net_output present in graph1
-    auto netinputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
-
-     if(netinputPresentGraph1) {
-        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
-
-        for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
-      
-                EXPECT_EQ(graph1->header()->net_input()->Get(i)->locale(),graph2->header()->net_input()->Get(i)->locale());
-        }  
-    } 
-    else
-        SUCCEED();
-}
-
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_locale)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -292,8 +255,29 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_locale)
         SUCCEED();
 }
 
+TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_dtype)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
+    //Is net_output present in graph1
+    auto netOutputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
 
+     if(netOutputPresentGraph1) {
+        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
+
+        for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
+      
+                EXPECT_EQ(graph1->header()->net_output()->Get(i)->data_dtype(),graph2->header()->net_output()->Get(i)->data_dtype());
+        }  
+    } 
+    else
+        SUCCEED();
+}
+
+//Not populated in PoC blob
 TEST(graphFile, header_SummaryHeader_resources_Resources_shave_mask)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -312,6 +296,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_shave_mask)
         SUCCEED();
 }
 
+//Not populated in PoC blob
 TEST(graphFile, header_SummaryHeader_resources_Resources_nce1_mask)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -330,6 +315,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_nce1_mask)
         SUCCEED();
 }
 
+//Not populated in PoC blob
 TEST(graphFile, header_SummaryHeader_resources_Resources_dpu_mask)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -348,6 +334,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_dpu_mask)
         SUCCEED();
 }
 
+//Not populated in PoC blob
 TEST(graphFile, header_SummaryHeader_resources_Resources_leon_cmx)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -366,6 +353,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_leon_cmx)
         SUCCEED();
 }
 
+//Not populated in PoC blob
 TEST(graphFile, header_SummaryHeader_resources_Resources_nn_cmx)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -384,6 +372,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_nn_cmx)
         SUCCEED();
 }
 
+//Not populated in PoC blob
 TEST(graphFile, header_SummaryHeader_resources_Resources_ddr_scratch)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -402,8 +391,9 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_ddr_scratch)
         SUCCEED();
 }
 
+//Insert orignal structure - Links table here
 
-//Not written in POC blob
+//Not populated in PoC blob
 TEST(graphFile, task_lists_TaskList_content_Task_nodeID)		
 {
     Blob blob_1(file_name_one.c_str());
@@ -443,6 +433,111 @@ TEST(graphFile, task_lists_TaskList_content_Task_nodeID)
         SUCCEED();
 }
 
+TEST(graphFile, barrier_table_Barrier_barrier_id)		
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    auto Barrier_graph1 = graph1->barrier_table(); 
+    auto Barrier_graph2 = graph2->barrier_table();
+
+    //Is barrier_table present in graph1
+    auto barrierTablePresentGraph1 = flatbuffers::IsFieldPresent(graph1, GraphFile::VT_BARRIER_TABLE);
+
+    if(barrierTablePresentGraph1) { //if present
+
+    for (flatbuffers::uoffset_t j = 0; j < Barrier_graph1->size(); j++) { //No. of Barrier tables
+    
+        //is nodeIDPresentGraph1 present
+        auto barrierIdPresentGraph1 = flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_BARRIER_ID);
+
+        if(barrierIdPresentGraph1) {
+            
+            auto barrier_id_graph1 = Barrier_graph1->Get(j)->barrier_id();
+            auto barrier_id_graph2 = Barrier_graph2->Get(j)->barrier_id();
+                    
+                    EXPECT_EQ(barrier_id_graph1, barrier_id_graph2);
+                }
+                else 
+                    SUCCEED();
+        }
+    }
+    else 
+        SUCCEED();
+}
+
+TEST(graphFile, barrier_table_Barrier_consumer_count)		
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    auto Barrier_graph1 = graph1->barrier_table(); 
+    auto Barrier_graph2 = graph2->barrier_table();
+
+    //Is barrier_table present in graph1
+    auto barrierTablePresentGraph1 = flatbuffers::IsFieldPresent(graph1, GraphFile::VT_BARRIER_TABLE);
+
+    if(barrierTablePresentGraph1) { //if present
+
+    for (flatbuffers::uoffset_t j = 0; j < Barrier_graph1->size(); j++) { //No. of Barrier tables
+    
+        //is consumer_count present in graph1
+        auto consumerCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_CONSUMER_COUNT);
+
+        if(consumerCountPresentGraph1) {
+            
+            auto consumer_count_graph1 = Barrier_graph1->Get(j)->consumer_count();
+            auto consumer_count_graph2 = Barrier_graph2->Get(j)->consumer_count();
+                    
+                    EXPECT_EQ(consumer_count_graph1, consumer_count_graph2);
+                }
+                else 
+                    SUCCEED();
+        }
+    }
+    else 
+        SUCCEED();
+}
+
+TEST(graphFile, barrier_table_Barrier_producer_count)		
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    auto Barrier_graph1 = graph1->barrier_table(); 
+    auto Barrier_graph2 = graph2->barrier_table();
+
+    //Is barrier_table present in graph1
+    auto barrierTablePresentGraph1 = flatbuffers::IsFieldPresent(graph1, GraphFile::VT_BARRIER_TABLE);
+
+    if(barrierTablePresentGraph1) { //if present
+
+    for (flatbuffers::uoffset_t j = 0; j < Barrier_graph1->size(); j++) { //No. of Barrier tables
+    
+        //is producer_count present in graph1
+        auto producerCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_PRODUCER_COUNT);
+
+        if(producerCountPresentGraph1) {
+            
+            auto producer_count_graph1 = Barrier_graph1->Get(j)->producer_count();
+            auto producer_count_graph2 = Barrier_graph2->Get(j)->producer_count();
+                    
+                    EXPECT_EQ(producer_count_graph1, producer_count_graph2);
+                }
+                else 
+                    SUCCEED();
+        }
+    }
+    else 
+        SUCCEED();
+}
+
 //Need to check if Task table is present (contains sourceTaskIDs field)
 TEST(graphFile, task_lists_TaskList_content_Task_sourceTaskIDs)	
 {
@@ -473,7 +568,6 @@ TEST(graphFile, task_lists_TaskList_content_Task_sourceTaskIDs)
     }
 }
 
-// //Add ASSERT
 TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierReference_wait_barriers)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -498,7 +592,6 @@ TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierRefe
     }
 }
 
-// //Add ASSERT
 TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierReference_update_barriers)	
 {
     Blob blob_1(file_name_one.c_str());
@@ -541,6 +634,147 @@ TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierRefe
     else
         SUCCEED();
 }
+
+TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    auto TaskLists_graph1 = graph1->task_lists(); 
+    auto TaskLists_graph2 = graph2->task_lists();
+
+    for (flatbuffers::uoffset_t j = 0; j < TaskLists_graph1->size(); j++) { //No. of TaskList tables
+        
+        auto content_size = TaskLists_graph1->Get(j)->content()->size(); //No. of Task tables
+       
+        for (flatbuffers::uoffset_t i = 0; i < content_size; i++) { //For each Task Table
+
+            auto task_type_graph1 = TaskLists_graph1->Get(j)->content()->Get(i)->task_type(); //Note This returns an int and not a task type name as a string
+            auto task_type_graph2 = TaskLists_graph2->Get(j)->content()->Get(i)->task_type();
+    
+            EXPECT_EQ(task_type_graph1,task_type_graph2);
+        }
+    }
+}
+
+TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_ControllerTask_task_ControllerSubTask_BarrierConfigurationTask_barrier_id)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    auto TaskLists_graph1 = graph1->task_lists(); 
+
+    for (flatbuffers::uoffset_t j = 0; j < TaskLists_graph1->size(); j++) { //No. of TaskList tables
+        
+        auto content_size = TaskLists_graph1->Get(j)->content()->size(); //No. of Task tables
+       
+        for (flatbuffers::uoffset_t i = 0; i < content_size; i++) { //For each Task Table
+
+            auto task_type_graph1 = TaskLists_graph1->Get(j)->content()->Get(i)->task_type(); //Note This returns an int and not a task type name as a string
+
+            if(task_type_graph1 == SpecificTask_ControllerTask) { //Is it a controller task - if not proceed to SUCEED()
+                
+                auto controllerSubTask = static_cast<const ControllerTask*>(graph1->task_lists()->Get(j)->content()->Get(i)->task()); // Requires `static_cast`
+                
+                auto controllerSubTask_type = controllerSubTask->task_type();
+
+                if(controllerSubTask_type == ControllerSubTask_BarrierConfigurationTask) {//Is it BarrierConfigurationTask - if not proceed to SUCEED()
+
+                    auto barrierConfigurationTask_graph1 = static_cast<const BarrierConfigurationTask*>(graph1->task_lists()->Get(j)->content()->Get(i)->task_as_ControllerTask()->task_as_BarrierConfigurationTask()); // Requires `static_cast`
+                    auto barrierConfigurationTask_graph2 = static_cast<const BarrierConfigurationTask*>(graph2->task_lists()->Get(j)->content()->Get(i)->task_as_ControllerTask()->task_as_BarrierConfigurationTask()); // Requires `static_cast`
+
+                    auto barrier_id_graph1 = barrierConfigurationTask_graph1->target()->barrier_id();
+                    auto barrier_id_graph2 = barrierConfigurationTask_graph2->target()->barrier_id();
+
+                    EXPECT_EQ(barrier_id_graph1,barrier_id_graph2); //test if barrier IDs are equal                                                           
+            }
+             else
+                SUCCEED(); //it is not a BarrierConfigurationTask  -> pass test
+            }
+            else
+                SUCCEED(); //it is not a controller task -> pass test
+        }
+    }
+}
+
+
+TEST(graphFile, header_SummaryHeader_task_count)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    //Is task_cout present in graph1
+    auto taskCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_TASK_COUNT);
+
+    if(taskCountPresentGraph1) {
+        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_TASK_COUNT)); //Check if present in graph2
+        EXPECT_EQ(graph1->header()->task_count(),graph2->header()->task_count()); //Test if equal
+    }
+    else
+        SUCCEED();
+}
+
+TEST(graphFile, header_SummaryHeader_layer_count)	
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_one.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+    //Is layer_cout present in graph1
+    auto layerCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_LAYER_COUNT);
+    
+    if(layerCountPresentGraph1) {
+        ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_LAYER_COUNT)); //Check if present in graph2
+        EXPECT_EQ(graph1->header()->layer_count(),graph2->header()->layer_count()); //Then test if equal
+    }
+    else
+        SUCCEED();
+}
+
+// TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_NNDMATask_compression)		
+// {
+//     Blob blob_1(file_name_one.c_str());
+//     Blob blob_2(file_name_one.c_str());
+//     const auto graph1 = GetGraphFile(blob_1.get_ptr());
+//     const auto graph2 = GetGraphFile(blob_2.get_ptr());
+
+//     auto TaskLists_graph1 = graph1->task_lists(); 
+//     auto TaskLists_graph2 = graph2->task_lists();
+
+//     //Is task_lists present in graph1
+//     auto taskListsPresentGraph1 = flatbuffers::IsFieldPresent(graph1, GraphFile::VT_TASK_LISTS);
+
+//     if(taskListsPresentGraph1) { //if present
+
+//     for (flatbuffers::uoffset_t j = 0; j < TaskLists_graph1->size(); j++) { //No. of TaskList tables
+        
+//         auto content_size = TaskLists_graph1->Get(j)->content()->size(); //No. of Task tables
+
+//         for (flatbuffers::uoffset_t i = 0; i < content_size; i++) {
+                
+//                 auto NNDMATask_compressionGraph1 = flatbuffers::IsFieldPresent(TaskLists_graph1->Get(j)->content()->Get(i)->task_as_NNDMATask(), NNDMATask::VT_COMPRESSION);
+
+//                 if(NNDMATask_compressionGraph1) {
+//                     auto NNDMATask_compression_graph1 = TaskLists_graph1->Get(j)->content()->Get(i)->task_as_NNDMATask()->compression();
+//                     auto NNDMATask_compression_graph2 = TaskLists_graph2->Get(j)->content()->Get(i)->task_as_NNDMATask()->compression();
+                    
+//                     EXPECT_EQ(NNDMATask_compression_graph1, NNDMATask_compression_graph2);
+//                 }
+//                 else 
+//                     SUCCEED();
+//         }
+//     }
+//     }
+//     else 
+//         SUCCEED();
+// }
 
 int main(int argc, char **argv) {
 
