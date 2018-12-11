@@ -1,4 +1,4 @@
-EXEC = deserialize
+EXEC = blobComapreTool
 
 WARNING_FLAGS 	:= -pedantic-errors -Wall -Wextra -Wno-format-security
 

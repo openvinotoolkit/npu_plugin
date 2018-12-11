@@ -68,7 +68,7 @@ file(GLOB base
     "src/base/json/number_float.cpp"
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
-    "src/base/json/null.cpp"samples
+    "src/base/json/null.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
     "src/base/exception/*.cpp"
