@@ -21,7 +21,7 @@ namespace mv
 
             Order getTensorOrder(ncTensorDescriptor_t& td);
 
-            void checkFileExists(const std::string& fileName);
+            void checkFileExists(const std::string& callerId, const std::string& argName, const std::string& fileName);
 
             Tensor convertDataToTensor(Order& order, Shape& shape, unsigned short* imageData, int numberOfElements);
             Tensor convertDataToTensor(ncTensorDescriptor_t& tensorDescriptor, unsigned short* imageData);

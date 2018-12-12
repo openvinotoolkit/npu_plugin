@@ -80,7 +80,7 @@ void mv::exe::Executor::loadGraph(std::shared_ptr<mv::RuntimeBinary> binaryPoint
     }
     else
     {
-        utils::checkFileExists(graphFilePath);
+        utils::checkFileExists(getLogID(), "graph file ", graphFilePath);
 
         std::ifstream inputFile (graphFilePath, std::ios::in | std::ios::binary);
 

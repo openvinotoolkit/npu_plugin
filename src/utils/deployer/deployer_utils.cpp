@@ -36,13 +36,14 @@ mv::Order mv::exe::utils::getTensorOrder(ncTensorDescriptor_t& td)
     }
 }
 
-void mv::exe::utils::checkFileExists(const std::string& fileName)
+void mv::exe::utils::checkFileExists(const std::string& callerId, const std::string& argName,
+    const std::string& fileName)
 {
     if (fileName.empty())
-        throw std::runtime_error(fileName + "is Empty");
+        throw mv::ArgumentError(callerId, argName, fileName, " filename is Empty");
     std::ifstream checkFile(fileName, std::ios::in | std::ios::binary);
     if (checkFile.fail())
-        throw std::runtime_error(fileName + " File not found!");
+        throw mv::ArgumentError(callerId, argName, fileName, " File not found");
 }
 
 
@@ -72,15 +73,14 @@ mv::Tensor mv::exe::utils::convertDataToTensor(ncTensorDescriptor_t& tensorDescr
 
 mv::Tensor mv::exe::utils::getInputData(std::string inputFileName, Order& order, Shape& shape)
 {
-    checkFileExists(inputFileName);
+    checkFileExists("deployer_utils" , "input file", inputFileName);
     std::ifstream inputFile(inputFileName, std::ios::in | std::ios::binary);
-    std::cout<< "loading input image from: " << inputFileName << std::endl;
 
     int dataSize = shape.totalSize();
     std::unique_ptr<unsigned short[]> imageData(new unsigned short[dataSize]);
 
     if (!inputFile.read(reinterpret_cast<char *>(imageData.get()), dataSize*2))
-        throw std::runtime_error("generateInputData failed on read from file");
+        throw mv::ArgumentError("getInputData", "Input File", inputFileName, "failed reading data from file");
     return convertDataToTensor(order, shape, imageData.get(), dataSize);
 }
 
