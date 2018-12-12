@@ -61,8 +61,7 @@ void mv::exe::Executor::openDevice()
 
 }
 
-void mv::exe::Executor::loadGraph(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
-    const std::string& graphFilePath)
+void mv::exe::Executor::loadGraph(void* graphFileBuf, int graphLen)
 {
 
     log(Logger::MessageType::Info, "loading graph");
@@ -71,28 +70,7 @@ void mv::exe::Executor::loadGraph(std::shared_ptr<mv::RuntimeBinary> binaryPoint
     if (retCode != NC_OK)
         throw RuntimeError(*this, "ncGraphCreate failed");
 
-    void* graphFileBuf = nullptr;
-    unsigned int graphFileLen = 0;
-    if (graphFilePath.empty())
-    {
-        graphFileBuf = binaryPointer->getDataPointer();
-        graphFileLen = binaryPointer->getBufferSize();
-    }
-    else
-    {
-        utils::checkFileExists(getLogID(), "graph file ", graphFilePath);
-
-        std::ifstream inputFile (graphFilePath, std::ios::in | std::ios::binary);
-
-        inputFile.seekg (0, inputFile.end);
-        graphFileLen = inputFile.tellg();
-        inputFile.seekg (0, inputFile.beg);
-        graphFileBuf = new char[graphFileLen];
-        if (!inputFile.read ((char*)graphFileBuf, graphFileLen))
-            throw RuntimeError(*this, "Error reading graph file");
-    }
-
-    retCode = ncGraphAllocate(deviceHandle_, graphHandle_, graphFileBuf, graphFileLen);
+    retCode = ncGraphAllocate(deviceHandle_, graphHandle_, graphFileBuf, graphLen);
 
     if(retCode != NC_OK)
     {
@@ -225,21 +203,34 @@ void mv::exe::Executor::destroyAll()
 mv::Tensor mv::exe::Executor::execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
     Tensor& inputTensor)
 {
-    return execute(binaryPointer, "", inputTensor);
+    void* graphFileBuf = binaryPointer->getDataPointer();;
+    unsigned int graphFileLen = binaryPointer->getBufferSize();;
+
+    return execute_(graphFileBuf, graphFileLen, inputTensor);
 }
 
 mv::Tensor mv::exe::Executor::execute(const std::string& graphFilePath,
     Tensor& inputTensor)
 {
-    return execute(nullptr, graphFilePath, inputTensor);
+    utils::checkFileExists(getLogID(), "graph file ", graphFilePath);
+
+    std::ifstream inputFile (graphFilePath, std::ios::in | std::ios::binary);
+
+    inputFile.seekg (0, inputFile.end);
+    unsigned int graphFileLen = inputFile.tellg();
+    inputFile.seekg (0, inputFile.beg);
+    void* graphFileBuf = new char[graphFileLen];
+    if (!inputFile.read ((char*)graphFileBuf, graphFileLen))
+        throw RuntimeError(*this, "Error reading graph file");
+
+    return execute_(graphFileBuf, graphFileLen, inputTensor);
 }
 
-mv::Tensor mv::exe::Executor::execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer,
-    const std::string& graphFilePath, Tensor& inputTensor)
+mv::Tensor mv::exe::Executor::execute_(void* graphFileBuf, int graphLen, Tensor& inputTensor)
 {
     log(Logger::MessageType::Info, "Initialize Executor");
     openDevice();
-    loadGraph(binaryPointer, graphFilePath);
+    loadGraph(graphFileBuf, graphLen);
     allocateFifos();
 
     // Assume one input for now

@@ -34,10 +34,10 @@ namespace mv
             Protocol protocol_;
 
             void openDevice();
-            void loadGraph(std::shared_ptr<mv::RuntimeBinary> binaryPointer, const std::string& graphFilePath);
+            void loadGraph(void* graphFileBuf, int graphLen);
             void allocateFifos();
             void destroyAll();
-            Tensor execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer, const std::string& graphFilePath, Tensor& inputTensor);
+            Tensor execute_(void* graphFileBuf, int graphLen, Tensor& inputTensor);
             bool checkTargetMatches(ncDeviceHwVersion_t hwVersion);
 
         public:
