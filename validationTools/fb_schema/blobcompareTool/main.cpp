@@ -9,14 +9,28 @@
 #include "flatbuffers/minireflect.h"
 #include "flatbuffers/registry.h"
 #include "flatbuffers/util.h"
-#include "testEnvironment.hpp"
 #include <gtest/gtest.h>
+
+namespace {
+std::string file_name_one;
+std::string file_name_two;
+}
+
+class TestEnvironment : public testing::Environment {
+ public:
+
+  explicit TestEnvironment(const std::string &command_line_arg_one, const std::string &command_line_arg_two) {
+      
+    file_name_one = command_line_arg_one;
+    file_name_two = command_line_arg_two;
+  }
+};
 
 //need to break up
 TEST(graphFile, header_SummaryHeader_version_Version)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
     
@@ -28,7 +42,7 @@ TEST(graphFile, header_SummaryHeader_version_Version)
 TEST(graphFile, header_SummaryHeader_net_input_TensorReference_dimensions)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -40,11 +54,14 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_dimensions)
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
             
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_DIMENSIONS));
+
             auto dimensionsPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_DIMENSIONS);  //are dimensions present
 
             if(dimensionsPresentGraph1) {
                 for (flatbuffers::uoffset_t j = 0; j < graph1->header()->net_input()->Get(i)->dimensions()->size(); j++) { //For each dimension check if equal
-                
+                    
+                    ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_input()->Get(i), TensorReference::VT_DIMENSIONS));
                     EXPECT_EQ(graph1->header()->net_input()->Get(i)->dimensions()->Get(j),graph2->header()->net_input()->Get(i)->dimensions()->Get(j));
                 }
             }
@@ -59,7 +76,7 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_dimensions)
 TEST(graphFile, header_SummaryHeader_net_input_TensorReference_strides)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -71,14 +88,17 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_strides)
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
 
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_STRIDES));
+
             auto stridesPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_STRIDES);
 
             if(stridesPresentGraph1) {
                 //For each dimension check if equal
                 for (flatbuffers::uoffset_t j = 0; j < graph1->header()->net_input()->Get(i)->strides()->size(); j++) { 
                     
+                    ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_input()->Get(i), TensorReference::VT_STRIDES));
                     EXPECT_EQ(graph1->header()->net_input()->Get(i)->strides()->Get(j),graph2->header()->net_input()->Get(i)->strides()->Get(j));
-                    }
+                }
             }
             else
                 SUCCEED();
@@ -91,7 +111,7 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_strides)
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_IndirectDataReference_data_index)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -113,7 +133,7 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_IndirectDat
 TEST(graphFile, header_SummaryHeader_net_input_TensorReference_locale)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -135,7 +155,7 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_locale)
 TEST(graphFile, header_SummaryHeader_net_input_TensorReference_data_dtype)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -158,7 +178,7 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_data_dtype)
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_dimensions)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -191,7 +211,7 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_dimensions)
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_strides)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -223,7 +243,7 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_strides)
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_locale)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -245,7 +265,7 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_locale)
 TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_dtype)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -267,7 +287,7 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_dtype)
 TEST(graphFile, header_SummaryHeader_resources_Resources_shave_mask)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -285,7 +305,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_shave_mask)
 TEST(graphFile, header_SummaryHeader_resources_Resources_nce1_mask)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -303,7 +323,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_nce1_mask)
 TEST(graphFile, header_SummaryHeader_resources_Resources_dpu_mask)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -321,7 +341,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_dpu_mask)
 TEST(graphFile, header_SummaryHeader_resources_Resources_leon_cmx)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -339,7 +359,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_leon_cmx)
 TEST(graphFile, header_SummaryHeader_resources_Resources_nn_cmx)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -357,7 +377,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_nn_cmx)
 TEST(graphFile, header_SummaryHeader_resources_Resources_ddr_scratch)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -377,7 +397,7 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_ddr_scratch)
 TEST(graphFile, task_lists_TaskList_content_Task_nodeID)		
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -413,7 +433,7 @@ TEST(graphFile, task_lists_TaskList_content_Task_nodeID)
 TEST(graphFile, barrier_table_Barrier_barrier_id)		
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -445,7 +465,7 @@ TEST(graphFile, barrier_table_Barrier_barrier_id)
 TEST(graphFile, barrier_table_Barrier_consumer_count)		
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -477,7 +497,7 @@ TEST(graphFile, barrier_table_Barrier_consumer_count)
 TEST(graphFile, barrier_table_Barrier_producer_count)		
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -510,7 +530,7 @@ TEST(graphFile, barrier_table_Barrier_producer_count)
 TEST(graphFile, task_lists_TaskList_content_Task_sourceTaskIDs)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -536,7 +556,7 @@ TEST(graphFile, task_lists_TaskList_content_Task_sourceTaskIDs)
 TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierReference_wait_barriers)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -557,7 +577,7 @@ TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierRefe
 TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierReference_update_barriers)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -600,7 +620,7 @@ TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierRefe
 TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -621,7 +641,7 @@ TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask)
 TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_ControllerTask_task_ControllerSubTask_BarrierConfigurationTask_barrier_id)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -661,7 +681,7 @@ TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_ControllerTas
 TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_ControllerTask_task_ControllerSubTask_BarrierConfigurationTask_consumer_count)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -701,7 +721,7 @@ TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_ControllerTas
 TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_ControllerTask_task_ControllerSubTask_BarrierConfigurationTask_producer_count)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -738,10 +758,173 @@ TEST(graphFile, task_lists_TaskList_content_Task_task_SpecificTask_ControllerTas
     }
 }
 
+
+TEST(graphFile, binary_data_BinaryData_u8)		
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+    bool u8PresentGraph2 = false;
+    const flatbuffers::Vector<uint8_t> * binaryData_u8_graph2 = nullptr;
+    flatbuffers::uoffset_t j; 
+
+    //Is  binary_data present in graph1
+    auto  binaryDataPresentGraph1 = flatbuffers::IsFieldPresent(graph1, GraphFile::VT_BINARY_DATA);
+    
+    ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1, GraphFile::VT_BINARY_DATA));
+
+    if(binaryDataPresentGraph1) { //if present
+
+        for (j = 0; j < graph1->binary_data()->size(); j++) { //No. of Barrier tables
+    
+            //is u8 present
+            auto u8PresentGraph1 = flatbuffers::IsFieldPresent(graph1->binary_data()->Get(j), BinaryData::VT_U8);
+
+            if(u8PresentGraph1) {
+
+                //check if u8 is present in graph2 (may no tbe at the same index - check all indices)
+                for (flatbuffers::uoffset_t k = 0; k < graph1->binary_data()->size(); k++){
+
+                    if(flatbuffers::IsFieldPresent(graph2->binary_data()->Get(k), BinaryData::VT_U8)){
+                        std::cout << "Found u8 in graph2" << std::endl;
+                        std::cout << "Check that it is same size as graph1 (could be multiple)" << std::endl;
+                        if(graph2->binary_data()->Get(k)->u8()->size() == graph1->binary_data()->Get(j)->u8()->size()) {
+                            u8PresentGraph2 = true; //found u8
+                            binaryData_u8_graph2 = graph2->binary_data()->Get(k)->u8();
+                            break;
+                        }
+                    }
+                }
+                    
+                ASSERT_TRUE(u8PresentGraph2);
+            
+                auto binaryData_u8_graph1 = graph1->binary_data()->Get(j)->u8();
+
+                for (auto it = binaryData_u8_graph1->begin(); it != binaryData_u8_graph1->end(); ++it) {
+                    auto indx = it - binaryData_u8_graph1->begin();
+                    EXPECT_EQ(*it, binaryData_u8_graph2->Get(indx));  // Use bounds-check.
+                }
+            }
+            else 
+                SUCCEED();
+        }
+    }
+    else 
+        SUCCEED();
+}
+
+TEST(graphFile, binary_data_BinaryData_fp16)		
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+    bool fp16PresentGraph2 = false;
+    const flatbuffers::Vector<int16_t> * binaryData_fp16_graph2 = nullptr;
+    flatbuffers::uoffset_t j; 
+
+    //Is  binary_data present in graph1
+    auto  binaryDataPresentGraph1 = flatbuffers::IsFieldPresent(graph1, GraphFile::VT_BINARY_DATA);
+
+
+    if(binaryDataPresentGraph1) { //if present
+
+        for (j = 0; j < graph1->binary_data()->size(); j++) { //No. of Barrier tables
+    
+            //is fp16 present
+            auto fp16PresentGraph1 = flatbuffers::IsFieldPresent(graph1->binary_data()->Get(j), BinaryData::VT_FP16);
+
+            if(fp16PresentGraph1) {
+
+                //check if fp16 is present in graph2 (may no tbe at the same index - check all indices)
+                for (flatbuffers::uoffset_t k = 0; k < graph1->binary_data()->size(); k++){
+
+                    if(flatbuffers::IsFieldPresent(graph2->binary_data()->Get(k), BinaryData::VT_FP16)){
+                        std::cout << "Found fp16 in graph2" << std::endl;
+                        std::cout << "Check that it is same size as graph1 (could be multiple)" << std::endl;
+                        if(graph2->binary_data()->Get(k)->fp16()->size() == graph1->binary_data()->Get(j)->fp16()->size()) {
+                            fp16PresentGraph2 = true; //found u8
+                            binaryData_fp16_graph2 = graph2->binary_data()->Get(k)->fp16();
+                            break;
+                        }
+                    }
+                }
+                    
+                ASSERT_TRUE(fp16PresentGraph2);
+            
+                auto binaryData_fp16_graph1 = graph1->binary_data()->Get(j)->fp16();
+
+                for (auto it = binaryData_fp16_graph1->begin(); it != binaryData_fp16_graph1->end(); ++it) {
+                    auto indx = it - binaryData_fp16_graph1->begin();
+                    EXPECT_EQ(*it, binaryData_fp16_graph2->Get(indx));  // Use bounds-check.
+                }
+            }
+            else 
+                SUCCEED();
+        }
+    }
+    else 
+        SUCCEED();
+}
+
+TEST(graphFile, binary_data_BinaryData_i32)		
+{
+    Blob blob_1(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
+    const auto graph1 = GetGraphFile(blob_1.get_ptr());
+    const auto graph2 = GetGraphFile(blob_2.get_ptr());
+    bool i32PresentGraph2 = false;
+    const flatbuffers::Vector<int32_t> * binaryData_i32_graph2 = nullptr;
+    flatbuffers::uoffset_t j; 
+
+    //Is  binary_data present in graph1
+    auto  binaryDataPresentGraph1 = flatbuffers::IsFieldPresent(graph1, GraphFile::VT_BINARY_DATA);
+
+    if(binaryDataPresentGraph1) { //if present
+
+        for (j = 0; j < graph1->binary_data()->size(); j++) { //No. of Barrier tables
+    
+            //is i32 present
+            auto i32PresentGraph1 = flatbuffers::IsFieldPresent(graph1->binary_data()->Get(j), BinaryData::VT_I32);
+
+            if(i32PresentGraph1) {
+
+                //check if i32 is present in graph2 (may no tbe at the same index - check all indices)
+                for (flatbuffers::uoffset_t k = 0; k < graph1->binary_data()->size(); k++){
+
+                    if(flatbuffers::IsFieldPresent(graph2->binary_data()->Get(k), BinaryData::VT_I32)){
+                        std::cout << "Found i32 in graph2" << std::endl;
+                        std::cout << "Check that it is same size as graph1 (could be multiple)" << std::endl;
+                        if(graph2->binary_data()->Get(k)->i32()->size() == graph1->binary_data()->Get(j)->i32()->size()) {
+                            i32PresentGraph2 = true; //found u8
+                            binaryData_i32_graph2 = graph2->binary_data()->Get(k)->i32();
+                            break;
+                        }
+                    }
+                }
+                    
+                ASSERT_TRUE(i32PresentGraph2);
+            
+                auto binaryData_i32_graph1 = graph1->binary_data()->Get(j)->i32();
+
+                for (auto it = binaryData_i32_graph1->begin(); it != binaryData_i32_graph1->end(); ++it) {
+                    auto indx = it - binaryData_i32_graph1->begin();
+                    EXPECT_EQ(*it, binaryData_i32_graph2->Get(indx));  // Use bounds-check.
+                }
+            }
+            else 
+                SUCCEED();
+        }
+    }
+    else 
+        SUCCEED();
+}
+
 TEST(graphFile, header_SummaryHeader_task_count)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -759,7 +942,7 @@ TEST(graphFile, header_SummaryHeader_task_count)
 TEST(graphFile, header_SummaryHeader_layer_count)	
 {
     Blob blob_1(file_name_one.c_str());
-    Blob blob_2(file_name_one.c_str());
+    Blob blob_2(file_name_two.c_str());
     const auto graph1 = GetGraphFile(blob_1.get_ptr());
     const auto graph2 = GetGraphFile(blob_2.get_ptr());
 
@@ -779,6 +962,7 @@ int main(int argc, char **argv) {
   std::string command_line_arg_one(argc == 3 ? argv[1] : "");
   std::string command_line_arg_two(argc == 3 ? argv[2] : "");
   testing::InitGoogleTest(&argc, argv);
-  testing::AddGlobalTestEnvironment(new TestEnvironment(command_line_arg_one, command_line_arg_two));
+  //testing::AddGlobalTestEnvironment(new TestEnvironment(command_line_arg_one, command_line_arg_two));
+  testing::AddGlobalTestEnvironment(new TestEnvironment("/home/john/blobv3/try4.blob", "/home/john/blobv3/try5.blob"));
   return RUN_ALL_TESTS();
 }
