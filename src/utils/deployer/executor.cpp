@@ -80,7 +80,7 @@ void mv::exe::Executor::loadGraph(std::shared_ptr<mv::RuntimeBinary> binaryPoint
     }
     else
     {
-        dep_utils::checkFileExists(graphFilePath);
+        utils::checkFileExists(graphFilePath);
 
         std::ifstream inputFile (graphFilePath, std::ios::in | std::ios::binary);
 
@@ -248,7 +248,7 @@ mv::Tensor mv::exe::Executor::execute(std::shared_ptr<mv::RuntimeBinary> binaryP
     if (imageSize/2 != inputTensor.getShape().totalSize())
         throw RuntimeError(*this, "size of input tensor doesn't match expected size by blob");
 
-    Order graphInputOrder = dep_utils::getTensorOrder(inputTensorDesc_[0]);
+    Order graphInputOrder = utils::getTensorOrder(inputTensorDesc_[0]);
     if (graphInputOrder != inputTensor.getOrder())
         throw RuntimeError(*this, "Order of input tensor doesn't match expected order by blob");
     // Write tensor to input fifo
@@ -288,7 +288,7 @@ mv::Tensor mv::exe::Executor::execute(std::shared_ptr<mv::RuntimeBinary> binaryP
         tensorData[i] = (double) resultUS[i];
 
     Shape shape({outputTensorDesc_[0].w, outputTensorDesc_[0].h, outputTensorDesc_[0].c, outputTensorDesc_[0].n});
-    Order order = mv::exe::dep_utils::getTensorOrder(outputTensorDesc_[0]);
+    Order order = mv::exe::utils::getTensorOrder(outputTensorDesc_[0]);
 
     Tensor resultTensor("result", shape, DType(DTypeType::Float16), order);
     resultTensor.populate(tensorData);

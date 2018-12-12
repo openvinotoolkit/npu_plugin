@@ -9,7 +9,7 @@ namespace mv
 {
     namespace exe
     {
-        namespace dep_utils
+        namespace utils
         {
             enum class InputMode
             {

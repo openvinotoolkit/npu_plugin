@@ -11,13 +11,13 @@ TEST(basic_test, goldAllZero)
 {
     //Logger::setVerboseLevel(VerboseLevel::Info);
     //std::string graphFile = utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
-    std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
+    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
     Executor exec;
     Order order("NHWC");
     Shape shape({64, 64 ,3 ,1});
     //Shape shape({224, 224 ,3 ,1});
 
-    Tensor inputTensor = mv::exe::dep_utils::getInputData(mv::exe::dep_utils::InputMode::ALL_ZERO, order, shape);
+    Tensor inputTensor = mv::exe::utils::getInputData(mv::exe::utils::InputMode::ALL_ZERO, order, shape);
     Tensor res = exec.execute(graphFile, inputTensor);
 
     unsigned short max = 0;
@@ -46,14 +46,14 @@ TEST(basic_test, gold01AllOnes)
 
     //Logger::setVerboseLevel(VerboseLevel::Info);
     //std::string graphFile = utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
-    std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
+    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
 
     Shape shape({32, 32, 1, 1});
     //Shape shape({224, 224 ,3 ,1});
 
     Order order("NHWC");
     Executor exec;
-    Tensor inputTensor = mv::exe::dep_utils::getInputData(mv::exe::dep_utils::InputMode::ALL_ONE, order, shape);
+    Tensor inputTensor = mv::exe::utils::getInputData(mv::exe::utils::InputMode::ALL_ONE, order, shape);
     Tensor res = exec.execute(graphFile, inputTensor);
 
     unsigned short max = 0;
@@ -81,14 +81,14 @@ TEST(basic_test, goldFromFile)
     std::this_thread::sleep_for(std::chrono::milliseconds(2));
     //Logger::setVerboseLevel(VerboseLevel::Info);
     //std::string graphFile = utils::projectRootPath() + std::string("/tests/data/googlenet_graph.blob");
-    std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
+    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_01.blob");
     //Shape shape({224, 224 ,3 ,1});
     Shape shape({32, 32, 1, 1});
 
     Order order("NHWC");
     Executor exec;
-    std::string inputFile = utils::projectRootPath() + std::string("/tests/data/nps_guitar.bin");
-    Tensor inputTensor = mv::exe::dep_utils::getInputData(inputFile, order, shape);
+    std::string inputFile = mv::utils::projectRootPath() + std::string("/tests/data/nps_guitar.bin");
+    Tensor inputTensor = mv::exe::utils::getInputData(inputFile, order, shape);
     Tensor res = exec.execute(graphFile, inputTensor);
 
     unsigned short max = 0;

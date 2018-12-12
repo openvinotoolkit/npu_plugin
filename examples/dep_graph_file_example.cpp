@@ -7,13 +7,13 @@ using namespace exe;
 int main()
 {
     Logger::setVerboseLevel(VerboseLevel::Info);
-    std::string graphFile = utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
+    std::string graphFile = mv::utils::projectRootPath() + std::string("/tests/data/gold_11.blob");
     std::cout << "graph file " << graphFile << std::endl;
     Executor exec;
     Order order("NHWC");
     Shape shape({64, 64 ,3 ,1});
 
-    Tensor inputTensor = mv::exe::dep_utils::getInputData(mv::exe::dep_utils::InputMode::ALL_ZERO, order, shape);
+    Tensor inputTensor = mv::exe::utils::getInputData(mv::exe::utils::InputMode::ALL_ZERO, order, shape);
     Tensor res = exec.execute(graphFile, inputTensor);
     std::cout << "res Order " << res.getOrder().toString() << std::endl;
     std::cout << "res Shape " << res.getShape().toString() << std::endl;
