@@ -9,8 +9,8 @@ namespace mv
 {
     struct RuntimeModelBinaryData
     {
-        RuntimeModelDType dType_;
-        std::vector<uint8_t> data_;
+        RuntimeModelDType dType;
+        char * data;
     };
 }
 

@@ -14,7 +14,7 @@ add_compile_options(-std=c++11)
 if (MSVC)
 
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
-    SET(VALIDATION false)
+    SET(VALIDATION true)
 
 else()
 

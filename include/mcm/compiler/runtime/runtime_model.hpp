@@ -11,10 +11,10 @@ namespace mv
 {
     struct RuntimeModel
     {
-        RuntimeModelHeader header_;
-        std::vector<std::vector<RuntimeModelTask>> taskLists_;
-        std::vector<RuntimeModelBarrier> barrierTable_;
-        std::vector<std::vector<RuntimeModelBinaryData> binaryData_;
+        RuntimeModelHeader * header;
+        std::vector<std::vector<RuntimeModelTask*>> taskLists;
+        std::vector<RuntimeModelBarrier*> barrierTable;
+        std::vector<std::vector<RuntimeModelBinaryData*> binaryData;
     };
 }
 

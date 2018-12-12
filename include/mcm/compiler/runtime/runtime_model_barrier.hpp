@@ -7,15 +7,15 @@ namespace mv
 {
     struct RuntimeModelBarrier
     {
-        unsigned barrierID_;
-        unsigned consumerCount_;
-        unsigned producerCount_;
+        unsigned barrierID;
+        unsigned consumerCount;
+        unsigned producerCount;
     };
 
     struct RuntimeModelBarrierReference
     {
-        unsigned waitBarrier_;
-        std::vector<unsigned> updateBarriers_;
+        unsigned waitBarrier;
+        std::vector<unsigned> updateBarriers;
     };
 }
 

@@ -9,10 +9,10 @@ namespace mv
 {
     struct RuntimeModelTask
     {
-        unsigned nodeID_;
-        std::vector<unsigned> sourceTaskIDs_;
-        RuntimeModelBarrierReference associatedBarriers_;
-        RuntimeModelSpecificTask * task_;
+        unsigned nodeID;
+        std::vector<unsigned> sourceTaskIDs;
+        RuntimeModelBarrierReference * associatedBarriers;
+        RuntimeModelSpecificTask * task;
     };
 }
 

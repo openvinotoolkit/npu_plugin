@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include <string>
-#include "include/mcm/compiler/runtime/runtime_model_tensor.hpp"
+#include "include/mcm/compiler/runtime/runtime_model_tensor_reference.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_link.hpp"
 
 namespace mv
@@ -11,29 +11,29 @@ namespace mv
     struct RuntimeModelHeader
     {
         //Version information
-        unsigned majorV_;
-        unsigned minorV_;
-        unsigned patchV_;
-        std::string hash_;
+        unsigned majorV;
+        unsigned minorV;
+        unsigned patchV;
+        std::string hash;
 
         //Inputs and outputs
-        std::vector<RuntimeModelTensorReference> netInput_;
-        std::vector<RuntimeModelTensorReference> netOutput_;
+        std::vector<*RuntimeModelTensorReference> netInput;
+        std::vector<*RuntimeModelTensorReference> netOutput;
 
-        unsigned taskCount_;
-        unsigned layerCount_;
+        unsigned taskCount;
+        unsigned layerCount;
 
         //Resources
-        unsigned shaveMask_;
-        unsigned nce1Mask_;
-        unsigned dpuMask_;
-        unsigned leonCmx_;
-        unsigned nnCmx_;
-        unsigned ddrScratch_;
+        unsigned shaveMask;
+        unsigned nce1Mask;
+        unsigned dpuMask;
+        unsigned leonCmx;
+        unsigned nnCmx;
+        unsigned ddrScratch;
 
         //Network structure
-        std::vector<Link> links_;
-        std::vector<unsigned> firstID_;
+        std::vector<*Link> links;
+        std::vector<unsigned> firstID;
     };
 }
 
