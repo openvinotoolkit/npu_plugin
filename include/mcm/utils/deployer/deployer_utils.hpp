@@ -18,6 +18,7 @@ namespace mv
                 FILE,
                 Unknown
             };
+
             Order getTensorOrder(ncTensorDescriptor_t& td)
             {
                 unsigned int max = std::max(std::max(td.hStride, td.wStride), td.cStride);
@@ -64,9 +65,9 @@ namespace mv
             {
                 //Convert to Tensor
                 std::vector<double> tensorData(numberOfElements);
-                for (int i = 0; i < numberOfElements; i++) {
+                for (int i = 0; i < numberOfElements; i++)
                     tensorData[i] = imageData[i];
-                }
+
                 Tensor resultTensor("result", shape, DType(DTypeType::Float16), order);
                 resultTensor.populate(tensorData);
 
@@ -101,13 +102,10 @@ namespace mv
                 std::vector<unsigned short> myvector(shape.totalSize());
 
                 if (mode == InputMode::ALL_ONE)
-                {
                     std::fill_n(myvector.begin(), myvector.size(), 0x3c00);//fp32_to_fp16(1.0)
-                }
                 else
-                {
                     std::fill_n(myvector.begin(), myvector.size(), 0);
-                }
+
                 return convertDataToTensor(order, shape, &myvector[0], shape.totalSize());
             }
         }

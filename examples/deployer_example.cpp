@@ -8,9 +8,11 @@
 
 #include <iostream>
 #include <fstream>
+
 // Create both RAM and file blobs
 using namespace mv;
 using namespace exe;
+
 int main()
 {
     mv::Logger::setVerboseLevel(VerboseLevel::Info);
@@ -60,7 +62,8 @@ int main()
     unit.initialize();
 
     auto compOutput = unit.run();
-    try {
+    try
+    {
         Executor exec;
         Order order("NHWC");
         Shape shape({64, 64 ,3 ,1});
@@ -75,7 +78,7 @@ int main()
     }
     catch (...)
     {
-
+        exit(-1);
     }
 
     //for (unsigned int i=0; i < res.getShape().totalSize(); i++)

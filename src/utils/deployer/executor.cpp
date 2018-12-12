@@ -144,7 +144,7 @@ void mv::exe::Executor::allocateFifos()
     //Allocate Fifos
     ncFifoDataType_t dataType = NC_FIFO_FP16;
     buffersIn_ = new ncFifoHandle_t*[numInputs_];
-    
+
     for (int i = 0; i < numInputs_; i++)
     {
         std::string fifoname = "FifoIn" + std::to_string(i);
@@ -210,7 +210,7 @@ void mv::exe::Executor::destroyAll()
         retCode = ncDeviceClose(deviceHandle_);
         if(retCode != NC_OK)
             throw RuntimeError(*this, "ncDeviceClose failed");
-    } 
+    }
     catch (RuntimeError e)
     {
         log(Logger::MessageType::Error, e.what());

@@ -39,8 +39,10 @@ namespace mv
             void destroyAll();
             Tensor execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer, const std::string& graphFilePath, Tensor& inputTensor);
             bool checkTargetMatches(ncDeviceHwVersion_t hwVersion);
+
         public:
             Executor(Target target = Target::Unknown, Protocol protocol = Protocol::USB_VSC);
+
             Tensor execute(std::shared_ptr<mv::RuntimeBinary> binaryPointer, Tensor& inputTensor);
             Tensor execute(const std::string& graphFilePath, Tensor& inputTensor);
 
