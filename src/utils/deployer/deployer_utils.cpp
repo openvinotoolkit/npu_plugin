@@ -50,11 +50,7 @@ void mv::exe::utils::checkFileExists(const std::string& callerId, const std::str
 mv::Tensor mv::exe::utils::convertDataToTensor(Order& order, Shape& shape,
     unsigned short* imageData, int numberOfElements)
 {
-    //Convert to Tensor
-    std::vector<double> tensorData(numberOfElements);
-    for (int i = 0; i < numberOfElements; i++)
-        tensorData[i] = imageData[i];
-
+    std::vector<double> tensorData(imageData, imageData+numberOfElements);
     Tensor resultTensor("result", shape, DType(DTypeType::Float16), order);
     resultTensor.populate(tensorData);
 
@@ -77,11 +73,14 @@ mv::Tensor mv::exe::utils::getInputData(std::string inputFileName, Order& order,
     std::ifstream inputFile(inputFileName, std::ios::in | std::ios::binary);
 
     int dataSize = shape.totalSize();
-    std::unique_ptr<unsigned short[]> imageData(new unsigned short[dataSize]);
-
-    if (!inputFile.read(reinterpret_cast<char *>(imageData.get()), dataSize*2))
+    unsigned short* imageData = new unsigned short[dataSize];
+    if (!inputFile.read(reinterpret_cast<char *>(imageData), dataSize*2))
         throw mv::ArgumentError("getInputData", "Input File", inputFileName, "failed reading data from file");
-    return convertDataToTensor(order, shape, imageData.get(), dataSize);
+
+    Tensor res = convertDataToTensor(order, shape, imageData, dataSize);
+
+    delete imageData;
+    return res;
 }
 
 mv::Tensor mv::exe::utils::getInputData(InputMode mode, Order& order, Shape& shape)

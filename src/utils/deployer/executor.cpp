@@ -219,11 +219,13 @@ mv::Tensor mv::exe::Executor::execute(const std::string& graphFilePath,
     inputFile.seekg (0, inputFile.end);
     unsigned int graphFileLen = inputFile.tellg();
     inputFile.seekg (0, inputFile.beg);
-    void* graphFileBuf = new char[graphFileLen];
-    if (!inputFile.read ((char*)graphFileBuf, graphFileLen))
+    char* graphFileBuf = new char[graphFileLen];
+    if (!inputFile.read (graphFileBuf, graphFileLen))
         throw RuntimeError(*this, "Error reading graph file");
 
-    return execute_(graphFileBuf, graphFileLen, inputTensor);
+    Tensor res = execute_(graphFileBuf, graphFileLen, inputTensor);
+    delete graphFileBuf;
+    return res;
 }
 
 mv::Tensor mv::exe::Executor::execute_(void* graphFileBuf, int graphLen, Tensor& inputTensor)
