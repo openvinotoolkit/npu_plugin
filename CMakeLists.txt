@@ -138,9 +138,6 @@ file(GLOB compiler
     "src/utils/hardware_tests.cpp"
 )
 
-file(GLOB deployer
-    "src/utils/deployer/*"
-)
 add_subdirectory(meta)
 
 if (MSVC)
@@ -153,6 +150,10 @@ if (MSVC)
     add_dependencies(model generate-comp-api)
 else()
 if(VALIDATION)
+
+    file(GLOB deployer
+        "src/utils/deployer/*"
+    )
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
