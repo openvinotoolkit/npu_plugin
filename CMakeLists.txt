@@ -19,7 +19,7 @@ if (MSVC)
 else()
 
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
-    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
+    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
 
 endif()
 
