@@ -36,6 +36,9 @@ if(VALIDATION)
     find_package(Protobuf REQUIRED)
     include_directories(${PROTOBUF_INCLUDE_DIR})
 
+    #MVNC
+    find_library(mvnc REQUIRED)
+
     #Boost
     find_package(Boost COMPONENTS regex system filesystem REQUIRED)
 
@@ -147,9 +150,15 @@ if (MSVC)
     add_dependencies(model generate-comp-api)
 else()
 if(VALIDATION)
+
+    file(GLOB deployer
+        "src/utils/deployer/*"
+    )
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
+    add_library(dep SHARED ${deployer})
+    target_link_libraries(dep mvnc)
     target_link_libraries(cm corebase metamodel)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
@@ -158,9 +167,10 @@ if(VALIDATION)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
-    #add_subdirectory(recordings)  
+    #add_subdirectory(recordings)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
+
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
     target_link_libraries(cm corebase metamodel)
