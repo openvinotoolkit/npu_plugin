@@ -962,7 +962,7 @@ int main(int argc, char **argv) {
   std::string command_line_arg_one(argc == 3 ? argv[1] : "");
   std::string command_line_arg_two(argc == 3 ? argv[2] : "");
   testing::InitGoogleTest(&argc, argv);
-  //testing::AddGlobalTestEnvironment(new TestEnvironment(command_line_arg_one, command_line_arg_two));
-  testing::AddGlobalTestEnvironment(new TestEnvironment("/home/john/blobv3/try4.blob", "/home/john/blobv3/try5.blob"));
+  testing::AddGlobalTestEnvironment(new TestEnvironment(command_line_arg_one, command_line_arg_two));
   return RUN_ALL_TESTS();
 }
+ 

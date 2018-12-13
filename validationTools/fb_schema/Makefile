@@ -5,7 +5,7 @@ FLATC := flatc
 example/%_generated.h: %.fbs
 	$(FLATC) -o blobcompareTool/ $< --cpp
 
-all: clean $(OBJS) test debug
+all: clean $(OBJS) test
 
 
 clean:
@@ -13,9 +13,6 @@ clean:
 
 test:
 	cd blobcompareTool && $(MAKE) all
-
-
-debug_full:
 	
 flatbuffers:
 	git clone https://github.com/google/flatbuffers.git
