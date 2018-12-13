@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <assert.h>
-#include "graphfile_generated.h"
+#include "../../KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
 #include "deserialize.hpp"
 #include "flatbuffers/flatbuffers.h"
 #include "flatbuffers/idl.h"
@@ -10,21 +10,7 @@
 #include "flatbuffers/registry.h"
 #include "flatbuffers/util.h"
 #include <gtest/gtest.h>
-
-namespace {
-std::string file_name_one;
-std::string file_name_two;
-}
-
-class TestEnvironment : public testing::Environment {
- public:
-
-  explicit TestEnvironment(const std::string &command_line_arg_one, const std::string &command_line_arg_two) {
-      
-    file_name_one = command_line_arg_one;
-    file_name_two = command_line_arg_two;
-  }
-};
+#include "testEnvironment.hpp"
 
 //need to break up
 TEST(graphFile, header_SummaryHeader_version_Version)	
@@ -962,7 +948,7 @@ int main(int argc, char **argv) {
   std::string command_line_arg_one(argc == 3 ? argv[1] : "");
   std::string command_line_arg_two(argc == 3 ? argv[2] : "");
   testing::InitGoogleTest(&argc, argv);
-  testing::AddGlobalTestEnvironment(new TestEnvironment(command_line_arg_one, command_line_arg_two));
+  //testing::AddGlobalTestEnvironment(new TestEnvironment(command_line_arg_one, command_line_arg_two));
+  testing::AddGlobalTestEnvironment(new TestEnvironment("/home/john/blobv3/try4.blob", "/home/john/blobv3/try5.blob"));
   return RUN_ALL_TESTS();
 }
- 
