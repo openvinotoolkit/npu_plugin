@@ -94,9 +94,6 @@ else()
 	add_executable(dilationExample dilatedExample.cpp)
 	target_link_libraries(dilationExample cm)
 
-	add_executable(cm_flatbuffer_example cm_flatbuffer_example.cpp)
-	target_link_libraries(cm_flatbuffer_example cm)
-
 	if(VALIDATION)
 	add_executable(caffe_files_generator caffe_files_generator.cpp)
 	target_link_libraries(caffe_files_generator cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
