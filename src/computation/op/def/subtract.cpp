@@ -1,17 +1,43 @@
-#include "include/mcm/computation/op/def/subtract.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::Subtract::Subtract(const std::string &name) :
-ComputationOp(OpType::Subtract, name),
-EltwiseOp(OpType::Subtract, name)
+namespace mv
 {
-    set<bool>("executable", true);
-}
 
-bool mv::op::Subtract::isHardwarizeable(json::Object&)
-{
-    return false;
-}
+    namespace op
+    {
 
-void mv::op::Subtract::gatherSerialFields(){
-    this->set<unsigned>("SerialID", 12);
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
+            std::string& errMsg) -> std::pair<bool, std::size_t>
+        {
+
+            if (inputs[0]->getShape() != inputs[1]->getShape())
+            {
+                errMsg = "Does not match the data0 shape " + inputs[1]->getShape().toString();
+                return {false, 1};
+            }
+
+            return {true, 0};
+
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+        {
+
+            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+
+        };
+    
+        MV_REGISTER_OP(Subtract)
+        .setInputs({"data0", "data1"})
+        .setOutputs({"output"})
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"executable", "exposed"});
+
+    }
+
 }

@@ -1,84 +1,72 @@
-#include "include/mcm/computation/op/def/concat.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::Concat::Concat(const std::string &name) :
-ComputationOp(OpType::Concat, name),
-SinkOp(OpType::Concat, 32, name),
-SourceOp(OpType::Concat, 1, name),
-active_inputs(0)
+namespace mv
 {
-    set<bool>("executable", true);
-    set<int>("axis", 2);
-}
 
-
-bool mv::op::Concat::hasInputDef()
-{
-    active_inputs = 0;
-    if(inputs_.size() < 2){
-        return false;
-    }
-    for (std::size_t i = 0; i < inputSlots(); ++i)
+    namespace op
     {
-        if (hasInputDef(i)){
-            ++active_inputs;
-        }
+
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
+            std::string& errMsg) -> std::pair<bool, std::size_t>
+        {
+            if (inputs[0]->getShape().ndims() != 3)
+            {
+                errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
+                    " has " + std::to_string(inputs[0]->getShape().ndims());
+                
+                return {false, 0};
+            }
+            
+            for (std::size_t i = 1; i < inputs.size(); ++i)
+            {
+                auto inputShape = inputs[i]->getShape();
+            
+                if (inputShape.ndims() != 3)
+                {
+                    errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - must have a dimensionality of 3, "
+                        " has " + std::to_string(inputShape.ndims());
+                    return {false, 0};
+                }
+                
+                // TODO: based on concat axis, the other dimensions should match  
+                if (inputShape[0] != inputs[0]->getShape()[0] || inputShape[1] != inputs[0]->getShape()[1]) 
+                {
+                    errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - inconsistent with the dimension of "
+                        " the first input (input 0) ";
+
+                    return {false, 0};
+                }
+        
+            }
+
+            return {true, 0};
+
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+        {
+            std::size_t lastDim = inputs[0]->getShape()[2];
+            
+            for (std::size_t i = 1; i < inputs.size(); ++i)
+            {
+                auto inputShape = inputs[i]->getShape();
+                lastDim += inputShape[2];
+            }
+            
+            outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[0]->getShape()[1], lastDim}, inputs[0]->getDType(), inputs[0]->getOrder()));
+        };
+    
+        MV_REGISTER_OP(Concat)
+        .setInputs({"data0", "data1"})
+        .setOutputs({"output"})
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"executable", "exposed"});
+
     }
 
-    if(active_inputs < 2)
-        return false;
-
-    return true;
-
-}
-bool mv::op::Concat::hasInputDef(std::size_t idx)
-{
-
-    Data::TensorIterator emptyIt;
-
-    if (inputs_[idx] == emptyIt){
-        return false;
-    }
-
-    return true;
-
-}
-
-mv::Tensor mv::op::Concat::getOutputDef(std::size_t idx)
-{
-
-    // Will throw on error
-    validOutputDef_(idx);
-
-    auto input0 = getInputTensor(0);
-    auto input0Shape = input0->getShape();
-
-    if (input0Shape.ndims() != 3)
-        throw(OpError(*this, "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
-            " has " + std::to_string(input0Shape.ndims())));
-
-    std::size_t lastDim = input0Shape[2];
-
-    for (std::size_t i = 1; i < active_inputs; ++i)
-    {
-        auto inputShape = getInputTensor(i)->getShape();
-        if (inputShape.ndims() != 3)
-            throw(OpError(*this, "Invalid shape of the input tensor (input " + std::to_string(i) + ") - must have a dimensionality of 3, "
-                " has " + std::to_string(inputShape.ndims())));
-
-        // TODO: based on concat axis, the other dimensions should match
-        if (inputShape[0] != input0Shape[0] || inputShape[1] != input0Shape[1])
-            throw(OpError(*this, "Invalid shape of the input tensor (input " + std::to_string(i) + ") - inconsistent with the dimension of "
-                " the first input (input 0) "));
-
-        lastDim += inputShape[2];
-
-    }
-
-    return Tensor(name_ + ":0", {input0Shape[0], input0Shape[1], lastDim}, input0->getDType(), input0->getOrder());
-
-}
-
-bool mv::op::Concat::isHardwarizeable(json::Object&)
-{
-    return false;
 }

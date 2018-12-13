@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    class OrderRegistry : public Registry<std::string, OrderEntry>
+    class OrderRegistry : public Registry<OrderRegistry, std::string, OrderEntry>
     {
 
 
@@ -30,7 +30,7 @@ namespace mv
     };
 
     #define MV_REGISTER_ORDER(Name)                          \
-        MV_REGISTER_ENTRY(std::string, OrderEntry, #Name)    \
+        MV_REGISTER_ENTRY(OrderRegistry, std::string, OrderEntry, #Name)    \
 
 
 }

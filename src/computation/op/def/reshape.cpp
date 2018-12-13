@@ -1,33 +1,42 @@
-#include "include/mcm/computation/op/def/reshape.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::Reshape::Reshape(Shape outputShape, const std::string& name) :
-ComputationOp(OpType::Reshape, name),
-SourceOp(OpType::Reshape, 1, name),
-SinkOp(OpType::Reshape, 1, name)
+namespace mv
 {
-    set<Shape>("shape", outputShape);
-    set<bool>("executable", true);
-}
 
-mv::Tensor mv::op::Reshape::getOutputDef(std::size_t idx)
-{
+    namespace op
+    {
+
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
+            std::string& errMsg) -> std::pair<bool, std::size_t>
+        {
+            
+            if (inputs[0]->getShape().totalSize() != args.at("shape").get<mv::Shape>().totalSize())
+            {
+                errMsg = "Invalid conversino of the original shape " + inputs[0]->getShape().toString() + " and the output shape "
+                + args.at("shape").get<mv::Shape>().toString() + " - must have equal total number of elements";
+                return {false, 1};
+            }
+
+            return {true, 0};
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
+        {
+            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), inputs[0]->getDType(), inputs[0]->getOrder()));
+        };
     
-    // Will throw on error
-    validOutputDef_(idx);
+        MV_REGISTER_OP(Reshape)
+        .setInputs({"data0"})
+        .setOutputs({"output"})
+        .setArg<mv::Shape>("shape")
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"executable", "exposed"});
 
-    auto input = getInputTensor(0);
-    auto inputShape = input->getShape();
-    auto outputShape = get<Shape>("shape");
+    }
 
-    if (inputShape.totalSize() != outputShape.totalSize())
-        throw(OpError(*this, "Invalid conversino of the original shape " + inputShape.toString() + " and the output shape "
-            + outputShape.toString() + " - must have equal total number of elements"));
-
-    return Tensor(name_ + ":0", outputShape, input->getDType(), input->getOrder());
-
-}
-
-bool mv::op::Reshape::isHardwarizeable(json::Object&)
-{
-    return false;
 }

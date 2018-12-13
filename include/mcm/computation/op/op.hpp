@@ -9,7 +9,7 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
-#include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/computation/op/op_registry.hpp"
 
 namespace mv

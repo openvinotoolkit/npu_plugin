@@ -1,0 +1,151 @@
+include "memoryManagement.fbs";
+
+namespace MVCNN;
+
+enum DPULayerType : byte {
+// Native HW workload operations are:
+// Conv,
+// MaxPool,
+// MaxPoolWithIndex - returns the index of the max value also
+// All other operations are encoded by additional params
+// the list below is flat list of operations
+    CONV = 0,
+    DWCONV = 1,
+    MAXPOOL = 2,
+    AVEPOOL = 3,
+    FCL = 4,
+    ELTWISE = 5
+}
+
+enum PPELayerType : short {
+    /// Overview:
+    /// The possible operations that the PPE unit can perform after
+    /// a DPU operation
+    /// Fields based on details from 14_08_NCE_PPE.odt
+    /// Excluded Layer: BYPASS - If an array of PPELayers is empty, the device should know to run BYPASS
+
+    ///  --- Low-Level Instructions ---
+    /// These instructions are only for advanced usage.
+
+    /// Stores register value to memory
+    STORE,
+    /// Loads a register (2 clock cycles)
+    LOAD,
+    /// Clears a register
+    CLEAR,
+    /// No Operation - Used for delaying (in cases like LOAD).
+    NOOP,
+    /// Stops the PPE.
+    HALT,
+
+    ///  --- Element-wise Operations ---
+    /// Sum of 2 operands
+    ADD,
+    /// Subtraction of 2 operands
+    SUB,
+    /// Multiplication of 2 operands
+    MULT,
+
+    ///  --- Rectification Unit Variants ---
+    // Leaky Relu
+    LRELU,
+    // Leaky Relu with clamp on positive value to "X"
+    LRELUX,
+    // Leaky Parameterized Relu
+    LPRELU,
+
+    ///  --- Threholding & Limits ---
+    // Note: Don't use MAX & MIN - These are Flatbuffer keywords for enum values
+    /// Maximum of two operands
+    MAXIMUM,
+    /// Minimum of two operands
+    MINIMUM,
+    /// Ceiling of one operand
+    CEIL,
+    /// Floor of one operand
+    FLOOR,
+
+    ///  --- Bitwise Operations ---
+    /// Bitwise AND of 2 operations
+    AND,
+    /// Bitwise OR of 2 operations
+    OR,
+    /// Bitwise XOR of 2 operations
+    XOR,
+    /// Bitwise NOT of 1 operations
+    NOT,
+    /// Bitwise ABS of 1 operations (Signed Only)
+    ABS,
+    /// Bitwise NEG of 1 operations (Signed Only)
+    NEG,
+
+    ///  --- Math Operations (i13 scaling required) ---
+    /// X^N
+    POW,
+    /// Exp(X)
+    EXP,
+    /// Sigmoid(X)
+    SIGMOID,
+    /// TanH(X)
+    TANH,
+    /// SquareRoot(X)
+    SQRT,
+    /// 1/SquareRoot(X)
+    RSQRT,
+    /// Programmable Math Function
+    FLEXARB
+}
+
+enum MPE_Mode : byte {
+  VECTOR = 0,   // 1x16
+  MATRIX = 1    // 4x4
+}
+
+table PPEGenericTask{
+    Ops: [PPELayerType];    // Operations to perform (max 16)
+    ClampValue: uint;       // Clamp any values above this value, to this value
+    ReLuNegSlope: uint;     // If the value is positive, apply this multplier to the value
+    ReLuPosSlope: uint;     // If the value is negative, apply this multiplier to the value
+    // PReLUAlpha: <vector>     // Needs more information about how this value is provided.
+    scale_data: TensorReference;
+}
+
+table DPUInvariantFields {
+  op: DPULayerType;
+  ppe_task: PPEGenericTask;
+  clusterID: int;
+
+  // Operation Fields
+  kernelH: short;
+  kernelW: short;
+  kernel_strideH: short;
+  kernel_strideW: short;
+
+  padLeft: short;
+  padRight: short;
+  padTop: short;
+  padBottom: short;
+
+  // Can get whether network is sparse or dense from these references
+  input_data: TensorReference;
+  output_data: TensorReference;
+  weights_data: TensorReference;
+  bias_data: TensorReference;
+  mpe_mode: MPE_Mode;   // 1x1x16(True) or 1x4x4(False)
+}
+
+table DPUVariantFields{
+    workloadID: byte;    // Debug Optional
+
+    // To get absolute value, multiply with MPE size for dimension
+    output_X_index: short;
+    output_Y_index: short;
+    output_Z_index: short;
+    // Ending location can be calculated by adding MPEs
+}
+
+table DPUTask {
+  // PPE Tasks are contained within DPU
+  invariant: DPUInvariantFields;
+  variant: [DPUVariantFields];
+}

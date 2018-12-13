@@ -3,6 +3,7 @@
 
 #include <string>
 #include <fstream>
+#include <cctype>
 #include "include/mcm/base/registry.hpp"
 #include "include/mcm/computation/op/op_entry.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
@@ -16,7 +17,7 @@ namespace mv
     namespace op
     {
 
-        class OpRegistry : public Registry<std::string, OpEntry>
+        class OpRegistry : public Registry<OpRegistry, std::string, OpEntry>
         {
 
             static const std::string compAPIHeaderPath_;
@@ -29,7 +30,7 @@ namespace mv
             /**
              * @brief Legal op types traits
              */
-            static const std::set<std::string> typeTraits_;
+            std::set<std::string> typeTraits_;
 
             static std::string getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs);
             static std::string getCompositionDecl_(const std::string& opType);
@@ -43,6 +44,7 @@ namespace mv
 
         public:
 
+			OpRegistry();
             static OpRegistry& instance();
 
             static std::vector<std::string> getOpTypes(std::initializer_list<std::string> traits = {});
@@ -70,8 +72,9 @@ namespace mv
             
         };
 
-        #define MV_REGISTER_OP(Name)                          \
-            MV_REGISTER_ENTRY(std::string, OpEntry, #Name)    \
+        #define MV_REGISTER_OP(Name)															\
+            static ATTRIBUTE_UNUSED(OpEntry& CONCATENATE(__ ## OpEntry ## __, __COUNTER__)) =	\
+                mv::op::OpRegistry::instance().enter(STRV(Name))
 
 
     }

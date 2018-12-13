@@ -1,0 +1,122 @@
+namespace MVCNN;
+
+enum MemoryLocation : byte {
+  /// Values indicating which type of memory a tensor resides in
+  ///
+  NULL = 0, // This is either an invalid tensor, or a conceptual one that cannot be computed on.
+  ProgrammableInput = 1,   // Memory Location retrieved/populated by device api users.
+  ProgrammableOutput = 2,  // Memory Location retrieved/populated by device api users.
+  VPU_DDR_Heap = 3,   // "Scratch Memory" for intermediary and temporal values needed for execution
+  GraphFile = 4,      // Tensor is contained within the "binary_data" section of this graphfile
+  VPU_CMX_NN = 5,     // Fast CMX Memory Connected to the NN Subprocessors
+  VPU_CMX_UPA = 6,    // Fast CMX Memory Connected to the UPA Subprocessors
+  VPU_DDR_BSS = 7     // Similar "Scratch Memory" to "VPU_DDR_Heap", although this does not guarantee any initialization
+}
+
+enum DType : byte {
+  /// An enum to be used by a TensorReference Object, so that
+  /// it will know how to access data from its buffer.
+  NOT_SET = 0,
+  FP64 = 1,
+  FP32 = 2,
+  FP16 = 3,
+  FP8 = 4,
+
+  U64 = 5,
+  U32 = 6,
+  U16 = 7,
+  U8 = 8,
+
+  I64 = 9,
+  I32 = 10,
+  I16 = 11,
+  I8 = 12,
+  I4 = 13,
+  I2 = 14,
+
+  I4X = 15,
+  BIN = 16,
+  LOG = 17,
+  I2X = 18
+}
+
+// Each field is optional
+table BinaryData{
+  // There can be many BinaryDatas as part of the graphfile.
+  // Together they contain all known Tensors that are parameters
+  // to the serialized network.
+  //
+  // Each BinaryData can be only one of the below fields.
+  // The fields not populated will not be serialized, thus wasting no space.
+  //
+  // It would be more elegant to do this via a flatbuffer Union,
+  // but this layout is more performant.
+
+  fp64: [double];   // Higher Precision - Specific Cases only
+  fp32: [float];    // Full Precision - Specific Cases only
+  fp16: [short];    // Half Precision Format - Generally Supported in Software, Partial Support Hardware
+  f8: [ubyte];      // U8F Internal Format - Supported in Legacy Hardware, rarely used externally
+
+  u64: [ulong];     // Standard Unsigned Integer Types - Specific Cases only
+  u32: [uint];      // Standard Unsigned Integer Types - Specific Cases only
+  u16: [ushort];    // Standard Unsigned Integer Types - Specific Cases only
+  u8: [ubyte];      // 8-bit support similar to https://github.com/google/gemmlowp . Hardware Support
+
+  i64: [ulong];      // Standard Unsigned Integer Types - Specific Cases only
+  i32: [int];        // Standard Unsigned Integer Types - Specific Cases only
+  i16: [short];      // Standard Unsigned Integer Types - Specific Cases only
+  i8: [byte];        // 8-bit support similar to https://github.com/google/gemmlowp , but modified for signed math. (TO BE EXPANDED)
+  i4: [byte];        // 4-bit - Hardware Support.
+  i2: [byte];        // 2-bit - Hardware Support. (Multiple values packed into sets of bytes)
+  i2x: [byte];       // Special Type - Hardware Support 
+                     // log(2)N where N is 4bit. (seperate zero representation)
+
+  i4x: [byte];       // Special Type - Hardware Support 
+                     // log(2)N where N is 4bit. (seperate zero representation)
+  bin: [byte];       // Special Type - Hardware Support (Multiple values packed into sets of bytes)
+                     // Lookup table (to 8 bit value)
+  log: [byte];       // Special Type - Hardware Support (Multiple values packed into sets of bytes)
+                     // 2^N where N is a maximum of 5 bits
+}
+
+table IndirectDataReference {
+  /// Index/Offsets from the start of a memory location (see MemoryLocation)
+  ///
+  /// There are two different access patterns.
+  /// A) Array Indexing
+  ///    This pattern is only currently used for the MemoryLocation "GraphFile". As the binary data in
+  ///    flatbuffers is stored as a vector of vectors (a vector of tensor data), we can index them where
+  ///    a value of N will access the Nth element of the vector, i.e. the Nth stored tensor data
+  /// B) Byte Offset
+  ///    For device buffers, most of the time we are dealing with a starting pointer and a total size.
+  ///    (e.g. UPA CMX starts at 0x7000000 and is 128Kb [not verified values])
+  ///    A value of N will access StartAddress + N
+  ///
+
+  data_index: uint;     // The data we want to access
+  sparsity_index: uint;   // Sparsity map associated with that data (optional)
+}
+
+table TensorReference {
+  /// Information on how to access a Tensor
+
+  dimensions: [uint];  // e.g. [3, 224, 224]
+  strides: [uint];     //  Starting with a single element's stride, up to the stride to a following tensor
+                       // Values should be provided in the same order as the dimensions are specified (preceded by "element")
+                       // "Order" should be derived from this structure
+                       // Two Examples with different ordering (based on previous)
+                       //  - [2, 6, 1344, 301056]
+                       //  - [2, 448, 100352, 301056]
+  leading_offset: uint;   // Amount of bytes to be left before the tensor is located
+  trailing_offset: uint;  // Amount of bytes to be left after the tensor
+  data: IndirectDataReference;
+  locale: MemoryLocation;
+
+  // Datatype information
+  data_dtype: DType;
+
+  // Quantization Meta values for uint8
+  quant_scale: [byte];
+  quant_zero: [byte];
+  quant_shift: [byte];
+}

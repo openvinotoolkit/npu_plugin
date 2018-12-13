@@ -1,0 +1,307 @@
+include "memoryManagement.fbs";
+include "software.fbs";
+
+namespace MVCNN;
+
+enum DPULayerType : byte {
+// Native HW workload operations are:
+// Conv,
+// MaxPool,
+// MaxPoolWithIndex - returns the index of the max value also
+// All other operations are encoded by transformation to these
+// base types, possibly requiring some additional params also.
+    CONV = 0,
+    DWCONV = 1,
+    MAXPOOL = 2,
+    AVEPOOL = 3,
+    FCL = 4,
+    ELTWISE = 5,
+    IDENTITY = 6
+}
+
+enum PPELayerType : short {
+    /// Overview:
+    /// The possible operations that the PPE unit can perform after
+    /// a DPU operation
+    /// Fields based on details from 14_08_NCE_PPE.odt
+    /// Excluded Layer: BYPASS - If an array of PPELayers is empty, the device should know to run BYPASS
+
+    ///  --- Low-Level Instructions ---
+    /// These instructions are only for advanced usage.
+
+    /// Stores register value to memory
+    STORE,
+    /// Loads a register (2 clock cycles)
+    LOAD,
+    /// Clears a register
+    CLEAR,
+    /// No Operation - Used for delaying (in cases like LOAD).
+    NOOP,
+    /// Stops the PPE.
+    HALT,
+
+    ///  --- Element-wise Operations ---
+    /// Sum of 2 operands
+    ADD,
+    /// Subtraction of 2 operands
+    SUB,
+    /// Multiplication of 2 operands
+    MULT,
+
+    ///  --- Rectification Unit Variants ---
+    // Leaky Relu
+    LRELU,
+    // Leaky Relu with clamp on positive value to "X"
+    LRELUX,
+    // Leaky Parameterized Relu
+    LPRELU,
+
+    ///  --- Threholding & Limits ---
+    // Note: Don't use MAX & MIN - These are Flatbuffer keywords for enum values
+    /// Maximum of two operands
+    MAXIMUM,
+    /// Minimum of two operands
+    MINIMUM,
+    /// Ceiling of one operand
+    CEIL,
+    /// Floor of one operand
+    FLOOR,
+
+    ///  --- Bitwise Operations ---
+    /// Bitwise AND of 2 operations
+    AND,
+    /// Bitwise OR of 2 operations
+    OR,
+    /// Bitwise XOR of 2 operations
+    XOR,
+    /// Bitwise NOT of 1 operations
+    NOT,
+    /// Bitwise ABS of 1 operations (Signed Only)
+    ABS,
+    /// Bitwise NEG of 1 operations (Signed Only)
+    NEG,
+
+    ///  --- Math Operations (i13 scaling required) ---
+    /// X^N
+    POW,
+    /// Exp(X)
+    EXP,
+    /// Sigmoid(X)
+    SIGMOID,
+    /// TanH(X)
+    TANH,
+    /// SquareRoot(X)
+    SQRT,
+    /// 1/SquareRoot(X)
+    RSQRT,
+    /// Programmable Math Function
+    FLEXARB
+}
+
+enum MPE_Mode : byte {
+  /// A layer can be operated on in two different modes
+  /// that dictate the shape of the 'working' tensor for hardware.
+  /// Choosing these carefully will result in better utilization of
+  /// the hardware. Both in terms of balanced work and overall redundancy
+
+  /// Example:  (As both modes have set 16 channels, this is only looking in 2D
+  ///            at the height & width)
+  ///
+  ///   Original Matrix (3x5x16)
+  ///            5
+  ///       +-+-+-+-+--
+  ///       | | | | | |
+  ///       +---------+
+  ///      3| | | | | |     (16 Channels)
+  ///       +---------+
+  ///       | | | | | |
+  ///       +-+-+-+-+--
+  ///
+  ///    Using Mode "MATRIX", there will be one row and 3 columns of
+  ///    of redundancy.
+  ///       +---------------+
+  ///       |A|A|A|A|B|B|B|B|
+  ///       +---------------+
+  ///       |A|A|A|A|B|B|B|B|
+  ///       +---------------+
+  ///       |A|A|A|A|B|B|B|B|
+  ///       +---------------+
+  ///       |A|A|A|A|B|B|B|B|
+  ///       +---------------+
+  ///
+  ///   Using mode "VECTOR", there will be no row redundancy, but there is
+  ///   11 columns of redundancy
+  ///       +-------------------------------+
+  ///       |A|A|A|A|A|A|A|A|A|A|A|A|A|A|A|A|
+  ///       +-------------------------------+
+  ///       |B|B|B|B|B|B|B|B|B|B|B|B|B|B|B|B|
+  ///       +-------------------------------+
+  ///       |C|C|C|C|C|C|C|C|C|C|C|C|C|C|C|C|
+  ///       +-------------------------------+
+  ///
+  ///   In this case it is wiser to pick the MATRIX mode as it has
+  ///    15/32 = 46% Utilization Matrix Mode
+  ///   Versus
+  ///    15/48 = 31% Utilization for Vector Mode
+
+  // The only mode available for FP16 is VECTOR mode.
+  // When set, the size is reduced to 1x4x16 due to hardware limitations.
+  VECTOR = 0,   // 1x16x16 (8bit)
+  MATRIX = 1    // 4x4x16 (8bit)
+}
+
+table PPEFixedFunction{
+    /// This object describes basic PPE tasks that use
+    /// the fixed functionality of the hardware directly.
+    /// Up to 16 Operations can be performed, any more and
+    /// External reconfiguration is needed.
+
+    Ops: [PPELayerType];
+    Clamp_Low: int;
+    Clamp_High: int;
+    // PreLuAlpha: uint;
+    // PowerAlpha
+    // PowerBeta
+}
+
+table PPETask{
+    // PPE-Specific Fields that only apply once, regardless of how many tasks there are
+    scale_data: TensorReference;
+
+    // Currently we only have one type of PPE Function here,
+    // But in the future there may be additional operation types
+    // such as looping, conditional exceution, regional execution, etc.
+    // Generally there will be some relationship with NN Shave Tasks.
+    fixed_function: [PPEFixedFunction];
+}
+
+table NCEInvariantFields {
+  /// This object describes the common information that any subtasks
+  /// share. This is generally layer information.
+  /// This object is focussed on sharable items for DPUTasks.
+  ///
+  /// Each NCE2Task consists of:
+  /// - a single DPU operation
+  /// - one or more PPE Tasks
+  ///    Any additional PPE Tasks past the first task must be triggered by
+  ///    A NN Shave task or other external mechanism
+  /// - zero or more NN Shave Tasks
+  ///    These can be triggered by the PPE Tasks.
+  ///
+  /// Both DPU and PPE have configurations to 'do nothing' if desired
+  /// This must still be specified however.
+  ///
+  dpu_task_type: DPULayerType;
+  ppe_task: PPETask;
+  nnshv_task: [NNTensorTask];
+
+  // Operation Fields
+  kernelH: short;
+  kernelW: short;
+  kernel_strideH: short;
+  kernel_strideW: short;
+
+  // Can get whether network is sparse or dense from these references
+  input_data: TensorReference;
+  output_data: TensorReference;
+  weights_data: TensorReference;
+  bias_data: TensorReference;
+}
+
+table NCEVariantFields{
+    /// This object describes the information that any subtasks
+    /// vary on. This is generally resource and position information.
+
+    clusterID: int;      // Which cluster this is operating on.  If left
+                         // empty, assumes device will decide.
+    workloadID: byte;    // Which DPU this is operating on. If left
+                         // empty, assumes device will decide.
+
+
+    mpe_mode: MPE_Mode;
+
+    // If no padding required, do not fill field.
+    // These are Variant as are observed per-workload rather than overall.
+    //
+    // Example of 4 Workloads with different paddings in a layer which has
+    // a 'layer padding' of 1.
+    // +-------------------------------------+
+    // |                                     |
+    // |  +---------------+---------------+  |
+    // |  | PadLeft = 1   |  PadLeft = 0  |  |
+    // |  | PadRight = 0  |  PadRight = 1 |  |
+    // |  | PadUp = 1     |  PadUp = 1    |  |
+    // |  | PadDown = 0   |  PadDown = 0  |  |
+    // |  +-------------------------------+  |
+    // |  | PadLeft = 1   |  PadLeft = 0  |  |
+    // |  | PadRight = 0  |  PadRight = 1 |  |
+    // |  | PadUp = 0     |  PadUp = 0    |  |
+    // |  | PadDown = 1   |  PadDown = 1  |  |
+    // |  +---------------+---------------+  |
+    // |                                     |
+    // +-------------------------------------+
+    padLeft: short;
+    padRight: short;
+    padTop: short;
+    padBottom: short;
+
+
+    /// Co-Ordinates for the starting and ending location of this workload.
+    /// Internally, the hardware will increment in steps of MPE_MODE's size
+    /// from "start" until it reaches "end".
+    workload_start_X: short;
+    workload_start_Y: short;
+    workload_start_Z: short;
+    workload_end_X: short;
+    workload_end_Y: short;
+    workload_end_Z: short;
+}
+
+table NCE2Task {
+  /// This object describes an entire network layer that will be operated
+  /// on by the NCE's DPUs, PPEs and NNSHV Assist Library.
+  ///
+  /// The layer is likely to be split into different "workloads" -
+  /// subsections of the layer for the processors to split work upon.
+  ///
+  /// Fields common to these subsections are to be stored in the 'invariant'
+  /// part of this object.
+  /// All per-section information should be contained in the 'variant'
+  /// vector. Where there is one entry per 'workload'. If there are no unique
+  /// information per-workload, empty objects should still be placed.
+  /// There is a 1-to-1 Relationship between DPUs and "Workloads"
+  ///
+  /// Below is a typical example of splitting a Convolution
+  //// across 5 DPUs (1 Cluster)
+  ///                                XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  ///                         XXXXXXX          XXXXX              XXXXXX
+  ///                     XXXXX            XXXXX               XXX     X
+  ///                XXXXX             XXXXX                XXXX       X
+  ///         XXXXXXXX             XXXXX               XXXXX           X
+  ///    XXXXXX                XXXXX             X XX X               XX
+  /// XX-------------------+XXX----------------+XX                 XXXXX
+  /// |                    |                   |               XXXX    X
+  /// |                    |                   |           XXXXX       X
+  /// |                    |        C          |      XXXXXX           X
+  /// |         A          |                   |  XXXX               XXX
+  /// |                    +-------------------+XXX               XXXX X
+  /// |                    |                   |               XXXX    X
+  /// |                    |                   |            XXXX       X
+  /// +--------------------+        D          |        XXXXX          X
+  /// |                    |                   |    XXXXX           X XX
+  /// |                    |                   | XXX             XXXX
+  /// |                    +-------------------XX             XXXX
+  /// |         B          |                   |           XXXX
+  /// |                    |                   |        XXXX
+  /// |                    |        E          |      XXX
+  /// |                    |                   |   XX
+  /// +--------------------+-------------------+XX
+  ///
+  /// Splits for workloads are not limited to different dimensions when using a
+  /// Single Cluster.
+  /// However, splitting across clusters is limited to splitting over height
+  /// and splitting over channels.
+
+  invariant: NCEInvariantFields;
+  variant: [NCEVariantFields];
+}

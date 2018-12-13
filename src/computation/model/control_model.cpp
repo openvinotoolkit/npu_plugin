@@ -19,13 +19,13 @@ mv::Control::OpListIterator mv::ControlModel::switchContext(Data::OpListIterator
 
 mv::Control::OpListIterator mv::ControlModel::getFirst()
 {
-   computation_graph::first_graph::node_list_iterator it = *input_;
+   conjoined_graph<Op, DataFlow, ControlFlow>::first_graph::node_list_iterator it = *input_;
    return opsGraph_->get_second_iterator(it);
 }
 
 mv::Control::OpListIterator mv::ControlModel::getLast()
 {
-   computation_graph::first_graph::node_list_iterator it = *output_;
+   conjoined_graph<Op, DataFlow, ControlFlow>::first_graph::node_list_iterator it = *output_;
    return opsGraph_->get_second_iterator(it);
 }
 

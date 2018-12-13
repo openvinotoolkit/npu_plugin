@@ -7,14 +7,6 @@
 namespace mv
 {   
 
-    //class ComputationOp;
-    class Op;
-    class DataFlow;
-    class ControlFlow;
-
-    //using computation_graph = conjoined_graph<std::shared_ptr<ComputationOp>, std::shared_ptr<DataFlow>, std::shared_ptr<ControlFlow>>;
-    using computation_graph = conjoined_graph<Op, DataFlow, ControlFlow>;
-
     namespace IteratorDetail
     {
 

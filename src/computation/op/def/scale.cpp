@@ -1,47 +1,56 @@
-#include "include/mcm/computation/op/def/scale.hpp"
+#include "include/mcm/computation/op/op_registry.hpp"
 
-mv::op::Scale::Scale(const std::string &name) :
-ComputationOp(OpType::Scale, name),
-SourceOp(OpType::Scale, 1, name),
-SinkOp(OpType::Scale, 2, name)
-{
-    set<bool>("executable", true);
-}
-
-mv::Tensor mv::op::Scale::getOutputDef(std::size_t idx)
+namespace mv
 {
 
-    // Will throw on error
-    validOutputDef_(idx);
-
-    auto input = getInputTensor(0);
-    auto inputShape = input->getShape();
-
-    auto scale = getInputTensor(1);
-    auto scaleShape = scale->getShape();
-
-    if (inputShape != scaleShape)
+    namespace op
     {
 
-        if (scaleShape.ndims() != 1)
-            throw(OpError(*this, "Invalid shape of the scale tensor (input 1) - must have a dimensionality equal to 1 or"
-                " to dimensionality of the input tensor (tensor 0) which is " + std::to_string(inputShape.ndims())));
+        static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
+            const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
+            std::string& errMsg) -> std::pair<bool, std::size_t>
+        {
 
-        if (scaleShape[0] != inputShape[-1])
-            throw(OpError(*this, "Invalid shape of the scale tensor (input 1) - if it has 1 dimension, it must be equal"
-                " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1])));
+            auto input = inputs[0];
+            auto inputShape = input->getShape();
+            auto scales = inputs[1];
+            auto scalesShape = scales->getShape();
+            
+            if (scalesShape.ndims() != 1)
+            {
+                errMsg = "Invalid shape of scales tensor (input 1) - has to be 1-dimensional, received "
+                    + std::to_string(scalesShape.ndims());
+                return {false, 1};
+            }
+
+            if (inputShape[-1] != scalesShape[0])
+            {
+                errMsg = "Invalid shape of scales tensor (input 1) - the dimension has to equal to the last dimension"
+                    " of the input tensor which is " + std::to_string(inputShape[-1]);
+                return {false, 1};
+            }
+
+            return {true, 0};
+
+        };
+                
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+            std::vector<Tensor>&)> outputDefFcn =
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+        {
+
+            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+
+        };
+    
+        MV_REGISTER_OP(Scale)
+        .setInputs({"data", "weights"})
+        .setOutputs({"output"})
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"executable", "exposed"});
 
     }
 
-    return Tensor(name_ + ":0", inputShape, input->getDType(), input->getOrder());
-
-}
-
-bool mv::op::Scale::isHardwarizeable(json::Object&)
-{
-    return false;
-}
-
-void mv::op::Scale::gatherSerialFields(){
-    this->set<unsigned>("serialID", 15);
 }

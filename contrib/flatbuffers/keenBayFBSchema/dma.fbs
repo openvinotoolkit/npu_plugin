@@ -1,0 +1,14 @@
+include "memoryManagement.fbs";
+
+namespace MVCNN;
+
+table NNDMATask {
+  src : TensorReference;
+  dst : [TensorReference];
+  compression: bool;
+}
+
+table UPADMATask {
+  src : TensorReference;
+  dst : TensorReference;
+}
