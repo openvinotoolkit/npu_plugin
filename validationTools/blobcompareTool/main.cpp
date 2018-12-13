@@ -40,7 +40,7 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_dimensions)
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
             
-            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_DIMENSIONS));
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_DIMENSIONS)); //check dimensions field present
 
             auto dimensionsPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i), TensorReference::VT_DIMENSIONS);  //are dimensions present
 
@@ -108,7 +108,10 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_IndirectDat
         ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
-      
+            
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_output()->Get(i)->data(),IndirectDataReference::VT_DATA_INDEX)); //check data_index present
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_output()->Get(i)->data(),IndirectDataReference::VT_DATA_INDEX)); //check data_index present
+            
             EXPECT_EQ(graph1->header()->net_output()->Get(i)->data()->data_index(),graph2->header()->net_output()->Get(i)->data()->data_index());
         }  
     } 
@@ -130,6 +133,9 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_locale)
         ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
+
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i),TensorReference::VT_LOCALE)); //check locale present
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_input()->Get(i),TensorReference::VT_LOCALE)); //check locale present
 
             EXPECT_EQ(graph1->header()->net_input()->Get(i)->locale(),graph2->header()->net_input()->Get(i)->locale());
         }  
@@ -153,6 +159,9 @@ TEST(graphFile, header_SummaryHeader_net_input_TensorReference_data_dtype)
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_input()->size(); i++) { //No. of TensorReference tables
       
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_input()->Get(i),TensorReference::VT_DATA_DTYPE)); //check locale present
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_input()->Get(i),TensorReference::VT_DATA_DTYPE)); //check locale present
+
             EXPECT_EQ(graph1->header()->net_input()->Get(i)->data_dtype(),graph2->header()->net_input()->Get(i)->data_dtype());
         }  
     } 
@@ -172,10 +181,12 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_dimensions)
     auto netOutputPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header(), SummaryHeader::VT_NET_OUTPUT);
 
     if(netOutputPresentGraph1) {
+
         ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header(), SummaryHeader::VT_NET_OUTPUT)); //Check if present in graph2
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
 
+             ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_output()->Get(i), TensorReference::VT_DIMENSIONS)); //check dimensions field present
             auto dimensionsPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header()->net_output()->Get(i), TensorReference::VT_DIMENSIONS);
 
             if(dimensionsPresentGraph1) {
@@ -183,6 +194,8 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_dimensions)
                 //For each dimension check if equal
                 for (flatbuffers::uoffset_t j = 0; j < graph1->header()->net_output()->Get(i)->dimensions()->size(); j++) { 
                     
+                    ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_output()->Get(i), TensorReference::VT_DIMENSIONS));
+
                     EXPECT_EQ(graph1->header()->net_output()->Get(i)->dimensions()->Get(j),graph2->header()->net_output()->Get(i)->dimensions()->Get(j));
                 }
             }
@@ -209,12 +222,15 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_strides)
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
 
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_output()->Get(i), TensorReference::VT_STRIDES));
+
             auto stridesPresentGraph1 = flatbuffers::IsFieldPresent(graph1->header()->net_output()->Get(i), TensorReference::VT_STRIDES);
 
             if(stridesPresentGraph1) {
                 
                 for (flatbuffers::uoffset_t j = 0; j < graph1->header()->net_output()->Get(i)->strides()->size(); j++) { //For each dimension check if equal
             
+                    ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_output()->Get(i), TensorReference::VT_STRIDES));
                     EXPECT_EQ(graph1->header()->net_output()->Get(i)->strides()->Get(j),graph2->header()->net_output()->Get(i)->strides()->Get(j));
                 }
             }
@@ -241,6 +257,9 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_locale)
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
       
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_output()->Get(i),TensorReference::VT_LOCALE)); //check locale present
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_output()->Get(i),TensorReference::VT_LOCALE)); //check locale present
+
             EXPECT_EQ(graph1->header()->net_output()->Get(i)->locale(),graph2->header()->net_output()->Get(i)->locale());
         }  
     } 
@@ -263,6 +282,9 @@ TEST(graphFile, header_SummaryHeader_net_output_TensorReference_data_dtype)
 
         for (flatbuffers::uoffset_t i = 0; i < graph1->header()->net_output()->size(); i++) { //No. of TensorReference tables
       
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->header()->net_output()->Get(i),TensorReference::VT_DATA_DTYPE)); //check locale present
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->header()->net_output()->Get(i),TensorReference::VT_DATA_DTYPE)); //check locale present
+
             EXPECT_EQ(graph1->header()->net_output()->Get(i)->data_dtype(),graph2->header()->net_output()->Get(i)->data_dtype());
         }  
     } 
@@ -380,6 +402,8 @@ TEST(graphFile, header_SummaryHeader_resources_Resources_ddr_scratch)
 
 //Insert orignal structure - Links table here
 
+//This test needs ASSERTS()
+//Leaving for now as not in blob
 TEST(graphFile, task_lists_TaskList_content_Task_nodeID)		
 {
     Blob blob_1(file_name_one.c_str());
@@ -430,10 +454,13 @@ TEST(graphFile, barrier_table_Barrier_barrier_id)
 
         for (flatbuffers::uoffset_t j = 0; j < graph1->barrier_table()->size(); j++) { //No. of Barrier tables
     
-            //is nodeIDPresentGraph1 present
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_BARRIER_ID)); //is barrier id present in graph1
+
             auto barrierIdPresentGraph1 = flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_BARRIER_ID);
 
             if(barrierIdPresentGraph1) {
+
+                ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->barrier_table()->Get(j), Barrier::VT_BARRIER_ID)); //is it present in graph 2
             
                 auto barrier_id_graph1 = graph1->barrier_table()->Get(j)->barrier_id();
                 auto barrier_id_graph2 = graph2->barrier_table()->Get(j)->barrier_id();
@@ -462,11 +489,15 @@ TEST(graphFile, barrier_table_Barrier_consumer_count)
 
         for (flatbuffers::uoffset_t j = 0; j < graph1->barrier_table()->size(); j++) { //No. of Barrier tables
     
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_CONSUMER_COUNT)); //is consumer count present in graph1
+
             //is consumer_count present in graph1
             auto consumerCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_CONSUMER_COUNT);
 
             if(consumerCountPresentGraph1) {
             
+                ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->barrier_table()->Get(j), Barrier::VT_CONSUMER_COUNT)); //is consumer count present in graph2
+
                 auto consumer_count_graph1 = graph1->barrier_table()->Get(j)->consumer_count();
                 auto consumer_count_graph2 = graph2->barrier_table()->Get(j)->consumer_count();
                     
@@ -493,12 +524,16 @@ TEST(graphFile, barrier_table_Barrier_producer_count)
     if(barrierTablePresentGraph1) { //if present
 
         for (flatbuffers::uoffset_t j = 0; j < graph1->barrier_table()->size(); j++) { //No. of Barrier tables
+
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_PRODUCER_COUNT)); //is producer count present in graph1
     
             //is producer_count present in graph1
             auto producerCountPresentGraph1 = flatbuffers::IsFieldPresent(graph1->barrier_table()->Get(j), Barrier::VT_PRODUCER_COUNT);
 
             if(producerCountPresentGraph1) {
             
+                ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->barrier_table()->Get(j), Barrier::VT_PRODUCER_COUNT)); //is producer count present in graph2
+
                 auto producer_count_graph1 = graph1->barrier_table()->Get(j)->producer_count();
                 auto producer_count_graph2 = graph2->barrier_table()->Get(j)->producer_count();
                     
@@ -526,9 +561,13 @@ TEST(graphFile, task_lists_TaskList_content_Task_sourceTaskIDs)
 
         for (flatbuffers::uoffset_t i = 0; i < content_size; i++) {
 
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->task_lists()->Get(j)->content()->Get(i), Task::VT_SOURCETASKIDS)); //is source task ids present graph1
+
             auto sourceTaskIDs_size = graph1->task_lists()->Get(j)->content()->Get(i)->sourceTaskIDs()->size();
 
             for (flatbuffers::uoffset_t k = 0; k < sourceTaskIDs_size; k++) {
+
+                ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->task_lists()->Get(j)->content()->Get(i), Task::VT_SOURCETASKIDS)); //is source task ids present graph2
 
                 auto sourceTaskIDs_graph1 = graph1->task_lists()->Get(j)->content()->Get(i)->sourceTaskIDs()->Get(k);
                 auto sourceTaskIDs_graph2 = graph2->task_lists()->Get(j)->content()->Get(i)->sourceTaskIDs()->Get(k);
@@ -551,6 +590,9 @@ TEST(graphFile, task_lists_TaskList_content_Task_associated_barriers_BarrierRefe
         auto content_size = graph1->task_lists()->Get(j)->content()->size(); //No. of Task tables
        
         for (flatbuffers::uoffset_t i = 0; i < content_size; i++) { //For each Task Table
+
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph1->task_lists()->Get(j)->content()->Get(i)->associated_barriers(), BarrierReference::VT_WAIT_BARRIER)); //is wait barrier present graph1
+            ASSERT_TRUE(flatbuffers::IsFieldPresent(graph2->task_lists()->Get(j)->content()->Get(i)->associated_barriers(), BarrierReference::VT_WAIT_BARRIER)); //is wait barrier present graph2
 
             auto wait_barrier_graph1 = graph1->task_lists()->Get(j)->content()->Get(i)->associated_barriers()->wait_barrier(); //get wait_barrier
             auto wait_barrier_graph2 = graph2->task_lists()->Get(j)->content()->Get(i)->associated_barriers()->wait_barrier(); //get wait_barrier
