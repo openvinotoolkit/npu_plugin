@@ -16,7 +16,7 @@ namespace mv
     namespace attr
     {
         // TODO Checks for setting type traits
-        class AttributeRegistry : public Registry<std::type_index, AttributeEntry>
+        class AttributeRegistry : public Registry<AttributeRegistry, std::type_index, AttributeEntry>
         {
             
             /**
@@ -61,14 +61,14 @@ namespace mv
             template <class AttrType>
             AttributeEntry& enter()
             {
-                return Registry<std::type_index, AttributeEntry>::enter(typeid(AttrType));
+                return Registry<AttributeRegistry, std::type_index, AttributeEntry>::enter(typeid(AttrType));
             }
 
             // Enter or replace if the key is already present in the registry
             template <class AttrType>
             AttributeEntry& enterReplace()
             {
-                return Registry<std::type_index, AttributeEntry>::enterReplace(typeid(AttrType));
+                return Registry<AttributeRegistry, std::type_index, AttributeEntry>::enterReplace(typeid(AttrType));
             }
 
             template <class AttrType>

@@ -29,32 +29,10 @@ TEST (mv_num_convert, fp32_to_fp16)
 {
    mv_num_convert cvtr ;
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(2.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(3.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(4.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(5.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(6.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(7.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(8.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(9.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(10.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(11.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(12.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(13.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(14.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(15.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(16.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(17.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(18.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(19.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(20.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(21.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(22.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(23.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(24.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(25.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(26.0f),0x3c00 );
-   EXPECT_EQ(cvtr.fp32_to_fp16(27.0f),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(2.0f),0x4000 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(9.0f),0x4880 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(15.0f),0x4b80 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(27.0f),0x4ec0 );
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625f),0x3c01 );
    EXPECT_EQ(cvtr.fp32_to_fp16(-2.0f),0xc000 );
    EXPECT_EQ(cvtr.fp32_to_fp16(65504.0f),0x7bff );
@@ -69,6 +47,10 @@ TEST (mv_num_convert, fp64_to_fp16)
 {
    mv_num_convert cvtr ;
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0),0x3c00 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(2.0),0x4000 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(9.0),0x4880 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(15.0),0x4b80 );
+   EXPECT_EQ(cvtr.fp32_to_fp16(27.0),0x4ec0 );
    EXPECT_EQ(cvtr.fp32_to_fp16(1.0009765625),0x3c01 );
    EXPECT_EQ(cvtr.fp32_to_fp16(-2.0),0xc000 );
    EXPECT_EQ(cvtr.fp32_to_fp16(65504.0),0x7bff );
@@ -1178,12 +1160,10 @@ TEST (generate_blob_WDDM, blob_lrn)
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
-    EXPECT_EQ (1156LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
+    EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 // Create both RAM and file blobs
 TEST (generate_blob, runtime_binary_RAM_FILE)

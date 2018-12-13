@@ -12,7 +12,7 @@ namespace mv
     //namespace base
     //{
 
-        template <class KeyType, class EntryType>
+        template <class RegistryType, class KeyType, class EntryType>
         class Registry
         {
             
@@ -35,7 +35,8 @@ namespace mv
 
         public:
 
-            static Registry& instance();
+            static RegistryType& instance();
+
             inline EntryType& enter(const KeyType& key)
             {
                 assert(find(key) == nullptr && "Duplicated registry entry");
@@ -100,20 +101,21 @@ namespace mv
 			# define ATTRIBUTE_UNUSED(x) x
 		#endif
 
-        #define MV_DEFINE_REGISTRY(KeyType, EntryType)                                              \
-            template <>                                                                             \
-            mv::Registry<KeyType, EntryType >& mv::Registry<KeyType, EntryType >::instance()        \
-            {                                                                                       \
-                static Registry instance_;                                                          \
-                return instance_;                                                                   \
-            }                     
+        #define MV_DEFINE_REGISTRY(RegistryType, KeyType, EntryType)                        \
+            template <>                                                                     \
+            RegistryType& mv::Registry<RegistryType, KeyType, EntryType >::instance()       \
+            {                                                                               \
+                static RegistryType instance_;                                              \
+                return instance_;                                                           \
+            }                                                                               
+               
 
         #define CONCATENATE_DETAIL(x, y) x##y
         #define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)                                                      
 
-        #define MV_REGISTER_ENTRY(KeyType, EntryType, key)                                          \
+        #define MV_REGISTER_ENTRY(RegistryType, KeyType, EntryType, key)                            \
             static ATTRIBUTE_UNUSED(EntryType& CONCATENATE(__ ## EntryType ## __, __COUNTER__)) =   \
-                mv::Registry<KeyType, EntryType >::instance().enter(key)                 
+                mv::Registry<RegistryType, KeyType, EntryType >::instance().enter(key)                 
 
     //}
 

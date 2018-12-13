@@ -3,7 +3,7 @@
 namespace mv
 {
 
-    MV_DEFINE_REGISTRY(std::type_index, mv::attr::AttributeEntry)
+    MV_DEFINE_REGISTRY(attr::AttributeRegistry, std::type_index, mv::attr::AttributeEntry)
 
 }
 
@@ -22,7 +22,7 @@ const std::set<std::string> mv::attr::AttributeRegistry::instanceTraits_ =
 mv::attr::AttributeRegistry& mv::attr::AttributeRegistry::instance()
 {
     
-    return static_cast<AttributeRegistry&>(Registry<std::type_index, AttributeEntry>::instance());
+    return Registry<AttributeRegistry, std::type_index, AttributeEntry>::instance();
 
 }
 

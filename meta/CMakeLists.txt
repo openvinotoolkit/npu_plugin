@@ -14,11 +14,11 @@ add_custom_command(
         ${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
         ${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
         ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
-        
-    COMMAND
-        ${CMAKE_CURRENT_BINARY_DIR}/gen_composition_api
-    VERBATIM
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/gen_composition_api
+       
+		COMMAND
+			$<TARGET_FILE:gen_composition_api>
+		VERBATIM
+		DEPENDS $<TARGET_FILE:gen_composition_api>
 )
 
 add_custom_target(
@@ -31,10 +31,20 @@ add_custom_target(
     DEPENDS ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
 )
 
-add_library(metamodel SHARED
-    ${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
-    ${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
-    ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
-)
 
-target_link_libraries(metamodel model)
+if (MSVC)
+	add_library(metamodel OBJECT
+		${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
+		${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
+		${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
+		$<TARGET_OBJECTS:model>
+		$<TARGET_OBJECTS:corebase>
+	)
+else()
+	add_library(metamodel SHARED
+		${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
+		${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
+		${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
+	)
+	target_link_libraries(metamodel model)
+endif(MSVC)

@@ -5,6 +5,8 @@
 #include <functional>
 #include <set>
 #include <map>
+#include <array>
+#include <vector>
 #include <typeindex>
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/base/exception/master_error.hpp"
@@ -14,7 +16,7 @@
 #include "include/mcm/base/printable.hpp"
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
-#include "include/mcm/computation/model/iterator/data_context.hpp"
+#include "include/mcm/computation/model/iterator/tensor.hpp"
 
 namespace mv
 {

@@ -1,8 +1,8 @@
 #ifndef NCE1_UTILS_HPP
 #define NCE1_UTILS_HPP
 
-#include "mcm/computation/resource/nce1.hpp"
-#include "mcm/computation/op/op.hpp"
+#include "include/mcm/computation/resource/nce1.hpp"
+#include "include/mcm/computation/model/iterator/data_context.hpp"
 
 namespace mv
 {

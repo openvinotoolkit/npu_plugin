@@ -19,13 +19,16 @@ if (MSVC)
 else()
 
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
-    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+# Add FlatBuffers to our build. 
+set(FLATBUFFERS_SRC_DIR ${PROJECT_SOURCE_DIR}/contrib/flatbuffers)
+     
 if(VALIDATION)
 
     include_directories("/opt/movidius/caffe/include")
@@ -80,7 +83,7 @@ file(GLOB base
     "src/tensor/dtype.cpp"
     "src/computation/op/op_entry.cpp"
     "src/computation/op/op_registry.cpp"
-    "src/computation/op/def2/*.cpp"
+    "src/computation/op/def/*.cpp"
     "src/computation/model/runtime_binary.cpp"
 )
 
@@ -104,7 +107,6 @@ file (GLOB model
     "src/computation/model/model_element.cpp"
    
 )
-
 
 file(GLOB logger
     "src/logger/logger.cpp"
@@ -138,18 +140,19 @@ file(GLOB compiler
 add_subdirectory(meta)
 
 if (MSVC)
-    add_library(cm OBJECT ${compiler} ${pass})
+    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
+	target_link_libraries(cm corebase metamodel)
     add_library(corebase OBJECT ${base} ${logger})
-    add_library(model OBJECT ${model})
-    target_link_libraries(cm corebase metamodel)
-    add_dependencies(cm generate-comp-api)
+    add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
+    target_link_libraries(model corebase)
+    add_dependencies(cm generate-comp-api)	
     add_dependencies(model generate-comp-api)
 else()
 if(VALIDATION)
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
-    target_link_libraries(cm corebase metamodel)
+    target_link_libraries(cm corebase metamodel flatbuffers)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
@@ -157,17 +160,19 @@ if(VALIDATION)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
+    add_subdirectory(${FLATBUFFERS_SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build)
     #add_subdirectory(recordings)  
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
-    target_link_libraries(cm corebase metamodel)
+    target_link_libraries(cm corebase metamodel flatbuffers)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
+    add_subdirectory(${FLATBUFFERS_SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build)
     #add_subdirectory(recordings)
 endif(VALIDATION)
 

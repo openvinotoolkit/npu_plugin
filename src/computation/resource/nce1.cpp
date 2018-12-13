@@ -573,7 +573,7 @@ unsigned mv::Nce1::computeMaxOutputLinesPooling(unsigned width, unsigned output_
 {
     unsigned max_output_lines = computeMaxOutputLinesConvolution(width, output_channel_performed);
     //Padding order: Up, down, left, right
-    bool pad_enabled = std::max_element(padding.begin(), padding.end());
+    bool pad_enabled = *std::max_element(padding.begin(), padding.end()) > 0;
     if(!pad_enabled)
         return max_output_lines;
 

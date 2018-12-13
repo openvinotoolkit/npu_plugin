@@ -1,0 +1,35 @@
+include "structure.fbs";
+include "memoryManagement.fbs";
+
+namespace MVCNN;
+
+table timerTask{
+  // TBD
+  id: uint;
+  write_location: TensorReference;
+
+}
+table memoryTask{
+  // TBD
+  id: uint;
+}
+
+table barrierConfigurationTask{
+  // A task to configure setup for a barrier.
+  // An alternative method to dynamic barrier management.
+  // If you are scheduling with these tasks, you do not need to
+  // instanciate the barrier_table of the main graphfile object.
+  // If you wish to access the barriers to this particular task, check the
+  // generic task BarrierReference.
+  target: Barrier;
+}
+
+union ControllerSubTask{
+  timerTask,
+  memoryTask,
+  barrierConfigurationTask,
+}
+
+table ControllerTask {
+  task: ControllerSubTask;
+}
