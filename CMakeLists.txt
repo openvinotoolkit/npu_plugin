@@ -25,9 +25,6 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
-
-# Add FlatBuffers to our build. 
-set(FLATBUFFERS_SRC_DIR ${PROJECT_SOURCE_DIR}/contrib/flatbuffers)
      
 if(VALIDATION)
 
@@ -160,7 +157,7 @@ if(VALIDATION)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
-    add_subdirectory(${FLATBUFFERS_SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build)
+    add_subdirectory(contrib/flatbuffers)
     #add_subdirectory(recordings)  
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
@@ -172,7 +169,7 @@ else()
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
-    add_subdirectory(${FLATBUFFERS_SRC_DIR} ${CMAKE_CURRENT_BINARY_DIR}/flatbuffers-build)
+    add_subdirectory(contrib/flatbuffers)
     #add_subdirectory(recordings)
 endif(VALIDATION)
 
