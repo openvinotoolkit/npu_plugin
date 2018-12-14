@@ -2,7 +2,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "graphfile_generated.h"
+#include "../../KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
 
 #ifndef __DESERIALIZE__
 
