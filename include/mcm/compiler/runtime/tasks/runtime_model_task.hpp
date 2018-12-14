@@ -10,7 +10,7 @@ namespace mv
     struct RuntimeModelTask
     {
         unsigned nodeID;
-        std::vector<unsigned> sourceTaskIDs;
+        std::vector<unsigned> * sourceTaskIDs;
         RuntimeModelBarrierReference * associatedBarriers;
         RuntimeModelSpecificTask * task;
     };
