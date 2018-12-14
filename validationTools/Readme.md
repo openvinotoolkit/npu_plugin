@@ -20,7 +20,7 @@ Note issues:
 
 3. The tests currently only cover a selection of fields in the example blob in this folder.
 
-4. The tests are named by folling the table and field names in the schema tables:
+4. The tests are named by following the table and field names in the schema tables:
    This example is testing the dimensions field in the TensorReference table.
    
    TEST(graphFile, header_SummaryHeader_net_input_TensorReference_dimensions) 
