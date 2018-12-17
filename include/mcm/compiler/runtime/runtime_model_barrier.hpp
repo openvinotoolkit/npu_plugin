@@ -20,12 +20,12 @@ namespace mv
     };
 
 
-    flatbuffers::Offset<MVCNN::Barrier> convertToFlatbuffer(RuntimeModelBarrier * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::Barrier> convertToFlatbuffer(RuntimeModelBarrier * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateBarrier(fbb, ref->barrierID, ref->consumerCount, ref->producerCount);
     }
 
-    std::vector<flatbuffers::Offset<MVCNN::Barrier>> convertToFlatbuffer(std::vector<RuntimeModelBarrier> * ref, flatbuffers::FlatBufferBuilder * fbb)
+    std::vector<flatbuffers::Offset<MVCNN::Barrier>> convertToFlatbuffer(std::vector<RuntimeModelBarrier> * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::Barrier>> toReturn;
         for(unsigned i = 0; i < ref->size(); ++i)
@@ -33,7 +33,7 @@ namespace mv
         return toReturn;
     }
 
-    flatbuffers::Offset<MVCNN::BarrierReference> convertToFlatbuffer(RuntimeModelBarrierReference * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::BarrierReference> convertToFlatbuffer(RuntimeModelBarrierReference * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateBarrierReferenceDirect(fbb, ref->waitBarrier, ref->updateBarriers);
     }

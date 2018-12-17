@@ -67,7 +67,7 @@ namespace mv
         unsigned pReLuAlpha;
     };
 
-    flatbuffers::Offset<MVCNN::PPEFixedFunction> convertToFlatbuffer(RuntimeModelPPEFixedFunction * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::PPEFixedFunction> convertToFlatbuffer(RuntimeModelPPEFixedFunction * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreatePPEFixedFunctionDirect(
                     fbb,
@@ -76,7 +76,7 @@ namespace mv
                     ref->clampValueHigh);
     }
 
-    std::vector<flatbuffers::Offset<MVCNN::PPEFixedFunction>> convertToFlatbuffer(std::vector<RuntimeModelPPEFixedFunction> * ref, flatbuffers::FlatBufferBuilder * fbb)
+    std::vector<flatbuffers::Offset<MVCNN::PPEFixedFunction>> convertToFlatbuffer(std::vector<RuntimeModelPPEFixedFunction> * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::PPEFixedFunction>> toReturn;
         for(unsigned i = 0; i < ref->size(); ++i)
@@ -90,7 +90,7 @@ namespace mv
         std::vector<RuntimeModelPPEFixedFunction> * fixedFunction;
     };
 
-    flatbuffers::Offset<MVCNN::PPETask> convertToFlatbuffer(RuntimeModelPPEGenericTask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::PPETask> convertToFlatbuffer(RuntimeModelPPEGenericTask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         MVCNN::CreatePPETaskDirect(fbb, convertToFlatbuffer(ref->scaleData, fbb), convertToFlatbuffer(ref->fixedFunction, fbb));
     }
@@ -112,7 +112,7 @@ namespace mv
         RuntimeModelTensorReference * biasData;
     };
 
-    flatbuffers::Offset<MVCNN::NCEInvariantFields> convertToFlatbuffer(RuntimeModelDPUInvariantFields * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::NCEInvariantFields> convertToFlatbuffer(RuntimeModelDPUInvariantFields * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateNCEInvariantFieldsDirect(
                     fbb,
@@ -148,7 +148,7 @@ namespace mv
         unsigned workloadEndZ;
     };
 
-    flatbuffers::Offset<MVCNN::NCEVariantFields> convertToFlatbuffer(RuntimeModelDPUVariantFields * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::NCEVariantFields> convertToFlatbuffer(RuntimeModelDPUVariantFields * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return CreateNCEVariantFields(
             fbb,
@@ -167,7 +167,7 @@ namespace mv
             ref->workload_end_Z);
     }
 
-    std::vector<flatbuffers::Offset<MVCNN::NCEVariantFields>> convertToFlatbuffer(std::vector<RuntimeModelDPUVariantFields> * ref, flatbuffers::FlatBufferBuilder * fbb)
+    std::vector<flatbuffers::Offset<MVCNN::NCEVariantFields>> convertToFlatbuffer(std::vector<RuntimeModelDPUVariantFields> * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::NCEVariantFields>> toReturn;
         for(unsigned i = 0; i < ref->size(); ++i)
@@ -225,7 +225,7 @@ namespace mv
         std::vector<RuntimeModelDPUVariantFields> * variant;
     };
 
-    flatbuffers::Offset<MVCNN::NCE2Task> convertToFlatbuffer(RuntimeModelDPUTask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::NCE2Task> convertToFlatbuffer(RuntimeModelDPUTask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateNCE2TaskDirect(fbb, convertToFlatbuffer(ref->invariant, fbb), convertToFlatbuffer(ref->variant, fbb));
     }

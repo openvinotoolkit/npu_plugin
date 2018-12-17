@@ -22,7 +22,7 @@ namespace mv
         unsigned order;
     };
 
-    flatbuffers::Offset<Tensor> convertToFlatbuffer(RuntimeModelNCE1Tensor * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<Tensor> convertToFlatbuffer(RuntimeModelNCE1Tensor * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateTensor(
             fbb,
@@ -59,7 +59,7 @@ namespace mv
         RuntimeModelNCE1Tensor * bias;
     };
 
-    flatbuffers::Offset<NCE1FCL> convertToFlatbuffer(RuntimeModelNCE1FullyConnected * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<NCE1FCL> convertToFlatbuffer(RuntimeModelNCE1FullyConnected * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateNCE1FCLDirect(
                     fbb,
@@ -101,7 +101,7 @@ namespace mv
         RuntimeModelNCE1Tensor * bias;
     };
 
-    flatbuffers::Offset<NCE1Pool> convertToFlatbuffer(RuntimeModelNCE1Pool * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<NCE1Pool> convertToFlatbuffer(RuntimeModelNCE1Pool * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateNCE1PoolDirect(
                     fbb,
@@ -143,7 +143,7 @@ namespace mv
         RuntimeModelNCE1Tensor * bias;
     };
 
-    flatbuffers::Offset<NCE1Conv> convertToFlatbuffer(RuntimeModelNCE1Conv * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<NCE1Conv> convertToFlatbuffer(RuntimeModelNCE1Conv * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateNCE1ConvDirect(
                     fbb,
@@ -170,21 +170,21 @@ namespace mv
 
     };
 
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelNCE1Layer * ref, RuntimeModelNCE1LayerType layerType, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelNCE1Layer * ref, RuntimeModelNCE1LayerType layerType, flatbuffers::FlatBufferBuilder& fbb)
     {
         switch (layerType)
         {
             case NONE:
-                return convertToFlatbuffer((RuntimeModelNCE1Conv *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelNCE1Conv *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case CONV:
-                return convertToFlatbuffer((RuntimeModelNCE1Conv *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelNCE1Conv *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case POOL:
-                return convertToFlatbuffer((RuntimeModelNCE1Pool *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelNCE1Pool *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case FULLYCONNECTED:
-                return convertToFlatbuffer((RuntimeModelNCE1FullyConnected *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelNCE1FullyConnected *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             default:
                 break;
@@ -205,7 +205,7 @@ namespace mv
         RuntimeModelNCE1LayerType layerType;
     };
 
-    flatbuffers::Offset<NCE1Task> convertToFlatbuffer(RuntimeModelNCE1Task * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<NCE1Task> convertToFlatbuffer(RuntimeModelNCE1Task * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return flatbuffers::Offset<NCE1Task> (
                     fbb,

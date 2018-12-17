@@ -18,7 +18,7 @@ namespace mv
         std::vector<std::vector<RuntimeModelBinaryData>> * binaryData;
     };
 
-    flatbuffers::Offset<MVCNN::GraphFile> convertToFlatbuffer(RuntimeModel * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::GraphFile> convertToFlatbuffer(RuntimeModel * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return CreateGraphFileDirect(fbb,
                                      convertToFlatbuffer(ref->header, fbb),

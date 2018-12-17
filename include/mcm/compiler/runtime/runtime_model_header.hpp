@@ -37,7 +37,7 @@ namespace mv
         std::vector<unsigned> * firstID;
     };
 
-    flatbuffers::Offset<MVCNN::SummaryHeader> convertToFlatbuffer(RuntimeModelHeader * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::SummaryHeader> convertToFlatbuffer(RuntimeModelHeader * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateSummaryHeaderDirect(fbb,
                                           MVCNN::CreateVersionDirect(fbb, ref->majorV, ref->minorV, ref->patchV, ref->hash.c_str()),

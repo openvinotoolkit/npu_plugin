@@ -24,7 +24,6 @@ namespace mv
         I4X,
         BIN,
         LOG,
-        I2X
     };
 }
 

@@ -99,7 +99,7 @@ namespace mv
         }
     }
 
-    flatbuffers::Offset<MVCNN::BinaryData> convertToFlatbuffer(RuntimeModelBinaryData * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::BinaryData> convertToFlatbuffer(RuntimeModelBinaryData * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         std::vector<double> * fp64 = nullptr;
         std::vector<float> * fp32 = nullptr;

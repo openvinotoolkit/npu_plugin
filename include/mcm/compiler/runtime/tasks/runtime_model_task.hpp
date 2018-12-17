@@ -22,7 +22,7 @@ namespace mv
 
     };
 
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelSpecificTask * ref, RuntimeModelSpecificTaskType taskType, flatbuffers::FlatBufferBuilder *fbb)
+    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelSpecificTask * ref, RuntimeModelSpecificTaskType taskType, flatbuffers::FlatBufferBuilder&fbb)
     {
         switch (taskType)
         {
@@ -60,7 +60,7 @@ namespace mv
         RuntimeModelSpecificTask * task;
     };
 
-    flatbuffers::Offset<Task> convertToFlatbuffer(RuntimeModelTask * ref, flatbuffers::FlatBufferBuilder *fbb)
+    flatbuffers::Offset<Task> convertToFlatbuffer(RuntimeModelTask * ref, flatbuffers::FlatBufferBuilder&fbb)
     {
         return CreateTaskDirect(
             fbb,

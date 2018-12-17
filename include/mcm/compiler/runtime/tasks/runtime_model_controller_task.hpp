@@ -13,7 +13,7 @@ namespace mv
         RuntimeModelBarrier * target;
     };
 
-    flatbuffers::Offset<MVCNN::BarrierConfigurationTask> convertToFlatbuffer(RuntimeModelBarrierConfigurationTask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::BarrierConfigurationTask> convertToFlatbuffer(RuntimeModelBarrierConfigurationTask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateBarrierConfigurationTask(fbb, convertToFlatbuffer(fbb, ref->target));
     }
@@ -23,7 +23,7 @@ namespace mv
         unsigned id;
     };
 
-    flatbuffers::Offset<MVCNN::MemoryTask> convertToFlatbuffer(RuntimeModelMemoryTask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::MemoryTask> convertToFlatbuffer(RuntimeModelMemoryTask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateMemoryTask(fbb, ref->id);
     }
@@ -34,7 +34,7 @@ namespace mv
         RuntimeModelTensorReference * writeLocation;
     };
 
-    flatbuffers::Offset<MVCNN::TimerTask> convertToFlatbuffer(RuntimeModelTimerTask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::TimerTask> convertToFlatbuffer(RuntimeModelTimerTask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateTimerTask(fbb, ref->id, convertToFlatbuffer(ref->writeLocation, fbb));
     }
@@ -44,7 +44,7 @@ namespace mv
 
     };
 
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelControllerSubTask * ref, RuntimeModelControllerSubTaskType taskType, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelControllerSubTask * ref, RuntimeModelControllerSubTaskType taskType, flatbuffers::FlatBufferBuilder& fbb)
     {
         switch (taskType)
         {
@@ -79,7 +79,7 @@ namespace mv
         RuntimeModelControllerSubTask * task;
     };
 
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelControllerTask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelControllerTask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return CreateControllerTask(
                     fbb,

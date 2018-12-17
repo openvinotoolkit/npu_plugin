@@ -6,6 +6,8 @@
 #include "include/mcm/compiler/runtime/runtime_model_memory_location.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_dtypes.hpp"
 #include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
+#include "KeemBayFBSchema/compiledSchemas/memoryManagement_generated.h"
+
 
 namespace mv
 {
@@ -20,12 +22,12 @@ namespace mv
         unsigned sparsityIndex;
         RuntimeModelMemoryLocation locale;
         RuntimeModelDType dtype;
-        std::vector<unsigned> * quantScale;
-        std::vector<unsigned> * quantZero;
-        std::vector<unsigned> * quantShift;
+        std::vector<signed char> * quantScale;
+        std::vector<signed char> * quantZero;
+        std::vector<signed char> * quantShift;
     };
 
-    std::vector<flatbuffers::Offset<MVCNN::TensorReference>> convertToFlatbuffer(std::vector<RuntimeModelTensorReference> * ref, flatbuffers::FlatBufferBuilder * fbb)
+    std::vector<flatbuffers::Offset<MVCNN::TensorReference>> convertToFlatbuffer(std::vector<RuntimeModelTensorReference*> * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::TensorReference>> toReturn;
         for(unsigned i = 0; i < ref->size(); ++i)
@@ -34,17 +36,19 @@ namespace mv
     }
 
 
-    flatbuffers::Offset<MVCNN::TensorReference> convertToFlatbuffer(RuntimeModelTensorReference * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::TensorReference> convertToFlatbuffer(RuntimeModelTensorReference * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
+
+        auto dataReference = MVCNN::CreateIndirectDataReference(fbb, ref->dataIndex, ref->sparsityIndex);
 
         return CreateTensorReferenceDirect(fbb,
                                     ref->dimensions,
                                     ref->strides,
                                     ref->leadingOffset,
                                     ref->trailingOffset,
-                                    CreateIndirectDataReference(fbb, ref->dataIndex, ref->sparsityIndex),
-                                    ref->locale,
-                                    ref->dtype,
+                                    dataReference,
+                                    static_cast<MVCNN::MemoryLocation>(ref->locale),
+                                    static_cast<MVCNN::DType>(ref->dtype),
                                     ref->quantScale,
                                     ref->quantZero,
                                     ref->quantShift);

@@ -16,7 +16,7 @@ namespace mv
         RuntimeModelTensorReference * dst;
     };
 
-    flatbuffers::Offset<MVCNN::UPADMATask> convertToFlatbuffer(RuntimeModelUPADMATask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::UPADMATask> convertToFlatbuffer(RuntimeModelUPADMATask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateUPADMATask(fbb, convertToFlatbuffer(ref->src, fbb), convertToFlatbuffer(ref->dst, fbb));
     }
@@ -28,7 +28,7 @@ namespace mv
         bool compression;
     };
 
-    flatbuffers::Offset<MVCNN::NNDMATask> convertToFlatbuffer(RuntimeModelNNDMATask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::NNDMATask> convertToFlatbuffer(RuntimeModelNNDMATask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateNNDMATaskDirect(fbb, convertToFlatbuffer(ref->src, fbb), convertToFlatbuffer(ref->dst, fbb), ref->compression);
     }

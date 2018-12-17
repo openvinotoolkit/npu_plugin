@@ -16,7 +16,7 @@ namespace mv
         unsigned id;
     };
 
-    flatbuffers::Offset<MVCNN::Custom> convertToFlatbuffer(RuntimeModelCustomSoftware * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::Custom> convertToFlatbuffer(RuntimeModelCustomSoftware * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateCustomDirect(fbb,
                                              ref->data,
@@ -30,7 +30,7 @@ namespace mv
         RuntimeModelTensorReference * output;
     };
 
-    flatbuffers::Offset<MVCNN::Passthrough> convertToFlatbuffer(RuntimeModelPassthroughSoftware * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::Passthrough> convertToFlatbuffer(RuntimeModelPassthroughSoftware * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreatePassThrough(
             fbb,
@@ -47,7 +47,7 @@ namespace mv
         unsigned strideY;
     };
 
-    flatbuffers::Offset<MVCNN::ReLU> convertToFlatbuffer(RuntimeModelReLuSoftware * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::ReLU> convertToFlatbuffer(RuntimeModelReLuSoftware * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateReLU(
             fbb,
@@ -72,7 +72,7 @@ namespace mv
         RuntimeModelTensorReference * output;
     };
 
-    flatbuffers::Offset<MVCNN::Pooling> convertToFlatbuffer(RuntimeModelPoolingSoftware * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::Pooling> convertToFlatbuffer(RuntimeModelPoolingSoftware * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreatePooling(
             fbb,
@@ -104,7 +104,7 @@ namespace mv
         RuntimeModelTensorReference * bias;
     };
 
-    flatbuffers::Offset<MVCNN::Conv2D> convertToFlatbuffer(RuntimeModelConv2DSoftware * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<MVCNN::Conv2D> convertToFlatbuffer(RuntimeModelConv2DSoftware * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateConv2D(
             fbb,
@@ -127,27 +127,27 @@ namespace mv
 
     };
 
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelSoftwareLayer * ref, RuntimeModelSoftwareLayerTaskType taskType, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelSoftwareLayer * ref, RuntimeModelSoftwareLayerTaskType taskType, flatbuffers::FlatBufferBuilder& fbb)
     {
         switch (ref-taskType)
         {
             case NONE:
-                return convertToFlatbuffer((RuntimeModelConv2DSoftware *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelConv2DSoftware *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case CONV2D:
-                return convertToFlatbuffer((RuntimeModelPoolingSoftware *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelPoolingSoftware *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case POOL:
-                return convertToFlatbuffer((RuntimeModelPoolingSoftware *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelPoolingSoftware *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case RELU:
-                return convertToFlatbuffer((RuntimeModelReLuSoftware *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelReLuSoftware *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case PASSTHROUGH:
-                return convertToFlatbuffer((RuntimeModelPassthroughSoftware *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelPassthroughSoftware *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             case CUSTOM:
-                return convertToFlatbuffer((RuntimeModelCustomSoftware *) ref, flatbuffers::FlatBufferBuilder * fbb);
+                return convertToFlatbuffer((RuntimeModelCustomSoftware *) ref, flatbuffers::FlatBufferBuilder& fbb);
                 break;
             default:
                 break;
@@ -171,7 +171,7 @@ namespace mv
         RuntimeModelSoftwareLayerTaskType taskType;
     };
 
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelMvTensorTask * ref, flatbuffers::FlatBufferBuilder * fbb)
+    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelMvTensorTask * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return CreateMvTensorTask(
                     fbb,
