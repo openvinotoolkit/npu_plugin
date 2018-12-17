@@ -3,6 +3,7 @@
 
 #include <vector>
 #include "include/mcm/compiler/runtime/runtime_model_barrier.hpp"
+#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
 
 namespace mv
 {
@@ -66,7 +67,7 @@ namespace mv
             fbb,
             ref->nodeID,
             ref->sourceTaskIDs,
-            convertToFlatBuffer(ref->associatedBarriers, fbb),
+            convertToFlatbuffer(ref->associatedBarriers, fbb),
             ref->taskType,
             convertToFlatbuffer(ref->task, ref->taskType, fbb));
     }

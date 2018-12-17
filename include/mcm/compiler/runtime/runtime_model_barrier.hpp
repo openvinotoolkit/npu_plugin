@@ -25,17 +25,21 @@ namespace mv
         return MVCNN::CreateBarrier(fbb, ref->barrierID, ref->consumerCount, ref->producerCount);
     }
 
-    std::vector<flatbuffers::Offset<MVCNN::Barrier>> convertToFlatbuffer(std::vector<RuntimeModelBarrier> * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        std::vector<flatbuffers::Offset<MVCNN::Barrier>> toReturn;
-        for(unsigned i = 0; i < ref->size(); ++i)
-            toReturn.push_back(convertToFlatbuffer(ref->at(i), fbb));
-        return toReturn;
-    }
-
     flatbuffers::Offset<MVCNN::BarrierReference> convertToFlatbuffer(RuntimeModelBarrierReference * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         return MVCNN::CreateBarrierReferenceDirect(fbb, ref->waitBarrier, ref->updateBarriers);
+    }
+
+    std::vector<flatbuffers::Offset<MVCNN::Barrier>> * convertToFlatbuffer(std::vector<RuntimeModelBarrier*> * ref, flatbuffers::FlatBufferBuilder& fbb)
+    {
+        std::vector<flatbuffers::Offset<MVCNN::Barrier>> * toReturn = new std::vector<flatbuffers::Offset<MVCNN::Barrier>>();
+        for(unsigned i = 0; i < ref->size(); ++i)
+        {
+            RuntimeModelBarrier * currentRef = ref->at(i);
+            flatbuffers::Offset<MVCNN::Barrier> currentOffset = convertToFlatbuffer(currentRef, fbb);
+            toReturn->push_back(currentOffset);
+        }
+        return toReturn;
     }
 
 }

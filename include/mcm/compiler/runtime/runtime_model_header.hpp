@@ -18,8 +18,8 @@ namespace mv
         std::string hash;
 
         //Inputs and outputs
-        std::vector<RuntimeModelTensorReference> * netInput;
-        std::vector<RuntimeModelTensorReference> * netOutput;
+        std::vector<RuntimeModelTensorReference*> * netInput;
+        std::vector<RuntimeModelTensorReference*> * netOutput;
 
         unsigned taskCount;
         unsigned layerCount;
@@ -33,7 +33,7 @@ namespace mv
         unsigned ddrScratch;
 
         //Network structure
-        std::vector<RuntimeModelLink> * links;
+        std::vector<RuntimeModelLink*> * links;
         std::vector<unsigned> * firstID;
     };
 
