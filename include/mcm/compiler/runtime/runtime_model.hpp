@@ -13,14 +13,14 @@ namespace mv
     struct RuntimeModel
     {
         RuntimeModelHeader * header;
-        std::vector<std::vector<RuntimeModelTask>> * taskLists;
-        std::vector<RuntimeModelBarrier> * barrierTable;
-        std::vector<std::vector<RuntimeModelBinaryData>> * binaryData;
+        std::vector<std::vector<RuntimeModelTask*>*> * taskLists;
+        std::vector<RuntimeModelBarrier*> * barrierTable;
+        std::vector<RuntimeModelBinaryData*> * binaryData;
     };
 
     flatbuffers::Offset<MVCNN::GraphFile> convertToFlatbuffer(RuntimeModel * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
-        return CreateGraphFileDirect(fbb,
+        return MVCNN::CreateGraphFileDirect(fbb,
                                      convertToFlatbuffer(ref->header, fbb),
                                      convertToFlatbuffer(ref->taskLists, fbb),
                                      convertToFlatbuffer(ref->barrierTable, fbb),

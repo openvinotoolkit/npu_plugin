@@ -19,7 +19,7 @@ namespace mv
         std::vector<double> *fp64,
         std::vector<float> *fp32,
         std::vector<int16_t> *fp16,
-        std::vector<int8_t> * fp8,
+        std::vector<uint8_t> * fp8,
         std::vector<uint64_t> *u64,
         std::vector<uint32_t> *u32,
         std::vector<uint16_t> *u16,
@@ -49,7 +49,7 @@ namespace mv
                 fp16 = reinterpret_cast<std::vector<int16_t>*>(ref->data);
                 break;
             case FP8:
-                fp8 = reinterpret_cast<std::vector<int8_t>*>(ref->data);
+                fp8 = reinterpret_cast<std::vector<uint8_t>*>(ref->data);
                 break;
             case U64:
                 u64 = reinterpret_cast<std::vector<uint64_t>*>(ref->data);
@@ -93,9 +93,6 @@ namespace mv
             case LOG:
                 logData = reinterpret_cast<std::vector<int8_t>*>(ref->data);
                 break;
-            case I2X:
-                i2x = reinterpret_cast<std::vector<int8_t>*>(ref->data);
-                break;
         }
     }
 
@@ -104,7 +101,7 @@ namespace mv
         std::vector<double> * fp64 = nullptr;
         std::vector<float> * fp32 = nullptr;
         std::vector<int16_t> * fp16 = nullptr;
-        std::vector<int8_t> * fp8 = nullptr;
+        std::vector<uint8_t> * fp8 = nullptr;
 
         std::vector<uint64_t> * u64 = nullptr;
         std::vector<uint32_t> * u32 = nullptr;
@@ -124,8 +121,21 @@ namespace mv
 
         setCorrectPointer(ref, fp64, fp32, fp16, fp8, u64, u32, u16, u8, i64, i32, i16, i8, i4, i2, i2x, i4x, bin, logData);
 
-        return CreateBinaryDataDirect(fbb, fp64, fp32, fp16, fp8, u64, u32, u16, u8, i64, i32, i16, i8, i4, i2, i2x, i4x, bin, logData);
+        return MVCNN::CreateBinaryDataDirect(fbb, fp64, fp32, fp16, fp8, u64, u32, u16, u8, i64, i32, i16, i8, i4, i2, i2x, i4x, bin, logData);
     }
+
+    std::vector<flatbuffers::Offset<MVCNN::BinaryData>> * convertToFlatbuffer(std::vector<RuntimeModelBinaryData*> * ref, flatbuffers::FlatBufferBuilder& fbb)
+    {
+        std::vector<flatbuffers::Offset<MVCNN::BinaryData>> * toReturn = new std::vector<flatbuffers::Offset<MVCNN::BinaryData>>();
+        for(unsigned i = 0; i < ref->size(); ++i)
+        {
+            RuntimeModelBinaryData* currentRef = ref->at(i);
+            flatbuffers::Offset<MVCNN::BinaryData> currentOffset = convertToFlatbuffer(currentRef, fbb);
+            toReturn->push_back(currentOffset);
+        }
+        return toReturn;
+    }
+
 }
 
 #endif
