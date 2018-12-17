@@ -5,6 +5,7 @@
 #include "include/mcm/compiler/runtime/tasks/runtime_model_task.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_barrier.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_binary_data.hpp"
+#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
 #include <vector>
 
 namespace mv
@@ -16,6 +17,15 @@ namespace mv
         std::vector<RuntimeModelBarrier> * barrierTable;
         std::vector<std::vector<RuntimeModelBinaryData>> * binaryData;
     };
+
+    flatbuffers::Offset<MVCNN::GraphFile> convertToFlatbuffer(RuntimeModel * ref, flatbuffers::FlatBufferBuilder * fbb)
+    {
+        return CreateGraphFileDirect(fbb,
+                                     convertToFlatbuffer(ref->header, fbb),
+                                     convertToFlatbuffer(ref->taskLists, fbb),
+                                     convertToFlatbuffer(ref->barrierTable, fbb),
+                                     convertToFlatbuffer(ref->binaryData, fbb));
+    }
 }
 
 #endif
