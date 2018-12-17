@@ -27,14 +27,6 @@ namespace mv
         std::vector<signed char> * quantShift;
     };
 
-    std::vector<flatbuffers::Offset<MVCNN::TensorReference>> convertToFlatbuffer(std::vector<RuntimeModelTensorReference*> * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        std::vector<flatbuffers::Offset<MVCNN::TensorReference>> toReturn;
-        for(unsigned i = 0; i < ref->size(); ++i)
-            toReturn.push_back(convertToFlatbuffer(ref->at(i), fbb));
-        return toReturn;
-    }
-
 
     flatbuffers::Offset<MVCNN::TensorReference> convertToFlatbuffer(RuntimeModelTensorReference * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
@@ -52,6 +44,18 @@ namespace mv
                                     ref->quantScale,
                                     ref->quantZero,
                                     ref->quantShift);
+    }
+
+    std::vector<flatbuffers::Offset<MVCNN::TensorReference>> convertToFlatbuffer(std::vector<RuntimeModelTensorReference*> * ref, flatbuffers::FlatBufferBuilder& fbb)
+    {
+        std::vector<flatbuffers::Offset<MVCNN::TensorReference>> toReturn;
+        for(unsigned i = 0; i < ref->size(); ++i)
+        {
+            RuntimeModelTensorReference * currentRef = ref->at(i);
+            flatbuffers::Offset<MVCNN::TensorReference> currentOffset = convertToFlatbuffer(currentRef, fbb);
+            toReturn.push_back(currentOffset);
+        }
+        return toReturn;
     }
 }
 
