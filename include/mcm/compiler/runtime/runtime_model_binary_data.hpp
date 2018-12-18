@@ -127,12 +127,13 @@ namespace mv
     std::vector<flatbuffers::Offset<MVCNN::BinaryData>> * convertToFlatbuffer(std::vector<RuntimeModelBinaryData*> * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::BinaryData>> * toReturn = new std::vector<flatbuffers::Offset<MVCNN::BinaryData>>();
-        for(unsigned i = 0; i < ref->size(); ++i)
-        {
-            RuntimeModelBinaryData* currentRef = ref->at(i);
-            flatbuffers::Offset<MVCNN::BinaryData> currentOffset = convertToFlatbuffer(currentRef, fbb);
-            toReturn->push_back(currentOffset);
-        }
+        if(ref)
+            for(unsigned i = 0; i < ref->size(); ++i)
+            {
+                RuntimeModelBinaryData* currentRef = ref->at(i);
+                flatbuffers::Offset<MVCNN::BinaryData> currentOffset = convertToFlatbuffer(currentRef, fbb);
+                toReturn->push_back(currentOffset);
+            }
         return toReturn;
     }
 

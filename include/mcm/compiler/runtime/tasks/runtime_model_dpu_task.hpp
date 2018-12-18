@@ -223,15 +223,12 @@ namespace mv
       /// and splitting over channels.
         RuntimeModelDPUInvariantFields * invariant;
         std::vector<RuntimeModelDPUVariantFields> * variant;
+
+        flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb)
+        {
+            return MVCNN::CreateNCE2TaskDirect(fbb, convertToFlatbuffer(invariant, fbb), convertToFlatbuffer(variant, fbb)).Union();
+        }
     };
-
-    flatbuffers::Offset<MVCNN::NCE2Task> convertToFlatbuffer(RuntimeModelDPUTask * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        return MVCNN::CreateNCE2TaskDirect(fbb, convertToFlatbuffer(ref->invariant, fbb), convertToFlatbuffer(ref->variant, fbb));
-    }
-
-
-
 }
 
 #endif

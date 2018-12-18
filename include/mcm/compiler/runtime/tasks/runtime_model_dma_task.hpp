@@ -14,24 +14,25 @@ namespace mv
     {
         RuntimeModelTensorReference * src;
         RuntimeModelTensorReference * dst;
-    };
 
-    flatbuffers::Offset<MVCNN::UPADMATask> convertToFlatbuffer(RuntimeModelUPADMATask * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        return MVCNN::CreateUPADMATask(fbb, convertToFlatbuffer(ref->src, fbb), convertToFlatbuffer(ref->dst, fbb));
-    }
+        flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb)
+        {
+            return MVCNN::CreateUPADMATask(fbb, convertToFlatbuffer(src, fbb), convertToFlatbuffer(dst, fbb)).Union();
+        }
+
+    };
 
     struct RuntimeModelNNDMATask : public RuntimeModelSpecificTask
     {
         std::vector<RuntimeModelTensorReference*> dst;
         RuntimeModelTensorReference * src;
         bool compression;
-    };
 
-    flatbuffers::Offset<MVCNN::NNDMATask> convertToFlatbuffer(RuntimeModelNNDMATask * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        return MVCNN::CreateNNDMATaskDirect(fbb, convertToFlatbuffer(ref->src, fbb), convertToFlatbuffer(ref->dst, fbb), ref->compression);
-    }
+        flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb)
+        {
+            return MVCNN::CreateNNDMATaskDirect(fbb, convertToFlatbuffer(src, fbb), convertToFlatbuffer(dst, fbb), compression).Union();
+        }
+    };
 }
 
 #endif

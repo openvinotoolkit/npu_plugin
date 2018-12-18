@@ -16,6 +16,15 @@ namespace mv
         std::vector<std::vector<RuntimeModelTask*>*> * taskLists;
         std::vector<RuntimeModelBarrier*> * barrierTable;
         std::vector<RuntimeModelBinaryData*> * binaryData;
+
+        RuntimeModel()
+            :header(nullptr),
+             taskLists(nullptr),
+             barrierTable(nullptr),
+             binaryData(nullptr)
+        {
+
+        }
     };
 
     flatbuffers::Offset<MVCNN::GraphFile> convertToFlatbuffer(RuntimeModel * ref, flatbuffers::FlatBufferBuilder& fbb)

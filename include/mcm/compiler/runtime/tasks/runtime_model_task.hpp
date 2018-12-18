@@ -4,15 +4,7 @@
 #include <vector>
 #include "include/mcm/compiler/runtime/runtime_model_barrier.hpp"
 #include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
-
-//Forward declaration of subclasses to avoid circular inclusion problem
-
-struct RuntimeModelControllerTask;
-struct RuntimeModelUPADMATask;
-struct RuntimeModelNNDMATask;
-struct RuntimeModelDPUTask;
-struct RuntimeModelNCE1Task;
-struct RuntimeModelNNTask;
+#include "include/mcm/compiler/runtime/flatbufferizable.hpp"
 
 namespace mv
 {
@@ -27,7 +19,7 @@ namespace mv
         NNTENSORTASK
     };
 
-    struct RuntimeModelSpecificTask
+    struct RuntimeModelSpecificTask : public Flatbufferizable
     {
         virtual flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder &fbb) = 0;
     };
@@ -71,12 +63,13 @@ namespace mv
     std::vector<flatbuffers::Offset<MVCNN::TaskList>> * convertToFlatbuffer(std::vector<std::vector<RuntimeModelTask*>*> * ref, flatbuffers::FlatBufferBuilder&fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::TaskList>> * taskLists = new std::vector<flatbuffers::Offset<MVCNN::TaskList>>();
-        for(unsigned i = 0; i < ref->size(); ++i)
-        {
-            std::vector<RuntimeModelTask*> * currentRef = ref->at(i);
-            flatbuffers::Offset<MVCNN::TaskList> currentOffset = convertToFlatbuffer(currentRef, fbb);
-            taskLists->push_back(currentOffset);
-        }
+        if(ref)
+            for(unsigned i = 0; i < ref->size(); ++i)
+            {
+                std::vector<RuntimeModelTask*> * currentRef = ref->at(i);
+                flatbuffers::Offset<MVCNN::TaskList> currentOffset = convertToFlatbuffer(currentRef, fbb);
+                taskLists->push_back(currentOffset);
+            }
         return taskLists;
     }
 }

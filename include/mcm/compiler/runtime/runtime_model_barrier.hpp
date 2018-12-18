@@ -33,12 +33,13 @@ namespace mv
     std::vector<flatbuffers::Offset<MVCNN::Barrier>> * convertToFlatbuffer(std::vector<RuntimeModelBarrier*> * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::Barrier>> * toReturn = new std::vector<flatbuffers::Offset<MVCNN::Barrier>>();
-        for(unsigned i = 0; i < ref->size(); ++i)
-        {
-            RuntimeModelBarrier * currentRef = ref->at(i);
-            flatbuffers::Offset<MVCNN::Barrier> currentOffset = convertToFlatbuffer(currentRef, fbb);
-            toReturn->push_back(currentOffset);
-        }
+        if(ref)
+            for(unsigned i = 0; i < ref->size(); ++i)
+            {
+                RuntimeModelBarrier * currentRef = ref->at(i);
+                flatbuffers::Offset<MVCNN::Barrier> currentOffset = convertToFlatbuffer(currentRef, fbb);
+                toReturn->push_back(currentOffset);
+            }
         return toReturn;
     }
 

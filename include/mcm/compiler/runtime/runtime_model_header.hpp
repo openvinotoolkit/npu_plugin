@@ -39,7 +39,8 @@ namespace mv
 
     flatbuffers::Offset<MVCNN::SummaryHeader> convertToFlatbuffer(RuntimeModelHeader * ref, flatbuffers::FlatBufferBuilder& fbb)
     {
-        return MVCNN::CreateSummaryHeaderDirect(fbb,
+        if(ref)
+            return MVCNN::CreateSummaryHeaderDirect(fbb,
                                           MVCNN::CreateVersionDirect(fbb, ref->majorV, ref->minorV, ref->patchV, ref->hash.c_str()),
                                           convertToFlatbuffer(ref->netInput, fbb),
                                           convertToFlatbuffer(ref->netOutput, fbb),
@@ -47,6 +48,8 @@ namespace mv
                                           ref->layerCount,
                                           MVCNN::CreateResources(fbb, ref->shaveMask, ref->nce1Mask, ref->dpuMask, ref->leonCmx, ref->nnCmx, ref->ddrScratch),
                                           MVCNN::CreateSourceStructureDirect(fbb, convertToFlatbuffer(ref->links, fbb), ref->firstID));
+        else
+            return MVCNN::CreateSummaryHeaderDirect(fbb);
     }
 }
 

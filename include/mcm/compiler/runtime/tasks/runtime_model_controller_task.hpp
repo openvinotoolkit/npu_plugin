@@ -11,59 +11,38 @@ namespace mv
     struct RuntimeModelBarrierConfigurationTask : public RuntimeModelControllerSubTask
     {
         RuntimeModelBarrier * target;
-    };
 
-    flatbuffers::Offset<MVCNN::BarrierConfigurationTask> convertToFlatbuffer(RuntimeModelBarrierConfigurationTask * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        return MVCNN::CreateBarrierConfigurationTask(fbb, convertToFlatbuffer(fbb, ref->target));
-    }
+        flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb)
+        {
+            return MVCNN::CreateBarrierConfigurationTask(fbb, convertToFlatbuffer(fbb, ref->target)).Union();
+        }
+    };
 
     struct RuntimeModelMemoryTask : public RuntimeModelControllerSubTask
     {
         unsigned id;
-    };
 
-    flatbuffers::Offset<MVCNN::MemoryTask> convertToFlatbuffer(RuntimeModelMemoryTask * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        return MVCNN::CreateMemoryTask(fbb, ref->id);
-    }
+        flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb)
+        {
+            return MVCNN::CreateMemoryTask(fbb, id).Union();
+        }
+    };
 
     struct RuntimeModelTimerTask : public RuntimeModelControllerSubTask
     {
         unsigned id;
         RuntimeModelTensorReference * writeLocation;
-    };
 
-    flatbuffers::Offset<MVCNN::TimerTask> convertToFlatbuffer(RuntimeModelTimerTask * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        return MVCNN::CreateTimerTask(fbb, ref->id, convertToFlatbuffer(ref->writeLocation, fbb));
-    }
-
-    struct RuntimeModelControllerSubTask
-    {
-
-    };
-
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelControllerSubTask * ref, RuntimeModelControllerSubTaskType taskType, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        switch (taskType)
+        flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb)
         {
-            case NONETYPE:
-                return convertToFlatbuffer((RuntimeModelTimerTask *) ref, fbb);
-                break;
-            case BARRIERCONFIGURATION:
-                return convertToFlatbuffer((RuntimeModelBarrierConfigurationTask *) ref, fbb);
-                break;
-            case MEMORY:
-                return convertToFlatbuffer((RuntimeModelMemoryTask *) ref, fbb);
-                break;
-            case TIMER:
-                return convertToFlatbuffer((RuntimeModelTimerTask *) ref, fbb);
-                break;
-            default:
-                break;
+            return MVCNN::CreateTimerTask(fbb, ref->id, convertToFlatbuffer(ref->writeLocation, fbb)).Union();
         }
-    }
+    };
+
+    struct RuntimeModelControllerSubTask : public Flatbufferizable
+    {
+        virtual flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb) = 0;
+    };
 
     enum RuntimeModelControllerSubTaskType
     {
@@ -77,15 +56,17 @@ namespace mv
     {
         RuntimeModelControllerSubTaskType taskType;
         RuntimeModelControllerSubTask * task;
+
+        flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb)
+        {
+            return CreateControllerTask(
+                        fbb,
+                        taskType,
+                        task->convertToFlatbuffer(fbb)).Union();
+        }
     };
 
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelControllerTask * ref, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        return CreateControllerTask(
-                    fbb,
-                    RuntimeModelControllerSubTaskType,
-                    convertToFlatbuffer(ref->task, ref->taskType, fbb));
-    }
+
 
 }
 
