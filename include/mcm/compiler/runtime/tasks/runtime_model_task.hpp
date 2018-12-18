@@ -14,13 +14,6 @@ struct RuntimeModelDPUTask;
 struct RuntimeModelNCE1Task;
 struct RuntimeModelNNTask;
 
-flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelControllerTask * ref, flatbuffers::FlatBufferBuilder& fbb);
-flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelUPADMATask * ref, flatbuffers::FlatBufferBuilder& fbb);
-flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelNNDMATask * ref, flatbuffers::FlatBufferBuilder& fbb);
-flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelDPUTask * ref, flatbuffers::FlatBufferBuilder& fbb);
-flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelNCE1Task * ref, flatbuffers::FlatBufferBuilder& fbb);
-flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelNNTask * ref, flatbuffers::FlatBufferBuilder& fbb);
-
 namespace mv
 {
     enum RuntimeModelSpecificTaskType
@@ -36,38 +29,8 @@ namespace mv
 
     struct RuntimeModelSpecificTask
     {
-
+        virtual flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder &fbb) = 0;
     };
-
-    flatbuffers::Offset<void> convertToFlatbuffer(RuntimeModelSpecificTask * ref, RuntimeModelSpecificTaskType taskType, flatbuffers::FlatBufferBuilder& fbb)
-    {
-        switch (taskType)
-        {
-            case NONETASK:
-                return convertToFlatbuffer((RuntimeModelControllerTask *) ref, fbb);
-                break;
-            case CONTROLLERTASK:
-                return convertToFlatbuffer((RuntimeModelControllerTask *) ref, fbb);
-                break;
-            case UPADMATASK:
-                return convertToFlatbuffer((RuntimeModelUPADMATask *) ref, fbb);
-                break;
-            case NNDMATASK:
-                return convertToFlatbuffer((RuntimeModelNNDMATask *) ref, fbb);
-                break;
-            case DPUTASK:
-                return convertToFlatbuffer((RuntimeModelDPUTask *) ref, fbb);
-                break;
-            case NCE1TASK:
-                return convertToFlatbuffer((RuntimeModelNCE1Task *) ref, fbb);
-                break;
-            case NNTENSORTASK:
-                return convertToFlatbuffer((RuntimeModelNNTask *) ref, fbb);
-                break;
-            default:
-                break;
-        }
-    }
 
     struct RuntimeModelTask
     {
@@ -78,6 +41,8 @@ namespace mv
         RuntimeModelSpecificTask * task;
     };
 
+
+    //Task to flatbuffer
     flatbuffers::Offset<MVCNN::Task> convertToFlatbuffer(RuntimeModelTask * ref, flatbuffers::FlatBufferBuilder&fbb)
     {
         return MVCNN::CreateTaskDirect(
@@ -86,9 +51,10 @@ namespace mv
             ref->sourceTaskIDs,
             convertToFlatbuffer(ref->associatedBarriers, fbb),
             static_cast<MVCNN::SpecificTask>(ref->taskType),
-            convertToFlatbuffer(ref->task, ref->taskType, fbb));
+            ref->task->convertToFlatbuffer(fbb));
     }
 
+    //Vector of Tasks to TaskLists
     flatbuffers::Offset<MVCNN::TaskList> convertToFlatbuffer(std::vector<RuntimeModelTask*> * ref, flatbuffers::FlatBufferBuilder&fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::Task>> * content = new std::vector<flatbuffers::Offset<MVCNN::Task>>();
@@ -101,6 +67,7 @@ namespace mv
         return MVCNN::CreateTaskListDirect(fbb, content);
     }
 
+    //Vector of TasksLists to flatbuffer
     std::vector<flatbuffers::Offset<MVCNN::TaskList>> * convertToFlatbuffer(std::vector<std::vector<RuntimeModelTask*>*> * ref, flatbuffers::FlatBufferBuilder&fbb)
     {
         std::vector<flatbuffers::Offset<MVCNN::TaskList>> * taskLists = new std::vector<flatbuffers::Offset<MVCNN::TaskList>>();
