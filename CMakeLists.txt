@@ -69,6 +69,7 @@ file(GLOB base
     "src/base/json/null.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
+    "src/deployer/Fp16Convert.cpp"
     "src/base/exception/*.cpp"
     "src/utils/env_loader.cpp"
     "src/utils/custom_math.cpp"

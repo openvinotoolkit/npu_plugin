@@ -496,3 +496,8 @@ std::string mv::Tensor::getLogID() const
     return "Tensor:" + getName();
 }
 
+ std::vector<uint8_t> mv::Tensor::toBinary()
+ {
+    auto conv = getDType().getBinaryConverter();
+    return conv(getData());
+ }

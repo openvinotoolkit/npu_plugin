@@ -29,6 +29,8 @@ namespace mv
     private:
 
         static const std::unordered_map<DTypeType, std::string, DTypeTypeHash> dTypeStrings_;
+        static const std::unordered_map<DTypeType, std::function<std::vector<uint8_t>(const std::vector<double>&)>,
+                DTypeTypeHash> dTypeConvertors_;
         DTypeType dType_;
 
     public:
@@ -49,7 +51,7 @@ namespace mv
         operator DTypeType() const;
 
         std::string getLogID() const override;
-
+        std::function<std::vector<uint8_t>(const std::vector<double>&)> getBinaryConverter() const;
     };
 
 }

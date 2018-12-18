@@ -1,8 +1,30 @@
 #include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/utils/serializer/Fp16Convert.h"
 
 const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DType::dTypeStrings_ =
 {
     {DTypeType::Float16, "Float16"}
+};
+
+const std::unordered_map<mv::DTypeType,std::function<std::vector<uint8_t>(const std::vector<double>&)>,
+    mv::DTypeTypeHash> mv::DType::dTypeConvertors_=
+{
+    {DTypeType::Float16, [](const std::vector<double> & vals)->std::vector<uint8_t> {
+        std::vector<uint8_t> res;
+        mv_num_convert cvtr;
+        for_each(vals.begin(), vals.end(), [&](double  val)
+        {
+            union Tmp
+            {
+                uint16_t n;
+                uint8_t bytes[sizeof(uint16_t)];
+            };
+            Tmp t = { cvtr.fp32_to_fp16(val)};
+            for (auto &b : t.bytes)
+                res.push_back(b);
+        });
+        return res;
+    }}
 };
 
 mv::DType::DType(DTypeType value) :
@@ -42,6 +64,12 @@ std::string mv::DType::toString() const
 {
     return dTypeStrings_.at(*this);
 }
+
+std::function<std::vector<uint8_t>(const std::vector<double>&)> mv::DType::getBinaryConverter() const
+{
+    return dTypeConvertors_.at(*this);
+}
+
 
 mv::DType& mv::DType::operator=(const DType& other)
 {

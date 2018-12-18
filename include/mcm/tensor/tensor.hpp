@@ -110,6 +110,8 @@ namespace mv
         std::string toString() const override;
         virtual std::string getLogID() const override;
 
+        std::vector<uint8_t> toBinary();
+
     };
 
 }
