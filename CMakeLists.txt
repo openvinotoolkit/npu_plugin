@@ -178,3 +178,5 @@ endif(MSVC)
 
 add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
+add_subdirectory(tools)
+add_subdirectory(schema)

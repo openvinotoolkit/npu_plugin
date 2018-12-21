@@ -6,3 +6,10 @@ LoggedError(sender, "ArgumentError: " + argName + " " + argVal + " - " + whatArg
 {
 
 }
+
+mv::ArgumentError::ArgumentError(const std::string& senderID, const std::string& argName, const std::string& argVal,
+    const std::string& whatArg) :
+LoggedError(senderID, "ArgumentError: " + argName + " " + argVal + " - " + whatArg)
+{
+
+}
