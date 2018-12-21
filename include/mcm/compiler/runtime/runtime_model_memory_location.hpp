@@ -1,6 +1,8 @@
 #ifndef MV_RUNTIME_MODEL_MEMORY_LOCATION_
 #define MV_RUNTIME_MODEL_MEMORY_LOCATION_
 
+#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
+
 namespace mv
 {
     enum RuntimeModelMemoryLocation
@@ -14,6 +16,7 @@ namespace mv
         VPU_CMX_UPA,
         VPU_DDR_BSS
     };
+
 }
 
 #endif

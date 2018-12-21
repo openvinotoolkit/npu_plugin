@@ -20,10 +20,10 @@ namespace mv
         I8,
         I4,
         I2,
+        I2X,
         I4X,
         BIN,
         LOG,
-        I2X
     };
 }
 

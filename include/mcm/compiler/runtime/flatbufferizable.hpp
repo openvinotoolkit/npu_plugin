@@ -1,11 +1,15 @@
 #ifndef MV_FLATBUFFERIZABLE_
 #define MV_FLATBUFFERIZABLE_
 
-//Inclusion of both runtime model classes and flatbuffers generated files will go here
+#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
 
 namespace mv
 {
-    //Calls for runtime model classes to flatbuffers will go here
+    struct Flatbufferizable
+    {
+        virtual flatbuffers::Offset<void> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb) = 0;
+        virtual ~Flatbufferizable() = 0;
+    };
 }
 
 #endif
