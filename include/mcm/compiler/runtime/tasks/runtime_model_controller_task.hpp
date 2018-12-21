@@ -4,7 +4,7 @@
 #include "include/mcm/compiler/runtime/tasks/runtime_model_task.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_tensor_reference.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_barrier.hpp"
-#include "KeemBayFBSchema/compiledSchemas/nnController_generated.h"
+#include "meta/schema/graphfile/nnController_generated.h"
 
 namespace mv
 {

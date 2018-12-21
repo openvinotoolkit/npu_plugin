@@ -1,7 +1,7 @@
 #ifndef MV_RUNTIME_MODEL_MEMORY_LOCATION_
 #define MV_RUNTIME_MODEL_MEMORY_LOCATION_
 
-#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
+#include "meta/schema/graphfile/graphfile_generated.h"
 
 namespace mv
 {

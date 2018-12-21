@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-#include "KeemBayFBSchema/compiledSchemas/structure_generated.h"
+#include "meta/schema/graphfile/structure_generated.h"
 
 namespace mv
 {

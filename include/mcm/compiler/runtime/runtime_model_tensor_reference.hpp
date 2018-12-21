@@ -5,8 +5,8 @@
 #include <cstdint>
 #include "include/mcm/compiler/runtime/runtime_model_memory_location.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_dtypes.hpp"
-#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
-#include "KeemBayFBSchema/compiledSchemas/memoryManagement_generated.h"
+#include "meta/schema/graphfile/graphfile_generated.h"
+#include "meta/schema/graphfile/memoryManagement_generated.h"
 
 
 namespace mv

@@ -3,8 +3,8 @@
 
 #include "include/mcm/compiler/runtime/tasks/runtime_model_task.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_tensor_reference.hpp"
-#include "KeemBayFBSchema/compiledSchemas/upaNCE_generated.h"
-#include "KeemBayFBSchema/compiledSchemas/software_generated.h"
+#include "meta/schema/graphfile/upaNCE_generated.h"
+#include "meta/schema/graphfile/software_generated.h"
 
 namespace mv
 {

@@ -1,7 +1,7 @@
 #ifndef MV_FLATBUFFERIZABLE_
 #define MV_FLATBUFFERIZABLE_
 
-#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
+#include "meta/schema/graphfile/graphfile_generated.h"
 
 namespace mv
 {

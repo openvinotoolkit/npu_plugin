@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "include/mcm/compiler/runtime/runtime_model_barrier.hpp"
-#include "KeemBayFBSchema/compiledSchemas/graphfile_generated.h"
+#include "meta/schema/graphfile/graphfile_generated.h"
 #include "include/mcm/compiler/runtime/flatbufferizable.hpp"
 
 namespace mv

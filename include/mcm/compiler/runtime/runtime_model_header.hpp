@@ -5,7 +5,7 @@
 #include <string>
 #include "include/mcm/compiler/runtime/runtime_model_tensor_reference.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_link.hpp"
-#include "KeemBayFBSchema/compiledSchemas/fileHeader_generated.h"
+#include "meta/schema/graphfile/fileHeader_generated.h"
 
 namespace mv
 {

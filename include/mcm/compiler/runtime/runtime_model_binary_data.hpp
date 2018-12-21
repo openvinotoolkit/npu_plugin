@@ -4,7 +4,7 @@
 #include <vector>
 #include <cstdint>
 #include "include/mcm/compiler/runtime/runtime_model_dtypes.hpp"
-#include "KeemBayFBSchema/compiledSchemas/memoryManagement_generated.h"
+#include "meta/schema/graphfile/memoryManagement_generated.h"
 
 namespace mv
 {
@@ -24,7 +24,7 @@ namespace mv
         std::vector<uint32_t> *u32,
         std::vector<uint16_t> *u16,
         std::vector<uint8_t> *u8,
-        std::vector<int64_t> *i64,
+        std::vector<uint64_t> *i64,
         std::vector<int32_t> *i32,
         std::vector<int16_t> *i16,
         std::vector<int8_t> *i8,
@@ -64,7 +64,7 @@ namespace mv
                 u8 = reinterpret_cast<std::vector<uint8_t>*>(ref->data);
                 break;
             case I64:
-                i64 = reinterpret_cast<std::vector<int64_t>*>(ref->data);
+                i64 = reinterpret_cast<std::vector<uint64_t>*>(ref->data);
                 break;
             case I32:
                 i32 = reinterpret_cast<std::vector<int32_t>*>(ref->data);
@@ -108,7 +108,8 @@ namespace mv
         std::vector<uint16_t> * u16 = nullptr;
         std::vector<uint8_t> * u8 = nullptr;
 
-        std::vector<int64_t> * i64 = nullptr;
+        // *WARNING* - Looks like a bug in the schema, should rather be int64_t
+        std::vector<uint64_t> * i64 = nullptr;
         std::vector<int32_t> * i32 = nullptr;
         std::vector<int16_t> * i16 = nullptr;
         std::vector<int8_t> * i8 = nullptr;

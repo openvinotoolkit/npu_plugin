@@ -4,7 +4,7 @@
 #include "include/mcm/compiler/runtime/tasks/runtime_model_task.hpp"
 #include "include/mcm/compiler/runtime/runtime_model_tensor_reference.hpp"
 #include "include/mcm/compiler/runtime/tasks/runtime_model_nn_tensor_task.hpp"
-#include "KeemBayFBSchema/compiledSchemas/nnNCE2_generated.h"
+#include "meta/schema/graphfile/nnNCE2_generated.h"
 
 namespace mv
 {
