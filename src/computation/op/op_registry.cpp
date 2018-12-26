@@ -61,7 +61,7 @@ bool mv::op::OpRegistry::checkOpType(const std::string& opType)
     return instance().find(opType) != nullptr;
 }
 
-std::vector<std::string> mv::op::OpRegistry::argsList(const std::string& opType)
+std::vector<std::string> mv::op::OpRegistry::getMandatoryArgsList(const std::string& opType)
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
@@ -71,12 +71,12 @@ std::vector<std::string> mv::op::OpRegistry::argsList(const std::string& opType)
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
 
-    return opPtr->argsList();
+    return opPtr->getMandatoryArgsList();
     
 }
 
 //method to return list of attributes with default values and the default values
-std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpRegistry::argsListWithDefaultValues(const std::string& opType)
+std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpRegistry::getOptionalArgsList(const std::string& opType)
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
@@ -86,7 +86,7 @@ std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpRegistry::argsListW
     if (!opPtr1)
         throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
 
-    return opPtr1->argsListWithDefaultValues();
+    return opPtr1->getOptionalArgsList();
     
 }
 
@@ -144,9 +144,10 @@ std::size_t mv::op::OpRegistry::getOutputsCount(const std::string& opType)
 std::pair<bool, std::size_t> mv::op::OpRegistry::checkInputs(const std::string& opType,
     const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::string& errMsg)
 {
+
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of executing an inputs check for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
@@ -313,84 +314,67 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
             inputsDef += inputLabels.back();
         }
 
-        std::string argsDef = "";
-        auto argsList = opPtr->argsList();
-        auto argsListWithDefaultValues = opPtr->argsListWithDefaultValues(); /*Get arg list with default values*/
-        bool defaultValueFlag = false; /*Flag to indicate arg has default value*/
+        std::string mandatoryArgsDef = "";
+        std::string optionalArgsDef = "";
+        auto mandatoryArgsList = opPtr->getMandatoryArgsList();
+        auto optionalArgsList = opPtr->getOptionalArgsList(); /*Get arg list with default values*/
         std::string defaultValue = "";
 
-        if (argsList.size() > 0)
+        if (mandatoryArgsList.size() > 0)
         {
-            for (std::size_t i = 0; i < argsList.size() - 1; ++i)
+            for (std::size_t i = 0; i < mandatoryArgsList.size(); ++i)
             {
                 if (types)
                 {
-                    auto attributeName = argsList[i];
-                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(argsList[i]));
-                    argsDef += "const " + argTypeName + "& ";
+                    auto attributeName = mandatoryArgsList[i];
+                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(mandatoryArgsList[i]));
+                    mandatoryArgsDef += "const " + argTypeName + "& ";
+                }
 
-                    /*Check if arg has a defualt value*/
-                    auto it = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),
-                        [&attributeName](std::pair<std::string, Attribute>& element)->bool
-                        { 
-                        return element.first == attributeName;
-                        } 
-                    );
+                mandatoryArgsDef += mandatoryArgsList[i];
 
-                    if (it != argsListWithDefaultValues.end()) { 
-                        defaultValue = it->second.toString();
-                        defaultValueFlag = true;
-                    } 
-                    }
-
-                    if(defaultValueFlag  && defaultArgs){
-                        argsDef += argsList[i] + " = " + defaultValue + ", ";
-                        defaultValueFlag = false;
-                    }
-                    else {
-                    argsDef += argsList[i] + ", "; 
-                }    
-            }
-
-            if (types)
-            {
-                auto attributeName = argsList.back();
-                auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(argsList.back()));
-                argsDef += "const " + argTypeName + "& ";
-
-                /*Check if arg has a defualt value*/
-                auto it = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),
-                    [&attributeName](std::pair<std::string, Attribute>& element)->bool
-                    { 
-                    return element.first == attributeName;
-                    } 
-                );
-
-                if (it != argsListWithDefaultValues.end()) { 
-                defaultValue = it->second.toString();
-                defaultValueFlag = true;
+                if (i < mandatoryArgsList.size() - 1) {
+                    mandatoryArgsDef += ", ";
                 }
 
             }
-            argsDef += argsList.back();
+        }
 
-            if(defaultValueFlag  && defaultArgs) 
-                argsDef += " = " + defaultValue;
-            
+        if (!optionalArgsList.empty()) {
+            for (std::size_t i = 0; i < optionalArgsList.size(); i++) {
+                if (types) {
+                    auto attributeName = optionalArgsList[i];
+                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(optionalArgsList[i].first));
+                    optionalArgsDef += "const " + argTypeName + "& " + optionalArgsList[i].first;
+                    if (defaultArgs) {
+                        optionalArgsDef += " = " + optionalArgsList[i].second.toString();
+                    }
+                } else {
+                    optionalArgsDef += optionalArgsList[i].first;
+                }
+
+                if (i < optionalArgsList.size() - 1) {
+                    optionalArgsDef += ", ";
+                }
+            }
         }
 
         output += inputsDef;
         if (!inputsDef.empty())
             output += ", ";
 
-        output += argsDef;
-        if (!argsList.empty())
+        output += mandatoryArgsDef;
+        if (!mandatoryArgsDef.empty())
+            output += ", ";
+
+        output += optionalArgsDef;
+        if (!optionalArgsDef.empty())
             output += ", ";
 
         if (types)
             output += "const std::string& ";
         output += "name";
-        
+
         if (defaultArgs)
             output += " = \"\"";
 
@@ -491,7 +475,7 @@ std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::
             " not found in the op registry");
 
     std::vector<std::string> output;
-    auto argsList = opPtr->argsList();
+    auto argsList = opPtr->getMandatoryArgsList();
     if (argsList.size() > 0)
     {
         for (std::size_t i = 0; i < argsList.size() - 1; ++i)
@@ -530,12 +514,24 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
     }
     output += eol + tab + tab + "}," + eol + tab + tab + "{";
 
-    auto argsList = opPtr->argsList();
-    if (argsList.size() > 0)
+    auto mandatoryArgsList = opPtr->getMandatoryArgsList();
+    if (mandatoryArgsList.size() > 0)
     {
-        for (std::size_t i = 0; i < argsList.size() - 1; ++i)
-            output +=  eol + tab + tab + tab + "{ \"" + argsList[i] + "\", " + argsList[i] + " },";
-        output +=  eol + tab + tab + tab + "{ \"" + argsList.back() + "\", " + argsList.back() + " }";
+        for (std::size_t i = 0; i < mandatoryArgsList.size() - 1; ++i)
+            output +=  eol + tab + tab + tab + "{ \"" + mandatoryArgsList[i] + "\", " + mandatoryArgsList[i] + " },";
+        output +=  eol + tab + tab + tab + "{ \"" + mandatoryArgsList.back() + "\", " + mandatoryArgsList.back() + " }";
+    }
+
+    auto optionalArgsList = opPtr->getOptionalArgsList();
+    if (optionalArgsList.size() > 0)
+    {
+        if (mandatoryArgsList.size() > 0) {
+            output += ",";
+        }
+
+        for (std::size_t i = 0; i < optionalArgsList.size() - 1; ++i)
+            output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList[i].first + "\", " + optionalArgsList[i].first + " },";
+        output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList.back().first + "\", " + optionalArgsList.back().first + " }";
     }
     output += eol + tab + tab + "}," + eol + tab + tab + "name" + eol + tab + ");" + eol + "}";
     return output;

@@ -42,7 +42,7 @@ namespace mv
     
         MV_REGISTER_OP(Elu)
         .setInputs({"data"})
-        .setArg<unsigned>("alpha", 1) 
+        .setOptionalArg<unsigned>("alpha", 1)
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)

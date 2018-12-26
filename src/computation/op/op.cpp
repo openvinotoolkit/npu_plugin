@@ -15,49 +15,53 @@ ModelElement(model, name)
 
     set<std::string>("opType", opType, {"const"});
 
-    auto argList = op::OpRegistry::argsList(opType); /*ops registry args list*/
-    auto opsRegistryListSize = argList.size(); /*size of the original ops registry list*/
-    auto argsListWithDefaultValues = op::OpRegistry::argsListWithDefaultValues(opType); /*args with defualt values list*/
+    auto mandatoryArgList = op::OpRegistry::getMandatoryArgsList(opType);
+    auto numReqdMandatoryArgs = mandatoryArgList.size();
+    auto optionalArgList = op::OpRegistry::getOptionalArgsList(opType);
 
     for (auto it = args.begin(); it != args.end(); ++it) 
     {
-        auto argIt = std::find(argList.begin(), argList.end(), it->first); 
-                                                                          
-        if (argIt != argList.end())                                        
+        auto argIt = std::find(mandatoryArgList.begin(), mandatoryArgList.end(), it->first);
+
+        if (argIt != mandatoryArgList.end())
         {
             if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID())) 
                 throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +  
                     attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " + 
                     attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
-                    
-                    /*If the arg is in the default args list then it is not mandatory and can be removed from the list*/
-                    auto it1 = find_if(argsListWithDefaultValues.begin(), argsListWithDefaultValues.end(),
-                        [&it](std::pair<std::string, Attribute> element)
-                        { 
-                            return element.first == it->first;}
-                    );
-            
-            /*erase non-mandatory args from ops registry list*/
-            if (it1 != argsListWithDefaultValues.end()) {
-                set(it->first, it->second); 
-                argList.erase(argIt); 
-            }
-            else {
-                 set(it->first, it->second); 
+
+            set(it->first, it->second);
+        } else {
+            auto optArgIt = std::find_if(optionalArgList.begin(), optionalArgList.end(),
+                                [&it](std::pair<std::string, Attribute> arg)->bool
+                                {
+                                    return std::get<0>(arg) == it->first;
+                                }
+                            );
+
+            if (optArgIt != optionalArgList.end())
+            {
+                if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID())) {
+                    throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +
+                        attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " +
+                        attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
+                }
+
+                set(it->first, it->second);
+            } else {
+                throw ArgumentError(*this, "arg", it->first, "Invalid argument");
             }
         }
-        else
-            throw ArgumentError(*this, "arg", it->first, "Invalid argument");
-
     }
     
     /*Check if all mandatory args (no default values) provided*/
-    if (argList.size() != (opsRegistryListSize - argsListWithDefaultValues.size())) 
+    if (args.size() < numReqdMandatoryArgs)
     {
         std::string list;
-        for (std::size_t i = 0; i < argList.size() - 1; ++i)
-            list += argList[i] + ", ";
-        list += argList.back();
+        for (std::size_t i = 0; i < mandatoryArgList.size() - 1; ++i)
+            list += mandatoryArgList[i] + ", ";
+        list += mandatoryArgList.back();
+
         throw ArgumentError(*this, "arg", list, "Missing arguments");
     }
     
@@ -92,7 +96,6 @@ ModelElement(model, name)
         opTraits.push_back(*it);
 
     set<std::vector<std::string>>("traits", opTraits);
-
 }
 
 mv::Op::~Op()
