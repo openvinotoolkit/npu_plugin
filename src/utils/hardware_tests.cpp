@@ -10,12 +10,6 @@ mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName, bo
     system(std::string("dot -Tsvg " + outputName + "_adapt.dot -o " + outputName + "_adapt.svg").c_str());
     system(std::string("dot -Tsvg " + outputName + "_final.dot -o " + outputName + "_final.svg").c_str());
 
-    //0) Run generated blob
-    std::cout << "RUNNING ON HW MCMCOMPILER BLOB" << std::endl;
-    std::string command0("python3 " + mv::utils::projectRootPath() + "/python/tools/mcmRunHW.py --blob " + outputName + ".blob --result " + outputName + ".npy --image " + mv::utils::projectRootPath() + "/mug.png");
-    std::cout << command0 << std::endl;
-    toReturn.mcmBlobOnHardware = system(command0.c_str());
-
     //1) Compile generated prototxt with fathom
     std::cout << "COMPILING GENERATED PROTOTXT WITH FATHOM" << std::endl;
     std::string command1("python3 " + mv::utils::mdkRootPath() + "/projects/Fathom/src2/mvNCCompile.py " + outputName + ".prototxt -w " + outputName + ".caffemodel -o Fathom_" + outputName + ".blob");
@@ -23,6 +17,12 @@ mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName, bo
         command1 += " --ma2480";
     std::cout << command1 << std::endl;
     toReturn.fathomCompilation = system(command1.c_str());
+
+    //0) Run generated blob
+    std::cout << "RUNNING ON HW MCMCOMPILER BLOB" << std::endl;
+    std::string command0("python3 " + mv::utils::projectRootPath() + "/python/tools/mcmRunHW.py --blob " + outputName + ".blob --result " + outputName + ".npy --image " + mv::utils::projectRootPath() + "/mug.png");
+    std::cout << command0 << std::endl;
+    toReturn.mcmBlobOnHardware = system(command0.c_str());
 
     //2) Run diff on blobs
     std::cout << "DIFF COMMAND ON BLOBS" << std::endl;

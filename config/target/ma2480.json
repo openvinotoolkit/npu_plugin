@@ -367,6 +367,7 @@
 	{
 		"adapt":
 		[
+			"GenerateCaffe",
 			"ConvolutionDilation",
 			"FuseBatchNorm",
 			"FuseBias",
