@@ -1,5 +1,4 @@
 build/
-KeemBayFBSchema/compiledSchemas
 meta/include/mcm/*
 meta/src/*
 meta/schema/*
