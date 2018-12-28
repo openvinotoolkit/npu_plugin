@@ -9,6 +9,7 @@
 
 namespace mv
 {
+    #define BLOB_NULL_LOCATION 0
     #define BLOB_INPUT_LOCATION 1
     #define BLOB_OUTPUT_LOCATION 2
     #define BLOB_INTERNAL_LOCATION 3
@@ -23,8 +24,8 @@ namespace mv
         unsigned strideY = 0;
         unsigned strideZ = 0;
         unsigned dataType = 0;
-        unsigned location = 0;
-        bLocation blocation = bLocation::Constant;
+        unsigned location = BLOB_NULL_LOCATION;
+        bLocation blocation = bLocation::Null;
         unsigned order = 0; //MX order, kept as integer
         unsigned offset = 0;
         std::string allocator_name = "";

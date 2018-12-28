@@ -2,6 +2,7 @@
 #include "include/mcm/deployer/serializer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
+#include "include/mcm/computation/resource/nce1_utils.hpp"
 
 static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&td, mv::json::Object& compDesc, mv::json::Object& compOutput);
 static void PopulateSerialFieldsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& compOutput);
@@ -73,6 +74,8 @@ void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& )
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
+    mv::ControlModel cm(model);
 
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
@@ -277,20 +280,20 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                 auto output_line_start = opIt->get<std::vector<size_t>>("NCE1_StartOutputLine");
                 auto input_line_start = opIt->get<std::vector<size_t>>("NCE1_StartInputLine");
 
-                auto radixX = opIt->getInputTensor(1)->getShape()[2];
-                auto radixY = opIt->getInputTensor(1)->getShape()[3];
+                auto radixX = taps->getShape()[2];
+                auto radixY = taps->getShape()[3];
 
                 opIt->set<unsigned>("SerialID", 33);    // To be moved?
 
                 opIt->set<unsigned>("streamingMask", streamingMask );
 
-                std::size_t total_size = opIt->getInputTensor(0)->getShape().totalSize();
+                std::size_t total_size = input->getShape().totalSize();
                 total_size *= inputChannelsPadded;
-                total_size /= opIt->getInputTensor(0)->getShape()[2];
+                total_size /= input->getShape()[2];
                 opIt->set<unsigned>("inputSize", total_size*fp16_size);
 
                 opIt->set<unsigned>("outputSize",
-                    opIt->getOutputTensor(0)->getShape().totalSize()*fp16_size);
+                    output->getShape().totalSize()*fp16_size);
 
                 opIt->set<unsigned>("concatOffset", 0); // Not Supported...
                 opIt->set<unsigned>("unloadCMX", 0); // Not Supported...
@@ -458,44 +461,47 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                             auto input_width = inputWidthPadded;
                             auto output_channels = outputChannelsPadded;
 
+                            auto inputBlobTensor = mv::convertStrides(input, cm, dm);
+                            auto outputBlobTensor = mv::convertStrides(input, cm, dm);
+
                             descriptors[i].dataBaseAddr = 2 * input_width * input_line_start[h];    // TODO: Calculate 3f0 (1008)
 
                             if( input->getOrder().isRowInterleaved() )
                             {
                                 descriptors[i].dataBaseAddr *= inputChannelsPadded;    // TODO: Calculate 3f0 (1008)
-                                // descriptors[i].dataLnStr = inputBlobTensor.strideY;
-                                // descriptors[i].dataChStr = inputBlobTensor.strideZ;
-                                descriptors[i].dataLnStr = 42;
-                                descriptors[i].dataChStr = 42;
+                                descriptors[i].dataLnStr = inputBlobTensor.strideY;
+                                descriptors[i].dataChStr = inputBlobTensor.strideZ;
+//                                descriptors[i].dataLnStr = 42;
+//                                descriptors[i].dataChStr = 42;
                             }
                             else
                             {
-                                // descriptors[i].dataLnStr = inputBlobTensor.strideY;
-                                // descriptors[i].dataChStr = inputBlobTensor.strideZ;
-                                descriptors[i].dataLnStr = 42;
-                                descriptors[i].dataChStr = 42;
+                                descriptors[i].dataLnStr = inputBlobTensor.strideY;
+                                descriptors[i].dataChStr = inputBlobTensor.strideZ;
+//                                descriptors[i].dataLnStr = 42;
+//                                descriptors[i].dataChStr = 42;
                             }
                             descriptors[i].coeffBaseAddr = 0;
                             descriptors[i].biasBaseAddr = 0;
                             descriptors[i].scaleBaseAddr = 0;
                             //HACK FOR CONCAT
-                            // descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h];  // TODO: Calculate 3f0 (1008)
-                            descriptors[i].outBaseAddr = 42;  // TODO: Calculate 3f0 (1008)
+                            descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h];  // TODO: Calculate 3f0 (1008)
+                            //descriptors[i].outBaseAddr = 42;  // TODO: Calculate 3f0 (1008)
 
                             if( output->getOrder().isRowInterleaved() )
                             {
                                 descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
-                                // descriptors[i].outLnStr = outputBlobTensor.strideY;
-                                // descriptors[i].outChStr = outputBlobTensor.strideZ;
-                                descriptors[i].outLnStr = 42;
-                                descriptors[i].outChStr = 42;
+                                descriptors[i].outLnStr = outputBlobTensor.strideY;
+                                descriptors[i].outChStr = outputBlobTensor.strideZ;
+                                //descriptors[i].outLnStr = 42;
+                                //descriptors[i].outChStr = 42;
                             }
                             else
                             {
-                                // descriptors[i].outLnStr = outputBlobTensor.strideY;
-                                // descriptors[i].outChStr = outputBlobTensor.strideZ;
-                                descriptors[i].outLnStr = 42;
-                                descriptors[i].outChStr = 42;
+                                descriptors[i].outLnStr = outputBlobTensor.strideY;
+                                descriptors[i].outChStr = outputBlobTensor.strideZ;
+                                //descriptors[i].outLnStr = 42;
+                                //descriptors[i].outChStr = 42;
                             }
 
                             auto weight_4dshape = opIt->getInputTensor(1)->getShape();
