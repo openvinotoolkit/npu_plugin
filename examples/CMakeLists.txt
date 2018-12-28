@@ -8,9 +8,6 @@ add_executable(graph_conjoined graph_conjoined.cpp)
 add_executable(argtest argtest.cpp)
 target_link_libraries(argtest cm)
 
-add_executable(test_opt_args test_optional_op_args.cpp)
-target_link_libraries(test_opt_args cm)
-
 #[[
 if (MSVC)
 
