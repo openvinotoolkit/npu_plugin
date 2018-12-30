@@ -58,7 +58,7 @@ namespace mv
             bool hasArg(const std::string& name) const;
             bool hasOptionalArg(const std::string& name) const;
             std::type_index argType(const std::string& name) const;
-            std::vector<std::string> getMandatoryArgsList() const;
+            std::vector<std::string> getArgsList() const;
             std::vector<std::pair<std::string, Attribute>> getOptionalArgsList() const;
             std::pair<bool, std::size_t> checkInputs(const std::vector<Data::TensorIterator>& inputs, 
                 const std::map<std::string, Attribute>& args, std::string& errMsg);

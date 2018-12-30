@@ -15,7 +15,7 @@ ModelElement(model, name)
 
     set<std::string>("opType", opType, {"const"});
 
-    auto mandatoryArgList = op::OpRegistry::getMandatoryArgsList(opType);
+    auto mandatoryArgList = op::OpRegistry::getArgsList(opType);
     auto numReqdMandatoryArgs = mandatoryArgList.size();
     auto optionalArgList = op::OpRegistry::getOptionalArgsList(opType);
 

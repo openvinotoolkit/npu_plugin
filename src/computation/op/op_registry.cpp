@@ -61,17 +61,17 @@ bool mv::op::OpRegistry::checkOpType(const std::string& opType)
     return instance().find(opType) != nullptr;
 }
 
-std::vector<std::string> mv::op::OpRegistry::getMandatoryArgsList(const std::string& opType)
+std::vector<std::string> mv::op::OpRegistry::getArgsList(const std::string& opType)
 {
     if (!checkOpType(opType))
-        throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
+        throw OpError("OpRegistry", "Attempt of obtaining the aandatrguments list for an unregistered op type " + opType);
     
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
 
-    return opPtr->getMandatoryArgsList();
+    return opPtr->getArgsList();
     
 }
 
@@ -316,7 +316,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
 
         std::string mandatoryArgsDef = "";
         std::string optionalArgsDef = "";
-        auto mandatoryArgsList = opPtr->getMandatoryArgsList();
+        auto mandatoryArgsList = opPtr->getArgsList();
         auto optionalArgsList = opPtr->getOptionalArgsList(); /*Get arg list with default values*/
         std::string defaultValue = "";
 
@@ -475,7 +475,7 @@ std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::
             " not found in the op registry");
 
     std::vector<std::string> output;
-    auto argsList = opPtr->getMandatoryArgsList();
+    auto argsList = opPtr->getArgsList();
     if (argsList.size() > 0)
     {
         for (std::size_t i = 0; i < argsList.size() - 1; ++i)
@@ -514,7 +514,7 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
     }
     output += eol + tab + tab + "}," + eol + tab + tab + "{";
 
-    auto mandatoryArgsList = opPtr->getMandatoryArgsList();
+    auto mandatoryArgsList = opPtr->getArgsList();
     if (mandatoryArgsList.size() > 0)
     {
         for (std::size_t i = 0; i < mandatoryArgsList.size() - 1; ++i)

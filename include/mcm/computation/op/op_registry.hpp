@@ -50,7 +50,7 @@ namespace mv
             static std::vector<std::string> getOpTypes(std::initializer_list<std::string> traits = {});
 
             static bool checkOpType(const std::string& opType);
-            static std::vector<std::string> getMandatoryArgsList(const std::string& opType);
+            static std::vector<std::string> getArgsList(const std::string& opType);
             static std::vector<std::pair<std::string, Attribute>> getOptionalArgsList(const std::string& opType);
             static std::type_index argType(const std::string& opType, const std::string& argName);
             static bool checkArgType(const std::string& opType, const std::string& argName, const std::type_index& typeID);

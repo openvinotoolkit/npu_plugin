@@ -122,7 +122,7 @@ std::type_index mv::op::OpEntry::argType(const std::string& name) const
     ));
 }
 
-std::vector<std::string> mv::op::OpEntry::getMandatoryArgsList() const
+std::vector<std::string> mv::op::OpEntry::getArgsList() const
 {
     std::vector<std::string> list;
     list.reserve((mandatoryArgs_.size()));
