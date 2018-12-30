@@ -55,7 +55,7 @@ namespace mv
             const std::string getDescription() const;
             std::size_t getInputsCount() const;
             std::size_t getOutputsCount() const;
-            bool hasMandatoryArg(const std::string& name) const;
+            bool hasArg(const std::string& name) const;
             bool hasOptionalArg(const std::string& name) const;
             std::type_index argType(const std::string& name) const;
             std::vector<std::string> getMandatoryArgsList() const;

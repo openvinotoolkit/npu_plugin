@@ -79,7 +79,7 @@ std::size_t mv::op::OpEntry::getOutputsCount() const
     return outputLabels_.size();
 }
 
-bool mv::op::OpEntry::hasMandatoryArg(const std::string& name) const
+bool mv::op::OpEntry::hasArg(const std::string& name) const
 {
     return std::find_if(mandatoryArgs_.begin(), mandatoryArgs_.end(),
         [&name](std::pair<std::string, std::type_index> arg)->bool
@@ -101,7 +101,7 @@ bool mv::op::OpEntry::hasOptionalArg(const std::string& name) const
 
 std::type_index mv::op::OpEntry::argType(const std::string& name) const
 {
-    if (!hasMandatoryArg(name) && !hasOptionalArg(name)) {
+    if (!hasArg(name) && !hasOptionalArg(name)) {
         throw OpError(*this, "Attempt of checking the type of an non-existing argument \"" + name + "\"");
     }
     
