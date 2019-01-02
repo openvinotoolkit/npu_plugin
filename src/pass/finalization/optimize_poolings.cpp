@@ -106,7 +106,7 @@ bool write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
     std::vector<std::size_t> min_lines(num_modes_to_use);
     for(unsigned i = 0; i < num_modes_to_use; ++i)
     {
-        input_channels_per_ram_block[i] = 1; //Because fuck u
+        input_channels_per_ram_block[i] = 1;
         lines_per_channel[i] = nce.computeLinesPerChannel(input_channels, local_line_stride, modes[i]);
         local_channel_stride[i] = lines_per_channel[i] * local_line_stride;
 

@@ -113,14 +113,19 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
 
     unsigned radixX, radixY;
     if(hwOp == mv::NCE1HWOps::Convolution)
+    {
         radixX = taps->getShape()[2];
-    else
-        radixX = 0;
-
-    if(hwOp == mv::NCE1HWOps::Convolution)
         radixY = taps->getShape()[3];
+    }
+    else if(hwOp == mv::NCE1HWOps::FullyConnected)
+    {
+        //TODO
+    }
     else
-        radixY = 0;
+    {
+        radixX = opIt->get<std::array<unsigned short, 2>>("kSize")[0];
+        radixY = opIt->get<std::array<unsigned short, 2>>("kSize")[1];
+    }
 
     opIt->set<unsigned>("SerialID", 33);    // To be moved?
 
@@ -208,7 +213,12 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 else
                     descriptors[i].padEn = 0;
 
-                descriptors[i].padType = 0;   // Zero Padding
+                if(hwOp == mv::NCE1HWOps::Convolution)
+                    descriptors[i].padType = 0;   // Zero Padding
+                else if(hwOp == mv::NCE1HWOps::FullyConnected)
+                    descriptors[i].padType = 0;   // Zero Padding
+                else
+                    descriptors[i].padType = 15;   // ??? Padding
 
                 descriptors[i].inputWidth = input->getShape()[0] -1;
 
