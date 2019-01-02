@@ -462,7 +462,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
                             auto output_channels = outputChannelsPadded;
 
                             auto inputBlobTensor = mv::convertStrides(input, cm, dm);
-                            auto outputBlobTensor = mv::convertStrides(input, cm, dm);
+                            auto outputBlobTensor = mv::convertStrides(output, cm, dm);
 
                             descriptors[i].dataBaseAddr = 2 * input_width * input_line_start[h];    // TODO: Calculate 3f0 (1008)
 
