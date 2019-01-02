@@ -12,7 +12,7 @@ mv::ReturnCodes mv::HWTest(mv::CompilationUnit& unit, std::string outputName, bo
 
     //1) Compile generated prototxt with fathom
     std::cout << "COMPILING GENERATED PROTOTXT WITH FATHOM" << std::endl;
-    std::string command1("python3 " + mv::utils::mdkRootPath() + "/projects/Fathom/src2/mvNCCompile.py " + outputName + ".prototxt -w " + outputName + ".caffemodel -o Fathom_" + outputName + ".blob");
+    std::string command1("python3 " + mv::utils::mdkRootPath() + "/projects/Fathom/src2/mvNCCompile.py " + outputName + ".prototxt -w " + outputName + ".caffemodel -o Fathom_" + outputName + ".blob --scheduler test");
     if(fathomHardware)
         command1 += " --ma2480";
     std::cout << command1 << std::endl;
