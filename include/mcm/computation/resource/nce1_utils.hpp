@@ -9,6 +9,7 @@
 
 namespace mv
 {
+
     #define BLOB_NULL_LOCATION 0
     #define BLOB_INPUT_LOCATION 1
     #define BLOB_OUTPUT_LOCATION 2

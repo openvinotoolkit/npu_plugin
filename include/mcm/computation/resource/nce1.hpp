@@ -8,7 +8,7 @@
 namespace mv
 {
 
-    enum Modes
+    enum NCE1Modes
     {
         Mode0 = 0,
         Mode1 = 1,
@@ -17,11 +17,19 @@ namespace mv
         Mode4 = 4
     };
 
-    enum Splits
+    enum NCE1Splits
     {
         InputChannel,
         Width,
         NoSplit
+    };
+
+    enum NCE1HWOps
+    {
+        FullyConnected,
+        Convolution,
+        MaxPooling,
+        AveragePooling
     };
 
     struct SplitOverHSolution
@@ -206,7 +214,7 @@ namespace mv
         int mode;
         int performed_output_channels;
         int num_splits;
-        Splits split_performed;
+        NCE1Splits split_performed;
 
         ModeSelectionDistance()
         :
@@ -214,7 +222,7 @@ namespace mv
             mode(-1),
             performed_output_channels(-1),
             num_splits(-1),
-            split_performed(Splits::NoSplit)
+            split_performed(NCE1Splits::NoSplit)
         {
 
         }
@@ -225,7 +233,7 @@ namespace mv
             mode(-1),
             performed_output_channels(-1),
             num_splits(-1),
-            split_performed(Splits::NoSplit)
+            split_performed(NCE1Splits::NoSplit)
         {
 
         }
