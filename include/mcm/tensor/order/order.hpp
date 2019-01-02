@@ -23,13 +23,7 @@ namespace mv
         std::vector<std::size_t> contVector_;
         std::string contVectorStr_;
 
-        Order(std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam)
-            :contVector_(contVectorParam),
-             contVectorStr_(contVectorStrParam)
-        {
-
-        }
-
+        Order(std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam);
 
     public:
 
@@ -59,21 +53,9 @@ namespace mv
         bool isColMajorPlanar();
         bool isRowInterleaved();
 
-
+        Order(const std::string& value);
         Order(const Order& other);
         Order& operator=(const Order& other);
-        Order(const std::string& value)
-           :Order([this, value]()->Order
-            {
-
-                if(!OrderRegistry::checkOrder(value))
-                    throw OrderError(*this, "Invalid string passed for Order construction " + value);
-
-                return Order(OrderRegistry::getContVector(value), value);
-            }())
-        {
-
-        }
 
         bool operator!=(const Order& other) const;
         bool operator==(const Order& other) const;
