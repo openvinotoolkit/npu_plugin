@@ -21,17 +21,22 @@ ModelElement(model, name)
 
     for (auto it = args.begin(); it != args.end(); ++it) 
     {
+
         auto argIt = std::find(mandatoryArgList.begin(), mandatoryArgList.end(), it->first);
 
         if (argIt != mandatoryArgList.end())
         {
+
             if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID())) 
                 throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +  
                     attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " + 
                     attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
 
             set(it->first, it->second);
-        } else {
+
+        }
+        else
+        {
             auto optArgIt = std::find_if(optionalArgList.begin(), optionalArgList.end(),
                                 [&it](std::pair<std::string, Attribute> arg)->bool
                                 {
@@ -41,20 +46,27 @@ ModelElement(model, name)
 
             if (optArgIt != optionalArgList.end())
             {
-                if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID())) {
+
+                if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID()))
+                {
+                    
                     throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +
                         attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " +
                         attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
+
                 }
 
                 set(it->first, it->second);
-            } else {
-                throw ArgumentError(*this, "arg", it->first, "Invalid argument");
+
             }
+            else
+                throw ArgumentError(*this, "arg", it->first, "Invalid argument");
+
         }
+
     }
     
-    /*Check if all mandatory args (no default values) provided*/
+    // Check if all mandatory args (no default values) provided
     if (args.size() < numReqdMandatoryArgs)
     {
         std::string list;

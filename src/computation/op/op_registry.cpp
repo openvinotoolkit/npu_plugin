@@ -275,7 +275,6 @@ bool mv::op::OpRegistry::hasTypeTrait(const std::string& opType, const std::stri
     return std::find(traits.begin(), traits.end(), trait) != traits.end();
 }
 
-//getCompositionDeclSig_(opType, true, false, false);
 std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs)
 {
     if (!checkOpType(opType))
@@ -834,4 +833,5 @@ void mv::op::OpRegistry::generateRecordedCompositionAPI(const std::string& eol, 
     srcStream << tab << "return model_.getName();" << eol;
     srcStream << "}" << eol;
     srcStream.close();
+    
 }
