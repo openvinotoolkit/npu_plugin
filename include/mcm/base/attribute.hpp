@@ -18,10 +18,9 @@
 
 namespace mv
 {
-
     class Attribute : public Printable, public Jsonable, public LogSender, public Binarizable
     {
-
+        
         struct AbstractObject
         {
 
@@ -339,7 +338,6 @@ namespace mv
                 return "Attribute:NULL";
             return "Attribute:" + getTypeName();
         }
-
     };
 
 }

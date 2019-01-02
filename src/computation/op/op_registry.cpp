@@ -61,19 +61,35 @@ bool mv::op::OpRegistry::checkOpType(const std::string& opType)
     return instance().find(opType) != nullptr;
 }
 
-std::vector<std::string> mv::op::OpRegistry::argsList(const std::string& opType)
+std::vector<std::string> mv::op::OpRegistry::getArgsList(const std::string& opType)
 {
     if (!checkOpType(opType))
-        throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
+        throw OpError("OpRegistry", "Attempt of obtaining the aandatrguments list for an unregistered op type " + opType);
     
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
 
-    return opPtr->argsList();
+    return opPtr->getArgsList();
     
 }
+
+//method to return list of attributes with default values and the default values
+std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpRegistry::getOptionalArgsList(const std::string& opType)
+{
+    if (!checkOpType(opType))
+        throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
+    
+    OpEntry* const opPtr1 = instance().find(opType);
+
+    if (!opPtr1)
+        throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
+
+    return opPtr1->getOptionalArgsList();
+    
+}
+
 
 std::type_index mv::op::OpRegistry::argType(const std::string& opType, const std::string& argName)
 {
@@ -128,9 +144,10 @@ std::size_t mv::op::OpRegistry::getOutputsCount(const std::string& opType)
 std::pair<bool, std::size_t> mv::op::OpRegistry::checkInputs(const std::string& opType,
     const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::string& errMsg)
 {
+
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of executing an inputs check for an unregistered op type " + opType);
-    
+
     OpEntry* const opPtr = instance().find(opType);
 
     if (!opPtr)
@@ -296,42 +313,67 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
             inputsDef += inputLabels.back();
         }
 
-        std::string argsDef = "";
-        auto argsList = opPtr->argsList();
-        if (argsList.size() > 0)
+        std::string mandatoryArgsDef = "";
+        std::string optionalArgsDef = "";
+        auto mandatoryArgsList = opPtr->getArgsList();
+        auto optionalArgsList = opPtr->getOptionalArgsList(); /*Get arg list with default values*/
+        std::string defaultValue = "";
+
+        if (mandatoryArgsList.size() > 0)
         {
-            for (std::size_t i = 0; i < argsList.size() - 1; ++i)
+            for (std::size_t i = 0; i < mandatoryArgsList.size(); ++i)
             {
                 if (types)
                 {
-                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(argsList[i]));
-                    argsDef += "const " + argTypeName + "& ";
-                }    
-                
-                argsDef += argsList[i] + ", ";
-            }
+                    auto attributeName = mandatoryArgsList[i];
+                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(mandatoryArgsList[i]));
+                    mandatoryArgsDef += "const " + argTypeName + "& ";
+                }
 
-            if (types)
-            {
-                auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(argsList.back()));
-                argsDef += "const " + argTypeName + "& ";
-            }
-            argsDef += argsList.back();
+                mandatoryArgsDef += mandatoryArgsList[i];
 
+                if (i < mandatoryArgsList.size() - 1) {
+                    mandatoryArgsDef += ", ";
+                }
+
+            }
+        }
+
+        if (!optionalArgsList.empty()) {
+            for (std::size_t i = 0; i < optionalArgsList.size(); i++) {
+                if (types) {
+                    auto attributeName = optionalArgsList[i];
+                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(optionalArgsList[i].first));
+                    optionalArgsDef += "const " + argTypeName + "& " + optionalArgsList[i].first;
+                    if (defaultArgs) {
+                        optionalArgsDef += " = " + optionalArgsList[i].second.toString();
+                    }
+                } else {
+                    optionalArgsDef += optionalArgsList[i].first;
+                }
+
+                if (i < optionalArgsList.size() - 1) {
+                    optionalArgsDef += ", ";
+                }
+            }
         }
 
         output += inputsDef;
         if (!inputsDef.empty())
             output += ", ";
 
-        output += argsDef;
-        if (!argsList.empty())
+        output += mandatoryArgsDef;
+        if (!mandatoryArgsDef.empty())
+            output += ", ";
+
+        output += optionalArgsDef;
+        if (!optionalArgsDef.empty())
             output += ", ";
 
         if (types)
             output += "const std::string& ";
         output += "name";
-        
+
         if (defaultArgs)
             output += " = \"\"";
 
@@ -432,7 +474,7 @@ std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::
             " not found in the op registry");
 
     std::vector<std::string> output;
-    auto argsList = opPtr->argsList();
+    auto argsList = opPtr->getArgsList();
     if (argsList.size() > 0)
     {
         for (std::size_t i = 0; i < argsList.size() - 1; ++i)
@@ -471,12 +513,24 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
     }
     output += eol + tab + tab + "}," + eol + tab + tab + "{";
 
-    auto argsList = opPtr->argsList();
-    if (argsList.size() > 0)
+    auto mandatoryArgsList = opPtr->getArgsList();
+    if (mandatoryArgsList.size() > 0)
     {
-        for (std::size_t i = 0; i < argsList.size() - 1; ++i)
-            output +=  eol + tab + tab + tab + "{ \"" + argsList[i] + "\", " + argsList[i] + " },";
-        output +=  eol + tab + tab + tab + "{ \"" + argsList.back() + "\", " + argsList.back() + " }";
+        for (std::size_t i = 0; i < mandatoryArgsList.size() - 1; ++i)
+            output +=  eol + tab + tab + tab + "{ \"" + mandatoryArgsList[i] + "\", " + mandatoryArgsList[i] + " },";
+        output +=  eol + tab + tab + tab + "{ \"" + mandatoryArgsList.back() + "\", " + mandatoryArgsList.back() + " }";
+    }
+
+    auto optionalArgsList = opPtr->getOptionalArgsList();
+    if (optionalArgsList.size() > 0)
+    {
+        if (mandatoryArgsList.size() > 0) {
+            output += ",";
+        }
+
+        for (std::size_t i = 0; i < optionalArgsList.size() - 1; ++i)
+            output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList[i].first + "\", " + optionalArgsList[i].first + " },";
+        output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList.back().first + "\", " + optionalArgsList.back().first + " }";
     }
     output += eol + tab + tab + "}," + eol + tab + tab + "name" + eol + tab + ");" + eol + "}";
     return output;
@@ -779,4 +833,5 @@ void mv::op::OpRegistry::generateRecordedCompositionAPI(const std::string& eol, 
     srcStream << tab << "return model_.getName();" << eol;
     srcStream << "}" << eol;
     srcStream.close();
+    
 }

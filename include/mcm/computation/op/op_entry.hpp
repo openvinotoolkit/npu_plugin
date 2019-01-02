@@ -26,7 +26,6 @@ namespace mv
 
         class OpEntry : public LogSender
         {
-            
             std::string opType_;
             std::string description_;
             std::set<std::string> opTraits_;
@@ -36,11 +35,11 @@ namespace mv
             std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
                 std::vector<Tensor>&)> outputDef_;
             std::vector<std::string> outputLabels_;
-            std::vector<std::pair<std::string, std::type_index>> args_;
+            std::vector<std::pair<std::string, std::type_index>> mandatoryArgs_;
+            std::vector<std::tuple<std::string, std::type_index, Attribute>> optionalArgs_; //Attribute holds default value
             std::set<std::string> typeTraits_;
 
         public:
-
             OpEntry(const std::string& opType);
 
             OpEntry& setInputs(std::vector<std::string> labels);
@@ -57,8 +56,10 @@ namespace mv
             std::size_t getInputsCount() const;
             std::size_t getOutputsCount() const;
             bool hasArg(const std::string& name) const;
+            bool hasOptionalArg(const std::string& name) const;
             std::type_index argType(const std::string& name) const;
-            std::vector<std::string> argsList() const;
+            std::vector<std::string> getArgsList() const;
+            std::vector<std::pair<std::string, Attribute>> getOptionalArgsList() const;
             std::pair<bool, std::size_t> checkInputs(const std::vector<Data::TensorIterator>& inputs, 
                 const std::map<std::string, Attribute>& args, std::string& errMsg);
             void getOutputsDef(const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
@@ -73,14 +74,27 @@ namespace mv
             std::string getLogID() const override;
 
             template <class AttrType>
-            inline OpEntry& setArg(const std::string& name)
+            inline OpEntry& setArg(const std::string& name) //if argument is specified in leakyrelu.cpp op definition then it is optional in rest of the code
+            {
+
+                if (!attr::AttributeRegistry::checkType<AttrType>())
+                    throw AttributeError("OpEntry", "Attempt of setting argument of an unregistered attribute type "
+                        + std::string(typeid(AttrType).name()) + " \"" + name + "\" for ");
+               
+                mandatoryArgs_.emplace_back(name, typeid(AttrType));
+                return *this;
+
+            }
+
+            template <class AttrType>
+            inline OpEntry& setOptionalArg(const std::string& name, Attribute val)
             {
 
                 if (!attr::AttributeRegistry::checkType<AttrType>())
                     throw AttributeError("OpEntry", "Attempt of setting argument of an unregistered attribute type "
                         + std::string(typeid(AttrType).name()) + " \"" + name + "\" for ");
 
-                args_.push_back({name, typeid(AttrType)});
+                optionalArgs_.emplace_back(name, typeid(AttrType), val);
                 return *this;
 
             }

@@ -52,7 +52,7 @@ TEST(pass_registry, run_pass)
     mv::json::Object compOutput;
     ASSERT_THROW(mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput), mv::ArgumentError);
     targetDesc.setTarget(mv::Target::ma2480);
-    mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput);
+    ASSERT_NO_THROW(mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput));
     ASSERT_TRUE(model.getInput()->get<bool>("test"));
     resetPassReg();
 
