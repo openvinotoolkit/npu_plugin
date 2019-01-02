@@ -54,7 +54,7 @@ void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &m
                 pass.log(Logger::MessageType::Info, "Changing weight shape from " + wshape.toString() + " to " + new_shape.toString());
 
                 std::vector<double> new_data(new_shape.totalSize(), 0);
-                mv::Tensor backup_tensor("backup", new_shape, oldWeights->getDType(), mv::Order(mv::Order::getColMajorID(new_shape.ndims())), new_data);
+                mv::Tensor backup_tensor("backup", new_shape, oldWeights->getDType(), mv::Order(mv::Order::getRowMajorID(new_shape.ndims())), new_data);
                 for(unsigned kx = 0; kx < wshape[0]; ++kx)
                     for(unsigned ky = 0; ky < wshape[1]; ++ky)
                         for(unsigned ic = 0; ic < wshape[2]; ++ic)

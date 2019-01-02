@@ -351,14 +351,6 @@ mv::MXDimensionsStrides mv::convertStrides(mv::Data::TensorIterator t, mv::Contr
 
     else if(current_order.isRowMajor())
     {
-        // Misleading - weights
-        toReturn.order = 3;
-        toReturn.strideZ = fp16_size;
-        toReturn.strideY = (toReturn.dimZ * toReturn.strideZ) + local_StrideZ;
-        toReturn.strideX = (toReturn.dimY * toReturn.strideY) + local_StrideY;
-    }
-    else if(current_order.isColMajor())
-    {
         // NCE1 - Option 1
         // COLUMN MAJOR(NCE1 Planar)
         // I.E: X, Y, Z
@@ -366,6 +358,14 @@ mv::MXDimensionsStrides mv::convertStrides(mv::Data::TensorIterator t, mv::Contr
         toReturn.strideX = fp16_size;
         toReturn.strideY = (toReturn.dimX * toReturn.strideX) + local_StrideX;
         toReturn.strideZ = (toReturn.dimY * toReturn.strideY) + local_StrideY;
+    }
+    else if(current_order.isColMajor())
+    {
+        // Misleading - weights
+        toReturn.order = 3;
+        toReturn.strideZ = fp16_size;
+        toReturn.strideY = (toReturn.dimZ * toReturn.strideZ) + local_StrideZ;
+        toReturn.strideX = (toReturn.dimY * toReturn.strideY) + local_StrideY;
     }
     else if(current_order.isColMajorPlanar())
     {
