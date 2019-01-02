@@ -20,7 +20,7 @@ namespace mv
         static const std::unordered_map<std::size_t, std::string> colMajorID_;
         static const std::unordered_map<std::size_t, std::string> colMajorPlanarID_;
 
-        std::vector<std::size_t>& contVector_;
+        std::vector<std::size_t> contVector_;
         std::string contVectorStr_;
 
         Order(std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam)
