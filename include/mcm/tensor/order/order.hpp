@@ -23,7 +23,7 @@ namespace mv
         std::vector<std::size_t> contVector_;
         std::string contVectorStr_;
 
-        Order(std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam);
+        Order(const std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam);
 
     public:
 

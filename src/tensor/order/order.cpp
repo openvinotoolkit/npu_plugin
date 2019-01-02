@@ -49,7 +49,7 @@ mv::Order::Order(const std::string& value)
 
 }
 
-mv::Order::Order(std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam)
+mv::Order::Order(const std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam)
     :contVector_(contVectorParam),
      contVectorStr_(contVectorStrParam)
 {
