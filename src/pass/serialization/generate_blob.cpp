@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/computation/resource/nce1_utils.hpp"
+#include <numeric>
 
 static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&td, mv::json::Object& compDesc, mv::json::Object& compOutput);
 static void PopulateSerialFieldsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& compOutput);
@@ -102,9 +103,10 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
     auto inputChannelsPadded = opIt->get<std::size_t>("NCE1_InputChannelsPadded");
     auto outputChannelsPadded = opIt->get<std::size_t>("NCE1_OutputChannelsPadded");
     auto inputWidthPadded = opIt->get<std::size_t>("NCE1_InputWidthPadded");
-    //auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
+    auto outputWidthPadded = opIt->get<std::size_t>("NCE1_OutputWidthPadded");
     auto desc_count = opIt->get<std::size_t>("NCE1_DescriptorSplits");
     auto streamingMask = opIt->get<std::size_t>("NCE1_StreamingMask");
+    auto outputChannelPerformed = opIt->get<std::vector<std::size_t>>("NCE1_OutputChannelsPerformed");
 
     auto input_lines_processed = opIt->get<std::vector<size_t>>("NCE1_InputLinesProcessed");
     auto output_lines_processed = opIt->get<std::vector<size_t>>("NCE1_OutputLinesProcessed");
@@ -114,6 +116,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
     unsigned radixX, radixY;
     if(hwOp == mv::NCE1HWOps::Convolution)
     {
+        //ASSUMING MX WEIGHT SHAPE
         radixX = taps->getShape()[2];
         radixY = taps->getShape()[3];
     }
@@ -161,6 +164,8 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 //BCONV CTOR
                 ++i;
 
+                auto output_channels_performed_so_far = std::accumulate(outputChannelPerformed.begin(), outputChannelPerformed.begin()+oc, 0);
+
                 // Relations to other Descriptors
                 if (i+1 == (int)desc_count)
                     descriptors[i].Line0.linkAddress = 0; // Last.
@@ -192,10 +197,6 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].Line0.cm = NCE1_DTYPE_FP16;
                 descriptors[i].Line0.dm = NCE1_DTYPE_FP16;
 
-
-                // Standard Fields for Convolution
-                // MX WEIGHTS SHAPE ASSUMED!!!
-
                 if(hwOp == mv::NCE1HWOps::Convolution)
                 {
                     descriptors[i].kernelWidth = radixX - 1;
@@ -226,9 +227,21 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 current_height = input_lines_processed[i];
 
                 descriptors[i].inputHeight =  current_height - 1;
-                descriptors[i].inputChannels = inputChannelsPadded -1;
 
-                descriptors[i].outputChannels = output->getShape()[2] -1;
+                if(hwOp == mv::NCE1HWOps::Convolution)
+                {
+                    descriptors[i].outputChannels = output->getShape()[2] -1;
+                    descriptors[i].inputChannels = inputChannelsPadded -1;
+                }
+                else if(hwOp == mv::NCE1HWOps::FullyConnected)
+                {
+
+                }
+                else
+                {
+                    descriptors[i].outputChannels = outputChannelPerformed[oc] - 1;
+                    descriptors[i].inputChannels =  descriptors[i].outputChannels;
+                }
 
                 // Myriad X DPU Assignment & Execution Configuration
 
@@ -341,44 +354,41 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 auto inputBlobTensor = mv::convertStrides(input, cm, dm);
                 auto outputBlobTensor = mv::convertStrides(output, cm, dm);
 
-                descriptors[i].dataBaseAddr = 2 * input_width * input_line_start[h];    // TODO: Calculate 3f0 (1008)
-
-                if( input->getOrder().isRowInterleaved() )
+                if(hwOp == mv::NCE1HWOps::Convolution)
+                    descriptors[i].dataBaseAddr = fp16_size * input_width * input_line_start[h] * inputChannelsPadded;
+                else if(hwOp == mv::NCE1HWOps::FullyConnected)
                 {
-                    descriptors[i].dataBaseAddr *= inputChannelsPadded;    // TODO: Calculate 3f0 (1008)
-                    descriptors[i].dataLnStr = inputBlobTensor.strideY;
-                    descriptors[i].dataChStr = inputBlobTensor.strideZ;
-//                                descriptors[i].dataLnStr = 42;
-//                                descriptors[i].dataChStr = 42;
+                    //TODO
                 }
                 else
+                    descriptors[i].dataBaseAddr = fp16_size * input_width * input_line_start[h] * output_channels_performed_so_far * inputChannelsPadded;
+
+                //Only case handled for now
+                if( input->getOrder().isRowInterleaved() )
                 {
                     descriptors[i].dataLnStr = inputBlobTensor.strideY;
                     descriptors[i].dataChStr = inputBlobTensor.strideZ;
-//                                descriptors[i].dataLnStr = 42;
-//                                descriptors[i].dataChStr = 42;
                 }
                 descriptors[i].coeffBaseAddr = 0;
                 descriptors[i].biasBaseAddr = 0;
                 descriptors[i].scaleBaseAddr = 0;
                 //HACK FOR CONCAT
-                descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h];  // TODO: Calculate 3f0 (1008)
-                //descriptors[i].outBaseAddr = 42;  // TODO: Calculate 3f0 (1008)
 
-                if( output->getOrder().isRowInterleaved() )
+                if(hwOp == mv::NCE1HWOps::Convolution)
+                    descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h] * output_channels; //outputBlobTensor.strideZ should be fp16_size * outputWidthPadded
+                else if(hwOp == mv::NCE1HWOps::FullyConnected)
                 {
-                    descriptors[i].outBaseAddr *= output_channels;    // TODO: Calculate 3f0 (1008)
-                    descriptors[i].outLnStr = outputBlobTensor.strideY;
-                    descriptors[i].outChStr = outputBlobTensor.strideZ;
-                    //descriptors[i].outLnStr = 42;
-                    //descriptors[i].outChStr = 42;
+
                 }
                 else
+                    descriptors[i].outBaseAddr = fp16_size * outputWidthPadded * output_channels_performed_so_far * outputChannelsPadded * output_line_start[h];
+
+
+                //Only case handled for now
+                if( output->getOrder().isRowInterleaved() )
                 {
                     descriptors[i].outLnStr = outputBlobTensor.strideY;
                     descriptors[i].outChStr = outputBlobTensor.strideZ;
-                    //descriptors[i].outLnStr = 42;
-                    //descriptors[i].outChStr = 42;
                 }
 
                 if(hwOp == mv::NCE1HWOps::Convolution)
