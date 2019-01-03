@@ -354,6 +354,12 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 auto inputBlobTensor = mv::convertStrides(input, cm, dm);
                 auto outputBlobTensor = mv::convertStrides(output, cm, dm);
 
+                /* this->descriptors[i].dataBaseAddr = fp16_size * input_width * output_channels_performed_so_far;    // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].dataBaseAddr += this->input->getShape()[2] * 2 * input_width * this->input_line_start[h] ;    // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].outBaseAddr = fp16_size * outputWidthPadded * output_channels_performed_so_far;  // TODO: Calculate 3f0 (1008)
+                        this->descriptors[i].outBaseAddr += outputChannelsPadded * 2 * outputWidthPadded * this->output_line_start[h];    // TODO: Calculate 3f0 (1008)
+                 */
+
                 if(hwOp == mv::NCE1HWOps::Convolution)
                     descriptors[i].dataBaseAddr = fp16_size * input_width * input_line_start[h] * inputChannelsPadded;
                 else if(hwOp == mv::NCE1HWOps::FullyConnected)
@@ -361,7 +367,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                     //TODO
                 }
                 else
-                    descriptors[i].dataBaseAddr = fp16_size * input_width * input_line_start[h] * inputChannelsPadded * output_channels_performed_so_far;
+                    descriptors[i].dataBaseAddr = (fp16_size * input_width * output_channels_performed_so_far) + (input->getShape()[2] * fp16_size * input_width * input_line_start[h]);
 
                 //Only case handled for now
                 if( input->getOrder().isRowInterleaved() )
@@ -381,7 +387,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                     //TODO
                 }
                 else
-                    descriptors[i].outBaseAddr = fp16_size * outputWidthPadded * output_line_start[h] * output_channels * output_channels_performed_so_far;
+                    descriptors[i].outBaseAddr = (fp16_size * outputWidthPadded * output_channels_performed_so_far) + (outputChannelsPadded * fp16_size * outputWidthPadded * output_line_start[h]);
 
                 //Only case handled for now
                 if( output->getOrder().isRowInterleaved() )
