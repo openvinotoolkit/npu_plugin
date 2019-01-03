@@ -85,6 +85,9 @@ else()
 	add_executable(hw_pooling hw_pooling.cpp)
 	target_link_libraries(hw_pooling cm)
 
+	add_executable(hw_fullyconnected_convolution hw_fullyconnected_convolution.cpp)
+	target_link_libraries(hw_fullyconnected_convolution cm)
+
 	add_executable(depthwise_convolution depthwise_convolution.cpp)
 	target_link_libraries(depthwise_convolution cm)
 
