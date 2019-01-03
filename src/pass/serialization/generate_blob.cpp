@@ -361,7 +361,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                     //TODO
                 }
                 else
-                    descriptors[i].dataBaseAddr = fp16_size * input_width * input_line_start[h] * output_channels_performed_so_far * inputChannelsPadded;
+                    descriptors[i].dataBaseAddr = fp16_size * input_width * input_line_start[h] * inputChannelsPadded * output_channels_performed_so_far;
 
                 //Only case handled for now
                 if( input->getOrder().isRowInterleaved() )
@@ -372,17 +372,16 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
                 descriptors[i].coeffBaseAddr = 0;
                 descriptors[i].biasBaseAddr = 0;
                 descriptors[i].scaleBaseAddr = 0;
-                //HACK FOR CONCAT
 
+                //HACK FOR CONCAT
                 if(hwOp == mv::NCE1HWOps::Convolution)
                     descriptors[i].outBaseAddr = outputBlobTensor.strideZ * output_line_start[h] * output_channels; //outputBlobTensor.strideZ should be fp16_size * outputWidthPadded
                 else if(hwOp == mv::NCE1HWOps::FullyConnected)
                 {
-
+                    //TODO
                 }
                 else
-                    descriptors[i].outBaseAddr = fp16_size * outputWidthPadded * output_channels_performed_so_far * outputChannelsPadded * output_line_start[h];
-
+                    descriptors[i].outBaseAddr = fp16_size * outputWidthPadded * output_line_start[h] * output_channels * output_channels_performed_so_far;
 
                 //Only case handled for now
                 if( output->getOrder().isRowInterleaved() )
@@ -515,7 +514,7 @@ void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
         }
         else if(opType == "FullyConnected")
         {
-            auto fp16_size = 2;
+            //auto fp16_size = 2;
 
             if (opIt->hasAttr("NCE1_Compatible") && opIt->get<int>("NCE1_Compatible") )
             {
