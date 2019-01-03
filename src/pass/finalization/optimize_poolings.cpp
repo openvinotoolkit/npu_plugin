@@ -114,7 +114,7 @@ bool write_hardware_attributes_pooling(mv::OpModel& om, mv::Data::OpListIterator
         //std::cout << "lines_per_channel[i] " << lines_per_channel[i] << std::endl;
         //std::cout << "local_channel_stride[i] " << lines_per_channel[i] << std::endl;
 
-        min_lines[i] = kernel_height * 2;
+        min_lines[i] = kernel_height * 2 + 1;
     }
     poolIterator->set<std::vector<std::size_t>>("NCE1_Modes", modes);
     poolIterator->set<std::vector<std::size_t>>("NCE1_OutputChannelsPerformed", output_channels_performed);
