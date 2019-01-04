@@ -817,7 +817,7 @@ TEST (generate_blob_WDDM, blob_maxpool3)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool3.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool3.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -854,7 +854,7 @@ TEST (generate_blob_WDDM, blob_maxpool4)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool4.prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool4.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -891,7 +891,7 @@ TEST (generate_blob_WDDM, blob_avgpool1)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -928,7 +928,7 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
     unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
     unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = false;
+    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
