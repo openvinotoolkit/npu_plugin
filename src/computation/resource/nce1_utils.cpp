@@ -354,10 +354,21 @@ mv::MXDimensionsStrides mv::convertStrides(mv::Data::TensorIterator t, mv::Contr
         // NCE1 - Option 1
         // COLUMN MAJOR(NCE1 Planar)
         // I.E: X, Y, Z
-        toReturn.order = 1;    // THIS ENUM IS WRONG
-        toReturn.strideX = fp16_size;
-        toReturn.strideY = (toReturn.dimX * toReturn.strideX) + local_StrideX;
-        toReturn.strideZ = (toReturn.dimY * toReturn.strideY) + local_StrideY;
+        if(t->getShape().ndims() > 3)
+        {
+            toReturn.order = 1;    // THIS ENUM IS WRONG
+            toReturn.strideX = fp16_size;
+            toReturn.strideY = (toReturn.dimX * toReturn.strideX) + local_StrideX;
+            toReturn.strideZ = (toReturn.dimY * toReturn.strideY) + local_StrideY;
+        }
+        else
+        {
+            // Misleading - weights
+            toReturn.order = 3;
+            toReturn.strideZ = fp16_size;
+            toReturn.strideY = (toReturn.dimZ * toReturn.strideZ) + local_StrideZ;
+            toReturn.strideX = (toReturn.dimY * toReturn.strideY) + local_StrideY;
+        }
     }
     else if(current_order.isColMajor())
     {
