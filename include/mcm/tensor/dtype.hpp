@@ -51,7 +51,7 @@ namespace mv
         operator DTypeType() const;
 
         std::string getLogID() const override;
-        std::function<std::vector<uint8_t>(const std::vector<double>&)> getBinaryConverter() const;
+        std::vector<uint8_t> toBinary(const std::vector<double>& data) const;
     };
 
 }

@@ -65,9 +65,9 @@ std::string mv::DType::toString() const
     return dTypeStrings_.at(*this);
 }
 
-std::function<std::vector<uint8_t>(const std::vector<double>&)> mv::DType::getBinaryConverter() const
+std::vector<uint8_t> mv::DType::toBinary(const std::vector<double>& data) const
 {
-    return dTypeConvertors_.at(*this);
+    return dTypeConvertors_.at(*this)(data);
 }
 
 
