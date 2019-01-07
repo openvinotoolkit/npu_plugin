@@ -14,6 +14,27 @@ namespace mv
         Float16
     };
 
+    struct BinaryData {
+        std::vector<double> fp64;
+        std::vector<float> fp32;
+        std::vector<int16_t> fp16;
+        std::vector<uint8_t> f8;
+        std::vector<uint64_t> u64;
+        std::vector<uint32_t> u32;
+        std::vector<uint16_t> u16;
+        std::vector<uint8_t> u8;
+        std::vector<uint64_t> i64;
+        std::vector<int32_t> i32;
+        std::vector<int16_t> i16;
+        std::vector<int8_t> i8;
+        std::vector<int8_t> i4;
+        std::vector<int8_t> i2;
+        std::vector<int8_t> i2x;
+        std::vector<int8_t> i4x;
+        std::vector<int8_t> bin;
+        std::vector<int8_t> log;
+    };
+
     struct DTypeTypeHash
     {
         template <typename T>
@@ -29,7 +50,7 @@ namespace mv
     private:
 
         static const std::unordered_map<DTypeType, std::string, DTypeTypeHash> dTypeStrings_;
-        static const std::unordered_map<DTypeType, std::function<std::vector<uint8_t>(const std::vector<double>&)>,
+        static const std::unordered_map<DTypeType, std::function<BinaryData(const std::vector<double>&)>,
                 DTypeTypeHash> dTypeConvertors_;
         DTypeType dType_;
 
@@ -51,7 +72,7 @@ namespace mv
         operator DTypeType() const;
 
         std::string getLogID() const override;
-        std::vector<uint8_t> toBinary(const std::vector<double>& data) const;
+        BinaryData toBinary(const std::vector<double>& data) const;
     };
 
 }

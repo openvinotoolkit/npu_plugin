@@ -642,13 +642,10 @@ TEST(tensor, to_binary)
 
     mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
     t.populate(data);
-    std::vector<uint8_t> fp16_data = t.toBinary();
+    mv::BinaryData fp16_data = t.toBinary();
     mv_num_convert cvtr;
 
-    for (unsigned i = 0; i < fp16_data.size(); i+=2)
-    {
-        uint16_t temp = fp16_data[i+1] << 8 | fp16_data[i];
-        EXPECT_EQ(temp, cvtr.fp32_to_fp16(data[i/2]));
-        //std::cout << std::hex << (int)temp << " ref " << cvtr.fp32_to_fp16(data[i/2]) << std::endl;
-    }
+    for (unsigned i = 0; i < fp16_data.fp16.size(); i++)
+        EXPECT_EQ(fp16_data.fp16[i], cvtr.fp32_to_fp16(data[i]));
+
 }

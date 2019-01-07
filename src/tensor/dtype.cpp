@@ -6,22 +6,15 @@ const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DTyp
     {DTypeType::Float16, "Float16"}
 };
 
-const std::unordered_map<mv::DTypeType,std::function<std::vector<uint8_t>(const std::vector<double>&)>,
+const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::vector<double>&)>,
     mv::DTypeTypeHash> mv::DType::dTypeConvertors_=
 {
-    {DTypeType::Float16, [](const std::vector<double> & vals)->std::vector<uint8_t> {
-        std::vector<uint8_t> res;
+    {DTypeType::Float16, [](const std::vector<double> & vals)->mv::BinaryData {
+        mv::BinaryData res;
         mv_num_convert cvtr;
         for_each(vals.begin(), vals.end(), [&](double  val)
         {
-            union Tmp
-            {
-                uint16_t n;
-                uint8_t bytes[sizeof(uint16_t)];
-            };
-            Tmp t = { cvtr.fp32_to_fp16(val)};
-            for (auto &b : t.bytes)
-                res.push_back(b);
+            res.fp16.push_back(cvtr.fp32_to_fp16(val));
         });
         return res;
     }}
@@ -65,7 +58,7 @@ std::string mv::DType::toString() const
     return dTypeStrings_.at(*this);
 }
 
-std::vector<uint8_t> mv::DType::toBinary(const std::vector<double>& data) const
+mv::BinaryData mv::DType::toBinary(const std::vector<double>& data) const
 {
     return dTypeConvertors_.at(*this)(data);
 }
