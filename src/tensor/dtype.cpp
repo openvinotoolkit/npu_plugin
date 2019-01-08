@@ -10,11 +10,12 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
     mv::DTypeTypeHash> mv::DType::dTypeConvertors_=
 {
     {DTypeType::Float16, [](const std::vector<double> & vals)->mv::BinaryData {
-        mv::BinaryData res;
+        mv::BinaryData res(DTypeType::Float16);
         mv_num_convert cvtr;
+        res.data_.fp16 = new std::vector<int16_t>();
         for_each(vals.begin(), vals.end(), [&](double  val)
         {
-            res.fp16.push_back(cvtr.fp32_to_fp16(val));
+            res.data_.fp16->push_back(cvtr.fp32_to_fp16(val));
         });
         return res;
     }}
