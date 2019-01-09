@@ -25,8 +25,8 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/KeemBayFBSchema/compiledSchemas)
-     
+include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+
 if(VALIDATION)
 
     include_directories("/opt/movidius/caffe/include")

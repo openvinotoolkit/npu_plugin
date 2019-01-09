@@ -16,11 +16,6 @@ export MDK_HOME=~/mdk
 ```
 cd mcmCompiler
 git submodule update --init
-cd KeemBayFBSchema
-python3 import_schema.py
-mkdir compiledSchema
-make
-cd ..
 mkdir build && cd build && cmake ..
 make -j8
 ```
