@@ -3,7 +3,24 @@
 
 const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DType::dTypeStrings_ =
 {
-    {DTypeType::Float16, "Float16"}
+    {DTypeType::Float64, "Float64"},
+    {DTypeType::Float32, "Float32"},
+    {DTypeType::Float16, "Float16"},
+    {DTypeType::Float8, "Float8"},
+    {DTypeType::UInt64, "UInt64"},
+    {DTypeType::UInt32, "UInt32"},
+    {DTypeType::UInt16, "UInt16"},
+    {DTypeType::UInt8, "UInt8"},
+    {DTypeType::Int64, "Int64"},
+    {DTypeType::Int32, "Int32"},
+    {DTypeType::Int16, "Int16"},
+    {DTypeType::Int8, "Int8"},
+    {DTypeType::Int4, "Int4"},
+    {DTypeType::Int2, "Int2"},
+    {DTypeType::Int2X, "Int2X"},
+    {DTypeType::Int4X, "Int4X"},
+    {DTypeType::Bin, "Bin"},
+    {DTypeType::Log, "Log"}
 };
 
 const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::vector<double>&)>,
