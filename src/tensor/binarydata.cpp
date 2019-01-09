@@ -8,8 +8,8 @@ mv::BinaryData::~BinaryData()
 {
     switch(type_) {
         case mv::DTypeType::Float64:
-            if (data_.fp16 != nullptr)
-                delete data_.fp16;
+            if (data_.fp64 != nullptr)
+                delete data_.fp64;
             break;
         case mv::DTypeType::Float32:
             if (data_.fp32 != nullptr)
