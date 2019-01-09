@@ -76,6 +76,7 @@ file(GLOB base
     "src/base/element.cpp"
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
+    "src/tensor/binarydata.cpp"
     "src/tensor/order/*.cpp"
     "src/tensor/order/order_def/*.cpp"
     "src/tensor/math.cpp"
