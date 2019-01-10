@@ -63,7 +63,18 @@ mv::BinaryData::BinaryData(mv::DTypeType type) : type_(type)
             break;
     }
 }
+
+mv::BinaryData::BinaryData(const BinaryData &other): type_(other.type_)
+{
+    setData_(other);
+}
+
 mv::BinaryData::~BinaryData()
+{
+    deleteData_();
+}
+
+void mv::BinaryData::deleteData_()
 {
     switch(type_) {
         case mv::DTypeType::Float64:
@@ -378,3 +389,92 @@ std::vector<int8_t> * mv::BinaryData::log() const
         return data_.log;
     throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
 }
+
+ mv::BinaryData& mv::BinaryData::operator=(const mv::BinaryData& other)
+ {
+    deleteData_();
+    type_ = other.type_;
+    setData_(other);
+    return *this;
+ }
+
+void mv::BinaryData::setData_(const BinaryData &other)
+{
+    switch(type_) {
+        case mv::DTypeType::Float64:
+            data_.fp64 = new std::vector<double>();
+            *data_.fp64 = *other.data_.fp64;
+            break;
+        case mv::DTypeType::Float32:
+            data_.fp32 = new std::vector<float>();
+            *data_.fp32 = *other.data_.fp32;
+            break;
+        case mv::DTypeType::Float16:
+            data_.fp16 = new std::vector<int16_t>();
+            *data_.fp16 = *other.data_.fp16;
+            break;
+        case mv::DTypeType::Float8:
+            data_.f8 = new std::vector<uint8_t>();
+            *data_.f8 = *other.data_.f8;
+            break;
+        case mv::DTypeType::UInt64:
+            data_.u64 = new std::vector<uint64_t>();
+            *data_.u64 = *other.data_.u64;
+            break;
+        case mv::DTypeType::UInt32:
+            data_.u32 = new std::vector<uint32_t>();
+            *data_.u32 = *other.data_.u32;
+            break;
+        case mv::DTypeType::UInt16:
+            data_.u16 = new std::vector<uint16_t>();
+            *data_.u16 = *other.data_.u16;
+            break;
+        case mv::DTypeType::UInt8:
+            data_.u8 = new std::vector<uint8_t>();
+            *data_.u8 = *other.data_.u8;
+            break;
+        case mv::DTypeType::Int64:
+            data_.i64 = new std::vector<uint64_t>();
+            *data_.i64 = *other.data_.i64;
+            break;
+        case mv::DTypeType::Int32:
+            data_.i32 = new std::vector<int32_t>();
+            *data_.i32 = *other.data_.i32;
+            break;
+        case mv::DTypeType::Int16:
+            data_.i16 = new std::vector<int16_t>();
+            *data_.i16 = *other.data_.i16;
+            break;
+        case mv::DTypeType::Int8:
+            data_.i8 = new std::vector<int8_t>();
+            *data_.i8 = *other.data_.i8;
+            break;
+        case mv::DTypeType::Int4:
+            data_.i4 = new std::vector<int8_t>();
+            *data_.i4 = *other.data_.i4;
+            break;
+        case mv::DTypeType::Int2:
+            data_.i2 = new std::vector<int8_t>();
+            *data_.i2 = *other.data_.i2;
+            break;
+        case mv::DTypeType::Int4X:
+            data_.i4x = new std::vector<int8_t>();
+            *data_.i4x = *other.data_.i4x;
+            break;
+        case mv::DTypeType::Int2X:
+            data_.i2x = new std::vector<int8_t>();
+            *data_.i2x = *other.data_.i2x;
+            break;
+        case mv::DTypeType::Bin:
+            data_.bin = new std::vector<int8_t>();
+            *data_.bin = *other.data_.bin;
+            break;
+        case mv::DTypeType::Log:
+            data_.log = new std::vector<int8_t>();
+            *data_.log = *other.data_.log;
+            break;
+        default:
+            throw BinaryDataError("BinaryData","DTypeType Not supported");
+            break;
+    }
+ }

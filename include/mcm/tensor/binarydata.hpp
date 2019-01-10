@@ -55,9 +55,13 @@ namespace mv
             std::vector<int8_t> *bin,
             std::vector<int8_t> *logData);
 
+        void deleteData_();
+        void setData_(const BinaryData &other);
+
     public:
 
         BinaryData(DTypeType type);
+        BinaryData(const BinaryData &other);
         ~BinaryData();
 
         std::vector<double> *fp64() const;
@@ -79,6 +83,7 @@ namespace mv
         std::vector<int8_t> *bin() const;
         std::vector<int8_t> *log() const;
 
+        BinaryData& operator=(const BinaryData& other);
         flatbuffers::Offset<MVCNN::BinaryData> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb);
     };
 }
