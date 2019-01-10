@@ -83,8 +83,8 @@ mv::BinaryData::~BinaryData()
                 delete data_.f8;
             break;
         case mv::DTypeType::UInt64:
-            if (data_.fp16 != nullptr)
-                delete data_.fp16;
+            if (data_.u64 != nullptr)
+                delete data_.u64;
             break;
         case mv::DTypeType::UInt32:
             if (data_.u32 != nullptr)
