@@ -7,8 +7,11 @@
 
 namespace mv
 {
-    struct BinaryData
+    class BinaryData
     {
+
+    private:
+
         DTypeType type_;
 
         union Data {
@@ -32,10 +35,7 @@ namespace mv
             std::vector<int8_t>* log;
         } data_;
 
-        BinaryData(DTypeType type);
-        ~BinaryData();
-
-        void setCorrectPointer(
+        void setCorrectPointer_(
             std::vector<double> *fp64,
             std::vector<float> *fp32,
             std::vector<int16_t> *fp16,
@@ -55,10 +55,32 @@ namespace mv
             std::vector<int8_t> *bin,
             std::vector<int8_t> *logData);
 
+    public:
+
+        BinaryData(DTypeType type);
+        ~BinaryData();
+
+        std::vector<double> *fp64() const;
+        std::vector<float> *fp32() const;
+        std::vector<int16_t> *fp16() const;
+        std::vector<uint8_t> *f8() const;
+        std::vector<uint64_t> *u64() const;
+        std::vector<uint32_t> *u32() const;
+        std::vector<uint16_t> *u16() const;
+        std::vector<uint8_t> *u8() const;
+        std::vector<uint64_t> *i64() const;
+        std::vector<int32_t> *i32() const;
+        std::vector<int16_t> *i16() const;
+        std::vector<int8_t> *i8() const;
+        std::vector<int8_t> *i4() const;
+        std::vector<int8_t> *i2() const;
+        std::vector<int8_t> *i2x() const;
+        std::vector<int8_t> *i4x() const;
+        std::vector<int8_t> *bin() const;
+        std::vector<int8_t> *log() const;
+
         flatbuffers::Offset<MVCNN::BinaryData> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb);
     };
-
-
 }
 
 #endif // MV_TENSOR_BINARYDATA_HPP_

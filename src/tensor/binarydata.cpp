@@ -143,7 +143,7 @@ mv::BinaryData::~BinaryData()
     }
 }
 
-void mv::BinaryData::setCorrectPointer(
+void mv::BinaryData::setCorrectPointer_(
             std::vector<double> *fp64,
             std::vector<float> *fp32,
             std::vector<int16_t> *fp16,
@@ -248,7 +248,133 @@ flatbuffers::Offset<MVCNN::BinaryData> mv::BinaryData::convertToFlatbuffer(flatb
     std::vector<int8_t> * bin = nullptr;
     std::vector<int8_t> * logData = nullptr;
 
-    setCorrectPointer(fp64, fp32, fp16, fp8, u64, u32, u16, u8, i64, i32, i16, i8, i4, i2, i2x, i4x, bin, logData);
+    setCorrectPointer_(fp64, fp32, fp16, fp8, u64, u32, u16, u8, i64, i32, i16, i8, i4, i2, i2x, i4x, bin, logData);
 
     return MVCNN::CreateBinaryDataDirect(fbb, fp64, fp32, fp16, fp8, u64, u32, u16, u8, i64, i32, i16, i8, i4, i2, i2x, i4x, bin, logData);
+}
+
+std::vector<double> * mv::BinaryData::fp64() const
+{
+    if (type_ == mv::DTypeType::Float64)
+        return data_.fp64;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<float> * mv::BinaryData::fp32() const
+{
+    if (type_ == mv::DTypeType::Float32)
+        return data_.fp32;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int16_t> * mv::BinaryData::fp16() const
+{
+    if (type_ == mv::DTypeType::Float16)
+        return data_.fp16;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<uint8_t> * mv::BinaryData::f8() const
+{
+    if (type_ == mv::DTypeType::Float8)
+        return data_.f8;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<uint64_t> * mv::BinaryData::u64() const
+{
+    if (type_ == mv::DTypeType::UInt64)
+        return data_.u64;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<uint32_t> * mv::BinaryData::u32() const
+{
+    if (type_ == mv::DTypeType::UInt32)
+        return data_.u32;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<uint16_t> * mv::BinaryData::u16() const
+{
+    if (type_ == mv::DTypeType::UInt16)
+        return data_.u16;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<uint8_t> * mv::BinaryData::u8() const
+{
+    if (type_ == mv::DTypeType::UInt8)
+        return data_.u8;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<uint64_t> * mv::BinaryData::i64() const
+{
+    if (type_ == mv::DTypeType::Int64)
+        return data_.i64;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int32_t> * mv::BinaryData::i32() const
+{
+    if (type_ == mv::DTypeType::Int32)
+        return data_.i32;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int16_t> * mv::BinaryData::i16() const
+{
+    if (type_ == mv::DTypeType::Int16)
+        return data_.i16;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int8_t> * mv::BinaryData::i8() const
+{
+    if (type_ == mv::DTypeType::Int8)
+        return data_.i8;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int8_t> * mv::BinaryData::i4() const
+{
+    if (type_ == mv::DTypeType::Int4)
+        return data_.i4;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int8_t> * mv::BinaryData::i2() const
+{
+    if (type_ == mv::DTypeType::Int2)
+        return data_.i2;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int8_t> * mv::BinaryData::i2x() const
+{
+    if (type_ == mv::DTypeType::Int2X)
+        return data_.i2x;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int8_t> * mv::BinaryData::i4x() const
+{
+    if (type_ == mv::DTypeType::Int4X)
+        return data_.i4x;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int8_t> * mv::BinaryData::bin() const
+{
+    if (type_ == mv::DTypeType::Bin)
+        return data_.bin;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
+}
+
+std::vector<int8_t> * mv::BinaryData::log() const
+{
+    if (type_ == mv::DTypeType::Log)
+        return data_.log;
+    throw BinaryDataError("BinaryData","Requesting data of type different than initialized");
 }
