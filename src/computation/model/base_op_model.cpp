@@ -38,7 +38,7 @@ mv::Data::OpListIterator mv::BaseOpModel::getSourceOp(Data::TensorIterator tenso
 }
 
 mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, const std::vector<Data::TensorIterator>& inputs,
-            const std::vector<std::pair<std::string, Attribute>> & args, std::string name)
+            const std::vector<std::pair<std::string, Attribute>> & args, std::string name, bool dpuTask)
 {
 
     if (name.empty())
@@ -52,7 +52,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
     if (ops_->find(name) != ops_->end())
         throw ArgumentError(*this, "op:name", name, "Duplicated op name");
     
-    auto opNode = dataGraph_.node_insert(Op(*this, opType, name, inputs, args));
+    auto opNode = dataGraph_.node_insert(Op(*this, opType, name, inputs, args, dpuTask));
 
     incrementOpsInstanceCounter_(opType);
     incrementOpsIndexCounter_(opType);

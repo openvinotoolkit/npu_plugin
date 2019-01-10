@@ -33,7 +33,7 @@ namespace mv
         void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr);
 
         Data::TensorIterator defineOp(const std::string& opType, const std::vector<Data::TensorIterator>& inputs,
-            const std::vector<std::pair<std::string, Attribute>>& args, std::string name = "");
+            const std::vector<std::pair<std::string, Attribute>>& args, std::string name = "", bool dpuTask = false);
         void removeOp(Data::OpListIterator op);
         Data::FlowListIterator defineFlow(Data::TensorIterator sourceTensor, Data::OpListIterator sinkOp, std::size_t inputIdx);
         Data::FlowListIterator defineFlow(Data::OpListIterator sourceOp, std::size_t outputIdx, Data::OpListIterator sinkOp, std::size_t inputIdx);

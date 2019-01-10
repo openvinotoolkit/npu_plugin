@@ -23,8 +23,8 @@ namespace mv
 
     public:
 
-        Op(ComputationModel& model, const std::string& opType, const std::string& name, 
-            const std::vector<Data::TensorIterator>& inputs, const std::vector<std::pair<std::string, Attribute>> & args);
+        Op(ComputationModel& model, const std::string& opType, const std::string& name,
+            const std::vector<Data::TensorIterator>& inputs, const std::vector<std::pair<std::string, Attribute>> & args, bool dpuTask = true);
 
         virtual ~Op();
 
