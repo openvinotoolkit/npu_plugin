@@ -35,7 +35,7 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable", "exposed"});
+        .setTypeTrait({"executable", "exposed", "automatic_api"});
 
     }
 

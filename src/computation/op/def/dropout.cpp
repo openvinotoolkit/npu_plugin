@@ -30,7 +30,7 @@ namespace mv
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"exposed"});
+        .setTypeTrait({"exposed", "automatic_api"});
 
     }
 

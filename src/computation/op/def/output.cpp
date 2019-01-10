@@ -27,7 +27,7 @@ namespace mv
         .setInputs({"data"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"exposed"});
+        .setTypeTrait({"exposed", "automatic_api"});
 
     }
 

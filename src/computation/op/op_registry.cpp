@@ -25,6 +25,7 @@ mv::op::OpRegistry::OpRegistry()
 {
 	typeTraits_.insert("executable");
 	typeTraits_.insert("exposed");
+    typeTraits_.insert("automatic_api");
 }
 
 mv::op::OpRegistry& mv::op::OpRegistry::instance()
@@ -614,7 +615,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << tab << tab << "OpModel(ComputationModel& model);" << eol;
     incStream << tab << tab << "virtual ~OpModel();" << eol << eol;
 
-    auto opsList = getOpTypes();
+    auto opsList = getOpTypes({"automatic_api"});
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
     {
         incStream << tab << tab << getCompositionDecl_(*it);

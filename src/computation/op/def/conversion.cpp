@@ -31,7 +31,7 @@ namespace mv
         .setArg<mv::Order>("order")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable"});
+        .setTypeTrait({"executable", "automatic_api"});
 
     }
 

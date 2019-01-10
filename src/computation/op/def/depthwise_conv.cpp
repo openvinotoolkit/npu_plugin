@@ -77,7 +77,7 @@ namespace mv
         .setArg<std::array<unsigned short, 4>>("padding")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable", "exposed"});
+        .setTypeTrait({"executable", "exposed", "automatic_api"});
 
     }
 

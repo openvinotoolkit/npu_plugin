@@ -40,7 +40,7 @@ namespace mv
         .setArg<unsigned>("bias")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable", "exposed"});
+        .setTypeTrait({"executable", "exposed", "automatic_api"});
 
     }
 
