@@ -27,7 +27,7 @@ namespace mv
             mv::op::OpRegistry::getOutputsDef(opType, inputs, args, outputs);
         };
     
-        MV_REGISTER_OP(VPUTask)
+        MV_REGISTER_OP(DPUTask)
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setArg<std::string>("taskOp")
