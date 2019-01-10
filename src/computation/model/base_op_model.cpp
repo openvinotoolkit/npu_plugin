@@ -38,7 +38,7 @@ mv::Data::OpListIterator mv::BaseOpModel::getSourceOp(Data::TensorIterator tenso
 }
 
 mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, const std::vector<Data::TensorIterator>& inputs,
-            std::initializer_list<std::pair<std::string, Attribute>> args, std::string name)
+            const std::vector<std::pair<std::string, Attribute>> & args, std::string name)
 {
 
     if (name.empty())

@@ -1,8 +1,8 @@
 #include "include/mcm/computation/op/op.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-mv::Op::Op(ComputationModel& model, const std::string& opType, const std::string& name, 
-    const std::vector<Data::TensorIterator>& inputs, std::initializer_list<std::pair<std::string, Attribute>> args) :
+mv::Op::Op(ComputationModel& model, const std::string& opType, const std::string& name,
+    const std::vector<Data::TensorIterator>& inputs, const std::vector<std::pair<std::string, Attribute>> & args) :
 ModelElement(model, name)
 {
     log(Logger::MessageType::Debug, "Initialized");

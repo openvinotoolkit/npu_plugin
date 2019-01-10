@@ -24,7 +24,7 @@ namespace mv
     public:
 
         Op(ComputationModel& model, const std::string& opType, const std::string& name, 
-            const std::vector<Data::TensorIterator>& inputs, std::initializer_list<std::pair<std::string, Attribute>> args = {});
+            const std::vector<Data::TensorIterator>& inputs, const std::vector<std::pair<std::string, Attribute>> & args);
 
         virtual ~Op();
 
