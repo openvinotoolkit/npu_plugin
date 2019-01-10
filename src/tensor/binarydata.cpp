@@ -15,7 +15,7 @@ mv::BinaryData::BinaryData(mv::DType type) : type_(type)
             data_.fp16 = new std::vector<int16_t>();
             break;
         case mv::DTypeType::Float8:
-            data_.f8 = new std::vector<uint8_t>();
+            data_.fp8 = new std::vector<uint8_t>();
             break;
         case mv::DTypeType::UInt64:
             data_.u64 = new std::vector<uint64_t>();
@@ -92,8 +92,8 @@ void mv::BinaryData::deleteData_()
                 delete data_.fp16;
             break;
         case mv::DTypeType::Float8:
-            if (data_.f8 != nullptr)
-                delete data_.f8;
+            if (data_.fp8 != nullptr)
+                delete data_.fp8;
             break;
         case mv::DTypeType::UInt64:
             if (data_.u64 != nullptr)
@@ -190,7 +190,7 @@ void mv::BinaryData::setCorrectPointer_(
             fp16 = data_.fp16;
             break;
         case mv::DTypeType::Float8:
-            fp8 = data_.f8;
+            fp8 = data_.fp8;
             break;
         case mv::DTypeType::UInt64:
             u64 = data_.u64;
@@ -295,11 +295,11 @@ std::vector<int16_t> * mv::BinaryData::fp16() const
     return data_.fp16;
 }
 
-std::vector<uint8_t> * mv::BinaryData::f8() const
+std::vector<uint8_t> * mv::BinaryData::fp8() const
 {
     if (type_ != mv::DTypeType::Float8)
-        throwDTypeMismatch_("f8");
-    return data_.f8;
+        throwDTypeMismatch_("fp8");
+    return data_.fp8;
 }
 
 std::vector<uint64_t> * mv::BinaryData::u64() const
@@ -430,8 +430,8 @@ void mv::BinaryData::setData_(const BinaryData &other)
             *data_.fp16 = *other.data_.fp16;
             break;
         case mv::DTypeType::Float8:
-            data_.f8 = new std::vector<uint8_t>();
-            *data_.f8 = *other.data_.f8;
+            data_.fp8 = new std::vector<uint8_t>();
+            *data_.fp8 = *other.data_.fp8;
             break;
         case mv::DTypeType::UInt64:
             data_.u64 = new std::vector<uint64_t>();

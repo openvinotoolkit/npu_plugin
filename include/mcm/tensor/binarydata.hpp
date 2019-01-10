@@ -17,7 +17,7 @@ namespace mv
             std::vector<double>* fp64;
             std::vector<float>* fp32;
             std::vector<int16_t>* fp16;
-            std::vector<uint8_t>* f8;
+            std::vector<uint8_t>* fp8;
             std::vector<uint64_t>* u64;
             std::vector<uint32_t>* u32;
             std::vector<uint16_t>* u16;
@@ -69,7 +69,7 @@ namespace mv
         std::vector<double> *fp64() const;
         std::vector<float> *fp32() const;
         std::vector<int16_t> *fp16() const;
-        std::vector<uint8_t> *f8() const;
+        std::vector<uint8_t> *fp8() const;
         std::vector<uint64_t> *u64() const;
         std::vector<uint32_t> *u32() const;
         std::vector<uint16_t> *u16() const;
