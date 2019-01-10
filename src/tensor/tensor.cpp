@@ -496,7 +496,7 @@ std::string mv::Tensor::getLogID() const
     return "Tensor:" + getName();
 }
 
- mv::BinaryData mv::Tensor::toBinary()
+ mv::BinaryData* mv::Tensor::toBinary()
  {
     return getDType().toBinary(getData());
  }

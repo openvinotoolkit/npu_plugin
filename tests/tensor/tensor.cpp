@@ -4,7 +4,7 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
-
+#include "include/mcm/tensor/binarydata.hpp"
 
 TEST(tensor, populating)
 {
@@ -642,9 +642,9 @@ TEST(tensor, to_binary)
 
     mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
     t.populate(data);
-    mv::BinaryData bdata = t.toBinary();
+    mv::BinaryData* bdata = t.toBinary();
     mv_num_convert cvtr;
-    std::vector<int16_t>* fp16_data = bdata.fp16();
+    std::vector<int16_t>* fp16_data = bdata->fp16();
     for (unsigned i = 0; i < fp16_data->size(); i++)
         EXPECT_EQ((*fp16_data)[i], cvtr.fp32_to_fp16(data[i]));
 
