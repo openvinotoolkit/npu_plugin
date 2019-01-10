@@ -18,3 +18,9 @@ mv::Data::TensorIterator mv::createDPUTask(mv::BaseOpModel& om, mv::Data::OpList
 
     return createDPUTask(om, opIt->getInputTensor(), opIt->getOpType(), list, name);
 }
+
+
+mv::Data::TensorIterator mv::createDMATask(mv::BaseOpModel& om, mv::Data::TensorIterator data0, mv::DmaDirection direction, const std::string& name)
+{
+    return om.defineOp("DMATask", {data0}, {{"direction", direction}}, name);
+}

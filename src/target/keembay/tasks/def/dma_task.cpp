@@ -26,9 +26,7 @@ namespace mv
 
         };
     
-        //TODO: Create Enum with directions
-
-        MV_REGISTER_OP(DmaTask)
+        MV_REGISTER_OP(DMATask)
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::DmaDirection>("direction")
