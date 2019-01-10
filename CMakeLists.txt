@@ -105,7 +105,10 @@ file (GLOB model
     "src/computation/resource/nce1_utils.cpp"
     "src/computation/op/op.cpp"
     "src/computation/model/model_element.cpp"
-   
+    "src/target/keembay/attribute_def/*.cpp"
+    "src/target/keembay/tasks/*.cpp"
+    "src/target/keembay/tasks/def/*.cpp"
+    "src/target/keembay/types/*.cpp"
 )
 
 

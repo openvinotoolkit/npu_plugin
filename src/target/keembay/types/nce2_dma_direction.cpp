@@ -1,7 +1,7 @@
-#include "include/mcm/target/keembay/nce2_dma_direction.hpp"
+#include "include/mcm/target/keembay/types/nce2_dma_direction.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-const std::unordered_map<mv::DmaDirectionEnum, std::string, mv::DmaDirectionEnumHash> dmaDirectionStrings_ =
+const std::unordered_map<mv::DmaDirectionEnum, std::string, mv::DmaDirectionEnumHash> mv::DmaDirection::dmaDirectionStrings_ =
 {
     {mv::DmaDirectionEnum::CMX2DDR, "CMX2DDR"},
     {mv::DmaDirectionEnum::DDR2CMX, "DDR2CMX"},
