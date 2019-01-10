@@ -1,8 +1,67 @@
 #include "include/mcm/tensor/binarydata.hpp"
+#include "include/mcm/base/exception/binarydata_error.hpp"
 
-mv::BinaryData::BinaryData(mv::DTypeType type) : type_(type), data_{nullptr}
+mv::BinaryData::BinaryData(mv::DTypeType type) : type_(type)
 {
-
+    switch(type_) {
+        case mv::DTypeType::Float64:
+            data_.fp64 = new std::vector<double>();
+            break;
+        case mv::DTypeType::Float32:
+            data_.fp32 = new std::vector<float>();
+            break;
+        case mv::DTypeType::Float16:
+            data_.fp16 = new std::vector<int16_t>();
+            break;
+        case mv::DTypeType::Float8:
+            data_.f8 = new std::vector<uint8_t>();
+            break;
+        case mv::DTypeType::UInt64:
+            data_.u64 = new std::vector<uint64_t>();
+            break;
+        case mv::DTypeType::UInt32:
+            data_.u32 = new std::vector<uint32_t>();
+            break;
+        case mv::DTypeType::UInt16:
+            data_.u16 = new std::vector<uint16_t>();
+            break;
+        case mv::DTypeType::UInt8:
+            data_.u8 = new std::vector<uint8_t>();
+            break;
+        case mv::DTypeType::Int64:
+            data_.i64 = new std::vector<uint64_t>();
+            break;
+        case mv::DTypeType::Int32:
+            data_.i32 = new std::vector<int32_t>();
+            break;
+        case mv::DTypeType::Int16:
+            data_.i16 = new std::vector<int16_t>();
+            break;
+        case mv::DTypeType::Int8:
+            data_.i8 = new std::vector<int8_t>();
+            break;
+        case mv::DTypeType::Int4:
+            data_.i4 = new std::vector<int8_t>();
+            break;
+        case mv::DTypeType::Int2:
+            data_.i2 = new std::vector<int8_t>();
+            break;
+        case mv::DTypeType::Int4X:
+            data_.i4x = new std::vector<int8_t>();
+            break;
+        case mv::DTypeType::Int2X:
+            data_.i2x = new std::vector<int8_t>();
+            break;
+        case mv::DTypeType::Bin:
+            data_.bin = new std::vector<int8_t>();
+            break;
+        case mv::DTypeType::Log:
+            data_.log = new std::vector<int8_t>();
+            break;
+        default:
+            throw BinaryDataError("BinaryData","DTypeType Not supported");
+            break;
+    }
 }
 mv::BinaryData::~BinaryData()
 {
