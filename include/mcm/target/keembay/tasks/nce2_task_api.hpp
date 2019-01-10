@@ -6,7 +6,7 @@
 
 namespace mv
 {
-    Data::TensorIterator createDPUTask(const BaseOpModel& om, Data::OpListIterator opIt, const std::string& name = "");
+    Data::TensorIterator createDPUTask(BaseOpModel &om, Data::OpListIterator opIt, const std::string& name = "");
     Data::TensorIterator createDMATask(const BaseOpModel& om, Data::TensorIterator data0, DmaDirection direction, const std::string& name = "");
 }
 
