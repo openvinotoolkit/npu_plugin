@@ -32,26 +32,6 @@ namespace mv
         std::vector<int8_t>* bin_;
         std::vector<int8_t>* log_;
 
-        void setCorrectPointer_(
-            std::vector<double> *fp64,
-            std::vector<float> *fp32,
-            std::vector<int16_t> *fp16,
-            std::vector<uint8_t> * fp8,
-            std::vector<uint64_t> *u64,
-            std::vector<uint32_t> *u32,
-            std::vector<uint16_t> *u16,
-            std::vector<uint8_t> *u8,
-            std::vector<uint64_t> *i64,
-            std::vector<int32_t> *i32,
-            std::vector<int16_t> *i16,
-            std::vector<int8_t> *i8,
-            std::vector<int8_t> *i4,
-            std::vector<int8_t> *i2,
-            std::vector<int8_t> *i2x,
-            std::vector<int8_t> *i4x,
-            std::vector<int8_t> *bin,
-            std::vector<int8_t> *logData);
-
         void deleteData_();
         void setData_(const BinaryData &other);
 
@@ -83,7 +63,6 @@ namespace mv
         std::vector<int8_t>& log() const;
 
         BinaryData& operator=(const BinaryData& other);
-        flatbuffers::Offset<MVCNN::BinaryData> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb);
     };
 }
 
