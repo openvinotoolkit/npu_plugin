@@ -13,26 +13,24 @@ namespace mv
     private:
 
         DType type_;
-        union Data {
-            std::vector<double>* fp64;
-            std::vector<float>* fp32;
-            std::vector<int16_t>* fp16;
-            std::vector<uint8_t>* fp8;
-            std::vector<uint64_t>* u64;
-            std::vector<uint32_t>* u32;
-            std::vector<uint16_t>* u16;
-            std::vector<uint8_t>* u8;
-            std::vector<uint64_t>* i64;
-            std::vector<int32_t>* i32;
-            std::vector<int16_t>* i16;
-            std::vector<int8_t>* i8;
-            std::vector<int8_t>* i4;
-            std::vector<int8_t>* i2;
-            std::vector<int8_t>* i2x;
-            std::vector<int8_t>* i4x;
-            std::vector<int8_t>* bin;
-            std::vector<int8_t>* log;
-        } data_;
+        std::vector<double>* fp64_;
+        std::vector<float>* fp32_;
+        std::vector<int16_t>* fp16_;
+        std::vector<uint8_t>* fp8_;
+        std::vector<uint64_t>* u64_;
+        std::vector<uint32_t>* u32_;
+        std::vector<uint16_t>* u16_;
+        std::vector<uint8_t>* u8_;
+        std::vector<uint64_t>* i64_;
+        std::vector<int32_t>* i32_;
+        std::vector<int16_t>* i16_;
+        std::vector<int8_t>* i8_;
+        std::vector<int8_t>* i4_;
+        std::vector<int8_t>* i2_;
+        std::vector<int8_t>* i2x_;
+        std::vector<int8_t>* i4x_;
+        std::vector<int8_t>* bin_;
+        std::vector<int8_t>* log_;
 
         void setCorrectPointer_(
             std::vector<double> *fp64,
