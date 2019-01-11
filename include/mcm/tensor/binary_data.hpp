@@ -56,7 +56,6 @@ namespace mv
 
         void deleteData_();
         void setData_(const BinaryData &other);
-        void throwDTypeMismatch_(const std::string& other) const;
 
     public:
 
