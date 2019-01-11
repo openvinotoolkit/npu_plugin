@@ -338,130 +338,130 @@ flatbuffers::Offset<MVCNN::BinaryData> mv::BinaryData::convertToFlatbuffer(flatb
     return MVCNN::CreateBinaryDataDirect(fbb, fp64, fp32, fp16, fp8, u64, u32, u16, u8, i64, i32, i16, i8, i4, i2, i2x, i4x, bin, logData);
 }
 
-std::vector<double> * mv::BinaryData::fp64() const
+std::vector<double>& mv::BinaryData::fp64() const
 {
     if (type_ != mv::DTypeType::Float64)
         throw BinaryDataError("BinaryData","Requesting data of dtype Float64 but binarydata dtype is " + type_.toString());
-    return fp64_;
+    return *fp64_;
 }
 
-std::vector<float> * mv::BinaryData::fp32() const
+std::vector<float>& mv::BinaryData::fp32() const
 {
     if (type_ != mv::DTypeType::Float32)
         throw BinaryDataError("BinaryData","Requesting data of dtype Float32 but binarydata dtype is " + type_.toString());
-    return fp32_;
+    return *fp32_;
 }
 
-std::vector<int16_t> * mv::BinaryData::fp16() const
+std::vector<int16_t>& mv::BinaryData::fp16() const
 {
     if (type_ != mv::DTypeType::Float16)
         throw BinaryDataError("BinaryData","Requesting data of dtype Float16 but binarydata dtype is " + type_.toString());
-    return fp16_;
+    return *fp16_;
 }
 
-std::vector<uint8_t> * mv::BinaryData::fp8() const
+std::vector<uint8_t>& mv::BinaryData::fp8() const
 {
     if (type_ != mv::DTypeType::Float8)
         throw BinaryDataError("BinaryData","Requesting data of dtype Float8 but binarydata dtype is " + type_.toString());
-    return fp8_;
+    return *fp8_;
 }
 
-std::vector<uint64_t> * mv::BinaryData::u64() const
+std::vector<uint64_t>& mv::BinaryData::u64() const
 {
     if (type_ != mv::DTypeType::UInt64)
         throw BinaryDataError("BinaryData","Requesting data of dtype UInt64 but binarydata dtype is " + type_.toString());
-    return u64_;
+    return *u64_;
 }
 
-std::vector<uint32_t> * mv::BinaryData::u32() const
+std::vector<uint32_t>& mv::BinaryData::u32() const
 {
     if (type_ != mv::DTypeType::UInt32)
         throw BinaryDataError("BinaryData","Requesting data of dtype UInt32 but binarydata dtype is " + type_.toString());
-    return u32_;
+    return *u32_;
 }
 
-std::vector<uint16_t> * mv::BinaryData::u16() const
+std::vector<uint16_t>& mv::BinaryData::u16() const
 {
     if (type_ != mv::DTypeType::UInt16)
         throw BinaryDataError("BinaryData","Requesting data of dtype UInt16 but binarydata dtype is " + type_.toString());
-    return u16_;
+    return *u16_;
 }
 
-std::vector<uint8_t> * mv::BinaryData::u8() const
+std::vector<uint8_t>& mv::BinaryData::u8() const
 {
     if (type_ != mv::DTypeType::UInt8)
         throw BinaryDataError("BinaryData","Requesting data of dtype UInt8 but binarydata dtype is " + type_.toString());
-    return u8_;
+    return *u8_;
 }
 
-std::vector<uint64_t> * mv::BinaryData::i64() const
+std::vector<uint64_t>& mv::BinaryData::i64() const
 {
     if (type_ != mv::DTypeType::Int64)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int64 but binarydata dtype is " + type_.toString());
-    return i64_;
+    return *i64_;
 }
 
-std::vector<int32_t> * mv::BinaryData::i32() const
+std::vector<int32_t>& mv::BinaryData::i32() const
 {
     if (type_ != mv::DTypeType::Int32)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int32 but binarydata dtype is " + type_.toString());
-    return i32_;
+    return *i32_;
 }
 
-std::vector<int16_t> * mv::BinaryData::i16() const
+std::vector<int16_t>& mv::BinaryData::i16() const
 {
     if (type_ != mv::DTypeType::Int16)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int16 but binarydata dtype is " + type_.toString());
-    return i16_;
+    return *i16_;
 }
 
-std::vector<int8_t> * mv::BinaryData::i8() const
+std::vector<int8_t>& mv::BinaryData::i8() const
 {
     if (type_ != mv::DTypeType::Int8)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int8 but binarydata dtype is " + type_.toString());
-    return i8_;
+    return *i8_;
 }
 
-std::vector<int8_t> * mv::BinaryData::i4() const
+std::vector<int8_t>& mv::BinaryData::i4() const
 {
     if (type_ != mv::DTypeType::Int4)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int4 but binarydata dtype is " + type_.toString());
-    return i4_;
+    return *i4_;
 }
 
-std::vector<int8_t> * mv::BinaryData::i2() const
+std::vector<int8_t>& mv::BinaryData::i2() const
 {
     if (type_ != mv::DTypeType::Int2)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int2 but binarydata dtype is " + type_.toString());
-    return i2_;
+    return *i2_;
 }
 
-std::vector<int8_t> * mv::BinaryData::i2x() const
+std::vector<int8_t>& mv::BinaryData::i2x() const
 {
     if (type_ != mv::DTypeType::Int2X)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int2X but binarydata dtype is " + type_.toString());
-    return i2x_;
+    return *i2x_;
 }
 
-std::vector<int8_t> * mv::BinaryData::i4x() const
+std::vector<int8_t>& mv::BinaryData::i4x() const
 {
     if (type_ != mv::DTypeType::Int4X)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int4X but binarydata dtype is " + type_.toString());
-    return i4x_;
+    return *i4x_;
 }
 
-std::vector<int8_t> * mv::BinaryData::bin() const
+std::vector<int8_t>& mv::BinaryData::bin() const
 {
     if (type_ != mv::DTypeType::Bin)
         throw BinaryDataError("BinaryData","Requesting data of dtype Bin but binarydata dtype is " + type_.toString());
-    return bin_;
+    return *bin_;
 }
 
-std::vector<int8_t> * mv::BinaryData::log() const
+std::vector<int8_t>& mv::BinaryData::log() const
 {
     if (type_ != mv::DTypeType::Log)
         throw BinaryDataError("BinaryData","Requesting data of dtype Log but binarydata dtype is " + type_.toString());
-    return log_;
+    return *log_;
 }
 
  mv::BinaryData& mv::BinaryData::operator=(const mv::BinaryData& other)

@@ -63,24 +63,24 @@ namespace mv
 
         DType getDType() const;
 
-        std::vector<double> *fp64() const;
-        std::vector<float> *fp32() const;
-        std::vector<int16_t> *fp16() const;
-        std::vector<uint8_t> *fp8() const;
-        std::vector<uint64_t> *u64() const;
-        std::vector<uint32_t> *u32() const;
-        std::vector<uint16_t> *u16() const;
-        std::vector<uint8_t> *u8() const;
-        std::vector<uint64_t> *i64() const;
-        std::vector<int32_t> *i32() const;
-        std::vector<int16_t> *i16() const;
-        std::vector<int8_t> *i8() const;
-        std::vector<int8_t> *i4() const;
-        std::vector<int8_t> *i2() const;
-        std::vector<int8_t> *i2x() const;
-        std::vector<int8_t> *i4x() const;
-        std::vector<int8_t> *bin() const;
-        std::vector<int8_t> *log() const;
+        std::vector<double>& fp64() const;
+        std::vector<float>& fp32() const;
+        std::vector<int16_t>& fp16() const;
+        std::vector<uint8_t>& fp8() const;
+        std::vector<uint64_t>& u64() const;
+        std::vector<uint32_t>& u32() const;
+        std::vector<uint16_t>& u16() const;
+        std::vector<uint8_t>& u8() const;
+        std::vector<uint64_t>& i64() const;
+        std::vector<int32_t>& i32() const;
+        std::vector<int16_t>& i16() const;
+        std::vector<int8_t>& i8() const;
+        std::vector<int8_t>& i4() const;
+        std::vector<int8_t>& i2() const;
+        std::vector<int8_t>& i2x() const;
+        std::vector<int8_t>& i4x() const;
+        std::vector<int8_t>& bin() const;
+        std::vector<int8_t>& log() const;
 
         BinaryData& operator=(const BinaryData& other);
         flatbuffers::Offset<MVCNN::BinaryData> convertToFlatbuffer(flatbuffers::FlatBufferBuilder& fbb);

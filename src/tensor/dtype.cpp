@@ -32,7 +32,7 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData*(const std::
         mv_num_convert cvtr;
         for_each(vals.begin(), vals.end(), [&](double  val)
         {
-            res->fp16()->push_back(cvtr.fp32_to_fp16(val));
+            res->fp16().push_back(cvtr.fp32_to_fp16(val));
         });
         return res;
     }}
