@@ -4,7 +4,7 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
-#include "include/mcm/tensor/binarydata.hpp"
+#include "include/mcm/tensor/binary_data.hpp"
 
 TEST(tensor, populating)
 {

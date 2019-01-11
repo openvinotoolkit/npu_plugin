@@ -1,6 +1,6 @@
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
-#include "include/mcm/tensor/binarydata.hpp"
+#include "include/mcm/tensor/binary_data.hpp"
 
 const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DType::dTypeStrings_ =
 {

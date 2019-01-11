@@ -1,4 +1,4 @@
-#include "include/mcm/tensor/binarydata.hpp"
+#include "include/mcm/tensor/binary_data.hpp"
 #include "include/mcm/base/exception/binarydata_error.hpp"
 
 mv::BinaryData::BinaryData(mv::DType type) : type_(type)
