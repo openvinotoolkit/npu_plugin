@@ -819,9 +819,9 @@ TEST(tensor, to_binary_i64)
     mv::Tensor t("t", tShape, mv::DTypeType::Int64, mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
-    const std::vector<uint64_t>& i64_data = bdata.i64();
+    const std::vector<int64_t>& i64_data = bdata.i64();
     for (unsigned i = 0; i < i64_data.size(); i++)
-        EXPECT_EQ(i64_data[i], (uint64_t) data[i]);
+        EXPECT_EQ(i64_data[i], (int64_t) data[i]);
 }
 
 TEST(tensor, to_binary_i32)

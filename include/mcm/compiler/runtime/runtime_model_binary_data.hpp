@@ -197,7 +197,9 @@ namespace mv
                 break;
 
             case mv::DTypeType::Int64:
-                i64 = new std::vector<uint64_t>(ref->i64());
+                //TODO fix it when flatbuffer type is fixed
+                //i64 = new std::vector<int64_t>(ref->i64());
+                i64 = new std::vector<uint64_t>();
                 break;
 
             case mv::DTypeType::Int32:

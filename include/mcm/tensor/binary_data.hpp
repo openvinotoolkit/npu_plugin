@@ -21,7 +21,7 @@ namespace mv
         std::vector<uint32_t>* u32_;
         std::vector<uint16_t>* u16_;
         std::vector<uint8_t>* u8_;
-        std::vector<uint64_t>* i64_;
+        std::vector<int64_t>* i64_;
         std::vector<int32_t>* i32_;
         std::vector<int16_t>* i16_;
         std::vector<int8_t>* i8_;
@@ -54,7 +54,7 @@ namespace mv
         const std::vector<uint32_t>& u32() const;
         const std::vector<uint16_t>& u16() const;
         const std::vector<uint8_t>& u8() const;
-        const std::vector<uint64_t>& i64() const;
+        const std::vector<int64_t>& i64() const;
         const std::vector<int32_t>& i32() const;
         const std::vector<int16_t>& i16() const;
         const std::vector<int8_t>& i8() const;
@@ -73,7 +73,7 @@ namespace mv
         void setU32(const std::vector<uint32_t>&);
         void setU16(const std::vector<uint16_t>&);
         void setU8(const std::vector<uint8_t>&);
-        void setI64(const std::vector<uint64_t>&);
+        void setI64(const std::vector<int64_t>&);
         void setI32(const std::vector<int32_t>&);
         void setI16(const std::vector<int16_t>&);
         void setI8(const std::vector<int8_t>&);

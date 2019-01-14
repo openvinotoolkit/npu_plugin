@@ -83,7 +83,7 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
     }},
     {DTypeType::Int64, [](const std::vector<double> & vals)->mv::BinaryData
     {
-        std::vector<uint64_t> res(vals.begin(), vals.end());
+        std::vector<int64_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::Int64);
         bdata.setI64(res);
         return bdata;

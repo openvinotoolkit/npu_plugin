@@ -57,7 +57,7 @@ mv::BinaryData::BinaryData(mv::DTypeType type) : type_(type),
             break;
 
         case mv::DTypeType::Int64:
-            i64_ = new std::vector<uint64_t>();
+            i64_ = new std::vector<int64_t>();
             break;
 
         case mv::DTypeType::Int32:
@@ -292,7 +292,7 @@ const std::vector<uint8_t>& mv::BinaryData::u8() const
     return *u8_;
 }
 
-const std::vector<uint64_t>& mv::BinaryData::i64() const
+const std::vector<int64_t>& mv::BinaryData::i64() const
 {
     if (type_ != mv::DTypeType::Int64)
         throw BinaryDataError("BinaryData","Requesting data of dtype Int64 but binarydata dtype is " + mv::DType(type_).toString());
@@ -418,7 +418,7 @@ void mv::BinaryData::setU8(const std::vector<uint8_t>&  other)
 
     *u8_ = other;
 }
-void mv::BinaryData::setI64(const std::vector<uint64_t>&  other)
+void mv::BinaryData::setI64(const std::vector<int64_t>&  other)
 {
     if (type_ != mv::DTypeType::Int64)
         throw BinaryDataError("BinaryData","Setting data of dtype Int64 but binarydata dtype is " + mv::DType(type_).toString());
@@ -553,7 +553,7 @@ void mv::BinaryData::setData_(const BinaryData &other)
             break;
 
         case mv::DTypeType::Int64:
-            i64_ = new std::vector<uint64_t>();
+            i64_ = new std::vector<int64_t>();
             *i64_ = *other.i64_;
             break;
 

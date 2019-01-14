@@ -100,19 +100,19 @@ TEST(binary_data, u8)
 
 TEST(binary_data, i64)
 {
-    uint64_t start = 0;
-    uint64_t diff = 2;
-    std::vector<uint64_t> data = mv::utils::generateSequence<uint64_t>(100, start, diff);
+    int64_t start = -10;
+    int64_t diff = 2;
+    std::vector<int64_t> data = mv::utils::generateSequence<int64_t>(100, start, diff);
     mv::BinaryData bdata(mv::DTypeType::Int64);
     bdata.setI64(data);
-    std::vector<uint64_t> ret = bdata.i64();
+    std::vector<int64_t> ret = bdata.i64();
     for (unsigned i = 0; i < data.size(); ++i)
         ASSERT_EQ(data[i], ret[i]);
 }
 
 TEST(binary_data, i32)
 {
-    int32_t start = 0;
+    int32_t start = -10;
     int32_t diff = 2;
     std::vector<int32_t> data = mv::utils::generateSequence<int32_t>(100, start, diff);
     mv::BinaryData bdata(mv::DTypeType::Int32);
