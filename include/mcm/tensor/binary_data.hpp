@@ -34,6 +34,7 @@ namespace mv
 
         void deleteData_();
         void setData_(const BinaryData &other);
+        void swap_(BinaryData& other);
 
     public:
 
@@ -84,7 +85,6 @@ namespace mv
         void setLog(const std::vector<int8_t>&);
 
         BinaryData& operator=(BinaryData other);
-        void swap_(BinaryData& other);
     };
 }
 
