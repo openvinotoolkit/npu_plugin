@@ -108,6 +108,34 @@ mv::BinaryData::BinaryData(const BinaryData &other): type_(other.type_)
     setData_(other);
 }
 
+mv::BinaryData::BinaryData(BinaryData &&other): BinaryData()
+{
+    swap_(other);
+}
+
+void mv::BinaryData::swap_(BinaryData& other)
+{
+    std::swap(this->type_ , other.type_);
+    std::swap(this->fp64_ , other.fp64_);
+    std::swap(this->fp32_ , other.fp32_);
+    std::swap(this->fp16_ , other.fp16_);
+    std::swap(this->fp8_ , other.fp8_);
+    std::swap(this->u64_ , other.u64_);
+    std::swap(this->u32_ , other.u32_);
+    std::swap(this->u16_ , other.u16_);
+    std::swap(this->u8_ , other.u8_ );
+    std::swap(this->i64_ , other.i64_);
+    std::swap(this->i32_ , other.i32_);
+    std::swap(this->i16_ , other.i16_);
+    std::swap(this->i8_ , other.i8_ );
+    std::swap(this->i4_ , other.i4_ );
+    std::swap(this->i2_ , other.i2_ );
+    std::swap(this->i2x_ , other.i2x_);
+    std::swap(this->i4x_ , other.i4x_);
+    std::swap(this->bin_ , other.bin_);
+    std::swap(this->log_ , other.log_);
+}
+
 mv::BinaryData::~BinaryData()
 {
     deleteData_();
@@ -334,14 +362,9 @@ std::vector<int8_t>& mv::BinaryData::log() const
     return *log_;
 }
 
- mv::BinaryData& mv::BinaryData::operator=(const mv::BinaryData& other)
+ mv::BinaryData& mv::BinaryData::operator=(mv::BinaryData other)
  {
-    if (this != &other)
-    {
-        deleteData_();
-        type_ = other.type_;
-        setData_(other);
-    }
+    swap_(other);
     return *this;
  }
 

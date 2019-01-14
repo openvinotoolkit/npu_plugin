@@ -37,8 +37,9 @@ namespace mv
 
     public:
 
-        BinaryData(DType type);
+        BinaryData(DType type = mv::DTypeType::Float16);
         BinaryData(const BinaryData &other);
+        BinaryData(BinaryData &&other);
         ~BinaryData();
 
         DType getDType() const;
@@ -62,7 +63,8 @@ namespace mv
         std::vector<int8_t>& bin() const;
         std::vector<int8_t>& log() const;
 
-        BinaryData& operator=(const BinaryData& other);
+        BinaryData& operator=(BinaryData other);
+        void swap_(BinaryData& other);
     };
 }
 
