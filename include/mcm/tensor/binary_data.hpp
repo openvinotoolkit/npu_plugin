@@ -2,7 +2,7 @@
 #define MV_TENSOR_BINARYDATA_HPP_
 #include <vector>
 #include <cstdint>
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtypetype.hpp"
 #include "meta/schema/graphfile/memoryManagement_generated.h"
 
 namespace mv
@@ -12,7 +12,7 @@ namespace mv
 
     private:
 
-        DType type_;
+        DTypeType type_;
         std::vector<double>* fp64_;
         std::vector<float>* fp32_;
         std::vector<int16_t>* fp16_;
@@ -37,12 +37,12 @@ namespace mv
 
     public:
 
-        BinaryData(DType type = mv::DTypeType::Float16);
+        BinaryData(DTypeType type = mv::DTypeType::Float16);
         BinaryData(const BinaryData &other);
         BinaryData(BinaryData &&other);
         ~BinaryData();
 
-        DType getDType() const;
+        DTypeType getDType() const;
 
         std::vector<double>& fp64() const;
         std::vector<float>& fp32() const;

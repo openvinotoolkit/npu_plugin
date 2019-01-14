@@ -110,7 +110,7 @@ namespace mv
         std::string toString() const override;
         virtual std::string getLogID() const override;
 
-        BinaryData* toBinary();
+        BinaryData toBinary();
 
     };
 

@@ -5,33 +5,11 @@
 #include <unordered_map>
 #include <functional>
 #include "include/mcm/base/exception/dtype_error.hpp"
+#include "include/mcm/tensor/dtypetype.hpp"
+#include "include/mcm/tensor/binary_data.hpp"
 
 namespace mv
 {
-    class BinaryData;
-
-    enum class DTypeType
-    {
-        Float64,
-        Float32,
-        Float16,
-        Float8,
-        UInt64,
-        UInt32,
-        UInt16,
-        UInt8,
-        Int64,
-        Int32,
-        Int16,
-        Int8,
-        Int4,
-        Int2,
-        Int2X,
-        Int4X,
-        Bin,
-        Log,
-    };
-
     struct DTypeTypeHash
     {
         template <typename T>
@@ -47,7 +25,7 @@ namespace mv
     private:
 
         static const std::unordered_map<DTypeType, std::string, DTypeTypeHash> dTypeStrings_;
-        static const std::unordered_map<DTypeType, std::function<BinaryData*(const std::vector<double>&)>,
+        static const std::unordered_map<DTypeType, std::function<BinaryData(const std::vector<double>&)>,
                 DTypeTypeHash> dTypeConvertors_;
         DTypeType dType_;
 
@@ -69,7 +47,7 @@ namespace mv
         operator DTypeType() const;
 
         std::string getLogID() const override;
-        BinaryData* toBinary(const std::vector<double>& data) const;
+        BinaryData toBinary(const std::vector<double>& data) const;
     };
 
 }
