@@ -103,7 +103,7 @@ mv::BinaryData::BinaryData(mv::DTypeType type) : type_(type),
     }
 }
 
-mv::BinaryData::BinaryData(const BinaryData &other): type_(other.type_)
+mv::BinaryData::BinaryData(const BinaryData &other): BinaryData(other.type_)
 {
     setData_(other);
 }
