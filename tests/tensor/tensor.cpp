@@ -644,7 +644,7 @@ TEST(tensor, to_binary)
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     mv_num_convert cvtr;
-    std::vector<int16_t>& fp16_data = bdata.fp16();
+    const std::vector<int16_t>& fp16_data = bdata.fp16();
     for (unsigned i = 0; i < fp16_data.size(); i++)
         EXPECT_EQ(fp16_data[i], cvtr.fp32_to_fp16(data[i]));
 

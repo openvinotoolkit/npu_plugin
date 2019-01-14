@@ -165,75 +165,75 @@ namespace mv
         switch(dtype)
         {
             case mv::DTypeType::Float64:
-                fp64 = &ref->fp64();
+                fp64 = new std::vector<double>(ref->fp64());
                 break;
 
             case mv::DTypeType::Float32:
-                fp32 = &ref->fp32();
+                fp32 = new std::vector<float>(ref->fp32());
                 break;
 
             case mv::DTypeType::Float16:
-                fp16 = &ref->fp16();
+                fp16 = new std::vector<int16_t>(ref->fp16());
                 break;
 
             case mv::DTypeType::Float8:
-                fp8 = &ref->fp8();
+                fp8 = new std::vector<uint8_t>(ref->fp8());
                 break;
 
             case mv::DTypeType::UInt64:
-                u64 = &ref->u64();
+                u64 = new std::vector<uint64_t>(ref->u64());
                 break;
 
             case mv::DTypeType::UInt32:
-                u32 = &ref->u32();
+                u32 = new std::vector<uint32_t>(ref->u32());
                 break;
 
             case mv::DTypeType::UInt16:
-                u16 = &ref->u16();
+                u16 = new std::vector<uint16_t>(ref->u16());
                 break;
 
             case mv::DTypeType::UInt8:
-                u8 = &ref->u8();
+                u8 = new std::vector<uint8_t>(ref->u8());
                 break;
 
             case mv::DTypeType::Int64:
-                i64 = &ref->i64();
+                i64 = new std::vector<uint64_t>(ref->i64());
                 break;
 
             case mv::DTypeType::Int32:
-                i32 = &ref->i32();
+                i32 = new std::vector<int32_t>(ref->i32());
                 break;
 
             case mv::DTypeType::Int16:
-                i16 = &ref->i16();
+                i16 = new std::vector<int16_t>(ref->i16());
                 break;
 
             case mv::DTypeType::Int8:
-                i8 = &ref->i8();
+                i8 = new std::vector<int8_t>(ref->i8());
                 break;
 
             case mv::DTypeType::Int4:
-                i4 = &ref->i4();
+                i4 = new std::vector<int8_t>(ref->i4());
                 break;
 
             case mv::DTypeType::Int2:
-                i2 = &ref->i2();
+                i2 = new std::vector<int8_t>(ref->i2());
                 break;
 
             case mv::DTypeType::Int4X:
-                i4x = &ref->i4x();
+                i4x = new std::vector<int8_t>(ref->i4x());
                 break;
 
             case mv::DTypeType::Int2X:
-                i2x = &ref->i2x();
+                i2x = new std::vector<int8_t>(ref->i2x());
                 break;
 
             case mv::DTypeType::Bin:
-                bin = &ref->bin();
+                bin = new std::vector<int8_t>(ref->bin());
                 break;
 
             case mv::DTypeType::Log:
-                logData = &ref->log();
+                logData = new std::vector<int8_t>(ref->log());
                 break;
 
 
