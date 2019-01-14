@@ -500,6 +500,14 @@ mv::DTypeType mv::BinaryData::getDType() const
     return type_;
 }
 
+void mv::BinaryData::setDType(mv::DTypeType type)
+{
+    if(type != type_) {
+        BinaryData temp(type);
+        swap_(temp);
+    }
+}
+
 void mv::BinaryData::setData_(const BinaryData &other)
 {
     switch(type_)

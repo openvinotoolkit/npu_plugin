@@ -43,6 +43,7 @@ namespace mv
         ~BinaryData();
 
         DTypeType getDType() const;
+        void setDType(DTypeType type);
 
         const std::vector<double>& fp64() const;
         const std::vector<float>& fp32() const;
