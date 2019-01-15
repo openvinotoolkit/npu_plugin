@@ -1,6 +1,7 @@
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/tensor/binary_data.hpp"
+#include "include/mcm/base/exception/dtype_error.hpp"
 
 const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DType::dTypeStrings_ =
 {
@@ -53,6 +54,11 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
         return bdata;
     }},
     //TODO add F8 conversion
+    {DTypeType::Float8, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Float8 is not supported yet");
+    }},
     {DTypeType::UInt64, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<uint64_t> res(vals.begin(), vals.end());
@@ -182,8 +188,28 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
         mv::BinaryData bdata(mv::DTypeType::Int2);
         bdata.setI2(res);
         return bdata;
-    }}
+    }},
     //TODO add Int2x,4x, Bin,Log
+    {DTypeType::Int2X, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Int2X is not supported yet");
+    }},
+    {DTypeType::Int4X, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Int4X is not supported yet");
+    }},
+    {DTypeType::Bin, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Bin is not supported yet");
+    }},
+    {DTypeType::Log, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Log is not supported yet");
+    }}
 };
 
 mv::DType::DType(DTypeType value) :

@@ -10,9 +10,10 @@ namespace mv
     {
 
     public:
-            
+
         explicit DTypeError(const LogSender& sender, const std::string& whatArg);
-        
+        explicit DTypeError(const std::string& senderID, const std::string& whatArg);
+
     };
 
 }

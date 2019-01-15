@@ -5,3 +5,8 @@ LoggedError(sender, "DTypeError: " + whatArg)
 {
 
 }
+mv::DTypeError::DTypeError(const std::string& senderID, const std::string& whatArg) :
+LoggedError(senderID, "DTypeError: " + whatArg)
+{
+
+}
