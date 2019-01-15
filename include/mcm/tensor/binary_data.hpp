@@ -84,6 +84,25 @@ namespace mv
         void setBin(const std::vector<int8_t>&);
         void setLog(const std::vector<int8_t>&);
 
+        void setFp64(std::vector<double>&&);
+        void setFp32(std::vector<float>&&);
+        void setFp16(std::vector<int16_t>&&);
+        void setFp8(std::vector<uint8_t>&&);
+        void setU64(std::vector<uint64_t>&&);
+        void setU32(std::vector<uint32_t>&&);
+        void setU16(std::vector<uint16_t>&&);
+        void setU8(std::vector<uint8_t>&&);
+        void setI64(std::vector<int64_t>&&);
+        void setI32(std::vector<int32_t>&&);
+        void setI16(std::vector<int16_t>&&);
+        void setI8(std::vector<int8_t>&&);
+        void setI4(std::vector<int8_t>&&);
+        void setI2(std::vector<int8_t>&&);
+        void setI2x(std::vector<int8_t>&&);
+        void setI4x(std::vector<int8_t>&&);
+        void setBin(std::vector<int8_t>&&);
+        void setLog(std::vector<int8_t>&&);
+
         BinaryData& operator=(BinaryData other);
     };
 
