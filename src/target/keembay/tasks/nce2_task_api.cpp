@@ -24,3 +24,8 @@ mv::Data::TensorIterator mv::createDMATask(mv::BaseOpModel& om, mv::Data::Tensor
 {
     return om.defineOp("DMATask", {data0}, {{"direction", direction}}, name);
 }
+
+mv::Data::TensorIterator mv::createBarrierTask(mv::BaseOpModel& om, const std::string& name)
+{
+    return om.defineOp("BarrierTask", {}, {}, name);
+}
