@@ -14,17 +14,18 @@ add_compile_options(-std=c++11)
 if (MSVC)
 
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
-    SET(VALIDATION false)
+    SET(VALIDATION true)
 
 else()
 
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
-    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
+    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
 
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
 if(VALIDATION)
 
@@ -71,12 +72,14 @@ file(GLOB base
     "src/base/json/null.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
+    "src/deployer/Fp16Convert.cpp"
     "src/base/exception/*.cpp"
     "src/utils/env_loader.cpp"
     "src/utils/custom_math.cpp"
     "src/base/element.cpp"
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
+    "src/tensor/binary_data.cpp"
     "src/tensor/order/*.cpp"
     "src/tensor/order/order_def/*.cpp"
     "src/tensor/math.cpp"
@@ -114,7 +117,6 @@ file (GLOB model
     #"src/target/keembay/types/*.cpp"
     "src/target/keembay/tasks/*.cpp"
 )
-
 
 file(GLOB logger
     "src/logger/logger.cpp"
@@ -154,6 +156,7 @@ if (MSVC)
     add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
     target_link_libraries(model corebase)
     add_dependencies(cm generate-comp-api)	
+    add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
 else()
 if(VALIDATION)
@@ -167,8 +170,10 @@ if(VALIDATION)
     add_library(dep SHARED ${deployer})
     target_link_libraries(dep mvnc)
     target_link_libraries(cm corebase metamodel)
+    target_link_libraries(cm corebase metamodel flatbuffers)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
+    add_dependencies(cm generate-graphfile-headers)
     target_link_libraries(cm ${Caffe_LIBRARIES} ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_REGEX_LIBRARY} ${PROTOBUF_LIBRARY})
     target_compile_definitions(cm PRIVATE CPU_ONLY=1)
     add_subdirectory(python/api)
@@ -180,9 +185,10 @@ else()
 
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
-    target_link_libraries(cm corebase metamodel)
+    target_link_libraries(cm corebase metamodel flatbuffers)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
+    add_dependencies(cm generate-graphfile-headers)
     add_subdirectory(python/api)
     add_subdirectory(tests)
     add_subdirectory(contrib/googletest)
@@ -193,3 +199,6 @@ endif(MSVC)
 
 add_subdirectory(examples)
 #add_subdirectory(docs/internal/tutorials)
+add_subdirectory(tools)
+add_subdirectory(schema)
+add_subdirectory(contrib/flatbuffers)

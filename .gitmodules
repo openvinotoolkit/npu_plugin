@@ -1,3 +1,6 @@
 [submodule "contrib/googletest"]
 	path = contrib/googletest
 	url = https://github.com/google/googletest
+[submodule "contrib/flatbuffers"]
+	path = contrib/flatbuffers
+	url = https://github.com/google/flatbuffers.git

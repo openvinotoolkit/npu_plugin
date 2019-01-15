@@ -1,0 +1,403 @@
+@startuml
+
+class RuntimeModel.RuntimeModel {
+  RuntimeModelHeader * header;
+  RuntimeModelTask*[][] tasklists;
+  RuntimeModelBarrier*[] barrierTable;
+  RuntimeModelBinaryData*[][] binaryData;
+}
+
+RuntimeModel.RuntimeModel *-- Task.Task
+RuntimeModel.RuntimeModel *-- Header.RuntimeModelHeader
+RuntimeModel.RuntimeModel *-- Barrier.Barrier
+
+
+
+class Header.RuntimeModelHeader{
+    unsigned majorV;
+    unsigned minorV;
+    unsigned patchV;
+    string hash;
+    RunTimeModelTensorReference*[] net_input;
+    RunTimeModelTensorReference*[] net_output;
+    unsigned taskCount;
+    unsigned layerCount;
+    unsigned shaveMask;
+    unsigned nce1Mask;
+    unsigned dpuMask;
+    unsigned leonCmx;
+    unsigned nnCmx;
+    unsigned ddrScratch;
+    Link*[] links;
+    unsigned[] firstID;
+}
+
+class Tensor.RuntimeModelTensorReference{
+    unsigned[] Dimensions;
+    unsigned[] Strides;
+    unsigned LeadingOffset;
+    unsigned TrailingOffset;
+    unsigned dataIndex;
+    unsigned sparsityIndex;
+    RuntimeModelMemoryLocation * locale;
+    RuntimeModelDType * dtype;
+    unsigned quantScale;
+    unsigned quantZero;
+    unsigned quantShift;
+}
+
+enum Tensor.RuntimeModelMemoryLocation {
+    NullLocation,
+    ProgrammableInput,
+    ProgrammableOutput,
+    VPU_DDR_HEAP,
+    GraphFile,
+    VPU_CMX_NN,
+    VPU_CMX_UPA,
+    VPU_DDR_BSS
+}
+
+enum Tensor.RuntimeModelDType {
+    NullDtype,
+    FP64,
+    FP32,
+    FP16,
+    FP8,
+    U64,
+    U32,
+    U16,
+    U8,
+    I64,
+    I32,
+    I16,
+    I8,
+    I4,
+    I2,
+    I4X,
+    BIN,
+    LOG,
+    I2X
+}
+
+class Task.Task{
+    unsigned[] sourceTaskIDs;
+    unsigned nodeID;
+    RuntimeModelBarrierReference * associatedBarriers;
+    RuntimeModelSpecificTask * task;
+}
+
+class Task.RuntimeModelSpecificTask{
+
+}
+
+Task.Task *-- Task.RuntimeModelSpecificTask
+
+class DMATask.RuntimeModelUPADMATask <extends RuntimeModelSpecificTask>{
+    RuntimeModelTensorReference * src;
+    RuntimeModelTensorReference * dst;
+}
+
+class DMATask.RuntimeModelNNDMATask <extends RuntimeModelSpecificTask>{
+    RuntimeModelTensorReference * src;
+    RuntimeModelTensorReference*[] dst;
+    bool compression;
+}
+
+
+Task.RuntimeModelSpecificTask <|-- DMATask.RuntimeModelUPADMATask 
+Task.RuntimeModelSpecificTask <|-- DMATask.RuntimeModelNNDMATask 
+
+class DPUTask.RuntimeModelDPUTask <extends RuntimeModelSpecificTask>{
+    RuntimeModelDPUInvariantFields * invariant;
+    RuntimeModelDPUVariantFields*[] variant;
+}
+
+enum DPUTask.RuntimeModelPPELayerType{
+    STORE,
+    LOAD,
+    CLEAR,
+    NOOP,
+    HALT,
+    ADD,
+    SUB,
+    MULT,
+    LRELU,
+    LRELUX,
+    LRPRELU,
+    MAXIMUM,
+    MINIMUM,
+    CEIL,
+    FLOOR,
+    AND,
+    OR,
+    XOR,
+    NOT,
+    ABS,
+    NEG,
+    POW,
+    EXP,
+    SIGMOID,
+    TANH,
+    SQRT,
+    RSQRT,
+    FLEXARB 
+}
+
+enum DPUTask.RuntimeModelDPULayerType{
+    CONV,
+    DWCONV,
+    MAXPOOL,
+    AVEPOOL,
+    FCL,
+    ELTWISE,
+    IDENTITY 
+}
+
+enum DPUTask.RuntimeModelMPEMode{
+    VECTOR,
+    MATRIX
+}
+
+class DPUTask.RuntimeModelPPEFixedFunction{
+    RuntimeModelPPELayerType*[] ops;
+    unsigned clampValueLow;
+    unsigned clampValueHigh;
+    unsigned ReLuNegSlope;
+    unsigned ReLuPosSlope;
+    unsigned pReLuAlpha;
+}
+
+
+class DPUTask.RuntimeModelPPEGenericTask{
+    RuntimeModelTensorReference * scaleData;
+    RuntimeModelPPEFixedFunction*[] fixedFunction;
+}
+
+class DPUTask.RuntimeModelDPUInvariantFields{
+    RuntimeModelDPULayerType * op;
+    RuntimeModelPPEGenericTask * ppeTask;
+    RuntimeModelNNTask*[] nnvShvTask;
+
+    unsigned kernelH;
+    unsigned kernelW;
+    unsigned kernelStrideH;
+    unsigned kernelStrideW;
+
+    RuntimeModelTensorReference * inputData;
+    RuntimeModelTensorReference * outputData;
+    RuntimeModelTensorReference * weightsData;
+    RuntimeModelTensorReference * biasData;
+}
+
+class DPUTask.RuntimeModelDPUVariantFields{
+    unsigned clusterID;
+    unsigned workloadID;
+    RuntimeModelMPEMode * mpeMode;
+    unsigned padLeft;
+    unsigned padRight;
+    unsigned padTop;
+    unsigned padBottom;
+    unsigned workloadStartX;
+    unsigned workloadEndX;
+    unsigned workloadStartY;
+    unsigned workloadEndY;
+    unsigned workloadStartZ;
+    unsigned workloadEndZ;
+}
+
+Task.RuntimeModelSpecificTask <|-- DPUTask.RuntimeModelDPUTask 
+
+class ControllerTask.RuntimeModelControllerTask <extends RuntimeModelSpecificTask>{
+    RuntimeModelControllerSubTask * task;
+}
+
+class ControllerTask.RuntimeModelControllerSubTask{
+
+}
+
+class ControllerTask.RuntimeModelTimerTask <extends RuntimeModelControllerSubTask>{
+    unsigned id;
+    RuntimeModelTensorReference * writeLocation;
+}
+
+class ControllerTask.RuntimeModelMemoryTask <extends RuntimeModelControllerSubTask>{
+    unsigned id;
+}
+
+class ControllerTask.RuntimeModelBarrierConfigurationTask <extends RuntimeModelControllerSubTask>{
+    RuntimeModelBarrier * target;
+}
+
+Task.RuntimeModelSpecificTask <|-- ControllerTask.RuntimeModelControllerTask
+
+class MvTensorTask.RuntimeModelMvTensorTask <extends RuntimeModelSpecificTask>{
+    RuntimeModelSoftwareLayer * layer;
+}
+
+Task.RuntimeModelSpecificTask <|-- MvTensorTask.RuntimeModelSoftwareLayer
+
+class RuntimeModelMvTensorTask.RuntimeModelSoftwareLayer{
+
+}
+
+class MvTensorTask.RuntimeModelCustomSoftware <extends RuntimeModelSoftwareLayer>{
+    unsigned[] data;
+    unsigned length;
+    unsigned id;    
+}
+
+class MvTensorTask.RuntimeModelConv2DSoftware <extends RuntimeModelSoftwareLayer>{
+    unsigned radixX;
+    unsigned radixY;
+    unsigned strideX;
+    unsigned strideY;
+    unsigned padX;
+    unsigned padY;
+    unsigned padStyle;
+    unsigned dilation;
+    RuntimeModelTensorReference * input;
+    RuntimeModelTensorReference * output;
+    RuntimeModelTensorReference * bias;
+    RuntimeModelTensorReference * weight;
+}
+
+class MvTensorTask.RuntimeModelPoolingSoftware <extends RuntimeModelSoftwareLayer>{
+    unsigned radixX;
+    unsigned radixY;
+    unsigned strideX;
+    unsigned strideY;
+    unsigned padX;
+    unsigned padY;
+    unsigned padStyle;
+    unsigned dilation;
+    RuntimeModelTensorReference * input;
+    RuntimeModelTensorReference * output;
+}
+
+class MvTensorTask.RuntimeModelReLuSoftware <extends RuntimeModelSoftwareLayer>{
+    unsigned strideX;
+    unsigned strideY;
+    unsigned opX;
+    RuntimeModelTensorReference * input;
+    RuntimeModelTensorReference * output;
+}
+
+class MvTensorTask.RuntimeModelPassthroughSoftware <extends RuntimeModelSoftwareLayer>{
+    RuntimeModelTensorReference * input;
+    RuntimeModelTensorReference * output;
+}
+
+class NCE1Task.RuntimeModelNCE1Task <extends RuntimeModelSpecificTask>{
+    RuntimeModelNCE1Layer * layer;
+}
+
+class NCE1Task.RuntimeModelNCE1Conv <extends RuntimeModelNCE1Layer>{
+    unsigned streamingMask;
+    unsigned inputSize;
+    unsigned outputSize;
+    unsigned concatOffset;
+    unsigned unloadCMX;
+    unsigned overwriteInput;
+    unsigned CMXSize;
+    unsigned reluSHVAcc;
+    unsigned shvNegSlope;
+    unsigned shvPosSlope;
+    unsigned descCount;
+    unsigned[] descriptors;
+    RuntimeModelTensorReference * input;
+    RuntimeModelTensorReference * output;
+    RuntimeModelTensorReference * weight;
+    RuntimeModelTensorReference * bias;
+} 
+
+class NCE1Task.RuntimeModelNCE1Pool <extends RuntimeModelNCE1Layer>{
+    unsigned streamingMask;
+    unsigned inputSize;
+    unsigned outputSize;
+    unsigned concatOffset;
+    unsigned unloadCMX;
+    unsigned overwriteInput;
+    unsigned CMXSize;
+    unsigned reluSHVAcc;
+    unsigned shvNegSlope;
+    unsigned shvPosSlope;
+    unsigned descCount;
+    unsigned[] descriptors;
+    RuntimeModelTensorReference * input;
+    RuntimeModelTensorReference * output;
+    RuntimeModelTensorReference * weight;
+    RuntimeModelTensorReference * bias;
+} 
+
+class NCE1Task.RuntimeModelNCE1FullyConnected <extends RuntimeModelNCE1Layer>{
+    unsigned streamingMask;
+    unsigned inputSize;
+    unsigned outputSize;
+    unsigned concatOffset;
+    unsigned unloadCMX;
+    unsigned overwriteInput;
+    unsigned CMXSize;
+    unsigned reluSHVAcc;
+    unsigned shvNegSlope;
+    unsigned shvPosSlope;
+    unsigned descCount;
+    unsigned[] descriptors;
+    RuntimeModelTensorReference * input;
+    RuntimeModelTensorReference * output;
+    RuntimeModelTensorReference * weight;
+    RuntimeModelTensorReference * bias;
+} 
+
+class NCE1Task.RuntimeModelNCE1Tensor{
+    unsigned dimX;
+    unsigned dimY;
+    unsigned dimZ;
+    unsigned strideX;
+    unsigned strideY;
+    unsigned offset;
+    unsigned location;
+    unsigned datatype;
+    unsigned order;
+}
+
+Task.RuntimeModelSpecificTask <|-- NCE1Task.RuntimeModelNCE1Task
+
+class NNTask.RuntimeModelNNTask <extends RuntimeModelSpecificTask>{
+    RuntimeModelPPEHelper * subtask;
+}
+
+class NNTask.RuntimeModelPPEHelper{
+}
+
+class NNTask.RuntimeModelPPEConfigure <extends RuntimeModelPPEHelper>{
+    unsigned[] vals;
+}
+
+class NNTask.RuntimeModelPPEAssist <extends RuntimeModelPPEHelper>{
+    unsigned op;
+}
+
+class Link.Link {
+    unsigned thisID;
+    string name;
+    unsigned[] sourceID;
+    unsigned[] sinkID;
+}
+
+class Barrier.Barrier{
+    unsigned barrierID;
+    unsigned consumerCount;
+    unsigned producedCount;
+}
+
+class Barrier.BarrierReference{
+    unsigned waitBarrier;
+    unsigned[] updateBarriers;
+}
+
+class BinaryData.BinaryData{
+    char * data;
+    RuntimeModelDtype dtype;
+}
+
+@enduml
