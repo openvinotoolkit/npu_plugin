@@ -2,6 +2,30 @@
 #include "include/mcm/base/exception/binarydata_error.hpp"
 #include "include/mcm/tensor/dtype.hpp"
 
+void mv::swap(mv::BinaryData& first, mv::BinaryData& second)
+{
+    using std::swap;
+    swap(first.type_ , second.type_);
+    swap(first.fp64_ , second.fp64_);
+    swap(first.fp32_ , second.fp32_);
+    swap(first.fp16_ , second.fp16_);
+    swap(first.fp8_ , second.fp8_);
+    swap(first.u64_ , second.u64_);
+    swap(first.u32_ , second.u32_);
+    swap(first.u16_ , second.u16_);
+    swap(first.u8_ , second.u8_ );
+    swap(first.i64_ , second.i64_);
+    swap(first.i32_ , second.i32_);
+    swap(first.i16_ , second.i16_);
+    swap(first.i8_ , second.i8_ );
+    swap(first.i4_ , second.i4_ );
+    swap(first.i2_ , second.i2_ );
+    swap(first.i2x_ , second.i2x_);
+    swap(first.i4x_ , second.i4x_);
+    swap(first.bin_ , second.bin_);
+    swap(first.log_ , second.log_);
+}
+
 mv::BinaryData::BinaryData(mv::DTypeType type) : type_(type),
     fp64_(nullptr),
     fp32_(nullptr),
@@ -110,30 +134,7 @@ mv::BinaryData::BinaryData(const BinaryData &other): BinaryData(other.type_)
 
 mv::BinaryData::BinaryData(BinaryData &&other): BinaryData()
 {
-    swap_(other);
-}
-
-void mv::BinaryData::swap_(BinaryData& other)
-{
-    std::swap(this->type_ , other.type_);
-    std::swap(this->fp64_ , other.fp64_);
-    std::swap(this->fp32_ , other.fp32_);
-    std::swap(this->fp16_ , other.fp16_);
-    std::swap(this->fp8_ , other.fp8_);
-    std::swap(this->u64_ , other.u64_);
-    std::swap(this->u32_ , other.u32_);
-    std::swap(this->u16_ , other.u16_);
-    std::swap(this->u8_ , other.u8_ );
-    std::swap(this->i64_ , other.i64_);
-    std::swap(this->i32_ , other.i32_);
-    std::swap(this->i16_ , other.i16_);
-    std::swap(this->i8_ , other.i8_ );
-    std::swap(this->i4_ , other.i4_ );
-    std::swap(this->i2_ , other.i2_ );
-    std::swap(this->i2x_ , other.i2x_);
-    std::swap(this->i4x_ , other.i4x_);
-    std::swap(this->bin_ , other.bin_);
-    std::swap(this->log_ , other.log_);
+    swap(*this, other);
 }
 
 mv::BinaryData::~BinaryData()
@@ -491,7 +492,7 @@ void mv::BinaryData::setLog(const std::vector<int8_t>&  other)
 
 mv::BinaryData& mv::BinaryData::operator=(mv::BinaryData other)
 {
-   swap_(other);
+   swap(*this, other);
    return *this;
 }
 
@@ -504,7 +505,7 @@ void mv::BinaryData::setDType(mv::DTypeType type)
 {
     if(type != type_) {
         BinaryData temp(type);
-        swap_(temp);
+        swap(*this, temp);
     }
 }
 

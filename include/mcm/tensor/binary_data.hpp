@@ -34,9 +34,9 @@ namespace mv
 
         void deleteData_();
         void setData_(const BinaryData &other);
-        void swap_(BinaryData& other);
-
     public:
+
+        friend void swap(BinaryData& first, BinaryData& second);
 
         BinaryData(DTypeType type = mv::DTypeType::Float16);
         BinaryData(const BinaryData &other);
@@ -86,6 +86,8 @@ namespace mv
 
         BinaryData& operator=(BinaryData other);
     };
+
+    void swap(BinaryData& first, BinaryData& second);
 }
 
 #endif // MV_TENSOR_BINARYDATA_HPP_
