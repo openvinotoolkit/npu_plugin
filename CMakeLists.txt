@@ -91,6 +91,7 @@ file(GLOB base
     "src/target/keembay/attribute_def/*.cpp"
     "src/target/keembay/tasks/def/*.cpp"
     "src/target/keembay/types/*.cpp"
+    "src/target/keembay/runtime_model/*.cpp"
 )
 
 file (GLOB model
