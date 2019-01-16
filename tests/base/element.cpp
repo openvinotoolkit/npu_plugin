@@ -263,3 +263,26 @@ TEST(element, to_json)
     ASSERT_EQ(e.get<mv::Data::TensorIterator>(dataTensorIteratorName), m.getInput()->getOutputTensor(0));
 
 }*/
+
+TEST(element, attribute_type_std_map) {
+
+    mv::Element e("MapTestElement");
+    mv::Element me1("map_elem1");
+    mv::Element me2("map_elem2");
+
+    static std::vector<std::string> vVecStdString1({"foo1", "foo2", "foo3", "foo4", "foo5"});
+    static std::vector<std::string> vVecStdString2({"bar1", "bar2", "bar3", "bar4", "bar5"});
+    static std::string aVecStdStringName1 = "aVecStdString1";
+    static std::string aVecStdStringName2 = "aVecStdString2";
+
+    me1.set<std::vector<std::string>>(aVecStdStringName1, vVecStdString1);
+    me2.set<std::vector<std::string>>(aVecStdStringName2, vVecStdString2);
+
+    static std::map<std::string, mv::Element>  e_map;
+    e_map.emplace("key1", me1);
+    e_map.emplace("key2", me2);
+
+    e.set<std::map<std::string, mv::Element>>("map_attribute", e_map);
+    std::cout << e.toString() << std::endl;
+
+}
