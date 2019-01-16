@@ -21,6 +21,7 @@ static std::array<unsigned short, 4> vStdArrUnsignedShort4 = {9, 10, 11, 12};
 static std::size_t vStdSizeT = 3;
 static std::string vStdString = "str";
 static std::vector<std::size_t> vVecStdSizeT({13, 14, 15, 16, 17});
+static std::vector<std::string> vVecStdString({"e1", "e2", "e3", "e4", "e5"});
 static unsigned short vUnsignedShort = 4;
 
 static std::string aBoolName = "aBool";
@@ -35,6 +36,7 @@ static std::string aStdArrUnsignedShort4Name = "aStdArrUnsignedShort4";
 static std::string aStdStringName = "aStdString";
 static std::string aStdSizeTName = "aStdSizeT";
 static std::string aVecStdSizeTName = "aVecStdSizeT";
+static std::string aVecStdStringName = "aVecStdString";
 static std::string aUnsignedShortName = "aUnsignedShort";
 
 static std::string dataOpListIteratorName = "aDataOpListIteratorName";
@@ -57,6 +59,7 @@ static void setValueAttrTypes(mv::Element& e)
     e.set<std::string>(aStdStringName, vStdString);
     e.set<std::vector<std::size_t>>(aVecStdSizeTName, vVecStdSizeT);
     e.set<unsigned short>(aUnsignedShortName, vUnsignedShort);
+    e.set<std::vector<std::string>>(aVecStdStringName, vVecStdString);
 
 }
 
@@ -110,6 +113,7 @@ TEST(element, def_attrs)
     ASSERT_EQ(e.get<std::string>("aStdString"), vStdString);
     ASSERT_EQ(e.get<std::vector<std::size_t>>("aVecStdSizeT"), vVecStdSizeT);
     ASSERT_EQ(e.get<unsigned short>("aUnsignedShort"), vUnsignedShort);
+    ASSERT_EQ(e.get<std::vector<std::string>>("aVecStdString"), vVecStdString);
     
 }
 
@@ -239,7 +243,9 @@ TEST(element, to_json)
         "\",\"content\":3},\"aStdString\":{\"attrType\":\"std::string\",\"content\":"
         "\"str\"},\"aUnsignedShort\":{\"attrType\":\"unsigned short\",\"content\":4}"
         ",\"aVecStdSizeT\":{\"attrType\":\"std::vector<std::size_t>\",\"content\":[1"
-        "3,14,15,16,17]}},\"name\":\"TestElement\"}";
+        "3,14,15,16,17]},\"aVecStdString\":{\"attrType\":\"std::vector<std::string>"
+        "\",\"content\":[\"e1\",\"e2\",\"e3\",\"e4\",\"e5\"]}},"
+        "\"name\":\"TestElement\"}";
 
     ASSERT_EQ(e.toJSON().stringify(), jsonStr);
 }
