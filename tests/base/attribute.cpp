@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include <array>

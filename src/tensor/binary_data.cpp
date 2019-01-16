@@ -1,6 +1,6 @@
 #include "include/mcm/tensor/binary_data.hpp"
 #include "include/mcm/base/exception/binarydata_error.hpp"
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtype/dtype.hpp"
 
 void mv::swap(mv::BinaryData& first, mv::BinaryData& second)
 {

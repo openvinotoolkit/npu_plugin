@@ -11,7 +11,7 @@
 #include "include/mcm/base/json/string.hpp"
 #include "include/mcm/base/printable.hpp"
 #include "include/mcm/tensor/order/order.hpp"
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/computation/op/op_registry.hpp"
 #include "include/mcm/base/element.hpp"

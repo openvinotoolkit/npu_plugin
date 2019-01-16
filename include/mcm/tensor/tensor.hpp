@@ -9,7 +9,7 @@
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/order/order.hpp"
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
 

@@ -2,7 +2,7 @@
 
 #include "gtest/gtest.h"
 #include "include/mcm/base/element.hpp"
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "meta/include/mcm/op_model.hpp"
