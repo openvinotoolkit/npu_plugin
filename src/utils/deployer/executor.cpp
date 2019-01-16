@@ -19,6 +19,9 @@ bool mv::exe::Executor::checkTargetMatches(ncDeviceHwVersion_t hwVersion)
                 return true;
             break;
 
+        case Target::keembay:
+            return true; //NOTE: not sure
+
         case Target::Unknown:
             return true;
     }
