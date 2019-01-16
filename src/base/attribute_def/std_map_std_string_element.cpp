@@ -29,16 +29,11 @@ namespace mv
                 throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) +
                     " to std::map<std::string, Element>");
 
-            // Declare the object to be returned
             std::map<std::string, Element> output;
-
-            // // Get the keys in the input json object
-            // std::vector<std::string> keys = v.getKeys();
-
-            // // populate the output with values passed in
-            // for (auto key: keys) {
-            //     output[key] = v[key].get<Element>();
-            // }
+            std::vector<std::string> keys = v.getKeys();
+            for (auto key: keys) {
+                output.emplace(key, Element(v[key]));
+            }
 
             return output;
         }
@@ -46,12 +41,16 @@ namespace mv
         static std::string toString(const Attribute& a)
         {
             std::string output = "{";
+            output += "\n";
             auto map = a.get<std::map<std::string, Element>>();
             if (map.size() > 0)
             {
                 for (auto item: map) {
                     output += "\"" + item.first + "\"";
+                    output += "{";
                     output += item.second.toString();
+                    output += "}";
+                    output += "\n";
                 }
             }
             output += "}";
@@ -59,9 +58,9 @@ namespace mv
         }
 
         MV_REGISTER_ATTR(std::map<std::string COMMA Element>)
-            .setToJSONFunc(toJSON)      // not done yet
-            .setFromJSONFunc(fromJSON)  // not done yet
-            .setToStringFunc(toString); //done
+            .setToJSONFunc(toJSON)
+            .setFromJSONFunc(fromJSON)
+            .setToStringFunc(toString);
 
     }
 
