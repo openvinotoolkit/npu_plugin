@@ -283,6 +283,16 @@ TEST(element, attribute_type_std_map) {
     e_map.emplace("key2", me2);
 
     e.set<std::map<std::string, mv::Element>>("map_attribute", e_map);
-    std::cout << e.toString() << std::endl;
+    //std::cout << e.toString() << std::endl;
+
+    std::string jsonStr = "{\"attrs\":{\"map_attribute\":{\"attrType\":\"std::map"
+    "<std::string, Element>\",\"content\":{\"key1\":{\"attrs\":{\"aVecStdString1\":"
+    "{\"attrType\":\"std::vector<std::string>\",\"content\":[\"foo1\",\"foo2\",\"fo"
+    "o3\",\"foo4\",\"foo5\"]}},\"name\":\"map_elem1\"},\"key2\":{\"attrs\":{\"aVecS"
+    "tdString2\":{\"attrType\":\"std::vector<std::string>\",\"content\":[\"bar1\",\"b"
+    "ar2\",\"bar3\",\"bar4\",\"bar5\"]}},\"name\":\"map_elem2\"}}}},\"name\":\"MapTe"
+    "stElement\"}";
+
+    ASSERT_EQ(e.toJSON().stringify(), jsonStr);
 
 }
