@@ -93,7 +93,7 @@ int main()
         Currently only one input and output can be defined (will change in the future). Operations can be added to the computation
         model using OpModel view. Below a minimal valid model is being defined.
     */
-    auto input = opModel1.input({32, 32, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor, "OptionalName-input");
+    auto input = opModel1.input({32, 32, 3}, mv::DType("Float16"), mv::OrderType::ColumnMajor, "OptionalName-input");
     auto output = opModel1.output(input);
 
     if (opModel1.isValid() && dataModel0.isValid() && controlModel0.isValid())

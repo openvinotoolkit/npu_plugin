@@ -12,9 +12,9 @@ int main()
     mv::CompilationUnit unit("DepthwiseConvolution");
     mv::CompositionalModel& test_cm = unit.model();
 
-    auto input = test_cm.input({225, 225, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = test_cm.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*1);
-    auto weights1 = test_cm.constant(weightsData, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
+    auto weights1 = test_cm.constant(weightsData, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)));
     auto conv = test_cm.depthwiseConv(input, weights1, {4, 4}, {1, 1, 1, 1});
     auto output = test_cm.output(conv);
 

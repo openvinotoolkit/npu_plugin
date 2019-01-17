@@ -11,7 +11,7 @@
 
 static bool vBool = true;
 static double vDouble = 1.0;
-static mv::DType vDType(mv::DTypeType::Float16);
+static mv::DType vDType(mv::DType("Float16"));
 static int vInt = 2;
 static mv::Order vOrder(mv::Order("CHW"));
 static mv::Shape vShape({1, 2, 3});
@@ -65,7 +65,7 @@ static void setValueAttrTypes(mv::Element& e)
     e.clear();
     m.clear();
 
-    auto input = m.input(mv::Shape({32, 32, 3}), mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = m.input(mv::Shape({32, 32, 3}), mv::DType("Float16"), mv::Order("CHW"));
     m.output(input);
     auto inputOp = m.getSourceOp(input);
 

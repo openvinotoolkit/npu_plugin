@@ -20,13 +20,13 @@ int main()
     mv::CompositionalModel &cm = unit.model();
 
     /*Create computation model*/
-    auto input = cm.input({224, 224, 3}, mv::DTypeType::Float16,  mv::Order("HWC"));
+    auto input = cm.input({224, 224, 3}, mv::DType("Float16"),  mv::Order("HWC"));
 
     /*Convolution*/
     mv::Shape kernelShape = {7, 7, 3, 64};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
 
-    auto weights = cm.constant(weightsData, kernelShape, mv::DTypeType::Float16,  mv::Order("HWCN"));
+    auto weights = cm.constant(weightsData, kernelShape, mv::DType("Float16"),  mv::Order("HWCN"));
     std::array<unsigned short, 2> stride = {2, 2};
     std::array<unsigned short, 4> padding = {3, 3, 3, 3};
     auto conv = cm.conv(input, weights, stride, padding, 1);
@@ -34,18 +34,18 @@ int main()
     /*convoultion bias*/
     mv::Shape convBiasShape = {64};
     std::vector<double> convBiasData = mv::utils::generateSequence<double>(convBiasShape.totalSize());
-    auto convBiasTensor = cm.constant(convBiasData, convBiasShape, mv::DTypeType::Float16,  mv::Order("W"));
+    auto convBiasTensor = cm.constant(convBiasData, convBiasShape, mv::DType("Float16"),  mv::Order("W"));
     auto convBias = cm.bias(conv,convBiasTensor);
 
     /*Scale*/
     std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->get<mv::Shape>("shape")[2]);
-    auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto scaleTensor = cm.constant(scaleData, {conv->get<mv::Shape>("shape")[2]}, mv::DType("Float16"), mv::Order("W"));
     auto scale = cm.scale(convBias,scaleTensor);
 
     /*Scale bias*/
     mv::Shape scaleBiasShape = {64};
     std::vector<double> scaleBiasData = mv::utils::generateSequence<double>(scaleBiasShape.totalSize());
-    auto scaleBiasTensor = cm.constant(scaleBiasData, scaleBiasShape, mv::DTypeType::Float16, mv::Order("W"));
+    auto scaleBiasTensor = cm.constant(scaleBiasData, scaleBiasShape, mv::DType("Float16"), mv::Order("W"));
     auto scaleBias = cm.bias(scale,scaleBiasTensor);
 
     /*Max Pool*/

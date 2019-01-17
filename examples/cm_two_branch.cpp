@@ -10,7 +10,7 @@ int main()
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
 
-    auto input = cm.input({24, 24, 20}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = cm.input({24, 24, 20}, mv::DType("Float16"), mv::Order("CHW"));
     auto pool1It = cm.maxPool(input, {1, 1}, {1, 1}, {0, 0, 0, 0});
     auto pool2It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});
     auto pool3It = cm.maxPool(pool1It, {1, 1}, {1, 1}, {0, 0, 0, 0});

@@ -187,7 +187,7 @@ TEST(attribute, mod_std_array_unsidged_short_4)
 TEST(attribute, def_dtype)
 {
 
-    mv::DType v1(mv::DTypeType::Float16);
+    mv::DType v1(mv::DType("Float16"));
     mv::Attribute a1 = v1;
     ASSERT_EQ(a1.get<mv::DType>(), v1);
 

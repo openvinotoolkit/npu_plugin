@@ -143,7 +143,7 @@ void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
                     // scale (up) inputs by multiplying weights and bias
                     std::string scaleUpWTensorName = opName + "_scale_in";
-                    auto scaleUpWeights = dm.defineTensor(scaleUpWTensorName, opIt->getInputTensor(1)->getShape(), mv::DTypeType::Float16, mv::Order("HWC"), scaleUpWData);
+                    auto scaleUpWeights = dm.defineTensor(scaleUpWTensorName, opIt->getInputTensor(1)->getShape(),DType("Float16"), mv::Order("HWC"), scaleUpWData);
                     opIt->getInputTensor(1)->multiply(*scaleUpWeights);
 
                     if (opIt->hasAttr("bias"))
@@ -151,13 +151,13 @@ void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                         auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
                         std::vector<double> scaleUpBData = mv::utils::generateSequence<double>(biasTensor->getShape().totalSize(), upNum, 0.0f);
                         std::string scaleUpBTensorName = opName + "_scale_bias";
-                        auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), mv::DTypeType::Float16, mv::Order("HWC"), scaleUpBData);
+                        auto scaleUpBias = dm.defineTensor(scaleUpBTensorName, biasTensor->getShape(), DType("Float16"), mv::Order("HWC"), scaleUpBData);
                         biasTensor->multiply(*scaleUpBias);
                     }
 
                     // scale (down) output by adding HWscale attributes to conv
                     std::string scaleTensorName = opName + "_scale";
-                    auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), mv::DTypeType::Float16, mv::Order("HWC"), scaleDnData);
+                    auto scaleTensor = dm.defineTensor(scaleTensorName, opIt->getOutputTensor(0)->getShape(), DType("Float16"), mv::Order("HWC"), scaleDnData);
                     Attribute scaleAttr(scaleTensor->getName());
                     om.addAttr(opIt, "scale", scaleAttr);
                 }
