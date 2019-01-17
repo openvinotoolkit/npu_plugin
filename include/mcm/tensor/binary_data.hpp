@@ -37,6 +37,10 @@ namespace mv
     public:
 
         friend void swap(BinaryData& first, BinaryData& second);
+        static constexpr unsigned int hashType(const char* str, int h = 0)
+        {
+            return !str[h] ? 5381 : (hashType(str, h+1)*33) ^ str[h];
+        }
 
         BinaryData(const std::string& type = "Float16");
         BinaryData(const BinaryData &other);

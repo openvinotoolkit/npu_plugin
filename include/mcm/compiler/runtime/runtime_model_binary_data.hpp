@@ -139,88 +139,82 @@ namespace mv
         return toReturn;
     }
 
-    constexpr
-    unsigned int hash(const char* str, int h = 0)
-    {
-        return !str[h] ? 5381 : (hash(str, h+1)*33) ^ str[h];
-    }
-
     MVCNN::BinaryDataT convertToBinaryDataT(const BinaryData& ref)
     {
         MVCNN::BinaryDataT toReturn;
         const std::string dtype = ref.getType();
-        switch(hash(dtype.c_str()))
+        switch(mv::BinaryData::hashType(dtype.c_str()))
         {
-            case hash("Float64"):
+            case mv::BinaryData::hashType("Float64"):
                 toReturn.fp64 = ref.fp64();
                 break;
 
-            case hash("Float32"):
+            case mv::BinaryData::hashType("Float32"):
                 toReturn.fp32 = ref.fp32();
                 break;
 
-            case hash("Float16"):
+            case mv::BinaryData::hashType("Float16"):
                 toReturn.fp16 = ref.fp16();
                 break;
 
-            case hash("Float8"):
+            case mv::BinaryData::hashType("Float8"):
                 toReturn.f8 = ref.fp8();
                 break;
 
-            case hash("UInt64"):
+            case mv::BinaryData::hashType("UInt64"):
                 toReturn.u64 = ref.u64();
                 break;
 
-            case hash("UInt32"):
+            case mv::BinaryData::hashType("UInt32"):
                 toReturn.u32 = ref.u32();
                 break;
 
-            case hash("UInt16"):
+            case mv::BinaryData::hashType("UInt16"):
                 toReturn.u16 = ref.u16();
                 break;
 
-            case hash("UInt8"):
+            case mv::BinaryData::hashType("UInt8"):
                 toReturn.u8 = ref.u8();
                 break;
 
-            case hash("Int64"):
+            case mv::BinaryData::hashType("Int64"):
                 //TODO fix it when flatbuffer type is fixed
                 // toReturn.i64 = ref.i64();
                 break;
 
-            case hash("Int32"):
+            case mv::BinaryData::hashType("Int32"):
                 toReturn.i32 = ref.i32();
                 break;
 
-            case hash("Int16"):
+            case mv::BinaryData::hashType("Int16"):
                 toReturn.i16 = ref.i16();
                 break;
 
-            case hash("Int8"):
+            case mv::BinaryData::hashType("Int8"):
                 toReturn.i8 = ref.i8();
                 break;
 
-            case hash("Int4"):
+            case mv::BinaryData::hashType("Int4"):
                 toReturn.i4 = ref.i4();
                 break;
 
-            case hash("Int2"):
+            case mv::BinaryData::hashType("Int2"):
                 toReturn.i2 = ref.i2();
                 break;
 
-            case hash("Int4X"):
+            case mv::BinaryData::hashType("Int4X"):
                 toReturn.i4x = ref.i4x();
                 break;
 
-            case hash("Int2X"):
+            case mv::BinaryData::hashType("Int2X"):
                 toReturn.i2x = ref.i2x();
                 break;
 
-            case hash("Bin"):
+            case mv::BinaryData::hashType("Bin"):
                 toReturn.bin = ref.bin();
                 break;
 
-            case hash("Log"):
+            case mv::BinaryData::hashType("Log"):
                 toReturn.log = ref.log();
                 break;
         }

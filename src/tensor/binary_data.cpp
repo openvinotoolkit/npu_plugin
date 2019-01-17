@@ -3,12 +3,6 @@
 #include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/tensor/dtype/dtype_registry.hpp"
 
-constexpr
-unsigned int hash(const char* str, int h = 0)
-{
-    return !str[h] ? 5381 : (hash(str, h+1)*33) ^ str[h];
-}
-
 void mv::swap(mv::BinaryData& first, mv::BinaryData& second)
 {
     using std::swap;
@@ -56,77 +50,77 @@ mv::BinaryData::BinaryData(const std::string& type) : type_(type),
     if(!mv::DTypeRegistry::checkDType(type))
         throw BinaryDataError("BinaryData", "Invalid string passed for BinaryData construction " + type);
 
-    switch(hash(type_.c_str()))
+    switch(hashType(type_.c_str()))
     {
-        case hash("Float64"):
+        case hashType("Float64"):
             fp64_ = new std::vector<double>();
             break;
 
-        case hash("Float32"):
+        case hashType("Float32"):
             fp32_ = new std::vector<float>();
             break;
 
-        case hash("Float16"):
+        case hashType("Float16"):
             fp16_ = new std::vector<int16_t>();
             break;
 
-        case hash("Float8"):
+        case hashType("Float8"):
             fp8_ = new std::vector<uint8_t>();
             break;
 
-        case hash("UInt64"):
+        case hashType("UInt64"):
             u64_ = new std::vector<uint64_t>();
             break;
 
-        case hash("UInt32"):
+        case hashType("UInt32"):
             u32_ = new std::vector<uint32_t>();
             break;
 
-        case hash("UInt16"):
+        case hashType("UInt16"):
             u16_ = new std::vector<uint16_t>();
             break;
 
-        case hash("UInt8"):
+        case hashType("UInt8"):
             u8_ = new std::vector<uint8_t>();
             break;
 
-        case hash("Int64"):
+        case hashType("Int64"):
             i64_ = new std::vector<int64_t>();
             break;
 
-        case hash("Int32"):
+        case hashType("Int32"):
             i32_ = new std::vector<int32_t>();
             break;
 
-        case hash("Int16"):
+        case hashType("Int16"):
             i16_ = new std::vector<int16_t>();
             break;
 
-        case hash("Int8"):
+        case hashType("Int8"):
             i8_ = new std::vector<int8_t>();
             break;
 
-        case hash("Int4"):
+        case hashType("Int4"):
             i4_ = new std::vector<int8_t>();
             break;
 
-        case hash("Int2"):
+        case hashType("Int2"):
             i2_ = new std::vector<int8_t>();
             break;
 
-        case hash("Int4X"):
+        case hashType("Int4X"):
             i4x_ = new std::vector<int8_t>();
             break;
 
-        case hash("Int2X"):
+        case hashType("Int2X"):
             i2x_ = new std::vector<int8_t>();
             break;
 
-        case hash("Bin"):
+        case hashType("Bin"):
             bin_ = new std::vector<int8_t>();
             break;
 
-        case hash("Log"):
+        case hashType("Log"):
             log_ = new std::vector<int8_t>();
             break;
 
@@ -665,94 +659,94 @@ void mv::BinaryData::setType(const std::string& type)
 
 void mv::BinaryData::setData_(const BinaryData &other)
 {
-    switch(hash(type_.c_str()))
+    switch(hashType(type_.c_str()))
     {
-        case hash("Float64"):
+        case hashType("Float64"):
             fp64_ = new std::vector<double>();
             *fp64_ = *other.fp64_;
             break;
 
-        case hash("Float32"):
+        case hashType("Float32"):
             fp32_ = new std::vector<float>();
             *fp32_ = *other.fp32_;
             break;
 
-        case hash("Float16"):
+        case hashType("Float16"):
             fp16_ = new std::vector<int16_t>();
             *fp16_ = *other.fp16_;
             break;
 
-        case hash("Float8"):
+        case hashType("Float8"):
             fp8_ = new std::vector<uint8_t>();
             *fp8_ = *other.fp8_;
             break;
 
-        case hash("UInt64"):
+        case hashType("UInt64"):
             u64_ = new std::vector<uint64_t>();
             *u64_ = *other.u64_;
             break;
 
-        case hash("UInt32"):
+        case hashType("UInt32"):
             u32_ = new std::vector<uint32_t>();
             *u32_ = *other.u32_;
             break;
 
-        case hash("UInt16"):
+        case hashType("UInt16"):
             u16_ = new std::vector<uint16_t>();
             *u16_ = *other.u16_;
             break;
 
-        case hash("UInt8"):
+        case hashType("UInt8"):
             u8_ = new std::vector<uint8_t>();
             *u8_ = *other.u8_;
             break;
 
-        case hash("Int64"):
+        case hashType("Int64"):
             i64_ = new std::vector<int64_t>();
             *i64_ = *other.i64_;
             break;
 
-        case hash("Int32"):
+        case hashType("Int32"):
             i32_ = new std::vector<int32_t>();
             *i32_ = *other.i32_;
             break;
 
-        case hash("Int16"):
+        case hashType("Int16"):
             i16_ = new std::vector<int16_t>();
             *i16_ = *other.i16_;
             break;
 
-        case hash("Int8"):
+        case hashType("Int8"):
             i8_ = new std::vector<int8_t>();
             *i8_ = *other.i8_;
             break;
 
-        case hash("Int4"):
+        case hashType("Int4"):
             i4_ = new std::vector<int8_t>();
             *i4_ = *other.i4_;
             break;
 
-        case hash("Int2"):
+        case hashType("Int2"):
             i2_ = new std::vector<int8_t>();
             *i2_ = *other.i2_;
             break;
 
-        case hash("Int4X"):
+        case hashType("Int4X"):
             i4x_ = new std::vector<int8_t>();
             *i4x_ = *other.i4x_;
             break;
 
-        case hash("Int2X"):
+        case hashType("Int2X"):
             i2x_ = new std::vector<int8_t>();
             *i2x_ = *other.i2x_;
             break;
 
-        case hash("Bin"):
+        case hashType("Bin"):
             bin_ = new std::vector<int8_t>();
             *bin_ = *other.bin_;
             break;
 
-        case hash("Log"):
+        case hashType("Log"):
             log_ = new std::vector<int8_t>();
             *log_ = *other.log_;
             break;
