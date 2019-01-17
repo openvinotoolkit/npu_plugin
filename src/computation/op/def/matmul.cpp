@@ -51,7 +51,7 @@ namespace mv
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable", "exposed", "automatic_api"});
+        .setTypeTrait({"executable", "exposed"});
 
     }
 

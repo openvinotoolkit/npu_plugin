@@ -30,10 +30,11 @@ namespace mv
         MV_REGISTER_OP(DPUTask)
         .setInputs({"inputs"})
         .setOutputs({"output"})
-        .setArg<std::string>("taskOp")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable"});
+        .setTypeTrait({"executable"})
+        .setInputVectorTypes(true)
+        .setCustomArgs(true);
 
     }
 

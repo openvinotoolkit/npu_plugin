@@ -2,7 +2,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 
 mv::Op::Op(ComputationModel& model, const std::string& opType, const std::string& name,
-    const std::vector<Data::TensorIterator>& inputs, const std::vector<std::pair<std::string, Attribute>> & args, bool dpuTask) :
+    const std::vector<Data::TensorIterator>& inputs, const std::vector<std::pair<std::string, Attribute>> & args, bool checkInputSize, bool checkArgs) :
 ModelElement(model, name)
 {
     log(Logger::MessageType::Debug, "Initialized");
@@ -61,7 +61,7 @@ ModelElement(model, name)
             }
             else
             {
-                if(!dpuTask)
+                if(checkArgs)
                     throw ArgumentError(*this, "arg", it->first, "Invalid argument");
                 else
                     set(it->first, it->second);
@@ -81,7 +81,7 @@ ModelElement(model, name)
         throw ArgumentError(*this, "arg", list, "Missing arguments");
     }
     
-    if(!dpuTask)
+    if(checkInputSize)
         if (inputs.size() != op::OpRegistry::getInputsCount(opType))
             throw ArgumentError(*this, "inputs:size", std::to_string(inputs.size()), "Does not match the registered inputs count " +
                 std::to_string(op::OpRegistry::getInputsCount(opType)));

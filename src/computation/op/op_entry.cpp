@@ -7,6 +7,22 @@ opType_(opType)
 
 }
 
+mv::op::OpEntry& mv::op::OpEntry::setInputVectorTypes(bool inputVectorTypes)
+{
+
+    inputVectorTypes_ = inputVectorTypes;
+    return *this;
+
+}
+
+mv::op::OpEntry& mv::op::OpEntry::setCustomArgs(bool customArgs)
+{
+
+    customArgs_ = customArgs;
+    return *this;
+
+}
+
 mv::op::OpEntry& mv::op::OpEntry::setInputs(std::vector<std::string> labels)
 {
 
@@ -196,6 +212,16 @@ bool mv::op::OpEntry::hasTypeTrait(const std::string& trait)
 const std::set<std::string>& mv::op::OpEntry::getTypeTraits()
 {
     return typeTraits_;
+}
+
+bool mv::op::OpEntry::hasVectorTypesAsInput()
+{
+    return inputVectorTypes_;
+}
+
+bool mv::op::OpEntry::hasCustomArgs()
+{
+    return customArgs_;
 }
 
 std::string mv::op::OpEntry::getLogID() const

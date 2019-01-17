@@ -34,7 +34,7 @@ namespace mv
         .setArg<mv::Order>("order")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"exposed", "automatic_api"});
+        .setTypeTrait({"exposed"});
 
     }
 
