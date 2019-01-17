@@ -81,6 +81,7 @@ file(GLOB base
     "src/tensor/order/order_def/*.cpp"
     "src/tensor/math.cpp"
     "src/tensor/dtype/*.cpp"
+    "src/tensor/dtype/dtype_def/*.cpp"
     "src/computation/op/op_entry.cpp"
     "src/computation/op/op_registry.cpp"
     "src/computation/op/def/*.cpp"
