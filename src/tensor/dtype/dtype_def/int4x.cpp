@@ -11,5 +11,5 @@ namespace mv
         throw DTypeError("DType", "conversion for Int4X is not supported yet");
     };
 
-    MV_REGISTER_DTYPE("Int4X").setToBinaryFunc(toBinaryFunc);
+    MV_REGISTER_DTYPE(Int4X).setToBinaryFunc(toBinaryFunc);
 }

@@ -12,5 +12,5 @@ namespace mv
         throw DTypeError("DType", "conversion for Float8 is not supported yet");
     };
 
-    MV_REGISTER_DTYPE("Float8").setToBinaryFunc(toBinaryFunc);
+    MV_REGISTER_DTYPE(Float8).setToBinaryFunc(toBinaryFunc);
 }

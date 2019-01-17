@@ -11,5 +11,5 @@ namespace mv
         throw DTypeError("DType", "conversion for Bin is not supported yet");
     };
 
-    MV_REGISTER_DTYPE("Bin").setToBinaryFunc(toBinaryFunc);
+    MV_REGISTER_DTYPE(Bin).setToBinaryFunc(toBinaryFunc);
 }

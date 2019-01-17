@@ -11,5 +11,5 @@ namespace mv
         throw DTypeError("DType", "conversion for Int2X is not supported yet");
     };
 
-    MV_REGISTER_DTYPE("Int2x").setToBinaryFunc(toBinaryFunc);
+    MV_REGISTER_DTYPE(Int2X).setToBinaryFunc(toBinaryFunc);
 }

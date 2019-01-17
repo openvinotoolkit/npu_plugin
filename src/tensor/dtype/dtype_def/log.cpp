@@ -11,5 +11,5 @@ namespace mv
         throw DTypeError("DType", "conversion for Log is not supported yet");
     };
 
-    MV_REGISTER_DTYPE("Log").setToBinaryFunc(toBinaryFunc);
+    MV_REGISTER_DTYPE(Log).setToBinaryFunc(toBinaryFunc);
 }
