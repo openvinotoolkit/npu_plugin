@@ -1,5 +1,5 @@
-#ifndef MV_NCE2_DMADIRECTION_HPP_
-#define MV_NCE2_DMADIRECTION_HPP_
+#ifndef MV_DMADIRECTION_HPP_
+#define MV_DMADIRECTION_HPP_
 
 #include <string>
 #include <unordered_map>

@@ -70,6 +70,7 @@ file(GLOB base
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
+    "src/base/dma_direction.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
     "src/deployer/Fp16Convert.cpp"
@@ -90,7 +91,6 @@ file(GLOB base
     "src/computation/model/runtime_binary.cpp"
     "src/target/keembay/attribute_def/*.cpp"
     "src/target/keembay/tasks/def/*.cpp"
-    "src/target/keembay/types/*.cpp"
     "src/target/keembay/runtime_model/*.cpp"
 )
 

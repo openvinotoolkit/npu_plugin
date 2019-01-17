@@ -26,14 +26,14 @@ namespace mv
 
         };
 
-        MV_REGISTER_OP(LeonTaskPlaceholder)
+        MV_REGISTER_OP(PlaceholderTask)
         .setOutputs({"output"})
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
-        .setTypeTrait({"automatic_api"});
+        .setTypeTrait({"executable"});
 
     }
 

@@ -3,7 +3,6 @@
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
-#include "include/mcm/target/keembay/tasks/nce2_task_api.hpp"
 
 #include <iostream>
 #include <fstream>
