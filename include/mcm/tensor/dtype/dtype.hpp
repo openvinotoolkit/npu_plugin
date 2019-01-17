@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <functional>
 #include "include/mcm/base/exception/dtype_error.hpp"
-#include "include/mcm/tensor/dtypetype.hpp"
 #include "include/mcm/tensor/binary_data.hpp"
 
 namespace mv

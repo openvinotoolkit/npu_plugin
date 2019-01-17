@@ -7,7 +7,7 @@ namespace mv
     static std::function<BinaryData(const std::vector<double>&)> toBinaryFunc =
     [](const std::vector<double> & vals)->mv::BinaryData
     {
-        mv::BinaryData bdata(mv::DTypeType::Float64);
+        mv::BinaryData bdata("Float64");
         bdata.setFp64(vals);
         return bdata;
     };

@@ -15,7 +15,7 @@ namespace mv
         {
             res.push_back(cvtr.fp32_to_fp16(val));
         });
-        mv::BinaryData bdata(mv::DTypeType::Float16);
+        mv::BinaryData bdata("Float16");
         bdata.setFp16(std::move(res));
         return bdata;
     };
