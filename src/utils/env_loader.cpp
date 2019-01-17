@@ -1,5 +1,6 @@
 #include "include/mcm/utils/env_loader.hpp"
 #include <iostream>
+#include <fstream>
 
 std::string mv::utils::mdkRootPath()
 {
@@ -20,4 +21,12 @@ std::string mv::utils::projectRootPath()
         path.erase(path.size() - 1);
     return path;
 
+}
+
+bool mv::utils::fileExists(const std::string& fileName)
+{
+    std::ifstream checkFile(fileName, std::ios::in | std::ios::binary);
+    if (checkFile.fail())
+        return false;
+    return true;
 }

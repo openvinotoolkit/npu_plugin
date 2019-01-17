@@ -16,7 +16,7 @@ namespace mv
 
         explicit ArgumentError(const LogSender& sender, const std::string& argName,
             const std::string& argVal, const std::string& whatArg);
-        explicit ArgumentError(const std::string& senderId, const std::string& argName,
+        explicit ArgumentError(const std::string& senderID, const std::string& argName,
             const std::string& argVal, const std::string& whatArg);
 
     };
