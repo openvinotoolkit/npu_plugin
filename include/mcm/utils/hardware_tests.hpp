@@ -16,6 +16,7 @@ namespace mv
         int fathomVsMcm;
     };
 
+    //NOTE: To execute these tests GenerateCaffe pass must be enable in adaptation passes.
     ReturnCodes HWTest(mv::CompilationUnit& unit, std::string outputName, bool fathomHardware = false);
     void printReport(mv::ReturnCodes returnValue, std::ostream& out);
 

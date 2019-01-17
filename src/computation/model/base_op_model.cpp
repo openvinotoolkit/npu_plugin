@@ -53,6 +53,7 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
         throw ArgumentError(*this, "op:name", name, "Duplicated op name");
     
     auto opNode = dataGraph_.node_insert(Op(*this, opType, name, inputs, args));
+
     incrementOpsInstanceCounter_(opType);
     incrementOpsIndexCounter_(opType);
 

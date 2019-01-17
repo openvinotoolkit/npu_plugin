@@ -5,6 +5,7 @@ dims_(dims)
 {
 
 }
+
 mv::Shape::Shape(std::vector<std::size_t> dims) :
 dims_(dims)
 {

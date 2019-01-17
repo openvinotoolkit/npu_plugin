@@ -195,7 +195,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     {
         //This mode does not allow splits
         to_return.cost = -1;
-        to_return.split_performed = mv::Splits::InputChannel;
+        to_return.split_performed = mv::NCE1Splits::InputChannel;
         to_return.num_splits = 0;
         to_return.mode = mode;
     }
@@ -208,7 +208,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     {
         //This mode does not allow splits
         to_return.cost = -1;
-        to_return.split_performed = mv::Splits::InputChannel;
+        to_return.split_performed = mv::NCE1Splits::InputChannel;
         to_return.num_splits = 0;
         to_return.mode = mode;
     }
@@ -222,7 +222,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     {
         //This mode does not allow splits
         to_return.cost = -1;
-        to_return.split_performed = mv::Splits::InputChannel;
+        to_return.split_performed = mv::NCE1Splits::InputChannel;
         to_return.num_splits = n_split_c;
         to_return.mode = mode;
     }
@@ -237,7 +237,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_input_channel(mv::ConvolutionParame
     // add the cost of summation over input channels
     cost += (n_split_c - 1) * (actual_output_channels * param.output_width*param.output_height + split_by_input_channel_overhead);
     to_return.cost = cost;
-    to_return.split_performed = mv::Splits::InputChannel;
+    to_return.split_performed = mv::NCE1Splits::InputChannel;
     to_return.num_splits = n_split_c;
     to_return.mode = mode;
     return to_return;
@@ -268,7 +268,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
     {
         to_return.cost = -1;
         to_return.mode = mode;
-        to_return.split_performed = mv::Splits::Width;
+        to_return.split_performed = mv::NCE1Splits::Width;
         to_return.num_splits = n_split_w;
         return to_return;
     }
@@ -286,7 +286,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
         {
             to_return.cost = -1;
             to_return.mode = mode;
-            to_return.split_performed = mv::Splits::Width;
+            to_return.split_performed = mv::NCE1Splits::Width;
             to_return.num_splits = n_split_w;
             return to_return;
         }
@@ -295,7 +295,7 @@ mv::ModeSelectionDistance mv::Nce1::split_by_width(mv::ConvolutionParameters par
     }
     to_return.cost = cost;
     to_return.num_splits = n_split_w;
-    to_return.split_performed = mv::Splits::Width;
+    to_return.split_performed = mv::NCE1Splits::Width;
     to_return.mode = mode;
 
     return to_return;
@@ -353,7 +353,7 @@ mv::ModeSelectionDistance mv::Nce1::computeModeCost(const mv::ModeSelectionNode 
     else
     {
         to_return.cost = parameters.kernel_width * parameters.kernel_height * parameters.input_width * parameters.input_height * parameters.input_channels / dpe_x_output_channel.at(mode);
-        to_return.split_performed = Splits::NoSplit;
+        to_return.split_performed = NCE1Splits::NoSplit;
         to_return.num_splits = 1;
         if(check_channels_per_ram_block_(parameters, mode))
             to_return.cost = -1; //infinite cost
