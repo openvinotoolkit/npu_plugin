@@ -974,3 +974,32 @@ TEST(tensor, to_binary_i2)
         EXPECT_EQ((i2_data[i] & 0xC0) >> 6, (int8_t) data[idx++]);
     }
 }
+
+TEST(tensor, to_binary_i2x_invalid_execution)
+{
+
+    mv::Shape tShape({1, 1, 1, 16});
+
+    std::vector<double> data = {
+        0.0f,
+        1.0f,
+        2.0f,
+        3.0f,
+        0.0f,
+        1.0f,
+        1.0f,
+        3.0f,
+        0.0f,
+        2.0f,
+        2.0f,
+        1.0f,
+        3.0f,
+        2.0f,
+        1.0f,
+        0.0f
+    };
+
+    mv::Tensor t("t", tShape, mv::DTypeType::Int2X, mv::Order("HWCN"));
+    t.populate(data);
+    ASSERT_ANY_THROW(t.toBinary());
+}

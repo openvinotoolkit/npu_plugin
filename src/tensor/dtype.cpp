@@ -1,6 +1,7 @@
 #include "include/mcm/tensor/dtype.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/tensor/binary_data.hpp"
+#include "include/mcm/base/exception/dtype_error.hpp"
 
 const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DType::dTypeStrings_ =
 {
@@ -37,7 +38,7 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
     {
         std::vector<float> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::Float32);
-        bdata.setFp32(res);
+        bdata.setFp32(std::move(res));
         return bdata;
     }},
     {DTypeType::Float16, [](const std::vector<double> & vals)->mv::BinaryData
@@ -49,64 +50,69 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
             res.push_back(cvtr.fp32_to_fp16(val));
         });
         mv::BinaryData bdata(mv::DTypeType::Float16);
-        bdata.setFp16(res);
+        bdata.setFp16(std::move(res));
         return bdata;
     }},
     //TODO add F8 conversion
+    {DTypeType::Float8, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Float8 is not supported yet");
+    }},
     {DTypeType::UInt64, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<uint64_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::UInt64);
-        bdata.setU64(res);
+        bdata.setU64(std::move(res));
         return bdata;
     }},
     {DTypeType::UInt32, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<uint32_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::UInt32);
-        bdata.setU32(res);
+        bdata.setU32(std::move(res));
         return bdata;
     }},
     {DTypeType::UInt16, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<uint16_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::UInt16);
-        bdata.setU16(res);
+        bdata.setU16(std::move(res));
         return bdata;
     }},
     {DTypeType::UInt8, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<uint8_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::UInt8);
-        bdata.setU8(res);
+        bdata.setU8(std::move(res));
         return bdata;
     }},
     {DTypeType::Int64, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<int64_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::Int64);
-        bdata.setI64(res);
+        bdata.setI64(std::move(res));
         return bdata;
     }},
     {DTypeType::Int32, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<int32_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::Int32);
-        bdata.setI32(res);
+        bdata.setI32(std::move(res));
         return bdata;
     }},
     {DTypeType::Int16, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<int16_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::Int16);
-        bdata.setI16(res);
+        bdata.setI16(std::move(res));
         return bdata;
     }},
     {DTypeType::Int8, [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<int8_t> res(vals.begin(), vals.end());
         mv::BinaryData bdata(mv::DTypeType::Int8);
-        bdata.setI8(res);
+        bdata.setI8(std::move(res));
         return bdata;
     }},
     {DTypeType::Int4, [](const std::vector<double> & vals)->mv::BinaryData
@@ -140,7 +146,7 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
             res.push_back(temp.data);
 
         mv::BinaryData bdata(mv::DTypeType::Int4);
-        bdata.setI4(res);
+        bdata.setI4(std::move(res));
         return bdata;
     }},
     {DTypeType::Int2, [](const std::vector<double> & vals)->mv::BinaryData
@@ -180,10 +186,30 @@ const std::unordered_map<mv::DTypeType,std::function<mv::BinaryData(const std::v
             res.push_back(temp.data);
 
         mv::BinaryData bdata(mv::DTypeType::Int2);
-        bdata.setI2(res);
+        bdata.setI2(std::move(res));
         return bdata;
-    }}
+    }},
     //TODO add Int2x,4x, Bin,Log
+    {DTypeType::Int2X, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Int2X is not supported yet");
+    }},
+    {DTypeType::Int4X, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Int4X is not supported yet");
+    }},
+    {DTypeType::Bin, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Bin is not supported yet");
+    }},
+    {DTypeType::Log, [](const std::vector<double> & vals)->mv::BinaryData
+    {
+        (void) vals;
+        throw DTypeError("DType", "conversion for Log is not supported yet");
+    }}
 };
 
 mv::DType::DType(DTypeType value) :
