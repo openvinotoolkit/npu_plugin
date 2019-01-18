@@ -14,12 +14,23 @@ mv::RuntimeModel::~RuntimeModel()
 
 }
 
-void mv::RuntimeModel::serialize(const std::string& path)
+char * mv::RuntimeModel::serialize(int& bufferSize)
 {
     flatbuffers::FlatBufferBuilder fbb;
     auto offset = MVCNN::CreateGraphFile(fbb, &graphFile_);
     MVCNN::FinishGraphFileBuffer(fbb, offset);
-    flatbuffers::SaveFile(path.c_str(), (char *)fbb.GetBufferPointer(), fbb.GetSize(), true);
+    bufferSize = fbb.GetSize();
+    char * buffer = new char[bufferSize];
+    strcpy(buffer, (char*)fbb.GetBufferPointer());
+    return buffer;
+}
+
+void mv::RuntimeModel::serialize(const std::string& path)
+{
+    int bufferSize;
+    char * dataBuffer = serialize(bufferSize);
+    flatbuffers::SaveFile(path.c_str(), dataBuffer, bufferSize, true);
+    delete [] dataBuffer;
 }
 
 void mv::RuntimeModel::deserialize(const std::string& path)
@@ -31,12 +42,16 @@ void mv::RuntimeModel::deserialize(const std::string& path)
     char * dataBuffer = new char[length];
     ifs.read(dataBuffer, length);
     ifs.close();
+    deserialize(dataBuffer, length);
+    delete [] dataBuffer;
+}
 
+void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
+{
     flatbuffers::Verifier verifier(reinterpret_cast<const unsigned char*>(dataBuffer), length);
     if (!MVCNN::VerifyGraphFileBuffer(verifier))
         throw ArgumentError("tools:GraphComparator", "file:content", "invalid", "GraphFile verification failed");
     Logger::log(mv::Logger::MessageType::Info, "RuntimeModel", "GraphFile verification successful");
     const MVCNN::GraphFile *graphPtr = MVCNN::GetGraphFile(dataBuffer);
     graphPtr->UnPackTo(&graphFile_);
-    delete [] dataBuffer;
 }

@@ -7,6 +7,5 @@ int main()
     rm.serialize("test.blob");
     mv::RuntimeModel rm2;
     rm2.deserialize("test.blob");
-    std::cout << "CIAO" << std::endl;
     return 0;
 }

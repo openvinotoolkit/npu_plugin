@@ -14,7 +14,9 @@ namespace mv
             ~RuntimeModel();
 
             void serialize(const std::string& path);
+            char * serialize(int& bufferSize);
             void deserialize(const std::string& path);
+            void deserialize(char * buffer, int length);
     };
 }
 
