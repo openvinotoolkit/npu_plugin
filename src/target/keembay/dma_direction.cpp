@@ -57,26 +57,6 @@ mv::DmaDirection& mv::DmaDirection::operator=(const DmaDirectionEnum& other)
     return *this;
 }
 
-bool mv::DmaDirection::operator==(const DmaDirection &other) const
-{
-    return direction_ == other.direction_;
-}
-
-bool mv::DmaDirection::operator==(const DmaDirectionEnum &other) const
-{
-    return direction_ == other;
-}
-
-bool mv::DmaDirection::operator!=(const DmaDirection &other) const
-{
-    return !operator==(other);
-}
-
-bool mv::DmaDirection::operator!=(const DmaDirectionEnum &other) const
-{
-    return !operator==(other);
-}
-
 mv::DmaDirection::operator DmaDirectionEnum() const
 {
     return direction_;

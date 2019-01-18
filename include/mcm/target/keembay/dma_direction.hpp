@@ -42,13 +42,26 @@ namespace mv
 
         DmaDirection& operator=(const DmaDirection& other);
         DmaDirection& operator=(const DmaDirectionEnum& other);
-        bool operator==(const DmaDirection& other) const;
-        bool operator==(const DmaDirectionEnum& other) const;
-        bool operator!=(const DmaDirection& other) const;
-        bool operator!=(const DmaDirectionEnum& other) const;
         operator DmaDirectionEnum() const;
 
         std::string getLogID() const override;
+
+        inline friend bool operator==(const DmaDirection& a, const DmaDirection& b)
+        {
+            return a.direction_ == b.direction_;
+        }
+        inline friend bool operator==(const DmaDirection& a, const DmaDirectionEnum& b)
+        {
+            return a.direction_ == b;
+        }
+        inline friend bool operator!=(const DmaDirection& a, const DmaDirection& b)
+        {
+            return a.direction_ != b.direction_;
+        }
+        inline friend bool operator!=(const DmaDirection& a, const DmaDirectionEnum& b)
+        {
+            return a.direction_ != b;
+        }
 
     };
 
