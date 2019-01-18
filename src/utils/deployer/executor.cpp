@@ -19,7 +19,7 @@ bool mv::exe::Executor::checkTargetMatches(ncDeviceHwVersion_t hwVersion)
                 return true;
             break;
 
-        case Target::keembay:
+        case Target::ma2490:
             return true; //NOTE: not sure
 
         case Target::Unknown:
