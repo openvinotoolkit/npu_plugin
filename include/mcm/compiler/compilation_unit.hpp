@@ -16,7 +16,7 @@ namespace mv
     {
 
         static const std::string ma2480DefDescPath_;
-        static const std::string keembayDefDescPath_;
+        static const std::string ma2490DefDescPath_;
 
         static const std::string compilationDescPath_;
         static const std::string compositionalModelRecordingsPath_;

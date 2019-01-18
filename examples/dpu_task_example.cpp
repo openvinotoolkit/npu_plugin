@@ -42,7 +42,7 @@ int main()
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
 
-    unit.loadTargetDescriptor(mv::Target::keembay);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
