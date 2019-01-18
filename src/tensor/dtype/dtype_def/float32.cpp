@@ -8,7 +8,7 @@ namespace mv
     [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<float> res(vals.begin(), vals.end());
-        mv::BinaryData bdata("Float32");
+        mv::BinaryData bdata;
         bdata.setFp32(std::move(res));
         return bdata;
     };

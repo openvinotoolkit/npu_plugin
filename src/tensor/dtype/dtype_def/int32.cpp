@@ -8,7 +8,7 @@ namespace mv
     [](const std::vector<double> & vals)->mv::BinaryData
     {
         std::vector<int32_t> res(vals.begin(), vals.end());
-        mv::BinaryData bdata("Int32");
+        mv::BinaryData bdata;
         bdata.setI32(std::move(res));
         return bdata;
     };

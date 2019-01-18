@@ -12,7 +12,6 @@ namespace mv
 
     private:
 
-        std::string type_;
         std::vector<double>* fp64_;
         std::vector<float>* fp32_;
         std::vector<int16_t>* fp16_;
@@ -37,18 +36,11 @@ namespace mv
     public:
 
         friend void swap(BinaryData& first, BinaryData& second);
-        static constexpr unsigned int hashType(const char* str, int h = 0)
-        {
-            return !str[h] ? 5381 : (hashType(str, h+1)*33) ^ str[h];
-        }
 
-        BinaryData(const std::string& type = "Float16");
+        BinaryData();
         BinaryData(const BinaryData &other);
         BinaryData(BinaryData &&other);
         ~BinaryData();
-
-        std::string getType() const;
-        void setType(const std::string& type);
 
         const std::vector<double>& fp64() const;
         const std::vector<float>& fp32() const;

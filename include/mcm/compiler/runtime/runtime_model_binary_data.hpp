@@ -142,82 +142,26 @@ namespace mv
     MVCNN::BinaryDataT convertToBinaryDataT(const BinaryData& ref)
     {
         MVCNN::BinaryDataT toReturn;
-        const std::string dtype = ref.getType();
-        switch(mv::BinaryData::hashType(dtype.c_str()))
-        {
-            case mv::BinaryData::hashType("Float64"):
-                toReturn.fp64 = ref.fp64();
-                break;
 
-            case mv::BinaryData::hashType("Float32"):
-                toReturn.fp32 = ref.fp32();
-                break;
-
-            case mv::BinaryData::hashType("Float16"):
-                toReturn.fp16 = ref.fp16();
-                break;
-
-            case mv::BinaryData::hashType("Float8"):
-                toReturn.f8 = ref.fp8();
-                break;
-
-            case mv::BinaryData::hashType("UInt64"):
-                toReturn.u64 = ref.u64();
-                break;
-
-            case mv::BinaryData::hashType("UInt32"):
-                toReturn.u32 = ref.u32();
-                break;
-
-            case mv::BinaryData::hashType("UInt16"):
-                toReturn.u16 = ref.u16();
-                break;
-
-            case mv::BinaryData::hashType("UInt8"):
-                toReturn.u8 = ref.u8();
-                break;
-
-            case mv::BinaryData::hashType("Int64"):
-                //TODO fix it when flatbuffer type is fixed
-                // toReturn.i64 = ref.i64();
-                break;
-
-            case mv::BinaryData::hashType("Int32"):
-                toReturn.i32 = ref.i32();
-                break;
-
-            case mv::BinaryData::hashType("Int16"):
-                toReturn.i16 = ref.i16();
-                break;
-
-            case mv::BinaryData::hashType("Int8"):
-                toReturn.i8 = ref.i8();
-                break;
-
-            case mv::BinaryData::hashType("Int4"):
-                toReturn.i4 = ref.i4();
-                break;
-
-            case mv::BinaryData::hashType("Int2"):
-                toReturn.i2 = ref.i2();
-                break;
-
-            case mv::BinaryData::hashType("Int4X"):
-                toReturn.i4x = ref.i4x();
-                break;
-
-            case mv::BinaryData::hashType("Int2X"):
-                toReturn.i2x = ref.i2x();
-                break;
-
-            case mv::BinaryData::hashType("Bin"):
-                toReturn.bin = ref.bin();
-                break;
-
-            case mv::BinaryData::hashType("Log"):
-                toReturn.log = ref.log();
-                break;
-        }
+        toReturn.fp64 = ref.fp64();
+        toReturn.fp32 = ref.fp32();
+        toReturn.fp16 = ref.fp16();
+        toReturn.f8 = ref.fp8();
+        toReturn.u64 = ref.u64();
+        toReturn.u32 = ref.u32();
+        toReturn.u16 = ref.u16();
+        toReturn.u8 = ref.u8();
+        //TODO fix it when flatbuffer type is fixed
+        // toReturn.i64 = ref.i64();
+        toReturn.i32 = ref.i32();
+        toReturn.i16 = ref.i16();
+        toReturn.i8 = ref.i8();
+        toReturn.i4 = ref.i4();
+        toReturn.i2 = ref.i2();
+        toReturn.i4x = ref.i4x();
+        toReturn.i2x = ref.i2x();
+        toReturn.bin = ref.bin();
+        toReturn.log = ref.log();
 
         return toReturn;
     }

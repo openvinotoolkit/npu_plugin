@@ -41,7 +41,7 @@ namespace mv
         if (vals.size() % 4 != 0)
             res.push_back(temp.data);
 
-        mv::BinaryData bdata("Int2");
+        mv::BinaryData bdata;
         bdata.setI2(std::move(res));
         return bdata;
     };
