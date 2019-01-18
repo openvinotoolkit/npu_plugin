@@ -1,5 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
-#include "include/mcm/base/dma_direction.hpp"
+#include "include/mcm/target/keembay/dma_direction.hpp"
 
 namespace mv
 {

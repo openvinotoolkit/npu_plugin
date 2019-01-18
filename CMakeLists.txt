@@ -14,12 +14,12 @@ add_compile_options(-std=c++11)
 if (MSVC)
 
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
-    SET(VALIDATION true)
+    SET(VALIDATION false)
 
 else()
 
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
-    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 
 endif()
 
@@ -70,7 +70,7 @@ file(GLOB base
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
-    "src/base/dma_direction.cpp"
+    "src/target/keembay/dma_direction.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
     "src/deployer/Fp16Convert.cpp"
@@ -112,10 +112,6 @@ file (GLOB model
     "src/computation/resource/nce1_utils.cpp"
     "src/computation/op/op.cpp"
     "src/computation/model/model_element.cpp"
-    #"src/target/keembay/attribute_def/*.cpp"
-    #"src/target/keembay/tasks/*.cpp"
-    #"src/target/keembay/tasks/def/*.cpp"
-    #"src/target/keembay/types/*.cpp"
     "src/target/keembay/tasks/*.cpp"
 )
 
