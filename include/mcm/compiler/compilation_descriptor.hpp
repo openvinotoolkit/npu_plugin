@@ -6,12 +6,12 @@
 namespace mv
 {
 
-    class CompilationDescriptor
+    class CompilationDescriptor : public Element
     {
 
     public:
 
-        enum class Recurrence
+        enum class RecurrenceType
         {
 
             Singular,
@@ -23,25 +23,15 @@ namespace mv
 
         const static unsigned jsonParserBufferLength_ = 128;
 
+        static std::map<RecurrenceType, std::string> recTypeString_;
+
         /**
          * The map containing arguments for different passes.
          */
-        std::map<std::string, Element> passesArgs_;
+        //std::map<std::string, Element> passesArgs_;
 
-        /**
-         * The map representing groups of passes. The first argument is the group id and the
-         * second argument stores the list of groups/passes in that group. The recurrence of
-         * a pass must be specified. XXX: do we need this kind of an enforcement?
-         */
-        std::map<std::string, std::pair<Recurrence, std::vector<std::string>> > groups_;
-
-        /**
-         * The root group containing the precise order of execution of groups.
-         */
-        std::vector<std::string> rootGroup_;
-
-        static std::string toString(Recurrence rec);
-        static Recurrence fromString(const std::string& str);
+        static std::string toString(const RecurrenceType& rec);
+        static RecurrenceType fromString(const std::string& str);
 
     public:
 
@@ -54,25 +44,45 @@ namespace mv
          * Adds group to groups list. This just creates an entry for a group, without specifying
          * the passes in the group.
          */
-        bool addGroup(const std::string& group);
+        void addGroup(const std::string& group);
+
+        // TODO: Can the two functions below be combined?
+        /**
+         * Adds pass to groups list. If the group doesn't exist, create one. This method also
+         * sets group recurrence -- "Singular" for a pass that executes only once; "Recurrent" for a
+         * pass that recurs.
+         */
+        void addPassToGroup(const std::string& pass, const std::string& group, const std::string& recurrence);
 
         /**
          * Adds pass to groups list. If the group doesn't exist, create one. This method also
          * sets group recurrence -- "Singular" for a pass that executes only once; "Recurrent" for a
          * pass that recurs.
          */
-        bool addPassToGroup(const std::string& pass, const std::string& group, const std::string& recurrence);
+        void addGroupToGroup(const std::string& group, const std::string& containerGroup, const std::string& recurrence);
 
         /**
          * Explicitly set the root group. This is needed to specify the order in which the groups
-         * will execute.
+         * will execute. The root group is expected to be passed in as a vector of pairs of strings.
+         * The first element in the pair specifies the recurrence, while the second element specifies
+         * the group.
          */
-        bool defineRootGroup(const std::vector<std::string>& rootGroup);
+        void defineRootGroup(const std::map<std::string, std::vector<std::string>>& groupList);
 
         /**
          * Add argument to a pass.
          */
-        bool addArgToPass(const std::string& pass, const std::string& arg, const std::string& value);
+        void addArgToPass(const std::string& pass, const std::string& arg, const std::string& value);
+
+        /**
+         * Unfold groups into passes list.
+         */
+        //std::vector<std::string> unfoldPasses();
+        void unfoldPasses();
+
+        void printGroups(const std::string &groupStr);
+
+        //void printGroupElement(const std::map<RecurrenceType, std::vector<std::string>>& group);
 
     };
 

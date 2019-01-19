@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
+#include "include/mcm/compiler/compilation_descriptor.hpp"
 
 TEST (compilation_descriptor, load_from_file)
 {
@@ -48,4 +49,24 @@ TEST (compilation_descriptor, load_from_file)
             }
         }
     }
+}
+
+TEST(compilation_descriptor, bare)
+{
+    mv::CompilationDescriptor compDesc;
+    compDesc.addGroup("testGroup");
+    compDesc.addPassToGroup("testPass1", "testGroup", "Singular");
+    compDesc.addPassToGroup("testPass2", "testGroup", "Recurrent");
+    compDesc.addPassToGroup("testPass3", "testGroup", "Recurrent");
+    compDesc.addPassToGroup("testPass4", "testGroup", "Recurrent");
+    //compDesc.addGroupToGroup("testGroup2", "testGroup", "Singular");
+
+    compDesc.addGroup("root");
+    compDesc.addPassToGroup("testPass5", "root", "Singular");
+    compDesc.addPassToGroup("testGroup", "root", "Recurrent");
+    compDesc.addPassToGroup("testGroup6", "root", "Recurrent");
+
+    compDesc.printGroups("root");
+
+    compDesc.unfoldPasses();
 }
