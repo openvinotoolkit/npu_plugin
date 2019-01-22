@@ -41,24 +41,29 @@ Element("CompilationDescriptor")
 void mv::CompilationDescriptor::addGroup(const std::string& group)
 {
     if (!hasAttr(group)) {
-        set<Element>(group, Element(group));
+        Element g = Element(group);
+        g.set<bool>("isGroup", true);
+        set<Element>(group, g);
     }
-
 }
 
-void mv::CompilationDescriptor::addPassToGroup(const std::string& pass, const std::string& group, const std::string& rec)
+void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup)
 {
     // TODO: verify that pass is a valid one
     if (hasAttr(group)) {
         Element& g_elem = get<Element>(group);
 
-        if (g_elem.hasAttr(rec)) {
-            std::vector<std::string> &rec_v = g_elem.get<std::vector<std::string>>(rec);
-            rec_v.push_back(pass);
+        if (g_elem.hasAttr(recurrence)) {
+            std::vector<std::string> &rec_v = g_elem.get<std::vector<std::string>>(recurrence);
+            rec_v.push_back(elem);
         }
         else {
-            std::vector<std::string> rec_v = { pass };
-            g_elem.set<std::vector<std::string>>(rec, rec_v);
+            std::vector<std::string> rec_v = { elem };
+            g_elem.set<std::vector<std::string>>(recurrence, rec_v);
+        }
+
+        if (isGroup && !hasAttr(elem)) {
+            addGroup(elem);
         }
     }
     else {
@@ -116,19 +121,30 @@ void mv::CompilationDescriptor::printGroups(const std::string &groupStr)
     if (hasAttr(groupStr)) {
         Element &group = get<Element>(groupStr);
 
-        if (group.hasAttr("Recurrent")) {
-            std::vector<std::string> &rec_group = group.get<std::vector<std::string>>("Recurrent");
-            std::cout << "group(" << groupStr << ") - recurrent:" << std::endl;
-            for (auto g: rec_group) {
-                std::cout << g << std::endl;
-            }
-        }
-
         if (group.hasAttr("Singular")) {
             std::vector<std::string> &sing_group = group.get<std::vector<std::string>>("Singular");
             std::cout << "group(" << groupStr << ") - singular:" << std::endl;
             for (auto g: sing_group) {
-                std::cout << g << std::endl;
+                if (hasAttr(g) && get<Element>(g).get<bool>("isGroup")) {
+                    std::cout << " element " << g << " is a group" << std::endl;
+                }
+                else {
+                    std::cout << " element " << g << " is a pass" << std::endl;
+                }
+
+            }
+        }
+
+        if (group.hasAttr("Recurrent")) {
+            std::vector<std::string> &rec_group = group.get<std::vector<std::string>>("Recurrent");
+            std::cout << "group(" << groupStr << ") - recurrent:" << std::endl;
+            for (auto g: rec_group) {
+                if (hasAttr(g) && get<Element>(g).get<bool>("isGroup")) {
+                    std::cout << " element " << g << " is a group" << std::endl;
+                }
+                else {
+                    std::cout << " element " << g << " is a pass" << std::endl;
+                }
             }
         }
     }

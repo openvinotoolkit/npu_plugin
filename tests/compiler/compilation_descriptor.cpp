@@ -55,18 +55,19 @@ TEST(compilation_descriptor, bare)
 {
     mv::CompilationDescriptor compDesc;
     compDesc.addGroup("testGroup");
-    compDesc.addPassToGroup("testPass1", "testGroup", "Singular");
-    compDesc.addPassToGroup("testPass2", "testGroup", "Recurrent");
-    compDesc.addPassToGroup("testPass3", "testGroup", "Recurrent");
-    compDesc.addPassToGroup("testPass4", "testGroup", "Recurrent");
+    compDesc.addToGroup("testGroup", "testPass1", "Singular", false);
+    compDesc.addToGroup("testGroup", "testPass2", "Recurrent", false);
+    compDesc.addToGroup("testGroup", "testPass3", "Recurrent", false);
+    compDesc.addToGroup("testGroup", "testPass4", "Recurrent", false);
     //compDesc.addGroupToGroup("testGroup2", "testGroup", "Singular");
 
     compDesc.addGroup("root");
-    compDesc.addPassToGroup("testPass5", "root", "Singular");
-    compDesc.addPassToGroup("testGroup", "root", "Recurrent");
-    compDesc.addPassToGroup("testGroup6", "root", "Recurrent");
+    compDesc.addToGroup("root", "testPass5", "Singular", false);
+    compDesc.addToGroup("root", "testGroup", "Recurrent", true);
+    compDesc.addToGroup("root", "testGroup6", "Recurrent", true);
 
     compDesc.printGroups("root");
+    compDesc.printGroups("testGroup");
 
-    compDesc.unfoldPasses();
+    //compDesc.unfoldPasses();
 }

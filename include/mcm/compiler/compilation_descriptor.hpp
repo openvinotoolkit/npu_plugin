@@ -48,11 +48,12 @@ namespace mv
 
         // TODO: Can the two functions below be combined?
         /**
-         * Adds pass to groups list. If the group doesn't exist, create one. This method also
-         * sets group recurrence -- "Singular" for a pass that executes only once; "Recurrent" for a
+         * Adds some element to groups list. The element could be a group or a pass.
+         * If the group doesn't exist, create one. This method also sets
+         * recurrence -- "Singular" for a pass that executes only once; "Recurrent" for a
          * pass that recurs.
          */
-        void addPassToGroup(const std::string& pass, const std::string& group, const std::string& recurrence);
+        void addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup);
 
         /**
          * Adds pass to groups list. If the group doesn't exist, create one. This method also
