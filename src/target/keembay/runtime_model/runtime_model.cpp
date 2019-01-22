@@ -21,7 +21,7 @@ char * mv::RuntimeModel::serialize(int& bufferSize)
     MVCNN::FinishGraphFileBuffer(fbb, offset);
     bufferSize = fbb.GetSize();
     char * buffer = new char[bufferSize];
-    strcpy(buffer, (char*)fbb.GetBufferPointer());
+    std::memcpy(buffer, (char*)fbb.GetBufferPointer(), bufferSize);
     return buffer;
 }
 
