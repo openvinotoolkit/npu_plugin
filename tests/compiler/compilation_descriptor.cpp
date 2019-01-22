@@ -55,9 +55,9 @@ TEST(compilation_descriptor, bare)
 {
     mv::CompilationDescriptor compDesc;
     compDesc.addGroup("testGroup");
-    compDesc.addToGroup("testGroup", "testPass1", "Singular", false);
-    compDesc.addToGroup("testGroup", "testPass2", "Recurrent", false);
-    compDesc.addToGroup("testGroup", "testPass3", "Recurrent", false);
+    compDesc.addToGroup("testGroup", "ConvolutionDilation", "Singular", false);
+    compDesc.addToGroup("testGroup", "GenerateDot", "Recurrent", false);
+    compDesc.addToGroup("testGroup", "CheckTensors", "Recurrent", false);
     compDesc.addToGroup("testGroup", "testPass4", "Recurrent", false);
     //compDesc.addGroupToGroup("testGroup2", "testGroup", "Singular");
 

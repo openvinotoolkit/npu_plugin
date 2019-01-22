@@ -76,6 +76,11 @@ namespace mv
         void addArgToPass(const std::string& pass, const std::string& arg, const std::string& value);
 
         /**
+         * Validate a pass passed in.
+         */
+        bool validPass(const std::string& passStr);
+
+        /**
          * Unfold groups into passes list.
          */
         //std::vector<std::string> unfoldPasses();

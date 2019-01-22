@@ -1,4 +1,5 @@
 #include "include/mcm/compiler/compilation_descriptor.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
 
 std::map<mv::CompilationDescriptor::RecurrenceType, std::string> mv::CompilationDescriptor::recTypeString_
 {
@@ -38,6 +39,17 @@ Element("CompilationDescriptor")
     // Call load() to parse the json file passed in
 }
 
+bool mv::CompilationDescriptor::validPass(const std::string& passStr)
+{
+    bool pass_entry = mv::pass::PassRegistry::instance().find(passStr);
+
+    if (!pass_entry) {
+        return false;
+    }
+
+    return true;
+}
+
 void mv::CompilationDescriptor::addGroup(const std::string& group)
 {
     if (!hasAttr(group)) {
@@ -62,8 +74,17 @@ void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::
             g_elem.set<std::vector<std::string>>(recurrence, rec_v);
         }
 
-        if (isGroup && !hasAttr(elem)) {
-            addGroup(elem);
+        if (isGroup) {
+            if (!hasAttr(elem)) {
+                addGroup(elem);
+            }
+        }
+        else {
+            // This element is a pass -- validate that it is a valid pass before adding it to the group
+            if (!validPass(elem)) {
+                std::cout << "Cannot find pass: " << elem << " in pass registry" << std::endl;
+
+            }
         }
     }
     else {
