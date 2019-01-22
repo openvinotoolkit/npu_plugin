@@ -24,6 +24,7 @@ namespace mv
 
     private:
 
+        static const std::unordered_map<DTypeType, unsigned, mv::DTypeTypeHash> dTypeSizes_;
         static const std::unordered_map<DTypeType, std::string, DTypeTypeHash> dTypeStrings_;
         static const std::unordered_map<DTypeType, std::function<BinaryData(const std::vector<double>&)>,
                 DTypeTypeHash> dTypeConvertors_;
@@ -48,6 +49,7 @@ namespace mv
 
         std::string getLogID() const override;
         BinaryData toBinary(const std::vector<double>& data) const;
+        unsigned getSizeInBytes() const;
     };
 
 }

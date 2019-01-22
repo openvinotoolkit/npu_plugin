@@ -3,6 +3,28 @@
 #include "include/mcm/tensor/binary_data.hpp"
 #include "include/mcm/base/exception/dtype_error.hpp"
 
+const std::unordered_map<mv::DTypeType, unsigned, mv::DTypeTypeHash> mv::DType::dTypeSizes_ =
+{
+    {DTypeType::Float64, 8},
+    {DTypeType::Float32, 4},
+    {DTypeType::Float16, 2},
+    {DTypeType::Float8, 1},
+    {DTypeType::UInt64, 8},
+    {DTypeType::UInt32, 4},
+    {DTypeType::UInt16, 2},
+    {DTypeType::UInt8, 1},
+    {DTypeType::Int64, 8},
+    {DTypeType::Int32, 4},
+    {DTypeType::Int16, 2},
+    {DTypeType::Int8, 1},
+    {DTypeType::Int4, 1},
+    {DTypeType::Int2, 1},
+    {DTypeType::Int2X, 1},
+    {DTypeType::Int4X, 1},
+    {DTypeType::Bin, 1},
+    {DTypeType::Log, 1}
+};
+
 const std::unordered_map<mv::DTypeType, std::string, mv::DTypeTypeHash> mv::DType::dTypeStrings_ =
 {
     {DTypeType::Float64, "Float64"},
@@ -297,3 +319,9 @@ std::string mv::DType::getLogID() const
 {
     return "DType:" + toString();
 }
+
+unsigned mv::DType::getSizeInBytes() const
+{
+    return dTypeSizes_.at(dType_);
+}
+

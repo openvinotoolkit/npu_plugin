@@ -106,6 +106,7 @@ namespace mv
         }
 
         Tensor& operator=(const Tensor& other);
+        std::vector<unsigned> computeStrides() const;
 
         std::string toString() const override;
         virtual std::string getLogID() const override;

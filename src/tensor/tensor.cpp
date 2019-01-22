@@ -496,7 +496,12 @@ std::string mv::Tensor::getLogID() const
     return "Tensor:" + getName();
 }
 
- mv::BinaryData mv::Tensor::toBinary()
- {
+mv::BinaryData mv::Tensor::toBinary()
+{
     return getDType().toBinary(getData());
- }
+}
+
+std::vector<unsigned> mv::Tensor::computeStrides() const
+{
+    return getOrder().computeStrides(getShape(), getDType().getSizeInBytes());
+}
