@@ -2,23 +2,21 @@
 #include "include/mcm/computation/op/op_registry.hpp"
 
 mv::op::OpEntry::OpEntry(const std::string& opType) :
-opType_(opType)
+opType_(opType),
+checkInputs_(true)
 {
 
 }
 
-mv::op::OpEntry& mv::op::OpEntry::setInputVectorTypes(bool inputVectorTypes)
+const std::string& mv::op::OpEntry::getName()
+{
+    return opType_;
+}
+
+mv::op::OpEntry& mv::op::OpEntry::setVariableInputNum(bool inputVectorTypes)
 {
 
     inputVectorTypes_ = inputVectorTypes;
-    return *this;
-
-}
-
-mv::op::OpEntry& mv::op::OpEntry::setCustomArgs(bool customArgs)
-{
-
-    customArgs_ = customArgs;
     return *this;
 
 }
@@ -46,6 +44,13 @@ mv::op::OpEntry& mv::op::OpEntry::setInputCheck(const std::function<std::pair<bo
     return *this;
 }
 
+mv::op::OpEntry& mv::op::OpEntry::setInputCheck(bool inputCheck)
+{
+    checkInputs_ = inputCheck;
+    return *this;
+}
+
+
 mv::op::OpEntry& mv::op::OpEntry::setOutputDef(std::function<void(const std::vector<Data::TensorIterator>&,
     const std::map<std::string, Attribute>&, std::vector<Tensor>&)>& outputDef)
 {
@@ -70,6 +75,20 @@ mv::op::OpEntry& mv::op::OpEntry::setTypeTrait(const std::string& trait)
     return *this;
 
 }
+
+mv::op::OpEntry& mv::op::OpEntry::setBaseOperation(const std::string& opType)
+{
+    copyOperations_.push_back(opType);
+    return *this;
+}
+
+mv::op::OpEntry& mv::op::OpEntry::setBaseOperation(std::initializer_list<std::string> ops)
+{
+    for (auto it = ops.begin(); it != ops.end(); ++it)
+        setBaseOperation(*it);
+    return *this;
+}
+
 
 mv::op::OpEntry& mv::op::OpEntry::setTypeTrait(std::initializer_list<std::string> traits)
 {
@@ -219,9 +238,14 @@ bool mv::op::OpEntry::hasVectorTypesAsInput()
     return inputVectorTypes_;
 }
 
-bool mv::op::OpEntry::hasCustomArgs()
+bool mv::op::OpEntry::doInputNeedToBeChecked()
 {
-    return customArgs_;
+    return checkInputs_;
+}
+
+const std::vector<std::string> &mv::op::OpEntry::getCopyOperations()
+{
+    return copyOperations_;
 }
 
 std::string mv::op::OpEntry::getLogID() const

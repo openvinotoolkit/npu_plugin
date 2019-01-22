@@ -32,7 +32,7 @@ namespace mv
              */
             std::set<std::string> typeTraits_;
 
-            static std::string getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs);
+            static std::string getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs, bool call, bool recordedModel);
             static std::string getCompositionDecl_(const std::string& opType);
             static std::string getCompositionDef_(const std::string& opType, const std::string& eol = "\n", const std::string& tab = "    ");
             static std::string getCompositionCall_(const std::string& opType);
@@ -71,6 +71,10 @@ namespace mv
             static void generateCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
             static void generateRecordedCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
             
+        private:
+            static void outputMandatoryArgList(std::vector<std::string>& mandatoryArgsList, OpEntry* const opPtr, std::string& mandatoryArgsDef, bool types);
+            static void outputOptionalArgList(std::vector<std::pair<std::string, mv::Attribute>>& optionalArgsList, OpEntry* const opPtr, std::string& optionalArgsDef, bool types, bool defaultArgs);
+            static void defineOpOutput(std::string& output, const std::string& eol, const std::string& opType, OpEntry* const opPtr, std::string token, bool inputVectorTypes, bool checkInputs, bool copiedOp, const std::string& tab);
         };
 
         #define MV_REGISTER_OP(Name)															\
