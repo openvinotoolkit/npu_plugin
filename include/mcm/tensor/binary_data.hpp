@@ -32,7 +32,7 @@ namespace mv
         std::vector<int8_t>* log_;
 
         void deleteData_();
-        void setData_(const BinaryData &other);
+
     public:
 
         friend void swap(BinaryData& first, BinaryData& second);

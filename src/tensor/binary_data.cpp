@@ -47,7 +47,114 @@ mv::BinaryData::BinaryData():
 
 mv::BinaryData::BinaryData(const BinaryData &other) : BinaryData()
 {
-    setData_(other);
+    if (other.fp64_ != nullptr)
+    {
+        fp64_ = new std::vector<double>();
+        *fp64_ = *other.fp64_;
+        return;
+    }
+    if (other.fp32_ != nullptr)
+    {
+        fp32_ = new std::vector<float>();
+        *fp32_ = *other.fp32_;
+        return;
+    }
+    if (other.fp16_ != nullptr)
+    {
+        fp16_ = new std::vector<int16_t>();
+        *fp16_ = *other.fp16_;
+        return;
+    }
+    if (other.fp8_ != nullptr)
+    {
+        fp8_ = new std::vector<uint8_t>();
+        *fp8_ = *other.fp8_;
+        return;
+    }
+    if (other.u64_ != nullptr)
+    {
+        u64_ = new std::vector<uint64_t>();
+        *u64_ = *other.u64_;
+        return;
+    }
+    if (other.u32_ != nullptr)
+    {
+        u32_ = new std::vector<uint32_t>();
+        *u32_ = *other.u32_;
+        return;
+    }
+    if (other.u16_ != nullptr)
+    {
+        u16_ = new std::vector<uint16_t>();
+        *u16_ = *other.u16_;
+        return;
+    }
+    if (other.u8_ != nullptr)
+    {
+        u8_ = new std::vector<uint8_t>();
+        *u8_ = *other.u8_;
+        return;
+    }
+    if (other.i64_ != nullptr)
+    {
+        i64_ = new std::vector<int64_t>();
+        *i64_ = *other.i64_;
+        return;
+    }
+    if (other.i32_ != nullptr)
+    {
+        i32_ = new std::vector<int32_t>();
+        *i32_ = *other.i32_;
+        return;
+    }
+    if (other.i16_ != nullptr)
+    {
+        i16_ = new std::vector<int16_t>();
+        *i16_ = *other.i16_;
+        return;
+    }
+    if (other.i8_ != nullptr)
+    {
+        i8_ = new std::vector<int8_t>();
+        *i8_ = *other.i8_;
+        return;
+    }
+    if (other.i4_ != nullptr)
+    {
+        i4_ = new std::vector<int8_t>();
+        *i4_ = *other.i4_;
+        return;
+    }
+    if (other.i2_ != nullptr)
+    {
+        i2_ = new std::vector<int8_t>();
+        *i2_ = *other.i2_;
+        return;
+    }
+    if (other.i4x_ != nullptr)
+    {
+        i4x_ = new std::vector<int8_t>();
+        *i4x_ = *other.i4x_;
+        return;
+    }
+    if (other.i2x_ != nullptr)
+    {
+        i2x_ = new std::vector<int8_t>();
+        *i2x_ = *other.i2x_;
+        return;
+    }
+    if (other.bin_ != nullptr)
+    {
+        bin_ = new std::vector<int8_t>();
+        *bin_ = *other.bin_;
+        return;
+    }
+    if (other.log_ != nullptr)
+    {
+        log_ = new std::vector<int8_t>();
+        *log_ = *other.log_;
+        return;
+    }
 }
 
 mv::BinaryData::BinaryData(BinaryData &&other): BinaryData()
@@ -533,115 +640,3 @@ mv::BinaryData& mv::BinaryData::operator=(mv::BinaryData other)
    swap(*this, other);
    return *this;
 }
-
-void mv::BinaryData::setData_(const BinaryData &other)
-{
-    if (other.fp64_ != nullptr)
-    {
-        fp64_ = new std::vector<double>();
-        *fp64_ = *other.fp64_;
-        return;
-    }
-    if (other.fp32_ != nullptr)
-    {
-        fp32_ = new std::vector<float>();
-        *fp32_ = *other.fp32_;
-        return;
-    }
-    if (other.fp16_ != nullptr)
-    {
-        fp16_ = new std::vector<int16_t>();
-        *fp16_ = *other.fp16_;
-        return;
-    }
-    if (other.fp8_ != nullptr)
-    {
-        fp8_ = new std::vector<uint8_t>();
-        *fp8_ = *other.fp8_;
-        return;
-    }
-    if (other.u64_ != nullptr)
-    {
-        u64_ = new std::vector<uint64_t>();
-        *u64_ = *other.u64_;
-        return;
-    }
-    if (other.u32_ != nullptr)
-    {
-        u32_ = new std::vector<uint32_t>();
-        *u32_ = *other.u32_;
-        return;
-    }
-    if (other.u16_ != nullptr)
-    {
-        u16_ = new std::vector<uint16_t>();
-        *u16_ = *other.u16_;
-        return;
-    }
-    if (other.u8_ != nullptr)
-    {
-        u8_ = new std::vector<uint8_t>();
-        *u8_ = *other.u8_;
-        return;
-    }
-    if (other.i64_ != nullptr)
-    {
-        i64_ = new std::vector<int64_t>();
-        *i64_ = *other.i64_;
-        return;
-    }
-    if (other.i32_ != nullptr)
-    {
-        i32_ = new std::vector<int32_t>();
-        *i32_ = *other.i32_;
-        return;
-    }
-    if (other.i16_ != nullptr)
-    {
-        i16_ = new std::vector<int16_t>();
-        *i16_ = *other.i16_;
-        return;
-    }
-    if (other.i8_ != nullptr)
-    {
-        i8_ = new std::vector<int8_t>();
-        *i8_ = *other.i8_;
-        return;
-    }
-    if (other.i4_ != nullptr)
-    {
-        i4_ = new std::vector<int8_t>();
-        *i4_ = *other.i4_;
-        return;
-    }
-    if (other.i2_ != nullptr)
-    {
-        i2_ = new std::vector<int8_t>();
-        *i2_ = *other.i2_;
-        return;
-    }
-    if (other.i4x_ != nullptr)
-    {
-        i4x_ = new std::vector<int8_t>();
-        *i4x_ = *other.i4x_;
-        return;
-    }
-    if (other.i2x_ != nullptr)
-    {
-        i2x_ = new std::vector<int8_t>();
-        *i2x_ = *other.i2x_;
-        return;
-    }
-    if (other.bin_ != nullptr)
-    {
-        bin_ = new std::vector<int8_t>();
-        *bin_ = *other.bin_;
-        return;
-    }
-    if (other.log_ != nullptr)
-    {
-        log_ = new std::vector<int8_t>();
-        *log_ = *other.log_;
-        return;
-    }
- }
