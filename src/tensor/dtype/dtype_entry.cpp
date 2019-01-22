@@ -10,7 +10,7 @@ mv::DTypeEntry& mv::DTypeEntry::setToBinaryFunc(std::function<mv::BinaryData(con
     toBinaryFunc_ = f;
     return *this;
 }
-const std::function<mv::BinaryData(const std::vector<double>&)> mv::DTypeEntry::getToBinaryFunc()
+const std::function<mv::BinaryData(const std::vector<double>&)>& mv::DTypeEntry::getToBinaryFunc()
 {
     return toBinaryFunc_;
 }

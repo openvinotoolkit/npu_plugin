@@ -30,7 +30,7 @@ std::string mv::DType::toString() const
 
 mv::BinaryData mv::DType::toBinary(const std::vector<double>& data) const
 {
-    const std::function<mv::BinaryData(const std::vector<double>&)> func = mv::DTypeRegistry::getToBinaryFunc(dType_);
+    const std::function<mv::BinaryData(const std::vector<double>&)>& func = mv::DTypeRegistry::getToBinaryFunc(dType_);
     return func(data);
 }
 

@@ -18,7 +18,7 @@ namespace mv
 
         DTypeEntry(const std::string& name);
         DTypeEntry& setToBinaryFunc(std::function<BinaryData(const std::vector<double>&)>& f);
-        const std::function<BinaryData(const std::vector<double>&)> getToBinaryFunc();
+        const std::function<BinaryData(const std::vector<double>&)>& getToBinaryFunc();
     };
 
 }

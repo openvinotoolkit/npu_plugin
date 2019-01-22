@@ -24,7 +24,7 @@ namespace mv
             return instance().find(dtype_string) != nullptr;
         }
 
-        inline static const std::function<BinaryData(const std::vector<double>&)> getToBinaryFunc(const std::string& typeID)
+        static const std::function<BinaryData(const std::vector<double>&)>& getToBinaryFunc(const std::string& typeID)
         {
 
             if (!checkDType(typeID))
