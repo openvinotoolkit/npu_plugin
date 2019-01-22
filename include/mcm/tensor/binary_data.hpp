@@ -3,7 +3,6 @@
 #include <vector>
 #include <cstdint>
 #include "include/mcm/tensor/dtypetype.hpp"
-#include "meta/schema/graphfile/memoryManagement_generated.h"
 
 namespace mv
 {
