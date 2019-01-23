@@ -12,9 +12,9 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    auto input1 = test_cm.input({225, 225, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input1 = test_cm.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
-    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCWH"));
+    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0}, 1);
     auto output = test_cm.output(conv1);
 

@@ -12,9 +12,9 @@ TEST(mvtensor_serialization, blob_prelu1)
     mv::CompilationUnit unit("prelu1");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> data = mv::utils::generateSequence<double>(3);
-    auto slope = om.constant(data, {3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)));
+    auto slope = om.constant(data, {3}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(1)));
     auto prelu = om.prelu(input, slope);
     auto output = om.output(prelu);
 
@@ -46,9 +46,9 @@ TEST(mvtensor_serialization, blob_prelu2)
     mv::CompilationUnit unit("prelu2");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> data = mv::utils::generateSequence<double>(3);
-    auto slope = om.constant(data, {3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)));
+    auto slope = om.constant(data, {3}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(1)));
     auto prelu = om.prelu(input, slope);
     auto output = om.output(prelu);
 
@@ -80,9 +80,9 @@ TEST(mvtensor_serialization, blob_prelu3)
     mv::CompilationUnit unit("prelu3");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({224, 200, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({224, 200, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> data = mv::utils::generateSequence<double>(3);
-    auto slope = om.constant(data, {3}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(1)));
+    auto slope = om.constant(data, {3}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(1)));
     auto prelu = om.prelu(input, slope);
     auto output = om.output(prelu);
 

@@ -11,7 +11,7 @@ int main()
     mv::CompilationUnit unit("relu");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto relu = om.relu(input);
     auto output = om.output(relu);
 

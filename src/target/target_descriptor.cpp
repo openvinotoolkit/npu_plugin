@@ -24,7 +24,7 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
-globalDType_(DTypeType::Float16)
+globalDType_("Float16")
 {
 
     if (!filePath.empty())
@@ -37,7 +37,7 @@ globalDType_(DTypeType::Float16)
 void mv::TargetDescriptor::reset()
 {
     target_ = Target::Unknown;
-    globalDType_ = DTypeType::Float16;
+    globalDType_ = DType("Float16");
     adaptationPasses_.clear();
     optimizationPasses_.clear();
     finalizationPasses_.clear();

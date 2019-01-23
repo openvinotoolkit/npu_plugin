@@ -5,7 +5,7 @@
 TEST(ops, reshape)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({10, 10, 5}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({10, 10, 5}, mv::DType("Float16"), mv::Order("CHW"));
     auto reshape = om.reshape(input, {5, 5, 20});
     auto reshapeOp = om.getSourceOp(reshape);
     om.output(reshape);

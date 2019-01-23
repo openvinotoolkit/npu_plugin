@@ -5,7 +5,7 @@
 TEST(ops, softmax)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto softmax = om.softmax(input);
     auto softmaxOp = om.getSourceOp(softmax);
     auto output = om.output(softmax);

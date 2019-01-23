@@ -12,7 +12,7 @@ TEST(mvtensor_serialization, blob_relu1)
     mv::CompilationUnit unit("relu1");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto relu = om.relu(input);
     auto output = om.output(relu);
 
@@ -44,7 +44,7 @@ TEST(mvtensor_serialization, blob_relu2)
     mv::CompilationUnit unit("relu2");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto relu = om.relu(input);
     auto output = om.output(relu);
 
@@ -76,7 +76,7 @@ TEST(mvtensor_serialization, blob_relu3)
     mv::CompilationUnit unit("relu3");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({224, 200, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({224, 200, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto relu = om.relu(input);
     auto output = om.output(relu);
 

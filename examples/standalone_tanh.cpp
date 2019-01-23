@@ -12,7 +12,7 @@ int main()
     mv::CompilationUnit unit("tanh");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto tanh = om.tanh(input);
     auto output = om.output(tanh);
 

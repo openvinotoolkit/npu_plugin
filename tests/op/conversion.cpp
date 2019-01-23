@@ -6,9 +6,9 @@ TEST(ops, conversion)
 {
 
     mv::OpModel om("testModel");
-    auto input0 = om.input({256, 512}, mv::DTypeType::Float16, mv::Order("HW"));
+    auto input0 = om.input({256, 512}, mv::DType("Float16"), mv::Order("HW"));
     std::vector<double> data = mv::utils::generateSequence<double>(256u * 512u);
-    auto dataTensor = om.constant(data, {256, 512}, mv::DTypeType::Float16, mv::Order("HW"));
+    auto dataTensor = om.constant(data, {256, 512}, mv::DType("Float16"), mv::Order("HW"));
 
     auto conversion = om.conversion(dataTensor, mv::Order("WH"));
     auto conversionOp = om.getSourceOp(conversion);

@@ -5,7 +5,7 @@
 TEST(ops, relu)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto relu = om.relu(input);
     auto reluOp = om.getSourceOp(relu);
     auto output = om.output(relu);
