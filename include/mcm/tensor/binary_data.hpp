@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include "meta/schema/graphfile/memoryManagement_generated.h"
 
 namespace mv
 {

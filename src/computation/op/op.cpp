@@ -5,7 +5,6 @@ mv::Op::Op(ComputationModel& model, const std::string& opType, const std::string
     const std::vector<Data::TensorIterator>& inputs, std::initializer_list<std::pair<std::string, Attribute>> args) :
 ModelElement(model, name)
 {
-
     log(Logger::MessageType::Debug, "Initialized");
 
     if (!op::OpRegistry::checkOpType(opType))
@@ -16,35 +15,68 @@ ModelElement(model, name)
 
     set<std::string>("opType", opType, {"const"});
 
-    auto argList = op::OpRegistry::argsList(opType);
+    auto mandatoryArgList = op::OpRegistry::getArgsList(opType);
+    auto numReqdMandatoryArgs = mandatoryArgList.size();
+    auto optionalArgList = op::OpRegistry::getOptionalArgsList(opType);
 
-    for (auto it = args.begin(); it != args.end(); ++it)
+    for (auto it = args.begin(); it != args.end(); ++it) 
     {
 
-        auto argIt = std::find(argList.begin(), argList.end(), it->first);
-        if (argIt != argList.end())
+        auto argIt = std::find(mandatoryArgList.begin(), mandatoryArgList.end(), it->first);
+
+        if (argIt != mandatoryArgList.end())
         {
-            if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID()))
+
+            if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID())) 
                 throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +  
                     attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " + 
                     attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
+
             set(it->first, it->second);
-            argList.erase(argIt);
+
         }
         else
-            throw ArgumentError(*this, "arg", it->first, "Invalid argument");
+        {
+            auto optArgIt = std::find_if(optionalArgList.begin(), optionalArgList.end(),
+                                [&it](std::pair<std::string, Attribute> arg)->bool
+                                {
+                                    return std::get<0>(arg) == it->first;
+                                }
+                            );
+
+            if (optArgIt != optionalArgList.end())
+            {
+
+                if (!op::OpRegistry::checkArgType(opType, it->first, it->second.getTypeID()))
+                {
+                    
+                    throw ArgumentError(*this, "arg", it->first, "Invalid argument type, received " +
+                        attr::AttributeRegistry::getTypeName(it->second.getTypeID()) + ", must be " +
+                        attr::AttributeRegistry::getTypeName(op::OpRegistry::argType(opType, it->first)));
+
+                }
+
+                set(it->first, it->second);
+
+            }
+            else
+                throw ArgumentError(*this, "arg", it->first, "Invalid argument");
+
+        }
 
     }
-
-    if (!argList.empty())
+    
+    // Check if all mandatory args (no default values) provided
+    if (args.size() < numReqdMandatoryArgs)
     {
         std::string list;
-        for (std::size_t i = 0; i < argList.size() - 1; ++i)
-            list += argList[i] + ", ";
-        list += argList.back();
+        for (std::size_t i = 0; i < mandatoryArgList.size() - 1; ++i)
+            list += mandatoryArgList[i] + ", ";
+        list += mandatoryArgList.back();
+
         throw ArgumentError(*this, "arg", list, "Missing arguments");
     }
-
+    
     if (inputs.size() != op::OpRegistry::getInputsCount(opType))
         throw ArgumentError(*this, "inputs:size", std::to_string(inputs.size()), "Does not match the registered inputs count " +
             std::to_string(op::OpRegistry::getInputsCount(opType)));
@@ -76,7 +108,6 @@ ModelElement(model, name)
         opTraits.push_back(*it);
 
     set<std::vector<std::string>>("traits", opTraits);
-
 }
 
 mv::Op::~Op()

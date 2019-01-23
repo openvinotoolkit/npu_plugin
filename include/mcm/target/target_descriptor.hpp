@@ -37,7 +37,6 @@ namespace mv
 
         };
 
-        static std::string toString(Target target);
         static Target toTarget(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
@@ -107,6 +106,8 @@ namespace mv
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
 
         std::string getLogID() const override;
+
+        static std::string toString(Target target);
 
     };
 

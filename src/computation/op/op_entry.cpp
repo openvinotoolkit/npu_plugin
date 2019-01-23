@@ -81,32 +81,68 @@ std::size_t mv::op::OpEntry::getOutputsCount() const
 
 bool mv::op::OpEntry::hasArg(const std::string& name) const
 {
-    return std::find_if(args_.begin(), args_.end(),
+    return std::find_if(mandatoryArgs_.begin(), mandatoryArgs_.end(),
         [&name](std::pair<std::string, std::type_index> arg)->bool
         {
-            return arg.first == name;
+            return std::get<0>(arg) == name;
         }
-    ) != args_.end();
+    ) != mandatoryArgs_.end();
+}
+
+bool mv::op::OpEntry::hasOptionalArg(const std::string& name) const
+{
+    return std::find_if(optionalArgs_.begin(), optionalArgs_.end(),
+        [&name](std::tuple<std::string, std::type_index, Attribute> arg)->bool
+        {
+            return std::get<0>(arg) == name;
+        }
+    ) != optionalArgs_.end();
 }
 
 std::type_index mv::op::OpEntry::argType(const std::string& name) const
 {
-    if (!hasArg(name))
+    if (!hasArg(name) && !hasOptionalArg(name)) {
         throw OpError(*this, "Attempt of checking the type of an non-existing argument \"" + name + "\"");
-    return std::find_if(args_.begin(), args_.end(),
+    }
+    
+    if (hasOptionalArg(name)) {
+        return std::get<1>(*std::find_if(optionalArgs_.begin(), optionalArgs_.end(),
+            [&name](std::tuple<std::string, std::type_index, Attribute> arg)->bool
+            {
+                return std::get<0>(arg) == name;
+            }
+        ));
+    }
+
+    return std::get<1>(*std::find_if(mandatoryArgs_.begin(), mandatoryArgs_.end(),
         [&name](std::pair<std::string, std::type_index> arg)->bool
         {
-            return arg.first == name;
+            return std::get<0>(arg) == name;
         }
-    )->second;
+    ));
 }
 
-std::vector<std::string> mv::op::OpEntry::argsList() const
+std::vector<std::string> mv::op::OpEntry::getArgsList() const
 {
     std::vector<std::string> list;
-    list.reserve((args_.size()));
-    for (auto &arg : args_)
-        list.push_back(arg.first);
+    list.reserve((mandatoryArgs_.size()));
+    for (auto &arg : mandatoryArgs_)
+        list.push_back(std::get<0>(arg));
+    return list;
+}
+
+std::vector<std::pair<std::string, mv::Attribute>> mv::op::OpEntry::getOptionalArgsList() const
+{
+    std::vector<std::pair<std::string, Attribute>> list;
+    list.reserve((optionalArgs_.size()));
+    
+    std::for_each(optionalArgs_.begin(), optionalArgs_.end(),
+        [&list](std::tuple<std::string, std::type_index, Attribute> arg)
+        {
+            if (std::get<2>(arg).valid())
+                list.push_back(make_pair(std::get<0>(arg),std::get<2>(arg)));
+        }
+    );
     return list;
 }
 

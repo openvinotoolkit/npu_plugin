@@ -36,6 +36,27 @@ const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID_ 
     {5, "HWCNT"}
 };
 
+mv::Order::Order(const std::string& value)
+   :Order([this, value]()->Order
+    {
+
+        if(!OrderRegistry::checkOrder(value))
+            throw OrderError(*this, "Invalid string passed for Order construction " + value);
+
+        return Order(OrderRegistry::getContVector(value), value);
+    }())
+{
+
+}
+
+mv::Order::Order(const std::vector<std::size_t>& contVectorParam, const std::string& contVectorStrParam)
+    :contVector_(contVectorParam),
+     contVectorStr_(contVectorStrParam)
+{
+
+}
+
+
 std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& sub) const
 {
 

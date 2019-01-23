@@ -38,7 +38,6 @@ bool mv::attr::AttributeRegistry::checkType(const std::string& typeName)
 
 std::string mv::attr::AttributeRegistry::getTypeName(std::type_index typeID)
 {
-
     if (!checkType(typeID))
     {
         throw AttributeError("AttributeRegistry", "Attempt of obtaining the name of an unregistered attribute type "

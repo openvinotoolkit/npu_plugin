@@ -22,7 +22,7 @@ namespace mv
             return instance().find(order_string) != nullptr;
         }
 
-        inline static std::vector<std::size_t>& getContVector(const std::string& order_string)
+        inline static const std::vector<std::size_t>& getContVector(const std::string& order_string)
         {
             return instance().find(order_string)->getContiguityVector();
         }

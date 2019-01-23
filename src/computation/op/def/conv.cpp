@@ -23,13 +23,13 @@ namespace mv
                 errMsg = "Shape ndims is not equal to 4";
                 return {false, 1};
             }
-            
+
             if (inputs[0]->getShape()[2] != inputs[1]->getShape()[2])
             {
                 errMsg = "Does not match the channel dimension of input " + std::to_string(inputs[0]->getShape()[2]);
                 return {false, 1};
             }
-            
+
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
 
             if (inputs[0]->getShape()[0] + padding[0] + padding[1] < inputs[1]->getShape()[0])
@@ -37,7 +37,7 @@ namespace mv
                 errMsg = "Width exceeds padded input width " + std::to_string(inputs[0]->getShape()[0] + padding[0] + padding[1]);
                 return {false, 1};
             }
-            
+
             if (inputs[0]->getShape()[1] + padding[2] + padding[3] < inputs[1]->getShape()[1])
             {
                 errMsg = "Height exceeds padded input height " + std::to_string(inputs[0]->getShape()[1] + padding[2] + padding[3]);
@@ -45,7 +45,6 @@ namespace mv
             }
 
             auto dilationFactor = args.at("dilationFactor").get<unsigned>();
-
             if (dilationFactor < 1) {
 
                 errMsg = "Dilation factor must be greater than or equal to one";
@@ -77,8 +76,8 @@ namespace mv
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
         .setArg<std::array<unsigned short, 2>>("stride")
+        .setOptionalArg<unsigned>("dilationFactor", 1)
         .setArg<std::array<unsigned short, 4>>("padding")
-        .setArg<unsigned>("dilationFactor")
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

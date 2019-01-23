@@ -11,6 +11,7 @@ namespace mv
 
     enum class bLocation
     {
+        Null = 0,
         Input = 1,
         Output = 2,
         Constant = 3,

@@ -88,6 +88,16 @@ void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& m
                 om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
 
             }
+            else if (opIterator->getOpType() == "MaxPool")
+            {
+                om.addAttr(opIterator, "NCE1_Compatible", (int)1);
+                om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
+            }
+            else if (opIterator->getOpType() == "AveragePool")
+            {
+                om.addAttr(opIterator, "NCE1_Compatible", (int)1);
+                om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
+            }
             else
             {
                 om.addAttr(opIterator, "NCE1_Compatible", (int)0);
