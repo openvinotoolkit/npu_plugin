@@ -283,7 +283,7 @@ mv::Tensor mv::exe::Executor::execute_(void* graphFileBuf, int graphLen, Tensor&
     Shape shape({outputTensorDesc_[0].w, outputTensorDesc_[0].h, outputTensorDesc_[0].c, outputTensorDesc_[0].n});
     Order order = mv::exe::utils::getTensorOrder(outputTensorDesc_[0]);
 
-    Tensor resultTensor("result", shape, DType(DTypeType::Float16), order);
+    Tensor resultTensor("result", shape, DType("Float16"), order);
     resultTensor.populate(tensorData);
 
     delete result;

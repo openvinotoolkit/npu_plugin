@@ -2,6 +2,7 @@
 #define MV_DTYPE_ENTRY
 
 #include <vector>
+#include <functional>
 #include "include/mcm/tensor/binary_data.hpp"
 
 namespace mv

@@ -6,17 +6,17 @@
 TEST(ops, batchnorm)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> bnInputData = mv::utils::generateSequence<double>(input->getShape()[-1]);
     std::vector<double> meanData = mv::utils::generateSequence<double>(input->getShape()[-1]);
     std::vector<double> varData = mv::utils::generateSequence<double>(input->getShape()[-1]);
     std::vector<double> scaleData = mv::utils::generateSequence<double>(input->getShape()[-1]);
     std::vector<double> offsetData = mv::utils::generateSequence<double>(input->getShape()[-1]);
 
-    auto bnmean = om.constant(meanData, {input->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-    auto bnvariance = om.constant(varData, {input->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-    auto bnoffset = om.constant(offsetData, {input->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
-    auto bnscale = om.constant(scaleData, {input->getShape()[-1]}, mv::DTypeType::Float16, mv::Order("W"));
+    auto bnmean = om.constant(meanData, {input->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
+    auto bnvariance = om.constant(varData, {input->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
+    auto bnoffset = om.constant(offsetData, {input->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
+    auto bnscale = om.constant(scaleData, {input->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
     double eps = 1e-9;
 
     auto batchnorm = om.batchNormalization(input, bnmean, bnvariance, bnoffset, bnscale, eps);

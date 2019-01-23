@@ -12,7 +12,7 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    auto input1 = test_cm.input({225, 225, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input1 = test_cm.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto pool1 = test_cm.maxPool(input1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto output = test_cm.output(pool1);
 
