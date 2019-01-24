@@ -92,48 +92,52 @@ void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::
     }
 }
 
-void mv::CompilationDescriptor::defineRootGroup(const std::map<std::string, std::vector<std::string>>& groupList)
+void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses)
 {
-
-    if (!hasAttr("root")) {
-        addGroup("root");
+    if (!hasAttr(group)) {
+        std::cout << "group(" << group << ") doesn't exist" << std::endl;
+        return;
     }
 
-    for (auto listItem: groupList) {
-        std::vector<std::string> group_vec = listItem.second;
-        for (auto group: group_vec) {
-            addPassToGroup(group, "root", listItem.first);
+    Element &elem = get<mv::Element>(group);
+
+    std::vector<std::string> recurrentPasses;
+    if (elem.hasAttr("Recurrent")) {
+        std::vector<std::string> &recurrent_group = elem.get<std::vector<std::string>>("Recurrent");
+        for (auto g: recurrent_group) {
+            if (hasAttr(g)) {
+                serializePassListInGroup(g, recurrentPasses);
+            }
+            else {
+                recurrentPasses.push_back(g);
+            }
         }
     }
 
+    if (elem.hasAttr("Singular")) {
+        std::vector<std::string> &singular_group = elem.get<std::vector<std::string>>("Singular");
+        for (auto g: singular_group) {
+            serializedPasses.push_back(g);
+            if (!recurrentPasses.empty()) {
+                serializedPasses.insert(serializedPasses.end(), recurrentPasses.begin(), recurrentPasses.end());
+            }
+        }
+    }
 }
 
-void mv::CompilationDescriptor::unfoldPasses()
+std::vector<std::string> mv::CompilationDescriptor::serializePassList()
 {
-    // 1) Get rootGroup
-    // 2) walk through the rootGroup and start unfolding groups and passes.
-
-    std::vector<std::string> passes;
 
     if (!hasAttr("root")) {
         throw RuntimeError(*this, "Unable to find root group, cannot serialize pass list");
     }
 
-    Element &root = get<Element>("root");
+    std::vector<std::string> serializedPasses;
 
-    if (root.hasAttr("Recurrent")) {
-        std::vector<std::string> &rec_group = root.get<std::vector<std::string>>("Recurrent");
-        for (auto group: rec_group) {
-            printGroups(group);
-        }
-    }
+    serializePassListInGroup("root", serializedPasses);
 
-    if (root.hasAttr("Singular")) {
-        std::vector<std::string> &sing_group = root.get<std::vector<std::string>>("Singular");
-        for (auto group: sing_group) {
-            printGroups(group);
-        }
-    }
+    return serializedPasses;
+
 }
 
 void mv::CompilationDescriptor::printGroups(const std::string &groupStr)

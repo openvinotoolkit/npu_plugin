@@ -33,6 +33,8 @@ namespace mv
         static std::string toString(const RecurrenceType& rec);
         static RecurrenceType fromString(const std::string& str);
 
+        void serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses);
+
     public:
 
         CompilationDescriptor();
@@ -63,14 +65,6 @@ namespace mv
         void addGroupToGroup(const std::string& group, const std::string& containerGroup, const std::string& recurrence);
 
         /**
-         * Explicitly set the root group. This is needed to specify the order in which the groups
-         * will execute. The root group is expected to be passed in as a vector of pairs of strings.
-         * The first element in the pair specifies the recurrence, while the second element specifies
-         * the group.
-         */
-        void defineRootGroup(const std::map<std::string, std::vector<std::string>>& groupList);
-
-        /**
          * Add argument to a pass.
          */
         void addArgToPass(const std::string& pass, const std::string& arg, const std::string& value);
@@ -83,8 +77,7 @@ namespace mv
         /**
          * Unfold groups into passes list.
          */
-        //std::vector<std::string> unfoldPasses();
-        void unfoldPasses();
+        std::vector<std::string> serializePassList();
 
         void printGroups(const std::string &groupStr);
 

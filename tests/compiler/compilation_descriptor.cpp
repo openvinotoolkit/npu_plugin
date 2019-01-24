@@ -56,18 +56,19 @@ TEST(compilation_descriptor, bare)
     mv::CompilationDescriptor compDesc;
     compDesc.addGroup("testGroup");
     compDesc.addToGroup("testGroup", "ConvolutionDilation", "Singular", false);
+    compDesc.addToGroup("testGroup", "AlignConstOrder", "Singular", false);
     compDesc.addToGroup("testGroup", "GenerateDot", "Recurrent", false);
     compDesc.addToGroup("testGroup", "CheckTensors", "Recurrent", false);
     compDesc.addToGroup("testGroup", "testPass4", "Recurrent", false);
-    //compDesc.addGroupToGroup("testGroup2", "testGroup", "Singular");
 
     compDesc.addGroup("root");
     compDesc.addToGroup("root", "testPass5", "Singular", false);
+    compDesc.addToGroup("root", "testPass42", "Singular", false);
     compDesc.addToGroup("root", "testGroup", "Recurrent", true);
-    compDesc.addToGroup("root", "testGroup6", "Recurrent", true);
+    compDesc.addToGroup("root", "MarkHardwareOperations", "Recurrent", false);
 
     compDesc.printGroups("root");
     compDesc.printGroups("testGroup");
 
-    //compDesc.unfoldPasses();
+    compDesc.serializePassList();
 }
