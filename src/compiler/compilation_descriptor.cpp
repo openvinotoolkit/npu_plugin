@@ -88,7 +88,12 @@ void mv::CompilationDescriptor::serializePassListInGroup(const std::string& grou
     if (elem.hasAttr("Singular")) {
         std::vector<std::string> &singular_group = elem.get<std::vector<std::string>>("Singular");
         for (auto g: singular_group) {
-            serializedPasses.push_back(g);
+            if (hasAttr(g)) {
+                serializePassListInGroup(g, serializedPasses);
+            }
+            else {
+                serializedPasses.push_back(g);
+            }
             if (!recurrentPasses.empty()) {
                 serializedPasses.insert(serializedPasses.end(), recurrentPasses.begin(), recurrentPasses.end());
             }
