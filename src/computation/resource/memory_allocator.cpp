@@ -638,3 +638,8 @@ std::string mv::MemoryAllocator::getLogID() const
 {
     return "MemoryAllocator:" + name_;
 }
+
+const std::string& mv::MemoryAllocator::getAllocatorName() const
+{
+    return name_;
+}
