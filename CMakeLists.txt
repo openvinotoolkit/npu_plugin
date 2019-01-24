@@ -91,7 +91,6 @@ file(GLOB base
     "src/computation/model/runtime_binary.cpp"
     "src/target/keembay/attribute_def/*.cpp"
     "src/target/keembay/tasks/def/*.cpp"
-    "src/target/keembay/runtime_model/*.cpp"
 )
 
 file (GLOB model
@@ -112,7 +111,6 @@ file (GLOB model
     "src/computation/resource/nce1_utils.cpp"
     "src/computation/op/op.cpp"
     "src/computation/model/model_element.cpp"
-    "src/target/keembay/tasks/*.cpp"
 )
 
 file(GLOB logger
@@ -142,6 +140,7 @@ file(GLOB pass
 file(GLOB compiler
     "src/compiler/*"
     "src/utils/hardware_tests.cpp"
+    "src/target/keembay/runtime_model/*.cpp"
 )
 
 add_subdirectory(meta)
