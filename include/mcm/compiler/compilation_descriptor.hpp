@@ -9,29 +9,9 @@ namespace mv
     class CompilationDescriptor : public Element
     {
 
-    public:
-
-        enum class RecurrenceType
-        {
-
-            Singular,
-            Recurrent
-
-        };
-
     private:
 
         const static unsigned jsonParserBufferLength_ = 128;
-
-        static std::map<RecurrenceType, std::string> recTypeString_;
-
-        /**
-         * The map containing arguments for different passes.
-         */
-        //std::map<std::string, Element> passesArgs_;
-
-        static std::string toString(const RecurrenceType& rec);
-        static RecurrenceType fromString(const std::string& str);
 
         void serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses);
 
@@ -48,7 +28,6 @@ namespace mv
          */
         void addGroup(const std::string& group);
 
-        // TODO: Can the two functions below be combined?
         /**
          * Adds some element to groups list. The element could be a group or a pass.
          * If the group doesn't exist, create one. This method also sets
@@ -56,13 +35,6 @@ namespace mv
          * pass that recurs.
          */
         void addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup);
-
-        /**
-         * Adds pass to groups list. If the group doesn't exist, create one. This method also
-         * sets group recurrence -- "Singular" for a pass that executes only once; "Recurrent" for a
-         * pass that recurs.
-         */
-        void addGroupToGroup(const std::string& group, const std::string& containerGroup, const std::string& recurrence);
 
         /**
          * Add argument to a pass.
@@ -80,9 +52,6 @@ namespace mv
         std::vector<std::string> serializePassList();
 
         void printGroups(const std::string &groupStr);
-
-        //void printGroupElement(const std::map<RecurrenceType, std::vector<std::string>>& group);
-
     };
 
 }

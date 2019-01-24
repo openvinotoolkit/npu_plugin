@@ -1,33 +1,6 @@
 #include "include/mcm/compiler/compilation_descriptor.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 
-std::map<mv::CompilationDescriptor::RecurrenceType, std::string> mv::CompilationDescriptor::recTypeString_
-{
-    {RecurrenceType::Singular, "Singular"},
-    {RecurrenceType::Recurrent, "Recurrent"}
-};
-
-mv::CompilationDescriptor::RecurrenceType mv::CompilationDescriptor::fromString(const std::string& str)
-{
-    for (auto type: mv::CompilationDescriptor::recTypeString_) {
-        if (type.second == str) {
-            return type.first;
-        }
-    }
-}
-
-std::string mv::CompilationDescriptor::toString(const mv::CompilationDescriptor::RecurrenceType &rec)
-{
-    std::string recTypeString;
-    for (auto recType: mv::CompilationDescriptor::recTypeString_) {
-        if (recType.first == rec) {
-             recTypeString = recType.second;
-        }
-    }
-
-    return recTypeString;
-}
-
 mv::CompilationDescriptor::CompilationDescriptor() :
 Element("CompilationDescriptor")
 {
@@ -61,7 +34,6 @@ void mv::CompilationDescriptor::addGroup(const std::string& group)
 
 void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup)
 {
-    // TODO: verify that pass is a valid one
     if (hasAttr(group)) {
         Element& g_elem = get<Element>(group);
 
@@ -80,7 +52,6 @@ void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::
             }
         }
         else {
-            // This element is a pass -- validate that it is a valid pass before adding it to the group
             if (!validPass(elem)) {
                 std::cout << "Cannot find pass: " << elem << " in pass registry" << std::endl;
 
