@@ -63,6 +63,7 @@ TEST(compilation_descriptor, bare)
     compDesc.addGroup("testGroup2");
     compDesc.addToGroup("testGroup2", "FuseBias", "Singular", false);
     compDesc.addToGroup("testGroup2", "FuseScale", "Singular", false);
+    compDesc.addToGroup("testGroup2", "GenerateDot", "Singular", false);
 
     compDesc.addGroup("root");
     compDesc.addToGroup("root", "ConvolutionDilation", "Singular", false);
@@ -72,5 +73,11 @@ TEST(compilation_descriptor, bare)
     compDesc.printGroups("testGroup1");
     compDesc.printGroups("testGroup2");
 
-    compDesc.serializePassList();
+    std::vector<std::string> passList = compDesc.serializePassList();
+
+    compDesc.setArgForPass("GenerateDot", "path", "/foo/bar");
+    std::string argVal = compDesc.getArgForPass("GenerateDot", "path");
+
+    ASSERT_EQ(argVal, "/foo/bar");
+
 }
