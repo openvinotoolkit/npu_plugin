@@ -54,21 +54,23 @@ TEST (compilation_descriptor, load_from_file)
 TEST(compilation_descriptor, bare)
 {
     mv::CompilationDescriptor compDesc;
-    compDesc.addGroup("testGroup");
-    compDesc.addToGroup("testGroup", "ConvolutionDilation", "Singular", false);
-    compDesc.addToGroup("testGroup", "AlignConstOrder", "Singular", false);
-    compDesc.addToGroup("testGroup", "GenerateDot", "Recurrent", false);
-    compDesc.addToGroup("testGroup", "CheckTensors", "Recurrent", false);
-    compDesc.addToGroup("testGroup", "testPass4", "Recurrent", false);
+    compDesc.addGroup("testGroup1");
+    compDesc.addToGroup("testGroup1", "FuseBatchNorm", "Singular", false);
+    compDesc.addToGroup("testGroup1", "testGroup2", "Singular", true);
+    compDesc.addToGroup("testGroup1", "FuseBias", "Recurrent", false);
+    compDesc.addToGroup("testGroup1", "FuseScale", "Recurrent", false);
+
+    compDesc.addGroup("testGroup2");
+    compDesc.addToGroup("testGroup2", "FuseBias", "Singular", false);
+    compDesc.addToGroup("testGroup2", "FuseScale", "Singular", false);
 
     compDesc.addGroup("root");
-    compDesc.addToGroup("root", "testPass5", "Singular", false);
-    compDesc.addToGroup("root", "testPass42", "Singular", false);
-    compDesc.addToGroup("root", "testGroup", "Recurrent", true);
-    compDesc.addToGroup("root", "MarkHardwareOperations", "Recurrent", false);
+    compDesc.addToGroup("root", "ConvolutionDilation", "Singular", false);
+    compDesc.addToGroup("root", "testGroup1", "Recurrent", false);
 
     compDesc.printGroups("root");
-    compDesc.printGroups("testGroup");
+    compDesc.printGroups("testGroup1");
+    compDesc.printGroups("testGroup2");
 
     compDesc.serializePassList();
 }
