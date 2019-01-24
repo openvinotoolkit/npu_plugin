@@ -33,6 +33,7 @@ namespace mv
         bool operator==(const Shape& other) const;
         bool operator!=(const Shape& other) const;
         operator std::vector<std::size_t>() const;
+        operator std::vector<unsigned>() const;
 
         std::string toString() const override;
         virtual std::string getLogID() const override;
