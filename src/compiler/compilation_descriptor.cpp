@@ -34,40 +34,37 @@ void mv::CompilationDescriptor::addGroup(const std::string& group)
 
 void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup)
 {
-    if (hasAttr(group)) {
-        Element& g_elem = get<Element>(group);
+    if (!hasAttr(group)) {
+        throw AttributeError(*this, "Trying to add pass to a non-existent group (" + group + ")");
+    }
 
-        if (g_elem.hasAttr(recurrence)) {
-            std::vector<std::string> &rec_v = g_elem.get<std::vector<std::string>>(recurrence);
-            rec_v.push_back(elem);
-        }
-        else {
-            std::vector<std::string> rec_v = { elem };
-            g_elem.set<std::vector<std::string>>(recurrence, rec_v);
-        }
+    Element& g_elem = get<Element>(group);
 
-        if (isGroup) {
-            if (!hasAttr(elem)) {
-                addGroup(elem);
-            }
-        }
-        else {
-            if (!validPass(elem)) {
-                std::cout << "Cannot find pass: " << elem << " in pass registry" << std::endl;
+    if (g_elem.hasAttr(recurrence)) {
+        std::vector<std::string> &rec_v = g_elem.get<std::vector<std::string>>(recurrence);
+        rec_v.push_back(elem);
+    }
+    else {
+        std::vector<std::string> rec_v = { elem };
+        g_elem.set<std::vector<std::string>>(recurrence, rec_v);
+    }
 
-            }
+    if (isGroup) {
+        if (!hasAttr(elem)) {
+            addGroup(elem);
         }
     }
     else {
-        throw AttributeError(*this, "Trying to add pass to a non-existent group (" + group + ")");
+        if (!validPass(elem)) {
+            throw RuntimeError(*this, "Trying to pass (" + elem + "), not registered in the pass registry");
+        }
     }
 }
 
 void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses)
 {
     if (!hasAttr(group)) {
-        std::cout << "group(" << group << ") doesn't exist" << std::endl;
-        return;
+        throw AttributeError(*this, "Trying to serialize passes in a non-existent group (" + group + ")");
     }
 
     Element &elem = get<mv::Element>(group);
@@ -105,7 +102,7 @@ std::vector<std::string> mv::CompilationDescriptor::serializePassList()
 {
 
     if (!hasAttr("root")) {
-        throw RuntimeError(*this, "Unable to find root group, cannot serialize pass list");
+        throw RuntimeError(*this, "Unable to find root group, cannot serialize passes in the descriptor.");
     }
 
     std::vector<std::string> serializedPasses;
@@ -119,38 +116,36 @@ std::vector<std::string> mv::CompilationDescriptor::serializePassList()
 void mv::CompilationDescriptor::printGroups(const std::string &groupStr)
 {
 
-    if (hasAttr(groupStr)) {
-        Element &group = get<Element>(groupStr);
-
-        if (group.hasAttr("Singular")) {
-            std::vector<std::string> &sing_group = group.get<std::vector<std::string>>("Singular");
-            std::cout << "group(" << groupStr << ") - singular:" << std::endl;
-            for (auto g: sing_group) {
-                if (hasAttr(g) && get<Element>(g).get<bool>("isGroup")) {
-                    std::cout << " element " << g << " is a group" << std::endl;
-                }
-                else {
-                    std::cout << " element " << g << " is a pass" << std::endl;
-                }
-
-            }
-        }
-
-        if (group.hasAttr("Recurrent")) {
-            std::vector<std::string> &rec_group = group.get<std::vector<std::string>>("Recurrent");
-            std::cout << "group(" << groupStr << ") - recurrent:" << std::endl;
-            for (auto g: rec_group) {
-                if (hasAttr(g) && get<Element>(g).get<bool>("isGroup")) {
-                    std::cout << " element " << g << " is a group" << std::endl;
-                }
-                else {
-                    std::cout << " element " << g << " is a pass" << std::endl;
-                }
-            }
-        }
-    }
-    else {
+    if (!hasAttr(groupStr)) {
         std::cout << "group(" << groupStr << ") doesn't exist" << std::endl;
     }
 
+    Element &group = get<Element>(groupStr);
+
+    if (group.hasAttr("Singular")) {
+        std::vector<std::string> &sing_group = group.get<std::vector<std::string>>("Singular");
+        std::cout << "group(" << groupStr << ") - singular:" << std::endl;
+        for (auto g: sing_group) {
+            if (hasAttr(g) && get<Element>(g).get<bool>("isGroup")) {
+                std::cout << " element " << g << " is a group" << std::endl;
+            }
+            else {
+                std::cout << " element " << g << " is a pass" << std::endl;
+            }
+
+        }
+    }
+
+    if (group.hasAttr("Recurrent")) {
+        std::vector<std::string> &rec_group = group.get<std::vector<std::string>>("Recurrent");
+        std::cout << "group(" << groupStr << ") - recurrent:" << std::endl;
+        for (auto g: rec_group) {
+            if (hasAttr(g) && get<Element>(g).get<bool>("isGroup")) {
+                std::cout << " element " << g << " is a group" << std::endl;
+            }
+            else {
+                std::cout << " element " << g << " is a pass" << std::endl;
+            }
+        }
+    }
 }
