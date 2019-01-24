@@ -14,6 +14,8 @@ namespace mv
         const static unsigned jsonParserBufferLength_ = 128;
 
         void serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses);
+        void addElemAttribute(const std::string& elem, bool isGroup);
+        bool isGroup(const std::string& elem);
 
     public:
 
@@ -23,10 +25,16 @@ namespace mv
         void load(const std::string& path);
 
         /**
-         * Adds group to groups list. This just creates an entry for a group, without specifying
+         * Adds group attribute to the compilation descriptor. This just creates an entry for a group, without specifying
          * the passes in the group.
          */
         void addGroup(const std::string& group);
+
+        /**
+         * Adds a pass attribute to the compilation descriptor. The main reason we need this is to store arguments that
+         * may accompany passes.
+         */
+        void addPass(const std::string& pass);
 
         /**
          * Adds some element to groups list. The element could be a group or a pass.

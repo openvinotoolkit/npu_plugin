@@ -23,19 +23,40 @@ bool mv::CompilationDescriptor::validPass(const std::string& passStr)
     return true;
 }
 
-void mv::CompilationDescriptor::addGroup(const std::string& group)
+void mv::CompilationDescriptor::addElemAttribute(const std::string& elem, bool isGroup)
 {
-    if (!hasAttr(group)) {
-        Element g = Element(group);
-        g.set<bool>("isGroup", true);
-        set<Element>(group, g);
+    if (!hasAttr(elem)) {
+        Element e = Element(elem);
+
+        if (isGroup) {
+            e.set<bool>("isGroup", true);
+        } else {
+            e.set<bool>("isGroup", false);
+        }
+
+        set<Element>(elem, e);
+
     }
 }
 
-void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup)
+void mv::CompilationDescriptor::addGroup(const std::string& group)
+{
+    addElemAttribute(group, true);
+}
+
+void mv::CompilationDescriptor::addPass(const std::string& pass)
+{
+    addElemAttribute(pass, false);
+}
+
+void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool elemIsGroup)
 {
     if (!hasAttr(group)) {
         throw AttributeError(*this, "Trying to add pass to a non-existent group (" + group + ")");
+    }
+
+    if (!elemIsGroup && !validPass(elem)) {
+        throw RuntimeError(*this, "Trying to add pass (" + elem + "), not registered in the pass registry");
     }
 
     Element& g_elem = get<Element>(group);
@@ -49,16 +70,25 @@ void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::
         g_elem.set<std::vector<std::string>>(recurrence, rec_v);
     }
 
-    if (isGroup) {
-        if (!hasAttr(elem)) {
+    if (!hasAttr(elem)) {
+        if (elemIsGroup) {
             addGroup(elem);
+        } else {
+            addPass(elem);
         }
     }
-    else {
-        if (!validPass(elem)) {
-            throw RuntimeError(*this, "Trying to pass (" + elem + "), not registered in the pass registry");
-        }
+
+}
+
+bool mv::CompilationDescriptor::isGroup(const std::string& elem)
+{
+    if (!hasAttr(elem)) {
+        throw AttributeError(*this, "Non-existent element (" + elem + ")");
     }
+
+    Element &e = get<Element>(elem);
+
+    return e.get<bool>("isGroup");
 }
 
 void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses)
@@ -73,10 +103,9 @@ void mv::CompilationDescriptor::serializePassListInGroup(const std::string& grou
     if (elem.hasAttr("Recurrent")) {
         std::vector<std::string> &recurrent_group = elem.get<std::vector<std::string>>("Recurrent");
         for (auto g: recurrent_group) {
-            if (hasAttr(g)) {
+            if (isGroup(g)) {
                 serializePassListInGroup(g, recurrentPasses);
-            }
-            else {
+            } else {
                 recurrentPasses.push_back(g);
             }
         }
@@ -85,7 +114,7 @@ void mv::CompilationDescriptor::serializePassListInGroup(const std::string& grou
     if (elem.hasAttr("Singular")) {
         std::vector<std::string> &singular_group = elem.get<std::vector<std::string>>("Singular");
         for (auto g: singular_group) {
-            if (hasAttr(g)) {
+            if (isGroup(g)) {
                 serializePassListInGroup(g, serializedPasses);
             }
             else {
