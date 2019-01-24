@@ -66,7 +66,7 @@ TEST(compilation_descriptor, bare)
 
     compDesc.addGroup("root");
     compDesc.addToGroup("root", "ConvolutionDilation", "Singular", false);
-    compDesc.addToGroup("root", "testGroup1", "Recurrent", false);
+    compDesc.addToGroup("root", "testGroup1", "Recurrent", true);
 
     compDesc.printGroups("root");
     compDesc.printGroups("testGroup1");
