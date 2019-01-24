@@ -47,7 +47,12 @@ namespace mv
         /**
          * Add argument to a pass.
          */
-        void addArgToPass(const std::string& pass, const std::string& arg, const std::string& value);
+        void setArgForPass(const std::string& pass, const std::string& arg, const std::string& value);
+
+        /**
+         * Get argument for a pass.
+         */
+        std::string getArgForPass(const std::string& pass, const std::string& arg);
 
         /**
          * Validate a pass passed in.

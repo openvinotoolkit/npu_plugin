@@ -91,6 +91,28 @@ bool mv::CompilationDescriptor::isGroup(const std::string& elem)
     return e.get<bool>("isGroup");
 }
 
+void mv::CompilationDescriptor::setArgForPass(const std::string& pass, const std::string& arg, const std::string& value)
+{
+    if (!hasAttr(pass)) {
+        throw AttributeError(*this, "Trying to add arguments to a non-existent pass (" + pass + ")");
+    }
+
+    Element& p = get<Element>(pass);
+    p.set<std::string>(arg, value);
+}
+
+std::string mv::CompilationDescriptor::getArgForPass(const std::string& pass, const std::string& arg)
+{
+    if (!hasAttr(pass)) {
+        throw AttributeError(*this, "Trying to get arguments from a non-existent pass (" + pass + ")");
+    }
+
+    Element& p = get<Element>(pass);
+
+    return p.get<std::string>(arg);
+
+}
+
 void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses)
 {
     if (!hasAttr(group)) {
