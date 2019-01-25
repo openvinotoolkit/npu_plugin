@@ -58,9 +58,9 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-MVCNN::LinkT mv::RuntimeModel::convertOperationToLink(mv::ComputationModel& cm, mv::Data::OpListIterator op)
+MVCNN::GraphNodeT mv::RuntimeModel::convertOperationToGraphNodeT(mv::ComputationModel& cm, mv::Data::OpListIterator op)
 {
-    MVCNN::LinkT toReturn;
+    MVCNN::GraphNodeT toReturn;
     toReturn.name = op->getName();
     //toReturn.thisID = op->getId();
 

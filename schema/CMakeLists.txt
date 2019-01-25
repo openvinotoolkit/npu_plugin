@@ -3,7 +3,7 @@ project(mcmComplier VERSION 0.0.1)
 
 set(flatc_path ${CMAKE_BINARY_DIR}/contrib/flatbuffers/flatc)
 
-file(GLOB fbs_files *.fbs)
+file(GLOB fbs_files graphfile/src/schema/*.fbs)
 
 add_custom_command(
 

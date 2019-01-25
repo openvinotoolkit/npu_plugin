@@ -22,7 +22,7 @@ namespace mv
             static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName);
             static MVCNN::TensorReferenceT convertTensorRepresentation(MemoryAllocator &allocator, Data::TensorIterator t);
             static MVCNN::DType convertDtype(const DType& dtype);
-            static MVCNN::LinkT convertOperationToLink(ComputationModel &cm, Data::OpListIterator op);
+            static MVCNN::GraphNodeT convertOperationToGraphNodeT(ComputationModel &cm, Data::OpListIterator op);
 
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);
