@@ -58,11 +58,21 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
+MVCNN::LinkT mv::RuntimeModel::convertOperationToLink(mv::ComputationModel& cm, mv::Data::OpListIterator op)
+{
+    MVCNN::LinkT toReturn;
+    toReturn.name = op->getName();
+    //toReturn.thisID = op->getId();
+
+    //cm.getDataFlow()
+    return toReturn;
+}
+
 MVCNN::TensorReferenceT mv::RuntimeModel::convertTensorRepresentation(MemoryAllocator &allocator, mv::Data::TensorIterator t)
 {
     MVCNN::TensorReferenceT toReturn;
 
-    mv::Data::BufferIterator it = allocator.getBuffer(0, t);
+    mv::Data::BufferIterator it = allocator.getBuffer(0, t); //0 is the only stage for now, but this will probably change in the future
 
     toReturn.dimensions = it->getData()->getShape(); // Padded or not?
     toReturn.strides = it->getData()->computeStrides(); //Maybe directly it->computeStrides() in the future std::vector<uint32_t> strides;
