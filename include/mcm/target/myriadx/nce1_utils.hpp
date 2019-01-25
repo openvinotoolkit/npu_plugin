@@ -1,7 +1,7 @@
 #ifndef NCE1_UTILS_HPP
 #define NCE1_UTILS_HPP
 
-#include "include/mcm/computation/resource/nce1.hpp"
+#include "include/mcm/target/myriadx/nce1.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"

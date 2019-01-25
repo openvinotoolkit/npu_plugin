@@ -2,8 +2,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/computation/resource/nce1.hpp"
-#include "include/mcm/computation/resource/nce1_utils.hpp"
+#include "include/mcm/target/myriadx/nce1.hpp"
+#include "include/mcm/target/myriadx/nce1_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
 static void optimizePoolingsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);

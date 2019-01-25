@@ -1,4 +1,4 @@
-#include "mcm/computation/resource/nce1_utils.hpp"
+#include "mcm/target/myriadx/nce1_utils.hpp"
 
 mv::ConvolutionParameters mv::fillKernel2DOperationParameters(mv::Data::OpListIterator opIterator, bool add_padding)
 {

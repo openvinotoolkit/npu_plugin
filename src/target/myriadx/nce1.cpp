@@ -1,5 +1,5 @@
 #include "mcm/algorithms/dijkstra.hpp"
-#include "mcm/computation/resource/nce1.hpp"
+#include "mcm/target/myriadx/nce1.hpp"
 #include "mcm/utils/custom_math.hpp"
 #include <cmath>
 

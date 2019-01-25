@@ -108,8 +108,8 @@ file (GLOB model
     "src/computation/flow/data_flow.cpp"
     "src/computation/resource/memory_allocator.cpp"
     "src/computation/resource/stage.cpp"
-    "src/computation/resource/nce1.cpp"
-    "src/computation/resource/nce1_utils.cpp"
+    "src/target/myriadx/nce1.cpp"
+    "src/target/myriadx/nce1_utils.cpp"
     "src/computation/op/op.cpp"
     "src/computation/model/model_element.cpp"
 )
