@@ -62,9 +62,10 @@ MVCNN::GraphNodeT mv::RuntimeModel::convertOperationToGraphNodeT(mv::Computation
 {
     MVCNN::GraphNodeT toReturn;
     toReturn.name = op->getName();
+    //TODO
     //toReturn.thisID = op->getId();
-
     //cm.getDataFlow()
+
     return toReturn;
 }
 
