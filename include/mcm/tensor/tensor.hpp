@@ -9,7 +9,7 @@
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/order/order.hpp"
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
 
@@ -106,12 +106,12 @@ namespace mv
         }
 
         Tensor& operator=(const Tensor& other);
-        std::vector<unsigned> computeStrides() const;
 
         std::string toString() const override;
         virtual std::string getLogID() const override;
 
         BinaryData toBinary();
+        std::vector<unsigned> computeNumericStrides() const;
 
     };
 

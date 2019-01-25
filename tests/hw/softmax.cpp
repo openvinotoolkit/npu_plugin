@@ -12,7 +12,7 @@ TEST(mvtensor_serialization, blob_softmax1)
     mv::CompilationUnit unit("softmax1");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto softmax = om.softmax(input);
     auto output = om.output(softmax);
 
@@ -44,7 +44,7 @@ TEST(mvtensor_serialization, blob_softmax2)
     mv::CompilationUnit unit("softmax2");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto softmax = om.softmax(input);
     auto output = om.output(softmax);
 
@@ -76,7 +76,7 @@ TEST(mvtensor_serialization, blob_softmax3)
     mv::CompilationUnit unit("softmax3");
     mv::CompositionalModel& om = unit.model();
 
-    auto input = om.input({224, 200, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = om.input({224, 200, 3}, mv::DType("Float16"), mv::Order("CHW"));
     auto softmax = om.softmax(input);
     auto output = om.output(softmax);
 

@@ -51,7 +51,7 @@ mv::Tensor mv::exe::utils::convertDataToTensor(Order& order, Shape& shape,
     unsigned short* imageData, int numberOfElements)
 {
     std::vector<double> tensorData(imageData, imageData+numberOfElements);
-    Tensor resultTensor("result", shape, DType(DTypeType::Float16), order);
+    Tensor resultTensor("result", shape, DType("Float16"), order);
     resultTensor.populate(tensorData);
 
     return resultTensor;

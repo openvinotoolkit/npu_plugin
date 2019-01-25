@@ -12,7 +12,7 @@ namespace mv
     {
         private:
             MVCNN::GraphFileT graphFile_;
-            static const std::unordered_map<DTypeType, MVCNN::DType> dTypeMapping_;
+            static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
 
         public:

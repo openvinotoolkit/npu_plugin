@@ -30,7 +30,7 @@ int main()
         The first operation that has to be defined is always an input operation. Input will require the definition of 
         its shape, data type, and data order (layout).
     */
-    auto input = compModel.input({128, 128, 3}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto input = compModel.input({128, 128, 3}, mv::DType("Float16"), mv::OrderType::ColumnMajor);
 
     /*
         In order to handle operations that use known, constant numeric values as parameters (like most of the convolutions), 
@@ -50,7 +50,7 @@ int main()
         Almost all operations (except an output operation) return a tensor (or, in the future, tensors),
         referenced by a tensor iterator, thus the call from CompositionalModel will return an object of type Data::TensorIterator.
     */
-    mv::Data::TensorIterator weights1 = compModel.constant(weights1Data, {3, 3, 3, 8}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    mv::Data::TensorIterator weights1 = compModel.constant(weights1Data, {3, 3, 3, 8}, mv::DType("Float16"), mv::OrderType::ColumnMajor);
 
     /*
         The composition continues the way that tensors already obtained (staring from the input) are used to as inputs for other operations.
@@ -69,11 +69,11 @@ int main()
     */
     auto pool1 = compModel.maxpool2D(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     std::vector<double> weights2Data = mv::utils::generateSequence<double>(5u * 5u * 8u * 16u);
-    auto weights2 = compModel.constant(weights2Data, {5, 5, 8, 16}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto weights2 = compModel.constant(weights2Data, {5, 5, 8, 16}, mv::DType("Float16"), mv::OrderType::ColumnMajor);
     auto conv2 = compModel.conv2D(pool1, weights2, {2, 2}, {2, 2, 2, 2});
     auto pool2 = compModel.maxpool2D(conv2, {5, 5}, {4, 4}, {2, 2, 2, 2});
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(4u * 4u * 16u * 32u);
-    auto weights3 = compModel.constant(weights3Data, {4, 4, 16, 32}, mv::DTypeType::Float16, mv::OrderType::ColumnMajor);
+    auto weights3 = compModel.constant(weights3Data, {4, 4, 16, 32}, mv::DType("Float16"), mv::OrderType::ColumnMajor);
     auto conv3 = compModel.conv2D(pool2, weights3, {1, 1}, {0, 0, 0, 0});
 
     /*

@@ -15,9 +15,9 @@ int main()
     // Obtain compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
 
-    auto input = cm.input({32, 32, 3}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = cm.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3);
-    auto weights1 = cm.constant(weightsData, {3, 3, 3, 1}, mv::DTypeType::Float16, mv::Order("NCWH"));
+    auto weights1 = cm.constant(weightsData, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = cm.conv(input, weights1, {1, 1}, {1, 1, 1, 1}, 2);
     auto output = cm.output(conv);
 

@@ -140,7 +140,7 @@ TEST(order, tensor_mismatching_order)
     mv::Shape s({2, 2});
     mv::Order order("HCW");
 
-    ASSERT_ANY_THROW(mv::Tensor("Test", s, mv::DType(mv::DTypeType::Float16), order));
+    ASSERT_ANY_THROW(mv::Tensor("Test", s, mv::DType("Float16"), order));
 }
 
 TEST(order, strides_computation)

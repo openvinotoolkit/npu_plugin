@@ -11,7 +11,7 @@ TEST(tensor, populating)
 
     mv::Shape tShape({5, 5});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(2)));
     t.populate(data);
 
     for (unsigned j = 0; j < tShape[0]; ++j)
@@ -50,7 +50,7 @@ TEST(tensor, int_to_sub_column_major)
 
     mv::Shape tShape({32, 16, 8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order("CHW"));
     t.populate(data);
 
     std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
@@ -91,7 +91,7 @@ TEST(tensor, ind_to_sub_row_major)
 
     mv::Shape tShape({32, 16, 8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("WHC"));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order("WHC"));
     t.populate(data);
 
     std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
@@ -132,7 +132,7 @@ TEST(tensor, ind_to_sub_planar)
 
     mv::Shape tShape({32, 16, 8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order("HWC"));
     t.populate(data);
 
     std::vector<unsigned> idx = {0, 100, 101, 545, 10663};
@@ -177,7 +177,7 @@ TEST(tensor, column_major_to_row_major)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)));
     t.populate(data);
     t.setOrder(mv::Order(mv::Order::getRowMajorID(4)));
 
@@ -216,7 +216,7 @@ TEST(tensor, row_major_to_column_major)
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(4)));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(4)));
     t.populate(data);
     t.setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
@@ -254,7 +254,7 @@ TEST(tensor, column_major_to_planar)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(4)));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)));
     t.populate(data);
     t.setOrder(mv::Order("HWCN"));
 
@@ -293,7 +293,7 @@ TEST(tensor, planar_to_column_major)
         73.0f, 74.0f, 75.0f, 76.0f, 77.0f, 78.0f, 79.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order("HWCN"));
     t.populate(data);
     t.setOrder(mv::Order(mv::Order::getColMajorID(4)));
 
@@ -330,7 +330,7 @@ TEST(tensor, row_major_to_planar)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(4)));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(4)));
     t.populate(data);
     t.setOrder(mv::Order("HWCN"));
 
@@ -368,7 +368,7 @@ TEST(tensor, planar_to_row_major)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order("HWCN"));
     t.populate(data);
     t.setOrder(mv::Order(mv::Order::getRowMajorID(4)));
 
@@ -382,9 +382,9 @@ TEST(tensor, planar_to_row_major)
 
     mv::Shape tShape({32});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor tColumnMajor("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
-    mv::Tensor tRowMajor("t", tShape, mv::DTypeType::Float16, mv::Order("WHC"));
-    mv::Tensor tPlanar("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
+    mv::Tensor tColumnMajor("t", tShape, mv::DType("Float16"), mv::Order("CHW"));
+    mv::Tensor tRowMajor("t", tShape, mv::DType("Float16"), mv::Order("WHC"));
+    mv::Tensor tPlanar("t", tShape, mv::DType("Float16"), mv::Order("HWC"));
     tColumnMajor.populate(data);
     tRowMajor.populate(data);
     tPlanar.populate(data);
@@ -406,9 +406,9 @@ TEST(tensor, ind_to_sub_2d)
 
     mv::Shape tShape({8, 4});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor tColumnMajor("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
-    mv::Tensor tRowMajor("t", tShape, mv::DTypeType::Float16, mv::Order(Order::getRowMajorID(3)));
-    mv::Tensor tPlanar("t", tShape, mv::DTypeType::Float16, mv::Order("HWC"));
+    mv::Tensor tColumnMajor("t", tShape, mv::DType("Float16"), mv::Order("CHW"));
+    mv::Tensor tRowMajor("t", tShape, mv::DType("Float16"), mv::Order(Order::getRowMajorID(3)));
+    mv::Tensor tPlanar("t", tShape, mv::DType("Float16"), mv::Order("HWC"));
     tColumnMajor.populate(data);
     tRowMajor.populate(data);
     tPlanar.populate(data);
@@ -433,7 +433,7 @@ TEST(tensor, augment)
     mv::Shape tShapeAugmented({8, 4, 4});
 
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("CHW"));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order("CHW"));
     t.populate(data);
     t.broadcast(tShapeAugmented);
 
@@ -454,8 +454,8 @@ TEST(tensor, add)
     std::vector<double> data1 = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(tShape.totalSize(), -start, -diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data2);
+    mv::Tensor t1("t1", tShape, mv::DType("Float16"), mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", tShape, mv::DType("Float16"), mv::Order("CHW"), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -479,8 +479,8 @@ TEST(tensor, add_broadcast_vec)
     std::vector<double> data1 = mv::utils::generateSequence<double>(t1Shape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order("WHC"), data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getRowMajorID(1)), data2);
+    mv::Tensor t1("t1", t1Shape, mv::DType("Float16"), mv::Order("WHC"), data1);
+    mv::Tensor t2("t2", t2Shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(1)), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -505,8 +505,8 @@ TEST(tensor, add_broadcast_mat)
     std::vector<double> data1 = mv::utils::generateSequence<double>(t1Shape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)), data2);
+    mv::Tensor t1("t1", t1Shape, mv::DType("Float16"), mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", t2Shape, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(2)), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -528,8 +528,8 @@ TEST(tensor, add_broadcast_mat)
     std::vector<double> data1 = mv::utils::generateSequence<double>(t1Shape.totalSize(), start, diff);
     std::vector<double> data2 = mv::utils::generateSequence<double>(t2Shape.totalSize());
 
-    mv::Tensor t1("t1", t1Shape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
-    mv::Tensor t2("t2", t2Shape, mv::DTypeType::Float16, mv::Order("CHW"), data2);
+    mv::Tensor t1("t1", t1Shape, mv::DType("Float16"), mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", t2Shape, mv::DType("Float16"), mv::Order("CHW"), data2);
 
     auto t3 = mv::math::add(t1, t2);
 
@@ -550,8 +550,8 @@ TEST(tensor, subtract)
     mv::Shape tShape({32, 32, 3});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
+    mv::Tensor t1("t1", tShape, mv::DType("Float16"), mv::Order("CHW"), data);
+    mv::Tensor t2("t2", tShape, mv::DType("Float16"), mv::Order("CHW"), data);
 
     t1.subtract(t2);
 
@@ -575,8 +575,8 @@ TEST(tensor, multiply)
     for (unsigned i = 0; i < data2.size(); ++i)
         data2[i] = 1.0f / data1[i];
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data1);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data2);
+    mv::Tensor t1("t1", tShape, mv::DType("Float16"), mv::Order("CHW"), data1);
+    mv::Tensor t2("t2", tShape, mv::DType("Float16"), mv::Order("CHW"), data2);
 
     t1.multiply(t2);
 
@@ -596,8 +596,8 @@ TEST(tensor, divide)
     mv::Shape tShape({32, 32, 3});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
-    mv::Tensor t2("t2", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
+    mv::Tensor t1("t1", tShape, mv::DType("Float16"), mv::Order("CHW"), data);
+    mv::Tensor t2("t2", tShape, mv::DType("Float16"), mv::Order("CHW"), data);
 
     t1.divide(t2);
 
@@ -617,7 +617,7 @@ TEST(tensor, get_data)
     mv::Shape tShape({32, 32, 128});
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize(), start, diff);
 
-    mv::Tensor t1("t1", tShape, mv::DTypeType::Float16, mv::Order("CHW"), data);
+    mv::Tensor t1("t1", tShape, mv::DType("Float16"), mv::Order("CHW"), data);
 
     std::cout << t1.getData().size() << std::endl;
 
@@ -640,7 +640,7 @@ TEST(tensor, to_binary_fp16)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float16, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Float16"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     mv_num_convert cvtr;
@@ -666,7 +666,7 @@ TEST(tensor, to_binary_fp64)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float64, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Float64"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<double>& fp64_data = bdata.fp64();
@@ -691,7 +691,7 @@ TEST(tensor, to_binary_fp32)
         8.0f, 35.0f, 62.0f, 17.0f, 44.0f, 71.0f, 26.0f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Float32, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Float32"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<float>& fp32_data = bdata.fp32();
@@ -716,7 +716,7 @@ TEST(tensor, to_binary_u64)
         8.0f, 35.3f, 62.5f, 17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::UInt64, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("UInt64"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<uint64_t>& u64_data = bdata.u64();
@@ -741,7 +741,7 @@ TEST(tensor, to_binary_u32)
         8.0f, 35.3f, 62.5f, 17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::UInt32, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("UInt32"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<uint32_t>& u32_data = bdata.u32();
@@ -766,7 +766,7 @@ TEST(tensor, to_binary_u16)
         8.0f, 35.3f, 62.5f, 17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::UInt16, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("UInt16"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<uint16_t>& u16_data = bdata.u16();
@@ -791,7 +791,7 @@ TEST(tensor, to_binary_u8)
         8.0f, 35.3f, 62.5f, 17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::UInt8, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("UInt8"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<uint8_t>& u8_data = bdata.u8();
@@ -816,7 +816,7 @@ TEST(tensor, to_binary_i64)
         8.0f, 35.3f, 62.5f, 17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Int64, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Int64"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<int64_t>& i64_data = bdata.i64();
@@ -841,7 +841,7 @@ TEST(tensor, to_binary_i32)
         8.0f, 35.3f, -62.5f, -17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Int32, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Int32"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<int32_t>& i32_data = bdata.i32();
@@ -866,7 +866,7 @@ TEST(tensor, to_binary_i16)
         8.0f, 35.3f, -62.5f, -17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Int16, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Int16"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<int16_t>& i16_data = bdata.i16();
@@ -891,7 +891,7 @@ TEST(tensor, to_binary_i8)
         8.0f, 35.3f, -62.5f, -17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Int8, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Int8"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<int8_t>& i8_data = bdata.i8();
@@ -923,7 +923,7 @@ TEST(tensor, to_binary_i4)
         15.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Int4, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Int4"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<int8_t>& i4_data = bdata.i4();
@@ -960,7 +960,7 @@ TEST(tensor, to_binary_i2)
         0.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Int2, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Int2"), mv::Order("HWCN"));
     t.populate(data);
     mv::BinaryData bdata = t.toBinary();
     const std::vector<int8_t>& i2_data = bdata.i2();
@@ -999,7 +999,7 @@ TEST(tensor, to_binary_i2x_invalid_execution)
         0.0f
     };
 
-    mv::Tensor t("t", tShape, mv::DTypeType::Int2X, mv::Order("HWCN"));
+    mv::Tensor t("t", tShape, mv::DType("Int2X"), mv::Order("HWCN"));
     t.populate(data);
     ASSERT_ANY_THROW(t.toBinary());
 }

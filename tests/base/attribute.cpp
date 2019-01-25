@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "include/mcm/base/attribute.hpp"
 #include "include/mcm/base/attribute_registry.hpp"
-#include "include/mcm/tensor/dtype.hpp"
+#include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include <array>
@@ -187,7 +187,7 @@ TEST(attribute, mod_std_array_unsidged_short_4)
 TEST(attribute, def_dtype)
 {
 
-    mv::DType v1(mv::DTypeType::Float16);
+    mv::DType v1(mv::DType("Float16"));
     mv::Attribute a1 = v1;
     ASSERT_EQ(a1.get<mv::DType>(), v1);
 

@@ -12,10 +12,10 @@ int main()
 {
     mv::CompilationUnit unit("FullyConnected");
     mv::CompositionalModel& test_cm = unit.model();
-    auto input = test_cm.input({8, 8, 16}, mv::DTypeType::Float16, mv::Order("CHW"));
+    auto input = test_cm.input({8, 8, 16}, mv::DType("Float16"), mv::Order("CHW"));
 
     std::vector<double> weightsData = mv::utils::generateSequence<double>(input->getShape().totalSize() * 100u);
-    auto weights1 = test_cm.constant(weightsData, {input->getShape().totalSize(), 100}, mv::DTypeType::Float16, mv::Order(mv::Order::getColMajorID(2)));
+    auto weights1 = test_cm.constant(weightsData, {input->getShape().totalSize(), 100}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(2)));
     auto fullyConnected = test_cm.fullyConnected(input, weights1);
     auto output = test_cm.output(fullyConnected);
 
