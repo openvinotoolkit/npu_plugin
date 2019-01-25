@@ -73,7 +73,19 @@ TEST(compilation_descriptor, bare)
     compDesc.printGroups("testGroup1");
     compDesc.printGroups("testGroup2");
 
+    std::vector<std::string> expectedPassList = { "ConvolutionDilation",
+                "FuseBatchNorm",
+                "FuseBias",
+                "FuseScale",
+                "FuseBias",
+                "FuseScale",
+                "GenerateDot",
+                "FuseBias",
+                "FuseScale" };
+
     std::vector<std::string> passList = compDesc.serializePassList();
+
+    ASSERT_EQ(expectedPassList, passList);
 
     compDesc.setArgForPass("GenerateDot", "path", "/foo/bar");
     std::string argVal = compDesc.getArgForPass("GenerateDot", "path");

@@ -22,6 +22,10 @@ namespace mv
         CompilationDescriptor();
         CompilationDescriptor(const std::string& path);
 
+        /**
+         * Populate the compilation descriptor from a json file. Not implemented yet.
+         */
+
         void load(const std::string& path);
 
         /**
@@ -45,7 +49,7 @@ namespace mv
         void addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup);
 
         /**
-         * Add argument to a pass.
+         * Set argument to a pass.
          */
         void setArgForPass(const std::string& pass, const std::string& arg, const std::string& value);
 
