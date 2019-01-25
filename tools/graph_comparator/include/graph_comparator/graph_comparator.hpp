@@ -62,7 +62,7 @@ namespace mv
                 std::vector<std::string>& diff, const std::string& label = "GraphFile");
             void compare_(const MVCNN::IndirectDataReferenceT& lhs, const MVCNN::IndirectDataReferenceT& rhs,
                 std::vector<std::string>& diff, const std::string& label = "IndirectDataReference");
-            void compare_(const MVCNN::LinkT& lhs, const MVCNN::LinkT& rhs,
+            void compare_(const MVCNN::GraphNodeT& lhs, const MVCNN::GraphNodeT& rhs,
                 std::vector<std::string>& diff, const std::string& label = "Link");
             void compare_(const MVCNN::MemoryTaskT& lhs, const MVCNN::MemoryTaskT& rhs,
                 std::vector<std::string>& diff, const std::string& label = "MemoryTask");

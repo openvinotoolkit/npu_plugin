@@ -343,7 +343,7 @@ void mv::tools::GraphComparator::compare_(const MVCNN::IndirectDataReferenceT& l
 
 }
 
-void mv::tools::GraphComparator::compare_(const MVCNN::LinkT& lhs, const MVCNN::LinkT& rhs,
+void mv::tools::GraphComparator::compare_(const MVCNN::GraphNodeT& lhs, const MVCNN::GraphNodeT& rhs,
     std::vector<std::string>& diff, const std::string& label)
 {
 
@@ -706,16 +706,8 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NNDMATaskT& lhs, const MV
     if (lhs.compression != rhs.compression)
         diff.push_back(label + "::compression");
 
-    if (lhs.dst.size() != rhs.dst.size())
-        diff.push_back(label + "::dst");
-    else
-    {
-        for (std::size_t i = 0; i < lhs.dst.size(); ++i)
-            compare_(lhs.dst.at(i), rhs.dst.at(i), diff, label + "::dst[" + 
-                std::to_string(i) + "]");
-    }
-
     compare_(lhs.src, rhs.src, diff, label + "::src");
+    compare_(lhs.dst, rhs.dst, diff, label + "::dst[");
 
 }
 
@@ -898,12 +890,12 @@ void mv::tools::GraphComparator::compare_(const MVCNN::SourceStructureT& lhs, co
     if (lhs.first_ID != rhs.first_ID)
         diff.push_back(label + "::first_ID");
 
-    if (lhs.links.size() != rhs.links.size())
+    if (lhs.nodes.size() != rhs.nodes.size())
         diff.push_back(label + "::links");
     else
     {
-        for (std::size_t i = 0; i < lhs.links.size(); ++i)
-            compare_(lhs.links.at(i), rhs.links.at(i), diff, label + "::links[" + 
+        for (std::size_t i = 0; i < lhs.nodes.size(); ++i)
+            compare_(lhs.nodes.at(i), rhs.nodes.at(i), diff, label + "::links[" +
                 std::to_string(i) + "]");
     }
 
