@@ -16,11 +16,19 @@ namespace mv
         void serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses);
         void addElemAttribute(const std::string& elem, bool isGroup);
         bool isGroup(const std::string& elem);
+        std::string profile_;
+
+        /**
+         * Adds a pass attribute to the compilation descriptor. The main reason we need this is to store arguments that
+         * may accompany passes.
+         */
+        void addPass(const std::string& pass);
+        std::string getElemString(const std::string &elem) const;
 
     public:
 
-        CompilationDescriptor();
-        CompilationDescriptor(const std::string& path);
+        CompilationDescriptor(const std::string& profile);
+        CompilationDescriptor(const std::string& path, const std::string& profile);
 
         /**
          * Populate the compilation descriptor from a json file. Not implemented yet.
@@ -33,12 +41,6 @@ namespace mv
          * the passes in the group.
          */
         void addGroup(const std::string& group);
-
-        /**
-         * Adds a pass attribute to the compilation descriptor. The main reason we need this is to store arguments that
-         * may accompany passes.
-         */
-        void addPass(const std::string& pass);
 
         /**
          * Adds some element to groups list. The element could be a group or a pass.
@@ -68,7 +70,9 @@ namespace mv
          */
         std::vector<std::string> serializePassList();
 
-        void printGroups(const std::string &groupStr);
+        std::string toString() const override;
+
+        std::string groupToString(const std::string &groupStr) const;
     };
 
 }

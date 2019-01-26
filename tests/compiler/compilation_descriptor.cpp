@@ -53,7 +53,7 @@ TEST (compilation_descriptor, load_from_file)
 
 TEST(compilation_descriptor, bare)
 {
-    mv::CompilationDescriptor compDesc;
+    mv::CompilationDescriptor compDesc("test_profile");
     compDesc.addGroup("testGroup1");
     compDesc.addToGroup("testGroup1", "FuseBatchNorm", "Singular", false);
     compDesc.addToGroup("testGroup1", "testGroup2", "Singular", true);
@@ -68,10 +68,6 @@ TEST(compilation_descriptor, bare)
     compDesc.addGroup("root");
     compDesc.addToGroup("root", "ConvolutionDilation", "Singular", false);
     compDesc.addToGroup("root", "testGroup1", "Recurrent", true);
-
-    compDesc.printGroups("root");
-    compDesc.printGroups("testGroup1");
-    compDesc.printGroups("testGroup2");
 
     std::vector<std::string> expectedPassList = { "ConvolutionDilation",
                 "FuseBatchNorm",

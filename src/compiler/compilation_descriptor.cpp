@@ -1,13 +1,15 @@
 #include "include/mcm/compiler/compilation_descriptor.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 
-mv::CompilationDescriptor::CompilationDescriptor() :
-Element("CompilationDescriptor")
+mv::CompilationDescriptor::CompilationDescriptor(const std::string& profile) :
+Element("CompilationDescriptor"),
+profile_(profile)
 {
 }
 
-mv::CompilationDescriptor::CompilationDescriptor(const std::string& path) :
-Element("CompilationDescriptor")
+mv::CompilationDescriptor::CompilationDescriptor(const std::string& path, const std::string& profile) :
+Element("CompilationDescriptor"),
+profile_(profile)
 {
     // Call load() to parse the json file passed in
 }
@@ -35,7 +37,6 @@ void mv::CompilationDescriptor::addElemAttribute(const std::string& elem, bool i
             e.set<bool>("isGroup", false);
 
         set<Element>(elem, e);
-
     }
 }
 
@@ -52,7 +53,7 @@ void mv::CompilationDescriptor::addPass(const std::string& pass)
 void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool elemIsGroup)
 {
     if (!hasAttr(group))
-        throw AttributeError(*this, "Trying to add pass to a non-existent group (" + group + ")");
+        throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to add pass to a non-existent group (" + group + ")");
 
     if (!elemIsGroup && !validPass(elem))
         throw RuntimeError(*this, "Trying to add pass (" + elem + "), not registered in the pass registry");
@@ -82,7 +83,7 @@ void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::
 bool mv::CompilationDescriptor::isGroup(const std::string& elem)
 {
     if (!hasAttr(elem))
-        throw AttributeError(*this, "Non-existent element (" + elem + ")");
+        throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Non-existent element (" + elem + ")");
 
     Element &e = get<Element>(elem);
 
@@ -92,7 +93,7 @@ bool mv::CompilationDescriptor::isGroup(const std::string& elem)
 void mv::CompilationDescriptor::setArgForPass(const std::string& pass, const std::string& arg, const std::string& value)
 {
     if (!hasAttr(pass))
-        throw AttributeError(*this, "Trying to add arguments to a non-existent pass (" + pass + ")");
+        throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to add arguments to a non-existent pass (" + pass + ")");
 
     Element& p = get<Element>(pass);
     p.set<std::string>(arg, value);
@@ -101,7 +102,7 @@ void mv::CompilationDescriptor::setArgForPass(const std::string& pass, const std
 std::string mv::CompilationDescriptor::getArgForPass(const std::string& pass, const std::string& arg)
 {
     if (!hasAttr(pass))
-        throw AttributeError(*this, "Trying to get arguments from a non-existent pass (" + pass + ")");
+        throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to get arguments from a non-existent pass (" + pass + ")");
 
     Element& p = get<Element>(pass);
 
@@ -112,7 +113,7 @@ std::string mv::CompilationDescriptor::getArgForPass(const std::string& pass, co
 void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses)
 {
     if (!hasAttr(group))
-        throw AttributeError(*this, "Trying to serialize passes in a non-existent group (" + group + ")");
+        throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to serialize passes in a non-existent group (" + group + ")");
 
     Element &elem = get<mv::Element>(group);
 
@@ -159,36 +160,59 @@ std::vector<std::string> mv::CompilationDescriptor::serializePassList()
 
 }
 
-void mv::CompilationDescriptor::printGroups(const std::string &groupStr)
+std::string mv::CompilationDescriptor::getElemString(const std::string &elem) const
+{
+    std::string output;
+
+    if (hasAttr(elem) && get<Element>(elem).get<bool>("isGroup"))
+    {
+        output += "    group: " + elem + "\n";
+        output += groupToString(elem);
+    }
+    else
+        output += "    pass : " + elem + "\n";
+
+    return output;
+}
+
+std::string mv::CompilationDescriptor::groupToString(const std::string &groupStr) const
 {
     if (!hasAttr(groupStr))
-        std::cout << "group(" << groupStr << ") doesn't exist" << std::endl;
+        throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Invalid group passed in (" + groupStr + ")");
 
-    Element &group = get<Element>(groupStr);
+    const Element &group = get<Element>(groupStr);
+
+    std::string output;
+    output += "group: " + groupStr + "\n";
 
     if (group.hasAttr("Singular"))
     {
-        std::vector<std::string> &sing_group = group.get<std::vector<std::string>>("Singular");
-        std::cout << "group(" << groupStr << ") - singular:" << std::endl;
+        const std::vector<std::string> &sing_group = group.get<std::vector<std::string>>("Singular");
+        output += "  Singular: " + groupStr + "\n";
         for (auto g: sing_group)
-        {
-            if (hasAttr(g) && get<Element>(g).get<bool>("isGroup"))
-                std::cout << " element " << g << " is a group" << std::endl;
-            else
-                std::cout << " element " << g << " is a pass" << std::endl;
-        }
+            output += getElemString(g);
     }
 
     if (group.hasAttr("Recurrent"))
     {
-        std::vector<std::string> &rec_group = group.get<std::vector<std::string>>("Recurrent");
-        std::cout << "group(" << groupStr << ") - recurrent:" << std::endl;
+        const std::vector<std::string> &rec_group = group.get<std::vector<std::string>>("Recurrent");
+        output += "  Recurrent: " + groupStr + "\n";
         for (auto g: rec_group)
-        {
-            if (hasAttr(g) && get<Element>(g).get<bool>("isGroup"))
-                std::cout << " element " << g << " is a group" << std::endl;
-            else
-                std::cout << " element " << g << " is a pass" << std::endl;
-        }
+            output += getElemString(g);
     }
+
+    return output;
+}
+
+std::string mv::CompilationDescriptor::toString() const
+{
+    std::string output;
+
+    output += "CompilationDescriptor:\n";
+    output += "profile: " + profile_ + "\n";
+
+    if (hasAttr("root"))
+        output += groupToString("root");
+
+    return output;
 }
