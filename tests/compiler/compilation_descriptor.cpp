@@ -83,9 +83,35 @@ TEST(compilation_descriptor, bare)
 
     ASSERT_EQ(expectedPassList, passList);
 
-    compDesc.setPassArg("GenerateDot", "path", "/foo/bar");
-    std::string argVal = compDesc.getPassArg("GenerateDot", "path");
+    // Test pass arguments
+    // String argument
+    std::string s1 = "/foo/bar";
+    mv::Attribute p1 = s1;
+    compDesc.setPassArg("GenerateDot", "p1", p1);
+    mv::Attribute r1 = compDesc.getPassArg("GenerateDot", "p1");
+    std::string p2 = r1.get<std::string>();
+    ASSERT_EQ(p2, "/foo/bar");
 
-    ASSERT_EQ(argVal, "/foo/bar");
+    // Second argument to the same pass.
+    mv::Attribute ia1 = 42;
+    compDesc.setPassArg("GenerateDot", "ia1", ia1);
+    mv::Attribute ir = compDesc.getPassArg("GenerateDot", "ia1");
+    int ia2 = ir.get<int>();
+    ASSERT_EQ(ia2, 42);
+
+    // Double argument
+    mv::Attribute da1 = 2.0;
+    compDesc.setPassArg("ConvolutionDilation", "da1", da1);
+    mv::Attribute dr = compDesc.getPassArg("ConvolutionDilation", "da1");
+    double da2 = dr.get<double>();
+    ASSERT_EQ(da2, 2.0);
+
+    // Vector argument
+    std::vector<double> v1({1.0, 2.0, 3.0});
+    mv::Attribute vda1 = v1;
+    compDesc.setPassArg("ConvolutionDilation", "vda1", vda1);
+    mv::Attribute vda2 = compDesc.getPassArg("ConvolutionDilation", "vda1");
+    auto vdr = vda2.get<std::vector<double>>();
+    ASSERT_EQ(vdr, v1);
 
 }

@@ -90,24 +90,23 @@ bool mv::CompilationDescriptor::isGroup(const std::string& elem)
     return e.get<bool>("isGroup");
 }
 
-void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::string& arg, const std::string& value)
+void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::string& arg, const mv::Attribute& value)
 {
     if (!hasAttr(pass))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to add arguments to a non-existent pass (" + pass + ")");
 
     Element& p = get<Element>(pass);
-    p.set<std::string>(arg, value);
+    p.set(arg, value);
 }
 
-std::string mv::CompilationDescriptor::getPassArg(const std::string& pass, const std::string& arg)
+mv::Attribute mv::CompilationDescriptor::getPassArg(const std::string& pass, const std::string& arg)
 {
     if (!hasAttr(pass))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to get arguments from a non-existent pass (" + pass + ")");
 
     Element& p = get<Element>(pass);
 
-    return p.get<std::string>(arg);
-
+    return p.get(arg);
 }
 
 void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses)
