@@ -53,12 +53,12 @@ namespace mv
         /**
          * Set argument to a pass.
          */
-        void setArgForPass(const std::string& pass, const std::string& arg, const std::string& value);
+        void setPassArg(const std::string& pass, const std::string& arg, const std::string& value);
 
         /**
          * Get argument for a pass.
          */
-        std::string getArgForPass(const std::string& pass, const std::string& arg);
+        std::string getPassArg(const std::string& pass, const std::string& arg);
 
         /**
          * Validate a pass passed in.

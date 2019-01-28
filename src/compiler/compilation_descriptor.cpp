@@ -90,7 +90,7 @@ bool mv::CompilationDescriptor::isGroup(const std::string& elem)
     return e.get<bool>("isGroup");
 }
 
-void mv::CompilationDescriptor::setArgForPass(const std::string& pass, const std::string& arg, const std::string& value)
+void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::string& arg, const std::string& value)
 {
     if (!hasAttr(pass))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to add arguments to a non-existent pass (" + pass + ")");
@@ -99,7 +99,7 @@ void mv::CompilationDescriptor::setArgForPass(const std::string& pass, const std
     p.set<std::string>(arg, value);
 }
 
-std::string mv::CompilationDescriptor::getArgForPass(const std::string& pass, const std::string& arg)
+std::string mv::CompilationDescriptor::getPassArg(const std::string& pass, const std::string& arg)
 {
     if (!hasAttr(pass))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to get arguments from a non-existent pass (" + pass + ")");

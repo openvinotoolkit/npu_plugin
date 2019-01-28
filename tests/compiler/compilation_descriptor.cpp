@@ -83,8 +83,8 @@ TEST(compilation_descriptor, bare)
 
     ASSERT_EQ(expectedPassList, passList);
 
-    compDesc.setArgForPass("GenerateDot", "path", "/foo/bar");
-    std::string argVal = compDesc.getArgForPass("GenerateDot", "path");
+    compDesc.setPassArg("GenerateDot", "path", "/foo/bar");
+    std::string argVal = compDesc.getPassArg("GenerateDot", "path");
 
     ASSERT_EQ(argVal, "/foo/bar");
 
