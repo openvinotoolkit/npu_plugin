@@ -21,6 +21,7 @@ static std::array<unsigned short, 4> vStdArrUnsignedShort4 = {9, 10, 11, 12};
 static std::size_t vStdSizeT = 3;
 static std::string vStdString = "str";
 static std::vector<std::size_t> vVecStdSizeT({13, 14, 15, 16, 17});
+static std::vector<std::string> vVecStdString({"e1", "e2", "e3", "e4", "e5"});
 static unsigned short vUnsignedShort = 4;
 
 static std::string aBoolName = "aBool";
@@ -35,6 +36,7 @@ static std::string aStdArrUnsignedShort4Name = "aStdArrUnsignedShort4";
 static std::string aStdStringName = "aStdString";
 static std::string aStdSizeTName = "aStdSizeT";
 static std::string aVecStdSizeTName = "aVecStdSizeT";
+static std::string aVecStdStringName = "aVecStdString";
 static std::string aUnsignedShortName = "aUnsignedShort";
 
 static std::string dataOpListIteratorName = "aDataOpListIteratorName";
@@ -57,6 +59,7 @@ static void setValueAttrTypes(mv::Element& e)
     e.set<std::string>(aStdStringName, vStdString);
     e.set<std::vector<std::size_t>>(aVecStdSizeTName, vVecStdSizeT);
     e.set<unsigned short>(aUnsignedShortName, vUnsignedShort);
+    e.set<std::vector<std::string>>(aVecStdStringName, vVecStdString);
 
 }
 
@@ -110,6 +113,7 @@ TEST(element, def_attrs)
     ASSERT_EQ(e.get<std::string>("aStdString"), vStdString);
     ASSERT_EQ(e.get<std::vector<std::size_t>>("aVecStdSizeT"), vVecStdSizeT);
     ASSERT_EQ(e.get<unsigned short>("aUnsignedShort"), vUnsignedShort);
+    ASSERT_EQ(e.get<std::vector<std::string>>("aVecStdString"), vVecStdString);
     
 }
 
@@ -239,7 +243,9 @@ TEST(element, to_json)
         "\",\"content\":3},\"aStdString\":{\"attrType\":\"std::string\",\"content\":"
         "\"str\"},\"aUnsignedShort\":{\"attrType\":\"unsigned short\",\"content\":4}"
         ",\"aVecStdSizeT\":{\"attrType\":\"std::vector<std::size_t>\",\"content\":[1"
-        "3,14,15,16,17]}},\"name\":\"TestElement\"}";
+        "3,14,15,16,17]},\"aVecStdString\":{\"attrType\":\"std::vector<std::string>"
+        "\",\"content\":[\"e1\",\"e2\",\"e3\",\"e4\",\"e5\"]}},"
+        "\"name\":\"TestElement\"}";
 
     ASSERT_EQ(e.toJSON().stringify(), jsonStr);
 }
@@ -257,3 +263,36 @@ TEST(element, to_json)
     ASSERT_EQ(e.get<mv::Data::TensorIterator>(dataTensorIteratorName), m.getInput()->getOutputTensor(0));
 
 }*/
+
+TEST(element, attribute_type_std_map) {
+
+    mv::Element e("MapTestElement");
+    mv::Element me1("map_elem1");
+    mv::Element me2("map_elem2");
+
+    static std::vector<std::string> vVecStdString1({"foo1", "foo2", "foo3", "foo4", "foo5"});
+    static std::vector<std::string> vVecStdString2({"bar1", "bar2", "bar3", "bar4", "bar5"});
+    static std::string aVecStdStringName1 = "aVecStdString1";
+    static std::string aVecStdStringName2 = "aVecStdString2";
+
+    me1.set<std::vector<std::string>>(aVecStdStringName1, vVecStdString1);
+    me2.set<std::vector<std::string>>(aVecStdStringName2, vVecStdString2);
+
+    static std::map<std::string, mv::Element>  e_map;
+    e_map.emplace("key1", me1);
+    e_map.emplace("key2", me2);
+
+    e.set<std::map<std::string, mv::Element>>("map_attribute", e_map);
+    //std::cout << e.toString() << std::endl;
+
+    std::string jsonStr = "{\"attrs\":{\"map_attribute\":{\"attrType\":\"std::map"
+    "<std::string, Element>\",\"content\":{\"key1\":{\"attrs\":{\"aVecStdString1\":"
+    "{\"attrType\":\"std::vector<std::string>\",\"content\":[\"foo1\",\"foo2\",\"fo"
+    "o3\",\"foo4\",\"foo5\"]}},\"name\":\"map_elem1\"},\"key2\":{\"attrs\":{\"aVecS"
+    "tdString2\":{\"attrType\":\"std::vector<std::string>\",\"content\":[\"bar1\",\"b"
+    "ar2\",\"bar3\",\"bar4\",\"bar5\"]}},\"name\":\"map_elem2\"}}}},\"name\":\"MapTe"
+    "stElement\"}";
+
+    ASSERT_EQ(e.toJSON().stringify(), jsonStr);
+
+}

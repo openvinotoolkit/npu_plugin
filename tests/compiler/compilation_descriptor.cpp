@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
+#include "include/mcm/compiler/compilation_descriptor.hpp"
 
 TEST (compilation_descriptor, load_from_file)
 {
@@ -48,4 +49,43 @@ TEST (compilation_descriptor, load_from_file)
             }
         }
     }
+}
+
+TEST(compilation_descriptor, bare)
+{
+    mv::CompilationDescriptor compDesc("test_profile");
+    compDesc.addGroup("testGroup1");
+    compDesc.addToGroup("testGroup1", "FuseBatchNorm", "Singular", false);
+    compDesc.addToGroup("testGroup1", "testGroup2", "Singular", true);
+    compDesc.addToGroup("testGroup1", "FuseBias", "Recurrent", false);
+    compDesc.addToGroup("testGroup1", "FuseScale", "Recurrent", false);
+
+    compDesc.addGroup("testGroup2");
+    compDesc.addToGroup("testGroup2", "FuseBias", "Singular", false);
+    compDesc.addToGroup("testGroup2", "FuseScale", "Singular", false);
+    compDesc.addToGroup("testGroup2", "GenerateDot", "Singular", false);
+
+    compDesc.addGroup("root");
+    compDesc.addToGroup("root", "ConvolutionDilation", "Singular", false);
+    compDesc.addToGroup("root", "testGroup1", "Recurrent", true);
+
+    std::vector<std::string> expectedPassList = { "ConvolutionDilation",
+                "FuseBatchNorm",
+                "FuseBias",
+                "FuseScale",
+                "FuseBias",
+                "FuseScale",
+                "GenerateDot",
+                "FuseBias",
+                "FuseScale" };
+
+    std::vector<std::string> passList = compDesc.serializePassList();
+
+    ASSERT_EQ(expectedPassList, passList);
+
+    compDesc.setPassArg("GenerateDot", "path", "/foo/bar");
+    std::string argVal = compDesc.getPassArg("GenerateDot", "path");
+
+    ASSERT_EQ(argVal, "/foo/bar");
+
 }
