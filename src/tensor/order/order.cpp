@@ -114,6 +114,19 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
+std::vector<unsigned> mv::Order::computeStrides(const Shape &s, unsigned dataSize) const
+{
+    unsigned n = s.ndims();
+    std::vector<unsigned> toReturn(n);
+
+    toReturn[contVector_[0]] = dataSize;
+    for(unsigned i = 1; i < n; ++i)
+        toReturn[contVector_[i]] = s[contVector_[i-1]] * toReturn[contVector_[i-1]];
+
+    return toReturn;
+}
+
+
 //Read only access to dimensions
 std::size_t mv::Order::operator[](std::size_t idx) const
 {

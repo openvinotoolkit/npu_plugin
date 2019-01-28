@@ -2,7 +2,7 @@
 #include "include/mcm/deployer/serializer.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
-#include "include/mcm/computation/resource/nce1_utils.hpp"
+#include "include/mcm/target/myriadx/nce1_utils.hpp"
 #include <numeric>
 
 static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&td, mv::json::Object& compDesc, mv::json::Object& compOutput);

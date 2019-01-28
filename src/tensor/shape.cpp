@@ -46,6 +46,11 @@ mv::Shape::operator std::vector<std::size_t>() const
     return dims_;
 }
 
+mv::Shape::operator std::vector<unsigned>() const
+{
+    return std::vector<unsigned>(dims_.begin(), dims_.end());
+}
+
 std::size_t& mv::Shape::operator[](int ndim)
 {
 

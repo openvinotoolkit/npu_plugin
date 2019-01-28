@@ -17,6 +17,7 @@
 #include "include/mcm/computation/resource/stage.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/computation/model/runtime_binary.hpp"
+#include "include/mcm/target/keembay/dma_direction.hpp"
 
 namespace mv
 {

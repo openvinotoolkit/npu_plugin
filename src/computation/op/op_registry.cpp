@@ -275,12 +275,58 @@ bool mv::op::OpRegistry::hasTypeTrait(const std::string& opType, const std::stri
     return std::find(traits.begin(), traits.end(), trait) != traits.end();
 }
 
-std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs)
+void mv::op::OpRegistry::outputMandatoryArgList(std::vector<std::string>& mandatoryArgsList, OpEntry* const opPtr, std::string& mandatoryArgsDef, bool types)
+{
+    if (mandatoryArgsList.size() > 0)
+    {
+        for (std::size_t i = 0; i < mandatoryArgsList.size(); ++i)
+        {
+            if (types)
+            {
+                auto attributeName = mandatoryArgsList[i];
+                auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(mandatoryArgsList[i]));
+                mandatoryArgsDef += "const " + argTypeName + "& ";
+            }
+
+            mandatoryArgsDef += mandatoryArgsList[i];
+
+            if (i < mandatoryArgsList.size() - 1)
+                mandatoryArgsDef += ", ";
+        }
+    }
+}
+
+void mv::op::OpRegistry::outputOptionalArgList(std::vector<std::pair<std::string, mv::Attribute>>& optionalArgsList, OpEntry* const opPtr, std::string& optionalArgsDef, bool types, bool defaultArgs)
+{
+    if (!optionalArgsList.empty())
+    {
+        for (std::size_t i = 0; i < optionalArgsList.size(); i++)
+        {
+            if (types)
+            {
+                auto attributeName = optionalArgsList[i];
+                auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(optionalArgsList[i].first));
+                optionalArgsDef += "const " + argTypeName + "& " + optionalArgsList[i].first;
+                if (defaultArgs)
+                    optionalArgsDef += " = " + optionalArgsList[i].second.toString();
+            }
+            else
+                optionalArgsDef += optionalArgsList[i].first;
+
+
+            if (i < optionalArgsList.size() - 1)
+                optionalArgsDef += ", ";
+        }
+    }
+}
+
+std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType, bool args, bool types, bool defaultArgs, bool call, bool recordedModel)
 {
     if (!checkOpType(opType))
         throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI declaration for an unregistered op type " + opType);
 
     OpEntry* const opPtr = instance().find(opType);
+    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
 
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType +
@@ -290,95 +336,114 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
 
     std::string output;
-    output.push_back(std::tolower(opType[0]));
-    output += opType.substr(1);
 
-    if (args)
+    auto copyOps = opPtr->getCopyOperations();
+    if(copyOps.size() == 0)
+        copyOps.push_back(opType);
+
+    //One signature for each copied operation signature
+    for(auto vecIt = copyOps.begin(); vecIt != copyOps.end(); ++vecIt)
     {
+        std::string copyOp(*vecIt);
+        OpEntry* const copyOpPtr = instance().find(copyOp);
 
-        output += "(";
-        std::string inputsDef = "";
-        auto inputLabels = opPtr->getInputLabel();
-        if (inputLabels.size() > 0)
+        if(!call)
         {
-            for (std::size_t i = 0; i < inputLabels.size() - 1; ++i)
-            {
-                if (types)
-                    inputsDef += "Data::TensorIterator ";
-                inputsDef += inputLabels[i] + ", ";
-            }
-
-            if (types)
-                inputsDef += "Data::TensorIterator ";
-            inputsDef += inputLabels.back();
+            output += "mv::Data::TensorIterator ";
+            if(recordedModel)
+                output += "mv::RecordedCompositionalModel:: ";
         }
 
-        std::string mandatoryArgsDef = "";
-        std::string optionalArgsDef = "";
-        auto mandatoryArgsList = opPtr->getArgsList();
-        auto optionalArgsList = opPtr->getOptionalArgsList(); /*Get arg list with default values*/
-        std::string defaultValue = "";
+        output.push_back(std::tolower(opType[0]));
+        output += opType.substr(1);
 
-        if (mandatoryArgsList.size() > 0)
+        if(opType != copyOp)
+            output += copyOp;
+
+        if (args)
         {
-            for (std::size_t i = 0; i < mandatoryArgsList.size(); ++i)
+
+            output += "(";
+            std::string inputsDef = "";
+            auto inputLabels = opPtr->getInputLabel();
+            if (inputLabels.size() > 0)
             {
+                for (std::size_t i = 0; i < inputLabels.size() - 1; ++i)
+                {
+                    if (types)
+                    {
+                        if (inputVectorTypes)
+                            inputsDef += "const std::vector< ";
+                        inputsDef += "Data::TensorIterator ";
+                        if(inputVectorTypes)
+                            inputsDef += ">& ";
+                    }
+                    inputsDef += inputLabels[i] + ", ";
+                }
+
                 if (types)
                 {
-                    auto attributeName = mandatoryArgsList[i];
-                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(mandatoryArgsList[i]));
-                    mandatoryArgsDef += "const " + argTypeName + "& ";
+                    if (inputVectorTypes)
+                        inputsDef += "const std::vector< ";
+                    inputsDef += "Data::TensorIterator ";
+                    if(inputVectorTypes)
+                        inputsDef += ">& ";
                 }
-
-                mandatoryArgsDef += mandatoryArgsList[i];
-
-                if (i < mandatoryArgsList.size() - 1) {
-                    mandatoryArgsDef += ", ";
-                }
-
+                inputsDef += inputLabels.back();
             }
-        }
 
-        if (!optionalArgsList.empty()) {
-            for (std::size_t i = 0; i < optionalArgsList.size(); i++) {
-                if (types) {
-                    auto attributeName = optionalArgsList[i];
-                    auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(optionalArgsList[i].first));
-                    optionalArgsDef += "const " + argTypeName + "& " + optionalArgsList[i].first;
-                    if (defaultArgs) {
-                        optionalArgsDef += " = " + optionalArgsList[i].second.toString();
-                    }
-                } else {
-                    optionalArgsDef += optionalArgsList[i].first;
-                }
+            std::string mandatoryArgsDef = "";
+            std::string optionalArgsDef = "";
+            auto mandatoryArgsList = opPtr->getArgsList();
+            auto optionalArgsList = opPtr->getOptionalArgsList(); /*Get arg list with default values*/
 
-                if (i < optionalArgsList.size() - 1) {
-                    optionalArgsDef += ", ";
-                }
+            auto copyOpMandatoryArgsList = copyOpPtr->getArgsList();
+            auto copyOptionalArgsList = copyOpPtr->getOptionalArgsList();
+
+            if(copyOp == opType)
+            {
+                copyOpMandatoryArgsList.clear();
+                copyOptionalArgsList.clear();
             }
+
+            std::string defaultValue = "";
+
+            if(!copyOpMandatoryArgsList.empty())
+                outputMandatoryArgList(copyOpMandatoryArgsList, copyOpPtr, mandatoryArgsDef, types);
+            else
+                outputMandatoryArgList(mandatoryArgsList, opPtr, mandatoryArgsDef, types);
+
+            if(!copyOptionalArgsList.empty())
+                outputOptionalArgList(copyOptionalArgsList, copyOpPtr, optionalArgsDef, types, defaultArgs);
+            else
+                outputOptionalArgList(optionalArgsList, opPtr, optionalArgsDef, types, defaultArgs);
+
+            output += inputsDef;
+            if (!inputsDef.empty())
+                output += ", ";
+
+            output += mandatoryArgsDef;
+            if (!mandatoryArgsDef.empty())
+                output += ", ";
+
+            output += optionalArgsDef;
+            if (!optionalArgsDef.empty())
+                output += ", ";
+
+            if (types)
+                output += "const std::string& ";
+            output += "name";
+
+            if (defaultArgs)
+                output += " = \"\"";
+
+            output += ")";
+
+            auto backupIt = vecIt;
+            if(++backupIt != copyOps.end())
+                output += ";\n";
+
         }
-
-        output += inputsDef;
-        if (!inputsDef.empty())
-            output += ", ";
-
-        output += mandatoryArgsDef;
-        if (!mandatoryArgsDef.empty())
-            output += ", ";
-
-        output += optionalArgsDef;
-        if (!optionalArgsDef.empty())
-            output += ", ";
-
-        if (types)
-            output += "const std::string& ";
-        output += "name";
-
-        if (defaultArgs)
-            output += " = \"\"";
-
-        output += ")";
-
     }
 
     return output;
@@ -386,12 +451,12 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
 
 std::string mv::op::OpRegistry::getCompositionDecl_(const std::string& opType)
 {
-    return "Data::TensorIterator " + getCompositionDeclSig_(opType, true, true, true);
+    return getCompositionDeclSig_(opType, true, true, true, false, false);
 }
 
 std::string mv::op::OpRegistry::getCompositionCall_(const std::string& opType)
 {
-    return getCompositionDeclSig_(opType, true, false, false);
+    return getCompositionDeclSig_(opType, true, false, false, true, false);
 }
 
 std::string mv::op::OpRegistry::getLabelNameStringifyCall_(const std::string& label, const std::string& name, std::size_t idx, 
@@ -486,34 +551,32 @@ std::vector<std::string> mv::op::OpRegistry::getStringifiedArgsCall_(const std::
 
 }
 
-std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, const std::string& eol, const std::string& tab)
+void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& eol, const std::string& opType, OpEntry* const opPtr, std::string token, bool inputVectorTypes, bool checkInputs, bool copiedOp, const std::string& tab)
 {
+    output += token + eol + "{" +
+        eol + tab + "return defineOp(" + eol + tab + tab + "\"" + opType + "\"," + eol + tab + tab;
+    if(!inputVectorTypes)
+        output += "{";
 
-    if (!checkOpType(opType))
-        throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI definition for an unregistered op type " + opType);
-
-    OpEntry* const opPtr = instance().find(opType);
-
-    if (!opPtr)
-        throw MasterError("OpRegistry", "Registered op type " + opType +
-            " not found in the op registry");
-
-    if (opPtr->getOutputsCount() > 1)
-        throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
-
-    std::string output = getCompositionDeclSig_(opType, true, true, false) + eol + "{" + 
-        eol + tab + "return defineOp(" + eol + tab + tab + "\"" + opType + "\"," + eol + tab + tab + "{";
-    
     auto inputLabels = opPtr->getInputLabel();
-    if (inputLabels.size() > 0)
+    if(inputVectorTypes)
+        output += "inputs";
+    else if (inputLabels.size() > 0)
     {
         for (std::size_t i = 0; i < inputLabels.size() - 1; ++i)
             output +=  eol + tab + tab + tab + inputLabels[i] + ",";
-        output +=  eol + tab + tab + tab + inputLabels.back(); 
+        output +=  eol + tab + tab + tab + inputLabels.back();
     }
-    output += eol + tab + tab + "}," + eol + tab + tab + "{";
+    output += eol + tab + tab;
+    if(!inputVectorTypes)
+        output += + "}";
+    output += "," + eol + tab + tab;
+    output += "{";
 
     auto mandatoryArgsList = opPtr->getArgsList();
+    if(copiedOp)
+        output +=  eol + tab + tab + tab + "{ \"taskOp\", std::string(\"" + opPtr->getName() + "\") },";
+
     if (mandatoryArgsList.size() > 0)
     {
         for (std::size_t i = 0; i < mandatoryArgsList.size() - 1; ++i)
@@ -524,15 +587,84 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
     auto optionalArgsList = opPtr->getOptionalArgsList();
     if (optionalArgsList.size() > 0)
     {
-        if (mandatoryArgsList.size() > 0) {
+        if (mandatoryArgsList.size() > 0)
             output += ",";
-        }
 
         for (std::size_t i = 0; i < optionalArgsList.size() - 1; ++i)
             output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList[i].first + "\", " + optionalArgsList[i].first + " },";
         output +=  eol + tab + tab + tab + "{ \"" + optionalArgsList.back().first + "\", " + optionalArgsList.back().first + " }";
     }
-    output += eol + tab + tab + "}," + eol + tab + tab + "name" + eol + tab + ");" + eol + "}";
+    output += eol + tab + tab;
+
+    output += "}," + eol + tab + tab + "name";
+
+    if(inputVectorTypes)
+        output += ",";
+    output += eol + tab;
+    if(inputVectorTypes)
+        output += tab + "false";
+
+    if(!checkInputs)
+        output += ",";
+    output += eol + tab;
+    if(!checkInputs)
+        output += tab + "false";
+
+    output += eol + tab;
+
+    output += ");";
+    output += eol + "}";
+}
+
+std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, const std::string& eol, const std::string& tab)
+{
+
+    if (!checkOpType(opType))
+        throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI definition for an unregistered op type " + opType);
+
+    OpEntry* const opPtr = instance().find(opType);
+    auto copiedOps = opPtr->getCopyOperations();
+
+    if (!opPtr)
+        throw MasterError("OpRegistry", "Registered op type " + opType +
+            " not found in the op registry");
+
+    if (opPtr->getOutputsCount() > 1)
+        throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
+
+    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
+    bool checkInputs = opPtr->doInputNeedToBeChecked();
+
+    std::string signatures = getCompositionDeclSig_(opType, true, true, false, true, false);
+    std::string delimiter = ";";
+
+    std::string output = "";
+
+    bool isCopiedOpsEmpty = copiedOps.empty();
+
+    size_t pos = 0;
+    std::string token;
+    size_t copiedOpsIndex = 0;
+    //Signatures and Copied operations are in the same order
+    while ((pos = signatures.find(delimiter)) != std::string::npos)
+    {
+        token = signatures.substr(0, pos);
+        OpEntry* const copiedPpPtr = instance().find(copiedOps[copiedOpsIndex++]);
+        output += "mv::Data::TensorIterator mv::OpModel::";
+        defineOpOutput(output, eol, opType, copiedPpPtr, token, inputVectorTypes, checkInputs, !isCopiedOpsEmpty, tab);
+
+        signatures.erase(0, pos + delimiter.length());
+    }
+
+    output += "mv::Data::TensorIterator mv::OpModel::";
+    if(isCopiedOpsEmpty)
+        defineOpOutput(output, eol, opType, opPtr, signatures, inputVectorTypes, checkInputs, !isCopiedOpsEmpty, tab);
+    else
+    {
+        OpEntry* const copiedPpPtr = instance().find(copiedOps[copiedOpsIndex]);
+        defineOpOutput(output, eol, opType, copiedPpPtr, signatures, inputVectorTypes, checkInputs, !isCopiedOpsEmpty, tab);
+    }
+
     return output;
 
 }
@@ -614,7 +746,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << tab << tab << "OpModel(ComputationModel& model);" << eol;
     incStream << tab << tab << "virtual ~OpModel();" << eol << eol;
 
-    auto opsList = getOpTypes();
+    auto opsList = getOpTypes({});
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
     {
         incStream << tab << tab << getCompositionDecl_(*it);
@@ -657,7 +789,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     srcStream << "}" << eol << eol;
 
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
-        srcStream << "mv::Data::TensorIterator mv::OpModel::" + getCompositionDef_(*it, eol, tab) << eol << eol; 
+        srcStream << getCompositionDef_(*it, eol, tab) << eol << eol;
     
     srcStream << "mv::Data::OpListIterator mv::OpModel::getSourceOp(Data::TensorIterator tensor)" << eol;
     srcStream << "{" << eol;
@@ -766,7 +898,7 @@ void mv::op::OpRegistry::generateRecordedCompositionAPI(const std::string& eol, 
     for (auto it = opsList.begin(); it != opsList.end(); ++it)
     {
 
-        srcStream << "mv::Data::TensorIterator mv::RecordedCompositionalModel::" << getCompositionDeclSig_(*it, true, true, false)
+        srcStream << getCompositionDeclSig_(*it, true, true, false, false, true)
             << eol << "{" << eol;
         
         srcStream << tab << "Data::TensorIterator output = model_." << getCompositionCall_(*it) << ";" << eol;
@@ -782,7 +914,7 @@ void mv::op::OpRegistry::generateRecordedCompositionAPI(const std::string& eol, 
             srcStream << " << \"Data::TensorIterator \" + output0 + \" = \"";
         }
 
-        srcStream << " << \"model." << getCompositionDeclSig_(*it, false, false, false) << "(\" << ";
+        srcStream << " << \"model." << getCompositionDeclSig_(*it, false, false, false, true, true) << "(\" << ";
 
         
         if (getInputsCount(*it) > 0)

@@ -1,6 +1,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
+const std::string mv::CompilationUnit::ma2490DefDescPath_ = "/config/target/ma2490.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
@@ -97,6 +98,12 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
         case Target::ma2480:
         {
             std::string descPath = utils::projectRootPath() + ma2480DefDescPath_;
+            return loadTargetDescriptor(descPath);
+        }
+
+        case Target::ma2490:
+        {
+            std::string descPath = utils::projectRootPath() + ma2490DefDescPath_;
             return loadTargetDescriptor(descPath);
         }
 

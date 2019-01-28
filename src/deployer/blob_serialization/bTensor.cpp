@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "include/mcm/deployer/blob_serialization/bTensor.hpp"
-#include "include/mcm/computation/resource/nce1_utils.hpp"
+#include "include/mcm/target/myriadx/nce1_utils.hpp"
 #include <string.h>
 
 namespace mv

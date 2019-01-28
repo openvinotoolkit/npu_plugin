@@ -111,6 +111,7 @@ namespace mv
         virtual std::string getLogID() const override;
 
         BinaryData toBinary();
+        std::vector<unsigned> computeNumericStrides() const;
 
     };
 

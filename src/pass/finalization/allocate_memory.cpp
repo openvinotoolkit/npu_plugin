@@ -41,9 +41,7 @@ namespace mv
 
 }
 
-
-
-
+//NOTE:This pass assumes the existence of memory allocators called ProgrammableInput and Programmable. Lucklily this is true for both MX and Keembay.
 void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     std::cout << "Allocate input/output tensors" << std::endl;
@@ -132,6 +130,9 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
     std::cout << "Exiting allocate input and output" << std::endl;
 }
 
+// NOTE:This pass assumes the existence of a memory allocator called ConstantMemory. This was true only for MX, so this pass has to be changed to use TargetDescriptor.
+// By doing so, we will know what Memories the Target provides for Populated Tensors
+// Also, NCE1_Paddings shall become NCE_Paddings.
 void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
@@ -185,7 +186,8 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 }
 
 
-
+// NOTE:This pass assumes the existence of a memory allocator called IntermediateMemory. This was true only for MX, so this pass has to be changed to use TargetDescriptor to see
+// which allocators are available for IntermediateMemory.
 void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 

@@ -260,8 +260,7 @@ namespace mv
 
         bool iterable(std::size_t stageIdx);
         virtual std::string getLogID() const override;
-
-
+        const std::string& getAllocatorName() const;
     };
 
 }

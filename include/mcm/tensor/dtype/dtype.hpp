@@ -29,6 +29,7 @@ namespace mv
 
         std::string getLogID() const override;
         BinaryData toBinary(const std::vector<double>& data) const;
+        unsigned getSizeInBytes() const;
     };
 
 }

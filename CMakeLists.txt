@@ -14,12 +14,12 @@ add_compile_options(-std=c++11)
 if (MSVC)
 
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
-    SET(VALIDATION true)
+    SET(VALIDATION false)
 
 else()
 
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
-    SET(VALIDATION true CACHE BOOL "Flag to include additional external libaries for validation testing")
+    SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 
 endif()
 
@@ -70,6 +70,7 @@ file(GLOB base
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
+    "src/target/keembay/dma_direction.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
     "src/deployer/Fp16Convert.cpp"
@@ -89,6 +90,8 @@ file(GLOB base
     "src/computation/op/op_registry.cpp"
     "src/computation/op/def/*.cpp"
     "src/computation/model/runtime_binary.cpp"
+    "src/target/keembay/attribute_def/*.cpp"
+    "src/target/keembay/tasks/def/*.cpp"
 )
 
 file (GLOB model
@@ -105,11 +108,10 @@ file (GLOB model
     "src/computation/flow/data_flow.cpp"
     "src/computation/resource/memory_allocator.cpp"
     "src/computation/resource/stage.cpp"
-    "src/computation/resource/nce1.cpp"
-    "src/computation/resource/nce1_utils.cpp"
+    "src/target/myriadx/nce1.cpp"
+    "src/target/myriadx/nce1_utils.cpp"
     "src/computation/op/op.cpp"
     "src/computation/model/model_element.cpp"
-   
 )
 
 file(GLOB logger
@@ -139,6 +141,7 @@ file(GLOB pass
 file(GLOB compiler
     "src/compiler/*"
     "src/utils/hardware_tests.cpp"
+    "src/target/keembay/runtime_model/*.cpp"
 )
 
 add_subdirectory(meta)

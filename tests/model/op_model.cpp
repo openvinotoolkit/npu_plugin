@@ -2,18 +2,6 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-TEST(op_model, validity)
-{
-
-    mv::OpModel om("TestModel");
-    ASSERT_FALSE(om.isValid());
-    auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
-    ASSERT_FALSE(om.isValid());
-    om.output(input);
-    ASSERT_TRUE(om.isValid());
-
-}
-
 TEST(op_model, failure_sanity)
 {
 

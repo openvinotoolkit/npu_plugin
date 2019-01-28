@@ -5,12 +5,27 @@ name_(name)
 {
 
 }
+
 mv::DTypeEntry& mv::DTypeEntry::setToBinaryFunc(std::function<mv::BinaryData(const std::vector<double>&)>& f)
 {
     toBinaryFunc_ = f;
     return *this;
 }
-const std::function<mv::BinaryData(const std::vector<double>&)>& mv::DTypeEntry::getToBinaryFunc()
+
+mv::DTypeEntry& mv::DTypeEntry::setSizeInBytes(unsigned size)
+{
+    size_ = size;
+    return *this;
+}
+
+const std::function<mv::BinaryData(const std::vector<double>&)>& mv::DTypeEntry::getToBinaryFunc() const
 {
     return toBinaryFunc_;
 }
+
+unsigned mv::DTypeEntry::getSizeInBytes() const
+{
+    return size_;
+}
+
+

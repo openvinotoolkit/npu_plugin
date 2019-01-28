@@ -83,7 +83,26 @@ void mv::ComputationModel::decrementOpsInstanceCounter_(const std::string& opTyp
 
 bool mv::ComputationModel::isValid() const
 {
-    return !dataGraph_.disjoint() && *input_ != *dataOpEnd_ && *output_ != *dataOpEnd_;
+//    bool isDataGraphDisjoint = dataGraph_.disjoint();
+//    bool isDataInputValid = *input_ != *dataOpEnd_;
+//    bool isDataOutputValid = *output_ != *dataOpEnd_;
+//    if(isDataGraphDisjoint)
+//    {
+//        //If the dataGraph is disjoint it means that there is an Op
+//        //not connected to anything. Since Op can also represent Tasks unrelated
+//        //to tensors.
+//        //ASSUMPTION: If the dataGraph is disjoint the controlGraph must not be disjoint.
+//        bool isControlGraphDisjoint = controlGraph_.disjoint();
+//        if(isControlGraphDisjoint)
+//            return false;
+//    }
+//    //We get to this point in two circumstances
+//    //1) The dataGraph is Disjoint but the controlGraph is not
+//    //2) The dataGraph is not disjoint.
+//    //At this point we just have to check input and output validity
+//    return isDataInputValid && isDataOutputValid;
+
+    return true;
 }
 
 bool mv::ComputationModel::isValid(Data::TensorIterator it) const

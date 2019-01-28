@@ -22,6 +22,7 @@ namespace mv
     enum class Target
     {
         ma2480,
+        ma2490,
         Unknown
     };
 

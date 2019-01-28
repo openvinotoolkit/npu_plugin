@@ -38,10 +38,14 @@ namespace mv
             std::vector<std::pair<std::string, std::type_index>> mandatoryArgs_;
             std::vector<std::tuple<std::string, std::type_index, Attribute>> optionalArgs_; //Attribute holds default value
             std::set<std::string> typeTraits_;
+            std::vector<std::string> copyOperations_;
+            bool inputVectorTypes_;
+            bool checkInputs_;
 
         public:
             OpEntry(const std::string& opType);
 
+            OpEntry& setVariableInputNum(bool inputVectorTypes);
             OpEntry& setInputs(std::vector<std::string> labels);
             OpEntry& setOutputs(std::vector<std::string> labels);
             OpEntry& setInputCheck(const std::function<std::pair<bool, std::size_t>
@@ -51,6 +55,9 @@ namespace mv
             OpEntry& setDescription(const std::string& description);
             OpEntry& setTypeTrait(const std::string& trait);
             OpEntry& setTypeTrait(std::initializer_list<std::string> traits);
+            OpEntry& setBaseOperation(const std::string& opType);
+            OpEntry& setBaseOperation(std::initializer_list<std::string> ops);
+            OpEntry& setInputCheck(bool inputCheck);
 
             const std::string getDescription() const;
             std::size_t getInputsCount() const;
@@ -70,7 +77,10 @@ namespace mv
             const std::vector<std::string>& getOutputLabel();
             bool hasTypeTrait(const std::string& trait);
             const std::set<std::string>& getTypeTraits();
-
+            bool hasVectorTypesAsInput();
+            bool doInputNeedToBeChecked();
+            const std::string& getName();
+            const std::vector<std::string>& getCopyOperations();
             std::string getLogID() const override;
 
             template <class AttrType>

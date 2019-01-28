@@ -4,3 +4,6 @@
 [submodule "contrib/flatbuffers"]
 	path = contrib/flatbuffers
 	url = https://github.com/google/flatbuffers.git
+[submodule "graphfile"]
+	path = schema/graphfile
+	url = https://github.com/movidius/graphFile-schema

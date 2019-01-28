@@ -142,3 +142,18 @@ TEST(order, tensor_mismatching_order)
 
     ASSERT_ANY_THROW(mv::Tensor("Test", s, mv::DType("Float16"), order));
 }
+
+TEST(order, strides_computation)
+{
+    mv::Shape s({224, 224, 3});
+    mv::Order order1("WHC");
+    mv::Order order2("CHW");
+
+    auto result = order1.computeStrides(s, 1);
+    for(auto x : result)
+        std::cout << x << std::endl;
+
+    result = order2.computeStrides(s, 1);
+    for(auto x : result)
+        std::cout << x << std::endl;
+}
