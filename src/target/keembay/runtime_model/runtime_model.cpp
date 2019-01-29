@@ -58,9 +58,8 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-MVCNN::GraphNodeT mv::RuntimeModel::convertOperationToGraphNodeT(mv::BaseOpModel &om, mv::Data::OpListIterator op)
+void mv::RuntimeModel::convertOperationToGraphNodeT(mv::BaseOpModel &om, mv::Data::OpListIterator op, MVCNN::GraphNodeT &toReturn)
 {
-    MVCNN::GraphNodeT toReturn;
     toReturn.name = op->getName();
     toReturn.thisID = op->get<unsigned>("opId");
 
@@ -70,16 +69,13 @@ MVCNN::GraphNodeT mv::RuntimeModel::convertOperationToGraphNodeT(mv::BaseOpModel
     for (auto nextParentOp = op.leftmostParent(); nextParentOp != om.opEnd(); ++nextParentOp)
         toReturn.sinkID.push_back(nextParentOp->get<unsigned>("opId"));
 
-    return toReturn;
 }
 
-    return toReturn;
 }
 
-MVCNN::TensorReferenceT mv::RuntimeModel::convertTensorRepresentation(MemoryAllocator &allocator, mv::Data::TensorIterator t)
+
+void mv::RuntimeModel::convertTensorRepresentation(MemoryAllocator &allocator, mv::Data::TensorIterator t, MVCNN::TensorReferenceT& toReturn)
 {
-    MVCNN::TensorReferenceT toReturn;
-
     mv::Data::BufferIterator it = allocator.getBuffer(0, t); //0 is the only stage for now, but this will probably change in the future
 
     toReturn.dimensions = it->getData()->getShape(); // Padded or not?
@@ -97,8 +93,6 @@ MVCNN::TensorReferenceT mv::RuntimeModel::convertTensorRepresentation(MemoryAllo
     //toReturn.quant_scale;//    std::vector<int8_t> quant_scale;
     //toReturn.quant_zero;//    std::vector<int8_t> quant_zero;
     //toReturn.quant_shift;//    std::vector<int8_t> quant_shift;
-
-    return toReturn;
 }
 
 

@@ -21,9 +21,10 @@ namespace mv
             ~RuntimeModel();
 
             static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName);
-            static MVCNN::TensorReferenceT convertTensorRepresentation(MemoryAllocator &allocator, Data::TensorIterator t);
+            static void convertTensorRepresentation(MemoryAllocator &allocator, Data::TensorIterator t, MVCNN::TensorReferenceT &toReturn);
             static MVCNN::DType convertDtype(const DType& dtype);
-            static MVCNN::GraphNodeT convertOperationToGraphNodeT(BaseOpModel &om, Data::OpListIterator op);
+            static void convertOperationToGraphNodeT(BaseOpModel &om, Data::OpListIterator op, MVCNN::GraphNodeT& toReturn);
+            static void convertComputationModelToSourceStructure(BaseOpModel &om, MVCNN::SourceStructureT &toReturn);
 
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);
