@@ -58,48 +58,82 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-void mv::RuntimeModel::convertOperationToGraphNodeT(mv::BaseOpModel &om, mv::Data::OpListIterator op, MVCNN::GraphNodeT &toReturn)
+void mv::RuntimeModel::buildGraphNodeT(mv::BaseOpModel &om, mv::Data::OpListIterator op, MVCNN::GraphNodeT &toBuild)
 {
-    toReturn.name = op->getName();
-    toReturn.thisID = op->get<unsigned>("opId");
+    toBuild.name = op->getName();
+    toBuild.thisID = op->get<unsigned>("opId");
 
     for (auto nextChildOp = op.leftmostChild(); nextChildOp != om.opEnd(); ++nextChildOp)
-        toReturn.sourceID.push_back(nextChildOp->get<unsigned>("opId"));
+        toBuild.sourceID.push_back(nextChildOp->get<unsigned>("opId"));
 
     for (auto nextParentOp = op.leftmostParent(); nextParentOp != om.opEnd(); ++nextParentOp)
-        toReturn.sinkID.push_back(nextParentOp->get<unsigned>("opId"));
+        toBuild.sinkID.push_back(nextParentOp->get<unsigned>("opId"));
 
 }
 
-void mv::RuntimeModel::convertComputationModelToSourceStructure(mv::BaseOpModel &om, MVCNN::SourceStructureT& toReturn)
+void mv::RuntimeModel::buildSourceStructureT(mv::BaseOpModel &om, MVCNN::SourceStructureT& toBuild)
 {
-    toReturn.first_ID.push_back(om.getInput()->get<unsigned>("opId"));
-    toReturn.nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(om.opsCount());
+    toBuild.first_ID.push_back(om.getInput()->get<unsigned>("opId"));
+    toBuild.nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(om.opsCount());
     unsigned i = 0;
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-        convertOperationToGraphNodeT(om, opIt, *(toReturn.nodes[i++]));
+        buildGraphNodeT(om, opIt, *(toBuild.nodes[i++]));
 }
 
 
-void mv::RuntimeModel::convertTensorRepresentation(MemoryAllocator &allocator, mv::Data::TensorIterator t, MVCNN::TensorReferenceT& toReturn)
+void mv::RuntimeModel::buildTensorReferenceT(mv::BaseOpModel &om, mv::Data::TensorIterator t, MVCNN::TensorReferenceT& toBuild)
 {
+    mv::DataModel dm(om);
+    auto allocator = dm.getAllocator(t->get<std::string>("allocator"));
     mv::Data::BufferIterator it = allocator.getBuffer(0, t); //0 is the only stage for now, but this will probably change in the future
 
-    toReturn.dimensions = it->getData()->getShape(); // Padded or not?
-    toReturn.strides = it->getData()->computeNumericStrides(); //Maybe directly it->computeStrides() in the future?
+    toBuild.dimensions = it->getData()->getShape(); // Padded or not?
+    toBuild.strides = it->getData()->computeNumericStrides(); //NOTE: Maybe directly it->computeStrides() in the future?
 
     auto strides = it->getStrides();
-    toReturn.leading_offset = strides[0];
-    toReturn.trailing_offset = strides[strides.size()-1] + it->getPostAlign();
+    toBuild.leading_offset = strides[0];
+    toBuild.trailing_offset = strides[strides.size()-1] + it->getPostAlign();
 
-    toReturn.data->data_index = it->getOffset();
-    toReturn.locale = convertAllocatorToMemoryLocale(allocator.getAllocatorName());
-    toReturn.data_dtype = convertDtype(it->getData()->getDType());
+    toBuild.data->data_index = it->getOffset();
+    toBuild.locale = convertAllocatorToMemoryLocale(allocator.getAllocatorName());
+    toBuild.data_dtype = convertDtype(it->getData()->getDType());
 
     //UNSUPPORTED FOR NOW
-    //toReturn.quant_scale;//    std::vector<int8_t> quant_scale;
-    //toReturn.quant_zero;//    std::vector<int8_t> quant_zero;
-    //toReturn.quant_shift;//    std::vector<int8_t> quant_shift;
+    //toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
+    //toBuild.quant_zero;//    std::vector<int8_t> quant_zero;
+    //toBuild.quant_shift;//    std::vector<int8_t> quant_shift;
+}
+
+
+void mv::RuntimeModel::buildSummaryHeaderT(BaseOpModel& om, MVCNN::SummaryHeaderT& toBuild)
+{
+    // TODO: probably Target/CompilationDescriptor needs to be passed
+    buildVersionT(om, *toBuild.version);
+
+    // Just one input for now
+    toBuild.net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+    buildTensorReferenceT(om, om.getInput()->getOutputTensor(0), *toBuild.net_input[0]);
+    // Just one output for now
+    toBuild.net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+    buildTensorReferenceT(om, om.getOutput()->getInputTensor(0), *toBuild.net_output[0]);
+
+
+    //TODO: om.taskCount() needs to be implemented
+    toBuild.layer_count = om.opsCount();
+    toBuild.task_count = om.opsCount();
+
+    buildResourcesT(om, *toBuild.resources);
+    buildSourceStructureT(om, *toBuild.original_structure);
+}
+
+void mv::RuntimeModel::buildVersionT(BaseOpModel& om, MVCNN::VersionT& toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildResourcesT(BaseOpModel& om, MVCNN::ResourcesT& toBuild)
+{
+
 }
 
 
