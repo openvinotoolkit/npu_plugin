@@ -46,6 +46,7 @@ namespace mv
 
         bool addAllocator(const std::string& name, std::size_t size, std::size_t alignment, std::size_t dataTypeSize);
         bool hasAllocator(const std::string& name);
+        const MemoryAllocator& getAllocator(const std::string& allocatorName);
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Data::BufferIterator buffer, Data::TensorIterator tensor,
             const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding);

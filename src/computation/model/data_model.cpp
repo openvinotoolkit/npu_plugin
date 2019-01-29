@@ -322,6 +322,15 @@ bool mv::DataModel::hasAllocator(const std::string& name)
 
 }
 
+const mv::MemoryAllocator& mv::DataModel::getAllocator(const std::string& allocatorName)
+{
+    if (memoryAllocators_->find(allocatorName) == memoryAllocators_->end())
+        throw ArgumentError(*this, "allocatorName", allocatorName, "Undefined allocator");
+
+    return *(*memoryAllocators_)[allocatorName];
+}
+
+
 std::string mv::DataModel::getLogID() const
 {
     return "DataModel:" + name_;
