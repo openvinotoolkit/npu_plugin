@@ -71,6 +71,13 @@ void mv::RuntimeModel::convertOperationToGraphNodeT(mv::BaseOpModel &om, mv::Dat
 
 }
 
+void mv::RuntimeModel::convertComputationModelToSourceStructure(mv::BaseOpModel &om, MVCNN::SourceStructureT& toReturn)
+{
+    toReturn.first_ID.push_back(om.getInput()->get<unsigned>("opId"));
+    toReturn.nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(om.opsCount());
+    unsigned i = 0;
+    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        convertOperationToGraphNodeT(om, opIt, *(toReturn.nodes[i++]));
 }
 
 
