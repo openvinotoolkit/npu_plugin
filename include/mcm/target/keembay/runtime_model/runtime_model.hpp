@@ -4,6 +4,7 @@
 #include "meta/schema/graphfile/graphfile_generated.h"
 #include "meta/schema/graphfile/memoryManagement_generated.h"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
+#include "include/mcm/computation/model/base_op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
 namespace mv
@@ -22,7 +23,7 @@ namespace mv
             static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName);
             static MVCNN::TensorReferenceT convertTensorRepresentation(MemoryAllocator &allocator, Data::TensorIterator t);
             static MVCNN::DType convertDtype(const DType& dtype);
-            static MVCNN::GraphNodeT convertOperationToGraphNodeT(ComputationModel &cm, Data::OpListIterator op);
+            static MVCNN::GraphNodeT convertOperationToGraphNodeT(BaseOpModel &om, Data::OpListIterator op);
 
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);

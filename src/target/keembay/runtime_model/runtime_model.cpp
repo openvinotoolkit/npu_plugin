@@ -58,13 +58,20 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-MVCNN::GraphNodeT mv::RuntimeModel::convertOperationToGraphNodeT(mv::ComputationModel& cm, mv::Data::OpListIterator op)
+MVCNN::GraphNodeT mv::RuntimeModel::convertOperationToGraphNodeT(mv::BaseOpModel &om, mv::Data::OpListIterator op)
 {
     MVCNN::GraphNodeT toReturn;
     toReturn.name = op->getName();
-    //TODO
-    //toReturn.thisID = op->getId();
-    //cm.getDataFlow()
+    toReturn.thisID = op->get<unsigned>("opId");
+
+    for (auto nextChildOp = op.leftmostChild(); nextChildOp != om.opEnd(); ++nextChildOp)
+        toReturn.sourceID.push_back(nextChildOp->get<unsigned>("opId"));
+
+    for (auto nextParentOp = op.leftmostParent(); nextParentOp != om.opEnd(); ++nextParentOp)
+        toReturn.sinkID.push_back(nextParentOp->get<unsigned>("opId"));
+
+    return toReturn;
+}
 
     return toReturn;
 }
