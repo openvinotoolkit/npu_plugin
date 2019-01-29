@@ -85,18 +85,18 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::BaseOpModel &om, mv::Data::Tens
 {
     mv::DataModel dm(om);
     auto allocator = dm.getAllocator(t->get<std::string>("allocator"));
-    mv::Data::BufferIterator it = allocator.getBuffer(0, t); //0 is the only stage for now, but this will probably change in the future
+    mv::Data::BufferIterator bufferIt = allocator.getBuffer(0, t); //0 is the only stage for now, but this will probably change in the future
 
-    toBuild.dimensions = it->getData()->getShape(); // Padded or not?
-    toBuild.strides = it->getData()->computeNumericStrides(); //NOTE: Maybe directly it->computeStrides() in the future?
+    toBuild.dimensions = bufferIt->getData()->getShape(); // Padded or not?
+    toBuild.strides = bufferIt->getData()->computeNumericStrides(); //NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
-    auto strides = it->getStrides();
+    auto strides = bufferIt->getStrides();
     toBuild.leading_offset = strides[0];
-    toBuild.trailing_offset = strides[strides.size()-1] + it->getPostAlign();
+    toBuild.trailing_offset = strides[strides.size()-1] + bufferIt->getPostAlign();
 
-    toBuild.data->data_index = it->getOffset();
+    toBuild.data->data_index = bufferIt->getOffset();
     toBuild.locale = convertAllocatorToMemoryLocale(allocator.getAllocatorName());
-    toBuild.data_dtype = convertDtype(it->getData()->getDType());
+    toBuild.data_dtype = convertDtype(bufferIt->getData()->getDType());
 
     //UNSUPPORTED FOR NOW
     //toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
