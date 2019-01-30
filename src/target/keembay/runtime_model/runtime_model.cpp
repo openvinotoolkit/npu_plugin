@@ -59,9 +59,9 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &om, mv::Data::OpListIterator op, std::unique_ptr<MVCNN::GraphNodeT> toBuild)
+void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &cm, mv::Data::OpListIterator op, std::unique_ptr<MVCNN::GraphNodeT> toBuild)
 {
-    mv::OpModel opModel(om);
+    mv::OpModel opModel(cm);
     toBuild->name = op->getName();
     toBuild->thisID = op->get<unsigned>("opId");
 
@@ -73,23 +73,23 @@ void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &om, mv::Data::OpLis
 
 }
 
-void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &om, std::unique_ptr<MVCNN::SourceStructureT> toBuild)
+void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &cm, std::unique_ptr<MVCNN::SourceStructureT> toBuild)
 {
-    mv::OpModel opModel(om);
+    mv::OpModel opModel(cm);
     toBuild->first_ID.push_back(opModel.getInput()->get<unsigned>("opId"));
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
     for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
     {
         toBuild->nodes[i] = std::unique_ptr<MVCNN::GraphNodeT>(new MVCNN::GraphNodeT());
-        buildGraphNodeT(om, opIt, std::move(toBuild->nodes[i++]));
+        buildGraphNodeT(cm, opIt, std::move(toBuild->nodes[i++]));
     }
 }
 
 
-void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &om, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
+void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &cm, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
 {
-    mv::DataModel dm(om);
+    mv::DataModel dm(cm);
     auto allocator = dm.getAllocator(t->get<std::string>("allocator"));
 
     //NOTE: With auto strangely it doesn't work
@@ -114,20 +114,20 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &om, mv::Data:
 }
 
 
-void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& om, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild)
+void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild)
 {
-    mv::OpModel opModel(om);
+    mv::OpModel opModel(cm);
     toBuild->version = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
     buildVersionT(compilationDescriptor, std::move(toBuild->version));
 
     // Just one input for now
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_input[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(om, opModel.getInput()->getOutputTensor(0), std::move(toBuild->net_input[0]));
+    buildTensorReferenceT(cm, opModel.getInput()->getOutputTensor(0), std::move(toBuild->net_input[0]));
     // Just one output for now
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(om, opModel.getOutput()->getInputTensor(0), std::move(toBuild->net_output[0]));
+    buildTensorReferenceT(cm, opModel.getOutput()->getInputTensor(0), std::move(toBuild->net_output[0]));
 
     //TODO: opModel.taskCount() needs to be implemented
     toBuild->layer_count = opModel.opsCount();
@@ -137,7 +137,7 @@ void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& om, json::Object& c
     buildResourcesT(compilationDescriptor, std::move(toBuild->resources));
 
     toBuild->original_structure = std::unique_ptr<MVCNN::SourceStructureT>(new MVCNN::SourceStructureT());
-    buildSourceStructureT(om, std::move(toBuild->original_structure));
+    buildSourceStructureT(cm, std::move(toBuild->original_structure));
 }
 
 void mv::RuntimeModel::buildVersionT(json::Object& compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild)
@@ -158,13 +158,57 @@ void mv::RuntimeModel::buildResourcesT(json::Object& compilationDescriptor, std:
     toBuild->ddr_scratch = compilationDescriptor["Resources"]["DDRScratch"].get<long long>();
 }
 
-void mv::RuntimeModel::buildGraphFileT(ComputationModel& om, json::Object& compilationDescriptor)
+void mv::RuntimeModel::buildBinaryDataT(Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild)
 {
+    // NOTE: In the future tensor->toBinary() will probably handle also the sparsity map associated to the tensor.
+    // Or maybe not, we will see
+    auto binaryData = t->toBinary();
+
+    toBuild->fp64 = binaryData.fp64();
+    toBuild->fp32 = binaryData.fp32();
+    toBuild->fp16 = binaryData.fp16();
+    toBuild->f8 = binaryData.fp8();
+    toBuild->u64 = binaryData.u64();
+    toBuild->u32 = binaryData.u32();
+    toBuild->u16 = binaryData.u16();
+    toBuild->u8 = binaryData.u8();
+    toBuild->i64 = binaryData.i64();
+    toBuild->i32 = binaryData.i32();
+    toBuild->i16 = binaryData.i16();
+    toBuild->i8 = binaryData.i8();
+    toBuild->i4 = binaryData.i4();
+    toBuild->i2 = binaryData.i2();
+    toBuild->i2x = binaryData.i2x();
+    toBuild->i4x = binaryData.i4x();
+    toBuild->bin = binaryData.bin();
+    toBuild->log = binaryData.log();
+}
+
+void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, json::Object& compilationDescriptor)
+{
+    mv::OpModel om(cm);
+
+    // HEADER
     graphFile_.header = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
-    buildSummaryHeaderT(om, compilationDescriptor, std::move(graphFile_.header)); //std::unique_ptr<SummaryHeaderT>
+    buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header)); //std::unique_ptr<SummaryHeaderT>
+
+    // TASKS
     //    std::vector<std::unique_ptr<TaskListT>> task_lists;
+
+    // BARRIERS
     //    std::vector<std::unique_ptr<BarrierT>> barrier_table;
-    //    std::vector<std::unique_ptr<BinaryDataT>> binary_data;
+
+    // BINARY DATA
+    graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
+    unsigned i = 0;
+    for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorBegin(); ++tensorIt)
+    {
+        if(tensorIt->isPopulated())
+        {
+            graphFile_.binary_data.push_back(std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT()));
+            buildBinaryDataT(tensorIt, std::move(graphFile_.binary_data[i++]));
+        }
+    }
 }
 
 char * mv::RuntimeModel::serialize(int& bufferSize)
