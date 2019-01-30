@@ -81,6 +81,7 @@ file(GLOB base
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
     "src/tensor/binary_data.cpp"
+    "src/tensor/quantization_params.cpp"
     "src/tensor/order/*.cpp"
     "src/tensor/order/order_def/*.cpp"
     "src/tensor/math.cpp"
@@ -152,7 +153,7 @@ if (MSVC)
     add_library(corebase OBJECT ${base} ${logger})
     add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
     target_link_libraries(model corebase)
-    add_dependencies(cm generate-comp-api)	
+    add_dependencies(cm generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
 else()
