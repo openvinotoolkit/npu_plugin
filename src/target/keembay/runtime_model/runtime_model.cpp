@@ -1,4 +1,5 @@
 #include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
+#include "meta/include/mcm/op_model.hpp"
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <fstream>
@@ -58,45 +59,53 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-void mv::RuntimeModel::buildGraphNodeT(mv::BaseOpModel &om, mv::Data::OpListIterator op, MVCNN::GraphNodeT &toBuild)
+void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &om, mv::Data::OpListIterator op, std::unique_ptr<MVCNN::GraphNodeT> toBuild)
 {
-    toBuild.name = op->getName();
-    toBuild.thisID = op->get<unsigned>("opId");
+    mv::OpModel opModel(om);
+    toBuild->name = op->getName();
+    toBuild->thisID = op->get<unsigned>("opId");
 
-    for (auto nextChildOp = op.leftmostChild(); nextChildOp != om.opEnd(); ++nextChildOp)
-        toBuild.sourceID.push_back(nextChildOp->get<unsigned>("opId"));
+    for (auto nextChildOp = op.leftmostChild(); nextChildOp != opModel.opEnd(); ++nextChildOp)
+        toBuild->sourceID.push_back(nextChildOp->get<unsigned>("opId"));
 
-    for (auto nextParentOp = op.leftmostParent(); nextParentOp != om.opEnd(); ++nextParentOp)
-        toBuild.sinkID.push_back(nextParentOp->get<unsigned>("opId"));
+    for (auto nextParentOp = op.leftmostParent(); nextParentOp != opModel.opEnd(); ++nextParentOp)
+        toBuild->sinkID.push_back(nextParentOp->get<unsigned>("opId"));
 
 }
 
-void mv::RuntimeModel::buildSourceStructureT(mv::BaseOpModel &om, MVCNN::SourceStructureT& toBuild)
+void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &om, std::unique_ptr<MVCNN::SourceStructureT> toBuild)
 {
-    toBuild.first_ID.push_back(om.getInput()->get<unsigned>("opId"));
-    toBuild.nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(om.opsCount());
+    mv::OpModel opModel(om);
+    toBuild->first_ID.push_back(opModel.getInput()->get<unsigned>("opId"));
+    toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-        buildGraphNodeT(om, opIt, *(toBuild.nodes[i++]));
+    for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
+    {
+        toBuild->nodes[i] = std::unique_ptr<MVCNN::GraphNodeT>(new MVCNN::GraphNodeT());
+        buildGraphNodeT(om, opIt, std::move(toBuild->nodes[i++]));
+    }
 }
 
 
-void mv::RuntimeModel::buildTensorReferenceT(mv::BaseOpModel &om, mv::Data::TensorIterator t, MVCNN::TensorReferenceT& toBuild)
+void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &om, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
 {
     mv::DataModel dm(om);
     auto allocator = dm.getAllocator(t->get<std::string>("allocator"));
+
+    //NOTE: With auto strangely it doesn't work
     mv::Data::BufferIterator bufferIt = allocator.getBuffer(0, t); //0 is the only stage for now, but this will probably change in the future
 
-    toBuild.dimensions = bufferIt->getData()->getShape(); // Padded or not?
-    toBuild.strides = bufferIt->getData()->computeNumericStrides(); //NOTE: Maybe directly bufferIt->computeStrides() in the future?
+    toBuild->dimensions = bufferIt->getData()->getShape(); // Padded or not?
+    toBuild->strides = bufferIt->getData()->computeNumericStrides(); //NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
     auto strides = bufferIt->getStrides();
-    toBuild.leading_offset = strides[0];
-    toBuild.trailing_offset = strides[strides.size()-1] + bufferIt->getPostAlign();
+    toBuild->leading_offset = strides[0];
+    toBuild->trailing_offset = strides[strides.size()-1] + bufferIt->getPostAlign();
 
-    toBuild.data->data_index = bufferIt->getOffset();
-    toBuild.locale = convertAllocatorToMemoryLocale(allocator.getAllocatorName());
-    toBuild.data_dtype = convertDtype(bufferIt->getData()->getDType());
+    toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
+    toBuild->data->data_index = bufferIt->getOffset();
+    toBuild->locale = convertAllocatorToMemoryLocale(allocator.getAllocatorName());
+    toBuild->data_dtype = convertDtype(bufferIt->getData()->getDType());
 
     //UNSUPPORTED FOR NOW
     //toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
@@ -105,38 +114,58 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::BaseOpModel &om, mv::Data::Tens
 }
 
 
-void mv::RuntimeModel::buildSummaryHeaderT(BaseOpModel& om, MVCNN::SummaryHeaderT& toBuild)
+void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& om, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild)
 {
-    // TODO: probably Target/CompilationDescriptor needs to be passed
-    buildVersionT(om, *toBuild.version);
+    mv::OpModel opModel(om);
+    toBuild->version = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
+    buildVersionT(compilationDescriptor, std::move(toBuild->version));
 
     // Just one input for now
-    toBuild.net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    buildTensorReferenceT(om, om.getInput()->getOutputTensor(0), *toBuild.net_input[0]);
+    toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+    toBuild->net_input[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    buildTensorReferenceT(om, opModel.getInput()->getOutputTensor(0), std::move(toBuild->net_input[0]));
     // Just one output for now
-    toBuild.net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    buildTensorReferenceT(om, om.getOutput()->getInputTensor(0), *toBuild.net_output[0]);
+    toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+    toBuild->net_output[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    buildTensorReferenceT(om, opModel.getOutput()->getInputTensor(0), std::move(toBuild->net_output[0]));
 
+    //TODO: opModel.taskCount() needs to be implemented
+    toBuild->layer_count = opModel.opsCount();
+    toBuild->task_count = opModel.opsCount();
 
-    //TODO: om.taskCount() needs to be implemented
-    toBuild.layer_count = om.opsCount();
-    toBuild.task_count = om.opsCount();
+    toBuild->resources = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
+    buildResourcesT(compilationDescriptor, std::move(toBuild->resources));
 
-    buildResourcesT(om, *toBuild.resources);
-    buildSourceStructureT(om, *toBuild.original_structure);
+    toBuild->original_structure = std::unique_ptr<MVCNN::SourceStructureT>(new MVCNN::SourceStructureT());
+    buildSourceStructureT(om, std::move(toBuild->original_structure));
 }
 
-void mv::RuntimeModel::buildVersionT(BaseOpModel& om, MVCNN::VersionT& toBuild)
+void mv::RuntimeModel::buildVersionT(json::Object& compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild)
 {
-
+    toBuild->majorV = compilationDescriptor["Version"]["Major"].get<long long>();
+    toBuild->minorV = compilationDescriptor["Version"]["Minor"].get<long long>();
+    toBuild->patchV = compilationDescriptor["Version"]["Patch"].get<long long>();
+    toBuild->hash = compilationDescriptor["Version"]["Hash"].get<std::string>();
 }
 
-void mv::RuntimeModel::buildResourcesT(BaseOpModel& om, MVCNN::ResourcesT& toBuild)
+void mv::RuntimeModel::buildResourcesT(json::Object& compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild)
 {
-
+    toBuild->shave_mask = compilationDescriptor["Resources"]["ShaveMask"].get<long long>();
+    toBuild->nce1_mask = compilationDescriptor["Resources"]["NCE1Mask"].get<long long>();
+    toBuild->dpu_mask = compilationDescriptor["Resources"]["DPUMask"].get<long long>();
+    toBuild->leon_cmx = compilationDescriptor["Resources"]["LeonCMX"].get<long long>();
+    toBuild->nn_cmx = compilationDescriptor["Resources"]["NNCMX"].get<long long>();
+    toBuild->ddr_scratch = compilationDescriptor["Resources"]["DDRScratch"].get<long long>();
 }
 
-
+void mv::RuntimeModel::buildGraphFileT(ComputationModel& om, json::Object& compilationDescriptor)
+{
+    graphFile_.header = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
+    buildSummaryHeaderT(om, compilationDescriptor, std::move(graphFile_.header)); //std::unique_ptr<SummaryHeaderT>
+    //    std::vector<std::unique_ptr<TaskListT>> task_lists;
+    //    std::vector<std::unique_ptr<BarrierT>> barrier_table;
+    //    std::vector<std::unique_ptr<BinaryDataT>> binary_data;
+}
 
 char * mv::RuntimeModel::serialize(int& bufferSize)
 {

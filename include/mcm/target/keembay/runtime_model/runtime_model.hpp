@@ -4,8 +4,9 @@
 #include "meta/schema/graphfile/graphfile_generated.h"
 #include "meta/schema/graphfile/memoryManagement_generated.h"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
-#include "include/mcm/computation/model/base_op_model.hpp"
+#include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/target/target_descriptor.hpp"
 
 namespace mv
 {
@@ -22,18 +23,18 @@ namespace mv
 
             static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName);
             static MVCNN::DType convertDtype(const DType& dtype);
-            static void buildTensorReferenceT(BaseOpModel &om, Data::TensorIterator t, MVCNN::TensorReferenceT &toBuild);
-            static void buildGraphNodeT(BaseOpModel &om, Data::OpListIterator op, MVCNN::GraphNodeT& toBuild);
-            static void buildSourceStructureT(BaseOpModel &om, MVCNN::SourceStructureT &toBuild);
-            static void buildSummaryHeaderT(BaseOpModel& om, MVCNN::SummaryHeaderT& toBuild);
-            static void buildVersionT(BaseOpModel &om, MVCNN::VersionT& toBuild);
-            static void buildResourcesT(BaseOpModel &om, MVCNN::ResourcesT& toBuild);
-
+            static void buildTensorReferenceT(ComputationModel &om, Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild);
+            static void buildGraphNodeT(ComputationModel &om, Data::OpListIterator op, std::unique_ptr<MVCNN::GraphNodeT> toBuild);
+            static void buildSourceStructureT(ComputationModel &om, std::unique_ptr<MVCNN::SourceStructureT> toBuild);
+            static void buildSummaryHeaderT(ComputationModel& om, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild);
+            static void buildVersionT(json::Object &compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild);
+            static void buildResourcesT(json::Object &compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild);
 
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);
             void deserialize(const std::string& path);
             void deserialize(char * buffer, int length);
+            void buildGraphFileT(ComputationModel& om, json::Object& compilationDescriptor);
     };
 }
 
