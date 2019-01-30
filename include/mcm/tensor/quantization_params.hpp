@@ -19,13 +19,36 @@ namespace mv
         QuantizationParams(int64_t zp, float scale, float min, float max);
         QuantizationParams(const QuantizationParams& other);
 
-        int64_t getZeroPoint() const;
-        float getScale() const;
-        float getMin() const;
-        float getMax() const;
+        inline int64_t getZeroPoint() const
+        {
+            return zero_point_;
+        }
 
-        void setScale(float);
-        void setZeroPoint(int64_t);
+        inline float getScale() const
+        {
+            return scale_;
+        }
+
+        inline float getMin() const
+        {
+            return min_;
+        }
+
+        inline float getMax() const
+        {
+            return max_;
+        }
+
+        inline void setScale(float scale)
+        {
+            scale_ = scale;
+        }
+
+        inline void setZeroPoint(int64_t zp)
+        {
+            zero_point_ = zp;
+        }
+
         void setMin(float min);
         void setMax(float max);
 

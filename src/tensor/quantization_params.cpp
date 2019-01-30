@@ -22,36 +22,6 @@ mv::QuantizationParams::QuantizationParams(const QuantizationParams& other):
 
 }
 
-int64_t mv::QuantizationParams::getZeroPoint() const
-{
-    return zero_point_;
-}
-
-float mv::QuantizationParams::getScale() const
-{
-    return scale_;
-}
-
-float mv::QuantizationParams::getMin() const
-{
-    return min_;
-}
-
-float mv::QuantizationParams::getMax() const
-{
-    return max_;
-}
-
-void mv::QuantizationParams::setScale(float scale)
-{
-    scale_ = scale;
-}
-
-void mv::QuantizationParams::setZeroPoint(int64_t zp)
-{
-    zero_point_ = zp;
-}
-
 bool mv::QuantizationParams::operator==(const mv::QuantizationParams& other) const
 {
     return (zero_point_ == other.zero_point_ && scale_ == other.scale_ &&
