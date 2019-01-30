@@ -367,17 +367,22 @@
 	{
 		"adapt":
 		[
-			
+			"AssignUniqueOpId",
+			"ConvertToTaskGraph",
+			"AssignUniqueTaskId"
 		],
 
 		"finalize":
 		[
-
+			"ArrangeLinearExecution",
+			"AllocatePopulatedTensors",
+			"AllocateUnpopulatedTensors",
+			"AllocateInputOutputTensors"
 		],
 
 		"serialize":
 		[
-
+			"GenerateBlobKeembay"
 		],
 
 		"validate":
