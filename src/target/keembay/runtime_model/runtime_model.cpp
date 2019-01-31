@@ -253,12 +253,21 @@ void mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& cm, Data::OpListIter
 
 void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::UPADMATaskT* toBuild)
 {
-
+    toBuild->src = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    buildTensorReferenceT(cm, opIt->getInputTensor(0), std::move(toBuild->src));
+    toBuild->dst = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    buildTensorReferenceT(cm, opIt->getOutputTensor(0), std::move(toBuild->dst));
+    toBuild->broadcast_mask = opIt->get<unsigned>("BroadcastMask");
 }
 
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
 {
-
+    toBuild->src = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    buildTensorReferenceT(cm, opIt->getInputTensor(0), std::move(toBuild->src));
+    toBuild->dst = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    buildTensorReferenceT(cm, opIt->getOutputTensor(0), std::move(toBuild->dst));
+    toBuild->broadcast_mask = opIt->get<unsigned>("BroadcastMask");
+    toBuild->compression = opIt->get<bool>("Compression");
 }
 
 void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild)
