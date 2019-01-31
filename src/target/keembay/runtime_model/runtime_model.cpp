@@ -202,6 +202,7 @@ void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, Data::OpList
 {
     std::string taskType(opIt->getOpType());
 
+    //NOTE: This if conditions of this big switch statements are not definitive and could change in the future
     if(taskType == "MvTensorTask")
     {
         specificTask.type = MVCNN::SpecificTask_MvTensorTask;
@@ -310,7 +311,8 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, json::Object& compi
     buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header)); //std::unique_ptr<SummaryHeaderT>
 
     // TASKS
-    // std::vector<std::unique_ptr<TaskListT>> task_lists;
+    graphFile_.task_lists = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
+    buildTaskListT(cm, std::move(graphFile_.task_lists[0]));
 
     // BARRIERS
     // std::vector<std::unique_ptr<BarrierT>> barrier_table;
