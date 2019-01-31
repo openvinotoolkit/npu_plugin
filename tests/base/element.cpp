@@ -5,7 +5,6 @@
 #include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/tensor/shape.hpp"
-#include "include/mcm/tensor/quantization_params.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
@@ -16,7 +15,6 @@ static mv::DType vDType(mv::DType("Float16"));
 static int vInt = 2;
 static mv::Order vOrder(mv::Order("CHW"));
 static mv::Shape vShape({1, 2, 3});
-static mv::QuantizationParams vQuantParams(5, 2.0, 0.0, 5.0);
 static std::array<unsigned short, 2> vStdArrUnsignedShort2 = {4, 5};
 static std::array<unsigned short, 3> vStdArrUnsignedShort3 = {6, 7, 8};
 static std::array<unsigned short, 4> vStdArrUnsignedShort4 = {9, 10, 11, 12};
@@ -29,7 +27,6 @@ static unsigned short vUnsignedShort = 4;
 static std::string aBoolName = "aBool";
 static std::string aDoubleName = "aDouble";
 static std::string aDTypeName = "aDType";
-static std::string aQuantizationParamsName = "aQuantizationParams";
 static std::string aIntName = "aInt";
 static std::string aOrderName = "aOrder";
 static std::string aShapeName = "aShape";
@@ -47,7 +44,7 @@ static std::string dataTensorIteratorName = "aDataTensorIteratorName";
 
 static void setValueAttrTypes(mv::Element& e)
 {
-    
+
     e.clear();
     e.set<bool>(aBoolName, vBool);
     e.set<double>(aDoubleName, vDouble);
@@ -63,7 +60,6 @@ static void setValueAttrTypes(mv::Element& e)
     e.set<std::vector<std::size_t>>(aVecStdSizeTName, vVecStdSizeT);
     e.set<unsigned short>(aUnsignedShortName, vUnsignedShort);
     e.set<std::vector<std::string>>(aVecStdStringName, vVecStdString);
-    e.set<mv::QuantizationParams>(aQuantizationParamsName, vQuantParams);
 
 }
 
@@ -86,7 +82,7 @@ TEST(element, def_attrs)
 
     mv::Element e("TestElement");
     setValueAttrTypes(e);
-    
+
     ASSERT_TRUE(e.hasAttr(aBoolName));
     ASSERT_TRUE(e.hasAttr(aDoubleName));
     ASSERT_TRUE(e.hasAttr(aDTypeName));
@@ -100,14 +96,12 @@ TEST(element, def_attrs)
     ASSERT_TRUE(e.hasAttr(aStdSizeTName));
     ASSERT_TRUE(e.hasAttr(aVecStdSizeTName));
     ASSERT_TRUE(e.hasAttr(aUnsignedShortName));
-    ASSERT_TRUE(e.hasAttr(aQuantizationParamsName));
 
     ASSERT_EQ(e.get<bool>("aBool"), vBool);
     ASSERT_EQ(e.get<double>("aDouble"), vDouble);
     ASSERT_EQ(e.get<mv::DType>("aDType"), vDType);
     ASSERT_EQ(e.get<int>("aInt"), vInt);
     ASSERT_EQ(e.get<mv::Order>("aOrder"), vOrder);
-    ASSERT_EQ(e.get<mv::QuantizationParams>("aQuantizationParams"), vQuantParams);
     ASSERT_EQ(e.get<mv::Shape>("aShape"), vShape);
     auto r1 = e.get<std::array<unsigned short, 2>>("aStdArrUnsignedShort2");
     ASSERT_EQ(r1, vStdArrUnsignedShort2);
@@ -120,7 +114,7 @@ TEST(element, def_attrs)
     ASSERT_EQ(e.get<std::vector<std::size_t>>("aVecStdSizeT"), vVecStdSizeT);
     ASSERT_EQ(e.get<unsigned short>("aUnsignedShort"), vUnsignedShort);
     ASSERT_EQ(e.get<std::vector<std::string>>("aVecStdString"), vVecStdString);
-    
+
 }
 
 TEST(element, get_failure)
@@ -182,7 +176,6 @@ TEST(element, get_unregisterd)
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aInt"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("amv::Order"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aShape"));
-    ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aQuantizationParams"));
 
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aStdArrUnsignedShort2"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aStdArrUnsignedShort3"));
@@ -217,7 +210,6 @@ TEST(element, clear)
     ASSERT_FALSE(e.hasAttr(aStdSizeTName));
     ASSERT_FALSE(e.hasAttr(aVecStdSizeTName));
     ASSERT_FALSE(e.hasAttr(aUnsignedShortName));
-    ASSERT_FALSE(e.hasAttr(aQuantizationParamsName));
 
 }
 
@@ -244,7 +236,6 @@ TEST(element, to_json)
         "{\"attrType\":\"DType\",\"content\":\"Float16\"},\"aDouble\":{\"attrType\""
         ":\"double\",\"content\":1.0},\"aInt\":{\"attrType\":\"int\",\"content\":2}"
         ",\"aOrder\":{\"attrType\":\"Order\",\"content\":\"CHW\"}"
-        ",\"aQuantizationParams\":{\"attrType\":\"QuantizationParams\",\"content\":[5,2.0,0.0,5.0]}"
         ",\"aShape\":{\"attrType\":\"Shape\",\"content\":[1,2,3]},\"aStdArrUnsignedShort2\":{\""
         "attrType\":\"std::array<unsigned short, 2>\",\"content\":[4,5]},\"aStdArrUn"
         "signedShort3\":{\"attrType\":\"std::array<unsigned short, 3>\",\"content\":"

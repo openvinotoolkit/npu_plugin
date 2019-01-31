@@ -1,63 +1,31 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-mv::QuantizationParams::QuantizationParams(int64_t zp, float scale,
-    float min, float max):
-        zero_point_(zp),
-        scale_(scale),
-        min_(min),
-        max_(max)
+mv::QuantizationParams::QuantizationParams(std::vector<size_t> zp, std::vector<double> scale,
+    std::vector<double> min, std::vector<double> max): Element("quantizationParams")
 {
-    if (max < min)
-        throw ArgumentError("QuantizationParams", "Quantization min max params", "max",
-            "Smaller than min " + std::to_string(min_));
-}
+    size_t size = zp.size();
+    if (size != scale.size() || size != min.size() || size != max.size())
+        throw ArgumentError("QuantizationParams", "Quantization params size", "",
+            "Sizes of the different params don't match");
 
-mv::QuantizationParams::QuantizationParams(const QuantizationParams& other):
-        zero_point_(other.zero_point_),
-        scale_(other.scale_),
-        min_(other.min_),
-        max_(other.max_)
-{
+    for (size_t i = 0; i < size; i++)
+        if (max[i] < min[i])
+            throw ArgumentError("QuantizationParams", "Quantization min max params", "max",
+                " Smaller than min " + std::to_string(min[i]));
 
-}
-
-bool mv::QuantizationParams::operator==(const mv::QuantizationParams& other) const
-{
-    return (zero_point_ == other.zero_point_ && scale_ == other.scale_ &&
-        min_ == other.min_ && max_ == other.max_);
-}
-
-void mv::QuantizationParams::setMin(float min)
-{
-    if (min > max_)
-        throw ArgumentError("QuantizationParams", "Quantization min max params", "max",
-            "Smaller than min " + std::to_string(min));
-    min_ = min;
-}
-
-void mv::QuantizationParams::setMax(float max)
-{
-    if (min_ > max)
-        throw ArgumentError("QuantizationParams", "Quantization min max params", "max",
-            "Smaller than min " + std::to_string(min_));
-    max_ = max;
+    set<std::vector<size_t>>("zero_point", zp);
+    set<std::vector<double>>("scale", scale);
+    set<std::vector<double>>("min", min);
+    set<std::vector<double>>("max", max);
 }
 
 std::string mv::QuantizationParams::getLogID() const
 {
-    return "QuantizationParams";
+    return "QuantizationParams: " + getName();
 }
 
 std::string mv::QuantizationParams:: toString() const
 {
-    std::string output("{");
-
-    output += "zero_point: " + std::to_string(zero_point_);
-    output += ", scale: " + std::to_string(scale_);
-    output += ", min: " + std::to_string(min_);
-    output += ", max: " + std::to_string(max_);
-    output += "}";
-
-    return output;
+    return getLogID() + Element::attrsToString_();
 }

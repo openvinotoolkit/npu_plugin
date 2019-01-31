@@ -2,61 +2,39 @@
 #define QUANTIZATION_PARAMS_HPP_
 
 #include <vector>
-#include "include/mcm/logger/log_sender.hpp"
-#include "include/mcm/base/printable.hpp"
+#include "include/mcm/base/element.hpp"
 
 namespace mv
 {
 
-    class QuantizationParams: public Printable, public LogSender
+    class QuantizationParams: public Element
     {
-        int64_t zero_point_;
-        float scale_;
-        float min_; //TBD: min/max are they needed?
-        float max_;
     public:
 
-        QuantizationParams(int64_t zp, float scale, float min, float max);
-        QuantizationParams(const QuantizationParams& other);
+        QuantizationParams(std::vector<size_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
 
-        inline int64_t getZeroPoint() const
+        inline std::vector<int64_t> getZeroPoint() const
         {
-            return zero_point_;
+            return get<std::vector<int64_t>>("zero_point");
         }
 
-        inline float getScale() const
+        inline std::vector<float> getScale() const
         {
-            return scale_;
+            return get<std::vector<float>>("scale");
         }
 
-        inline float getMin() const
+        inline std::vector<float> getMin() const
         {
-            return min_;
+            return get<std::vector<float>>("min");
         }
 
-        inline float getMax() const
+        inline std::vector<float> getMax() const
         {
-            return max_;
+            return get<std::vector<float>>("max");
         }
-
-        inline void setScale(float scale)
-        {
-            scale_ = scale;
-        }
-
-        inline void setZeroPoint(int64_t zp)
-        {
-            zero_point_ = zp;
-        }
-
-        void setMin(float min);
-        void setMax(float max);
-
-        bool operator==(const QuantizationParams& other) const;
 
         virtual std::string getLogID() const override;
         virtual std::string toString() const override;
-
     };
 
 }
