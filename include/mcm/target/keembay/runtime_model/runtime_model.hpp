@@ -30,6 +30,18 @@ namespace mv
             static void buildVersionT(json::Object &compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild);
             static void buildResourcesT(json::Object &compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild);
             static void buildBinaryDataT(Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild);
+            static void buildTaskListT(ComputationModel& cm, std::unique_ptr<MVCNN::TaskListT> toBuild);
+            static void buildTaskT(ComputationModel& cm, Data::OpListIterator opIt, std::unique_ptr<MVCNN::TaskT> toBuild);
+            static void buildSpecificTaskUnion(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask);
+
+            // TASKS
+            static void buildMvTensorTaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::MvTensorTaskT* toBuild);
+            static void buildUPADMATaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::UPADMATaskT* toBuild);
+            static void buildNNDMATaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild);
+            static void buildNCE1TaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild);
+            static void buildNCE2TaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NCE2TaskT* toBuild);
+            static void buildNNTensorTaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NNTensorTaskT* toBuild);
+            static void buildControllerTaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild);
 
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);

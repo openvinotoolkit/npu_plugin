@@ -109,7 +109,7 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &cm, mv::Data:
 
     //UNSUPPORTED FOR NOW
     //toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
-    //toBuild.quant_zero;//    std::vector<int8_t> quant_zero;
+    //toBuild.quant_zero; //    std::vector<int8_t> quant_zero;
     //toBuild.quant_shift;//    std::vector<int8_t> quant_shift;
 }
 
@@ -124,6 +124,7 @@ void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, json::Object& c
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_input[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
     buildTensorReferenceT(cm, opModel.getInput()->getOutputTensor(0), std::move(toBuild->net_input[0]));
+
     // Just one output for now
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
@@ -184,6 +185,113 @@ void mv::RuntimeModel::buildBinaryDataT(Data::TensorIterator t, std::unique_ptr<
     toBuild->log = binaryData.log();
 }
 
+// NOTE: Only 1 TaskList for now, we will see in the future
+void mv::RuntimeModel::buildTaskListT(ComputationModel& cm, std::unique_ptr<MVCNN::TaskListT> toBuild)
+{
+    mv::OpModel om(cm);
+
+    unsigned i = 0;
+    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        toBuild->content.push_back(std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT()));
+        buildTaskT(cm, opIt, std::move(toBuild->content[i++]));
+    }
+}
+
+void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask)
+{
+    std::string taskType(opIt->getOpType());
+
+    if(taskType == "MvTensorTask")
+    {
+        specificTask.type = MVCNN::SpecificTask_MvTensorTask;
+        specificTask.value = new MVCNN::MvTensorTaskT();
+        buildMvTensorTaskT(cm, opIt, reinterpret_cast<MVCNN::MvTensorTaskT*>(specificTask.value));
+    }
+    else if(taskType == "UPADMATask")
+    {
+        specificTask.type = MVCNN::SpecificTask_UPADMATask;
+        specificTask.value = new MVCNN::UPADMATaskT();
+        buildUPADMATaskT(cm, opIt, reinterpret_cast<MVCNN::UPADMATaskT*>(specificTask.value));
+    }
+    else if(taskType == "NNDMATask")
+    {
+        specificTask.type = MVCNN::SpecificTask_NNDMATask;
+        specificTask.value = new MVCNN::NNDMATaskT();
+        buildNNDMATaskT(cm, opIt, reinterpret_cast<MVCNN::NNDMATaskT*>(specificTask.value));
+    }
+    else if(taskType == "NCE1Task")
+    {
+        specificTask.type = MVCNN::SpecificTask_NCE1Task;
+        specificTask.value = new MVCNN::NCE1TaskT();
+        buildNCE1TaskT(cm, opIt, reinterpret_cast<MVCNN::NCE1TaskT*>(specificTask.value));
+    }
+    else if(taskType == "NCE2Task")
+    {
+        specificTask.type = MVCNN::SpecificTask_NCE2Task;
+        specificTask.value = new MVCNN::NCE2TaskT();
+        buildNCE2TaskT(cm, opIt, reinterpret_cast<MVCNN::NCE2TaskT*>(specificTask.value));
+    }
+    else if(taskType == "NNTensorTask")
+    {
+        specificTask.type = MVCNN::SpecificTask_NNTensorTask;
+        specificTask.value = new MVCNN::NNTensorTaskT();
+        buildNNTensorTaskT(cm, opIt, reinterpret_cast<MVCNN::NNTensorTaskT*>(specificTask.value));
+    }
+    else if(taskType == "ControllerTask")
+    {
+        specificTask.type = MVCNN::SpecificTask_ControllerTask;
+        specificTask.value = new MVCNN::ControllerTaskT();
+        buildControllerTaskT(cm, opIt, reinterpret_cast<MVCNN::ControllerTaskT*>(specificTask.value));
+    }
+}
+
+void mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::MvTensorTaskT* toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::UPADMATaskT* toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NCE2TaskT* toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildNNTensorTaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::NNTensorTaskT* toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild)
+{
+
+}
+
+void mv::RuntimeModel::buildTaskT(ComputationModel& cm, Data::OpListIterator opIt, std::unique_ptr<MVCNN::TaskT> toBuild)
+{
+    toBuild->nodeID = opIt->get<unsigned>("taskId");
+    toBuild->sourceTaskIDs = opIt->get<std::vector<unsigned>>("opId");
+
+    // NOTE: Ignoring barriers for now
+    // std::unique_ptr<BarrierReferenceT> associated_barriers;
+
+    buildSpecificTaskUnion(cm, opIt, toBuild->task);
+}
+
 void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, json::Object& compilationDescriptor)
 {
     mv::OpModel om(cm);
@@ -193,10 +301,10 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, json::Object& compi
     buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header)); //std::unique_ptr<SummaryHeaderT>
 
     // TASKS
-    //    std::vector<std::unique_ptr<TaskListT>> task_lists;
+    // std::vector<std::unique_ptr<TaskListT>> task_lists;
 
     // BARRIERS
-    //    std::vector<std::unique_ptr<BarrierT>> barrier_table;
+    // std::vector<std::unique_ptr<BarrierT>> barrier_table;
 
     // BINARY DATA
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
