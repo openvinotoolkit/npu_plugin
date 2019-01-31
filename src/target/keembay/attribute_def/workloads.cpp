@@ -21,18 +21,20 @@ namespace mv
 
     static std::string toString(const Attribute& a)
     {
-      //Complete this
-      std::string output = "{";
-      auto s = a.get<Workloads>();
-      for (std::size_t i = 0; i < s.nWorkloads() - 1; ++i) {
-          output += std::to_string(s[i].MaxX) + ", ";
-          output += std::to_string(s[i].MinX) + ", ";
-          output += std::to_string(s[i].MaxY) + ", ";
-          output += std::to_string(s[i].MinY) + ", ";
-          output += std::to_string(s[i].MaxZ) + ", ";
-          output += std::to_string(s[i].MinZ) + ", ";
-      }
-      output += "}";
+        std::string output = "{";
+        auto s = a.get<Workloads>();
+        for (std::size_t i = 0; i < s.nWorkloads() - 1; ++i) {
+            output += "MinX" + std::to_string(s[i].MinX) + ", ";
+            output += "MaxX" + std::to_string(s[i].MaxX) + ", ";
+            output += "MinY" + std::to_string(s[i].MinY) + ", ";
+            output += "MaxY" + std::to_string(s[i].MaxY) + ", ";
+            output += "MinZ" + std::to_string(s[i].MinZ) + ", ";
+            output += "MaxZ" + std::to_string(s[i].MaxZ);
+            }
+        output += "}";
+
+        std::cout << "output is " << output << std::endl;
+        return output;
     }
 
     MV_REGISTER_ATTR(Workloads)

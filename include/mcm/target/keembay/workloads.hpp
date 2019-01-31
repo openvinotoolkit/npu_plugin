@@ -30,18 +30,18 @@ namespace mv
     
     class Workloads : public LogSender // : public ModelElement
     {
+
         std::vector<Workload> workloads_;
+        std::string layerName;
      
     public:
-        Workloads();
-        
+        Workloads(const std::string& name);
         std::size_t nWorkloads() const;
         std::vector<Workload>& getWorkloads(); 
         Workload& operator[](int nworkload);
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         
-
     };
 }
 

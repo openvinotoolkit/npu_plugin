@@ -132,7 +132,7 @@ file(GLOB pass
     "src/pass/adaptation/remove_passes.cpp"
     "src/pass/adaptation/replacement_passes.cpp"
     "src/pass/adaptation/conv_dilation_pass.cpp"
-    "src/pass/adaptation/generate_workloads_pass.cpp"
+    "src/pass/finalization/generate_workloads_pass.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"

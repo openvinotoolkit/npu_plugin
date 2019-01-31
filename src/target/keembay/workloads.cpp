@@ -1,9 +1,10 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-mv::Workloads::Workloads(){
-
-};
+mv::Workloads::Workloads(const std::string& name):layerName(name)
+{
+    
+}
 
 mv::Workload& mv::Workloads::operator[](int nworkload)
 {
@@ -11,7 +12,6 @@ mv::Workload& mv::Workloads::operator[](int nworkload)
     return const_cast<Workload&>(static_cast<const Workloads*>(this)->operator[](nworkload));
 
 }
-
 
 const mv::Workload& mv::Workloads::operator[](int nworkload) const
 {

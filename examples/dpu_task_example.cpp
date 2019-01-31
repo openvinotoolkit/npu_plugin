@@ -63,6 +63,7 @@ int main()
     unit.run();
 
     system("dot -Tsvg dpu_task.dot -o dpu_task.svg");
+    system("dot -Tsvg dpu_task_adapt.dot -o dpu_task_adapt.svg");
     system("dot -Tsvg dpu_task_final.dot -o dpu_task_final.svg");
 
 }

@@ -367,13 +367,12 @@
 	{
 		"adapt":
 		[
-			"GenerateWorkloads"
 			
 		],
 
 		"finalize":
 		[
-
+		"GenerateWorkloads"
 		],
 
 		"serialize":
@@ -383,6 +382,7 @@
 
 		"validate":
 		[
+
 			"GenerateDot",
 			"CheckTensors"
 		]
