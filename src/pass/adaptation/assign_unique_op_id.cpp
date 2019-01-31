@@ -29,5 +29,5 @@ void assignUniqueOpId(const mv::pass::PassEntry&, mv::ComputationModel& model, m
     std::string currentIdLabel("opId");
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
-        operationIt->set<unsigned>(currentIdLabel, currentId++);
+        operationIt->set<std::vector<unsigned>>(currentIdLabel, {currentId++});
 }
