@@ -80,6 +80,12 @@ namespace mv
         double& operator()(const std::vector<std::size_t>& sub);
         const double& operator()(const std::vector<std::size_t>& sub) const;
 
+        inline bool isQuantized() const
+        {
+            return hasAttr("quantizationParams") &&
+                !(getDType() == DType("Float16") || getDType() == DType("Float32") || getDType() == DType("Float64"));
+        }
+
         inline bool isPopulated() const
         {
             return get<bool>("populated");
