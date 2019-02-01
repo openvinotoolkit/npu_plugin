@@ -374,6 +374,7 @@
 
 		"finalize":
 		[
+            "GenerateWorkloads",
 			"ArrangeLinearExecution",
 			"AllocatePopulatedTensors",
 			"AllocateUnpopulatedTensors",
@@ -387,6 +388,7 @@
 
 		"validate":
 		[
+
 			"GenerateDot",
 			"CheckTensors"
 		]

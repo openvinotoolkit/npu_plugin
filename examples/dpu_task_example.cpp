@@ -13,14 +13,14 @@ int main()
     mv::OpModel& test_cm = unit.model();
     mv::ControlModel cm(test_cm);
 
-    auto input1 = test_cm.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input1 = test_cm.input({16, 16, 16}, mv::DType("Float16"), mv::Order("CHW"));
     auto input1dmaIN = test_cm.dMATask(input1, mv::DmaDirectionEnum::DDR2CMX);
     test_cm.deAllocate(input1dmaIN);
-    std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
-    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*16*16);
+    auto weights1 = test_cm.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto dmaINweights1 = test_cm.dMATask(weights1, mv::DmaDirectionEnum::DDR2CMX);
     test_cm.deAllocate(dmaINweights1);
-    auto dpuconv1 = test_cm.dPUTaskConv({input1dmaIN, dmaINweights1}, {2,2}, {0,0,0,0});
+    auto dpuconv1 = test_cm.dPUTaskConv({input1dmaIN, dmaINweights1}, {1,1}, {1,1,1,1});
     auto dmaOutput = test_cm.dMATask(dpuconv1, mv::DmaDirectionEnum::CMX2DDR);
     test_cm.output(dmaOutput);
 
@@ -53,7 +53,7 @@ int main()
 
 
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
     unit.compilationDescriptor()["GenerateDot"]["html"] = true;
 
@@ -62,7 +62,8 @@ int main()
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
-    system("dot -Tsvg dpu_task.dot -o dpu_task.png");
-    system("dot -Tsvg dpu_task_final.dot -o dpu_task_final.png");
+    system("dot -Tsvg dpu_task.dot -o dpu_task.svg");
+    system("dot -Tsvg dpu_task_adapt.dot -o dpu_task_adapt.svg");
+    system("dot -Tsvg dpu_task_final.dot -o dpu_task_final.svg");
 
 }
