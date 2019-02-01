@@ -41,6 +41,7 @@ namespace mv
         Workload& operator[](int nworkload);
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
+        std::string toString() const;
     };
 }
 

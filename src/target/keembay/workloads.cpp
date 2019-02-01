@@ -37,7 +37,27 @@ std::vector<mv::Workload>& mv::Workloads::getWorkloads()
     return workloads_;
 }
 
+std::string mv::Workloads::toString() const
+{
+    std::string output = "{";
+    
+    for (std::size_t i = 0; i < this->nWorkloads(); ++i) {
+        output += "MinX " + std::to_string(this->workloads_[i].MinX) + ", ";
+        output += "MaxX " + std::to_string(this->workloads_[i].MaxX) + ", ";
+        output += "MinY " + std::to_string(this->workloads_[i].MinY) + ", ";
+        output += "MaxY " + std::to_string(this->workloads_[i].MaxY) + ", ";
+        output += "MinZ " + std::to_string(this->workloads_[i].MinZ) + ", ";
+        output += "MaxZ " + std::to_string(this->workloads_[i].MaxZ) + ", ";
+        output += "MaxZ " + std::to_string(this->workloads_[i].MaxZ) + ", ";
+        output += "WorkloadID " + std::to_string(this->workloads_[i].workloadID) + ", ";
+        output += "ClusterID " + std::to_string(this->workloads_[i].clusterID) + ", ";
+        }
+        output += "}";
+
+        return output;
+}
+
 std::string mv::Workloads::getLogID() const
 {
-    return "Place Holder";
+    return "Workloads:" + toString();
 }
