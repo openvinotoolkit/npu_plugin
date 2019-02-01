@@ -30,8 +30,8 @@ namespace mv
             static void buildVersionT(json::Object &compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild);
             static void buildResourcesT(json::Object &compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild);
             static void buildBinaryDataT(Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild);
-            static void buildTaskListT(ComputationModel& cm, std::unique_ptr<MVCNN::TaskListT> toBuild);
-            static void buildTaskT(ComputationModel& cm, Data::OpListIterator opIt, std::unique_ptr<MVCNN::TaskT> toBuild);
+            static void buildTaskListT(ComputationModel& cm, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::TaskListT> toBuild);
+            static void buildTaskT(ComputationModel& cm, Data::OpListIterator opIt, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::TaskT> toBuild);
             static void buildSpecificTaskUnion(ComputationModel& cm, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask);
 
             // TASKS

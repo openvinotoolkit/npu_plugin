@@ -186,7 +186,7 @@ void mv::RuntimeModel::buildBinaryDataT(Data::TensorIterator t, std::unique_ptr<
 }
 
 // NOTE: Only 1 TaskList for now, we will see in the future
-void mv::RuntimeModel::buildTaskListT(ComputationModel& cm, std::unique_ptr<MVCNN::TaskListT> toBuild)
+void mv::RuntimeModel::buildTaskListT(ComputationModel& cm, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::TaskListT> toBuild)
 {
     mv::OpModel om(cm);
 
@@ -194,7 +194,7 @@ void mv::RuntimeModel::buildTaskListT(ComputationModel& cm, std::unique_ptr<MVCN
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         toBuild->content.push_back(std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT()));
-        buildTaskT(cm, opIt, std::move(toBuild->content[i++]));
+        buildTaskT(cm, opIt, compilationDescriptor, std::move(toBuild->content[i++]));
     }
 }
 
@@ -291,13 +291,16 @@ void mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, Data::OpListIt
 
 }
 
-void mv::RuntimeModel::buildTaskT(ComputationModel& cm, Data::OpListIterator opIt, std::unique_ptr<MVCNN::TaskT> toBuild)
+void mv::RuntimeModel::buildTaskT(ComputationModel& cm, Data::OpListIterator opIt, json::Object &compilationDescriptor, std::unique_ptr<MVCNN::TaskT> toBuild)
 {
     toBuild->nodeID = opIt->get<unsigned>("taskId");
     toBuild->sourceTaskIDs = opIt->get<std::vector<unsigned>>("opId");
 
-    // NOTE: Ignoring barriers for now
-    // std::unique_ptr<BarrierReferenceT> associated_barriers;
+    if(compilationDescriptor["Scheduling"] == "Dynamic")
+    {
+        // NOTE: Ignoring barriers for now
+        // std::unique_ptr<BarrierReferenceT> associated_barriers;
+    }
 
     buildSpecificTaskUnion(cm, opIt, toBuild->task);
 }
@@ -312,7 +315,7 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, json::Object& compi
 
     // TASKS
     graphFile_.task_lists = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
-    buildTaskListT(cm, std::move(graphFile_.task_lists[0]));
+    buildTaskListT(cm, compilationDescriptor, std::move(graphFile_.task_lists[0]));
 
     // BARRIERS
     // std::vector<std::unique_ptr<BarrierT>> barrier_table;
