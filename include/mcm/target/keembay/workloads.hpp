@@ -13,22 +13,22 @@ namespace mv
     struct Workload
     {
         std::pair <int,int> MPEMode;
-        int16_t MaxX;
-        int16_t MaxY;
-        int16_t MaxZ;
-        int16_t MinX;
-        int16_t MinY;
-        int16_t MinZ;
-        int16_t padLeft;
-        int16_t padRight;
-        int16_t padTop;
-        int16_t padBottom;
-        int32_t clusterID;
-        int8_t workloadID;
+        int16_t MaxX = 0;
+        int16_t MaxY = 0;
+        int16_t MaxZ = 0;
+        int16_t MinX = 0;
+        int16_t MinY = 0;
+        int16_t MinZ = 0;
+        int16_t padLeft = 0; //Are workload paddings different from full tensor padding?
+        int16_t padRight = 0;
+        int16_t padTop = 0;
+        int16_t padBottom = 0;
+        int32_t clusterID = 0;
+        int8_t workloadID = 0;
 
     };
     
-    class Workloads : public LogSender // : public ModelElement
+    class Workloads : public LogSender 
     {
 
         std::vector<Workload> workloads_;
@@ -41,7 +41,6 @@ namespace mv
         Workload& operator[](int nworkload);
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
-        
     };
 }
 

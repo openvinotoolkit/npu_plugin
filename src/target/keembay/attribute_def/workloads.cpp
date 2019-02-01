@@ -23,18 +23,21 @@ namespace mv
     {
         std::string output = "{";
         auto s = a.get<Workloads>();
+        
         for (std::size_t i = 0; i < s.nWorkloads() - 1; ++i) {
-            output += "MinX" + std::to_string(s[i].MinX) + ", ";
-            output += "MaxX" + std::to_string(s[i].MaxX) + ", ";
-            output += "MinY" + std::to_string(s[i].MinY) + ", ";
-            output += "MaxY" + std::to_string(s[i].MaxY) + ", ";
-            output += "MinZ" + std::to_string(s[i].MinZ) + ", ";
-            output += "MaxZ" + std::to_string(s[i].MaxZ);
+            output += "MinX " + std::to_string(s[i].MinX) + ", ";
+            output += "MaxX " + std::to_string(s[i].MaxX) + ", ";
+            output += "MinY " + std::to_string(s[i].MinY) + ", ";
+            output += "MaxY " + std::to_string(s[i].MaxY) + ", ";
+            output += "MinZ " + std::to_string(s[i].MinZ) + ", ";
+            output += "MaxZ " + std::to_string(s[i].MaxZ) + ", ";
+            output += "MaxZ " + std::to_string(s[i].MaxZ) + ", ";
+            output += "WorkloadID " + std::to_string(s[i].workloadID) + ", ";
+            output += "ClusterID " + std::to_string(s[i].clusterID) + ", ";
             }
-        output += "}";
-
-        std::cout << "output is " << output << std::endl;
-        return output;
+            
+            output += "}";
+            return output;
     }
 
     MV_REGISTER_ATTR(Workloads)
