@@ -2,12 +2,13 @@
 #include "gtest/gtest.h"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/compiler/compilation_descriptor.hpp"
 
 static void setPassReg()
 {
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> foo = 
-    [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& desc, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> foo =
+    [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& desc, mv::Element&, mv::json::Object&)
     {   
         if (desc.getTarget() == mv::Target::Unknown)
             throw mv::ArgumentError(model, "target", "unknown", "Test pass does not accept target decriptor"
@@ -19,7 +20,6 @@ static void setPassReg()
     };
 
     mv::pass::PassRegistry::instance().enter("__TEST_pass1")
-    .setGenre(mv::PassGenre::Adaptation)
     .setDescription("Test pass entry")
     .setFunc(foo);
 
@@ -48,7 +48,7 @@ TEST(pass_registry, run_pass)
     mv::OpModel model("testModel");
     
     mv::TargetDescriptor targetDesc;
-    mv::json::Object compDesc;
+    mv::CompilationDescriptor compDesc;
     mv::json::Object compOutput;
     ASSERT_THROW(mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput), mv::ArgumentError);
     targetDesc.setTarget(mv::Target::ma2480);
