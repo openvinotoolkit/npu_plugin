@@ -51,6 +51,18 @@ mv::Tensor extendToK(std::string name, mv::Shape shape, mv::DType dtype, std::ve
     throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
                 std::to_string(value.size()));
 }
+template <class T>
+std::vector<T> extendToK(size_t size, std::vector<T> value)
+{
+    if (value.size() == 1)
+        return mv::utils::generateSequence<T>(size, value[0] , 0);
+
+    if (value.size() == size)
+        return value;
+
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
+                std::to_string(value.size()));
+}
 
 template <class T>
 std::vector<double> convertToDoubleVector(std::vector<T> input)
@@ -89,13 +101,14 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
             auto outputChannels = output->getShape()[2];
 
-            mv::Shape shape({outputChannels, 1, 1, 1});
+
             auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
-            auto S2 = extendToK("inputScale", shape, mv::DType("Float32"), convertToDoubleVector<float>(inputQuantization.getScale()));
+            std::vector<float> S2 = extendToK<float>(outputChannels, inputQuantization.getScale());
 
             auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
-            auto S3 = extendToK("outputScale", shape, mv::DType("Float32"), convertToDoubleVector<float>(outputQuantization.getScale()));
-            auto zeroPoint = extendToK("outputZeroPoint", shape, mv::DType("Int32"), convertToDoubleVector<int64_t>(outputQuantization.getZeroPoint()));
+            std::vector<float> S3 = extendToK<float>(outputChannels, outputQuantization.getScale());
+
+            std::vector<int64_t> zeroPoint = extendToK<int64_t>(outputChannels, outputQuantization.getZeroPoint());
 
             auto m = S2;
 
@@ -103,35 +116,48 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
             {
                 auto weights = opIterator->getInputTensor(1);
                 auto weightsQuantization = weights->get<mv::QuantizationParams>("quantizationParams");
-                auto S1 = extendToK("weightsScale", shape, mv::DType("Float32"), convertToDoubleVector<float>(weightsQuantization.getScale()));
-                m.multiply(S1); // it's elementWise S1*S2 == S2*S1
+                std::vector<float> S1 = extendToK<float>(outputChannels,weightsQuantization.getScale());
+                //S1*S2
+                std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
             }
 
             //TODO: Fuse ReLU into quantization (i.e. make ReLU == saturation), shouldn't this be done as a different pass?
-            m.divide(S3);
+            // m / S3
+            std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
 
             //TODO need to handle 16bits case - per alessandro bias need to be converted to int32
             auto bits = output->getDType().getSizeInBytes() * 8;
             auto shift = 2*bits - 1;
             auto intScale = pow(2, shift);
 
-            auto mScaled = mv::math::multiply(m , intScale);
-            mScaled.setDType(mv::DType("Int16")); //TODO need to add functionality to convert values after changing DType
+            std::vector<int16_t> mScaled(m.size());
 
-            auto zeroPointScaled = mv::math::divide(zeroPoint , m);
-            zeroPointScaled.setDType(mv::DType("Int32")); //TODO need to add functionality to convert values after changing DType
+            //m*intScaled
+            for (unsigned i = 0; i < m.size(); ++i)
+                mScaled[i] = (int16_t) m[i] * intScale;
 
-            auto shiftExt = extendToK("shift", shape, mv::DType("UInt8"), shift);
+            std::vector<int32_t> zeroPointScaled(m.size());
+            std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<int32_t>());
+
+            //auto shiftExt = extendToK("shift", shape, mv::DType("UInt8"), shift);
 
             if (opIterator->hasAttr("bias"))
             {
                 auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
-                bias->add(zeroPointScaled);
-                bias->setDType(mv::DType("Int32"));
+                auto data = bias->getData();
+                std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int32_t>());
+                bias->populate(data);
+                bias->setDType(mv::DType("Int32")); //TODO is this  ok?
             }
             else
             {
-                opIterator->set<mv::Tensor>("bias", zeroPointScaled);
+                //TODO verify order and shape
+                mv::Order order(mv::Order("W"));
+                const std::string name = opIterator->getName() + "_bias";
+                mv::Shape shape({outputChannels});
+                mv::Tensor t(name, shape, mv::DType("Int32"), order, convertToDoubleVector<int32_t>(zeroPointScaled));
+
+                opIterator->set<mv::Tensor>("bias", t);
             }
 
             // per channel layout:
@@ -140,8 +166,21 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
             // 1 -> SP_PTR
             // 0 -> DATA_PTR
             // TODO mult & prelu are currently not implemented
+            mv::Shape shape({outputChannels, 1, 1, 4});
 
+            auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
+            auto bias_data = bias->getData();
 
+            std::vector<int32_t> weights_table_data(shape.totalSize());
+            for (size_t i = 0; i < weights_table_data.size(); i+=4)
+            {
+                weights_table_data[i+2] = (mScaled[i/4] << 16) | shift << 2;
+                weights_table_data[i+3] = bias_data[i/4];
+            }
+            //TODO check order
+            mv::Tensor t(opIterator->getName() + "_weights_table", shape, mv::DType("Int32"), mv::Order(mv::Order::getColMajorID(4)),
+                convertToDoubleVector<int32_t>(weights_table_data));
+            opIterator->set<mv::Tensor>("weights_table", t);
         }
 
     }
