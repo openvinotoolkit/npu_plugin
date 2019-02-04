@@ -7,8 +7,8 @@
 #include "mcm/utils/custom_math.hpp"
 #include <math.h>
 
-static void markHardwareOperations(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
-static void scaleFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+static void markHardwareOperations(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
+static void scaleFissionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -18,14 +18,12 @@ namespace mv
 
         MV_REGISTER_PASS(MarkHardwareOperations)
         .setFunc(markHardwareOperations)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass marks the operations that can be executed in NCE."
         );
 
         MV_REGISTER_PASS(ScaleFission)
         .setFunc(scaleFissionFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "Adds scales around HW ops to utilize more bits of fixed-point number representation in MAC HW units"
         );
@@ -33,17 +31,16 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::json::Object& compDesc, mv::json::Object &)
+void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object &)
 {
 
     //int amount_marked = 0;
     //int mark_limit = 3;
 
     bool disableHardware = false;
-    if (compDesc.hasKey("MarkHardwareOperations"))
-        if (compDesc["MarkHardwareOperations"].hasKey("disableHardware"))
-            if (compDesc["MarkHardwareOperations"]["disableHardware"].get<bool>())
-                disableHardware = true;
+    if (passDesc.hasAttr("disableHardware"))
+        if (passDesc.get<bool>("disableHardware"))
+            disableHardware = true;
 
     mv::OpModel om(model);
     mv::Target target = targetDescriptor.getTarget();
@@ -129,7 +126,7 @@ void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& m
     }
 }
 
-void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
 
     using namespace mv;
@@ -137,24 +134,12 @@ void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     OpModel om(model);
     DataModel dm(model);
 
-    std::string const PASS_NAME = "ScaleFission";
     std::string const FACTOR_KEY = "scalefactors";
     std::string opName = "";
 
     double upNum = 1.0;
 
-    if (!compDesc.hasKey("pass"))
-    {
-        return ;
-    }
-    if (!compDesc["pass"].hasKey(PASS_NAME))
-    {
-        return ;
-    }
-    if (!compDesc["pass"][PASS_NAME].hasKey(FACTOR_KEY))
-    {
-        return ;
-    }
+    mv::Element& factorKeyElem = passDesc.get<mv::Element>(FACTOR_KEY);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -163,9 +148,9 @@ void scaleFissionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         {
             if (opIt->get<int>("NCE1_Compatible") == 1)
             {
-                if (compDesc["pass"][PASS_NAME][FACTOR_KEY].hasKey(opName))
+                if (factorKeyElem.hasAttr(opName))
                 {
-                    upNum = compDesc["pass"][PASS_NAME][FACTOR_KEY][opName].get<double>();
+                    upNum = factorKeyElem.get<double>(opName);
 
                     std::vector<double> scaleUpWData = mv::utils::generateSequence<double>(opIt->getInputTensor(1)->getShape().totalSize(), upNum, 0.0f);
                     std::vector<double> scaleDnData = mv::utils::generateSequence<double>(opIt->getOutputTensor(0)->getShape().totalSize(), (1.0f/upNum), 0.0f);

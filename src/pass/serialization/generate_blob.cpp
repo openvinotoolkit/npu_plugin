@@ -5,8 +5,8 @@
 #include "include/mcm/target/myriadx/nce1_utils.hpp"
 #include <numeric>
 
-static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&td, mv::json::Object& compDesc, mv::json::Object& compOutput);
-static void PopulateSerialFieldsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& compOutput);
+static void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 //static void writeSerialFieldsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object& compOutput);
 
 namespace mv
@@ -18,14 +18,12 @@ namespace mv
 
         MV_REGISTER_PASS(PopulateSerialFields)
         .setFunc(PopulateSerialFieldsFcn)
-        .setGenre(PassGenre::Serialization)
         .setDescription(
             "Gathers fields for serialization"
         );
 
         MV_REGISTER_PASS(GenerateBlob)
         .setFunc(generateBlobFcn)
-        .setGenre(PassGenre::Serialization)
         .defineArg(json::JSONType::Bool, "enableFileOutput")
         .defineArg(json::JSONType::Bool, "enableRAMOutput")
         .setDescription(
@@ -36,7 +34,7 @@ namespace mv
 
 }
 
-void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::json::Object& compDesc, mv::json::Object& compOutput)
+void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::json::Object& compOutput)
 {   
 
     using namespace mv;
@@ -50,22 +48,20 @@ void generateBlobFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     bool fileEnable = false ;
     std::string blobFileName = "mcmCompile.blob"; 
  
-    if (compDesc["GenerateBlob"]["enableRAMOutput"].get<bool>())
-    {
+    if (passDesc.hasAttr("enableRAMOutput") && passDesc.get("enableRAMOutput")) {
         RAMEnable = true ;
     }
     cm.getBinaryBuffer()->setRAMEnabled(RAMEnable) ;
 
-    if (compDesc["GenerateBlob"]["enableFileOutput"].get<bool>())
-    {
+    if (passDesc.hasAttr("enableFileOutput") && passDesc.get("enableFileOutput")) {
         fileEnable = true ;
     }
     cm.getBinaryBuffer()->setFileEnabled(fileEnable) ;
 
-    if (!(compDesc["GenerateBlob"]["fileName"].get<std::string>().empty()))
-    {
-        blobFileName = compDesc["GenerateBlob"]["fileName"].get<std::string>() ;
+    if (passDesc.hasAttr("fileName")) {
+        blobFileName = passDesc.get<std::string>("fileName");
     }
+
     cm.getBinaryBuffer()->setFileName(blobFileName) ;
 
     long long result = static_cast<long long>(serializer.serialize(model, td));
@@ -415,7 +411,7 @@ void fillMXDescriptors(mv::ControlModel cm, mv::DataModel dm, unsigned fp16_size
     opIt->set<std::vector<unsigned>>("descriptors", desc);
 }
 
-void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object& )
+void PopulateSerialFieldsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object& )
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
