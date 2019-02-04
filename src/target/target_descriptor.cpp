@@ -44,11 +44,6 @@ void mv::TargetDescriptor::reset()
 {
     target_ = Target::Unknown;
     globalDType_ = DType("Float16");
-    adaptationPasses_.clear();
-    optimizationPasses_.clear();
-    finalizationPasses_.clear();
-    serializationPasses_.clear();
-    validationPasses_.clear();
     ops_.clear();
     memoryDefs_.clear();
 }
@@ -109,59 +104,6 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
         else
         {
             globalDType_ = DType(jsonDescriptor["dtype"]["global"].get<std::string>());
-        }
-
-    }
-
-    if (jsonDescriptor.hasKey("passes"))
-    {
-
-        if (jsonDescriptor["passes"].valueType() != json::JSONType::Object)
-        {
-            reset();
-            return false;
-        }
-
-        std::vector<std::string> keys = jsonDescriptor["passes"].getKeys();
-
-        for (unsigned i = 0; i < keys.size(); ++i)
-        {
-            std::vector<std::string> *passCollection = nullptr;
-            if (keys[i] == "adapt")
-                passCollection = &adaptationPasses_;
-            else if (keys[i] == "optimize")
-                passCollection = &optimizationPasses_;
-            else if (keys[i] == "finalize")
-                passCollection = &finalizationPasses_;
-            else if (keys[i] == "serialize")
-                passCollection = &serializationPasses_;
-            else if (keys[i] == "validate")
-                passCollection = &validationPasses_;
-            else
-            {
-                reset();
-                return false;
-            }
-
-            if (jsonDescriptor["passes"][keys[i]].valueType() != json::JSONType::Array)
-            {
-                reset();
-                return false;
-            }
-
-            for (unsigned j = 0; j < jsonDescriptor["passes"][keys[i]].size(); ++j)
-            {
-
-                if (jsonDescriptor["passes"][keys[i]][j].valueType() != json::JSONType::String)
-                {
-                    reset();
-                    return false;
-                }
-
-                passCollection->push_back(jsonDescriptor["passes"][keys[i]][j].get<std::string>());
-
-            }
-
         }
 
     }
@@ -330,27 +272,6 @@ bool mv::TargetDescriptor::save(const std::string& filePath)
     for (auto it = ops_.begin(); it != ops_.end(); ++it)
         root["ops"].append(*it);
 
-    root["passes"]["adapt"] = json::Array();
-    root["passes"]["optimize"] = json::Array();
-    root["passes"]["finalize"] = json::Array();
-    root["passes"]["serialize"] = json::Array();
-    root["passes"]["validate"] = json::Array();
-
-    for (auto it = adaptationPasses_.begin(); it != adaptationPasses_.end(); ++it)
-        root["passes"]["adapt"].append(*it);
-
-    for (auto it = optimizationPasses_.begin(); it != optimizationPasses_.end(); ++it)
-        root["passes"]["optimize"].append(*it);
-
-    for (auto it = finalizationPasses_.begin(); it != finalizationPasses_.end(); ++it)
-        root["passes"]["finalize"].append(*it);
-
-    for (auto it = serializationPasses_.begin(); it != serializationPasses_.end(); ++it)
-        root["passes"]["serialize"].append(*it);
-
-    for (auto it = validationPasses_.begin(); it != validationPasses_.end(); ++it)
-        root["passes"]["validate"].append(*it);
-
     descFile << root.stringifyPretty();
     descFile.close();
 
@@ -368,156 +289,6 @@ void mv::TargetDescriptor::setTarget(Target target)
 void mv::TargetDescriptor::setDType(DType dType)
 {
     globalDType_ = dType;
-}
-
-bool mv::TargetDescriptor::appendAdaptPass(const std::string& pass, int pos)
-{
-    if (pos > (int)adaptationPasses_.size() || pos < -1)
-        return false;
-
-    if (pos == (int)adaptationPasses_.size() || pos == -1)
-    {
-        adaptationPasses_.push_back(pass);
-        return true;
-    }
-
-    auto result = adaptationPasses_.insert(adaptationPasses_.begin() + pos, pass);
-
-    if (result != adaptationPasses_.end())
-        return true;
-
-    return false;
-}
-
-bool mv::TargetDescriptor::appendOptPass(const std::string& pass, int pos)
-{
-    if (pos > (int)optimizationPasses_.size() || pos < -1)
-        return false;
-
-    if (pos == (int)optimizationPasses_.size() || pos == -1)
-    {
-        optimizationPasses_.push_back(pass);
-        return true;
-    }
-
-    auto result = optimizationPasses_.insert(optimizationPasses_.begin() + pos, pass);
-
-    if (result != optimizationPasses_.end())
-        return true;
-
-    return false;
-}
-
-bool mv::TargetDescriptor::appendFinalPass(const std::string& pass, int pos)
-{
-    if (pos > (int)finalizationPasses_.size() || pos < -1)
-        return false;
-
-    if (pos == (int)finalizationPasses_.size() || pos == -1)
-    {
-        finalizationPasses_.push_back(pass);
-        return true;
-    }
-
-    auto result = finalizationPasses_.insert(finalizationPasses_.begin() + pos, pass);
-
-    if (result != finalizationPasses_.end())
-        return true;
-
-    return false;
-}
-
-bool mv::TargetDescriptor::appendSerialPass(const std::string& pass, int pos)
-{
-    if (pos > (int)serializationPasses_.size() || pos < -1)
-        return false;
-
-    if (pos == (int)serializationPasses_.size() || pos == -1)
-    {
-        serializationPasses_.push_back(pass);
-        return true;
-    }
-
-    auto result = serializationPasses_.insert(serializationPasses_.begin() + pos, pass);
-
-    if (result != serializationPasses_.end())
-        return true;
-
-    return false;
-}
-
-bool mv::TargetDescriptor::appendValidPass(const std::string& pass, int pos)
-{
-    if (pos > (int)validationPasses_.size() || pos < -1)
-        return false;
-
-    if (pos == (int)validationPasses_.size() || pos == -1)
-    {
-        validationPasses_.push_back(pass);
-        return true;
-    }
-
-    auto result = validationPasses_.insert(validationPasses_.begin() + pos, pass);
-
-    if (result != validationPasses_.end())
-        return true;
-
-    return false;
-}
-
-bool mv::TargetDescriptor::removeAdaptPass(const std::string& pass)
-{
-    auto passIt = std::find(adaptationPasses_.begin(), adaptationPasses_.end(), pass);
-    if (passIt != adaptationPasses_.end())
-    {
-        adaptationPasses_.erase(passIt);
-        return true;
-    }
-    return false;
-}
-
-bool mv::TargetDescriptor::removeOptPass(const std::string& pass)
-{
-    auto passIt = std::find(optimizationPasses_.begin(), optimizationPasses_.end(), pass);
-    if (passIt != optimizationPasses_.end())
-    {
-        optimizationPasses_.erase(passIt);
-        return true;
-    }
-    return false;
-}
-
-bool mv::TargetDescriptor::removeFinalPass(const std::string& pass)
-{
-    auto passIt = std::find(finalizationPasses_.begin(), finalizationPasses_.end(), pass);
-    if (passIt != finalizationPasses_.end())
-    {
-        finalizationPasses_.erase(passIt);
-        return true;
-    }
-    return false;
-}
-
-bool mv::TargetDescriptor::removeSerialPass(const std::string& pass)
-{
-    auto passIt = std::find(serializationPasses_.begin(), serializationPasses_.end(), pass);
-    if (passIt != serializationPasses_.end())
-    {
-        serializationPasses_.erase(passIt);
-        return true;
-    }
-    return false;
-}
-
-bool mv::TargetDescriptor::removeValidPass(const std::string& pass)
-{
-    auto passIt = std::find(validationPasses_.begin(), validationPasses_.end(), pass);
-    if (passIt != validationPasses_.end())
-    {
-        validationPasses_.erase(passIt);
-        return true;
-    }
-    return false;
 }
 
 bool mv::TargetDescriptor::defineOp(const std::string& op)
@@ -581,56 +352,6 @@ bool mv::TargetDescriptor::undefineMemory(const std::string& name)
         return true;
     }
     return false;
-}
-
-std::size_t mv::TargetDescriptor::adaptPassesCount() const
-{
-    return adaptationPasses_.size();
-}
-
-std::size_t mv::TargetDescriptor::optPassesCount() const
-{
-    return optimizationPasses_.size();
-}
-
-std::size_t mv::TargetDescriptor::finalPassesCount() const
-{
-    return finalizationPasses_.size();
-}
-
-std::size_t mv::TargetDescriptor::serialPassesCount() const
-{
-    return serializationPasses_.size();
-}
-
-std::size_t mv::TargetDescriptor::validPassesCount() const
-{
-    return validationPasses_.size();
-}
-
-const std::vector<std::string>& mv::TargetDescriptor::adaptPasses() const
-{
-    return adaptationPasses_;
-}
-
-const std::vector<std::string>& mv::TargetDescriptor::optPasses() const
-{
-    return optimizationPasses_;
-}
-
-const std::vector<std::string>& mv::TargetDescriptor::finalPasses() const
-{
-    return finalizationPasses_;
-}
-
-const std::vector<std::string>& mv::TargetDescriptor::serialPasses() const
-{
-    return serializationPasses_;
-}
-
-const std::vector<std::string>& mv::TargetDescriptor::validPasses() const
-{
-    return validationPasses_;
 }
 
 mv::Target mv::TargetDescriptor::getTarget() const
