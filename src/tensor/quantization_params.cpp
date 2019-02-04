@@ -14,7 +14,7 @@ mv::QuantizationParams::QuantizationParams(std::vector<size_t> zp, std::vector<d
             throw ArgumentError("QuantizationParams", "Quantization min max params", "max",
                 " Smaller than min " + std::to_string(min[i]));
 
-    set<std::vector<size_t>>("zero_point", zp);
+    set<std::vector<size_t>>("zeroPoint", zp);
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
     set<std::vector<double>>("max", max);

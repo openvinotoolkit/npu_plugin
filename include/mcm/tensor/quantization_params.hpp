@@ -15,7 +15,7 @@ namespace mv
 
         inline std::vector<int64_t> getZeroPoint() const
         {
-            return get<std::vector<int64_t>>("zero_point");
+            return get<std::vector<int64_t>>("zeroPoint");
         }
 
         inline std::vector<float> getScale() const
