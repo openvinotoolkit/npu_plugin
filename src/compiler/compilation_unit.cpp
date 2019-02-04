@@ -64,7 +64,7 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
 bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
 {
 
-    JSONTextParser parser(jsonParserBufferLenght_);
+    JSONTextParser parser(jsonParserBufferLength_);
 
     try
     {
@@ -77,8 +77,9 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
         }
         if (jsonRoot.valueType() != json::JSONType::Object)
             return false;
-        else
-            compilationDescriptor_ = jsonRoot.get<json::Object>();
+        else {
+            // compilationDescriptor_ = jsonRoot.get<json::Object>();
+        }
 
     }
     catch (ParsingError& e)
@@ -116,14 +117,9 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
 
 }
 
-mv::PassManager& mv::CompilationUnit::passManager()
+mv::CompilationDescriptor& mv::CompilationUnit::compilationDescriptor()
 {
-    return passManager_;
-}
-
-mv::json::Object& mv::CompilationUnit::compilationDescriptor()
-{
-    return compilationDescriptor_;
+    return compDescriptor_;
 }
 
 mv::OpModel& mv::CompilationUnit::model()
@@ -139,7 +135,7 @@ mv::CompositionalModel& mv::CompilationUnit::recordedModel()
 bool mv::CompilationUnit::initialize()
 {
 
-    if (!passManager_.initialize(*model_, targetDescriptor_, compilationDescriptor_))
+    if (!passManager_.initialize(*model_, targetDescriptor_, compDescriptor_))
         return false;
     // Initialize resouces
     for (auto it = targetDescriptor_.memoryDefs().begin(); it != targetDescriptor_.memoryDefs().end(); ++it)
@@ -160,6 +156,9 @@ mv::json::Object mv::CompilationUnit::runStep()
 mv::json::Object mv::CompilationUnit::run()
 {
     json::Object output;
+    std::vector<mv::Element> passList = compDescriptor_.serializePassList();
+    passManager_.loadPassList(passList);
+
     while (!passManager_.completed())
         output = passManager_.step();
     return output;

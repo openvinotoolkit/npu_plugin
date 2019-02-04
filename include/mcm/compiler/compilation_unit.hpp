@@ -8,6 +8,7 @@
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
+#include "include/mcm/compiler/compilation_descriptor.hpp"
 
 namespace mv
 {
@@ -27,8 +28,8 @@ namespace mv
         RecordedCompositionalModel* recordedModel_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
-        json::Object compilationDescriptor_;
-        const static unsigned jsonParserBufferLenght_ = 256;
+        CompilationDescriptor compDescriptor_;
+        const static unsigned jsonParserBufferLength_ = 256;
 
     public:
 
@@ -39,8 +40,7 @@ namespace mv
         bool loadTargetDescriptor(Target target);
         bool loadCompilationDescriptor(const std::string& path);
 
-        PassManager& passManager();
-        json::Object& compilationDescriptor();
+        CompilationDescriptor& compilationDescriptor();
         OpModel& model();
         CompositionalModel& recordedModel();
 
