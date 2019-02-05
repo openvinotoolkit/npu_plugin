@@ -27,38 +27,14 @@ namespace mv
     }
 }
 
-mv::Tensor extendToK(std::string name, mv::Shape shape, mv::DType dtype, double value)
-{
-    std::vector<double> data = mv::utils::generateSequence<double>(shape.totalSize(), value , 0);
-    mv::Order order(mv::Order::getRowMajorID(shape.ndims()));
-    mv::Tensor t(name, shape, dtype, order, data);
-    return t;
-}
-
-mv::Tensor extendToK(std::string name, mv::Shape shape, mv::DType dtype, std::vector<double> value)
+template <class T, class R>
+std::vector<R> extendToK(size_t size, std::vector<T> value)
 {
     if (value.size() == 1)
-        return extendToK(name, shape, dtype, value[0]);
-
-    size_t outputChannels = shape[0];
-    if (value.size() == outputChannels)
-    {
-        mv::Order order(mv::Order::getRowMajorID(shape.ndims()));
-        mv::Tensor t(name, shape, dtype, order, value);
-        return t;
-    }
-
-    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
-                std::to_string(value.size()));
-}
-template <class T>
-std::vector<T> extendToK(size_t size, std::vector<T> value)
-{
-    if (value.size() == 1)
-        return mv::utils::generateSequence<T>(size, value[0] , 0);
+        return mv::utils::generateSequence<R>(size, (R) value[0] , 0);
 
     if (value.size() == size)
-        return value;
+        return std::vector<R>(value.begin(), value.end());
 
     throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
                 std::to_string(value.size()));
@@ -89,7 +65,7 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         if (opIterator->getOpType() == "Conv")
         {
             //TODO Need to check if it's running on HW
-            //In POC compiler, Conv is by default set to Hardwarizeable for KMB
+            //  In POC compiler, Conv is by default set to Hardwarizeable for KMB
             //TODO currently poc compiler assumes 1 output/input for convolution, could it be otherwise?
 
             auto output = opIterator->getOutputTensor(0);
@@ -101,22 +77,20 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
             auto outputChannels = output->getShape()[2];
 
-
             auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
-            std::vector<float> S2 = extendToK<float>(outputChannels, inputQuantization.getScale());
+            std::vector<float> S2 = extendToK<double, float>(outputChannels, inputQuantization.getScale());
 
             auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
-            std::vector<float> S3 = extendToK<float>(outputChannels, outputQuantization.getScale());
+            std::vector<float> S3 = extendToK<double, float>(outputChannels, outputQuantization.getScale());
 
-            std::vector<int64_t> zeroPoint = extendToK<int64_t>(outputChannels, outputQuantization.getZeroPoint());
+            std::vector<int32_t> zeroPoint = extendToK<unsigned, int32_t>(outputChannels, outputQuantization.getZeroPoint());
 
             auto m = S2;
-
             if (opIterator->inputSlots() > 1)
             {
                 auto weights = opIterator->getInputTensor(1);
                 auto weightsQuantization = weights->get<mv::QuantizationParams>("quantizationParams");
-                std::vector<float> S1 = extendToK<float>(outputChannels,weightsQuantization.getScale());
+                std::vector<float> S1 = extendToK<double, float>(outputChannels,weightsQuantization.getScale());
                 //S1*S2
                 std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
             }
@@ -134,53 +108,53 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
             //m*intScaled
             for (unsigned i = 0; i < m.size(); ++i)
-                mScaled[i] = (int16_t) m[i] * intScale;
+                mScaled[i] = (int16_t) (m[i] * intScale);
 
             std::vector<int32_t> zeroPointScaled(m.size());
-            std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<int32_t>());
-
-            //auto shiftExt = extendToK("shift", shape, mv::DType("UInt8"), shift);
+            std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
 
             if (opIterator->hasAttr("bias"))
             {
                 auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
                 auto data = bias->getData();
+                //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
+                //auto Z_bias = biasQuantization.getZeroPoint();
+                //auto S_bias = biasQuantization.getScale();
                 std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int32_t>());
                 bias->populate(data);
-                bias->setDType(mv::DType("Int32")); //TODO is this  ok?
+                bias->setDType(mv::DType("Int32"));
             }
             else
             {
-                //TODO verify order and shape
-                mv::Order order(mv::Order("W"));
-                const std::string name = opIterator->getName() + "_bias";
+                mv::Order order(mv::Order::getColMajorID(1));
+                const std::string biasTensorName = opIterator->getName() + "_bias";
                 mv::Shape shape({outputChannels});
-                mv::Tensor t(name, shape, mv::DType("Int32"), order, convertToDoubleVector<int32_t>(zeroPointScaled));
 
-                opIterator->set<mv::Tensor>("bias", t);
+                auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, convertToDoubleVector<int32_t>(zeroPointScaled));
+                om.addAttr(opIterator, "bias", biasTensor->getName());
             }
 
+            mv::Shape shape({outputChannels, 1, 1, 4});
+
+            auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
+            auto biasData = bias->getData();
+
+            std::vector<int32_t> weightsTableData(shape.totalSize());
             // per channel layout:
             // 3 -> bias
             // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
             // 1 -> SP_PTR
             // 0 -> DATA_PTR
             // TODO mult & prelu are currently not implemented
-            mv::Shape shape({outputChannels, 1, 1, 4});
-
-            auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
-            auto bias_data = bias->getData();
-
-            std::vector<int32_t> weights_table_data(shape.totalSize());
-            for (size_t i = 0; i < weights_table_data.size(); i+=4)
+            for (size_t i = 0; i < weightsTableData.size(); i+=4)
             {
-                weights_table_data[i+2] = (mScaled[i/4] << 16) | shift << 2;
-                weights_table_data[i+3] = bias_data[i/4];
+                weightsTableData[i+2] = ((int32_t)mScaled[i/4] << 16) | shift << 2;
+                weightsTableData[i+3] = biasData[i/4];
             }
-            //TODO check order
-            mv::Tensor t(opIterator->getName() + "_weights_table", shape, mv::DType("Int32"), mv::Order(mv::Order::getColMajorID(4)),
-                convertToDoubleVector<int32_t>(weights_table_data));
-            opIterator->set<mv::Tensor>("weights_table", t);
+
+            auto weightTableTensor = dm.defineTensor(opIterator->getName() + "_weights_table", shape, mv::DType("Int32"), mv::Order("NWHC"),
+                convertToDoubleVector<int32_t>(weightsTableData));
+            om.addAttr(opIterator, "weights_table", weightTableTensor->getName());
         }
 
     }
