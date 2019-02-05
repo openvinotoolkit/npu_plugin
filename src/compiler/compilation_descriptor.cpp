@@ -46,6 +46,10 @@ void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::
     if (g_elem.hasAttr(recurrence))
     {
         std::vector<std::string> &rec_v = g_elem.get<std::vector<std::string>>(recurrence);
+
+        if (elemIsGroup && std::find(rec_v.begin(), rec_v.end(), elem) != rec_v.end())
+            throw RuntimeError(*this, "Trying to add preexisting group (" + elem + ") to group (" + group + "), which is not permitted");
+
         rec_v.push_back(elem);
     }
     else
