@@ -12,7 +12,7 @@ mv::DTypeEntry& mv::DTypeEntry::setToBinaryFunc(std::function<mv::BinaryData(con
     return *this;
 }
 
-mv::DTypeEntry& mv::DTypeEntry::setSizeInBytes(unsigned size)
+mv::DTypeEntry& mv::DTypeEntry::setSizeInBytes(float size)
 {
     size_ = size;
     return *this;
@@ -23,9 +23,7 @@ const std::function<mv::BinaryData(const std::vector<double>&)>& mv::DTypeEntry:
     return toBinaryFunc_;
 }
 
-unsigned mv::DTypeEntry::getSizeInBytes() const
+float mv::DTypeEntry::getSizeInBytes() const
 {
     return size_;
 }
-
-
