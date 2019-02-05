@@ -64,10 +64,13 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     {
         if (opIterator->getOpType() == "Conv")
         {
-            //TODO Need to check if it's running on HW
-            //  In POC compiler, Conv is by default set to Hardwarizeable for KMB
-            //TODO currently poc compiler assumes 1 output/input for convolution, could it be otherwise?
+            //check if it's running on HW
+            if(!opIterator->hasAttr("NCE1_Compatible"))
+                continue;
+            if(!opIterator->get<int>("NCE1_Compatible"))
+                continue;
 
+            //TODO currently poc compiler assumes 1 output/input for convolution, could it be otherwise?
             auto output = opIterator->getOutputTensor(0);
             auto input = opIterator->getInputTensor(0);
 

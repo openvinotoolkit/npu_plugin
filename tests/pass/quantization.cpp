@@ -105,10 +105,13 @@ TEST(quantization, case_conv)
     conv_output->set<mv::QuantizationParams>("quantizationParams", outputQuantParams);
 
     mv::json::Object dummyCompDesc;
-    mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
+    mv::TargetDescriptor desc;
 
-    mv::pass::PassRegistry::instance().find("Quantization")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    desc.setTarget(mv::Target::ma2490);
+
+    mv::pass::PassRegistry::instance().find("MarkHardwareOperations")->run(om, desc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("Quantization")->run(om, desc, dummyCompDesc, compOutput);
 
     //ref data is based on result on POC test res2a_branch2a/quantized_model.tflite
     std::vector<double> refData = {
