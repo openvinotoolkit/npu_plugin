@@ -59,10 +59,7 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
     int index = 0;
     for (auto it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) {
 
-        //int index = std::distance(nodeNumbers.begin(), it);
-        
-
-        //Node 0 special (top left)
+        //Node 0 (top left)
         if((*it%metisGraph.m_xDim == 0) && (*it == 0)) {
             std::cout << "Left side Node - Node " << *it << " " << std::endl; 
 
@@ -84,9 +81,9 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             index++;
         }
 
-        //End left side node
+        //Bottom left node
         if((*it%metisGraph.m_xDim == 0) && ((*it + metisGraph.m_xDim) > ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
-            std::cout << "Left side Node - Intermediate " << *it << " " << std::endl; 
+            std::cout << "Bottom left Node - Intermediate " << *it << " " << std::endl; 
 
             metisGraph.adjncy[index] = *it - metisGraph.m_xDim;
             index++;
@@ -95,9 +92,9 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
            
         }
 
-        //Special node top right
-        if(((*it - 4)%metisGraph.m_xDim == 0) && ((*it - (*it -4)) == metisGraph.m_xDim -1) && ((*it-(metisGraph.m_xDim-1) == 0))) {
-            std::cout << "Special top right side Node " << *it << " " << std::endl; 
+        //node top right
+        if(((*it - (metisGraph.m_xDim-1)%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && ((*it-(metisGraph.m_xDim-1) == 0)))) {
+            std::cout << "Top right side Node " << *it << " " << std::endl; 
 
             metisGraph.adjncy[index] = *it - 1;
             index++;
@@ -106,7 +103,7 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
         }
 
        //Intermediate right side node
-        if(((*it - 4)%metisGraph.m_xDim == 0) && ((*it - (*it -4)) == metisGraph.m_xDim -1)  && ((*it-(metisGraph.m_xDim-1) != 0))  && (*it %(nodeNumbers.size()-1) != 0)) {
+        if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1)  && ((*it-(metisGraph.m_xDim-1) != 0))  && (*it %(nodeNumbers.size()-1) != 0)) {
             std::cout << "Intermediate right side Node " << *it << " " << std::endl; 
 
             metisGraph.adjncy[index] = *it - metisGraph.m_xDim;
@@ -117,9 +114,9 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             index++;
         }
 
-        //Special node bottm right
-        if(((*it - 4)%metisGraph.m_xDim == 0) && ((*it - (*it -4)) == metisGraph.m_xDim -1) && (*it %(nodeNumbers.size()-1) == 0)) {
-            std::cout << "Special bottom right side Node " << *it << " " << std::endl; 
+        //node bottm right
+        if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && (*it %(nodeNumbers.size()-1) == 0)) {
+            std::cout << "Bottom right side Node " << *it << " " << std::endl; 
 
             metisGraph.adjncy[index] = *it - (metisGraph.m_xDim); 
             index++;
@@ -127,27 +124,58 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             index++;
         }
         
-        //Middle nodes
-        // if(((*it%metisGraph.m_xDim != 0) )) {
-        //     std::cout << "Middle node " << *it << " " << std::endl; 
+        //Middle nodes (1-3)
+        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < (metisGraph.m_xDim - 1))) {
+            std::cout << "Middle node top row " << *it << " " << std::endl; 
 
-        //     metisGraph.adjncy[index] = *it - (metisGraph.m_xDim); 
-        //     index++;
-        //     metisGraph.adjncy[index] = *it - 1;
-        //     index++;
-        // }
-        
-    } 
-
-
- for(int e = 0; e < 15; e++) {
-
-            std::cout << metisGraph.adjncy[e] << std::endl;
+            metisGraph.adjncy[index] = *it - 1;
+            index++;
+            metisGraph.adjncy[index] = *it + 1;
+            index++;
+            metisGraph.adjncy[index] = *it + (metisGraph.m_xDim); 
+            index++;
         }
+
+         //Middle nodes (11-13)
+        if(((*it)%metisGraph.m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
+            std::cout << "Middle node bottom row " << *it << " " << std::endl; 
+
+            metisGraph.adjncy[index] = *it - (metisGraph.m_xDim); 
+            index++;
+            metisGraph.adjncy[index] = *it - 1;
+            index++;
+            metisGraph.adjncy[index] = *it + 1;
+            index++;
+            
+        }
+
+        //Middle nodes (6-18)
+        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) > (metisGraph.m_xDim-1))) {
+            std::cout << "Middle node " << *it << " " << std::endl; 
+
+            metisGraph.adjncy[index] = *it - (metisGraph.m_xDim); 
+            index++;
+            metisGraph.adjncy[index] = *it - 1;
+            index++;
+            metisGraph.adjncy[index] = *it + 1;
+            index++;
+            metisGraph.adjncy[index] = *it + (metisGraph.m_xDim); 
+            index++;
+        }
+
+for(int e = 0; e < index; e++) {
      
-     return 0;
-    
+     std::cout << metisGraph.adjncy[e] << " ";
 }
+std::cout << std::endl;
+}
+return 0;        
+} 
+
+
+
+
+
 
     
 //Returns a number divided by 2 repeatly. Example maxSplitRange = 16 -> returns 16,8,4,2
