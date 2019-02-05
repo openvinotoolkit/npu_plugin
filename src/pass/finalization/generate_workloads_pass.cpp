@@ -27,42 +27,56 @@ namespace mv
 
 struct MetisGraphStructure
 {
-    idx_t* xadj; // Indexes of starting points in adjacent array
-    idx_t* adjncy; // Adjacent vertices in consecutive index order
+    idx_t* xadj; /*Indexes of starting points in adjacent array*/
+    idx_t* adjncy; /*Adjacent vertices in consecutive index order*/
+    idx_t* part; 
+    idx_t objval;
 
     int m_nVertices;
     int m_nEdges;
     int m_xDim;
     int m_yDim;
 
-    MetisGraphStructure(int nVertices, int nEdges, int xDim, int yDim) : m_nVertices(nVertices), m_nEdges(nEdges), m_xDim(xDim), m_yDim(yDim)  {
+    MetisGraphStructure(int nVertices, int nEdges, int xDim, int yDim) : m_nVertices(nVertices), m_xDim(xDim), m_yDim(yDim)  {
         
-        xadj = new idx_t[nVertices + 1];
+        xadj = new idx_t[nVertices + 1]; /*Description page 23 Metis manual*/
         adjncy = new idx_t[2*nEdges];
+        part = new idx_t[nVertices];
     }
     
     ~MetisGraphStructure() {
         delete[] xadj;
         delete[] adjncy;
+        delete[] part;
     } 
 };
  
+/**
+ * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual
+ * @brief representing the lattic structure of the shape (in the X-Y corrdinate) of a tensor
+ * @param metisGraph 
+ * @return None
+ */
+void generateMetisGraph(MetisGraphStructure& metisGraph) {
 
-
-int gen_partion_graph(MetisGraphStructure& metisGraph) {
-    
+    //Nodes in the graph
     std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_nVertices -1);
-    
-    // for (auto it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) 
-    //     std::cout << *it << " " << std::endl; 
-    
     int adjncyIndex = 0;
     int xadjIndex = 0;
+
+
+    /* A Sample Graph
+     * 0---1-2--3---4
+     * |   | |   |  |
+     * 5---6-7---8--9
+     * |   | |   |  |
+     * 10-11-12-13-14
+     */
+
     for (auto it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) {
 
-        //Node 0 (top left)
+        /*Top left node*/ 
         if((*it%metisGraph.m_xDim == 0) && (*it == 0)) {
-            std::cout << "Left side Node - Node " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -72,9 +86,8 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
         }
   
-        //Intermediate left side node
+        /*Intermediate node left side*/ 
         if((*it%metisGraph.m_xDim == 0) && ((*it + metisGraph.m_xDim) < ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
-            std::cout << "Left side Node - Intermediate " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -86,9 +99,8 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
         }
 
-        //Bottom left node
+        /*Bottom left node*/
         if((*it%metisGraph.m_xDim == 0) && ((*it + metisGraph.m_xDim) > ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
-            std::cout << "Bottom left Node - Intermediate " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -96,12 +108,10 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
             metisGraph.adjncy[adjncyIndex] = *it + 1;
             adjncyIndex++;
-           
         }
 
-        //node top right
+        /*Top right node*/
         if(((*it - (metisGraph.m_xDim-1)%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && ((*it-(metisGraph.m_xDim-1) == 0)))) {
-            std::cout << "Top right side Node " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -111,9 +121,8 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
         }
 
-       //Intermediate right side node
+       /*Intermediate right side node*/
         if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1)  && ((*it-(metisGraph.m_xDim-1) != 0))  && (*it %(nodeNumbers.size()-1) != 0)) {
-            std::cout << "Intermediate right side Node " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -125,9 +134,8 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
         }
 
-        //node bottm right
+        /*Bottm right node*/
         if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && (*it %(nodeNumbers.size()-1) == 0)) {
-            std::cout << "Bottom right side Node " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -138,9 +146,8 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             metisGraph.xadj[xadjIndex] = adjncyIndex;
         }
         
-        //Middle nodes (1-3)
+        /*Middle nodes top row*/
         if(((*it)%metisGraph.m_xDim != 0) && ((*it) < (metisGraph.m_xDim - 1))) {
-            std::cout << "Middle node top row " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -152,9 +159,8 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
         }
 
-         //Middle nodes (11-13)
+        /*Middle nodes bottom row*/
         if(((*it)%metisGraph.m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
-            std::cout << "Middle node bottom row " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -164,12 +170,10 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
             metisGraph.adjncy[adjncyIndex] = *it + 1;
             adjncyIndex++;
-            
         }
 
-        //Middle nodes (6-18)
+        //Middle nodes not on bottom or top rows
         if(((*it)%metisGraph.m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) > (metisGraph.m_xDim-1))) {
-            std::cout << "Middle node " << *it << " " << std::endl; 
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -182,34 +186,15 @@ int gen_partion_graph(MetisGraphStructure& metisGraph) {
             metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
             adjncyIndex++;
         }
-
-for(int e = 0; e < adjncyIndex; e++) {
-     
-     std::cout << metisGraph.adjncy[e] << " ";
-}
-std::cout << std::endl;
-
-for(int e = 0; e < xadjIndex +1; e++) {
-     
-     std::cout << metisGraph.xadj[e] << " ";
-}
-std::cout << std::endl;
-
-
-}
-
-
-
-return 0;        
+    }        
 } 
 
-
-
-
-
-
-    
-//Returns a number divided by 2 repeatly. Example maxSplitRange = 16 -> returns 16,8,4,2
+/**
+ * @brief Divides a number by 2 repeatedly. Example if maxSplitRange = 16 -> returns 16,8,4,2
+ * @param Number to be divided by 2 repeatedly
+ * @param A maximum value to divide  by 2 repeatedly
+ * @return A set of the number divided by two repeatedly
+ */
 std::set<int> getSplitsFromRange(int maxSplitRange, int maxSplits = 50)
 {
     std::set<int> splits;
@@ -227,24 +212,30 @@ std::set<int> getSplitsFromRange(int maxSplitRange, int maxSplits = 50)
     return splits;
 }
 
+/**
+ * @brief Generate a pool of possible splits (workloads) of a tensor 
+ * @param A tensor 
+ * @param The numnber of DPUs per cluster
+ * @return A pool of possible splits (workloads)
+ */
 std::set<int> getNWorkloads(std::vector<mv::Data::TensorIterator> tensor, int nDPUxClusterS)
 {
     std::cout << "Test getNWorkloads" << std::endl;
     std::cout << "Tensor shape is " << tensor[0]->getShape().toString() << std::endl;
 
-    //maxSplitsXY
+    /*maxSplitsXY*/
     auto xDim = tensor[0]->get<mv::Shape>("shape")[0];
     auto yDim = tensor[0]->get<mv::Shape>("shape")[1];
     auto maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
 
     std::cout << "maxSplitsXY is " << maxSplitsXY << std::endl;
 
-    //maxSplitsZ
+    /*maxSplitsZ*/
     auto maxSplitsZ = ceil(tensor[0]->get<mv::Shape>("shape")[2]/16);
 
     std::cout << "maxSplitsZ is " << maxSplitsZ << std::endl;
 
-    //Pool of possible splits
+    /*Pool of possible splits*/
     std::set<int> XYTileSplits;
     std::set<int> ZTileSplits;
     std::set<int> splitPool;
@@ -283,7 +274,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
 
             std::cout << "Tensor shape is " << outputTensor[0]->getShape().toString() << std::endl;
 
-            int tensorXDim = outputTensor[0]->get<mv::Shape>("shape")[0]; // why is dimension not full tensor size?
+            int tensorXDim = outputTensor[0]->get<mv::Shape>("shape")[0]; 
             int tensorYDim = outputTensor[0]->get<mv::Shape>("shape")[1];
 
             int numberTensorVertices = (tensorXDim  * tensorYDim) + 1;
@@ -291,11 +282,22 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
 
             std::cout << "numberTensorVertices: " << numberTensorVertices << " " << "numberTensorEdges: " << numberTensorEdges << std::endl;
 
-            //Create Metis struct
+            /*Metis struct*/
             MetisGraphStructure metisGraph(numberTensorVertices, numberTensorEdges, tensorXDim, tensorYDim);
+            
+            /* Populate Metis adjacency structure structures*/ 
+            generateMetisGraph(metisGraph); 
+            
+            idx_t nParts    = 16;
+            int ret = METIS_PartGraphKway(&numberTensorVertices,NULL, metisGraph.xadj, metisGraph.adjncy,
+				       NULL, NULL, NULL, &nParts, NULL,
+				       NULL, NULL, &metisGraph.objval, metisGraph.part);
 
-            gen_partion_graph(metisGraph); 
-
+            std::cout << ret << std::endl;
+    
+            // for(unsigned part_i = 0; part_i < nVertices; part_i++){
+	        //     std::cout << part_i << " " << part[part_i] << std::endl;
+            // }
 
             // workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
 
