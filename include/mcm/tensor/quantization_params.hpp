@@ -10,27 +10,27 @@ namespace mv
     class QuantizationParams: public Element
     {
     public:
+        QuantizationParams(const json::Value& content);
+        QuantizationParams(std::vector<unsigned> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
 
-        QuantizationParams(std::vector<size_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
-
-        inline std::vector<int64_t> getZeroPoint() const
+        inline std::vector<unsigned> getZeroPoint() const
         {
-            return get<std::vector<int64_t>>("zeroPoint");
+            return get<std::vector<unsigned>>("zeroPoint");
         }
 
-        inline std::vector<float> getScale() const
+        inline std::vector<double> getScale() const
         {
-            return get<std::vector<float>>("scale");
+            return get<std::vector<double>>("scale");
         }
 
-        inline std::vector<float> getMin() const
+        inline std::vector<double> getMin() const
         {
-            return get<std::vector<float>>("min");
+            return get<std::vector<double>>("min");
         }
 
-        inline std::vector<float> getMax() const
+        inline std::vector<double> getMax() const
         {
-            return get<std::vector<float>>("max");
+            return get<std::vector<double>>("max");
         }
 
         virtual std::string getLogID() const override;
