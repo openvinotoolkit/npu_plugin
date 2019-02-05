@@ -31,9 +31,9 @@ struct MetisGraphStructure
     idx_t* adjncy; /*Adjacent vertices in consecutive index order*/
     idx_t* part; 
     idx_t objval;
+    idx_t nWeights  = 1;
 
-    int m_nVertices;
-    int m_nEdges;
+    idx_t m_nVertices;
     int m_xDim;
     int m_yDim;
 
@@ -59,18 +59,17 @@ struct MetisGraphStructure
  */
 void generateMetisGraph(MetisGraphStructure& metisGraph) {
 
-    //Nodes in the graph
-    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_nVertices -1);
+    /*Nodes in the graph*/
+    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_nVertices);
     int adjncyIndex = 0;
     int xadjIndex = 0;
 
-
     /* A Sample Graph
-     * 0---1-2--3---4
-     * |   | |   |  |
-     * 5---6-7---8--9
-     * |   | |   |  |
-     * 10-11-12-13-14
+     * 0---1---2---3---4
+     * |   |   |   |   |
+     * 5---6---7---8---9
+     * |   |   |   |   |
+     * 10--11---12-13--14
      */
 
     for (auto it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) {
@@ -172,7 +171,7 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
         }
 
-        //Middle nodes not on bottom or top rows
+        /*Middle nodes not on bottom or top rows*/
         if(((*it)%metisGraph.m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) > (metisGraph.m_xDim-1))) {
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
@@ -186,7 +185,7 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
             metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
             adjncyIndex++;
         }
-    }        
+    }   
 } 
 
 /**
@@ -277,8 +276,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             int tensorXDim = outputTensor[0]->get<mv::Shape>("shape")[0]; 
             int tensorYDim = outputTensor[0]->get<mv::Shape>("shape")[1];
 
-            int numberTensorVertices = (tensorXDim  * tensorYDim) + 1;
-            int numberTensorEdges = (2 * tensorXDim * tensorYDim) - tensorXDim - tensorYDim + 2;
+            int numberTensorVertices = (tensorXDim  * tensorYDim);
+            int numberTensorEdges = (2 * tensorXDim * tensorYDim) - tensorXDim - tensorYDim;
 
             std::cout << "numberTensorVertices: " << numberTensorVertices << " " << "numberTensorEdges: " << numberTensorEdges << std::endl;
 
@@ -288,16 +287,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             /* Populate Metis adjacency structure structures*/ 
             generateMetisGraph(metisGraph); 
             
-            idx_t nParts    = 16;
-            int ret = METIS_PartGraphKway(&numberTensorVertices,NULL, metisGraph.xadj, metisGraph.adjncy,
-				       NULL, NULL, NULL, &nParts, NULL,
+            idx_t nWorkloads    = 2;
+
+            int ret = METIS_PartGraphKway(&metisGraph.m_nVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
+				       NULL, NULL, NULL, &nWorkloads, NULL,
 				       NULL, NULL, &metisGraph.objval, metisGraph.part);
 
-            std::cout << ret << std::endl;
     
-            // for(unsigned part_i = 0; part_i < nVertices; part_i++){
-	        //     std::cout << part_i << " " << part[part_i] << std::endl;
-            // }
+            for(unsigned part_i = 0; part_i < metisGraph.m_nVertices; part_i++){
+                std::cout << part_i << " " << metisGraph.part[part_i] << std::endl;
+            }
 
             // workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
 
