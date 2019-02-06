@@ -71,6 +71,8 @@ file(GLOB base
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
     "src/target/keembay/dma_direction.cpp"
+    "src/target/keembay/ppe_layer_type.cpp"
+    "src/target/keembay/ppe_fixed_function.cpp"
     "src/target/keembay/workloads.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"

@@ -60,6 +60,38 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
 };
 
+const std::unordered_map<mv::PpeLayerTypeEnum, MVCNN::PPELayerType> mv::RuntimeModel::ppeLayerTypeMapping_ =
+{
+   {PPELayerType_STORE, MVCNN::PPELayerType::PPELayerType_STORE},
+   {PPELayerType_LOAD, MVCNN::PPELayerType::PPELayerType_LOAD},
+   {PPELayerType_CLEAR, MVCNN::PPELayerType::PPELayerType_CLEAR},
+   {PPELayerType_NOOP, MVCNN::PPELayerType::PPELayerType_NOOP},
+   {PPELayerType_HALT, MVCNN::PPELayerType::PPELayerType_HALT},
+   {PPELayerType_ADD, MVCNN::PPELayerType::PPELayerType_ADD},
+   {PPELayerType_SUB, MVCNN::PPELayerType::PPELayerType_SUB},
+   {PPELayerType_MULT, MVCNN::PPELayerType::PPELayerType_MULT},
+   {PPELayerType_LRELU, MVCNN::PPELayerType::PPELayerType_LRELU},
+   {PPELayerType_LRELUX, MVCNN::PPELayerType::PPELayerType_LRELUX},
+   {PPELayerType_LPRELU, MVCNN::PPELayerType::PPELayerType_LPRELU},
+   {PPELayerType_MAXIMUM, MVCNN::PPELayerType::PPELayerType_MAXIMUM},
+   {PPELayerType_MINIMUM, MVCNN::PPELayerType::PPELayerType_MINIMUM},
+   {PPELayerType_CEIL, MVCNN::PPELayerType::PPELayerType_CEIL},
+   {PPELayerType_FLOOR, MVCNN::PPELayerType::PPELayerType_FLOOR},
+   {PPELayerType_AND, MVCNN::PPELayerType::PPELayerType_AND},
+   {PPELayerType_OR, MVCNN::PPELayerType::PPELayerType_OR},
+   {PPELayerType_XOR, MVCNN::PPELayerType::PPELayerType_XOR},
+   {PPELayerType_NOT, MVCNN::PPELayerType::PPELayerType_NOT},
+   {PPELayerType_ABS, MVCNN::PPELayerType::PPELayerType_ABS},
+   {PPELayerType_NEG, MVCNN::PPELayerType::PPELayerType_NEG},
+   {PPELayerType_POW, MVCNN::PPELayerType::PPELayerType_POW},
+   {PPELayerType_EXP, MVCNN::PPELayerType::PPELayerType_EXP},
+   {PPELayerType_SIGMOID, MVCNN::PPELayerType::PPELayerType_SIGMOID},
+   {PPELayerType_TANH, MVCNN::PPELayerType::PPELayerType_TANH},
+   {PPELayerType_SQRT, MVCNN::PPELayerType::PPELayerType_SQRT},
+   {PPELayerType_RSQRT, MVCNN::PPELayerType::PPELayerType_RSQRT},
+   {PPELayerType_FLEXARB, MVCNN::PPELayerType::PPELayerType_FLEXARB}
+};
+
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
@@ -69,6 +101,12 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
 {
     return memoryLocationMapping_.at(allocatorName);
 }
+
+MVCNN::PPELayerType mv::RuntimeModel::convertPPELayerType(PpeLayerTypeEnum ppe)
+{
+    return ppeLayerTypeMapping_.at(ppe);
+}
+
 
 void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &cm, json::Object, mv::Data::OpListIterator op, std::unique_ptr<MVCNN::GraphNodeT> toBuild)
 {
@@ -87,7 +125,8 @@ void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &cm, json::Object, m
 void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &cm, json::Object &compilationDescriptor, std::unique_ptr<MVCNN::SourceStructureT> toBuild)
 {
     mv::OpModel opModel(cm);
-    toBuild->first_ID.push_back(opModel.getInput()->get<unsigned>("opId"));
+    auto inputOp = opModel.getInput();
+    toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
     for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
@@ -170,7 +209,7 @@ void mv::RuntimeModel::buildResourcesT(ComputationModel&, json::Object& compilat
     toBuild->ddr_scratch = compilationDescriptor["Resources"]["DDRScratch"].get<long long>();
 }
 
-void mv::RuntimeModel::buildBinaryDataT(ComputationModel &, json::Object, Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild)
+void mv::RuntimeModel::buildBinaryDataT(ComputationModel&, json::Object, Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild)
 {
     // NOTE: In the future tensor->toBinary() will probably handle also the sparsity map associated to the tensor.
     // Or maybe not, we will see
@@ -292,12 +331,48 @@ MVCNN::DPULayerType mv::RuntimeModel::convertTaskOp(const std::string& opName)
     return dpuLayerMapping_.at(opName);
 }
 
+
+void mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, json::Object&, const mv::PPEFixedFunction& ppe, std::unique_ptr<MVCNN::PPEFixedFunctionT> toBuild)
+{
+    auto layers = ppe.getLayers();
+    unsigned n = layers.size();
+    toBuild->Ops = std::vector<MVCNN::PPELayerType>(n);
+    for(unsigned i = 0; i < n; ++i)
+        toBuild->Ops[i] = convertPPELayerType(layers[i]);
+    toBuild->Clamp_Low = ppe.getLowClamp();
+    toBuild->Clamp_High = ppe.getHighClamp();
+}
+
+void mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, json::Object& compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::PPETaskT> toBuild)
+{
+    if(opIt->hasAttr("scale"))
+    {
+        toBuild->scale_data = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT);
+        Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
+        buildTensorReferenceT(cm, compilationDescriptor, tensorIt, std::move(toBuild->scale_data));
+    }
+
+    // If this function has been called, this part must be built for sure
+    auto fixed_functions = opIt->get<std::vector<PPEFixedFunction>>("fixedFunctions");
+    unsigned n = fixed_functions.size();
+    toBuild->fixed_function = std::vector<std::unique_ptr<MVCNN::PPEFixedFunctionT>>(n);
+    for(unsigned i = 0; i < n; ++i)
+    {
+        toBuild->fixed_function[i] = std::unique_ptr<MVCNN::PPEFixedFunctionT>(new MVCNN::PPEFixedFunctionT());
+        buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions[i], std::move(toBuild->fixed_function[i]));
+    }
+}
+
 void mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, json::Object &compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild)
 {
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
+    if(opIt->hasAttr("PPETask"))
+    {
+        toBuild->ppe_task = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
+        buildPPETaskT(cm, compilationDescriptor, opIt, std::move(toBuild->ppe_task));
+    }
     // TODO
-    // std::unique_ptr<PPETaskT> ppe_task;
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
 
     switch (toBuild->dpu_task_type)
@@ -342,28 +417,44 @@ void mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, json::Obje
             toBuild->weights_data = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
             buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), std::move(toBuild->weights_data));
             // NOTE: Bias should be handled as well here.
+            // std::unique_ptr<TensorReferenceT> bias_data;
             break;
         default:
             break;
     }
 }
+
+MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
+{
+    switch (mpe)
+    {
+        case mv::MPE_Mode::Matrix:
+            return MVCNN::MPE_Mode::MPE_Mode_MATRIX;
+        case mv::MPE_Mode::Vector:
+            return MVCNN::MPE_Mode::MPE_Mode_VECTOR;
+    }
+}
+
 void mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, json::Object &compilationDescriptor, Data::OpListIterator opIt, Workload workload, std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild)
 {
-    //TODO
-//  int32_t clusterID;
-//  int8_t workloadID;
-//  std::unique_ptr<BarrierReferenceT> associated_barriers;
-//  MPE_Mode mpe_mode;
-//  int16_t padLeft;
-//  int16_t padRight;
-//  int16_t padTop;
-//  int16_t padBottom;
-//  int16_t workload_start_X;
-//  int16_t workload_start_Y;
-//  int16_t workload_start_Z;
-//  int16_t workload_end_X;
-//  int16_t workload_end_Y;
-//  int16_t workload_end_Z;
+    toBuild->clusterID = workload.clusterID;
+    toBuild->workloadID = workload.workloadID;
+    if(compilationDescriptor["Scheduling"] == "Dynamic")
+    {
+        // NOTE: Ignoring barriers for now
+        // std::unique_ptr<BarrierReferenceT> associated_barriers;
+    }
+    toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
+    toBuild->padLeft = workload.padLeft;
+    toBuild->padRight = workload.padRight;
+    toBuild->padTop = workload.padTop;
+    toBuild->padBottom = workload.padBottom;
+    toBuild->workload_start_X = workload.MinX;
+    toBuild->workload_start_Y = workload.MinY;
+    toBuild->workload_start_Z = workload.MinZ;
+    toBuild->workload_end_X = workload.MaxX;
+    toBuild->workload_end_Y = workload.MaxY;
+    toBuild->workload_end_Z = workload.MaxZ;
 }
 
 void mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, json::Object &compilationDescriptor, Data::OpListIterator opIt, std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>& toBuild)
@@ -398,7 +489,9 @@ void mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, json::Object &
 void mv::RuntimeModel::buildTaskT(ComputationModel& cm, json::Object &compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::TaskT> toBuild)
 {
     toBuild->nodeID = opIt->get<unsigned>("taskId");
-    toBuild->sourceTaskIDs = opIt->get<std::vector<unsigned>>("opId");
+
+    // NOTE: This might change in the future
+    toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
 
     if(compilationDescriptor["Scheduling"] == "Dynamic")
     {
@@ -419,6 +512,7 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, json::Object& compi
 
     // TASKS
     graphFile_.task_lists = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
+    graphFile_.task_lists[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     buildTaskListT(cm, compilationDescriptor, std::move(graphFile_.task_lists[0]));
 
     // BARRIERS

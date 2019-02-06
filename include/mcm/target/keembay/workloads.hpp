@@ -10,9 +10,15 @@
 
 namespace mv
 {
+    enum MPE_Mode
+    {
+        Vector,
+        Matrix
+    };
+
     struct Workload
     {
-        std::pair <int,int> MPEMode;
+        MPE_Mode MPEMode;
         int16_t MaxX = 0;
         int16_t MaxY = 0;
         int16_t MaxZ = 0;
