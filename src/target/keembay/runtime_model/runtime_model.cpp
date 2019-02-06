@@ -353,7 +353,7 @@ void mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, json::Object& compila
     }
 
     // If this function has been called, this part must be built for sure
-    auto fixed_functions = opIt->get<std::vector<PPEFixedFunction>>("fixedFunctions");
+    auto fixed_functions = opIt->get<std::vector<PPEFixedFunction>>("PPETask");
     unsigned n = fixed_functions.size();
     toBuild->fixed_function = std::vector<std::unique_ptr<MVCNN::PPEFixedFunctionT>>(n);
     for(unsigned i = 0; i < n; ++i)
@@ -511,6 +511,8 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, json::Object& compi
     buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header)); //std::unique_ptr<SummaryHeaderT>
 
     // TASKS
+    // BUG: A task list must be built only if there is at least one task.
+    // Otherwise it has no sense.
     graphFile_.task_lists = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
     graphFile_.task_lists[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     buildTaskListT(cm, compilationDescriptor, std::move(graphFile_.task_lists[0]));
