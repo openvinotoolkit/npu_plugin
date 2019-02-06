@@ -297,3 +297,29 @@ TEST(element, attribute_type_std_map) {
     ASSERT_EQ(e.toJSON().stringify(), jsonStr);
 
 }
+
+TEST(element, element_from_json) {
+    mv::Element e1("groups");
+
+    e1.set("dVal", 42.0);
+    e1.set("sVal", std::string("a_string"));
+    e1.set("iVal", 84);
+    e1.set<mv::Element>("group1", mv::Element("group1"));
+    e1.set<std::vector<std::string>>("strVec", {});
+    e1.get<std::vector<std::string>>("strVec").push_back("v1");
+    e1.get<std::vector<std::string>>("strVec").push_back("v2");
+    e1.get<std::vector<std::string>>("strVec").push_back("v3");
+    e1.get<mv::Element>("group1").set<std::vector<double>>("doubleVec1", {1.0, 2.0, 3.0});
+    e1.get<mv::Element>("group1").set<std::vector<double>>("doubleVec2", {4.0, 5.0, 6.0});
+    e1.get<mv::Element>("group1").set<mv::Element>("group2", mv::Element("group2"));
+    e1.get<mv::Element>("group1").get<mv::Element>("group2").set("dVal2", 42.0);
+    e1.get<mv::Element>("group1").get<mv::Element>("group2").set<std::vector<std::string>>("strVec2", {"val1", "val2", "val3"});
+
+    mv::json::Value obj = e1.toJSON(true);
+
+    mv::Element e2(obj, true);
+
+    mv::json::Value obj2 = e2.toJSON(true);
+
+    ASSERT_EQ(e1, e2);
+}

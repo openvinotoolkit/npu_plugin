@@ -33,7 +33,14 @@ namespace mv
         Element(const std::string& name);
         Element(const char* name);
         Element(const Element& other);
-        Element(const mv::json::Value& content);
+        /**
+         * @brief Construct a new Element object from an JSON::Object
+         *
+         * @param content Input JSON::Object, other JSON types are invalid
+         * @param autoType Enable automatic type deduction. Allows to simplify the JSON input,
+         * but restricts types of input Attributes to JSON types.
+         */
+        Element(const mv::json::Value& content, bool simplifiedTyping = false);
         Element& operator=(const Element& other);
         bool operator<(const Element& other) const;
         bool operator==(const Element& other) const;
@@ -49,6 +56,7 @@ namespace mv
 
         virtual std::string toString() const override;
         virtual json::Value toJSON() const override;
+        virtual json::Value toJSON(bool simplifiedTyping) const;
         virtual std::string getLogID() const override;
 
         Attribute& get(const std::string& name);
