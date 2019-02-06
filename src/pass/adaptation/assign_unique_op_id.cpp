@@ -2,9 +2,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/target/myriadx/nce1.hpp"
 
-static void assignUniqueOpId(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void assignUniqueOpIdFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,7 +12,7 @@ namespace mv
     {
 
         MV_REGISTER_PASS(AssignUniqueOpId)
-        .setFunc(assignUniqueOpId)
+        .setFunc(assignUniqueOpIdFcn)
         .setGenre(PassGenre::Adaptation)
         .setDescription(
             "This pass assigns an unique ID to each op in the graph."
@@ -21,7 +20,7 @@ namespace mv
     }
 }
 
-void assignUniqueOpId(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void assignUniqueOpIdFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -29,5 +28,5 @@ void assignUniqueOpId(const mv::pass::PassEntry&, mv::ComputationModel& model, m
     std::string currentIdLabel("opId");
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
-        operationIt->set<std::vector<unsigned>>(currentIdLabel, {currentId++});
+        operationIt->set<unsigned>(currentIdLabel, currentId++);
 }
