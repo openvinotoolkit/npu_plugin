@@ -69,7 +69,7 @@ void mv::ComputationModel::incrementOpsIndexCounter_(const std::string& opType)
 void mv::ComputationModel::incrementOpsInstanceCounter_(const std::string& opType)
 {
     if (opsInstanceCounter_->find(opType) == opsInstanceCounter_->end())
-        opsInstanceCounter_->emplace(opType, 0);
+        opsInstanceCounter_->emplace(opType, 1);
     else
         ++opsInstanceCounter_->at(opType);
 }
