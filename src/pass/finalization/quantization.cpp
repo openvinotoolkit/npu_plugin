@@ -98,7 +98,8 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
             }
 
-            //TODO: Fuse ReLU into quantization (i.e. make ReLU == saturation), shouldn't this be done as a different pass?
+            // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
+
             // m / S3
             std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
 
@@ -157,7 +158,7 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
             auto weightTableTensor = dm.defineTensor(opIterator->getName() + "_weights_table", shape, mv::DType("Int32"), mv::Order("NWHC"),
                 convertToDoubleVector<int32_t>(weightsTableData));
-            om.addAttr(opIterator, "weights_table", weightTableTensor->getName());
+            om.addAttr(opIterator, "weightsTable", weightTableTensor->getName());
         }
 
     }
