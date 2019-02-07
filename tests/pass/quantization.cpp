@@ -15,8 +15,6 @@ TEST(quantization, case_conv)
     mv::QuantizationParams inputQuantParams({128}, {0.00784314}, {0}, {1});
     input->set<mv::QuantizationParams>("quantizationParams", inputQuantParams);
     auto testShape = input->getShape();
-    //auto output = om.output({56, 56, 64}, mv::DType("UInt8"), mv::Order("WHC"));
-    //output->set<mv::QuantizationParams>("quantizationParams", outputQuantParams);
     //EC: output defs are deduced from inputs
 
     mv::QuantizationParams outputQuantParams({128}, {0.00784314}, {0}, {1});
@@ -26,10 +24,8 @@ TEST(quantization, case_conv)
     std::vector<double> weightsData = mv::utils::generateSequence<double>(64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     weights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
-    //auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1}, 1, outputQuantParams);
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1);
     auto convOp = om.getSourceOp(conv);
-    //std::vector<double> biasesData = mv::utils::generateSequence<double>(64, 0, 0);
     std::vector<double> biasesData = {
          4267,
          14962,
