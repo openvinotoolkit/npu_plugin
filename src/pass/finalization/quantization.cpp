@@ -31,7 +31,7 @@ template <class T, class R>
 std::vector<R> extendToK(size_t size, std::vector<T> value)
 {
     if (value.size() == 1)
-        return mv::utils::generateSequence<R>(size, (R) value[0] , 0);
+        return mv::utils::generateSequence<R>(size, static_cast<R>(value[0]) , 0);
 
     if (value.size() == size)
         return std::vector<R>(value.begin(), value.end());
