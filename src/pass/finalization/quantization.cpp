@@ -103,8 +103,8 @@ void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
             // m / S3
             std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
 
-            //TODO need to handle 16bits case - per alessandro bias need to be converted to int32
-            auto bits = output->getDType().getSizeInBytes() * 8;
+            //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
+            auto bits = output->getDType().getSizeInBits();
             auto shift = 2*bits - 1;
             auto intScale = pow(2, shift);
 

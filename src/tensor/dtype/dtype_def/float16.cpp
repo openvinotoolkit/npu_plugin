@@ -22,5 +22,5 @@ namespace mv
 
     MV_REGISTER_DTYPE(Float16)
     .setToBinaryFunc(toBinaryFunc)
-    .setSizeInBytes(2);
+    .setSizeInBits(16);
 }

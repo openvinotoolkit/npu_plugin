@@ -14,5 +14,5 @@ namespace mv
 
     MV_REGISTER_DTYPE(Float8)
     .setToBinaryFunc(toBinaryFunc)
-    .setSizeInBytes(1);
+    .setSizeInBits(8);
 }

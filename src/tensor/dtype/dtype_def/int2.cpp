@@ -48,5 +48,5 @@ namespace mv
 
     MV_REGISTER_DTYPE(Int2)
     .setToBinaryFunc(toBinaryFunc)
-    .setSizeInBytes(0.25);
+    .setSizeInBits(2);
 }

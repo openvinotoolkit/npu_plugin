@@ -14,14 +14,14 @@ namespace mv
 
         std::string name_;
         std::function<BinaryData(const std::vector<double>&)> toBinaryFunc_;
-        float size_;
+        unsigned size_;
 
     public:
 
         DTypeEntry(const std::string& name);
         DTypeEntry& setToBinaryFunc(std::function<BinaryData(const std::vector<double>&)>& f);
-        DTypeEntry& setSizeInBytes(float size);
-        float getSizeInBytes() const;
+        DTypeEntry& setSizeInBits(unsigned size);
+        unsigned getSizeInBits() const;
         const std::function<BinaryData(const std::vector<double>&)>& getToBinaryFunc() const;
     };
 
