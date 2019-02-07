@@ -29,9 +29,11 @@ struct MetisGraphStructure
 {
     idx_t* xadj; /*Indexes of starting points in adjacent array*/
     idx_t* adjncy; /*Adjacent vertices in consecutive index order*/
+    idx_t* vwgt;
     idx_t* part; 
     idx_t objval;
-    idx_t nWeights  = 16;
+    idx_t nWeights  = 1; /*Each vertex stores 1 weight (which is n_elem_x * n_elem_y)*/
+    idx_t options[METIS_NOPTIONS];
 
     idx_t m_nVertices;
     int m_xDim;
@@ -42,6 +44,7 @@ struct MetisGraphStructure
         xadj = new idx_t[nVertices + 1]; /*Description page 23 Metis manual*/
         adjncy = new idx_t[2*nEdges];
         part = new idx_t[nVertices];
+        vwgt = new idx_t[nVertices * nWeights];
     }
     
     ~MetisGraphStructure() {
@@ -64,6 +67,13 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
     int adjncyIndex = 0;
     int xadjIndex = 0;
 
+    /*ncon is the number of weights associated with each vertex, the array vwgt contains n ∗ ncon 
+     *elements (recall that n is the number of vertices)*/
+
+    /*Popoulate vwgt*/
+    for (auto i : nodeNumbers)
+        metisGraph.vwgt[i] = nodeNumbers.size();
+    
     /* A Sample Graph
      * 0---1---2---3---4
      * |   |   |   |   |
@@ -171,8 +181,8 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
             adjncyIndex++;
         }
 
-        /*Middle nodes not on bottom or top rows*/
-        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) > (metisGraph.m_xDim-1))) {
+        /*Middle nodes not on bottom or top rows or the side columns*/
+        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) > (metisGraph.m_xDim-1)) && ((*it+1)%metisGraph.m_xDim != 0)) {
 
             metisGraph.xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
@@ -286,12 +296,95 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             
             /* Populate Metis adjacency structure structures*/ 
             generateMetisGraph(metisGraph); 
+            METIS_SetDefaultOptions(metisGraph.options);
+            metisGraph.options[METIS_OPTION_NUMBERING] = 0; /*nubering starts from 0*/
+
+            for(int i = 0; i < 17; i++) {
+
+                 std::cout << metisGraph.xadj[i] << std::endl;
+            }
+
+             for(int i = 0; i < 48; i++) {
+
+                 std::cout << metisGraph.adjncy[i] << std::endl;
+             }
+            
+            /*Popoulate vwgt*/
+            // for (int i = 0; i < 16; i++)
+            //     metisGraph.vwgt[i] = 16;
+
+            // metisGraph.xadj[0] = 0;
+            // metisGraph.xadj[1] = 2;
+            // metisGraph.xadj[2] = 5;
+            // metisGraph.xadj[3] = 8;
+            // metisGraph.xadj[4] = 12;
+            // metisGraph.xadj[5] = 15;
+            // metisGraph.xadj[6] = 19;
+            // metisGraph.xadj[7] = 21;
+            // metisGraph.xadj[8] = 24;
+            // metisGraph.xadj[9] = 27;
+            // metisGraph.xadj[10] = 31;
+            // metisGraph.xadj[11] = 35;
+            // metisGraph.xadj[12] = 38;
+            // metisGraph.xadj[13] = 40;
+            // metisGraph.xadj[14] = 43;
+            // metisGraph.xadj[15] = 46;
+            // metisGraph.xadj[16] = 48;
+
+            // metisGraph.adjncy[0] = 1;
+            // metisGraph.adjncy[1] = 2;
+            // metisGraph.adjncy[2] = 0;
+            // metisGraph.adjncy[3] = 8;
+            // metisGraph.adjncy[4] = 3;
+            // metisGraph.adjncy[5] = 0;
+            // metisGraph.adjncy[6] = 3;
+            // metisGraph.adjncy[7] = 4;
+            // metisGraph.adjncy[8] = 1;
+            // metisGraph.adjncy[9] = 2;
+            // metisGraph.adjncy[10] = 9;
+            // metisGraph.adjncy[11] = 5;
+            // metisGraph.adjncy[12] = 2;
+            // metisGraph.adjncy[13] = 5;
+            // metisGraph.adjncy[14] = 6;
+            // metisGraph.adjncy[15] = 3;
+            // metisGraph.adjncy[16] = 4;
+            // metisGraph.adjncy[17] = 10;
+            // metisGraph.adjncy[18] = 7;
+            // metisGraph.adjncy[19] = 4;
+            // metisGraph.adjncy[20] = 7;
+            // metisGraph.adjncy[21] = 5;
+            // metisGraph.adjncy[22] = 6;
+            // metisGraph.adjncy[23] = 11;
+            // metisGraph.adjncy[24] = 1;
+            // metisGraph.adjncy[25] = 12;
+            // metisGraph.adjncy[26] = 9;
+            // metisGraph.adjncy[27] = 3;
+            // metisGraph.adjncy[28] = 8;
+            // metisGraph.adjncy[29] = 13;
+            // metisGraph.adjncy[30] = 10;
+            // metisGraph.adjncy[31] = 5;
+            // metisGraph.adjncy[32] = 9;
+            // metisGraph.adjncy[33] = 14;
+            // metisGraph.adjncy[34] = 11;
+            // metisGraph.adjncy[35] = 7;
+            // metisGraph.adjncy[36] = 10;
+            // metisGraph.adjncy[37] = 15;
+            // metisGraph.adjncy[38] = 8;
+            // metisGraph.adjncy[39] = 13;
+            // metisGraph.adjncy[40] = 9;
+            // metisGraph.adjncy[41] = 12;
+            // metisGraph.adjncy[42] = 14;
+            // metisGraph.adjncy[43] = 10;
+            // metisGraph.adjncy[44] = 13;
+            // metisGraph.adjncy[45] = 15;
+            // metisGraph.adjncy[46] = 11;
+            // metisGraph.adjncy[47] = 14;
             
             idx_t nWorkloads    = 4;
 
             int ret = METIS_PartGraphRecursive(&metisGraph.m_nVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
-				       NULL, NULL, NULL, &nWorkloads, NULL,
-				       NULL, NULL, &metisGraph.objval, metisGraph.part);
+				       metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
+				       NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
 
     
             for(unsigned part_i = 0; part_i < metisGraph.m_nVertices; part_i++){
