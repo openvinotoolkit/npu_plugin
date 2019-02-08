@@ -24,15 +24,18 @@ namespace mv
     }
 }
 
+/*
+ * Struct containing the parameters for METIS.
+*/
 
 struct MetisGraphStructure
 {
-    idx_t* xadj; /*Indexes of starting points in adjacent array*/
-    idx_t* adjncy; /*Adjacent vertices in consecutive index order*/
+    idx_t* xadj;                      /*Indexes of starting points in adjacent array*/
+    idx_t* adjncy;                    /*Adjacent vertices in consecutive index order*/
     idx_t* vwgt;
     idx_t* part; 
     idx_t objval;
-    idx_t nWeights  = 1; /*Each vertex stores 1 weight (which is n_elem_x * n_elem_y)*/
+    idx_t nWeights  = 1;              /*Each vertex stores 1 weight (which is number_nodes_x * number_nodes_y)*/
     idx_t options[METIS_NOPTIONS];
 
     idx_t m_nVertices;
@@ -41,23 +44,24 @@ struct MetisGraphStructure
 
     MetisGraphStructure(int nVertices, int nEdges, int xDim, int yDim) : m_nVertices(nVertices), m_xDim(xDim), m_yDim(yDim)  {
         
-        xadj = new idx_t[nVertices + 1]; /*Description page 23 Metis manual*/
+        /*Description page 23 Metis manual*/
+        xadj = new idx_t[nVertices + 1]; 
         adjncy = new idx_t[2*nEdges];
         part = new idx_t[nVertices];
         vwgt = new idx_t[nVertices * nWeights];
     }
     
     ~MetisGraphStructure() {
-        //delete[] xadj;
-        //delete[] adjncy;
-        //delete[] part;
+        delete[] xadj;
+        delete[] adjncy;
+        delete[] part;
     } 
 };
  
 /**
  * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual. 
- * @brief representing the lattic structure of the shape (in the X-Y corrdinate) of a tensor
- * @param metisGraph 
+ * @brief Representing the lattic structure of the tensor shape (in the X-Y corrdinate) 
+ * @param metisGraph - a struct containing necessary parameters to pass to METIS
  * @return None
  * 
  * ***NOTE - this will only work for tensor (x,y) sizes that are a factor of 4 i.e. 4,16,20,32
@@ -69,11 +73,11 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
     int adjncyIndex = 0;
     int xadjIndex = 0;
 
-    /*ncon is the number of weights associated with each vertex, the array vwgt contains n ∗ ncon 
-     *elements (recall that n is the number of vertices)
+    /* ncon is the number of weights associated with each vertex, the array vwgt contains n ∗ ncon 
+     * elements (recall that n is the number of vertices)
      *
      * The weight of each vertex is the same and is the number of vertices in the METIS graph 
-     */
+    */
 
     /*Popoulate vwgt*/
     for (auto i : nodeNumbers)
@@ -204,6 +208,23 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
 } 
 
 /**
+ * @brief Partition a tensor using the METIS library
+ * @param metisGraph - a struct containing necessary parameters to pass to METIS
+ * @param nWorkloads - the number of partitions (workloads) to partition the tensor into 
+ * @return return code from METIS
+ */
+
+int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads) 
+{
+    /*METIS call*/
+    int res = METIS_PartGraphRecursive(&metisGraph.m_nVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
+                    metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
+				    NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
+                    
+    return res;
+}
+
+/**
  * @brief Divides a number by 2 repeatedly. Example if maxSplitRange = 16 -> returns 16,8,4,2
  * @param Number to be divided by 2 repeatedly
  * @param A maximum value to divide  by 2 repeatedly
@@ -230,7 +251,7 @@ std::set<int> getSplitsFromRange(int maxSplitRange, int maxSplits = 50)
  * @brief Generate a pool of possible splits (workloads) of a tensor 
  * @param A tensor 
  * @param The numnber of DPUs per cluster
- * @return A pool of possible splits (workloads)
+ * @return A pool of possible splits (possible workloads)
  */
 std::set<int> getNWorkloads(std::vector<mv::Data::TensorIterator> tensor, int nDPUxClusterS)
 {
@@ -276,7 +297,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
     std::set<int> workloadsList;
     std::pair <int,int> MPEMode (4, 4); /*MPE mode*/
 
-
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask") /*Should check for taskOP value here, it should be convolution*/
@@ -299,14 +319,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             /*Metis struct*/
             MetisGraphStructure metisGraph(numberTensorVertices, numberTensorEdges, tensorXDim/4, tensorYDim/4);
             
-            /* Populate Metis adjacency structure structures*/ 
+            /* Populate Metis adjacency structure*/ 
             generateMetisGraph(metisGraph); 
             METIS_SetDefaultOptions(metisGraph.options);
 
             /*Partition tensor into workloads*/
             
             /*Should calculate a pool of workloads as per PoC compiler here*/ 
-
             //workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
         
             /*Forcing number of workloads to be nDPU/nCluster round to nearest even number*/
@@ -315,17 +334,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             std::cout << "Number of workloads is " << nWorkloads << std::endl;
             //idx_t nWorkloads    = 4;
 
-            /*METIS call*/
-            auto ret = METIS_PartGraphRecursive(&metisGraph.m_nVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
-				       metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
-				       NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
+            /*Partition tensor into workloads with METIS*/
+            auto res = partitionTensorMETIS(metisGraph,nWorkloads);
             
-            if( ret != 1 ) {
-                throw "Error occured during tensor partitioning into workloads using METIS, ensure tensor size is a multiple of 4 and number of workloads is even!";
+            if( res != 1 ) {
+                throw "Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!";
             }
 
             std::cout << "Value of the objective function that was minimized (should be same as PoC compiler) is: " << metisGraph.objval << std::endl;
-
+           
             /*Print partition*/
             for(int part_i = 0; part_i < metisGraph.m_nVertices; part_i++) { 
                 
