@@ -1,59 +1,64 @@
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "include/mcm/computation/op/op.hpp"
 
-mv::ComputationModel::ComputationModel(const std::string &name) : name_(name),
-                                                                  opsGraph_(std::make_shared<conjoined_graph<Op, DataFlow, ControlFlow>>()),
-                                                                  binary_(std::make_shared<mv::RuntimeBinary>()),
-                                                                  dataGraph_(opsGraph_->get_first()),
-                                                                  controlGraph_(opsGraph_->get_second()),
-                                                                  ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
-                                                                  dataFlows_(std::make_shared<std::unordered_map<std::string, Data::FlowListIterator>>()),
-                                                                  controlFlows_(std::make_shared<std::unordered_map<std::string, Control::FlowListIterator>>()),
-                                                                  tensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>()),
-                                                                  groups_(std::make_shared<std::map<std::string, std::shared_ptr<Group>>>()),
-                                                                  stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<Stage>>>()),
-                                                                  memoryAllocators_(std::make_shared<std::map<std::string, std::shared_ptr<MemoryAllocator>>>()),
-                                                                  opsInstanceCounter_(std::make_shared<std::map<std::string, std::size_t>>()),
-                                                                  opsIndexCounter_(std::make_shared<std::map<std::string, std::size_t>>()),
-                                                                  dataOpEnd_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
-                                                                  dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
-                                                                  controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
-                                                                  controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
-                                                                  input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
-                                                                  output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
-                                                                  selfRef_(*this)
+mv::ComputationModel::ComputationModel(const std::string& name) :
+name_(name),
+opsGraph_(std::make_shared<conjoined_graph<Op, DataFlow, ControlFlow>>()),
+binary_(std::make_shared<mv::RuntimeBinary>()),
+dataGraph_(opsGraph_->get_first()),
+controlGraph_(opsGraph_->get_second()),
+ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
+dataFlows_(std::make_shared<std::unordered_map<std::string, Data::FlowListIterator>>()),
+controlFlows_(std::make_shared<std::unordered_map<std::string, Control::FlowListIterator>>()),
+tensors_(std::make_shared<std::map<std::string, std::shared_ptr<Tensor>>>()),
+groups_(std::make_shared<std::map<std::string, std::shared_ptr<Group>>>()),
+stages_(std::make_shared<std::map<std::size_t, std::shared_ptr<Stage>>>()),
+memoryAllocators_(std::make_shared<std::map<std::string, std::shared_ptr<MemoryAllocator>>>()),
+opsInstanceCounter_(std::make_shared<std::map<std::string, std::size_t>>()),
+opsIndexCounter_(std::make_shared<std::map<std::string, std::size_t>>()),
+dataOpEnd_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+dataFlowEnd_(std::make_shared<Data::FlowListIterator>(dataGraph_.edge_end())),
+controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end())),
+controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
+input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+selfRef_(*this)
 {
+    
 }
 
-mv::ComputationModel::ComputationModel(ComputationModel &other) : name_(other.name_),
-                                                                  opsGraph_(other.opsGraph_),
-                                                                  binary_(other.binary_),
-                                                                  dataGraph_(other.dataGraph_),
-                                                                  controlGraph_(other.controlGraph_),
-                                                                  ops_(other.ops_),
-                                                                  dataFlows_(other.dataFlows_),
-                                                                  controlFlows_(other.controlFlows_),
-                                                                  tensors_(other.tensors_),
-                                                                  groups_(other.groups_),
-                                                                  stages_(other.stages_),
-                                                                  memoryAllocators_(other.memoryAllocators_),
-                                                                  opsInstanceCounter_(other.opsInstanceCounter_),
-                                                                  opsIndexCounter_(other.opsIndexCounter_),
-                                                                  dataOpEnd_(other.dataOpEnd_),
-                                                                  dataFlowEnd_(other.dataFlowEnd_),
-                                                                  controlOpEnd_(other.controlOpEnd_),
-                                                                  controlFlowEnd_(other.controlFlowEnd_),
-                                                                  input_(other.input_),
-                                                                  output_(other.output_),
-                                                                  selfRef_(other.selfRef_)
+mv::ComputationModel::ComputationModel(ComputationModel &other) :
+name_(other.name_),
+opsGraph_(other.opsGraph_),
+binary_(other.binary_),
+dataGraph_(other.dataGraph_),
+controlGraph_(other.controlGraph_),
+ops_(other.ops_),
+dataFlows_(other.dataFlows_),
+controlFlows_(other.controlFlows_),
+tensors_(other.tensors_),
+groups_(other.groups_),
+stages_(other.stages_),
+memoryAllocators_(other.memoryAllocators_),
+opsInstanceCounter_(other.opsInstanceCounter_),
+opsIndexCounter_(other.opsIndexCounter_),
+dataOpEnd_(other.dataOpEnd_),
+dataFlowEnd_(other.dataFlowEnd_),
+controlOpEnd_(other.controlOpEnd_),
+controlFlowEnd_(other.controlFlowEnd_),
+input_(other.input_),
+output_(other.output_),
+selfRef_(other.selfRef_)
 {
+    
 }
 
 mv::ComputationModel::~ComputationModel()
 {
+    
 }
 
-void mv::ComputationModel::incrementOpsIndexCounter_(const std::string &opType)
+void mv::ComputationModel::incrementOpsIndexCounter_(const std::string& opType)
 {
     if (opsIndexCounter_->find(opType) == opsIndexCounter_->end())
         opsIndexCounter_->emplace(opType, 1);
@@ -61,7 +66,7 @@ void mv::ComputationModel::incrementOpsIndexCounter_(const std::string &opType)
         ++opsIndexCounter_->at(opType);
 }
 
-void mv::ComputationModel::incrementOpsInstanceCounter_(const std::string &opType)
+void mv::ComputationModel::incrementOpsInstanceCounter_(const std::string& opType)
 {
     if (opsInstanceCounter_->find(opType) == opsInstanceCounter_->end())
         opsInstanceCounter_->emplace(opType, 0);
@@ -69,7 +74,7 @@ void mv::ComputationModel::incrementOpsInstanceCounter_(const std::string &opTyp
         ++opsInstanceCounter_->at(opType);
 }
 
-void mv::ComputationModel::decrementOpsInstanceCounter_(const std::string &opType)
+void mv::ComputationModel::decrementOpsInstanceCounter_(const std::string& opType)
 {
     if (opsInstanceCounter_->find(opType) != opsInstanceCounter_->end())
         if (opsInstanceCounter_->at(opType) > 0)
@@ -108,26 +113,29 @@ bool mv::ComputationModel::isValid(Data::TensorIterator it) const
     if (tensors_->find(it->getName()) != tensors_->end())
         return true;
     return false;
+
 }
 
 bool mv::ComputationModel::isValid(Data::OpListIterator it) const
 {
-
+    
     if (it == *dataOpEnd_)
         return false;
     if (ops_->find(it->getName()) != ops_->end())
         return true;
     return false;
+
 }
 
 bool mv::ComputationModel::isValid(Control::OpListIterator it) const
 {
-
+    
     if (it == *controlOpEnd_)
         return false;
     if (ops_->find(it->getName()) != ops_->end())
         return true;
     return false;
+
 }
 
 bool mv::ComputationModel::isValid(Data::FlowListIterator it) const
@@ -139,7 +147,7 @@ bool mv::ComputationModel::isValid(Data::FlowListIterator it) const
     return false;
 }
 
-bool mv::ComputationModel::isValid(Control::FlowListIterator it) const
+bool mv::ComputationModel::isValid(Control::FlowListIterator it) const 
 {
     if (it == *controlFlowEnd_)
         return false;
@@ -171,7 +179,7 @@ mv::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
 
     if (getGroup(name) == groupEnd())
     {
-
+        
         auto result = groups_->emplace(name, std::make_shared<Group>(*this, name));
         if (result.second)
         {
@@ -179,9 +187,11 @@ mv::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
             return result.first;
         }
         return groupEnd();
+
     }
 
     return groupEnd();
+
 }
 
 bool mv::ComputationModel::hasGroup(const std::string &name)
@@ -191,6 +201,7 @@ bool mv::ComputationModel::hasGroup(const std::string &name)
         return true;
 
     return false;
+
 }
 
 mv::GroupIterator mv::ComputationModel::getGroup(const std::string &name)
@@ -215,10 +226,10 @@ void mv::ComputationModel::removeGroupElement(GroupIterator element, GroupIterat
 {
     if (!isValid(element))
         throw ArgumentError(*this, "newElement:iterator", "invalid",
-                            "Invalid iterator passed while excluding group that is an element of another group");
+            "Invalid iterator passed while excluding group that is an element of another group");
     if (!isValid(group))
         throw ArgumentError(*this, "group:iterator", "invalid",
-                            "Invalid iterator passed while excluding group that is an element of another group");
+            "Invalid iterator passed while excluding group that is an element of another group");
     group->exclude(element);
 }
 
@@ -243,7 +254,7 @@ mv::Data::TensorIterator mv::ComputationModel::tensorEnd() const
     return tensors_->end();
 }
 
-mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string &name)
+mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string& name)
 {
 
     auto it = tensors_->find(name);
@@ -252,9 +263,10 @@ mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string &name
         throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
     return it;
+
 }
 
-mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string &name)
+mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
 {
 
     auto it = ops_->find(name);
@@ -263,9 +275,10 @@ mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string &name)
         throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
     return it->second;
+
 }
 
-mv::Data::FlowListIterator mv::ComputationModel::getDataFlow(const std::string &name)
+mv::Data::FlowListIterator mv::ComputationModel::getDataFlow(const std::string& name)
 {
 
     auto it = dataFlows_->find(name);
@@ -274,9 +287,10 @@ mv::Data::FlowListIterator mv::ComputationModel::getDataFlow(const std::string &
         throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
     return it->second;
+
 }
 
-mv::Control::FlowListIterator mv::ComputationModel::getControlFlow(const std::string &name)
+mv::Control::FlowListIterator mv::ComputationModel::getControlFlow(const std::string& name)
 {
 
     auto it = controlFlows_->find(name);
@@ -285,29 +299,30 @@ mv::Control::FlowListIterator mv::ComputationModel::getControlFlow(const std::st
         throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
     return it->second;
+
 }
 
-std::shared_ptr<mv::RuntimeBinary> mv::ComputationModel::allocateBinaryBuffer(std::string newName, std::size_t newSize)
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::string newName, std::size_t newSize)
 {
     if (binary_->getBuffer(newName, newSize))
-    {
-        return binary_;
+    {   
+        return binary_ ;
     }
-    return nullptr;
+    return nullptr ;
 }
 
-std::shared_ptr<mv::RuntimeBinary> mv::ComputationModel::allocateBinaryBuffer(std::size_t newSize)
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::size_t newSize)
 {
-    if (binary_->getBuffer(newSize))
+   if (binary_->getBuffer(newSize))
     {
-        return binary_;
+        return binary_ ;
     }
-    return nullptr;
+    return nullptr ;
 }
 
-std::shared_ptr<mv::RuntimeBinary> mv::ComputationModel::getBinaryBuffer()
+std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::getBinaryBuffer()
 {
-    return binary_;
+    return binary_ ;
 }
 
 mv::json::Array mv::ComputationModel::dataFlowToJSON() const
