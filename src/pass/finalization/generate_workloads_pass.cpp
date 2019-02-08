@@ -55,10 +55,12 @@ struct MetisGraphStructure
 };
  
 /**
- * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual
+ * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual. 
  * @brief representing the lattic structure of the shape (in the X-Y corrdinate) of a tensor
  * @param metisGraph 
  * @return None
+ * 
+ * ***NOTE - this will only work for tensor (x,y) sizes that are a factor of 4 i.e. 4,16,20,32
  */
 void generateMetisGraph(MetisGraphStructure& metisGraph) {
 
@@ -68,7 +70,10 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
     int xadjIndex = 0;
 
     /*ncon is the number of weights associated with each vertex, the array vwgt contains n ∗ ncon 
-     *elements (recall that n is the number of vertices)*/
+     *elements (recall that n is the number of vertices)
+     *
+     * The weight of each vertex is the same and is the number of vertices in the METIS graph 
+     */
 
     /*Popoulate vwgt*/
     for (auto i : nodeNumbers)
@@ -265,20 +270,20 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
 
     mv::OpModel om(model);
 
-    int nDPU = 3;
-    int nClusters = 1;
-    int nDPUxCluster = nDPU/nClusters;
+    int nDPU = 4;                       /*Number of DPUs*/
+    int nClusters = 1;                  /*Number of clusters*/
+    int nDPUxCluster = nDPU/nClusters;  /*Number of DPUs per cluster*/
     std::set<int> workloadsList;
-    std::pair <int,int> MPEMode (4, 4);
+    std::pair <int,int> MPEMode (4, 4); /*MPE mode*/
 
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        if (opIt->getOpType() == "DPUTask")
+        if (opIt->getOpType() == "DPUTask") /*Should check for taskOP value here, it should be convolution*/
         {
-            std::cout << "Found DPUTask" << std::endl;
+            std::cout << "Found DPUTask of type convolution" << std::endl;
  
-            //Get output tensor
+            /*Get output tensor*/
             auto outputTensor = opIt->getOutputTensor();
 
             std::cout << "Tensor shape is " << outputTensor[0]->getShape().toString() << std::endl;
@@ -297,112 +302,73 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             /* Populate Metis adjacency structure structures*/ 
             generateMetisGraph(metisGraph); 
             METIS_SetDefaultOptions(metisGraph.options);
-            metisGraph.options[METIS_OPTION_NUMBERING] = 0; /*nubering starts from 0*/
 
-            for(int i = 0; i < 17; i++) {
-
-                 std::cout << metisGraph.xadj[i] << std::endl;
-            }
-
-             for(int i = 0; i < 48; i++) {
-
-                 std::cout << metisGraph.adjncy[i] << std::endl;
-             }
+            /*Partition tensor into workloads*/
             
-            /*Popoulate vwgt*/
-            // for (int i = 0; i < 16; i++)
-            //     metisGraph.vwgt[i] = 16;
+            /*Should calculate a pool of workloads as per PoC compiler here*/ 
 
-            // metisGraph.xadj[0] = 0;
-            // metisGraph.xadj[1] = 2;
-            // metisGraph.xadj[2] = 5;
-            // metisGraph.xadj[3] = 8;
-            // metisGraph.xadj[4] = 12;
-            // metisGraph.xadj[5] = 15;
-            // metisGraph.xadj[6] = 19;
-            // metisGraph.xadj[7] = 21;
-            // metisGraph.xadj[8] = 24;
-            // metisGraph.xadj[9] = 27;
-            // metisGraph.xadj[10] = 31;
-            // metisGraph.xadj[11] = 35;
-            // metisGraph.xadj[12] = 38;
-            // metisGraph.xadj[13] = 40;
-            // metisGraph.xadj[14] = 43;
-            // metisGraph.xadj[15] = 46;
-            // metisGraph.xadj[16] = 48;
+            //workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
+        
+            /*Forcing number of workloads to be nDPU/nCluster round to nearest even number*/
+            idx_t nWorkloads = round(nDPUxCluster/2)*2; 
 
-            // metisGraph.adjncy[0] = 1;
-            // metisGraph.adjncy[1] = 2;
-            // metisGraph.adjncy[2] = 0;
-            // metisGraph.adjncy[3] = 8;
-            // metisGraph.adjncy[4] = 3;
-            // metisGraph.adjncy[5] = 0;
-            // metisGraph.adjncy[6] = 3;
-            // metisGraph.adjncy[7] = 4;
-            // metisGraph.adjncy[8] = 1;
-            // metisGraph.adjncy[9] = 2;
-            // metisGraph.adjncy[10] = 9;
-            // metisGraph.adjncy[11] = 5;
-            // metisGraph.adjncy[12] = 2;
-            // metisGraph.adjncy[13] = 5;
-            // metisGraph.adjncy[14] = 6;
-            // metisGraph.adjncy[15] = 3;
-            // metisGraph.adjncy[16] = 4;
-            // metisGraph.adjncy[17] = 10;
-            // metisGraph.adjncy[18] = 7;
-            // metisGraph.adjncy[19] = 4;
-            // metisGraph.adjncy[20] = 7;
-            // metisGraph.adjncy[21] = 5;
-            // metisGraph.adjncy[22] = 6;
-            // metisGraph.adjncy[23] = 11;
-            // metisGraph.adjncy[24] = 1;
-            // metisGraph.adjncy[25] = 12;
-            // metisGraph.adjncy[26] = 9;
-            // metisGraph.adjncy[27] = 3;
-            // metisGraph.adjncy[28] = 8;
-            // metisGraph.adjncy[29] = 13;
-            // metisGraph.adjncy[30] = 10;
-            // metisGraph.adjncy[31] = 5;
-            // metisGraph.adjncy[32] = 9;
-            // metisGraph.adjncy[33] = 14;
-            // metisGraph.adjncy[34] = 11;
-            // metisGraph.adjncy[35] = 7;
-            // metisGraph.adjncy[36] = 10;
-            // metisGraph.adjncy[37] = 15;
-            // metisGraph.adjncy[38] = 8;
-            // metisGraph.adjncy[39] = 13;
-            // metisGraph.adjncy[40] = 9;
-            // metisGraph.adjncy[41] = 12;
-            // metisGraph.adjncy[42] = 14;
-            // metisGraph.adjncy[43] = 10;
-            // metisGraph.adjncy[44] = 13;
-            // metisGraph.adjncy[45] = 15;
-            // metisGraph.adjncy[46] = 11;
-            // metisGraph.adjncy[47] = 14;
-            
-            idx_t nWorkloads    = 4;
+            std::cout << "Number of workloads is " << nWorkloads << std::endl;
+            //idx_t nWorkloads    = 4;
 
-            int ret = METIS_PartGraphRecursive(&metisGraph.m_nVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
+            /*METIS call*/
+            auto ret = METIS_PartGraphRecursive(&metisGraph.m_nVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
 				       metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
 				       NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
-
-    
-            for(unsigned part_i = 0; part_i < metisGraph.m_nVertices; part_i++){
-                std::cout << part_i << " " << metisGraph.part[part_i] << std::endl;
+            
+            if( ret != 1 ) {
+                throw "Error occured during tensor partitioning into workloads using METIS, ensure tensor size is a multiple of 4 and number of workloads is even!";
             }
 
-            std::cout << "objval " << metisGraph.objval << std::endl;
+            std::cout << "Value of the objective function that was minimized (should be same as PoC compiler) is: " << metisGraph.objval << std::endl;
 
-            // workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
+            /*Print partition*/
+            for(int part_i = 0; part_i < metisGraph.m_nVertices; part_i++) { 
+                
+                std::cout << "Node " << part_i << " " << "is in partition " << metisGraph.part[part_i] << std::endl;
+            }
 
-            // //Already began to calculate a pool of workloads as per PoC compiler but for ww09 
-            // //Forcing number of workloads to be nDPU/nCluster round to nearest even number
-            // auto nWorkloads = round(nDPUxCluster/2)*2; 
+            /*Workloads class instance*/
+            Workloads workloads(opIt->getName());
 
-            // std::cout << "Number of workloads is " << nWorkloads << std::endl;
+            /*Populate each workload*/
+            for(int workload = 0; workload < nWorkloads; workload++) { 
 
-            // //Workload class
-            // Workloads workloads(opIt->getName());
+                /*In some cases METIS might return less than the number or partitions (workloads) than you expect*/
+                /*This needs to be handled*/
+
+                workloads.getWorkloads().push_back(Workload()); /*Add each workload (struct) to vector of workloads*/
+                
+                workloads.getWorkloads()[workload].workloadID = workload;
+                workloads.getWorkloads()[workload].clusterID = 0; /*Need to configure this*/
+                workloads.getWorkloads()[workload].MinZ = 0; /*Need to configure this*/
+                workloads.getWorkloads()[workload].MinZ = 15; /*Need to configure this*/
+                workloads.getWorkloads()[workload].padTop = 0; /*Need to configure this*/
+                workloads.getWorkloads()[workload].padBottom = 0; /*Need to configure this*/
+                workloads.getWorkloads()[workload].padLeft = 0; /*Need to configure this*/
+                workloads.getWorkloads()[workload].padRight = 0; /*Need to configure this*/
+
+
+            }
+
+               for(unsigned part_i = 0; part_i < metisGraph.m_nVertices; part_i++) {
+                   
+                   std::cout << part_i << " " << metisGraph.part[part_i] << std::endl;
+                }
+
+
+            
+
+
+
+            
+       
+
+
 
             // mv::Workload w1;   
             // w1.MinX = 0;
