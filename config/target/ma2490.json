@@ -367,7 +367,7 @@
 	{
 		"adapt":
 		[
-			
+			"DPUConvolution"
 		],
 
 		"finalize":
