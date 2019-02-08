@@ -20,13 +20,12 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
         {
 
-            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+            outputs.push_back(mv::Tensor(":0", {225, 225, 3}, mv::DType("Float16"), mv::Order("CHW")));
 
         };
 
         MV_REGISTER_OP(BarrierTask)
-        .setInputs({"inputs"})
-        .setOutputs({"outputs"})
+        .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setArg<int>("group")
@@ -34,7 +33,7 @@ namespace mv
         .setArg<int>("numProducers")
         .setArg<int>("numConsumers")
         .setArg<int>("wait")
-        .setTypeTrait({"executable"});
+        .setTypeTrait({"exposed"});
 
     }
 
