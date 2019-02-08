@@ -38,17 +38,29 @@ struct MetisGraphStructure
     idx_t nWeights  = 1;              /*Each vertex stores 1 weight (which is number_nodes_x * number_nodes_y)*/
     idx_t options[METIS_NOPTIONS];
 
-    idx_t m_nVertices;
+    idx_t m_numberTensorVertices;
+    idx_t numberTensorEdges;
     int m_xDim;
     int m_yDim;
 
-    MetisGraphStructure(int nVertices, int nEdges, int xDim, int yDim) : m_nVertices(nVertices), m_xDim(xDim), m_yDim(yDim)  {
+    MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode){
+
+        /*Shape of output tensor x-y*/
+        int tensorXDim = outputTensor[0]; 
+        int tensorYDim = outputTensor[1];
+
+        /*METIS lattic graph of tensor*/
+        m_numberTensorVertices = (tensorXDim / MPEMode.first  * tensorYDim / MPEMode.second);    
+        numberTensorEdges = (2 * tensorXDim / MPEMode.first * tensorYDim / MPEMode.second) - tensorXDim / MPEMode.first - tensorYDim / MPEMode.second;
         
+        m_xDim = tensorXDim / MPEMode.first;
+        m_yDim = tensorYDim / MPEMode.second;
+
         /*Description page 23 Metis manual*/
-        xadj = new idx_t[nVertices + 1]; 
-        adjncy = new idx_t[2*nEdges];
-        part = new idx_t[nVertices];
-        vwgt = new idx_t[nVertices * nWeights];
+        xadj = new idx_t[m_numberTensorVertices + 1]; 
+        adjncy = new idx_t[2*numberTensorEdges];
+        part = new idx_t[m_numberTensorVertices];
+        vwgt = new idx_t[m_numberTensorVertices* nWeights];
     }
     
     ~MetisGraphStructure() {
@@ -69,7 +81,7 @@ struct MetisGraphStructure
 void generateMetisGraph(MetisGraphStructure& metisGraph) {
 
     /*Nodes in the graph*/
-    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_nVertices);
+    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_numberTensorVertices);
     int adjncyIndex = 0;
     int xadjIndex = 0;
 
@@ -217,7 +229,7 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
 int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads) 
 {
     /*METIS call*/
-    int res = METIS_PartGraphRecursive(&metisGraph.m_nVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
+    int res = METIS_PartGraphRecursive(&metisGraph.m_numberTensorVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
                     metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
 				    NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
                     
@@ -306,26 +318,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             /*Get output tensor*/
             auto outputTensor = opIt->getOutputTensor();
 
-            std::cout << "Tensor shape is " << outputTensor[0]->getShape().toString() << std::endl;
-
-            int tensorXDim = outputTensor[0]->get<mv::Shape>("shape")[0]; 
-            int tensorYDim = outputTensor[0]->get<mv::Shape>("shape")[1];
-
-            int numberTensorVertices = (tensorXDim/4  * tensorYDim/4); /*MPE mode (4,4)*/
-            int numberTensorEdges = (2 * tensorXDim/4 * tensorYDim/4) - tensorXDim/4 - tensorYDim/4;
-
-            std::cout << "numberTensorVertices: " << numberTensorVertices << " " << "numberTensorEdges: " << numberTensorEdges << std::endl;
-
             /*Metis struct*/
-            MetisGraphStructure metisGraph(numberTensorVertices, numberTensorEdges, tensorXDim/4, tensorYDim/4);
+            MetisGraphStructure metisGraph(outputTensor[0]->getShape(), MPEMode);
             
             /* Populate Metis adjacency structure*/ 
             generateMetisGraph(metisGraph); 
             METIS_SetDefaultOptions(metisGraph.options);
 
-            /*Partition tensor into workloads*/
-            
+            /*Partition tensor into workloads*/            
             /*Should calculate a pool of workloads as per PoC compiler here*/ 
+
             //workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
         
             /*Forcing number of workloads to be nDPU/nCluster round to nearest even number*/
@@ -344,7 +346,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             std::cout << "Value of the objective function that was minimized (should be same as PoC compiler) is: " << metisGraph.objval << std::endl;
            
             /*Print partition*/
-            for(int part_i = 0; part_i < metisGraph.m_nVertices; part_i++) { 
+            for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) { 
                 
                 std::cout << "Node " << part_i << " " << "is in partition " << metisGraph.part[part_i] << std::endl;
             }
@@ -372,7 +374,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
 
             }
 
-               for(unsigned part_i = 0; part_i < metisGraph.m_nVertices; part_i++) {
+               for(unsigned part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) {
                    
                    std::cout << part_i << " " << metisGraph.part[part_i] << std::endl;
                 }
