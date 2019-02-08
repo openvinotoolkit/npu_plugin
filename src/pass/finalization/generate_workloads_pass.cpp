@@ -6,7 +6,6 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/graph/graph.hpp"
-
 #include <math.h>
 #include <metis.h>
 
@@ -39,28 +38,53 @@ struct MetisGraphStructure
     idx_t options[METIS_NOPTIONS];
 
     idx_t m_numberTensorVertices;
-    idx_t numberTensorEdges;
+    idx_t m_numberTensorEdges;
     int m_xDim;
     int m_yDim;
 
     MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode){
 
         /*Shape of output tensor x-y*/
-        int tensorXDim = outputTensor[0]; 
-        int tensorYDim = outputTensor[1];
+        double tensorXDim = outputTensor[0]; 
+        double tensorYDim = outputTensor[1];
 
         /*METIS lattic graph of tensor*/
-        m_numberTensorVertices = (tensorXDim / MPEMode.first  * tensorYDim / MPEMode.second);    
-        numberTensorEdges = (2 * tensorXDim / MPEMode.first * tensorYDim / MPEMode.second) - tensorXDim / MPEMode.first - tensorYDim / MPEMode.second;
+        m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);    
+        m_numberTensorEdges = (2 * ceil(tensorXDim / MPEMode.first) * ceil(tensorYDim / MPEMode.second)) - ceil(tensorXDim / MPEMode.first) - ceil(tensorYDim / MPEMode.second);
         
-        m_xDim = tensorXDim / MPEMode.first;
-        m_yDim = tensorYDim / MPEMode.second;
+        m_xDim = ceil((tensorXDim / MPEMode.first));
+        m_yDim = ceil((tensorYDim / MPEMode.second));
 
         /*Description page 23 Metis manual*/
         xadj = new idx_t[m_numberTensorVertices + 1]; 
-        adjncy = new idx_t[2*numberTensorEdges];
+        adjncy = new idx_t[2*m_numberTensorEdges];
         part = new idx_t[m_numberTensorVertices];
         vwgt = new idx_t[m_numberTensorVertices* nWeights];
+    
+        
+        int n_elem_y;
+        int n_elem_x;
+        int nodeIndex = 0;
+        for(int j=0; j < m_yDim; j++) {
+            
+            if ((j+1 < m_yDim) || (!(int)tensorYDim%MPEMode.first)) 
+                    n_elem_y = MPEMode.first;
+                else 
+                    n_elem_y = (int)tensorYDim%MPEMode.first;
+                            
+            for(int k=0; k < m_xDim; k++) {
+                
+                if ((k+1 < m_xDim) || (!(int)tensorXDim%MPEMode.first)) 
+                    n_elem_x = MPEMode.first;
+                else 
+                    n_elem_x = (int)tensorXDim%MPEMode.first;
+            
+                vwgt[nodeIndex] = n_elem_x * n_elem_y;
+                std::cout << "Node " << nodeIndex << "weight is " << n_elem_x * n_elem_y << std::endl;
+                nodeIndex++;
+            }
+            
+        }
     }
     
     ~MetisGraphStructure() {
@@ -91,7 +115,7 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
      * The weight of each vertex is the same and is the number of vertices in the METIS graph 
     */
 
-    /*Popoulate vwgt*/
+    /*Populate the weight of each vertex*/
     for (auto i : nodeNumbers)
         metisGraph.vwgt[i] = nodeNumbers.size();
     
@@ -331,13 +355,24 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             //workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
         
             /*Forcing number of workloads to be nDPU/nCluster round to nearest even number*/
-            idx_t nWorkloads = round(nDPUxCluster/2)*2; 
+            //idx_t nWorkloads = round(nDPUxCluster/2)*2; 
 
+            
+            idx_t nWorkloads    = 4;
             std::cout << "Number of workloads is " << nWorkloads << std::endl;
-            //idx_t nWorkloads    = 4;
 
             /*Partition tensor into workloads with METIS*/
             auto res = partitionTensorMETIS(metisGraph,nWorkloads);
+
+            for(int i =0; i < 36; i++) {
+
+                std::cout << metisGraph.xadj[i] << std::endl;
+            }
+
+            for(int i =0; i < 120; i++) {
+
+                std::cout << metisGraph.adjncy[i] << std::endl;
+            }
             
             if( res != 1 ) {
                 throw "Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!";
