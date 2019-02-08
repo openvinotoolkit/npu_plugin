@@ -44,7 +44,7 @@ static std::string dataTensorIteratorName = "aDataTensorIteratorName";
 
 static void setValueAttrTypes(mv::Element& e)
 {
-    
+
     e.clear();
     e.set<bool>(aBoolName, vBool);
     e.set<double>(aDoubleName, vDouble);
@@ -82,7 +82,7 @@ TEST(element, def_attrs)
 
     mv::Element e("TestElement");
     setValueAttrTypes(e);
-    
+
     ASSERT_TRUE(e.hasAttr(aBoolName));
     ASSERT_TRUE(e.hasAttr(aDoubleName));
     ASSERT_TRUE(e.hasAttr(aDTypeName));
@@ -114,7 +114,7 @@ TEST(element, def_attrs)
     ASSERT_EQ(e.get<std::vector<std::size_t>>("aVecStdSizeT"), vVecStdSizeT);
     ASSERT_EQ(e.get<unsigned short>("aUnsignedShort"), vUnsignedShort);
     ASSERT_EQ(e.get<std::vector<std::string>>("aVecStdString"), vVecStdString);
-    
+
 }
 
 TEST(element, get_failure)
@@ -176,6 +176,7 @@ TEST(element, get_unregisterd)
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aInt"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("amv::Order"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aShape"));
+
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aStdArrUnsignedShort2"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aStdArrUnsignedShort3"));
     ASSERT_ANY_THROW(e.get<UnregisteredAttr>("aStdArrUnsignedShort4"));
@@ -230,12 +231,12 @@ TEST(element, to_json)
     mv::Element e("TestElement");
     setValueAttrTypes(e);
 
-    std::string jsonStr = 
+    std::string jsonStr =
         "{\"attrs\":{\"aBool\":{\"attrType\":\"bool\",\"content\":true},\"aDType\":"
         "{\"attrType\":\"DType\",\"content\":\"Float16\"},\"aDouble\":{\"attrType\""
         ":\"double\",\"content\":1.0},\"aInt\":{\"attrType\":\"int\",\"content\":2}"
-        ",\"aOrder\":{\"attrType\":\"Order\",\"content\":\"CHW\"},\"aShape\""
-        ":{\"attrType\":\"Shape\",\"content\":[1,2,3]},\"aStdArrUnsignedShort2\":{\""
+        ",\"aOrder\":{\"attrType\":\"Order\",\"content\":\"CHW\"}"
+        ",\"aShape\":{\"attrType\":\"Shape\",\"content\":[1,2,3]},\"aStdArrUnsignedShort2\":{\""
         "attrType\":\"std::array<unsigned short, 2>\",\"content\":[4,5]},\"aStdArrUn"
         "signedShort3\":{\"attrType\":\"std::array<unsigned short, 3>\",\"content\":"
         "[6,7,8]},\"aStdArrUnsignedShort4\":{\"attrType\":\"std::array<unsigned shor"

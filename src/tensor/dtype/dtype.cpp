@@ -34,9 +34,9 @@ mv::BinaryData mv::DType::toBinary(const std::vector<double>& data) const
     return func(data);
 }
 
-unsigned mv::DType::getSizeInBytes() const
+unsigned mv::DType::getSizeInBits() const
 {
-    return mv::DTypeRegistry::getSizeInBytes(dType_);
+    return mv::DTypeRegistry::getSizeInBits(dType_);
 }
 
 mv::DType& mv::DType::operator=(const DType& other)

@@ -503,6 +503,5 @@ mv::BinaryData mv::Tensor::toBinary()
 
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
-    return getOrder().computeStrides(getShape(), getDType().getSizeInBytes());
+    return getOrder().computeStrides(getShape(), getDType().getSizeInBits() / 8);
 }
-

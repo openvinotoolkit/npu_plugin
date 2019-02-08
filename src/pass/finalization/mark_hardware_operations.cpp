@@ -33,7 +33,7 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object &)
+void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::json::Object& compDesc, mv::json::Object &)
 {
 
     //int amount_marked = 0;
@@ -46,6 +46,7 @@ void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& m
                 disableHardware = true;
 
     mv::OpModel om(model);
+    mv::Target target = targetDescriptor.getTarget();
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
@@ -63,27 +64,45 @@ void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& m
                 auto weights = opIterator->getInputTensor(1);
                 auto weightsShape = weights->getShape();
 
-                // Check for supported padding
-                if ((padding[0] != 0 && padding[0] != weightsShape[0]/2) || (padding[2] != 0 && padding[2] != weightsShape[1]/2))
+                if (target == mv::Target::ma2480)
                 {
-                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
-                    continue;
-                }
+                    // Check for supported padding
+                    if ((padding[0] != 0 && padding[0] != weightsShape[0]/2) || (padding[2] != 0 && padding[2] != weightsShape[1]/2))
+                    {
+                        om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                        continue;
+                    }
 
-                // Check for supported kernel sizes
-                if(weightsShape[0] > 15 || weightsShape[1] > 15)
+                    // Check for supported kernel sizes
+                    if(weightsShape[0] > 15 || weightsShape[1] > 15)
+                    {
+                        om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                        continue;
+                    }
+
+                    // Check for supported strides
+                    if(stride[0] > 8 || stride[1] > 8)
+                    {
+                        om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                        continue;
+                    }
+                }
+                else //ma2490
                 {
-                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
-                    continue;
-                }
+                    // Check for supported kernel sizes
+                    if(weightsShape[0] > 11 || weightsShape[1] > 11)
+                    {
+                        om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                        continue;
+                    }
 
-                // Check for supported strides
-                if(stride[0] > 8 || stride[1] > 8)
-                {
-                    om.addAttr(opIterator, "NCE1_Compatible", (int)0);
-                    continue;
+                    // Check for supported strides
+                    if(stride[0] > 8 || stride[1] > 8)
+                    {
+                        om.addAttr(opIterator, "NCE1_Compatible", (int)0);
+                        continue;
+                    }
                 }
-
                 om.addAttr(opIterator, "NCE1_Compatible", (int)1);
                 om.addAttr(opIterator, "NCE1_AssignedCMX", (int)0);
 
