@@ -19,24 +19,24 @@ name_(other.name_)
 
 }
 
-mv::Element::Element(const json::Value& content, bool simplifiedTyping)
+mv::Element::Element(const json::Value& content, bool simplifiedTyping, std::string name)
 {
 
     if (content.valueType() != json::JSONType::Object)
         throw AttributeError(*this, "Unable to construct using non json::Object "
             "value type " + json::Value::typeName(content.valueType()));
 
-    if (!content.hasKey("name"))
-        throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
-            "does not contain 'name' field");
-
-    if (content["name"].valueType() != json::JSONType::String)
-        throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
-            "field 'name' is " + json::Value::typeName(content["name"].valueType()) + ", must be json::String");
-
-    name_ = content["name"].get<std::string>();
-
     if (!simplifiedTyping) {
+
+        if (!content.hasKey("name"))
+            throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
+                "does not contain 'name' field");
+
+        if (content["name"].valueType() != json::JSONType::String)
+            throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
+                "field 'name' is " + json::Value::typeName(content["name"].valueType()) + ", must be json::String");
+
+        name_ = content["name"].get<std::string>();
 
         if (!content.hasKey("attrs"))
             throw AttributeError(*this, "Invalid json::Object passed for the construction of the Element - "
@@ -64,6 +64,14 @@ mv::Element::Element(const json::Value& content, bool simplifiedTyping)
     }
     else
     {
+        if (!content.hasKey("name"))
+        {
+            if (!name.empty())
+                name_ = name;
+        }
+        else
+            name_ = content["name"].get<std::string>();
+
         auto keys = content.getKeys();
 
         for (auto const &key : keys)
@@ -132,7 +140,7 @@ mv::Element::Element(const json::Value& content, bool simplifiedTyping)
                         break;
 
                     case json::JSONType::Object:
-                        val = Element(content[key], true);
+                        val = Element(content[key], true, key);
                         break;
 
                     case json::JSONType::String:

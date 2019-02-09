@@ -40,7 +40,7 @@ namespace mv
          * @param autoType Enable automatic type deduction. Allows to simplify the JSON input,
          * but restricts types of input Attributes to JSON types.
          */
-        Element(const mv::json::Value& content, bool simplifiedTyping = false);
+        Element(const mv::json::Value& content, bool simplifiedTyping = false, std::string name = "");
         Element& operator=(const Element& other);
         bool operator<(const Element& other) const;
         bool operator==(const Element& other) const;
