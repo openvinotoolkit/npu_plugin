@@ -123,6 +123,32 @@ const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeE
 
 }
 
+mv::attr::AttributeEntry& mv::attr::AttributeEntry::setFromSimplifiedJSONFunc(const std::function<Attribute(const mv::json::Value&)>& f)
+{
+
+    auto pFunc = std::make_shared<ConcreteFunc<Attribute, const mv::json::Value&> >();
+    pFunc->f = f;
+    fromSimplifiedJSONFunc_ = pFunc;
+
+    return *this;
+
+}
+
+const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeEntry::getFromSimplifiedJSONFunc()
+{
+
+    if (!fromSimplifiedJSONFunc_)
+        throw MasterError(*this, "Undefined from-Simplified-JSON conversion function for the argument type " + typeName_);
+
+    auto pFunc = std::dynamic_pointer_cast<ConcreteFunc<Attribute, const mv::json::Value&> >(fromSimplifiedJSONFunc_);
+
+    if (pFunc)
+        return pFunc->f;
+
+    throw AttributeError(*this, "Invalid types specified for from-Simplified-JSON conversion function for type " + typeName_);
+
+}
+
 mv::attr::AttributeEntry& mv::attr::AttributeEntry::setToStringFunc(const std::function<std::string(const Attribute&)>& f)
 {
     auto pFunc = std::make_shared<ConcreteFunc<std::string, const Attribute&> >();
