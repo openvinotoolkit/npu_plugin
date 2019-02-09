@@ -102,8 +102,8 @@ mv::Element::Element(const json::Value& content, bool simplifiedTyping, std::str
                             switch (tFirst)
                             {
                                 case json::JSONType::Array:
-                                    val = Element(content[key], true);
-                                    break;
+                                    throw ArgumentError(*this, key + ":type", json::Value::typeName(content[key].valueType()),
+                                        "Construction of Element from Json Array of Json Arrays not currently supported.");
                                 case json::JSONType::Bool:
                                     val = mv::attr::AttributeRegistry::getFromJSONFunc(typeid(std::vector<bool>))(content[key]);
                                     break;
@@ -114,7 +114,7 @@ mv::Element::Element(const json::Value& content, bool simplifiedTyping, std::str
                                     val = mv::attr::AttributeRegistry::getFromJSONFunc(typeid(std::vector<int>))(content[key]);
                                     break;
                                 case json::JSONType::Object:
-                                    val = Element(content[key], true);
+                                    val = mv::attr::AttributeRegistry::getFromSimplifiedJSONFunc(typeid(std::vector<mv::Element>))(content[key]);
                                     break;
                                 case json::JSONType::String:
                                     val = mv::attr::AttributeRegistry::getFromJSONFunc(typeid(std::vector<std::string>))(content[key]);
