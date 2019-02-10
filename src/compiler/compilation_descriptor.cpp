@@ -1,17 +1,36 @@
 #include "include/mcm/compiler/compilation_descriptor.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 
+mv::json::Object mv::CompilationDescriptor::load(const std::string& filePath)
+{
+    JSONTextParser parser(jsonParserBufferLength_);
+    json::Value jsonRoot;
+
+    if (!parser.parseFile(filePath, jsonRoot))
+    {
+        throw ArgumentError("CompilationDescriptor", "filePath", filePath,
+            "Unable to parse compilation descriptor - error reading file");
+    }
+
+    if (jsonRoot.valueType() != json::JSONType::Object)
+        throw ArgumentError("CompilationDescriptor", "file", filePath, "malformed JSON file - cannot create compilation descriptor");
+
+    return jsonRoot.get<json::Object>();
+
+}
+
 mv::CompilationDescriptor::CompilationDescriptor(const std::string& profile) :
 Element("CompilationDescriptor"),
 profile_(profile)
 {
 }
 
-mv::CompilationDescriptor::CompilationDescriptor(const std::string& path, const std::string& profile) :
-Element("CompilationDescriptor"),
+mv::CompilationDescriptor::CompilationDescriptor(const json::Object& jsonDescriptor, const std::string& profile) :
+Element(jsonDescriptor, true, "CompilationDescriptor"),
 profile_(profile)
 {
-    // Call load() to parse the json file passed in
+    // XXX: This assumes that the compilation descriptor has group definitions at the top level.
+    groups_ = attrsKeys();
 }
 
 bool mv::CompilationDescriptor::validPass(const std::string& passStr)
@@ -45,33 +64,24 @@ void mv::CompilationDescriptor::addToGroup(const std::string& group, const std::
 
     if (g_elem.hasAttr(recurrence))
     {
-        std::vector<std::string> &rec_v = g_elem.get<std::vector<std::string>>(recurrence);
+        std::vector<Element> &rec_v = g_elem.get<std::vector<Element>>(recurrence);
 
-        if (elemIsGroup && std::find(rec_v.begin(), rec_v.end(), elem) != rec_v.end())
+        if (elemIsGroup && std::find(rec_v.begin(), rec_v.end(), Element(elem)) != rec_v.end())
             throw RuntimeError(*this, "Trying to add preexisting group (" + elem + ") to group (" + group + "), which is not permitted");
 
         rec_v.push_back(elem);
     }
     else
     {
-        std::vector<std::string> rec_v = { elem };
-        g_elem.set<std::vector<std::string>>(recurrence, rec_v);
+        Element p = Element(elem);
+        p.set<bool>("isGroup", false);
+        std::vector<Element> rec_v = { p };
+        g_elem.set<std::vector<Element>>(recurrence, rec_v);
     }
 
-    if (elemIsGroup)
-    {
-        if (!hasAttr(elem))
-            addGroup(elem);
-    }
-    else
-    {
-        if (!g_elem.hasAttr(elem))
-        {
-            Element p = Element(elem);
-            p.set<bool>("isGroup", false);
-            g_elem.set<Element>(elem, p);
-        }
-    }
+    if (elemIsGroup && !hasAttr(elem))
+        addGroup(elem);
+
 }
 
 void mv::CompilationDescriptor::remove(const std::string& group, const std::string& elem, const std::string& recurrence)
@@ -85,17 +95,13 @@ void mv::CompilationDescriptor::remove(const std::string& group, const std::stri
         throw RuntimeError(*this, recurrence + " recurrence is not present in group " + group);
 
     // Remove element from list of passes.
-    auto& rec_v = g_elem.get<std::vector<std::string>>(recurrence);
+    auto& rec_v = g_elem.get<std::vector<Element>>(recurrence);
     
-    auto it = std::find(rec_v.begin(), rec_v.end(), elem);
+    auto it = std::find(rec_v.begin(), rec_v.end(), Element(elem));
     if (it == rec_v.end())
         throw RuntimeError(*this, "Unable to find element (" + elem + ") in group (" + group + ")");
     
     rec_v.erase(it);
-
-    // Remove pass attribute from the group (if elem happens to be a pass).
-    if (g_elem.hasAttr(elem))
-        g_elem.erase(elem);
 }
 
 void mv::CompilationDescriptor::remove(const std::string& group, const std::string& elem)
@@ -136,8 +142,8 @@ void mv::CompilationDescriptor::remove(const std::string& group)
             auto removeInRecurrenceGroup = [this, g, group](const std::string& recType) {
                 auto& elem = get<Element>(g);
                 if (elem.hasAttr(recType)) {
-                    auto& recList = elem.get<std::vector<std::string>>(recType);
-                    auto it = std::find(recList.begin(), recList.end(), group);
+                    auto& recList = elem.get<std::vector<Element>>(recType);
+                    auto it = std::find(recList.begin(), recList.end(), Element(group));
                     if (it != recList.end())
                         recList.erase(it);
                 }
@@ -150,9 +156,9 @@ void mv::CompilationDescriptor::remove(const std::string& group)
 
     // Remove group from list of groups
     auto it = std::find(groups_.begin(), groups_.end(), group);
-    if (it != groups_.end()) {
+    if (it != groups_.end())
         groups_.erase(it);
-    }
+
 }
 
 void mv::CompilationDescriptor::clear()
@@ -189,15 +195,26 @@ void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::s
     {
         if (hasAttr(group))
         {
-            auto& g = get<Element>(group);
-            if (g.hasAttr(pass))
+            auto addPassArgInRecType = [this, group, pass, arg, value](const std::string& recType)
             {
-                auto& p = g.get<Element>(pass);
-                p.set(arg, value);
+                auto& g = get<Element>(group);
 
-                if (!found)
-                    found = true;
-            }
+                if (g.hasAttr(recType)) {
+                    std::vector<mv::Element>& recList = g.get<std::vector<Element>>(recType);
+
+                    auto it = std::find(recList.begin(), recList.end(), Element(pass));
+
+                    if (it != recList.end())
+                    {
+                        it->set(arg, value);
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            found |= addPassArgInRecType("Singular");
+            found |= addPassArgInRecType("Recurrent");
         }
     }
 
@@ -210,67 +227,86 @@ void mv::CompilationDescriptor::setPassArg(const std::string& group, const std::
     if (!hasAttr(group))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to set pass arguments for a non-existent group (" + group + ")");
 
-    Element& g = get<Element>(group);
+    auto addPassArgInRecType = [this, group, pass, arg, value](const std::string& recType)
+    {
+        auto& g = get<Element>(group);
 
-    if (!g.hasAttr(pass))
+        if (g.hasAttr(recType)) {
+            std::vector<mv::Element>& recList = g.get<std::vector<Element>>(recType);
+
+            auto it = std::find(recList.begin(), recList.end(), Element(pass));
+
+            if (it == recList.end())
+                return false;
+            else
+                it->set(arg, value);
+
+            return true;
+        }
+
+        return false;
+    };
+
+    bool f1 = addPassArgInRecType("Singular");
+    bool f2 = addPassArgInRecType("Recurrent");
+
+    if (!f1 && !f2)
         throw RuntimeError(*this, "Trying to set arguments for a non-existent pass (" + pass + ") in group (" + group + ")");
 
-    Element& p = g.get<Element>(pass);
-    p.set(arg, value);
 }
 
-mv::Attribute mv::CompilationDescriptor::getPassArg(const std::string& group, const std::string& pass, const std::string& arg)
+mv::Attribute mv::CompilationDescriptor::getPassArg(const std::string& group, const std::string& recType, const std::string& pass, const std::string& arg)
 {
     if (!hasAttr(group))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to get arguments from a non-existent group (" + pass + ")");
 
     auto& g = get<Element>(group);
-    if (!g.hasAttr(pass))
-        throw RuntimeError(*this, "Trying to retrieve arguments for a non-existent pass (" + pass + ") in group (" + group + ")");
+    if (!g.hasAttr(recType))
+        throw RuntimeError(*this, "Trying to retrieve arguments for a non-existent recurrence type (" + recType + ") in group (" + group + ")");
 
-    auto& p = g.get<Element>(pass);
+    auto& recList = g.get<std::vector<Element>>(recType);
 
-    if (!p.hasAttr(arg))
+    auto it = std::find(recList.begin(), recList.end(), Element(pass));
+    if (it == recList.end())
         throw RuntimeError(*this, "Trying to retrieve arg value for a non-existent argument (" + arg + ")");
-
-    return p.get(arg);
+    else
+    {
+        if (!it->hasAttr(arg))
+            throw RuntimeError(*this, "Trying to retrieve arguments for a non-existent pass (" + pass + ") in recurrence type (" + recType + ") in group (" + group + ")");
+        else
+            return it->get(arg);
+    }
 }
 
-void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<Element *>& serializedPasses)
+void mv::CompilationDescriptor::serializePassListInGroup(const std::string& group, std::vector<Element>& serializedPasses)
 {
     if (!hasAttr(group))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to serialize passes in a non-existent group (" + group + ")");
 
     Element &elem = get<mv::Element>(group);
 
-    std::vector<Element *> recurrentPasses;
+    std::vector<Element> recurrentPasses;
     if (elem.hasAttr("Recurrent"))
     {
-        std::vector<std::string> &recurrent_group = elem.get<std::vector<std::string>>("Recurrent");
+        auto& recurrent_group = elem.get<std::vector<Element>>("Recurrent");
         for (auto rec_elem: recurrent_group)
         {
-            if (isGroup(rec_elem))
-                serializePassListInGroup(rec_elem, recurrentPasses);
+            if (isGroup(rec_elem.getName()))
+                serializePassListInGroup(rec_elem.getName(), recurrentPasses);
             else
-            {
-                auto& pass = elem.get<Element>(rec_elem);
-                recurrentPasses.push_back(&pass);
-            }
+                recurrentPasses.push_back(rec_elem);
         }
     }
 
     if (elem.hasAttr("Singular"))
     {
-        std::vector<std::string> &singular_group = elem.get<std::vector<std::string>>("Singular");
+        auto& singular_group = elem.get<std::vector<Element>>("Singular");
         for (auto sing_elem: singular_group)
         {
-            if (isGroup(sing_elem))
-                serializePassListInGroup(sing_elem, serializedPasses);
+            if (isGroup(sing_elem.getName()))
+                serializePassListInGroup(sing_elem.getName(), serializedPasses);
             else
-            {
-                auto& pass = elem.get<Element>(sing_elem);
-                serializedPasses.push_back(&pass);
-            }
+                serializedPasses.push_back(sing_elem);
 
             if (!recurrentPasses.empty())
                 serializedPasses.insert(serializedPasses.end(), recurrentPasses.begin(), recurrentPasses.end());
@@ -284,72 +320,14 @@ std::vector<mv::Element> mv::CompilationDescriptor::serializePassList()
     if (!hasAttr("root"))
         throw RuntimeError(*this, "Unable to find root group, cannot serialize passes in the descriptor.");
 
-    std::vector<Element *> serialized;
+    std::vector<Element> serialized;
 
     serializePassListInGroup("root", serialized);
 
     std::vector<Element> serializedPasses;
-    for (auto p: serialized) {
-        serializedPasses.push_back(*p);
-    }
+    for (auto p: serialized)
+        serializedPasses.push_back(p);
 
     return serializedPasses;
 
-}
-
-std::string mv::CompilationDescriptor::getElemString(const std::string &elem) const
-{
-    std::string output;
-
-    if (hasAttr(elem) && get<Element>(elem).get<bool>("isGroup"))
-    {
-        output += "    group: " + elem + "\n";
-        output += groupToString(elem);
-    }
-    else
-        output += "    pass : " + elem + "\n";
-
-    return output;
-}
-
-std::string mv::CompilationDescriptor::groupToString(const std::string &groupStr) const
-{
-    if (!hasAttr(groupStr))
-        throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Invalid group passed in (" + groupStr + ")");
-
-    const Element &group = get<Element>(groupStr);
-
-    std::string output;
-    output += "group: " + groupStr + "\n";
-
-    if (group.hasAttr("Singular"))
-    {
-        const std::vector<std::string> &sing_group = group.get<std::vector<std::string>>("Singular");
-        output += "  Singular: " + groupStr + "\n";
-        for (auto g: sing_group)
-            output += getElemString(g);
-    }
-
-    if (group.hasAttr("Recurrent"))
-    {
-        const std::vector<std::string> &rec_group = group.get<std::vector<std::string>>("Recurrent");
-        output += "  Recurrent: " + groupStr + "\n";
-        for (auto g: rec_group)
-            output += getElemString(g);
-    }
-
-    return output;
-}
-
-std::string mv::CompilationDescriptor::toString() const
-{
-    std::string output;
-
-    output += "CompilationDescriptor:\n";
-    output += "profile: " + profile_ + "\n";
-
-    if (hasAttr("root"))
-        output += groupToString("root");
-
-    return output;
 }

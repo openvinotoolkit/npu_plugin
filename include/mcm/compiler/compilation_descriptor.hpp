@@ -16,23 +16,20 @@ namespace mv
         // Maintain a list of groups in order to be able to delete groups        
         std::vector<std::string> groups_;
 
-        void serializePassListInGroup(const std::string& group, std::vector<Element *>& serializedPasses);
+        void serializePassListInGroup(const std::string& group, std::vector<Element>& serializedPasses);
         bool isGroup(const std::string& elem);
         std::string profile_;
-
-        //void addPass(const std::string& group, const std::string& pass);
-        std::string getElemString(const std::string &elem) const;
 
     public:
 
         CompilationDescriptor(const std::string& profile = "");
-        CompilationDescriptor(const std::string& path, const std::string& profile);
+        CompilationDescriptor(const json::Object&, const std::string& profile = "");
 
         /**
          * Populate the compilation descriptor from a json file. Not implemented yet.
          */
 
-        void load(const std::string& path);
+        static json::Object load(const std::string& filePath);
 
         /**
          * Adds group attribute to the compilation descriptor. This just creates an entry for a group, without specifying
@@ -92,7 +89,7 @@ namespace mv
         /**
          * Get argument for a pass.
          */
-        mv::Attribute getPassArg(const std::string& group, const std::string& pass, const std::string& arg);
+        mv::Attribute getPassArg(const std::string& group, const std::string& recType, const std::string& pass, const std::string& arg);
 
         /**
          * Validate a pass passed in.
@@ -104,9 +101,6 @@ namespace mv
          */
         std::vector<mv::Element> serializePassList();
 
-        std::string toString() const override;
-
-        std::string groupToString(const std::string &groupStr) const;
     };
 
 }

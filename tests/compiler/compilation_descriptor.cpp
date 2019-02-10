@@ -2,55 +2,6 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/compiler/compilation_descriptor.hpp"
 
-TEST (compilation_descriptor, load_from_file)
-{
-
-    // Define the primary compilation unit
-    mv::CompilationUnit unit("testModel");
-
-    std::string const PASS_NAME = "ScaleFission";
-    std::string const FACTOR_KEY = "scalefactors";
-    std::string descPath = mv::utils::projectRootPath() + "/config/compilation/resnet50_HW.json";
-    std::ifstream compDescFile(descPath);
-
-    EXPECT_TRUE(compDescFile.good()) << "ERROR: Unable to open json file";
-    if (compDescFile.good())
-    {
-        unit.loadCompilationDescriptor(descPath);
-
-        EXPECT_TRUE(unit.compilationDescriptor().hasKey("pass")) << "ERROR: json file missing pass object";
-        if (unit.compilationDescriptor().hasKey("pass"))
-        {
-   
-            EXPECT_TRUE(unit.compilationDescriptor()["pass"].hasKey(PASS_NAME)) << "ERROR: json file missing pass.ScaleFission object";
-            if (unit.compilationDescriptor()["pass"].hasKey(PASS_NAME))
-            {
-
-                EXPECT_TRUE(unit.compilationDescriptor()["pass"][PASS_NAME].hasKey(FACTOR_KEY)) << "ERROR: json file missing pass.ScaleFission.scalefactors object";
-                if (unit.compilationDescriptor()["pass"][PASS_NAME].hasKey(FACTOR_KEY))
-                {
-
-                    EXPECT_TRUE(unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY].hasKey("conv2d_2")) << "ERROR: json file missing conv2d_2 factor";
-                    if (unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY].hasKey("conv2d_2"))
-                    {
-
-                        double param2= unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY]["conv2d_2"].get<double>();
-                        EXPECT_FLOAT_EQ(7.6, param2) << "ERROR: Incorrect compilation descriptor read from json file";
-                    }
-
-                    EXPECT_TRUE(unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY].hasKey("conv2d_4")) << "ERROR: json file missing conv2d_4 factor";
-                    if (unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY].hasKey("conv2d_4"))
-                    {
-
-                        double param4= unit.compilationDescriptor()["pass"][PASS_NAME][FACTOR_KEY]["conv2d_4"].get<double>();
-                        EXPECT_FLOAT_EQ(8.0, param4) << "ERROR: Incorrect compilation descriptor read from json file";
-                    }
-                }
-            }
-        }
-    }
-}
-
 TEST(compilation_descriptor, bare)
 {
     mv::CompilationDescriptor compDesc("test_profile");
@@ -100,7 +51,7 @@ TEST(compilation_descriptor, bare)
     std::string s1 = "/foo/bar";
     mv::Attribute p1 = s1;
     compDesc.setPassArg("GenerateDot", "p1", p1);
-    mv::Attribute r1 = compDesc.getPassArg("testGroup2", "GenerateDot", "p1");
+    mv::Attribute r1 = compDesc.getPassArg("testGroup2", "Singular", "GenerateDot", "p1");
     std::string p2 = r1.get<std::string>();
     ASSERT_EQ(p2, "/foo/bar");
 
@@ -116,14 +67,14 @@ TEST(compilation_descriptor, bare)
     // Second argument to the same pass.
     mv::Attribute ia1 = 42;
     compDesc.setPassArg("GenerateDot", "ia1", ia1);
-    mv::Attribute ir = compDesc.getPassArg("testGroup2", "GenerateDot", "ia1");
+    mv::Attribute ir = compDesc.getPassArg("testGroup2", "Singular", "GenerateDot", "ia1");
     int ia2 = ir.get<int>();
     ASSERT_EQ(ia2, 42);
 
     // Double argument
     mv::Attribute da1 = 2.0;
     compDesc.setPassArg("ConvolutionDilation", "da1", da1);
-    mv::Attribute dr = compDesc.getPassArg("root", "ConvolutionDilation", "da1");
+    mv::Attribute dr = compDesc.getPassArg("root", "Singular", "ConvolutionDilation", "da1");
     double da2 = dr.get<double>();
     ASSERT_EQ(da2, 2.0);
 
@@ -131,7 +82,7 @@ TEST(compilation_descriptor, bare)
     std::vector<double> v1({1.0, 2.0, 3.0});
     mv::Attribute vda1 = v1;
     compDesc.setPassArg("ConvolutionDilation", "vda1", vda1);
-    mv::Attribute vda2 = compDesc.getPassArg("root", "ConvolutionDilation", "vda1");
+    mv::Attribute vda2 = compDesc.getPassArg("root", "Singular", "ConvolutionDilation", "vda1");
     auto vdr = vda2.get<std::vector<double>>();
     ASSERT_EQ(vdr, v1);
 
@@ -167,4 +118,64 @@ TEST(compilation_descriptor, bare)
     // Clear entire descriptor
     compDesc.clear();
     ASSERT_EQ(compDesc.getNumGroups(), 0);
+}
+
+TEST (compilation_descriptor, load_from_descriptor)
+{
+    std::string descPath = mv::utils::projectRootPath() + "/tests/compiler/test_comp_desc.json";
+    std::ifstream compDescFile(descPath);
+
+    EXPECT_TRUE(compDescFile.good()) << "ERROR: Unable to open json file";
+
+    auto getPassListString = [](std::vector<mv::Element> inList) -> std::vector<std::string>
+    {
+        std::vector<std::string> outList;
+        for (auto p: inList)
+            outList.push_back(p.getName());
+
+        return outList;
+    };
+
+    if (compDescFile.good())
+    {
+        mv::json::Object jsonDesc = mv::CompilationDescriptor::load(descPath);
+        mv::CompilationDescriptor compDesc(jsonDesc, "test_profile");
+
+        double arg = compDesc.getPassArg("group1", "Singular", "g1sp2", "Arg2");
+        double eArg = 42.0;
+        EXPECT_EQ(arg, eArg);
+
+        ASSERT_ANY_THROW(compDesc.getPassArg("group2", "Recurrent", "g2rp1", "nonExistentArg"));
+
+        std::vector<std::string> epl = {
+            "g1sp1",
+            "g1sp2",
+            "rootrp1",
+            "g2sp1",
+            "g2rp1",
+            "g2sp2",
+            "g2rp1",
+            "rootsp1",
+            "rootrp1",
+            "g2sp1",
+            "g2rp1",
+            "g2sp2",
+            "g2rp1"
+        };
+
+        std::vector<mv::Element> pl = compDesc.serializePassList();
+        std::vector<std::string> plStr = getPassListString(pl);
+
+        EXPECT_EQ(plStr, epl);
+
+        for (size_t i = 0; i < pl.size(); i++)
+        {
+            if (pl[i].getName() == "g1sp2")
+            {
+                EXPECT_TRUE(pl[i].hasAttr("Arg1"));
+                std::string arg1 = pl[i].get("Arg1");
+                EXPECT_EQ(arg1, std::string("strArg"));
+            }
+        }
+    }
 }
