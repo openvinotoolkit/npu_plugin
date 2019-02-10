@@ -302,6 +302,13 @@ mv::json::Value mv::Element::toJSON(bool simplifiedTyping) const
             result.emplace(it->first, it->second.get<Element>().toJSON(true));
             continue;
         }
+        else if (attrTypeID == attr::AttributeRegistry::getTypeID("std::vector<mv::Element>"))
+        {
+            auto jsonVal = attr::AttributeRegistry::getToSimplifiedJSONFunc(attrTypeID)(it->second);
+            result.emplace(it->first, jsonVal);
+            continue;
+        }
+
         // if (!attr::AttributeRegistry::hasTypeTrait(attrTypeID, "standardJSON"))
         // {
         //     throw ArgumentError(*this, it->first + ":type", attr::AttributeRegistry::getTypeName(attrTypeID),
