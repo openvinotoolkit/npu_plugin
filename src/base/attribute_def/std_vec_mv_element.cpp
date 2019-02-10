@@ -20,6 +20,15 @@ namespace mv
             return output;
         }
 
+        static mv::json::Value toSimplifiedJSON(const Attribute& a)
+        {
+            json::Array output;
+            auto vec = a.get<std::vector<mv::Element>>();
+            for (std::size_t i = 0; i < vec.size(); ++i)
+                output.append(vec[i].toJSON(true));
+            return output;
+        }
+
         static Attribute fromJSON(const json::Value& v)
         {
             if (v.valueType() != json::JSONType::Array)
@@ -74,6 +83,7 @@ namespace mv
         MV_REGISTER_ATTR(std::vector<mv::Element>)
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
+            .setToSimplifiedJSONFunc(toSimplifiedJSON)
             .setFromSimplifiedJSONFunc(fromSimplifiedJSON)
             .setToStringFunc(toString);
 
