@@ -304,7 +304,7 @@ mv::Attribute mv::CompilationDescriptor::getPassArg(const std::string& group, co
     else
     {
         if (!it->hasAttr(arg))
-            throw RuntimeError(*this, "Trying to retrieve arguments for a non-existent pass (" + pass + ") in recurrence type (" + recType + ") in group (" + group + ")");
+            throw RuntimeError(*this, "No such arg (" + arg + ") in pass (" + pass + "), in recurrence type (" + recType + ") in group (" + group + ")");
         else
             return it->get(arg);
     }
