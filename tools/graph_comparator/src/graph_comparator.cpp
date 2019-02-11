@@ -130,8 +130,8 @@ void mv::tools::GraphComparator::compare_(const MVCNN::BarrierReferenceT& lhs, c
     if (lhs.update_barriers != rhs.update_barriers)
         diff.push_back(label + "::update_barriers");
 
-    if (lhs.wait_barrier != rhs.wait_barrier)
-        diff.push_back(label + "::wait_barrier");
+    if (lhs.wait_barriers != rhs.wait_barriers)
+        diff.push_back(label + "::wait_barriers");
 
 }
 
@@ -863,24 +863,23 @@ void mv::tools::GraphComparator::compare_(const MVCNN::ResourcesT& lhs, const MV
     std::vector<std::string>& diff, const std::string& label)
 {
 
-    if (lhs.ddr_scratch != rhs.ddr_scratch)
-        diff.push_back(label + "::ddr_scratch");
+    if (lhs.upa_shaves != rhs.upa_shaves)
+        diff.push_back(label + "::upa_shaves");
 
-    if (lhs.dpu_mask != rhs.dpu_mask)
-        diff.push_back(label + "::dpu_mask");
+    if (lhs.nce1_blocks != rhs.nce1_blocks)
+        diff.push_back(label + "::nce1_blocks");
 
-    if (lhs.leon_cmx != rhs.leon_cmx)
-        diff.push_back(label + "::leon_cmx");
+    if (lhs.nce2_blocks != rhs.nce2_blocks)
+        diff.push_back(label + "::nce2_blocks");
     
-    if (lhs.nce1_mask != rhs.nce1_mask)
-        diff.push_back(label + "::nce1_mask");
+    if (lhs.upa_shared_cmx != rhs.upa_shared_cmx)
+        diff.push_back(label + "::upa_shared_cmx");
 
     if (lhs.nn_cmx != rhs.nn_cmx)
         diff.push_back(label + "::nn_cmx");
 
-    if (lhs.shave_mask != rhs.shave_mask)
-        diff.push_back(label + "::shave_mask");
-
+    if (lhs.ddr_scratch != rhs.ddr_scratch)
+        diff.push_back(label + "::ddr_scratch");
 }
 
 void mv::tools::GraphComparator::compare_(const MVCNN::SourceStructureT& lhs, const MVCNN::SourceStructureT& rhs,

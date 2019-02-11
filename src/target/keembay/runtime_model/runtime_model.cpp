@@ -201,10 +201,10 @@ void mv::RuntimeModel::buildVersionT(ComputationModel&, json::Object& compilatio
 
 void mv::RuntimeModel::buildResourcesT(ComputationModel&, json::Object& compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild)
 {
-    toBuild->shave_mask = compilationDescriptor["Resources"]["ShaveMask"].get<long long>();
-    toBuild->nce1_mask = compilationDescriptor["Resources"]["NCE1Mask"].get<long long>();
-    toBuild->dpu_mask = compilationDescriptor["Resources"]["DPUMask"].get<long long>();
-    toBuild->leon_cmx = compilationDescriptor["Resources"]["LeonCMX"].get<long long>();
+    toBuild->upa_shaves = compilationDescriptor["Resources"]["UpaShaves"].get<long long>();
+    toBuild->nce1_blocks = compilationDescriptor["Resources"]["NCE1Mask"].get<long long>();
+    toBuild->nce2_blocks = compilationDescriptor["Resources"]["NCE2Mask"].get<long long>();
+    toBuild->upa_shared_cmx = compilationDescriptor["Resources"]["UpaSharedCMX"].get<long long>();
     toBuild->nn_cmx = compilationDescriptor["Resources"]["NNCMX"].get<long long>();
     toBuild->ddr_scratch = compilationDescriptor["Resources"]["DDRScratch"].get<long long>();
 }
@@ -308,7 +308,6 @@ void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, json::Object &comp
     buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->src));
     toBuild->dst = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
     buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), std::move(toBuild->dst));
-    toBuild->broadcast_mask = opIt->get<unsigned>("BroadcastMask");
 }
 
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, json::Object &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
