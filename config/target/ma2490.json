@@ -368,23 +368,19 @@
 		"adapt":
 		[
 			"AssignUniqueOpId",
-      "DPUConvolution",
+      			"DPUConvolution",
 			"ConvertToTaskGraph",
 			"AssignUniqueTaskId"
 		],
 
 		"finalize":
 		[
-            "GenerateWorkloads",
-			"ArrangeLinearExecution",
-			"AllocatePopulatedTensors",
-			"AllocateUnpopulatedTensors",
-			"AllocateInputOutputTensors"
+            		"GenerateWorkloads",
+			"ArrangeKeembayExecution"
 		],
 
 		"serialize":
 		[
-			"GenerateBlobKeembay"
 		],
 
 		"validate":

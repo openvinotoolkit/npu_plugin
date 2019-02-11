@@ -1,8 +1,10 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 
 static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
 
 namespace mv
 {
@@ -17,7 +19,57 @@ namespace mv
             ""
         );
 
+        MV_REGISTER_PASS(ArrangeKeembayExecution)
+        .setFunc(arrangeKeembayExecutionFcn)
+        .setGenre(PassGenre::Finalization)
+        .setDescription(
+            ""
+        );
+
     }
+
+}
+
+// This pass has two main duties
+// 1) Put all the control flows needed in the graph
+// 2) Put the stages
+// Point 2) is trivial for now (just 1 stage), but will be probably updated when Pat completes his analysis
+
+// For point 1, we know that non trivial control flows have already been added during the conversion pass
+// We have to add extra layers of control flows
+// 1) A layer made up of ControlFlows that start from input and go to every DMA DDR to CMX operation
+// Rationale: Until we know more about memory addresses, DMA potentially have no impediments after input operation
+// 2) A layer made up of ControlFlows that are coincident with DataFlows
+// Rationale: Wherever there is a data dependency, there is also a execution dependency
+void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+{
+
+    std::cout << "Arrange execution" << std::endl;
+
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+
+    // Point 1)
+
+    // Adding layer 1
+    auto inputOp = om.getInput();
+    auto dmaOps = om.getOps("DMATask");
+
+    for(auto op : dmaOps)
+        if(op->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
+            cm.defineFlow(inputOp, op);
+
+    // Adding layer 2 ----> Is giving trouble??
+    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
+        cm.defineFlow(dataFlow.source(), dataFlow.sink());
+
+    // Point 2)
+    auto stage = cm.addStage();
+    cm.addToStage(stage, om.getOutput());
+
+
+    std::cout << "Exiting arrange Keembay execution" << std::endl;
 
 }
 
@@ -26,15 +78,14 @@ void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
     std::cout << "Arrange execution" << std::endl;
 
-    using namespace mv;
-    OpModel om(model);
-    ControlModel cm(model);
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     auto currentOp = om.getInput();
 
     while (currentOp != om.getOutput())
     {
-        Data::OpListIterator nextOp;
+        mv::Data::OpListIterator nextOp;
 
         if (currentOp.childrenSize() == 1)
         {

@@ -12,8 +12,6 @@
 // and adds appropriate DMA tasks (for DDR-to-CMX and back),
 // and de-allocation tasks for the temporary CMX buffers.
 
-#define ADD_CF 0 // 1=add control flow, 0=don't
-
 int main()
 {
     mv::CompilationUnit unit("testModel");
@@ -24,19 +22,6 @@ int main()
     auto weights = om.constant(weightsData, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {0, 0, 0, 0});
     om.output(conv);
-
-#if ADD_CF
-    mv::ControlModel cm(om);
-
-    auto inputOp = om.getSourceOp(input);
-    auto weightsOp = om.getSourceOp(weights);
-    auto convOp = om.getSourceOp(conv);
-    auto outputOp = om.getOp("Output_0");
-
-    cm.defineFlow(inputOp, convOp);
-    cm.defineFlow(weightsOp, convOp);
-    cm.defineFlow(convOp, outputOp);
-#endif
 
     std::string outputName("dpu_conv");
 
@@ -50,6 +35,7 @@ int main()
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
-    system("dot -Tsvg dpu_conv.dot -o dpu_conv.png");
-    system("dot -Tsvg dpu_conv_adapt.dot -o dpu_conv_adapt.png");
+    system("dot -Tpng dpu_conv.dot -o dpu_conv.png");
+    system("dot -Tpng dpu_conv_adapt.dot -o dpu_conv_adapt.png");
+    system("dot -Tpng dpu_conv_final.dot -o dpu_conv_final.png");
 }

@@ -19,26 +19,39 @@ namespace mv
     }
 }
 
-#define OUT_DMA 1 // 1=use CMX2DMA for output of dpuConv, 0=don't use DMA for output
+// ASSUMPTION: If a tensor comes from a DDR2CMX dMATask or a Task in general, then it's already in CMX
+// and does not need to be transfered. In all other cases, it does
+// Returns true if tensor is in CMX
+bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
+{
+    auto sourceOp = opModel.getSourceOp(tensor);
+    std::string opType(sourceOp->getOpType());
+    if(opType == "DMATask")
+    {
+        if(sourceOp->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX)
+            return true;
+        else
+            return false;
+    }
+    else if(opType.find("Task") != std::string::npos)
+        return true;
+    else
+        return false;
+}
 
+//TODO: Copy OpId, but Ian is needed in this case.
 void DPUConvolutionFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(om);
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    // While loop is preferred in a loop like this were we are performing eliminations
+    // as it gives more flexibility on when to increment the iterator
+    auto opIt = om.getInput();
+    while (opIt != om.opEnd())
     {
         if (opIt->getOpType() == "Conv")
         {
-            // ASSUMPTIONS:
-            // - Convolution operation is not source nor sink of graph
-            // - Convolution has exactly two inputs and one output
-            // - Input tensor is produced by the only parent node
-            // - Input tensor is attached as input channel #0
-            // - Kernel (weights tensor) is input channel #1
-            // - Output is attached to the only child node
-            // - Input and output tensors reside in DDR
-
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
 
@@ -47,51 +60,127 @@ void DPUConvolutionFcn(const mv::pass::PassEntry &, mv::ComputationModel &model,
             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
             auto name = opIt->getName();
 
-            auto dmaInput = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
-            auto dmaKernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
+            if(!isTensorInCMX(input, om))
+                input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+            if(!isTensorInCMX(kernel, om))
+                kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
 
-            auto dpuConv = om.dPUTaskConv({dmaInput, dmaKernel}, strides, padding, dilationFactor, "DPU_" + name);
+            auto dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
 
-            auto dmaInputFree = om.deAllocate(dmaInput, "FreeInput_DPU_" + name);
-            auto dmaKernelFree = om.deAllocate(dmaKernel, "FreeKernel_DPU_" + name);
+            auto inputOpName = om.getSourceOp(input)->getName();
+            auto kernelOpName = om.getSourceOp(kernel)->getName();
+            std::string inputDeallocationName("Deallocate"+inputOpName);
+            std::string kernelDeallocationName("Deallocate"+kernelOpName);
+
+            om.deAllocate(input, inputDeallocationName);
+            om.deAllocate(kernel, kernelDeallocationName);
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
-            // This might be easy, but this does not work:
-            /*********************************************
-            auto dmaInputFreeOp = om.getSourceOp(dmaInputFree);
-            auto dmaKernelFreeOp = om.getSourceOp(dmaKernelFree);
-            ****************************************************/
-            // So we need to go different way -- via naming of ops:
-            auto dmaInputFreeOp = om.getOp("FreeInput_DPU_" + name);
-            auto dmaKernelFreeOp = om.getOp("FreeKernel_DPU_" + name);
+            auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+            auto dmaKernelFreeOp = om.getOp(kernelDeallocationName);
 
             cm.defineFlow(dpuConvOp, dmaInputFreeOp);
             cm.defineFlow(dpuConvOp, dmaKernelFreeOp);
 
-        #if OUT_DMA
-            auto newOutput = om.dMATask(dpuConv, mv::DmaDirectionEnum::CMX2DDR);
-            auto newOutputFree = om.deAllocate(dpuConv, "FreeOutput_DPU_" + name);
-            auto newOutputFreeOp = om.getOp("FreeOutput_DPU_" + name);
-            auto newOutputOp = om.getSourceOp(newOutput);
-            cm.defineFlow(newOutputOp, newOutputFreeOp);
-        #else
-            auto newOutput = dpuConv;
-        #endif
+            for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+            {
+                auto consumer = output.sink();
+                auto slot = output->get<size_t>("sinkInput");
+                consumer->setInputTensor(dpuConv, slot, false);
+                om.defineFlow(dpuConv, consumer, slot);
+            }
 
-            auto output = opIt.leftmostOutput();
-            auto consumer = output.sink();
-            auto slot = output->get<size_t>("sinkInput");
-            std::cout << "output: "   << output->getName()     << std::endl; // DEBUG
-            std::cout << "consumer: " << consumer->getName()   << std::endl; // DEBUG
-            std::cout << "slot: "     << slot                  << std::endl; // DEBUG
-
-            std::cout << "newOutput: " << newOutput->getName() << std::endl; // DEBUG
-            consumer->setInputTensor(newOutput, slot, false);
-            om.defineFlow(newOutput, consumer, slot);
-
-            om.removeOp(opIt);
+            auto backup = opIt;
+            ++opIt;
+            om.removeOp(backup);
         }
-    }
+        if (opIt->getOpType() == "MaxPool")
+        {
+            auto input = opIt->getInputTensor(0);
 
-    std::cout << "Exiting DPU Convolution Pass"                << std::endl; // DEBUG
+            auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
+            auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+            auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+            auto name = opIt->getName();
+
+            if(!isTensorInCMX(input, om))
+                input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+
+            auto dpuPool = om.maxPool({input}, kernelSize, strides, padding, "DPU_" + name);
+
+            auto inputOpName = om.getSourceOp(input)->getName();
+            std::string inputDeallocationName("Deallocate"+inputOpName);
+            om.deAllocate(input, inputDeallocationName);
+
+            auto dpuPoolOp = om.getSourceOp(dpuPool);
+            auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+
+            cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
+
+            for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+            {
+                auto consumer = output.sink();
+                auto slot = output->get<size_t>("sinkInput");
+                consumer->setInputTensor(dpuPool, slot, false);
+                om.defineFlow(dpuPool, consumer, slot);
+            }
+
+            auto backup = opIt;
+            ++opIt;
+            om.removeOp(backup);
+        }
+
+        if (opIt->getOpType() == "AveragePool")
+        {
+            auto input = opIt->getInputTensor(0);
+
+            auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
+            auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+            auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+            auto name = opIt->getName();
+
+            if(!isTensorInCMX(input, om))
+                input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+
+            auto dpuPool = om.averagePool({input}, kernelSize, strides, padding, "DPU_" + name);
+
+            auto inputOpName = om.getSourceOp(input)->getName();
+            std::string inputDeallocationName("Deallocate"+inputOpName);
+            om.deAllocate(input, inputDeallocationName);
+
+            auto dpuPoolOp = om.getSourceOp(dpuPool);
+            auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+
+            cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
+
+            for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+            {
+                auto consumer = output.sink();
+                auto slot = output->get<size_t>("sinkInput");
+                consumer->setInputTensor(dpuPool, slot, false);
+                om.defineFlow(dpuPool, consumer, slot);
+            }
+
+            auto backup = opIt;
+            ++opIt;
+            om.removeOp(backup);
+        }
+
+        if (opIt->getOpType() == "Output")
+        {
+            auto input = opIt->getInputTensor(0);
+            if(isTensorInCMX(input, om))
+            {
+                auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR);
+                auto backup = opIt;
+                ++opIt;
+                om.removeOp(backup);
+                om.output(newInput);
+            }
+            else
+                ++opIt;
+        }
+        else
+            ++opIt;
+    }
 }
