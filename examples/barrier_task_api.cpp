@@ -20,12 +20,11 @@ int main()
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto dmaINweights1 = test_cm.dMATask(weights1, mv::DmaDirectionEnum::DDR2CMX);
     test_cm.deAllocate(dmaINweights1);
-    auto barrier_task_0 = test_cm.barrierTask( input1dmaIN, 0,0,2,1,-1, "barrierTask0" );
+    auto barrier_task_0 = test_cm.barrierTask( 0,0,2,1,-1, "barrierTask0" );
     auto dpuconv1 = test_cm.dPUTaskConv({input1dmaIN, dmaINweights1}, {2,2}, {0,0,0,0});
-    auto barrier_task_1 = test_cm.barrierTask( dpuconv1, 0,1,1,1,-1, "barrierTask1" );
+    auto barrier_task_1 = test_cm.barrierTask(  0,1,1,1,-1, "barrierTask1" );
     auto dmaOutput = test_cm.dMATask(dpuconv1, mv::DmaDirectionEnum::CMX2DDR);
     test_cm.output(dmaOutput);
-
 
     auto inputOp = test_cm.getSourceOp(input1);
     auto input1dmaINOp = test_cm.getSourceOp(input1dmaIN);
@@ -39,13 +38,11 @@ int main()
     auto dmaOutputOp = test_cm.getSourceOp(dmaOutput);
     auto outputOp = test_cm.getOp("Output_0");
 
-    std::string outputName("dpu_task");
+    std::string outputName("barrier_task");
     cm.defineFlow(inputOp, input1dmaINOp);
     cm.defineFlow(inputOp, dmaINweights1Op);
 
-//    cm.defineFlow(input1dmaINOp, dpuconv1Op);
     cm.defineFlow(input1dmaINOp, barrier0_Op);
-//    cm.defineFlow(dmaINweights1Op, dpuconv1Op);
     cm.defineFlow(dmaINweights1Op, barrier0_Op);
     cm.defineFlow(barrier0_Op, dpuconv1Op);
 
@@ -59,7 +56,6 @@ int main()
     cm.defineFlow(dpuconv1Op, input1dmaOutOp);
     cm.defineFlow(dpuconv1Op, dmaOUTWeights1Op);
 
-
     unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
     unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
     unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
@@ -70,7 +66,6 @@ int main()
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
-    system("dot -Tsvg dpu_task.dot -o dpu_task.png");
-    system("dot -Tsvg dpu_task_final.dot -o dpu_task_final.png");
+    system("dot -Tsvg barrier_task.dot -o barrier_task.png");
 
 }
