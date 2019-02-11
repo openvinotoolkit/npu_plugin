@@ -23,10 +23,7 @@ namespace mv
     }
 }
 
-/*
- * Struct containing the parameters for METIS.
-*/
-
+/* METIS parameters*/
 struct MetisGraphStructure
 {
     idx_t* xadj;                      /*Indexes of starting points in adjacent array*/
@@ -34,7 +31,7 @@ struct MetisGraphStructure
     idx_t* vwgt;
     idx_t* part; 
     idx_t objval;
-    idx_t nWeights  = 1;              /*Each vertex stores 1 weight (which is number_nodes_x * number_nodes_y)*/
+    idx_t nWeights  = 1;              /*Each vertex stores 1 weight*/
     idx_t options[METIS_NOPTIONS];
 
     idx_t m_numberTensorVertices;
@@ -48,20 +45,28 @@ struct MetisGraphStructure
         double tensorXDim = outputTensor[0]; 
         double tensorYDim = outputTensor[1];
 
-        /*METIS lattic graph of tensor*/
+        /*Number of vertices and edges in METIS lattic graph of tensor*/
         m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);    
         m_numberTensorEdges = (2 * ceil(tensorXDim / MPEMode.first) * ceil(tensorYDim / MPEMode.second)) - ceil(tensorXDim / MPEMode.first) - ceil(tensorYDim / MPEMode.second);
         
+        /*X-Y dimension of METIS lattic graph*/
         m_xDim = ceil((tensorXDim / MPEMode.first));
         m_yDim = ceil((tensorYDim / MPEMode.second));
 
-        /*Description page 23 Metis manual*/
+        /*METIS parameters - description page 23 Metis manual*/
         xadj = new idx_t[m_numberTensorVertices + 1]; 
         adjncy = new idx_t[2*m_numberTensorEdges];
         part = new idx_t[m_numberTensorVertices];
         vwgt = new idx_t[m_numberTensorVertices* nWeights];
     
         
+        /* Weights of METIS vertices
+         * Description page 23 Metis manual
+         * 
+         * Required when tensor size is not a multiple of 4 for MPE mode (4,4) which is only supported for WW09
+         * When tensor size is not a multiple of 4 then not all DPUs will be fully utilised (i.e. < 256 multiplication operations)
+         * Therefore we assign nodes different weights when partitioning
+        */
         int n_elem_y;
         int n_elem_x;
         int nodeIndex = 0;
@@ -80,7 +85,7 @@ struct MetisGraphStructure
                     n_elem_x = (int)tensorXDim%MPEMode.first;
             
                 vwgt[nodeIndex] = n_elem_x * n_elem_y;
-                std::cout << "Node " << nodeIndex << "weight is " << n_elem_x * n_elem_y << std::endl;
+                std::cout << "Node " << nodeIndex << " weight is " << n_elem_x * n_elem_y << std::endl;
                 nodeIndex++;
             }
             
@@ -108,16 +113,6 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
     std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_numberTensorVertices);
     int adjncyIndex = 0;
     int xadjIndex = 0;
-
-    /* ncon is the number of weights associated with each vertex, the array vwgt contains n ∗ ncon 
-     * elements (recall that n is the number of vertices)
-     *
-     * The weight of each vertex is the same and is the number of vertices in the METIS graph 
-    */
-
-    /*Populate the weight of each vertex*/
-    for (auto i : nodeNumbers)
-        metisGraph.vwgt[i] = nodeNumbers.size();
     
     /* A Sample Graph
      * 0---1---2---3---4
@@ -245,8 +240,8 @@ void generateMetisGraph(MetisGraphStructure& metisGraph) {
 
 /**
  * @brief Partition a tensor using the METIS library
- * @param metisGraph - a struct containing necessary parameters to pass to METIS
- * @param nWorkloads - the number of partitions (workloads) to partition the tensor into 
+ * @param metisGraph A struct containing necessary parameters to pass to METIS
+ * @param nWorkloads The number of partitions (workloads) to partition the tensor into 
  * @return return code from METIS
  */
 
@@ -350,29 +345,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             METIS_SetDefaultOptions(metisGraph.options);
 
             /*Partition tensor into workloads*/            
-            /*Should calculate a pool of workloads as per PoC compiler here*/ 
-
+            /*Should calculate a pool of workloads as per PoC compiler here and find the best one based on the cost functions*/ 
             //workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
         
-            /*Forcing number of workloads to be nDPU/nCluster round to nearest even number*/
-            //idx_t nWorkloads = round(nDPUxCluster/2)*2; 
+            /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number) for WW09 deliverbale*/
+            idx_t nWorkloads = round(nDPUxCluster/2)*2; 
 
-            
-            idx_t nWorkloads    = 4;
             std::cout << "Number of workloads is " << nWorkloads << std::endl;
 
             /*Partition tensor into workloads with METIS*/
             auto res = partitionTensorMETIS(metisGraph,nWorkloads);
-
-            for(int i =0; i < 36; i++) {
-
-                std::cout << metisGraph.xadj[i] << std::endl;
-            }
-
-            for(int i =0; i < 120; i++) {
-
-                std::cout << metisGraph.adjncy[i] << std::endl;
-            }
             
             if( res != 1 ) {
                 throw "Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!";
@@ -380,7 +362,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
 
             std::cout << "Value of the objective function that was minimized (should be same as PoC compiler) is: " << metisGraph.objval << std::endl;
            
-            /*Print partition*/
+            /*Print node partition*/
             for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) { 
                 
                 std::cout << "Node " << part_i << " " << "is in partition " << metisGraph.part[part_i] << std::endl;
@@ -390,63 +372,35 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             Workloads workloads(opIt->getName());
 
             /*Populate each workload*/
+            /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
+            /*This needs to be handled here for now assuming number of partitions is the number or workloads*/
             for(int workload = 0; workload < nWorkloads; workload++) { 
-
-                /*In some cases METIS might return less than the number or partitions (workloads) than you expect*/
-                /*This needs to be handled*/
 
                 workloads.getWorkloads().push_back(Workload()); /*Add each workload (struct) to vector of workloads*/
                 
                 workloads.getWorkloads()[workload].workloadID = workload;
-                workloads.getWorkloads()[workload].clusterID = 0; /*Need to configure this*/
-                workloads.getWorkloads()[workload].MinZ = 0; /*Need to configure this*/
-                workloads.getWorkloads()[workload].MinZ = 15; /*Need to configure this*/
-                workloads.getWorkloads()[workload].padTop = 0; /*Need to configure this*/
-                workloads.getWorkloads()[workload].padBottom = 0; /*Need to configure this*/
-                workloads.getWorkloads()[workload].padLeft = 0; /*Need to configure this*/
-                workloads.getWorkloads()[workload].padRight = 0; /*Need to configure this*/
+                workloads.getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
+                workloads.getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
+                workloads.getWorkloads()[workload].MinZ = 15;               /*WW09 deliverbale is less than 16 channels*/
+                workloads.getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
+                workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
+                workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
+                workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
+
+                /* Here we need to convert the paritions returned by METIS 
+                 * into tensor coordinates and populate this fields of workload 
+                 */
+                
+                // workloads.getWorkloads()[workload].MinX = 0;
+                // workloads.getWorkloads()[workload].MaxX = 0;
+                // workloads.getWorkloads()[workload].MinY = 0;
+                // workloads.getWorkloads()[workload].MaxY = 0;
 
 
             }
-
-               for(unsigned part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) {
-                   
-                   std::cout << part_i << " " << metisGraph.part[part_i] << std::endl;
-                }
-
-
-            
-
-
-
-            
-       
-
-
-
-            // mv::Workload w1;   
-            // w1.MinX = 0;
-            // w1.MaxX = 15;
-            // w1.MinY = 0;
-            // w1.MaxY = 3;
-            // w1.MinZ = 0;
-            // w1.MaxZ = 15;
-
-            // mv::Workload w2;   
-            // w2.MinX = 0;
-            // w2.MaxX = 15;
-            // w2.MinY = 0;
-            // w2.MaxY = 3;
-            // w2.MinZ = 0;
-            // w2.MaxZ = 15;
-
-            // workloads.getWorkloads().push_back(w1);
-            // workloads.getWorkloads().push_back(w2);
-            
-            // opIt->set<mv::Workloads>("Workloads", workloads);
-
-            // std::cout << opIt->toString();
-
+           
+            /*Add workloads as Attribute*/
+            opIt->set<mv::Workloads>("Workloads", workloads);
         }
     }
     std::cout << "Exiting Workload Generation Pass " << std::endl;
