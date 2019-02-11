@@ -18,6 +18,7 @@
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/computation/model/runtime_binary.hpp"
 #include "include/mcm/target/keembay/dma_direction.hpp"
+#include "include/mcm/target/keembay/ppe_layer_type.hpp"
 
 namespace mv
 {
