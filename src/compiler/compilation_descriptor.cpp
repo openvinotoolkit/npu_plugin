@@ -9,11 +9,40 @@ mv::json::Object mv::CompilationDescriptor::load(const std::string& filePath)
     if (!parser.parseFile(filePath, jsonRoot))
     {
         throw ArgumentError("CompilationDescriptor", "filePath", filePath,
-            "Unable to parse compilation descriptor - error reading file");
+            "Unable to parse JSON file");
     }
 
     if (jsonRoot.valueType() != json::JSONType::Object)
         throw ArgumentError("CompilationDescriptor", "file", filePath, "malformed JSON file - cannot create compilation descriptor");
+
+    std::vector<std::string> keys = jsonRoot.getKeys();
+
+    for (auto key : keys)
+    {
+        // XXX: Assuming that all keys other than "name" will define groups
+        if (key != "name")
+        {
+            auto convertJsonStringToObject = [key](const std::string& recType, json::Value& root)
+            {
+                mv::json::Value& v = root[key];
+
+                if (v.hasKey(recType))
+                {
+                    mv::json::Array& a = v[recType].get<mv::json::Array>();
+                    for (size_t i=0; i < a.size(); i++) {
+                        if (a[i].valueType() == mv::json::JSONType::String) {
+                            json::Object obj;
+                            obj.emplace("name", a[i]);
+                            a[i] = obj;
+                        }
+                    }
+                }
+            };
+
+            convertJsonStringToObject("Singular", jsonRoot);
+            convertJsonStringToObject("Recurrent", jsonRoot);
+        }
+    }
 
     return jsonRoot.get<json::Object>();
 
@@ -29,6 +58,9 @@ mv::CompilationDescriptor::CompilationDescriptor(const json::Object& jsonDescrip
 Element(jsonDescriptor, true, "CompilationDescriptor"),
 profile_(profile)
 {
+    if (!hasAttr("root"))
+        throw RuntimeError(*this, "root group missing in JSON config file, unable to construct compilation descriptor");
+
     // XXX: This assumes that the compilation descriptor has group definitions at the top level.
     groups_ = attrsKeys();
 }
