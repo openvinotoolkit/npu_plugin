@@ -72,14 +72,14 @@ struct MetisGraphStructure
         int nodeIndex = 0;
         for(int j=0; j < m_yDim; j++) {
             
-            if ((j+1 < m_yDim) || (!(int)tensorYDim%MPEMode.first)) 
+            if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
                     n_elem_y = MPEMode.first;
                 else 
                     n_elem_y = (int)tensorYDim%MPEMode.first;
                             
             for(int k=0; k < m_xDim; k++) {
                 
-                if ((k+1 < m_xDim) || (!(int)tensorXDim%MPEMode.first)) 
+                if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.first)))
                     n_elem_x = MPEMode.first;
                 else 
                     n_elem_x = (int)tensorXDim%MPEMode.first;
