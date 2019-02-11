@@ -125,7 +125,20 @@ namespace mv
 
         std::string getName() const;
         virtual std::string getLogID() const override;
-        //json::Value toJSON() const override;
+        json::Value toJSON() const;
+        json::Array dataFlowToJSON() const;
+        json::Array controlFlowToJSON() const;
+        json::Array opsToJSON() const;
+        json::Object opsIndexCounterToJSON() const;
+        json::Object opsInstanceCounterToJSON() const;
+        json::Array stagesToJSON() const;
+        json::Array groupsToJSON() const;
+        json::Array tensorsToJSON() const;
+        bool hasPopulatedTensorsToJSON() const;
+        json::Object memoryAllocatorsToJSON() const;
+        json::Object sourceOpsToJSON() const;
+
+        
 
     };
 

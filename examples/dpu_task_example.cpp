@@ -62,8 +62,7 @@ int main()
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
-    system("dot -Tsvg dpu_task.dot -o dpu_task.svg");
-    system("dot -Tsvg dpu_task_adapt.dot -o dpu_task_adapt.svg");
-    system("dot -Tsvg dpu_task_final.dot -o dpu_task_final.svg");
+    system("dot -Tsvg dpu_task.dot -o dpu_task.png");
+    system("dot -Tsvg dpu_task_adapt.dot -o dpu_task_adapt.png");
 
 }

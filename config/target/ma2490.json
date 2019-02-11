@@ -368,6 +368,7 @@
 		"adapt":
 		[
 			"AssignUniqueOpId",
+      "DPUConvolution",
 			"ConvertToTaskGraph",
 			"AssignUniqueTaskId"
 		],

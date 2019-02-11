@@ -20,8 +20,8 @@ namespace mv
 
         DTypeEntry(const std::string& name);
         DTypeEntry& setToBinaryFunc(std::function<BinaryData(const std::vector<double>&)>& f);
-        DTypeEntry& setSizeInBytes(unsigned size);
-        unsigned getSizeInBytes() const;
+        DTypeEntry& setSizeInBits(unsigned size);
+        unsigned getSizeInBits() const;
         const std::function<BinaryData(const std::vector<double>&)>& getToBinaryFunc() const;
     };
 

@@ -6,4 +6,4 @@
 	url = https://github.com/google/flatbuffers.git
 [submodule "graphfile"]
 	path = schema/graphfile
-	url = https://github.com/movidius/graphFile-schema
+	url = ../graphFile-schema

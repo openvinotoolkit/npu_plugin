@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
+#include "include/mcm/compiler/compilation_descriptor.hpp"
 
 TEST (compilation_descriptor, load_from_file)
 {
@@ -48,4 +49,69 @@ TEST (compilation_descriptor, load_from_file)
             }
         }
     }
+}
+
+TEST(compilation_descriptor, bare)
+{
+    mv::CompilationDescriptor compDesc("test_profile");
+    compDesc.addGroup("testGroup1");
+    compDesc.addToGroup("testGroup1", "FuseBatchNorm", "Singular", false);
+    compDesc.addToGroup("testGroup1", "testGroup2", "Singular", true);
+    compDesc.addToGroup("testGroup1", "FuseBias", "Recurrent", false);
+    compDesc.addToGroup("testGroup1", "FuseScale", "Recurrent", false);
+
+    compDesc.addGroup("testGroup2");
+    compDesc.addToGroup("testGroup2", "FuseBias", "Singular", false);
+    compDesc.addToGroup("testGroup2", "FuseScale", "Singular", false);
+    compDesc.addToGroup("testGroup2", "GenerateDot", "Singular", false);
+
+    compDesc.addGroup("root");
+    compDesc.addToGroup("root", "ConvolutionDilation", "Singular", false);
+    compDesc.addToGroup("root", "testGroup1", "Recurrent", true);
+
+    std::vector<std::string> expectedPassList = { "ConvolutionDilation",
+                "FuseBatchNorm",
+                "FuseBias",
+                "FuseScale",
+                "FuseBias",
+                "FuseScale",
+                "GenerateDot",
+                "FuseBias",
+                "FuseScale" };
+
+    std::vector<std::string> passList = compDesc.serializePassList();
+
+    ASSERT_EQ(expectedPassList, passList);
+
+    // Test pass arguments
+    // String argument
+    std::string s1 = "/foo/bar";
+    mv::Attribute p1 = s1;
+    compDesc.setPassArg("GenerateDot", "p1", p1);
+    mv::Attribute r1 = compDesc.getPassArg("GenerateDot", "p1");
+    std::string p2 = r1.get<std::string>();
+    ASSERT_EQ(p2, "/foo/bar");
+
+    // Second argument to the same pass.
+    mv::Attribute ia1 = 42;
+    compDesc.setPassArg("GenerateDot", "ia1", ia1);
+    mv::Attribute ir = compDesc.getPassArg("GenerateDot", "ia1");
+    int ia2 = ir.get<int>();
+    ASSERT_EQ(ia2, 42);
+
+    // Double argument
+    mv::Attribute da1 = 2.0;
+    compDesc.setPassArg("ConvolutionDilation", "da1", da1);
+    mv::Attribute dr = compDesc.getPassArg("ConvolutionDilation", "da1");
+    double da2 = dr.get<double>();
+    ASSERT_EQ(da2, 2.0);
+
+    // Vector argument
+    std::vector<double> v1({1.0, 2.0, 3.0});
+    mv::Attribute vda1 = v1;
+    compDesc.setPassArg("ConvolutionDilation", "vda1", vda1);
+    mv::Attribute vda2 = compDesc.getPassArg("ConvolutionDilation", "vda1");
+    auto vdr = vda2.get<std::vector<double>>();
+    ASSERT_EQ(vdr, v1);
+
 }
