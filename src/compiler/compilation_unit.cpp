@@ -63,31 +63,17 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
 
 bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
 {
-
-    JSONTextParser parser(jsonParserBufferLength_);
-
     try
     {
-
-        json::Value jsonRoot;
-        if (!parser.parseFile(filePath, jsonRoot))
-        {
-            throw ArgumentError(*this, "filePath", filePath,
-                "Unable to parse compilation descriptor - error reading");
-        }
-        if (jsonRoot.valueType() != json::JSONType::Object)
-            return false;
-        else {
-            // compilationDescriptor_ = jsonRoot.get<json::Object>();
-        }
-
+        mv::json::Object jsonDesc = mv::CompilationDescriptor::load(filePath);
+        compDescriptor_ = CompilationDescriptor(jsonDesc);
     }
     catch (ParsingError& e)
     {
         return false;
     }
-    return true;
 
+    return true;
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(Target target)
