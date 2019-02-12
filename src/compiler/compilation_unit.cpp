@@ -3,6 +3,7 @@
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefDescPath_ = "/config/target/ma2490.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
+const std::string mv::CompilationUnit::compilationDescPath_ = "/config/compilation/default_compilation_descriptor.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -74,6 +75,12 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
     }
 
     return true;
+}
+
+bool mv::CompilationUnit::loadDefaultCompilationDescriptor()
+{
+    std::string filePath = utils::projectRootPath() + compilationDescPath_;
+    return loadCompilationDescriptor(filePath);
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(Target target)

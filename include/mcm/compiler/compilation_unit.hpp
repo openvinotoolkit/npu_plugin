@@ -39,6 +39,7 @@ namespace mv
         bool loadTargetDescriptor(const std::string& path);
         bool loadTargetDescriptor(Target target);
         bool loadCompilationDescriptor(const std::string& path);
+        bool loadDefaultCompilationDescriptor();
 
         CompilationDescriptor& compilationDescriptor();
         OpModel& model();
