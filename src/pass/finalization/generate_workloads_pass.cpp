@@ -381,7 +381,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
                 workloads.getWorkloads()[workload].workloadID = workload;
                 workloads.getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
                 workloads.getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
-                workloads.getWorkloads()[workload].MinZ = 15;               /*WW09 deliverbale is less than 16 channels*/
+                workloads.getWorkloads()[workload].MaxZ = 15;               /*WW09 deliverbale is less than 16 channels*/
                 workloads.getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
