@@ -13,6 +13,15 @@
 
 namespace mv
 {
+    struct EnumClassHash
+    {
+        template <typename T>
+        std::size_t operator()(T t) const
+        {
+            return static_cast<std::size_t>(t);
+        }
+    };
+
     class RuntimeModel
     {
         private:
@@ -20,7 +29,7 @@ namespace mv
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
             static const std::unordered_map<std::string, MVCNN::DPULayerType> dpuLayerMapping_;
-            static const std::unordered_map<PpeLayerTypeEnum, MVCNN::PPELayerType> ppeLayerTypeMapping_;
+            static const std::unordered_map<PpeLayerTypeEnum, MVCNN::PPELayerType, EnumClassHash> ppeLayerTypeMapping_;
 
         public:
             RuntimeModel();

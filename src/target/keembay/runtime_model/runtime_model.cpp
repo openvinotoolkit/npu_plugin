@@ -60,7 +60,7 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
 };
 
-const std::unordered_map<mv::PpeLayerTypeEnum, MVCNN::PPELayerType> mv::RuntimeModel::ppeLayerTypeMapping_ =
+const std::unordered_map<mv::PpeLayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
 {
    {PPELayerType_STORE, MVCNN::PPELayerType::PPELayerType_STORE},
    {PPELayerType_LOAD, MVCNN::PPELayerType::PPELayerType_LOAD},
