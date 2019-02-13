@@ -7,7 +7,7 @@
 #include <iostream>
 #include <fstream>
 
-const std::string g_CompilationDescPath = "/config/compilation/default_compilation_descriptor.json";
+const std::string g_CompilationDescPath = "/config/compilation/default_ma2480.json";
 
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
