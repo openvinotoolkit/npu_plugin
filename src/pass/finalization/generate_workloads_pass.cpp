@@ -79,10 +79,10 @@ struct MetisGraphStructure
                             
             for(int k=0; k < m_xDim; k++) {
                 
-                if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.first)))
-                    n_elem_x = MPEMode.first;
+                if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
+                    n_elem_x = MPEMode.second;
                 else 
-                    n_elem_x = (int)tensorXDim%MPEMode.first;
+                    n_elem_x = (int)tensorXDim%MPEMode.second;
             
                 vwgt[nodeIndex] = n_elem_x * n_elem_y;
                 std::cout << "Node " << nodeIndex << " weight is " << n_elem_x * n_elem_y << std::endl;
