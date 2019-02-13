@@ -7,7 +7,7 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 #include <math.h>
 
-static void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &);
+static void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
 
 namespace mv
 {
@@ -15,7 +15,6 @@ namespace mv
     {
         MV_REGISTER_PASS(GenerateWorkloads)
             .setFunc(generateWorkloadsFcn)
-            .setGenre(PassGenre::Finalization)
             .setDescription(
                 "This pass generates workloads");
     }
@@ -70,7 +69,7 @@ std::set<int> getNWorkloads(std::vector<mv::Data::TensorIterator> tensor, int nD
     return splitPool;
 }
 
-void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
     using namespace mv;
 

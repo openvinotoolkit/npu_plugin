@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void DPUConvolutionFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &);
+static void DPUConvolutionFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
 
 namespace mv
 {
@@ -11,7 +11,6 @@ namespace mv
     {
         MV_REGISTER_PASS(DPUConvolution)
             .setFunc(DPUConvolutionFcn)
-            .setGenre(PassGenre::Adaptation)
             .setDescription(
                 "Replace all convolution operations with DPU tasks.\n"
                 "Assume each convolution can be done with DPU on KMB.\n"
@@ -21,7 +20,7 @@ namespace mv
 
 #define OUT_DMA 1 // 1=use CMX2DMA for output of dpuConv, 0=don't use DMA for output
 
-void DPUConvolutionFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void DPUConvolutionFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(om);

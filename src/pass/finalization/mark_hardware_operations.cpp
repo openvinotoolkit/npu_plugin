@@ -31,7 +31,7 @@ namespace mv
 }
 
 //NOTE: This should not be done in such hardcoded way.
-void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object &)
+void markHardwareOperations(const mv::pass::PassEntry &, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::Element& passDesc, mv::json::Object &)
 {
 
     //int amount_marked = 0;

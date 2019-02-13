@@ -10,7 +10,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <math.h>
 
-static void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void quantizationFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -20,7 +20,6 @@ namespace mv
 
         MV_REGISTER_PASS(Quantization)
         .setFunc(quantizationFnc)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "Set quantizaed weight tables for HW convolutions"
         );
@@ -54,7 +53,7 @@ std::vector<double> convertToDoubleVector(std::vector<T> input)
 // m  = (S1 * S2)/S3, scale for MAC output
 // zeroPointScaled = output zero point scaled to MAC output precision
 // biasScaled = bias scaled to MAC output precision
-void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "HW Quantization Optimization Started");
 
