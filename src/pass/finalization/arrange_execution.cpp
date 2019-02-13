@@ -60,9 +60,24 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
         if(op->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
             cm.defineFlow(inputOp, op);
 
-    // Adding layer 2 ----> Is giving trouble??
+    // Adding layer 2
     for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
-        cm.defineFlow(dataFlow.source(), dataFlow.sink());
+    {
+        // Must check if a control flow exists already
+        auto source = cm.switchContext(dataFlow.source());
+        auto sink = cm.switchContext(dataFlow.sink());
+        bool found = false;
+        for(auto childOp = source.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+        {
+            if(childOp == sink)
+            {
+                found = true;
+                break;
+            }
+        }
+        if(!found)
+            cm.defineFlow(dataFlow.source(), dataFlow.sink());
+    }
 
     // Point 2)
     auto stage = cm.addStage();

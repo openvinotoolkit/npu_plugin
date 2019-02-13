@@ -21,7 +21,8 @@ int main()
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3);
     auto weights = om.constant(weightsData, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {0, 0, 0, 0});
-    om.output(conv);
+    auto pool = om.maxPool(conv, {3 , 3}, {1, 1}, {1, 1, 1, 1});
+    om.output(pool);
 
     std::string outputName("dpu_conv");
 

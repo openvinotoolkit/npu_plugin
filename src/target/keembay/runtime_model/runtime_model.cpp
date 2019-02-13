@@ -154,6 +154,8 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &cm, json::Obj
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
     toBuild->data->data_index = bufferIt->getOffset();
+    // UNSUPPORTED FOR NOW
+    // toBuild->sparsity_index
     toBuild->locale = convertAllocatorToMemoryLocale(allocator.getAllocatorName());
     toBuild->data_dtype = convertDtype(bufferIt->getData()->getDType());
 

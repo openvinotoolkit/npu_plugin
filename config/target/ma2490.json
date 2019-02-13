@@ -368,7 +368,6 @@
 		"adapt":
 		[
 			"AssignUniqueOpId",
-      			"DPUConvolution",
 			"ConvertToTaskGraph",
 			"AssignUniqueTaskId"
 		],
@@ -377,7 +376,7 @@
 		[
             		"GenerateWorkloads",
 			"ArrangeKeembayExecution"
-		],
+        	],
 
 		"serialize":
 		[
