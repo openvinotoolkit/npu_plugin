@@ -6,6 +6,8 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/graph/graph.hpp"
+#include <algorithm>
+#include <climits>
 #include <math.h>
 #include <metis.h>
 
@@ -23,6 +25,16 @@ namespace mv
     }
 }
 
+// Coordinates of METIS graph node:
+// use it to restore coordinates
+// after leveraging METIS for
+// partitioning of workloads.
+struct NodeCoords
+{
+    int16_t min_x, n_elem_x;
+    int16_t min_y, n_elem_y;
+};
+
 /* METIS parameters*/
 struct MetisGraphStructure
 {
@@ -38,6 +50,8 @@ struct MetisGraphStructure
     idx_t m_numberTensorEdges;
     int m_xDim;
     int m_yDim;
+
+    NodeCoords* node_coords;
 
     MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode){
 
@@ -58,7 +72,8 @@ struct MetisGraphStructure
         adjncy = new idx_t[2*m_numberTensorEdges];
         part = new idx_t[m_numberTensorVertices];
         vwgt = new idx_t[m_numberTensorVertices* nWeights];
-    
+
+        node_coords = new NodeCoords [ m_numberTensorVertices ];
         
         /* Weights of METIS vertices
          * Description page 23 Metis manual
@@ -73,9 +88,9 @@ struct MetisGraphStructure
         for(int j=0; j < m_yDim; j++) {
             
             if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
-                    n_elem_y = MPEMode.first;
+                    n_elem_y = MPEMode.first;                 // FIXME: second?
                 else 
-                    n_elem_y = (int)tensorYDim%MPEMode.first;
+                    n_elem_y = (int)tensorYDim%MPEMode.first; // FIXME: second?
                             
             for(int k=0; k < m_xDim; k++) {
                 
@@ -86,6 +101,16 @@ struct MetisGraphStructure
             
                 vwgt[nodeIndex] = n_elem_x * n_elem_y;
                 std::cout << "Node " << nodeIndex << " weight is " << n_elem_x * n_elem_y << std::endl;
+
+                node_coords[nodeIndex].min_x = k * MPEMode.first;
+                node_coords[nodeIndex].min_y = j * MPEMode.second;
+                node_coords[nodeIndex].n_elem_x = n_elem_x;
+                node_coords[nodeIndex].n_elem_y = n_elem_y;
+                std::cout << "    min_x: " << node_coords[nodeIndex].min_x << std::endl;    // DEBUG
+                std::cout << "    min_y: " << node_coords[nodeIndex].min_y << std::endl;    // DEBUG
+                std::cout << " n_elem_x: " << node_coords[nodeIndex].n_elem_x << std::endl; // DEBUG
+                std::cout << " n_elem_y: " << node_coords[nodeIndex].n_elem_y << std::endl; // DEBUG
+
                 nodeIndex++;
             }
             
@@ -96,6 +121,8 @@ struct MetisGraphStructure
         delete[] xadj;
         delete[] adjncy;
         delete[] part;
+    //  delete[] vwgt; // FIXME: forgotten?
+        delete[] node_coords;
     } 
 };
  
@@ -371,6 +398,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
             /*Workloads class instance*/
             Workloads workloads(opIt->getName());
 
+            std::cout << "Workloads:" << std::endl; // DEBUG
+
             /*Populate each workload*/
             /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
             /*This needs to be handled here for now assuming number of partitions is the number or workloads*/
@@ -390,13 +419,41 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
                 /* Here we need to convert the paritions returned by METIS 
                  * into tensor coordinates and populate this fields of workload 
                  */
-                
-                // workloads.getWorkloads()[workload].MinX = 0;
-                // workloads.getWorkloads()[workload].MaxX = 0;
-                // workloads.getWorkloads()[workload].MinY = 0;
-                // workloads.getWorkloads()[workload].MaxY = 0;
 
+                workloads.getWorkloads()[workload].MinX = SHRT_MAX;
+                workloads.getWorkloads()[workload].MinY = SHRT_MAX;
+                workloads.getWorkloads()[workload].MaxX = -1;
+                workloads.getWorkloads()[workload].MaxY = -1;
 
+                for (int i=0; i < metisGraph.m_numberTensorVertices; i++)
+                {
+                    if (metisGraph.part[i] == workload)
+                    {
+                        // NB: references (just shorter aliases for WL coordinates)
+                        int16_t& wl_min_x = workloads.getWorkloads()[workload].MinX;
+                        int16_t& wl_min_y = workloads.getWorkloads()[workload].MinY;
+                        int16_t& wl_max_x = workloads.getWorkloads()[workload].MaxX;
+                        int16_t& wl_max_y = workloads.getWorkloads()[workload].MaxY;
+
+                        int16_t min_x = metisGraph.node_coords[i].min_x;
+                        int16_t min_y = metisGraph.node_coords[i].min_y;
+                        int16_t max_x = min_x + metisGraph.node_coords[i].n_elem_x - 1;
+                        int16_t max_y = min_y + metisGraph.node_coords[i].n_elem_y - 1;
+
+                        // NB: guard calling to std::min/max with parentheses,
+                        //     as they may mess with same-named macro on Windows
+                        wl_min_x = (std::min)(wl_min_x, min_x);
+                        wl_min_y = (std::min)(wl_min_y, min_y);
+                        wl_max_x = (std::max)(wl_max_x, max_x);
+                        wl_max_y = (std::max)(wl_max_y, max_y);
+                    }
+                }
+
+                std::cout << "workload: " << workload << std::endl;                                 // DEBUG
+                std::cout << "    min_x: " << workloads.getWorkloads()[workload].MinX << std::endl; // DEBUG
+                std::cout << "    min_y: " << workloads.getWorkloads()[workload].MinY << std::endl; // DEBUG
+                std::cout << "    max_x: " << workloads.getWorkloads()[workload].MaxX << std::endl; // DEBUG
+                std::cout << "    max_y: " << workloads.getWorkloads()[workload].MaxY << std::endl; // DEBUG
             }
            
             /*Add workloads as Attribute*/
