@@ -5,24 +5,24 @@
 static void setPassReg()
 {
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> adaptPass1 = 
-        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> adaptPass1 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "adapt1", (bool)true);
 
     };
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> adaptPass2 = 
-        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> adaptPass2 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "adapt2", (bool)true);
 
     };
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> validPass1 =
-        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&) 
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> validPass1 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         if (!om.getInput()->hasAttr("valid"))
@@ -32,68 +32,61 @@ static void setPassReg()
 
     };
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> optPass1 = 
-        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> optPass1 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "opt1", (bool)true);
 
     };
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> finalPass1 =
-        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> finalPass1 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "final1", (bool)true);
 
     };
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> serialPass1 = 
-        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> serialPass1 =
+        [](const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
     {   
         mv::OpModel om(model);
         om.addAttr(om.getInput(), "serial1", (bool)true);
 
     };
 
-    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)> passWithArg = 
-        [](const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+    std::function<void(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)> passWithArg =
+        [](const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
     {   
 
     };
 
     mv::pass::PassRegistry::instance().enter("__TEST_AdaptPass1")
-    .setGenre(mv::PassGenre::Adaptation)
     .setDescription("Test execution of a scheduled adaptation pass")
     .setFunc(adaptPass1);
 
     mv::pass::PassRegistry::instance().enter("__TEST_AdaptPass2")
-    .setGenre(mv::PassGenre::Adaptation)
     .setDescription("Test execution of a scheduled adaptation pass")
     .setFunc(adaptPass2);
 
     mv::pass::PassRegistry::instance().enter("__TEST_OptPass1")
-    .setGenre(mv::PassGenre::Optimization)
     .setDescription("Test execution of a scheduled optimization pass")
     .setFunc(optPass1);
 
     mv::pass::PassRegistry::instance().enter("__TEST_FinalPass1")
-    .setGenre(mv::PassGenre::Finalization)
     .setDescription("Test execution of a scheduled finalization pass")
     .setFunc(finalPass1);
 
     mv::pass::PassRegistry::instance().enter("__TEST_SerialPass1")
-    .setGenre(mv::PassGenre::Serialization)
     .setDescription("Test execution of a scheduled serialization pass")
     .setFunc(serialPass1);
 
     mv::pass::PassRegistry::instance().enter("__TEST_ValidPass1")
-    .setGenre(mv::PassGenre::Validation)
     .setDescription("Test execution of a scheduled validation pass")
     .setFunc(validPass1);
 
     mv::pass::PassRegistry::instance().enter("__TEST_PassWithArg")
-    .setGenre(mv::PassGenre::Adaptation)
     .setDescription("Test checking the required args in compilation decriptor")
     .setFunc(passWithArg)
     .defineArg(mv::json::JSONType::String, "arg1");
@@ -123,27 +116,42 @@ TEST(pass_manager, invalid_execution)
     mv::PassManager pm;
 
     mv::TargetDescriptor targetDesc;
-    mv::json::Object compDesc;
+    mv::CompilationDescriptor compDesc;
 
-    ASSERT_FALSE(pm.ready());
+    ASSERT_FALSE(pm.initialized());
     pm.initialize(model, targetDesc, compDesc);
 
-    ASSERT_TRUE(pm.ready());
+    ASSERT_TRUE(pm.initialized());
     ASSERT_FALSE(pm.validDescriptors());
     ASSERT_ANY_THROW(pm.step());
 
     targetDesc.setTarget(mv::Target::ma2480);
     targetDesc.setDType(mv::DType("Float16"));
-    pm.initialize(model, targetDesc, compDesc);
-    pm.enablePass(mv::PassGenre::Adaptation, "__TEST_PassWithArg");
-    ASSERT_TRUE(pm.ready());
+
+    // Initialize the compilation descriptor, but leave out pass argument.
+    compDesc.addGroup("Adaptation");
+    compDesc.addToGroup("Adaptation", "__TEST_PassWithArg", "Singular", false);
+    compDesc.addGroup("root");
+    compDesc.addToGroup("root", "Adaptation", "Singular", true);
+    std::vector<mv::Element> passList = compDesc.serializePassList();
+    pm.loadPassList(passList);
+
+    ASSERT_TRUE(pm.initialized());
+    // Missing pass argument should be caught here.
     ASSERT_FALSE(pm.validDescriptors());
     ASSERT_ANY_THROW(pm.step());
 
-    compDesc["arg1"] = std::string("value");
+    mv::Attribute v1 = std::string("value");
+    compDesc.setPassArg("__TEST_PassWithArg", "arg1", v1);
+
     pm.initialize(model, targetDesc, compDesc);
-    ASSERT_TRUE(pm.ready());
+    passList = compDesc.serializePassList();
+    pm.loadPassList(passList);
+
+    ASSERT_TRUE(pm.initialized());
     ASSERT_TRUE(pm.validDescriptors());
+    ASSERT_NO_THROW(pm.step());
+
     resetPassReg();
 
 }
@@ -160,18 +168,35 @@ TEST(pass_manager, execution)
     mv::PassManager pm;
 
     mv::TargetDescriptor targetDesc;
-    mv::json::Object compDesc;
+    mv::CompilationDescriptor compDesc;
     targetDesc.setTarget(mv::Target::ma2480);
     targetDesc.setDType(mv::DType("Float16"));
-    targetDesc.appendAdaptPass("__TEST_AdaptPass1");
-    targetDesc.appendAdaptPass("__TEST_AdaptPass2");
-    targetDesc.appendOptPass("__TEST_OptPass1");
-    targetDesc.appendFinalPass("__TEST_FinalPass1");
-    targetDesc.appendSerialPass("__TEST_SerialPass1");
-    targetDesc.appendValidPass("__TEST_ValidPass1");
+
+    compDesc.addGroup("Adaptation");
+    compDesc.addGroup("Optimization");
+    compDesc.addGroup("Finalization");
+    compDesc.addGroup("Serialization");
+    compDesc.addGroup("Validation");
+    compDesc.addToGroup("Adaptation", "__TEST_AdaptPass1", "Singular", false);
+    compDesc.addToGroup("Adaptation", "__TEST_AdaptPass2", "Singular", false);
+    compDesc.addToGroup("Optimization", "__TEST_OptPass1", "Singular", false);
+    compDesc.addToGroup("Finalization", "__TEST_FinalPass1", "Singular", false);
+    compDesc.addToGroup("Serialization", "__TEST_SerialPass1", "Singular", false);
+    compDesc.addToGroup("Validation", "__TEST_ValidPass1", "Singular", false);
+
+    compDesc.addGroup("root");
+    compDesc.addToGroup("root", "Adaptation", "Singular", true);
+    compDesc.addToGroup("root", "Optimization", "Singular", true);
+    compDesc.addToGroup("root", "Finalization", "Singular", true);
+    compDesc.addToGroup("root", "Serialization", "Singular", true);
+    compDesc.addToGroup("root", "Validation", "Recurrent", true);
 
     pm.initialize(model, targetDesc, compDesc);
-    ASSERT_TRUE(pm.ready());
+
+    std::vector<mv::Element> passList = compDesc.serializePassList();
+    pm.loadPassList(passList);
+
+    ASSERT_TRUE(pm.initialized());
     ASSERT_TRUE(pm.validDescriptors());
     
     while (!pm.completed())

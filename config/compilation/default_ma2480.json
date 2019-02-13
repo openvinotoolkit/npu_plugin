@@ -1,0 +1,73 @@
+{
+    "adapt":
+    {
+        "Singular" :
+        [
+            "ConvolutionDilation",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseScale",
+            "FuseBias",
+            "FuseScale",
+            "FuseBias",
+            "FullyConnectedAsConv2D",
+            "RemoveDropOut"
+        ]
+    },
+
+    "finalize":
+    {
+        "Singular" :
+        [
+            "AlignConstOrder",
+            "MarkHardwareOperations",
+            "FuseReluMX",
+            "AddConversionLayers",
+            "MyriadXPaddings",
+            "OptimizePoolings",
+            "OptimizeConvolutions",
+            "SplitsOverH",
+            {
+                "name" : "ScaleFission",
+                "scalefactors":
+                {
+                    "conv2d_2": 7.6,
+                    "conv2d_4": 8.0
+                }
+            },
+            "FormatMXWeights",
+            "ArrangeLinearExecution",
+            "AllocatePopulatedTensors",
+            "AllocateUnpopulatedTensors",
+            "AllocateInputOutputTensors"
+        ]
+    },
+
+    "serialize":
+    {
+        "Singular" :
+        [
+            "PopulateSerialFields",
+            "GenerateBlob"
+        ]
+    },
+
+    "validate":
+    {
+        "Singular" :
+        [
+            "GenerateDot",
+            "CheckTensors"
+        ]
+    },
+
+    "root" :
+    {
+        "Singular" :
+        [
+            "adapt",
+            "finalize",
+            "serialize"
+        ]
+    }
+}

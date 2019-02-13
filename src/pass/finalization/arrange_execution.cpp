@@ -2,7 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
-static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -12,7 +12,6 @@ namespace mv
 
         MV_REGISTER_PASS(ArrangeLinearExecution)
         .setFunc(arrangeLinearExecutionFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             ""
         );
@@ -21,7 +20,7 @@ namespace mv
 
 }
 
-void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     std::cout << "Arrange execution" << std::endl;

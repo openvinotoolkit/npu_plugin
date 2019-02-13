@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-static void tensorFieldStorageFn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void tensorFieldStorageFn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,7 +13,6 @@ namespace mv
 
         MV_REGISTER_PASS(TensorFieldStorage)
         .setFunc(tensorFieldStorageFn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             ""
         );
@@ -21,7 +20,7 @@ namespace mv
 
 }
 
-void tensorFieldStorageFn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void tensorFieldStorageFn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 //     /*
 //     * This pass moves some fields of layers to be stored in a Tensor.

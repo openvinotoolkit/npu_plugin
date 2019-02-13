@@ -13,28 +13,23 @@ namespace mv
 
         const static unsigned jsonParserBufferLength_ = 128;
 
-        void serializePassListInGroup(const std::string& group, std::vector<std::string> &serializedPasses);
-        void addElemAttribute(const std::string& elem, bool isGroup);
+        // Maintain a list of groups in order to be able to delete groups        
+        std::vector<std::string> groups_;
+
+        void serializePassListInGroup(const std::string& group, std::vector<Element>& serializedPasses);
         bool isGroup(const std::string& elem);
         std::string profile_;
 
-        /**
-         * Adds a pass attribute to the compilation descriptor. The main reason we need this is to store arguments that
-         * may accompany passes.
-         */
-        void addPass(const std::string& pass);
-        std::string getElemString(const std::string &elem) const;
-
     public:
 
-        CompilationDescriptor(const std::string& profile);
-        CompilationDescriptor(const std::string& path, const std::string& profile);
+        CompilationDescriptor(const std::string& profile = "");
+        CompilationDescriptor(const json::Object&, const std::string& profile = "");
 
         /**
          * Populate the compilation descriptor from a json file. Not implemented yet.
          */
 
-        void load(const std::string& path);
+        static json::Object load(const std::string& filePath);
 
         /**
          * Adds group attribute to the compilation descriptor. This just creates an entry for a group, without specifying
@@ -51,14 +46,50 @@ namespace mv
         void addToGroup(const std::string& group, const std::string& elem, const std::string& recurrence, bool isGroup);
 
         /**
-         * Set argument to a pass.
+         * Remove element from specific group and a specific recurrence in that group.
+         */
+        void remove(const std::string& group, const std::string& elem, const std::string& recurrence);
+
+        /**
+         * Remove element from all recurrences in a group (Singular and Recurrent). Remove all references
+         * to said group from other groups as well.
+         */
+        void remove(const std::string& group, const std::string& pass);
+
+        /**
+         * Remove group. Remove all references to said group from other groups as well.
+         */
+        void remove(const std::string& group);
+
+        /**
+         * Remove all groups and passes.
+         */
+        void clear();
+
+        /**
+         * Get number of groups, including root group.
+         */
+        size_t getNumGroups();
+
+        /**
+         * Check whether root group is defined.
+         */
+        bool rootGroupPresent();
+
+        /**
+         * Set argument to a pass in all groups.
          */
         void setPassArg(const std::string& pass, const std::string& arg, const mv::Attribute& value);
+        
+        /**
+         * Set argument to a pass in a specific group only.
+         */
+        void setPassArg(const std::string& group, const std::string& pass, const std::string& arg, const mv::Attribute& value);
 
         /**
          * Get argument for a pass.
          */
-        mv::Attribute getPassArg(const std::string& pass, const std::string& arg);
+        mv::Attribute getPassArg(const std::string& group, const std::string& recType, const std::string& pass, const std::string& arg);
 
         /**
          * Validate a pass passed in.
@@ -68,11 +99,8 @@ namespace mv
         /**
          * Unfold groups into passes list.
          */
-        std::vector<std::string> serializePassList();
+        std::vector<mv::Element> serializePassList();
 
-        std::string toString() const override;
-
-        std::string groupToString(const std::string &groupStr) const;
     };
 
 }

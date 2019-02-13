@@ -33,18 +33,21 @@ int main()
     if (!unit.loadTargetDescriptor(mv::Target::ma2480))
     	exit(1);
 
-    // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
-    // Output DOT - file name (base)
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("allocate_resources.blob");
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("allocate_resources.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("allocate_resources.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("allocate_resources.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.loadDefaultCompilationDescriptor();
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string blobName = "allocate_resources.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("allocate_resources.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation
     unit.initialize();

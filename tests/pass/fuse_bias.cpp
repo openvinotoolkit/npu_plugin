@@ -22,11 +22,11 @@ TEST(fuse_bias, case_conv)
     
     auto outputOp = biasOp.leftmostChild();
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseBias")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseBias")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);

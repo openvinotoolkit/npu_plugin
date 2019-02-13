@@ -7,6 +7,8 @@
 #include <iostream>
 #include <fstream>
 
+const std::string g_CompilationDescPath = "/config/compilation/default_ma2480.json";
+
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
@@ -75,23 +77,20 @@ TEST (generate_blob, blob_output_conv_01)
     auto conv1 = test_cm.conv(input1, weights1, {4, 4}, {0, 0, 0, 0}, 1);
     auto output1 = test_cm.output(conv1);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
+
     std::string blobName = "test_conv_01.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_01.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Validation);
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
-    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -120,25 +119,26 @@ TEST (generate_blob, blob_output_conv_02)
 
     auto output2 = test_cm.output(conv2);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_conv_02.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Validation);
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
-    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -168,26 +168,26 @@ TEST (generate_blob, blob_output_conv_03)
 
     auto output3 = test_cm.output(conv3);
 
-    std::string blobName = "test_conv_03.blob";
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    std::string blobName = "test_conv_03.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-//    unit.passManager().disablePass(mv::PassGenre::Validation);
-//    unit.passManager().disablePass(mv::PassGenre::Serialization);
-//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -215,26 +215,27 @@ TEST (generate_blob, blob_output_conv_04)
     auto conv4 = test_cm.conv(input4, weights4, {2, 2}, {0, 0, 0, 0}, 1);   // input tensor, wieghts tensor, stridex, stridey, padx, pady
 
     auto output4 = test_cm.output(conv4);
-    
+
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_conv_04.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-//    unit.passManager().disablePass(mv::PassGenre::Validation);
-//    unit.passManager().disablePass(mv::PassGenre::Serialization);
-//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -266,25 +267,26 @@ TEST (generate_blob, blob_blur_edge_05)
 
     auto output = test_cm.output(conv2);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_conv_05.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-//    unit.passManager().disablePass(mv::PassGenre::Validation);
-//    unit.passManager().disablePass(mv::PassGenre::Serialization);
-//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -323,26 +325,26 @@ TEST (generate_blob, blob_4_ops)
     // define output
     auto outIt6 = test_cm.output(maxpoolIt62);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string blobName = "test_conv_06.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_output_conv_02.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-//    unit.passManager().disablePass(mv::PassGenre::Validation);
-//    unit.passManager().disablePass(mv::PassGenre::Serialization);
-//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -402,25 +404,26 @@ TEST (generate_blob, blob_eltwise_add)
     // define output
     auto outIt7 = test_cm.output(eltwiseIt7);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_add_07.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_add.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_add.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Validation);
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
-    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -481,25 +484,26 @@ TEST (generate_blob, blob_eltwise_multiply)
     // define output
     auto outIt7 = test_cm.output(eltwiseIt7);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_multiply_08.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Validation);
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
-    //unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -559,25 +563,26 @@ TEST (generate_blob, blob_softmax)
     // define output
     auto outIt7 = test_cm.output(softIt7);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_softmax_09.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-//    unit.passManager().disablePass(mv::PassGenre::Validation);
-//    unit.passManager().disablePass(mv::PassGenre::Serialization);
-//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -629,25 +634,26 @@ TEST (generate_blob, blob_convbias_convrelu)
     // define output
     auto outIt6 = test_cm.output(maxpoolIt62);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_relu_10.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-//    unit.passManager().disablePass(mv::PassGenre::Validation);
-//    unit.passManager().disablePass(mv::PassGenre::Serialization);
-//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -691,23 +697,25 @@ TEST (generate_blob, blob_scale)
     // define output
     auto outIt6 = test_cm.output(scaleIt62);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_scale_11.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
-//    unit.passManager().disablePass(mv::PassGenre::Validation);
-//    unit.passManager().disablePass(mv::PassGenre::Serialization);
-//    unit.passManager().enablePass(mv::PassGenre::Serialization, "GenerateBlob");
 
     auto compOutput = unit.run();
 
@@ -736,17 +744,22 @@ TEST (generate_blob_WDDM, blob_maxpool1)
     // define output
     auto output = test_cm.output(maxpoolIt);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_maxpool1";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName+"_sw.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+"_sw.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+"_sw.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+"_sw.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName + "_sw.blob");
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+"_sw.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
 
@@ -771,17 +784,22 @@ TEST (generate_blob_WDDM, blob_maxpool2)
     // define output
     auto output = test_cm.output(maxpoolIt);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_maxpool2.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool2.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool2.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool2.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("maxpool2.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
 
@@ -807,22 +825,26 @@ TEST (generate_blob_WDDM, blob_maxpool3)
     // define output
     auto output = test_cm.output(maxpoolIt);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_maxpool3.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool3.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool3.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool3.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("maxpool3.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -844,22 +866,26 @@ TEST (generate_blob_WDDM, blob_maxpool4)
     // define output
     auto output = test_cm.output(maxpoolIt);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_maxpool4.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("maxpool4.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("maxpool4.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("maxpool4.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("maxpool4.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -881,22 +907,26 @@ TEST (generate_blob_WDDM, blob_avgpool1)
     // define output
     auto output = test_cm.output(avgpoolIt);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "avgpool1";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = "test_"+blobName+".blob";
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr("test_"+blobName+".blob");
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+".dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -918,22 +948,26 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     // define output
     auto output = test_cm.output(avgpoolIt);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "avgpool2";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = "test_"+blobName+".blob";
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr("test_"+blobName+".blob");
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+".dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -953,22 +987,26 @@ TEST (generate_blob_WDDM, blob_conv1)
     auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0}, 1);
     auto output = test_cm.output(conv1);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "wddm_conv1";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName+".blob";
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(blobName+".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(blobName+".prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(blobName+".caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr("test_"+blobName+".blob");
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+".dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
@@ -993,27 +1031,32 @@ TEST (generate_blob_WDDM, blob_leakyRelu)
     // define output
     auto output = test_cm.output(leakyRelu);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_leakyrelu.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("leakyrelu.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("leakyRelu.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("leakyRelu.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("leakyrelu.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
     EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
+
 // test 10 : conv->elu
 TEST (generate_blob_WDDM, blob_elu)
 {
@@ -1032,27 +1075,32 @@ TEST (generate_blob_WDDM, blob_elu)
     // define output
     auto output = test_cm.output(elu);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_elu.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("elu.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("elu.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("elu.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("elu.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
     EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
+
 TEST (generate_blob_WDDM, blob_sigmoid)
 {
 
@@ -1070,27 +1118,32 @@ TEST (generate_blob_WDDM, blob_sigmoid)
     // define output
     auto output = test_cm.output(sigmoid);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_sigmoid.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("sigmoid.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("sigmoid.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("sigmoid.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("sigmoid.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
 
-    unit.initialize();
     auto compOutput = unit.run();
 
     // compare filesize written to expected
     EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
+
 TEST (generate_blob_WDDM, blob_tanh)
 {
 
@@ -1108,17 +1161,22 @@ TEST (generate_blob_WDDM, blob_tanh)
     // define output
     auto output = test_cm.output(tanh);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_tanh.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("tanh.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("tanh.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("tanh.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("tanh.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -1128,6 +1186,7 @@ TEST (generate_blob_WDDM, blob_tanh)
     // compare filesize written to expected
     EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
+
 TEST (generate_blob_WDDM, blob_lrn)
 {
 
@@ -1146,17 +1205,22 @@ TEST (generate_blob_WDDM, blob_lrn)
     // define output
     auto output = test_cm.output(lrn);
 
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string blobName = "test_lrn.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("lrn.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("lrn.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("lrn.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("lrn.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();
@@ -1165,6 +1229,7 @@ TEST (generate_blob_WDDM, blob_lrn)
     // compare filesize written to expected
     EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
+
 // Create both RAM and file blobs
 TEST (generate_blob, runtime_binary_RAM_FILE)
 {
@@ -1185,17 +1250,22 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     // Load target descriptor for the selected target to the compilation unit
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
-    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest1.blob");
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string blobName = "RAMtest1.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation 
     unit.initialize();
@@ -1256,22 +1326,24 @@ TEST (generate_blob, runtime_binary_RAM)
     // Load target descriptor for the selected target to the compilation unit
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
-    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest2.blob");
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = false;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string blobName = "RAMtest2.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", false);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation 
-    unit.initialize();
-
-    // Run all passes
     unit.initialize();
     unit.run();
     cm.getBinaryBuffer()->dumpBuffer("final_RAM2.blob") ;
@@ -1320,22 +1392,24 @@ TEST (generate_blob, runtime_binary_FILE)
     // Load target descriptor for the selected target to the compilation unit
     EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
 
-    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("RAMtest3.blob");
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
+    unit.loadCompilationDescriptor(path);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string blobName = "RAMtest3.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation 
-    unit.initialize();
-
-    // Run all passes
     unit.initialize();
     unit.run();
     cm.getBinaryBuffer()->dumpBuffer("final_RAM3.blob") ;

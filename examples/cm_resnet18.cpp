@@ -120,21 +120,28 @@ int main()
         exit(1);
     }
     
-    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet18.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("resnet18.blob");
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
-    
+    unit.loadDefaultCompilationDescriptor();
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string blobName = "resnet18.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("cm_resnet18.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
+
+    // compDesc.setPassArg("GenerateCaffe", "outputPrototxt", std::string("cm_resnet18.prototxt"));
+    // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string("cm_resnet18.caffemodel"));
+
     // Initialize compilation 
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    //unit.passManager().disablePass(mv::PassGenre::Serialization);
     //unit.passManager().disablePass(mv::PassGenre::Adaptation);
 
     // Run all passes

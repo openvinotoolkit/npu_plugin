@@ -3,6 +3,7 @@
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefDescPath_ = "/config/target/ma2490.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
+const std::string mv::CompilationUnit::compilationDescPath_ = "/config/compilation/default_ma2480.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -63,30 +64,23 @@ bool mv::CompilationUnit::loadTargetDescriptor(const std::string& path)
 
 bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
 {
-
-    JSONTextParser parser(jsonParserBufferLenght_);
-
     try
     {
-
-        json::Value jsonRoot;
-        if (!parser.parseFile(filePath, jsonRoot))
-        {
-            throw ArgumentError(*this, "filePath", filePath,
-                "Unable to parse compilation descriptor - error reading");
-        }
-        if (jsonRoot.valueType() != json::JSONType::Object)
-            return false;
-        else
-            compilationDescriptor_ = jsonRoot.get<json::Object>();
-
+        mv::json::Object jsonDesc = mv::CompilationDescriptor::load(filePath);
+        compDescriptor_ = CompilationDescriptor(jsonDesc);
     }
     catch (ParsingError& e)
     {
         return false;
     }
-    return true;
 
+    return true;
+}
+
+bool mv::CompilationUnit::loadDefaultCompilationDescriptor()
+{
+    std::string filePath = utils::projectRootPath() + compilationDescPath_;
+    return loadCompilationDescriptor(filePath);
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(Target target)
@@ -116,14 +110,9 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
 
 }
 
-mv::PassManager& mv::CompilationUnit::passManager()
+mv::CompilationDescriptor& mv::CompilationUnit::compilationDescriptor()
 {
-    return passManager_;
-}
-
-mv::json::Object& mv::CompilationUnit::compilationDescriptor()
-{
-    return compilationDescriptor_;
+    return compDescriptor_;
 }
 
 mv::OpModel& mv::CompilationUnit::model()
@@ -139,7 +128,7 @@ mv::CompositionalModel& mv::CompilationUnit::recordedModel()
 bool mv::CompilationUnit::initialize()
 {
 
-    if (!passManager_.initialize(*model_, targetDescriptor_, compilationDescriptor_))
+    if (!passManager_.initialize(*model_, targetDescriptor_, compDescriptor_))
         return false;
     // Initialize resouces
     for (auto it = targetDescriptor_.memoryDefs().begin(); it != targetDescriptor_.memoryDefs().end(); ++it)
@@ -160,6 +149,9 @@ mv::json::Object mv::CompilationUnit::runStep()
 mv::json::Object mv::CompilationUnit::run()
 {
     json::Object output;
+    std::vector<mv::Element> passList = compDescriptor_.serializePassList();
+    passManager_.loadPassList(passList);
+
     while (!passManager_.completed())
         output = passManager_.step();
     return output;

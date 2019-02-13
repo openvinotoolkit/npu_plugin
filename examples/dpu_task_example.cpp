@@ -51,15 +51,19 @@ int main()
     cm.defineFlow(dpuconv1Op, input1dmaOutOp);
     cm.defineFlow(dpuconv1Op, dmaOUTWeights1Op);
 
+    unit.loadDefaultCompilationDescriptor();
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.remove("serialize");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
+    // unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
     system("dot -Tsvg dpu_task.dot -o dpu_task.png");
