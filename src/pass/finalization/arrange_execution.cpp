@@ -41,10 +41,12 @@ namespace mv
 // Rationale: Until we know more about memory addresses, DMA potentially have no impediments after input operation
 // 2) A layer made up of ControlFlows that are coincident with DataFlows
 // Rationale: Wherever there is a data dependency, there is also a execution dependency
+
+// WARNING: Transitive reduction needs to be applied after this pass, otherwise Control Flows are potentially harmful and lose their meaning
 void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
-    std::cout << "Arrange execution" << std::endl;
+    std::cout << "Arrange Keembay execution" << std::endl;
 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -63,9 +65,15 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
     // Adding layer 2
     for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
     {
-        // Must check if a control flow exists already
         auto source = cm.switchContext(dataFlow.source());
         auto sink = cm.switchContext(dataFlow.sink());
+
+        // No control flow shall be added between constant operation and their
+        // DMA op. Constant Ops are used only to carry data.
+        if(source->getOpType() == "Constant" && sink->getOpType() == "DMATask")
+            continue;
+
+        // Must check if a control flow exists already
         bool found = false;
         for(auto childOp = source.leftmostChild(); childOp != cm.opEnd(); ++childOp)
         {
