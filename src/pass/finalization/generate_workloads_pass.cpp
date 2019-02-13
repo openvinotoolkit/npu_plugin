@@ -105,7 +105,6 @@ struct MetisGraphStructure
  * @param metisGraph - a struct containing necessary parameters to pass to METIS
  * @return None
  * 
- * ***NOTE - this will only work for tensor (x,y) sizes that are a factor of 4 i.e. 4,16,20,32
  */
 void generateMetisGraph(MetisGraphStructure& metisGraph) {
 
@@ -388,7 +387,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
                 workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
 
                 /* Here we need to convert the paritions returned by METIS 
-                 * into tensor coordinates and populate this fields of workload 
+                 * into tensor coordinates and populate these fields of workload 
                  */
                 
                 // workloads.getWorkloads()[workload].MinX = 0;
