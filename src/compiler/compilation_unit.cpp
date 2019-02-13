@@ -3,7 +3,7 @@
 const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefDescPath_ = "/config/target/ma2490.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
-const std::string mv::CompilationUnit::compilationDescPath_ = "/config/compilation/default_ma2480.json";
+const std::string mv::CompilationUnit::compilationDescPath_ = "/config/compilation/release_ma2480.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
