@@ -96,6 +96,7 @@ struct MetisGraphStructure
         delete[] xadj;
         delete[] adjncy;
         delete[] part;
+        delete[] vwgt;
     } 
 };
  
@@ -385,7 +386,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
                 workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
-
+                
+                workloads.getWorkloads()[workload].MPEMode = Matrix;        /*Matrix is MPE Mode (4,4)*/
                 /* Here we need to convert the paritions returned by METIS 
                  * into tensor coordinates and populate these fields of workload 
                  */
