@@ -16,7 +16,8 @@ int main()
     auto leaky_relu = om.leakyRelu(input, alpha);
     auto output = om.output(leaky_relu);
 
-    unit.loadDefaultCompilationDescriptor();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "test_leaky_relu";

@@ -129,10 +129,12 @@ int main()
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
 
-    compDesc.setPassArg("GenerateDot", "output", std::string("cm_resnet18.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
+    // NOTE: GenerateDot is not applicable for release version. Use debug compilation
+    // descriptor if needed.
+    // compDesc.setPassArg("GenerateDot", "output", std::string("cm_resnet18.dot"));
+    // compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    // compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    // compDesc.setPassArg("GenerateDot", "html", true);
 
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 

@@ -17,7 +17,8 @@ int main()
     auto prelu = om.prelu(input, slope);
     auto output = om.output(prelu);
 
-    unit.loadDefaultCompilationDescriptor();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "test_prelu";

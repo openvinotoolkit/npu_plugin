@@ -71,12 +71,6 @@ void setModel(mv::CompilationUnit& unit)
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", false);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("GenerateBlob", "fileName", std::string("allocate_resources.blob"));
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("allocate_resources.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation

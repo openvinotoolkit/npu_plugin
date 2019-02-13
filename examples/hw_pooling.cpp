@@ -16,7 +16,8 @@ int main()
     auto pool1 = test_cm.maxPool(input1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto output = test_cm.output(pool1);
 
-    unit.loadDefaultCompilationDescriptor();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "wddm_pool1";

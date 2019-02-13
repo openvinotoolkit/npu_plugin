@@ -51,7 +51,8 @@ int main()
     cm.defineFlow(dpuconv1Op, input1dmaOutOp);
     cm.defineFlow(dpuconv1Op, dmaOUTWeights1Op);
 
-    unit.loadDefaultCompilationDescriptor();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
