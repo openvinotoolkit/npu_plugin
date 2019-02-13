@@ -420,21 +420,21 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
                  * into tensor coordinates and populate this fields of workload 
                  */
 
-                workloads.getWorkloads()[workload].MinX = SHRT_MAX;
-                workloads.getWorkloads()[workload].MinY = SHRT_MAX;
-                workloads.getWorkloads()[workload].MaxX = -1;
-                workloads.getWorkloads()[workload].MaxY = -1;
+                // NB: references (just shorter aliases for WL coordinates)
+                int16_t& wl_min_x = workloads.getWorkloads()[workload].MinX;
+                int16_t& wl_min_y = workloads.getWorkloads()[workload].MinY;
+                int16_t& wl_max_x = workloads.getWorkloads()[workload].MaxX;
+                int16_t& wl_max_y = workloads.getWorkloads()[workload].MaxY;
+
+                wl_min_x = SHRT_MAX;
+                wl_min_y = SHRT_MAX;
+                wl_max_x = -1;
+                wl_max_y = -1;
 
                 for (int i=0; i < metisGraph.m_numberTensorVertices; i++)
                 {
                     if (metisGraph.part[i] == workload)
                     {
-                        // NB: references (just shorter aliases for WL coordinates)
-                        int16_t& wl_min_x = workloads.getWorkloads()[workload].MinX;
-                        int16_t& wl_min_y = workloads.getWorkloads()[workload].MinY;
-                        int16_t& wl_max_x = workloads.getWorkloads()[workload].MaxX;
-                        int16_t& wl_max_y = workloads.getWorkloads()[workload].MaxY;
-
                         int16_t min_x = metisGraph.node_coords[i].min_x;
                         int16_t min_y = metisGraph.node_coords[i].min_y;
                         int16_t max_x = min_x + metisGraph.node_coords[i].n_elem_x - 1;
