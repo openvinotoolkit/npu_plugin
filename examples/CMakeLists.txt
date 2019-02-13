@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5.0)
 project(mcmComplier VERSION 0.0.1)
 
 add_executable(graph_basic graph_basic.cpp)
+add_executable(transitive_reduction transitive_reduction.cpp)
 
 add_executable(graph_conjoined graph_conjoined.cpp)
 
