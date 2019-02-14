@@ -120,7 +120,7 @@ int main()
         exit(1);
     }
     
-    unit.loadDefaultCompilationDescriptor();
+    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string blobName = "resnet18.blob";

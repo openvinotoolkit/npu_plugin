@@ -33,7 +33,7 @@ int main()
     if (!unit.loadTargetDescriptor(mv::Target::ma2480))
     	exit(1);
 
-    unit.loadDefaultCompilationDescriptor();
+    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string blobName = "allocate_resources.blob";
