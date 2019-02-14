@@ -96,7 +96,9 @@ namespace mv
 
         inline bool isSparse() const
         {
-            return get<bool>("sparse");
+            if (hasAttr("sparse"))
+                return get<bool>("sparse");
+            return false;
         }
 
         inline Shape& getShape()
