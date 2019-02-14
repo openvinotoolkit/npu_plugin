@@ -21,14 +21,16 @@ namespace mv
             .setFunc(generateWorkloadsFcn)
             .setGenre(PassGenre::Finalization)
             .setDescription(
-                "This pass generates workloads");
+                "Generate workloads using the METIS graph partitioning library");
     }
 }
 
-// Coordinates of METIS graph node:
-// use it to restore coordinates
-// after leveraging METIS for
-// partitioning of workloads.
+/* Coordinates of METIS graph node:
+ * use it to restore coordinates
+ * after leveraging METIS for
+ * partitioning of workloads.
+*/ 
+
 struct NodeCoords
 {
     int16_t min_x, n_elem_x;
@@ -88,9 +90,9 @@ struct MetisGraphStructure
         for(int j=0; j < m_yDim; j++) {
             
             if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
-                    n_elem_y = MPEMode.first;                 // FIXME: second?
+                    n_elem_y = MPEMode.first;                 
                 else 
-                    n_elem_y = (int)tensorYDim%MPEMode.first; // FIXME: second?
+                    n_elem_y = (int)tensorYDim%MPEMode.first; 
                             
             for(int k=0; k < m_xDim; k++) {
                 
@@ -100,17 +102,11 @@ struct MetisGraphStructure
                     n_elem_x = (int)tensorXDim%MPEMode.second;
             
                 vwgt[nodeIndex] = n_elem_x * n_elem_y;
-                std::cout << "Node " << nodeIndex << " weight is " << n_elem_x * n_elem_y << std::endl;
 
                 node_coords[nodeIndex].min_x = k * MPEMode.first;
                 node_coords[nodeIndex].min_y = j * MPEMode.second;
                 node_coords[nodeIndex].n_elem_x = n_elem_x;
                 node_coords[nodeIndex].n_elem_y = n_elem_y;
-                std::cout << "    min_x: " << node_coords[nodeIndex].min_x << std::endl;    // DEBUG
-                std::cout << "    min_y: " << node_coords[nodeIndex].min_y << std::endl;    // DEBUG
-                std::cout << " n_elem_x: " << node_coords[nodeIndex].n_elem_x << std::endl; // DEBUG
-                std::cout << " n_elem_y: " << node_coords[nodeIndex].n_elem_y << std::endl; // DEBUG
-
                 nodeIndex++;
             }
             
@@ -281,67 +277,6 @@ int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads)
     return res;
 }
 
-/**
- * @brief Divides a number by 2 repeatedly. Example if maxSplitRange = 16 -> returns 16,8,4,2
- * @param Number to be divided by 2 repeatedly
- * @param A maximum value to divide  by 2 repeatedly
- * @return A set of the number divided by two repeatedly
- */
-std::set<int> getSplitsFromRange(int maxSplitRange, int maxSplits = 50)
-{
-    std::set<int> splits;
-
-    if((maxSplitRange < maxSplits) && (maxSplitRange >1)) 
-    {
-        splits.insert(maxSplitRange);
-        do 
-        {
-            maxSplitRange = maxSplitRange >> 1;
-            splits.insert(maxSplitRange);
-        } 
-        while ((maxSplitRange >> 1) > 1);
-    }
-    return splits;
-}
-
-/**
- * @brief Generate a pool of possible splits (workloads) of a tensor 
- * @param A tensor 
- * @param The numnber of DPUs per cluster
- * @return A pool of possible splits (possible workloads)
- */
-std::set<int> getNWorkloads(std::vector<mv::Data::TensorIterator> tensor, int nDPUxClusterS)
-{
-    std::cout << "Test getNWorkloads" << std::endl;
-    std::cout << "Tensor shape is " << tensor[0]->getShape().toString() << std::endl;
-
-    /*maxSplitsXY*/
-    auto xDim = tensor[0]->get<mv::Shape>("shape")[0];
-    auto yDim = tensor[0]->get<mv::Shape>("shape")[1];
-    auto maxSplitsXY = ceil(xDim/4) * ceil(yDim/4);
-
-    std::cout << "maxSplitsXY is " << maxSplitsXY << std::endl;
-
-    /*maxSplitsZ*/
-    auto maxSplitsZ = ceil(tensor[0]->get<mv::Shape>("shape")[2]/16);
-
-    std::cout << "maxSplitsZ is " << maxSplitsZ << std::endl;
-
-    /*Pool of possible splits*/
-    std::set<int> XYTileSplits;
-    std::set<int> ZTileSplits;
-    std::set<int> splitPool;
-
-    XYTileSplits = getSplitsFromRange(maxSplitsXY);
-    ZTileSplits = getSplitsFromRange(maxSplitsZ);
-
-    std::set_union(std::begin(XYTileSplits), std::end(XYTileSplits),
-               std::begin(ZTileSplits), std::end(ZTileSplits),                  
-               std::inserter(splitPool, std::begin(splitPool)));
-    
-    return splitPool;
-}
-
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
 {
     using namespace mv;
@@ -356,9 +291,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel 
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        if (opIt->getOpType() == "DPUTask") /*Should check for taskOP value here, it should be convolution*/
+        if ((opIt->getOpType() == "DPUTask") && (opIt->get<std::string>("taskOp") == "Conv")) 
         {
-            std::cout << "Found DPUTask of type convolution" << std::endl;
+
+            pass.log(Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + "of type " + opIt->get<std::string>("taskOp"));
  
             /*Get output tensor*/
             auto outputTensor = opIt->getOutputTensor();
@@ -377,7 +313,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel 
             /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number) for WW09 deliverbale*/
             idx_t nWorkloads = round(nDPUxCluster/2)*2; 
 
-            std::cout << "Number of workloads is " << nWorkloads << std::endl;
+            pass.log(Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
             /*Partition tensor into workloads with METIS*/
             auto res = partitionTensorMETIS(metisGraph,nWorkloads);
@@ -386,18 +322,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel 
                 throw "Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!";
             }
 
-            std::cout << "Value of the objective function that was minimized (should be same as PoC compiler) is: " << metisGraph.objval << std::endl;
+            pass.log(Logger::MessageType::Debug, "Value of the objective function that was minimized (should be same as PoC compiler) is:" + std::to_string(metisGraph.objval));
            
             /*Print node partition*/
             for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) { 
                 
-                std::cout << "Node " << part_i << " " << "is in partition " << metisGraph.part[part_i] << std::endl;
+                pass.log(Logger::MessageType::Debug, "Node " + std::to_string(part_i) + "of type " + "is in partition " + std::to_string(metisGraph.part[part_i]));
             }
 
             /*Workloads class instance*/
             Workloads workloads(opIt->getName());
-
-            std::cout << "Workloads:" << std::endl; // DEBUG
 
             /*Populate each workload*/
             /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
@@ -416,11 +350,12 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel 
                 workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
                 
                 workloads.getWorkloads()[workload].MPEMode = Matrix;        /*Matrix is MPE Mode (4,4)*/
-                /* Here we need to convert the paritions returned by METIS 
-                 * into tensor coordinates and populate these fields of workload 
-                 */
+                
+                /* Converting the paritions returned by METIS 
+                 * into tensor coordinates and populating these fields of workload 
+                */
 
-                // NB: references (just shorter aliases for WL coordinates)
+                /*NB: references (just shorter aliases for WL coordinates)*/
                 int16_t& wl_min_x = workloads.getWorkloads()[workload].MinX;
                 int16_t& wl_min_y = workloads.getWorkloads()[workload].MinY;
                 int16_t& wl_max_x = workloads.getWorkloads()[workload].MaxX;
@@ -440,20 +375,15 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel 
                         int16_t max_x = min_x + metisGraph.node_coords[i].n_elem_x - 1;
                         int16_t max_y = min_y + metisGraph.node_coords[i].n_elem_y - 1;
 
-                        // NB: guard calling to std::min/max with parentheses,
-                        //     as they may mess with same-named macro on Windows
+                        /* Guard calling to std::min/max with parentheses,
+                         * as they may mess with same-named macro on Windows
+                        */ 
                         wl_min_x = (std::min)(wl_min_x, min_x);
                         wl_min_y = (std::min)(wl_min_y, min_y);
                         wl_max_x = (std::max)(wl_max_x, max_x);
                         wl_max_y = (std::max)(wl_max_y, max_y);
                     }
                 }
-
-                std::cout << "workload: " << workload << std::endl;                                 // DEBUG
-                std::cout << "    min_x: " << workloads.getWorkloads()[workload].MinX << std::endl; // DEBUG
-                std::cout << "    min_y: " << workloads.getWorkloads()[workload].MinY << std::endl; // DEBUG
-                std::cout << "    max_x: " << workloads.getWorkloads()[workload].MaxX << std::endl; // DEBUG
-                std::cout << "    max_y: " << workloads.getWorkloads()[workload].MaxY << std::endl; // DEBUG
             }
            
             /*Add workloads as Attribute*/
