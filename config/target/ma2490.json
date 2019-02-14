@@ -363,33 +363,6 @@
 		"global": "Float16"
 	},
 
-	"passes":
-	{
-		"adapt":
-		[
-			"AssignUniqueOpId",
-			"ConvertToTaskGraph",
-			"AssignUniqueTaskId"
-		],
-
-		"finalize":
-		[
-            		"GenerateWorkloads",
-			"ArrangeKeembayExecution"
-        	],
-
-		"serialize":
-		[
-		],
-
-		"validate":
-		[
-
-			"GenerateDot",
-			"CheckTensors"
-		]
-	},
-
 	"resources":
 	{
 		"memory":

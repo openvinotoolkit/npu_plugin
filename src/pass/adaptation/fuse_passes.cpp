@@ -3,10 +3,10 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 
-static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -16,7 +16,6 @@ namespace mv
 
         MV_REGISTER_PASS(FuseBatchNorm)
         .setFunc(fuseBatchNormFcn)
-        .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Replaces a batchnorm op with eltwise ops or their 1d equivalents. "
             "Following cases are handled:\n"
@@ -27,7 +26,6 @@ namespace mv
 
         MV_REGISTER_PASS(FuseBias)
         .setFunc(fuseBiasFcn)
-        .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Fuses a bias op to the parent op if this op is of type conv2d. "
             "Bias op is removed from the model, the biases tensor "
@@ -37,7 +35,6 @@ namespace mv
 
         MV_REGISTER_PASS(FuseRelu)
         .setFunc(fuseReluFcn)
-        .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Fuses a relu op to the parent op."
             "Relu op is removed from the model, and a new attribute of type OpType and value relu is defined for parent Op."
@@ -45,7 +42,6 @@ namespace mv
 
         MV_REGISTER_PASS(FuseScale)
         .setFunc(fuseScaleFcn)
-        .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Fuses a scale op to the parent op is this op is of type conv2d. Scale op is removed from the model and conv2d weights are rescaled. "
             "If the conv2d has a 'bias' attribute of type double vector it is rescaled as well. In this case the length of scale op parameters tensor and 'bias' attribute "
@@ -86,7 +82,7 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
     return opIt;
 }
 
-void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     
 
@@ -136,7 +132,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
 }
 
-void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -180,7 +176,7 @@ void fuseScaleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
 
 }
 
-void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -208,7 +204,7 @@ void fuseReluFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
 
 }
 
-void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     std::cout << "Fusing batch norm" << std::endl;
     using namespace mv;

@@ -16,17 +16,25 @@ int main()
     auto sigmoid = om.sigmoid(input);
     auto output = om.output(sigmoid);
 
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
     std::string outputName = "test_sigmoid";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string(outputName+".blob");
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName+".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string(outputName + ".prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string(outputName + ".caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    std::string blobName = outputName + ".blob";
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    compDesc.setPassArg("GenerateDot", "output", std::string("test_sigmoid.dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
+
+    // compDesc.setPassArg("GenerateCaffe", "outputPrototxt", std::string("test_sigmoid.prototxt"));
+    // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string("test_sigmoid.caffemodel"));
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
     unit.initialize();

@@ -3,7 +3,8 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void ConvertToTaskGraphFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &);
+static void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+
 
 namespace mv
 {
@@ -11,7 +12,6 @@ namespace mv
     {
         MV_REGISTER_PASS(ConvertToTaskGraph)
             .setFunc(ConvertToTaskGraphFcn)
-            .setGenre(PassGenre::Adaptation)
             .setDescription(
                 "Replace all convolution operations with DPU tasks.\n"
                 "Assume each convolution can be done with DPU on KMB.\n"
@@ -42,7 +42,7 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
 }
 
 //TODO: Copy OpId, but Ian is needed in this case.
-void ConvertToTaskGraphFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(om);

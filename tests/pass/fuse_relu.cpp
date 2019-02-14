@@ -20,11 +20,11 @@ TEST(fuse_relu, case_conv)
     
     auto outputOp = reluOp.leftmostChild();
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseRelu")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseRelu")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);

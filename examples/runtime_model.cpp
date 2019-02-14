@@ -26,11 +26,12 @@ int main()
 
     std::string outputName("dpu_task");
 
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["Output"] = std::string(outputName + ".blob");
+    mv::CompilationDescriptor& compDesc = unit.compilationDescriptor();
+    compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+    compDesc.setPassArg("GenerateBlobKeembay", "Output", std::string(outputName + ".blob"));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

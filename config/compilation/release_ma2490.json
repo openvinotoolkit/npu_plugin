@@ -1,0 +1,30 @@
+{
+    "adapt":
+    {
+        "Singular" :
+        [
+            "AssignUniqueOpId",
+	    "ConvertToTaskGraph",
+	    "AssignUniqueTaskId"
+        ]
+    },
+
+    "finalize":
+    {
+        "Singular" :
+        [
+            "GenerateWorkloads",
+	    "ArrangeKeembayExecution"
+        ]
+    },
+
+
+    "root" :
+    {
+        "Singular" :
+        [
+            "adapt",
+            "finalize"
+        ]
+    }
+}

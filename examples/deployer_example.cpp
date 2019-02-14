@@ -46,17 +46,23 @@ int main()
     // define output
     auto outIt6 = cm.output(scaleIt62);
 
-    std::string blobName = "test_scale_11.blob";
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = blobName;
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = true;
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("blob_eltwise_multiply.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.loadDefaultCompilationDescriptor();
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string outputName = "test_scale_11";
+    mv::Attribute blobNameAttr(outputName + ".blob");
+    compDesc.setPassArg("GenerateBlob", "fileName", blobNameAttr);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
+
+    // NOTE: GenerateDot is not applicable for release version. Use debug compilation
+    // descriptor if needed.
+    // compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
+    // compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    // compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    // compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(Target::ma2480);
     unit.initialize();

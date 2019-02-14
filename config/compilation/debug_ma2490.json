@@ -1,0 +1,63 @@
+{
+    "adapt":
+    {
+        "Singular" :
+        [
+            {
+                "name" : "GenerateDot",
+                "output" : "original_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
+            },
+            "AssignUniqueOpId",
+	    "ConvertToTaskGraph",
+	    "AssignUniqueTaskId",
+            {
+                "name" : "GenerateDot",
+                "output" : "adapt_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
+            }
+        ]
+    },
+
+    "finalize":
+    {
+        "Singular" :
+        [
+            "GenerateWorkloads",
+	    "ArrangeKeembayExecution",
+	    {
+                "name" : "GenerateDot",
+                "output" : "final_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
+            }
+        ]
+    },
+
+    "validate":
+    {
+        "Singular" :
+        [
+            "CheckTensors"
+        ]
+    },
+
+    "root" :
+    {
+        "Singular" :
+        [
+            "validate",
+            "adapt",
+            "finalize"
+        ],
+        "Recurrent" :
+        [
+            "validate"
+        ]
+    }
+}

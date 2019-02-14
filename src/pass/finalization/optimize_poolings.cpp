@@ -6,7 +6,7 @@
 #include "include/mcm/target/myriadx/nce1_utils.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void optimizePoolingsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void optimizePoolingsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -16,7 +16,6 @@ namespace mv
 
         MV_REGISTER_PASS(OptimizePoolings)
         .setFunc(optimizePoolingsFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass optimizes each pooling layer for the NCE"
         );
@@ -150,7 +149,7 @@ mv::ModeSelectionResult optimize_pooling_nce1(mv::Nce1& nce, mv::Data::OpListIte
     return nce.optimize_pooling(source);
 }
 
-void optimizePoolingsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void optimizePoolingsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     std::cout << "HW pooling optimization pass started" << std::endl;
     mv::OpModel om(model);

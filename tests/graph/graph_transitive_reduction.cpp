@@ -1,12 +1,15 @@
+#include "gtest/gtest.h"
 #include <iostream>
 #include <string>
+#include <vector>
+#include "include/mcm/graph/graph.hpp"
+#include "include/mcm/graph/visualizer.hpp"
 #include "include/mcm/algorithms/transitive_reduction.hpp"
 
 using graph_char_int= mv::graph<char, int>;
 
-int main()
+TEST (graph_transitive_reduction, test1)
 {
-
     // Define graph
     graph_char_int g;
 
@@ -26,7 +29,5 @@ int main()
     g.edge_insert(nd, ne, 1);
 
     mv::transitiveReduction(g, na);
-
-    return 0;
 
 }

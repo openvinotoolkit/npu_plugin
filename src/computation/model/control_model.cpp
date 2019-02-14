@@ -1,5 +1,6 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/op/op.hpp"
+#include "include/mcm/algorithms/transitive_reduction.hpp"
 
 mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
@@ -192,6 +193,12 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator 
    return defineFlow(switchContext(sourceOp), switchContext(sinkOp));
 
 } 
+
+void mv::ControlModel::transitiveReduction()
+{
+    auto input = getFirst();
+    mv::transitiveReduction(controlGraph_, input);
+}
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
 {

@@ -24,11 +24,11 @@ TEST(fuse_scale, case_conv)
     
     auto outputOp = scaleOp.leftmostChild();
     
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseScale")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseScale")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -73,12 +73,12 @@ TEST(fuse_scale, case_conv_bias_fused)
     
     auto outputOp = scaleOp.leftmostChild();
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseBias")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
-    mv::pass::PassRegistry::instance().find("FuseScale")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseBias")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseScale")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);

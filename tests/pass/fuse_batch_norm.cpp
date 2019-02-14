@@ -36,11 +36,11 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -124,11 +124,11 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -199,11 +199,11 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);
@@ -285,11 +285,11 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     om.output(batchnorm);
     auto outputOp = batchnormOp.leftmostChild();
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("");
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
 
-    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("FuseBatchNorm")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     // Check general model properties
     mv::DataModel dm(om);

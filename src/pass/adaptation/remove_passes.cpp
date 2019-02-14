@@ -2,7 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -12,7 +12,6 @@ namespace mv
 
         MV_REGISTER_PASS(RemoveDropOut)
         .setFunc(removeDropOut)
-        .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Removes dropout layers from the network"
         );
@@ -21,7 +20,7 @@ namespace mv
 
 }
 
-void removeDropOut(const mv::pass::PassEntry& , mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void removeDropOut(const mv::pass::PassEntry& , mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
 
     using namespace mv;

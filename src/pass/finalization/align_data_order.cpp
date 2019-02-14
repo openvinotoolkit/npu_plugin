@@ -3,8 +3,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
-static void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void addConversionLayersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel &om);
 
 namespace mv
@@ -15,14 +15,12 @@ namespace mv
 
         MV_REGISTER_PASS(AddConversionLayers)
         .setFunc(addConversionLayersFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass adds conversion layers where needed."
         );
 
         MV_REGISTER_PASS(AlignConstOrder)
         .setFunc(alignConstOrderFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass adds conversion layers where needed."
         );
@@ -31,7 +29,7 @@ namespace mv
 
 }
 
-void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void alignConstOrderFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -271,7 +269,7 @@ void compatibilityResolution(mv::Data::OpListIterator parentIt, mv::OpModel& om)
 
 
 //NOTE: This should not be done in such hardcoded way.
-void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void addConversionLayersFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     std::cout << "addConversionLayers " << std::endl;

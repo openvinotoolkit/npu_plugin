@@ -26,17 +26,14 @@ int main()
 
     std::string outputName("dpu_conv");
 
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
-    system("dot -Tpng dpu_conv.dot -o dpu_conv.png");
-    system("dot -Tpng dpu_conv_adapt.dot -o dpu_conv_adapt.png");
-    system("dot -Tpng dpu_conv_final.dot -o dpu_conv_final.png");
+    system("dot -Tpng original_model.dot -o original_model.png");
+    system("dot -Tpng adapt_model.dot -o adapt_model.png");
+    system("dot -Tpng final_model.dot -o final_model.png");
 }
