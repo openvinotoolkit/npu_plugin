@@ -17,14 +17,11 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({16, 16, 16}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3);
-    auto weights = om.constant(weightsData, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {2, 2}, {0, 0, 0, 0});
-    auto pool = om.maxPool(conv, {3 , 3}, {1, 1}, {1, 1, 1, 1});
-    om.output(pool);
-
-    std::string outputName("dpu_conv");
+    auto weights = om.constant(weightsData, {1, 1, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
