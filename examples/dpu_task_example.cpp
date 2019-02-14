@@ -36,8 +36,8 @@ int main()
     unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
-    system("dot -Tsvg dpu_task.dot -o dpu_task.png");
-    system("dot -Tsvg dpu_task_adapt.dot -o dpu_task_adapt.png");
-    system("dot -Tsvg dpu_task_final.dot -o dpu_task_final.png");
 
+    system("dot dpu_task.dot       -o dpu_task.png       -Tpng");
+//  system("dot dpu_task_adapt.dot -o dpu_task_adapt.png -Tpng");
+    system("dot dpu_task_final.dot -o dpu_task_final.png -Tpng");
 }
