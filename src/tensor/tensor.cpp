@@ -209,7 +209,7 @@ void mv::Tensor::setSparse()
             for (size_t i=0; i< 8; i++)
             {
                 std::vector<size_t> subs = indToSub(t+i);
-                if (at(t+i) != zeroPoint[subs[3]])
+                if (subs[2] < getShape()[2] && at(t+i) != zeroPoint[subs[3]])
                     map += 1 << i;
             }
             sparsityMapData[t/8] = map;
