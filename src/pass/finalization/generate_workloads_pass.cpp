@@ -94,10 +94,10 @@ struct MetisGraphStructure
                             
             for(int k=0; k < m_xDim; k++) {
                 
-                if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.first)))
-                    n_elem_x = MPEMode.first;
+                if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
+                    n_elem_x = MPEMode.second;
                 else 
-                    n_elem_x = (int)tensorXDim%MPEMode.first;
+                    n_elem_x = (int)tensorXDim%MPEMode.second;
             
                 vwgt[nodeIndex] = n_elem_x * n_elem_y;
                 std::cout << "Node " << nodeIndex << " weight is " << n_elem_x * n_elem_y << std::endl;
@@ -121,9 +121,9 @@ struct MetisGraphStructure
         delete[] xadj;
         delete[] adjncy;
         delete[] part;
-    //  delete[] vwgt; // FIXME: forgotten?
+        delete[] vwgt;
         delete[] node_coords;
-    } 
+    }
 };
  
 /**
@@ -132,7 +132,6 @@ struct MetisGraphStructure
  * @param metisGraph - a struct containing necessary parameters to pass to METIS
  * @return None
  * 
- * ***NOTE - this will only work for tensor (x,y) sizes that are a factor of 4 i.e. 4,16,20,32
  */
 void generateMetisGraph(MetisGraphStructure& metisGraph) {
 
@@ -415,9 +414,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &mod
                 workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
-
+                
+                workloads.getWorkloads()[workload].MPEMode = Matrix;        /*Matrix is MPE Mode (4,4)*/
                 /* Here we need to convert the paritions returned by METIS 
-                 * into tensor coordinates and populate this fields of workload 
+                 * into tensor coordinates and populate these fields of workload 
                  */
 
                 // NB: references (just shorter aliases for WL coordinates)
