@@ -42,7 +42,8 @@ namespace mv
 // 2) A layer made up of ControlFlows that are coincident with DataFlows
 // Rationale: Wherever there is a data dependency, there is also a execution dependency
 
-// WARNING: Transitive reduction needs to be applied after this pass, otherwise Control Flows are potentially harmful and lose their meaning
+// WARNING: This two layers of control flow can generate unnecessary control flows.
+// At the end those need to be eliminated by Transitive reduction on the ControlFlow pass.
 void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
 {
 
@@ -70,6 +71,9 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
         // No control flow shall be added between constant operation and their
         // DMA op. Constant Ops are used only to carry data.
+
+        // NOTE: Possibly this check can be eliminated for better readibility
+        // Since Transitive Reduction will take care of it
         if(source->getOpType() == "Constant" && sink->getOpType() == "DMATask")
             continue;
 
@@ -87,10 +91,12 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
             cm.defineFlow(dataFlow.source(), dataFlow.sink());
     }
 
+    // Cleaning unnecessary edges.
+    cm.transitiveReduction();
+
     // Point 2)
     auto stage = cm.addStage();
     cm.addToStage(stage, om.getOutput());
-
 
     std::cout << "Exiting arrange Keembay execution" << std::endl;
 
