@@ -195,20 +195,20 @@ void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& co
 
 void mv::RuntimeModel::buildVersionT(ComputationModel&, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild)
 {
-    toBuild->majorV = compilationDescriptor.get<long long>("VersionMajor");
-    toBuild->minorV = compilationDescriptor.get<long long>("VersionMinor");
-    toBuild->patchV = compilationDescriptor.get<long long>("VersionPatch");
+    toBuild->majorV = compilationDescriptor.get<int>("VersionMajor");
+    toBuild->minorV = compilationDescriptor.get<int>("VersionMinor");
+    toBuild->patchV = compilationDescriptor.get<int>("VersionPatch");
     toBuild->hash = compilationDescriptor.get<std::string>("VersionHash");
 }
 
 void mv::RuntimeModel::buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild)
 {
-    toBuild->upa_shaves = compilationDescriptor.get<long long>("ResourcesUpaShaves");
-    toBuild->nce1_blocks = compilationDescriptor.get<long long>("ResourcesNCE1Mask");
-    toBuild->nce2_blocks = compilationDescriptor.get<long long>("ResourcesNCE2Mask");
-    toBuild->upa_shared_cmx = compilationDescriptor.get<long long>("ResourcesUPASharedCMX");
-    toBuild->nn_cmx = compilationDescriptor.get<long long>("ResourcesNNCMX");
-    toBuild->ddr_scratch = compilationDescriptor.get<long long>("ResourcesDDRScratch");
+    toBuild->upa_shaves = compilationDescriptor.get<int>("ResourcesUpaShaves");
+    toBuild->nce1_blocks = compilationDescriptor.get<int>("ResourcesNCE1Mask");
+    toBuild->nce2_blocks = compilationDescriptor.get<int>("ResourcesNCE2Mask");
+    toBuild->upa_shared_cmx = compilationDescriptor.get<int>("ResourcesUPASharedCMX");
+    toBuild->nn_cmx = compilationDescriptor.get<int>("ResourcesNNCMX");
+    toBuild->ddr_scratch = compilationDescriptor.get<int>("ResourcesDDRScratch");
 }
 
 void mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild)
