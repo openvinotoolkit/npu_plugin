@@ -11,7 +11,7 @@
 #include <math.h>
 #include <metis.h>
 
-static void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
+static void generateWorkloadsFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
 
 namespace mv
 {
@@ -277,7 +277,7 @@ int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads)
 }
 
 
-void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
+void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
     using namespace mv;
 
