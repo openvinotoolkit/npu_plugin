@@ -5,14 +5,20 @@
         [
             {
                 "name" : "GenerateDot",
-                "output" : "original_model.dot"
+                "output" : "original_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
             },
             "AssignUniqueOpId",
 	    "ConvertToTaskGraph",
 	    "AssignUniqueTaskId",
             {
                 "name" : "GenerateDot",
-                "output" : "adapt.dot"
+                "output" : "adapt_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
             }
         ]
     },
@@ -22,7 +28,14 @@
         "Singular" :
         [
             "GenerateWorkloads",
-	    "ArrangeKeembayExecution"
+	    "ArrangeKeembayExecution",
+	    {
+                "name" : "GenerateDot",
+                "output" : "final_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
+            }
         ]
     },
 
