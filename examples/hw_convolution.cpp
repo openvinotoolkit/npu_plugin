@@ -18,7 +18,8 @@ int main()
     auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0}, 1);
     auto output = test_cm.output(conv1);
 
-    unit.loadDefaultCompilationDescriptor();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "wddm_conv1";

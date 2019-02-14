@@ -16,7 +16,8 @@ int main()
     auto tanh = om.tanh(input);
     auto output = om.output(tanh);
 
-    unit.loadDefaultCompilationDescriptor();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "test_tanh";

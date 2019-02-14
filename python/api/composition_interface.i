@@ -36,78 +36,14 @@ import_array();
         auto unit = new mv::CompilationUnit("pySwigCU");
         unit->loadTargetDescriptor(mv::Target::ma2480);
 
-        // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-        // unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
-        // unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-        // unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-        // unit->compilationDescriptor()["GenerateDot"]["html"] = true;
-        // unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
-        // unit->compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppWrapperGeneratedPrototxt.prototxt");
-        // unit->compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppWrapperGeneratedWeights.caffemodel");
-        // unit->compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("cpp.blob");
-        // unit->compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-        // unit->compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-        // unit->compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = disableHardware;
-
+        unit->loadCompilationDescriptor(mv::Target::ma2480);
         mv::CompilationDescriptor &compDesc = unit->compilationDescriptor();
-
-        compDesc.addGroup("adapt");
-        compDesc.addToGroup("adapt", "ConvolutionDilation", "Singular", false);
-        compDesc.addToGroup("adapt", "FuseBatchNorm", "Singular", false);
-        compDesc.addToGroup("adapt", "FuseBias", "Singular", false);
-        compDesc.addToGroup("adapt", "FuseScale", "Singular", false);
-        compDesc.addToGroup("adapt", "FuseBias", "Singular", false);
-        compDesc.addToGroup("adapt", "FuseScale", "Singular", false);
-        compDesc.addToGroup("adapt", "FullyConnectedAsConv2D", "Singular", false);
-        compDesc.addToGroup("adapt", "RemoveDropOut", "Singular", false);
-        //compDesc.addToGroup("adapt", "GenerateCaffe", "Singular", false);
-
-        compDesc.addGroup("finalize");
-        compDesc.addToGroup("finalize", "AlignConstOrder", "Singular", false);
-        compDesc.addToGroup("finalize", "MarkHardwareOperations", "Singular", false);
-        compDesc.addToGroup("finalize", "FuseReluMX", "Singular", false);
-        compDesc.addToGroup("finalize", "AddConversionLayers", "Singular", false);
-        compDesc.addToGroup("finalize", "MyriadXPaddings", "Singular", false);
-        compDesc.addToGroup("finalize", "OptimizePoolings", "Singular", false);
-        compDesc.addToGroup("finalize", "OptimizeConvolutions", "Singular", false);
-        compDesc.addToGroup("finalize", "SplitsOverH", "Singular", false);
-        compDesc.addToGroup("finalize", "ScaleFission", "Singular", false);
-        compDesc.addToGroup("finalize", "FormatMXWeights", "Singular", false);
-        compDesc.addToGroup("finalize", "ArrangeLinearExecution", "Singular", false);
-        compDesc.addToGroup("finalize", "AllocatePopulatedTensors", "Singular", false);
-        compDesc.addToGroup("finalize", "AllocateUnpopulatedTensors", "Singular", false);
-        compDesc.addToGroup("finalize", "AllocateInputOutputTensors", "Singular", false);
-
-        compDesc.addGroup("serialize");
-        compDesc.addToGroup("serialize", "PopulateSerialFields", "Singular", false);
-        compDesc.addToGroup("serialize", "GenerateBlob", "Singular", false);
-        compDesc.addToGroup("serialize", "GenerateJson", "Singular", false);
-
-        compDesc.addGroup("validate");
-        compDesc.addToGroup("validate", "GenerateDot", "Singular", false);
-        compDesc.addToGroup("validate", "CheckTensors", "Singular", false);
-
-        compDesc.addGroup("root");
-        compDesc.addToGroup("root", "adapt", "Singular", true);
-        compDesc.addToGroup("root", "finalize", "Singular", true);
-        compDesc.addToGroup("root", "serialize", "Singular", true);
-
-        compDesc.setPassArg("GenerateDot", "output", std::string("pycm.dot"));
-        compDesc.setPassArg("GenerateDot", "scope", std::string("OpModel"));
-        compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-        compDesc.setPassArg("GenerateDot", "html", true);
-
-        compDesc.setPassArg("GenerateJson", "output", std::string("cpp.json"));
 
         std::string blobName = "cpp.blob";
         compDesc.setPassArg("GenerateBlob", "fileName", blobName);
         compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
         compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
         compDesc.setPassArg("MarkHardwareOperations", "disableHardware", disableHardware);
-
-        // compDesc.setPassArg("GenerateCaffe", "outputPrototxt", std::string("cppWrapperGeneratedPrototxt.prototxt"));
-        // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string("cppWrapperGeneratedWeights.caffemodel"));
 
         return unit;
 

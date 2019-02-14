@@ -46,7 +46,7 @@ int main()
     // define output
     auto outIt6 = cm.output(scaleIt62);
 
-    unit.loadDefaultCompilationDescriptor();
+    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "test_scale_11";
@@ -55,10 +55,12 @@ int main()
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
 
-    compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
+    // NOTE: GenerateDot is not applicable for release version. Use debug compilation
+    // descriptor if needed.
+    // compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
+    // compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    // compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    // compDesc.setPassArg("GenerateDot", "html", true);
 
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 

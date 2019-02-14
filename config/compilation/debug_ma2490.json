@@ -1,0 +1,63 @@
+{
+    "adapt": {
+        "Singular":
+        [
+            {
+                "name" : "GenerateDot",
+                "output" : "original_model.dot"
+            },
+            "AssignUniqueOpId",
+            "DPUConvolution",
+            "ConvertToTaskGraph",
+            "AssignUniqueTaskId",
+            {
+                "name" : "GenerateDot",
+                "output" : "adapt.dot"
+            }
+        ]
+    },
+
+    "finalize": {
+        "Singular":
+        [
+            "GenerateWorkloads",
+            "ArrangeLinearExecution",
+            "AllocatePopulatedTensors",
+            "AllocateUnpopulatedTensors",
+            "AllocateInputOutputTensors",
+            {
+                "name" : "GenerateDot",
+                "output" : "finalize.dot"
+            }
+        ]
+    },
+
+    "serialize":{
+        "Singular":
+        [
+            "GenerateBlobKeembay"
+        ]
+    },
+
+    "validate": {
+        "Singular":
+        [
+            "CheckTensors"
+        ]
+    },
+
+    "root" :
+    {
+        "Singular" :
+        [
+            "validate",
+            "adapt",
+            "finalize",
+            "serialize"
+        ],
+         "Recurrent" :
+        [
+            "validate"
+        ]
+    }
+}

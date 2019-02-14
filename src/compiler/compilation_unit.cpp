@@ -1,9 +1,10 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
-const std::string mv::CompilationUnit::ma2480DefDescPath_ = "/config/target/ma2480.json";
-const std::string mv::CompilationUnit::ma2490DefDescPath_ = "/config/target/ma2490.json";
+const std::string mv::CompilationUnit::ma2480DefTargetDescPath_ = "/config/target/ma2480.json";
+const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/ma2490.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
-const std::string mv::CompilationUnit::compilationDescPath_ = "/config/compilation/default_ma2480.json";
+const std::string mv::CompilationUnit::ma2480DefCompDescPath_ = "/config/compilation/release_ma2480.json";
+const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_ma2490.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName)),
@@ -77,10 +78,27 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
     return true;
 }
 
-bool mv::CompilationUnit::loadDefaultCompilationDescriptor()
+bool mv::CompilationUnit::loadCompilationDescriptor(Target target)
 {
-    std::string filePath = utils::projectRootPath() + compilationDescPath_;
-    return loadCompilationDescriptor(filePath);
+    std::string descPath;
+
+    switch (target)
+    {
+        case Target::ma2480:
+        {
+            descPath = utils::projectRootPath() + ma2480DefCompDescPath_;
+            break;
+        }
+        case Target::ma2490:
+        {
+            descPath = utils::projectRootPath() + ma2490DefCompDescPath_;
+            break;
+        }
+        default:
+            return false;
+    }
+
+    return loadCompilationDescriptor(descPath);
 }
 
 bool mv::CompilationUnit::loadTargetDescriptor(Target target)
@@ -91,13 +109,13 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
 
         case Target::ma2480:
         {
-            std::string descPath = utils::projectRootPath() + ma2480DefDescPath_;
+            std::string descPath = utils::projectRootPath() + ma2480DefTargetDescPath_;
             return loadTargetDescriptor(descPath);
         }
 
         case Target::ma2490:
         {
-            std::string descPath = utils::projectRootPath() + ma2490DefDescPath_;
+            std::string descPath = utils::projectRootPath() + ma2490DefTargetDescPath_;
             return loadTargetDescriptor(descPath);
         }
 

@@ -7,7 +7,7 @@
 #include <iostream>
 #include <fstream>
 
-const std::string g_CompilationDescPath = "/config/compilation/default_ma2480.json";
+const std::string g_CompilationDescPath = "/config/compilation/release_ma2480.json";
 
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
@@ -128,12 +128,6 @@ TEST (generate_blob, blob_output_conv_02)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -177,12 +171,6 @@ TEST (generate_blob, blob_output_conv_03)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -225,12 +213,6 @@ TEST (generate_blob, blob_output_conv_04)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -276,12 +258,6 @@ TEST (generate_blob, blob_blur_edge_05)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -334,12 +310,6 @@ TEST (generate_blob, blob_4_ops)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_output_conv_02.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -413,12 +383,6 @@ TEST (generate_blob, blob_eltwise_add)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_add.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -493,12 +457,6 @@ TEST (generate_blob, blob_eltwise_multiply)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -572,12 +530,6 @@ TEST (generate_blob, blob_softmax)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -643,12 +595,6 @@ TEST (generate_blob, blob_convbias_convrelu)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -706,12 +652,6 @@ TEST (generate_blob, blob_scale)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -753,12 +693,6 @@ TEST (generate_blob_WDDM, blob_maxpool1)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+"_sw.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -793,12 +727,6 @@ TEST (generate_blob_WDDM, blob_maxpool2)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("maxpool2.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -834,12 +762,6 @@ TEST (generate_blob_WDDM, blob_maxpool3)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("maxpool3.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -875,12 +797,6 @@ TEST (generate_blob_WDDM, blob_maxpool4)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("maxpool4.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -916,12 +832,6 @@ TEST (generate_blob_WDDM, blob_avgpool1)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+".dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -957,12 +867,6 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+".dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -996,12 +900,6 @@ TEST (generate_blob_WDDM, blob_conv1)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string(blobName+".dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -1040,12 +938,6 @@ TEST (generate_blob_WDDM, blob_leakyRelu)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("leakyrelu.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -1084,12 +976,6 @@ TEST (generate_blob_WDDM, blob_elu)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("elu.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -1127,12 +1013,6 @@ TEST (generate_blob_WDDM, blob_sigmoid)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("sigmoid.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -1170,12 +1050,6 @@ TEST (generate_blob_WDDM, blob_tanh)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("tanh.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -1214,12 +1088,6 @@ TEST (generate_blob_WDDM, blob_lrn)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("lrn.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2480);
@@ -1259,12 +1127,6 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation 
@@ -1335,12 +1197,6 @@ TEST (generate_blob, runtime_binary_RAM)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", false);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", true);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation 
@@ -1401,12 +1257,6 @@ TEST (generate_blob, runtime_binary_FILE)
     compDesc.setPassArg("GenerateBlob", "fileName", blobName);
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("blob_eltwise_multiply.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation 

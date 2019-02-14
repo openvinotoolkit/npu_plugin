@@ -18,7 +18,8 @@ int main()
     auto fc1000 = test_cm.fullyConnected(input1, weights);
     auto output = test_cm.output(fc1000);
 
-    unit.loadDefaultCompilationDescriptor();
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "wddm_fullyconnected1";

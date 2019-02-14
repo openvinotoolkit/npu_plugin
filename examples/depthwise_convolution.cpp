@@ -18,7 +18,7 @@ int main()
     auto conv = test_cm.depthwiseConv(input, weights1, {4, 4}, {1, 1, 1, 1});
     auto output = test_cm.output(conv);
 
-    unit.loadDefaultCompilationDescriptor();
+    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "DepthwiseConvolution";
@@ -27,10 +27,12 @@ int main()
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
 
-    compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
+    // NOTE: GenerateDot is not applicable for release version. Use debug compilation
+    // descriptor if needed.
+    // compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
+    // compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    // compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    // compDesc.setPassArg("GenerateDot", "html", true);
 
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 

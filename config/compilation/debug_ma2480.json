@@ -3,6 +3,10 @@
     {
         "Singular" :
         [
+            {
+                "name" : "GenerateDot",
+                "output" : "original_model.dot"
+            },
             "ConvolutionDilation",
             "FuseBatchNorm",
             "FuseBias",
@@ -11,7 +15,11 @@
             "FuseScale",
             "FuseBias",
             "FullyConnectedAsConv2D",
-            "RemoveDropOut"
+            "RemoveDropOut",
+            {
+                "name" : "GenerateDot",
+                "output" : "adapt.dot"
+            }
         ]
     },
 
@@ -39,7 +47,11 @@
             "ArrangeLinearExecution",
             "AllocatePopulatedTensors",
             "AllocateUnpopulatedTensors",
-            "AllocateInputOutputTensors"
+            "AllocateInputOutputTensors",
+            {
+                "name" : "GenerateDot",
+                "output" : "finalize.dot"
+            }
         ]
     },
 
@@ -56,7 +68,6 @@
     {
         "Singular" :
         [
-            "GenerateDot",
             "CheckTensors"
         ]
     },
@@ -65,9 +76,14 @@
     {
         "Singular" :
         [
+            "validate",
             "adapt",
             "finalize",
             "serialize"
+        ],
+        "Recurrent" :
+        [
+            "validate"
         ]
     }
 }

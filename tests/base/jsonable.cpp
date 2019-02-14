@@ -66,17 +66,11 @@ void setModel(mv::CompilationUnit& unit)
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
     // Output DOT - file name (base)
-    unit.loadDefaultCompilationDescriptor();
+    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", false);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("GenerateBlob", "fileName", std::string("allocate_resources.blob"));
-
-    compDesc.setPassArg("GenerateDot", "output", std::string("allocate_resources.dot"));
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpModel"));
-    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    compDesc.setPassArg("GenerateDot", "html", true);
-
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
     // Initialize compilation
