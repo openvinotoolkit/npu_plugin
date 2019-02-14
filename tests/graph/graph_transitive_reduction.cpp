@@ -4,6 +4,7 @@
 #include <vector>
 #include "include/mcm/graph/graph.hpp"
 #include "include/mcm/graph/visualizer.hpp"
+#include "include/mcm/algorithms/transitive_reduction.hpp"
 
 using graph_char_int= mv::graph<char, int>;
 
