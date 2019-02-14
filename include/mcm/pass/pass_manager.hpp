@@ -9,6 +9,7 @@
 #include "include/mcm/base/json/json.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/logger/log_sender.hpp"
+#include "include/mcm/compiler/compilation_descriptor.hpp"
 
 namespace mv
 {
@@ -16,61 +17,35 @@ namespace mv
     class PassManager : public LogSender
     {
 
-        bool ready_;
+        bool initialized_;
         bool completed_;
         bool running_;
 
         TargetDescriptor targetDescriptor_;
-        json::Object compDescriptor_;
+        CompilationDescriptor compDescriptor_;
         ComputationModel *model_;
 
-        std::vector<std::string> adaptPassQueue_;
-        std::vector<std::string> optPassQueue_;
-        std::vector<std::string> finalPassQueue_;
-        std::vector<std::string> serialPassQueue_;
-        std::vector<std::string> validPassQueue_;
+        std::vector<mv::Element> passList_;
+        std::vector<mv::Element>::const_iterator currentPass_;
 
-        std::string buffer_;
-
-        const std::vector<std::pair<PassGenre, std::vector<std::string>*>> passFlow_ =
-        {
-            {PassGenre::Validation, &validPassQueue_},
-            {PassGenre::Adaptation, &adaptPassQueue_},
-            {PassGenre::Validation, &validPassQueue_},
-            {PassGenre::Optimization, &optPassQueue_},
-            {PassGenre::Validation, &validPassQueue_},
-            {PassGenre::Finalization, &finalPassQueue_},
-            {PassGenre::Validation, &validPassQueue_},
-            {PassGenre::Serialization, &serialPassQueue_}
-        };
-
-        std::vector<std::pair<PassGenre, std::vector<std::string>*>>::const_iterator currentStage_;
-        std::vector<std::string>::iterator currentPass_;
         json::Object compOutput_;
 
-        static std::string toString(PassGenre passGenre);
-
     protected:
-
-        
 
     public:
 
         PassManager();
-        bool initialize(ComputationModel &model, const TargetDescriptor& targetDescriptor, const mv::json::Object& compDescriptor);
-        bool enablePass(PassGenre stage, const std::string& pass, int pos = -1);
-        bool disablePass(PassGenre stage, const std::string& pass);
-        bool disablePass(PassGenre stage);
-        bool disablePass();
-        std::size_t scheduledPassesCount(PassGenre stage) const;
-        const std::vector<std::string>& scheduledPasses(PassGenre stage) const;
+        bool initialize(ComputationModel &model, const TargetDescriptor& targetDescriptor, const mv::CompilationDescriptor& compDescriptor);
         void reset();
         bool validDescriptors() const;
-        bool ready() const;
+        bool initialized() const;
         bool completed() const;
+        bool validPassArgs() const;
         json::Object& step();
         std::string getLogID() const override;
-        
+
+        void loadPassList(const std::vector<mv::Element>& passList);
+
     };
 
 }

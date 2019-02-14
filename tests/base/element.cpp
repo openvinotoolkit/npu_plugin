@@ -297,3 +297,64 @@ TEST(element, attribute_type_std_map) {
     ASSERT_EQ(e.toJSON().stringify(), jsonStr);
 
 }
+
+TEST(element, element_from_json) {
+    mv::Element e1("groups");
+
+    e1.set("dVal", 42.0);
+    e1.set("sVal", std::string("a_string"));
+    e1.set("iVal", 84);
+    e1.set<mv::Element>("group1", mv::Element("group1"));
+    e1.set<std::vector<std::string>>("strVec", {});
+    e1.get<std::vector<std::string>>("strVec").push_back("v1");
+    e1.get<std::vector<std::string>>("strVec").push_back("v2");
+    e1.get<std::vector<std::string>>("strVec").push_back("v3");
+    e1.get<mv::Element>("group1").set<std::vector<double>>("doubleVec1", {1.0, 2.0, 3.0});
+    e1.get<mv::Element>("group1").set<std::vector<double>>("doubleVec2", {4.0, 5.0, 6.0});
+    e1.get<mv::Element>("group1").set<mv::Element>("group2", mv::Element("group2"));
+    e1.get<mv::Element>("group1").get<mv::Element>("group2").set("dVal2", 42.0);
+    e1.get<mv::Element>("group1").get<mv::Element>("group2").set<std::vector<std::string>>("strVec2", {"val1", "val2", "val3"});
+
+    mv::json::Value obj = e1.toJSON(true);
+
+    mv::Element e2(obj, true);
+
+    mv::json::Value obj2 = e2.toJSON(true);
+
+    ASSERT_EQ(e1, e2);
+}
+
+TEST(element, attribute_type_std_vector_element) {
+
+    mv::Element e("testVecElementAttribute");
+    mv::Element me1("vec_elem1");
+    mv::Element me2("vec_elem2");
+
+    std::vector<std::string> vVecStdString1({"foo1", "foo2", "foo3", "foo4", "foo5"});
+    std::vector<std::string> vVecStdString2({"bar1", "bar2", "bar3", "bar4", "bar5"});
+    std::string aVecStdStringName1 = "aVecStdString1";
+    std::string aVecStdStringName2 = "aVecStdString2";
+
+    me1.set<std::vector<std::string>>(aVecStdStringName1, vVecStdString1);
+    me2.set<std::vector<std::string>>(aVecStdStringName2, vVecStdString2);
+
+    std::vector<mv::Element>  elemVec;
+    elemVec.push_back(me1);
+    elemVec.push_back(me2);
+
+    e.set<std::vector<mv::Element>>("elemVecAttr", elemVec);
+    std::cout << e.toString() << std::endl;
+
+    // std::string jsonStr = "{\"attrs\":{\"map_attribute\":{\"attrType\":\"std::map"
+    // "<std::string, Element>\",\"content\":{\"key1\":{\"attrs\":{\"aVecStdString1\":"
+    // "{\"attrType\":\"std::vector<std::string>\",\"content\":[\"foo1\",\"foo2\",\"fo"
+    // "o3\",\"foo4\",\"foo5\"]}},\"name\":\"map_elem1\"},\"key2\":{\"attrs\":{\"aVecS"
+    // "tdString2\":{\"attrType\":\"std::vector<std::string>\",\"content\":[\"bar1\",\"b"
+    // "ar2\",\"bar3\",\"bar4\",\"bar5\"]}},\"name\":\"map_elem2\"}}}},\"name\":\"MapTe"
+    // "stElement\"}";
+
+    //ASSERT_EQ(e.toJSON().stringify(), jsonStr);
+
+    std::cout << e.toJSON(true).stringifyPretty() << std::endl;
+
+}

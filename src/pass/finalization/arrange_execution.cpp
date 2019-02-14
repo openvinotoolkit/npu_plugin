@@ -3,8 +3,9 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void arrangeLinearExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+
 
 namespace mv
 {
@@ -14,14 +15,12 @@ namespace mv
 
         MV_REGISTER_PASS(ArrangeLinearExecution)
         .setFunc(arrangeLinearExecutionFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             ""
         );
 
         MV_REGISTER_PASS(ArrangeKeembayExecution)
         .setFunc(arrangeKeembayExecutionFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             ""
         );
@@ -44,7 +43,7 @@ namespace mv
 
 // WARNING: This two layers of control flow can generate unnecessary control flows.
 // At the end those need to be eliminated by Transitive reduction on the ControlFlow pass.
-void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     std::cout << "Arrange Keembay execution" << std::endl;
@@ -102,7 +101,7 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
 }
 
-void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void arrangeLinearExecutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     std::cout << "Arrange execution" << std::endl;

@@ -114,11 +114,11 @@ int main()
 
     std::string descPath = mv::utils::projectRootPath() + "/config/compilation/resnet50_HW.json";
     std::ifstream compDescFile(descPath);
-    if (compDescFile.good())
-    {
-        std::cout << "DECLARING COMPILATION UNIT with descriptor json filename: " << descPath << std::endl;
-        unit.loadCompilationDescriptor(descPath);
-    }
+    // if (compDescFile.good())
+    // {
+    //     std::cout << "DECLARING COMPILATION UNIT with descriptor json filename: " << descPath << std::endl;
+    //     unit.loadCompilationDescriptor(descPath);
+    // }
 
     // Obtain a compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
@@ -155,17 +155,26 @@ int main()
     if (!unit.loadTargetDescriptor(mv::Target::ma2480))
         exit(1);
 
-    // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string("cm_resnet50.dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("resnet50.blob");
-    unit.compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-    unit.compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-    unit.compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppExampleprototxt.prototxt");
-    unit.compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppExampleweights.caffemodel");
-    unit.compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = true;
+    unit.loadDefaultCompilationDescriptor();
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+
+    std::string blobName = "resnet50.blob";
+    mv::Attribute blobNameAttr(blobName);
+    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+
+    // NOTE: GenerateDot is not applicable for release version. Use debug compilation
+    // descriptor if needed.
+    // compDesc.setPassArg("GenerateDot", "output", std::string("cm_resnet50.dot"));
+    // compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    // compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    // compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
+
+    // compDesc.setPassArg("GenerateCaffe", "outputPrototxt", std::string("cm_resnet50.prototxt"));
+    // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string("cm_resnet50.caffemodel"));
 
     // Initialize compilation 
     unit.initialize();

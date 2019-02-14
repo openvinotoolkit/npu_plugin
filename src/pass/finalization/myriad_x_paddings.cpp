@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/myriadx/nce1.hpp"
 
-static void myriadXPaddings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void myriadXPaddings(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -14,7 +14,6 @@ namespace mv
 
         MV_REGISTER_PASS(MyriadXPaddings)
         .setFunc(myriadXPaddings)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass pads all tensors in the network to be compatible with MX"
         );
@@ -23,7 +22,7 @@ namespace mv
 
 //ASSUMPTION 1: This pass must be executed after the Mark Hardware Convolution pass.
 //REASON: There is no need to pad tensors not involved in HW operations at all.
-void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void myriadXPaddings(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);

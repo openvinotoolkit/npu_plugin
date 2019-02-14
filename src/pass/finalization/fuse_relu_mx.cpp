@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/tensor/math.hpp"
 
-static void fuseReluMXFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fuseReluMXFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,7 +13,6 @@ namespace mv
 
         MV_REGISTER_PASS(FuseReluMX)
         .setFunc(fuseReluMXFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "Fuses a relu op to the parent op."
             "Relu op is removed from the model, and a new attribute of type OpType and value relu is defined for parent Op."
@@ -23,7 +22,7 @@ namespace mv
 
 }
 
-void fuseReluMXFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fuseReluMXFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     using namespace mv;

@@ -44,6 +44,8 @@ namespace mv
             std::shared_ptr<GenericFunc> checkFunc_;
             std::shared_ptr<GenericFunc> toJSONFunc_;
             std::shared_ptr<GenericFunc> fromJSONFunc_;
+            std::shared_ptr<GenericFunc> fromSimplifiedJSONFunc_;
+            std::shared_ptr<GenericFunc> toSimplifiedJSONFunc_;
             std::shared_ptr<GenericFunc> toStringFunc_;
             std::shared_ptr<GenericFunc> toLongStringFunc_;
             std::shared_ptr<GenericFunc> toBinaryFunc_;
@@ -57,6 +59,8 @@ namespace mv
             AttributeEntry& setCheckFunc(const std::function<bool(const Attribute&, std::string&)>& f);
             AttributeEntry& setToJSONFunc(const std::function<mv::json::Value(const Attribute&)>& f);
             AttributeEntry& setFromJSONFunc(const std::function<Attribute(const mv::json::Value&)>& f);
+            AttributeEntry& setToSimplifiedJSONFunc(const std::function<mv::json::Value(const Attribute&)>& f);
+            AttributeEntry& setFromSimplifiedJSONFunc(const std::function<Attribute(const mv::json::Value&)>& f);
             AttributeEntry& setToStringFunc(const std::function<std::string(const Attribute&)>& f);
             AttributeEntry& setToBinaryFunc(const std::function<std::vector<uint8_t>(const Attribute&)>& f);
             AttributeEntry& setToLongStringFunc(const std::function<std::string(const Attribute&)>& f);
@@ -68,6 +72,8 @@ namespace mv
             const std::function<bool(const Attribute&, std::string&)>& getCheckFunc();
             const std::function<mv::json::Value(const Attribute&)>& getToJSONFunc();
             const std::function<Attribute(const mv::json::Value&)>& getFromJSONFunc();
+            const std::function<mv::json::Value(const Attribute&)>& getToSimplifiedJSONFunc();
+            const std::function<Attribute(const mv::json::Value&)>& getFromSimplifiedJSONFunc();
             const std::function<std::string(const Attribute&)>& getToStringFunc();
             const std::function<std::vector<uint8_t>(const Attribute&)>& getToBinaryFunc();
             const std::function<std::string(const Attribute&)>& getToLongStringFunc();
