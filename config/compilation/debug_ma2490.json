@@ -26,14 +26,6 @@
         ]
     },
 
-    "serialize":
-    {
-        "Singular" :
-        [
-            
-        ]
-    },
-
     "validate":
     {
         "Singular" :
@@ -48,8 +40,7 @@
         [
             "validate",
             "adapt",
-            "finalize",
-            "serialize"
+            "finalize"
         ],
         "Recurrent" :
         [

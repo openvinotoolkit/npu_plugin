@@ -18,21 +18,13 @@
         ]
     },
 
-    "serialize":
-    {
-        "Singular" :
-        [
-            
-        ]
-    },
 
     "root" :
     {
         "Singular" :
         [
             "adapt",
-            "finalize",
-            "serialize"
+            "finalize"
         ]
     }
 }
