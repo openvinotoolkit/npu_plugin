@@ -367,17 +367,19 @@
 	{
 		"adapt":
 		[
-			
+			"AssignUniqueOpId",
+			"ConvertToTaskGraph",
+			"AssignUniqueTaskId"
 		],
 
 		"finalize":
 		[
-		"GenerateWorkloads"
-		],
+            		"GenerateWorkloads",
+			"ArrangeKeembayExecution"
+        	],
 
 		"serialize":
 		[
-
 		],
 
 		"validate":

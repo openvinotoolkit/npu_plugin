@@ -46,5 +46,7 @@ namespace mv
         return bdata;
     };
 
-    MV_REGISTER_DTYPE(Int2).setToBinaryFunc(toBinaryFunc);
+    MV_REGISTER_DTYPE(Int2)
+    .setToBinaryFunc(toBinaryFunc)
+    .setSizeInBits(2);
 }

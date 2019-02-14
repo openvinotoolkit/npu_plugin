@@ -10,16 +10,15 @@
 
 namespace mv
 {
-     enum MPE_Mode
+    enum MPE_Mode
     {
-        Vector, /*MPEMode (1,16)*/
-        Matrix  /*MPEMode (4,4)*/
+        Vector,
+        Matrix
     };
 
     struct Workload
     {
         MPE_Mode MPEMode;
-
         int16_t MaxX = 0;
         int16_t MaxY = 0;
         int16_t MaxZ = 0;

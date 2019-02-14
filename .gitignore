@@ -14,3 +14,7 @@ recordings/
 *.caffemodel
 *.ps
 *.png
+
+# CLion
+.idea/
+cmake-build-debug/

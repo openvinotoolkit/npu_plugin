@@ -342,7 +342,7 @@ std::set<int> getNWorkloads(std::vector<mv::Data::TensorIterator> tensor, int nD
     return splitPool;
 }
 
-void generateWorkloadsFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
 {
     using namespace mv;
 

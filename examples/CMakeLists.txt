@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.5.0)
 project(mcmComplier VERSION 0.0.1)
 
 add_executable(graph_basic graph_basic.cpp)
+add_executable(transitive_reduction transitive_reduction.cpp)
 
 add_executable(graph_conjoined graph_conjoined.cpp)
 
@@ -32,6 +33,8 @@ if (MSVC)
 	add_executable(standalone_prelu standalone_prelu.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 	add_executable(hw_convolution hw_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
+	add_executable(dpu_conv_example dpu_conv_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 	add_executable(dpu_task_example dpu_task_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
@@ -87,6 +90,9 @@ else()
 
 	add_executable(hw_convolution hw_convolution.cpp)
 	target_link_libraries(hw_convolution cm)
+
+	add_executable(dpu_conv_example dpu_conv_example.cpp)
+	target_link_libraries(dpu_conv_example cm)
 
 	add_executable(dpu_task_example dpu_task_example.cpp)
 	target_link_libraries(dpu_task_example cm)

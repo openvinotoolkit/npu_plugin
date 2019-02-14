@@ -18,6 +18,7 @@
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/computation/model/runtime_binary.hpp"
 #include "include/mcm/target/keembay/dma_direction.hpp"
+#include "include/mcm/target/keembay/ppe_layer_type.hpp"
 
 namespace mv
 {
@@ -112,6 +113,7 @@ namespace mv
         Data::TensorIterator getTensor(const std::string& name);
         
         Data::OpListIterator getOp(const std::string& name);
+        std::vector<Data::OpListIterator> getOps(const std::string& opType);
         Data::FlowListIterator getDataFlow(const std::string& name);
         Control::FlowListIterator getControlFlow(const std::string& name);
 
@@ -124,7 +126,20 @@ namespace mv
 
         std::string getName() const;
         virtual std::string getLogID() const override;
-        //json::Value toJSON() const override;
+        json::Value toJSON() const;
+        json::Array dataFlowToJSON() const;
+        json::Array controlFlowToJSON() const;
+        json::Array opsToJSON() const;
+        json::Object opsIndexCounterToJSON() const;
+        json::Object opsInstanceCounterToJSON() const;
+        json::Array stagesToJSON() const;
+        json::Array groupsToJSON() const;
+        json::Array tensorsToJSON() const;
+        bool hasPopulatedTensorsToJSON() const;
+        json::Object memoryAllocatorsToJSON() const;
+        json::Object sourceOpsToJSON() const;
+
+        
 
     };
 

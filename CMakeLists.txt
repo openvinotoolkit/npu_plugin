@@ -71,6 +71,8 @@ file(GLOB base
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
     "src/target/keembay/dma_direction.cpp"
+    "src/target/keembay/ppe_layer_type.cpp"
+    "src/target/keembay/ppe_fixed_function.cpp"
     "src/target/keembay/workloads.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
@@ -82,6 +84,7 @@ file(GLOB base
     "src/tensor/shape.cpp"
     "src/tensor/tensor.cpp"
     "src/tensor/binary_data.cpp"
+    "src/tensor/quantization_params.cpp"
     "src/tensor/order/*.cpp"
     "src/tensor/order/order_def/*.cpp"
     "src/tensor/math.cpp"
@@ -132,7 +135,11 @@ file(GLOB pass
     "src/pass/adaptation/remove_passes.cpp"
     "src/pass/adaptation/replacement_passes.cpp"
     "src/pass/adaptation/conv_dilation_pass.cpp"
+    "src/pass/adaptation/assign_unique_task_id.cpp"
+    "src/pass/adaptation/assign_unique_op_id.cpp"
+    "src/pass/adaptation/convert_to_task_graph.cpp"
     "src/pass/finalization/generate_workloads_pass.cpp"
+    "src/pass/adaptation/dpu_conv_pass.cpp"
     "src/pass/finalization/*.cpp"
     "src/pass/validation/*.cpp"
     "src/pass/serialization/*.cpp"
@@ -154,7 +161,7 @@ if (MSVC)
     add_library(corebase OBJECT ${base} ${logger})
     add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
     target_link_libraries(model corebase)
-    add_dependencies(cm generate-comp-api)	
+    add_dependencies(cm generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
 else()

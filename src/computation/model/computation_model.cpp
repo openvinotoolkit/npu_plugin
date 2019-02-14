@@ -69,7 +69,7 @@ void mv::ComputationModel::incrementOpsIndexCounter_(const std::string& opType)
 void mv::ComputationModel::incrementOpsInstanceCounter_(const std::string& opType)
 {
     if (opsInstanceCounter_->find(opType) == opsInstanceCounter_->end())
-        opsInstanceCounter_->emplace(opType, 0);
+        opsInstanceCounter_->emplace(opType, 1);
     else
         ++opsInstanceCounter_->at(opType);
 }
@@ -268,14 +268,23 @@ mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string& name
 
 mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
 {
-
     auto it = ops_->find(name);
 
     if (it == ops_->end())
         throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
     return it->second;
+}
 
+// NOTE: Complexity is linear in the number of operations in the graph. Can we do better without an additional
+// data strucuture?
+std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::string &opType)
+{
+    std::vector<mv::Data::OpListIterator> toReturn;
+    for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
+        if(opPairIt->second->getOpType() == opType)
+            toReturn.push_back(opPairIt->second);
+    return toReturn;
 }
 
 mv::Data::FlowListIterator mv::ComputationModel::getDataFlow(const std::string& name)
@@ -325,6 +334,108 @@ std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::getBinaryBuffer()
     return binary_ ;
 }
 
+mv::json::Array mv::ComputationModel::dataFlowToJSON() const
+{
+    json::Array data_flows;
+    for (auto dataIt = dataGraph_.edge_begin(); dataIt != dataGraph_.edge_end(); ++dataIt)
+        data_flows.append((*dataIt).toJSON());
+    //    std::cout<<"Data Flows in computation model: "<<data_flows.stringify()<<std::endl;
+    return data_flows;
+}
+
+mv::json::Array mv::ComputationModel::controlFlowToJSON() const
+{
+    json::Array control_flow;
+    for (auto controlIt = controlGraph_.edge_begin(); controlIt != controlGraph_.edge_end(); ++controlIt)
+        control_flow.append((*controlIt).toJSON());
+    std::cout << "control Flows in computation model: " << control_flow.stringify() << std::endl;
+    return control_flow;
+}
+
+//Nodes and operation counters
+mv::json::Array mv::ComputationModel::opsToJSON() const
+{
+    json::Array nodes;
+    for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
+        nodes.append((*opIt).toJSON());
+    return nodes;
+}
+
+//Operation Index counters
+mv::json::Object mv::ComputationModel::opsIndexCounterToJSON() const
+{
+    json::Object opsIndCounters;
+    for (auto opsCounterIt = opsIndexCounter_->begin(); opsCounterIt != opsIndexCounter_->end(); ++opsCounterIt)
+        opsIndCounters[(opsCounterIt->first)] = json::Value(static_cast<double>(opsCounterIt->second));
+    return opsIndCounters;
+}
+
+//Operation Instance Counters
+mv::json::Object mv::ComputationModel::opsInstanceCounterToJSON() const
+{
+    json::Object opsInsCounters;
+    for (auto opsInsCounterIt = opsInstanceCounter_->begin(); opsInsCounterIt != opsInstanceCounter_->end(); ++opsInsCounterIt)
+        opsInsCounters[opsInsCounterIt->first] = json::Value(static_cast<double>(opsInsCounterIt->second));
+    return opsInsCounters;
+}
+
+//stages toJSON
+mv::json::Array mv::ComputationModel::stagesToJSON() const
+{
+    json::Array stages;
+    for (auto stagesIt = stages_->begin(); stagesIt != stages_->end(); ++stagesIt)
+        stages.append((*stagesIt->second).toJSON());
+    return stages;
+}
+
+// tensors to JSON
+mv::json::Array mv::ComputationModel::tensorsToJSON() const
+{
+    json::Array tensors;
+    for (auto tensorIt = tensors_->begin(); tensorIt != tensors_->end(); ++tensorIt)
+        tensors.append((*tensorIt->second).toJSON());
+    return tensors;
+}
+
+//groups to JSON
+mv::json::Array mv::ComputationModel::groupsToJSON() const
+{
+    json::Array groups;
+    for (auto groupIt = groups_->begin(); groupIt != groups_->end(); ++groupIt)
+        groups.append((*groupIt->second).toJSON());
+    return groups;
+}
+
+//has Populated Tensors --> JSON
+bool mv::ComputationModel::hasPopulatedTensorsToJSON() const
+{
+    bool hasPopulatedTensors = false;
+    for (auto tensorIt = tensors_->begin(); tensorIt != tensors_->end(); ++tensorIt)
+    {
+        if (tensorIt->second->isPopulated())
+        {
+            hasPopulatedTensors = true;
+            break;
+        }
+    }
+    return hasPopulatedTensors;
+}
+/*
+//has to implement memoryAllocatorsToJSON. Waiting as per Stanislaw's sugestion as code refactor planned will affect this
+mv::json::Object mv::ComputationModel::memoryAllocatorsToJSON() const
+{
+   json::Object memory_allocators;
+    for (auto memoryAllocatorIt = memoryAllocators_->begin(); memoryAllocatorIt != memoryAllocators_->end(); ++memoryAllocatorIt)
+        memory_allocators[memoryAllocatorIt->first] = Jsonable::toJsonValue(*memoryAllocatorIt->second);
+   return memory_allocators;
+}
+//has to implement the sourceOpsToJSON. Not 100% what the source Ops mean here, given nodes already captured ops details
+mv::json::Object mv::ComputationModel::sourceOpsToJSON() const
+{
+    json::Object source_ops;
+
+}
+*/
 void mv::ComputationModel::clear()
 {
     ops_->clear();
@@ -346,83 +457,25 @@ void mv::ComputationModel::clear()
     *output_ = dataGraph_.node_end();
 }
 
-//NOTE: Populated tensors dumping are handled in json pass.
-/*mv::json::Value mv::ComputationModel::toJsonValue() const
+mv::json::Value mv::ComputationModel::toJSON() const
 {
     json::Object computationModel;
     json::Object graph;
-    json::Array nodes;
-    json::Array data_flows;
-    json::Array control_flows;
-    json::Array tensors;
-    json::Array groups;
-    json::Array stages;
-    json::Object memory_allocators;
-    json::Object sourceOps;
-    json::Object opsCounters;
 
-    bool hasPopulatedTensors = false;
-
-    //Groups
-    for (auto groupIt = groups_->begin(); groupIt != groups_->end(); ++groupIt)
-        groups.append(Jsonable::toJsonValue(*groupIt->second));
-
-    //Tensors and source operations
-    for (auto tensorIt = tensors_->begin(); tensorIt != tensors_->end(); ++tensorIt)
-        tensors.append(Jsonable::toJsonValue(*(tensorIt->second)));
-
-    for (auto tensorIt = tensors_->begin(); tensorIt != tensors_->end(); ++tensorIt)
-    {
-        if(tensorIt->second->isPopulated())
-        {
-            hasPopulatedTensors = true;
-            break;
-        }
-    }
-
-    //Nodes and operation counters
-    for (auto opIt = dataGraph_.node_begin(); opIt != dataGraph_.node_end(); ++opIt)
-        nodes.append(Jsonable::toJsonValue(**opIt));
-
-    //Data flows
-    for (auto dataIt = dataGraph_.edge_begin(); dataIt != dataGraph_.edge_end(); ++dataIt)
-        data_flows.append(Jsonable::toJsonValue(**dataIt));
-
-    //Control flows
-    for (auto controlIt = controlGraph_.edge_begin(); controlIt != controlGraph_.edge_end(); ++controlIt)
-        control_flows.append(Jsonable::toJsonValue(**controlIt));
-
-    //Deploying stages (Waiting for Stanislaw proper implementation)
-    //for (auto stagesIt = stages_->begin(); stagesIt != stages_->end(); ++stagesIt)
-        //stages.append(mv::Jsonable::toJsonValue(*stagesIt->second));
-
-    //Operations counters
-    for (auto opsCounterIt = opsCounter_->begin(); opsCounterIt != opsCounter_->end(); ++opsCounterIt)
-        opsCounters[opsStrings.at(opsCounterIt->first)] = Jsonable::toJsonValue(opsCounterIt->second);
-
-    //Source ops counters.
-    for (auto sourceOpsIt = tensorsSources_->begin(); sourceOpsIt != tensorsSources_->end(); ++sourceOpsIt)
-        sourceOps[sourceOpsIt->first] = Jsonable::toJsonValue(sourceOpsIt->second->getName());
-
-    //Memory Allocators
-    for (auto memoryAllocatorIt = memoryAllocators_->begin(); memoryAllocatorIt != memoryAllocators_->end(); ++memoryAllocatorIt)
-        memory_allocators[memoryAllocatorIt->first] = Jsonable::toJsonValue(*memoryAllocatorIt->second);
-
-    graph["nodes"] = json::Value(nodes);
-    graph["data_flows"] = json::Value(data_flows);
-    graph["control_flows"] = json::Value(control_flows);
+    graph["nodes"] = json::Value(opsToJSON());
+    graph["data_flows"] = json::Value(dataFlowToJSON());
+    graph["control_flows"] = json::Value(controlFlowToJSON());
     computationModel["graph"] = graph;
-    computationModel["tensors"] = tensors;
-    computationModel["computation_groups"] = groups;
-    computationModel["stages"] = stages;
-    computationModel["source_ops"] = sourceOps;
-    computationModel["memory_allocators"] = memory_allocators;
-    computationModel["operations_counters"] = opsCounters;
-    computationModel["has_populated_tensors"] = Jsonable::toJsonValue(hasPopulatedTensors);
+    computationModel["tensors"] = json::Value(tensorsToJSON());
+    computationModel["computation_groups"] = json::Value(groupsToJSON());
+    computationModel["stages"] = json::Value(stagesToJSON());
+    //    computationModel["source_ops"] = sourceOps;
+    //    computationModel["memory_allocators"] = memory_allocators;
+    computationModel["operations_Instance_counters"] = opsInstanceCounterToJSON();
+    computationModel["operations_Index_counters"] = opsIndexCounterToJSON();
+    computationModel["has_populated_tensors"] = json::Value(hasPopulatedTensorsToJSON());
     return json::Value(computationModel);
-
-}*/
-
+}
 std::reference_wrapper<mv::ComputationModel> mv::ComputationModel::getRef()
 {
     return selfRef_;
