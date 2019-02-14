@@ -279,7 +279,8 @@ int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads)
 
 void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
-    using namespace mv;
+
+    pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
 
     mv::OpModel om(model);
 
@@ -294,7 +295,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
         if ((opIt->getOpType() == "DPUTask") && (opIt->get<std::string>("taskOp") == "Conv")) 
         {
 
-            pass.log(Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + "of type " + opIt->get<std::string>("taskOp"));
+            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + "of type " + opIt->get<std::string>("taskOp"));
  
             /*Get output tensor*/
             auto outputTensor = opIt->getOutputTensor();
@@ -313,7 +314,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
             /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number) for WW09 deliverbale*/
             idx_t nWorkloads = round(nDPUxCluster/2)*2; 
 
-            pass.log(Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
+            pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
             /*Partition tensor into workloads with METIS*/
             auto res = partitionTensorMETIS(metisGraph,nWorkloads);
@@ -322,23 +323,23 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                 throw "Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!";
             }
 
-            pass.log(Logger::MessageType::Debug, "Value of the objective function that was minimized (should be same as PoC compiler) is:" + std::to_string(metisGraph.objval));
+            pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized (should be same as PoC compiler) is:" + std::to_string(metisGraph.objval));
            
             /*Print node partition*/
             for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) { 
                 
-                pass.log(Logger::MessageType::Debug, "Node " + std::to_string(part_i) + "of type " + "is in partition " + std::to_string(metisGraph.part[part_i]));
+                pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + "of type " + "is in partition " + std::to_string(metisGraph.part[part_i]));
             }
 
             /*Workloads class instance*/
-            Workloads workloads(opIt->getName());
+            mv::Workloads workloads(opIt->getName());
 
             /*Populate each workload*/
             /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
             /*This needs to be handled here for now assuming number of partitions is the number or workloads*/
             for(int workload = 0; workload < nWorkloads; workload++) { 
 
-                workloads.getWorkloads().push_back(Workload()); /*Add each workload (struct) to vector of workloads*/
+                workloads.getWorkloads().push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
                 workloads.getWorkloads()[workload].workloadID = workload;
                 workloads.getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
@@ -349,7 +350,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                 workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
                 
-                workloads.getWorkloads()[workload].MPEMode = Matrix;        /*Matrix is MPE Mode (4,4)*/
+                workloads.getWorkloads()[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
                 
                 /* Converting the paritions returned by METIS 
                  * into tensor coordinates and populating these fields of workload 
@@ -390,5 +391,5 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
             opIt->set<mv::Workloads>("Workloads", workloads);
         }
     }
-    std::cout << "Exiting Workload Generation Pass " << std::endl;
+    pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }
