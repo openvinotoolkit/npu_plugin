@@ -1,0 +1,59 @@
+{
+    "adapt":
+    {
+        "Singular" :
+        [
+            {
+                "name" : "GenerateDot",
+                "output" : "original_model.dot"
+            },
+            "AssignUniqueOpId",
+	    "ConvertToTaskGraph",
+	    "AssignUniqueTaskId",
+            {
+                "name" : "GenerateDot",
+                "output" : "adapt.dot"
+            }
+        ]
+    },
+
+    "finalize":
+    {
+        "Singular" :
+        [
+            "GenerateWorkloads",
+	    "ArrangeKeembayExecution"
+        ]
+    },
+
+    "serialize":
+    {
+        "Singular" :
+        [
+            
+        ]
+    },
+
+    "validate":
+    {
+        "Singular" :
+        [
+            "CheckTensors"
+        ]
+    },
+
+    "root" :
+    {
+        "Singular" :
+        [
+            "validate",
+            "adapt",
+            "finalize",
+            "serialize"
+        ],
+        "Recurrent" :
+        [
+            "validate"
+        ]
+    }
+}
