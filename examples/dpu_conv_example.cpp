@@ -40,7 +40,7 @@ int main()
 
     std::string outputName("dpu_conv");
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor& compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));

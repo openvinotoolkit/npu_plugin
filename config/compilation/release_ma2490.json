@@ -1,0 +1,47 @@
+{
+    "adapt": {
+        "Singular":
+        [
+            "AssignUniqueOpId",
+            "DPUConvolution",
+            "ConvertToTaskGraph",
+            "AssignUniqueTaskId"
+        ]
+    },
+
+    "finalize": {
+        "Singular":
+        [
+            "GenerateWorkloads",
+            "ArrangeLinearExecution",
+            "AllocatePopulatedTensors",
+            "AllocateUnpopulatedTensors",
+            "AllocateInputOutputTensors"
+        ]
+    },
+
+    "serialize":{
+        "Singular":
+        [
+            "GenerateBlobKeembay"
+        ]
+    },
+
+    "validate": {
+        "Singular":
+        [
+            "GenerateDot",
+            "CheckTensors"
+        ]
+    },
+
+    "root" :
+    {
+        "Singular" :
+        [
+            "adapt",
+            "finalize",
+            "serialize"
+        ]
+    }
+}
