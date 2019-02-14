@@ -24,6 +24,8 @@ namespace mv
         std::vector<std::vector<double>::iterator> blocks_;
         Shape shape_;
         Order internalOrder_;
+        std::shared_ptr<Tensor> sparsityMap_;
+        std::shared_ptr<Tensor> storageElement_;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
@@ -41,6 +43,7 @@ namespace mv
         void populate(const std::vector<double>& data, Order order);
         void unpopulate();
 
+        void setSparse();
         /**
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
@@ -91,6 +94,11 @@ namespace mv
             return get<bool>("populated");
         }
 
+        inline bool isSparse() const
+        {
+            return get<bool>("sparse");
+        }
+
         inline Shape& getShape()
         {
             return shape_;
@@ -110,6 +118,10 @@ namespace mv
         {
             return subToInd_(getShape(), sub);
         }
+
+        std::shared_ptr<Tensor> getSparsityMap() const;
+        std::shared_ptr<Tensor> getStorageElement() const;
+
 
         Tensor& operator=(const Tensor& other);
 
