@@ -46,7 +46,7 @@ namespace mv
 void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
-    std::cout << "Arrange Keembay execution" << std::endl;
+    pass.log(mv::Logger::MessageType::Debug, "Starting arrange Keembay execution");
 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -97,7 +97,7 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::Computation
     auto stage = cm.addStage();
     cm.addToStage(stage, om.getOutput());
 
-    std::cout << "Exiting arrange Keembay execution" << std::endl;
+    pass.log(mv::Logger::MessageType::Debug, "Exiting arrange Keembay execution");
 
 }
 
