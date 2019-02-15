@@ -34,7 +34,7 @@ import_array();
 
     mv::CompilationUnit* getCompilationUnit(const char* target)
     {
-        //printf("Starting MCM Composition Interface for Target: %d\n", target);
+        //printf("Starting MCM Composition Interface for Target Descriptor: %d\n", target);
         auto unit = new mv::CompilationUnit("pySwigCU");
         if(strcmp(target, "ma2480")==0)
         {
@@ -48,7 +48,9 @@ import_array();
         }
         else
         {
-            //TODO: throw an error "not support target descriptor"
+            //Preferably throw an error "not supported target descriptor type"
+            printf("ERROR: not supported target descriptor type: %s", target);
+            return NULL;
         }
 
         return unit;
