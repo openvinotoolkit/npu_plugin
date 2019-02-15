@@ -196,14 +196,15 @@ void mv::Tensor::setSparse()
         //default all zeropoints to zero
         std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
         std::vector<double> sparsityMapData(mapShape.totalSize());
-        std::vector<double> final_data = getData();
-        for (size_t t=0; t < getShape().totalSize(); t+=8)
+        std::vector<size_t> sub(getShape().ndims());
+        uint8_t map;
+        for (size_t t = 0; t < getShape().totalSize(); t += 8)
         {
-            uint8_t map = 0;
-            for (size_t i=0; i< 8; i++)
+            map = 0;
+            for (size_t i = 0; i < 8; i++)
             {
-                std::vector<size_t> subs = getOrder().indToSub(getShape(), t+i);
-                if (subs[2] < getShape()[2] && final_data[t+i] != zeroPoint[subs[3]])
+                sub = getOrder().indToSub(getShape(), t+i);
+                if (sub[2] < getShape()[2] && data_[internalOrder_.subToInd(getShape(), sub)] != zeroPoint[sub[3]])
                 {
                     map += 1 << i;
                     noneZeroElements_++;
@@ -367,16 +368,18 @@ std::vector<double> mv::Tensor::getDataPacked()
 
     std::vector<std::size_t> sub(getShape().ndims());
     std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
-    std::vector<double> orderedData = getData();
     std::vector<double> orderedDataPacked;
+    double datai;
     orderedDataPacked.reserve(noneZeroElements_);
 
-    for (std::size_t i = 0; i < orderedData.size(); ++i)
+    for (std::size_t i = 0; i < data_.size(); ++i)
     {
         sub = getOrder().indToSub(getShape(), i);
-        if (orderedData[i] != zeroPoint[sub[2]]) //sub[2] is C
-            orderedDataPacked.emplace_back(orderedData[i]);
+        datai = data_[internalOrder_.subToInd(getShape(), sub)];
+        if (datai != zeroPoint[sub[2]]) //sub[2] is C
+            orderedDataPacked.emplace_back(datai);
     }
+
     return orderedDataPacked;
 }
 
@@ -607,7 +610,7 @@ std::string mv::Tensor::getLogID() const
 
 mv::BinaryData mv::Tensor::toBinary()
 {
-    return getDType().toBinary(getData());
+    return getDType().toBinary(getDataPacked());
 }
 
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
