@@ -231,19 +231,24 @@ void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::s
             {
                 auto& g = get<Element>(group);
 
+                bool foundPass = false;
                 if (g.hasAttr(recType)) {
                     std::vector<mv::Element>& recList = g.get<std::vector<Element>>(recType);
 
-                    auto it = std::find(recList.begin(), recList.end(), Element(pass));
-
-                    if (it != recList.end())
+                    auto it = recList.begin();
+                    while ((it = std::find (it, recList.end(), Element(pass))) != recList.end())
                     {
                         if (it->hasAttr(arg))
                             it->erase(arg);
 
                         it->set(arg, value);
-                        return true;
+                        foundPass = true;
+
+                        it++;
                     }
+
+                    if (foundPass)
+                        return true;
                 }
                 return false;
             };
