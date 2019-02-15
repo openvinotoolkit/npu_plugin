@@ -20,7 +20,10 @@
         "Singular" :
         [
             "AlignConstOrder",
-            "MarkHardwareOperations",
+            {
+                "name": "MarkHardwareOperations",
+                "disableHardware": false
+            },
             "FuseReluMX",
             "AddConversionLayers",
             "MyriadXPaddings",
@@ -48,7 +51,12 @@
         "Singular" :
         [
             "PopulateSerialFields",
-            "GenerateBlob"
+            {
+                "name" : "GenerateBlob",
+                "fileName" : "cpp.blob",
+                "enableFileOutput" : true,
+                "enableRAMOutput" : false
+            }
         ]
     },
 
