@@ -238,6 +238,9 @@ void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::s
 
                     if (it != recList.end())
                     {
+                        if (it->hasAttr(arg))
+                            it->erase(arg);
+
                         it->set(arg, value);
                         return true;
                     }
