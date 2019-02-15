@@ -47,13 +47,35 @@
         ]
     },
 
+	"serialize":
+	{
+		"Singular":
+		[
+			{
+				"name" : "GenerateBlobKeembay",
+				"output": "blob.bin",
+				"VersionMajor" : 3,
+				"VersionMinor" : 2,
+				"VersionPatch" : 1,
+				"VersionHash" : "MarcoHash",
+				"ResourcesUpaShaves" : 8,
+				"ResourcesNCE1Mask" : 1,
+				"ResourcesNCE2Mask" : 2,
+				"ResourcesUPASharedCMX": 2,
+				"ResourcesNNCMX": 2,
+				"ResourcesDDRScratch" : 2
+			}
+		]
+	},
+
     "root" :
     {
         "Singular" :
         [
             "validate",
             "adapt",
-            "finalize"
+            "finalize",
+			"serialize"
         ],
         "Recurrent" :
         [
