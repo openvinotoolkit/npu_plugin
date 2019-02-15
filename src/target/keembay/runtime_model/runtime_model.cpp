@@ -136,7 +136,8 @@ void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &cm, mv::Eleme
     }
 }
 
-
+// NOTE: We can't invoke this method until Memory allocation passes are run
+// Also, "allocator" attribute will be a vector of strings.
 void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &cm, mv::Element&, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
 {
     mv::DataModel dm(cm);
