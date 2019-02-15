@@ -113,6 +113,7 @@ namespace mv
         Data::TensorIterator getTensor(const std::string& name);
         
         Data::OpListIterator getOp(const std::string& name);
+        std::vector<Data::OpListIterator> getOps(const std::string& opType);
         Data::FlowListIterator getDataFlow(const std::string& name);
         Control::FlowListIterator getControlFlow(const std::string& name);
 

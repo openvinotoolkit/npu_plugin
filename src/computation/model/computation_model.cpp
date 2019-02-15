@@ -268,14 +268,23 @@ mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string& name
 
 mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
 {
-
     auto it = ops_->find(name);
 
     if (it == ops_->end())
         throw ArgumentError(*this, "tensor name", name, "Attempt of finding an undefined tensor");
 
     return it->second;
+}
 
+// NOTE: Complexity is linear in the number of operations in the graph. Can we do better without an additional
+// data strucuture?
+std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::string &opType)
+{
+    std::vector<mv::Data::OpListIterator> toReturn;
+    for(auto opPairIt = ops_->begin(); opPairIt != ops_->end(); ++opPairIt)
+        if(opPairIt->second->getOpType() == opType)
+            toReturn.push_back(opPairIt->second);
+    return toReturn;
 }
 
 mv::Data::FlowListIterator mv::ComputationModel::getDataFlow(const std::string& name)

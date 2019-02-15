@@ -1,50 +1,72 @@
 {
-    "adapt": {
-        "Singular":
+    "adapt":
+    {
+        "Singular" :
         [
             {
                 "name" : "GenerateDot",
-                "output" : "original_model.dot"
+                "output" : "original_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
             },
             "AssignUniqueOpId",
-            "DPUConvolution",
-            "ConvertToTaskGraph",
-            "AssignUniqueTaskId",
+	    "ConvertToTaskGraph",
+	    "AssignUniqueTaskId",
             {
                 "name" : "GenerateDot",
-                "output" : "adapt.dot"
+                "output" : "adapt_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
             }
         ]
     },
 
-    "finalize": {
-        "Singular":
+    "finalize":
+    {
+        "Singular" :
         [
             "GenerateWorkloads",
-            "ArrangeLinearExecution",
-            "AllocatePopulatedTensors",
-            "AllocateUnpopulatedTensors",
-            "AllocateInputOutputTensors",
-            {
+	    "ArrangeKeembayExecution",
+	    {
                 "name" : "GenerateDot",
-                "output" : "finalize.dot"
+                "output" : "final_model.dot",
+		"scope" : "OpControlModel",
+		"content": "full",
+		"html" : true
             }
         ]
     },
 
-    "serialize":{
-        "Singular":
-        [
-            "GenerateBlobKeembay"
-        ]
-    },
-
-    "validate": {
-        "Singular":
+    "validate":
+    {
+        "Singular" :
         [
             "CheckTensors"
         ]
     },
+
+	"serialize":
+	{
+		"Singular":
+		[
+			{
+				"name" : "GenerateBlobKeembay",
+				"output": "blob.bin",
+				"VersionMajor" : 3,
+				"VersionMinor" : 2,
+				"VersionPatch" : 1,
+				"VersionHash" : "MarcoHash",
+				"ResourcesUpaShaves" : 8,
+				"ResourcesNCE1Mask" : 1,
+				"ResourcesNCE2Mask" : 2,
+				"ResourcesUPASharedCMX": 2,
+				"ResourcesNNCMX": 2,
+				"ResourcesDDRScratch" : 2
+			}
+		]
+	},
 
     "root" :
     {
@@ -53,9 +75,9 @@
             "validate",
             "adapt",
             "finalize",
-            "serialize"
+	    "serialize"
         ],
-         "Recurrent" :
+        "Recurrent" :
         [
             "validate"
         ]

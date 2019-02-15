@@ -1,37 +1,20 @@
 {
-    "adapt": {
-        "Singular":
+    "adapt":
+    {
+        "Singular" :
         [
             "AssignUniqueOpId",
-            "DPUConvolution",
-            "ConvertToTaskGraph",
-            "AssignUniqueTaskId"
+	    "ConvertToTaskGraph",
+	    "AssignUniqueTaskId"
         ]
     },
 
-    "finalize": {
-        "Singular":
+    "finalize":
+    {
+        "Singular" :
         [
             "GenerateWorkloads",
-            "ArrangeLinearExecution",
-            "AllocatePopulatedTensors",
-            "AllocateUnpopulatedTensors",
-            "AllocateInputOutputTensors"
-        ]
-    },
-
-    "serialize":{
-        "Singular":
-        [
-            "GenerateBlobKeembay"
-        ]
-    },
-
-    "validate": {
-        "Singular":
-        [
-            "GenerateDot",
-            "CheckTensors"
+	    "ArrangeKeembayExecution"
         ]
     },
 
@@ -40,8 +23,7 @@
         "Singular" :
         [
             "adapt",
-            "finalize",
-            "serialize"
+            "finalize"
         ]
     }
 }
