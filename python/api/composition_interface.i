@@ -13,11 +13,9 @@ import_array();
 %module composition_api
 %{
     #include <include/mcm/compiler/compilation_unit.hpp>
+    #include <include/mcm/base/exception/runtime_error.hpp>
     #include <math.h>
     #include <iostream>
-
-    mv::CompilationUnit* getCompilationUnit();
-    mv::CompilationUnit* getCompilationUnit(bool disableHardware);
 
     int testSWIG(){
         /// A simple test to ensure the connection between Python and C++ is working
@@ -27,26 +25,42 @@ import_array();
 
     mv::CompilationUnit* getCompilationUnit()
     {
-        return getCompilationUnit(false);
-    }
-
-    mv::CompilationUnit* getCompilationUnit(bool disableHardware)
-    {
-
         auto unit = new mv::CompilationUnit("pySwigCU");
-        unit->loadTargetDescriptor(mv::Target::ma2480);
-
-        unit->loadCompilationDescriptor(mv::Target::ma2480);
-        mv::CompilationDescriptor &compDesc = unit->compilationDescriptor();
-
-        std::string blobName = "cpp.blob";
-        compDesc.setPassArg("GenerateBlob", "fileName", blobName);
-        compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-        compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-        compDesc.setPassArg("MarkHardwareOperations", "disableHardware", disableHardware);
+        unit->loadTargetDescriptor(mv::Target::ma2490);
+        unit->loadCompilationDescriptor(mv::Target::ma2490);
 
         return unit;
+    }
 
+    mv::CompilationUnit* getCompilationUnit(const char* target)
+    {
+        //printf("Starting MCM Composition Interface for Target: %d\n", target);
+        auto unit = new mv::CompilationUnit("pySwigCU");
+        if(strcmp(target, "ma2480")==0)
+        {
+            unit->loadTargetDescriptor(mv::Target::ma2480);
+            unit->loadCompilationDescriptor(mv::Target::ma2480);
+        }
+        else if(strcmp(target, "ma2490")==0)
+        {
+            unit->loadTargetDescriptor(mv::Target::ma2490);
+            unit->loadCompilationDescriptor(mv::Target::ma2490);
+        }
+        else
+        {
+            //TODO: throw an error "not support target descriptor"
+        }
+
+        return unit;
+    }
+
+    mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const char* filepath)
+    {
+        //remove default descriptor and load a user defined descriptor
+        unit->compilationDescriptor().clear();
+        unit->loadCompilationDescriptor(filepath);
+        
+        return unit;
     }
 
     mv::CompositionalModel* getModel(mv::CompilationUnit *unit)
@@ -433,7 +447,8 @@ namespace mv
 
 int testSWIG();
 mv::CompilationUnit* getCompilationUnit();
-mv::CompilationUnit* getCompilationUnit(bool disableHardware);
+mv::CompilationUnit* getCompilationUnit(const char *target);
+mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const char *filepath);
 mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
 void deleteCompilationUnitObject(mv::CompilationUnit *unit);
