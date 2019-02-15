@@ -201,15 +201,15 @@ void mv::Tensor::setSparse()
             for (size_t t=0; t < zeroPoint.size(); t++)
                 zeroPoint[t] = quantParams.getZeroPoint(t);
         }
-
         std::vector<double> sparsityMapData(mapShape.totalSize());
+        std::vector<double> final_data = getData();
         for (size_t t=0; t < getShape().totalSize(); t+=8)
         {
             uint8_t map = 0;
             for (size_t i=0; i< 8; i++)
             {
                 std::vector<size_t> subs = indToSub(t+i);
-                if (subs[2] < getShape()[2] && at(t+i) != zeroPoint[subs[3]])
+                if (subs[2] < getShape()[2] && final_data[t+i] != zeroPoint[subs[3]])
                     map += 1 << i;
             }
             sparsityMapData[t/8] = map;
