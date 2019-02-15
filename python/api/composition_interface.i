@@ -13,7 +13,6 @@ import_array();
 %module composition_api
 %{
     #include <include/mcm/compiler/compilation_unit.hpp>
-    #include <include/mcm/base/exception/runtime_error.hpp>
     #include <math.h>
     #include <iostream>
 
