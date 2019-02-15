@@ -75,7 +75,7 @@
             "validate",
             "adapt",
             "finalize",
-			"serialize"
+	    "serialize"
         ],
         "Recurrent" :
         [

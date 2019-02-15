@@ -66,7 +66,7 @@ void setModel(mv::CompilationUnit& unit)
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
     // Output DOT - file name (base)
-    unit.loadDefaultCompilationDescriptor();
+    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", false);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);

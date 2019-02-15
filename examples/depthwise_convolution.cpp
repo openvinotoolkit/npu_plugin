@@ -18,7 +18,7 @@ int main()
     auto conv = test_cm.depthwiseConv(input, weights1, {4, 4}, {1, 1, 1, 1});
     auto output = test_cm.output(conv);
 
-    unit.loadDefaultCompilationDescriptor();
+    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
     std::string outputName = "DepthwiseConvolution";

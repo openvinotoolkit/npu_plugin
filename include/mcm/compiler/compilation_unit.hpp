@@ -16,10 +16,11 @@ namespace mv
     class CompilationUnit : public LogSender
     {
 
-        static const std::string ma2480DefDescPath_;
-        static const std::string ma2490DefDescPath_;
+        static const std::string ma2480DefTargetDescPath_;
+        static const std::string ma2490DefTargetDescPath_;
 
-        static const std::string compilationDescPath_;
+        static const std::string ma2480DefCompDescPath_;
+        static const std::string ma2490DefCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
 
         static Logger& logger_;
@@ -39,7 +40,7 @@ namespace mv
         bool loadTargetDescriptor(const std::string& path);
         bool loadTargetDescriptor(Target target);
         bool loadCompilationDescriptor(const std::string& path);
-        bool loadDefaultCompilationDescriptor();
+        bool loadCompilationDescriptor(Target target);
 
         CompilationDescriptor& compilationDescriptor();
         OpModel& model();

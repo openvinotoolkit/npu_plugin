@@ -36,7 +36,7 @@ import_array();
         auto unit = new mv::CompilationUnit("pySwigCU");
         unit->loadTargetDescriptor(mv::Target::ma2480);
 
-        unit->loadDefaultCompilationDescriptor();
+        unit->loadCompilationDescriptor(mv::Target::ma2480);
         mv::CompilationDescriptor &compDesc = unit->compilationDescriptor();
 
         std::string blobName = "cpp.blob";
