@@ -189,18 +189,12 @@ void mv::Tensor::setSparse()
     //we choose layout as internal layout, no need to reorder
     mv::Shape mapShape({getShape()[0], getShape()[1], static_cast<std::size_t>(std::ceil(getShape()[2] / 8.0)), getShape()[-1]});
     sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("Int8"), Order(Order::getRowMajorID(mapShape.ndims())));
-
+    noneZeroElements_ = 0;
     //populate sparsity map
     if (isPopulated())
     {
         //default all zeropoints to zero
-        std::vector<unsigned> zeroPoint(mapShape[3]);
-        if (isQuantized())
-        {
-            auto quantParams = get<mv::QuantizationParams>("quantizationParams");
-            for (size_t t=0; t < zeroPoint.size(); t++)
-                zeroPoint[t] = quantParams.getZeroPoint(t);
-        }
+        std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
         std::vector<double> sparsityMapData(mapShape.totalSize());
         std::vector<double> final_data = getData();
         for (size_t t=0; t < getShape().totalSize(); t+=8)
@@ -208,9 +202,12 @@ void mv::Tensor::setSparse()
             uint8_t map = 0;
             for (size_t i=0; i< 8; i++)
             {
-                std::vector<size_t> subs = indToSub(t+i);
+                std::vector<size_t> subs = getOrder().indToSub(getShape(), t+i);
                 if (subs[2] < getShape()[2] && final_data[t+i] != zeroPoint[subs[3]])
+                {
                     map += 1 << i;
+                    noneZeroElements_++;
+                }
             }
             sparsityMapData[t/8] = map;
         }
@@ -358,6 +355,29 @@ std::vector<double> mv::Tensor::getData()
 
     return orderedData;
 
+}
+
+std::vector<double> mv::Tensor::getDataPacked()
+{
+    if (!isPopulated())
+        throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
+
+    if (!isSparse())
+        return getData();
+
+    std::vector<std::size_t> sub(getShape().ndims());
+    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
+    std::vector<double> orderedData = getData();
+    std::vector<double> orderedDataPacked;
+    orderedDataPacked.reserve(noneZeroElements_);
+
+    for (std::size_t i = 0; i < orderedData.size(); ++i)
+    {
+        sub = getOrder().indToSub(getShape(), i);
+        if (orderedData[i] != zeroPoint[sub[2]]) //sub[2] is C
+            orderedDataPacked.emplace_back(orderedData[i]);
+    }
+    return orderedDataPacked;
 }
 
 mv::DType mv::Tensor::getDType() const

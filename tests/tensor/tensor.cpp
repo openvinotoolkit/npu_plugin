@@ -1117,6 +1117,24 @@ TEST(tensor, sparsity_res3a_branch2c)
 
     mv::Shape sparsityMapShape({1,1,16,512});
     ASSERT_TRUE(sparsityMapShape == sparsityMap->getShape());
+
+    std::vector<double> denseData = t.getDataPacked();
+    count = 0;
+    size_t j = 0;
+    for (unsigned i = 0; i < data_res.size(); ++i)
+    {
+        if (data_res[i] != 137)
+        {
+            ASSERT_TRUE(data_res[i] == denseData[j]);
+            j++;
+        }
+        else
+        {
+            count++;
+        }
+
+    }
+    ASSERT_TRUE((count + denseData.size()) == data_res.size());
 }
 
 //Failing test - for bug VPUNND-391

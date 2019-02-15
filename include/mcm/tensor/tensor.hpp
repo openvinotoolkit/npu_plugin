@@ -26,11 +26,13 @@ namespace mv
         Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
+        size_t noneZeroElements_;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
         std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
+        std::vector<unsigned> getZeroPointsPerChannel_();
 
     public:
 
@@ -58,12 +60,13 @@ namespace mv
         void broadcast(const Shape& shape);
 
         std::vector<double> getData();
+        std::vector<double> getDataPacked();
         void setDType(DType dType);
         DType getDType() const;
         void setOrder(Order order);
         Order getOrder() const;
         void setShape(const Shape& shape);
-        
+
         void add(const Tensor& other);
         void add(double val);
         void subtract(const Tensor& other);
