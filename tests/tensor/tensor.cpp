@@ -1137,16 +1137,16 @@ TEST(tensor, sparsity_res3a_branch2c)
     ASSERT_TRUE((count + denseData.size()) == data_res.size());
 }
 
-//Failing test - for bug VPUNND-391
-/*TEST(tensor, testing_at)
+//VPUNND-391
+TEST(tensor, testing_at)
 {
     mv::Shape tShape({1, 1, 128, 512});
     mv::Tensor t("res3a_branch2c_weigths", tShape, mv::DType("UInt8"), mv::Order("WCNH"));
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
     t.populate(data);
     std::vector<double> resdata = t.getData();
-    //for(size_t i=0; i< resdata.size();i++)
-    //    if(t.at(i) != resdata[i])
-    //        std::cout << " fail on " << i << std::endl;
+    for(size_t i=0; i< resdata.size();i++)
+        ASSERT_TRUE(t.at(i) == resdata[i]);
 
-}*/
+
+}

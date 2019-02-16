@@ -559,8 +559,8 @@ const double& mv::Tensor::at(std::size_t idx) const
     if (getOrder() == internalOrder_)
         return data_[idx];
 
-    auto sub = internalOrder_.indToSub(getShape(), idx);
-    return data_[getOrder().subToInd(getShape(), sub)];
+    auto sub = getOrder().indToSub(getShape(), idx);
+    return data_[internalOrder_.subToInd(getShape(), sub)];
 
 }
 
