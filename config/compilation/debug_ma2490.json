@@ -29,6 +29,9 @@
         [
             "GenerateWorkloads",
 	    "ArrangeKeembayExecution",
+	    "AllocateInputOutputTensorsKeemBay",
+	    "AllocatePopulatedTensorsKeemBay",
+	    "AllocateUnpopulatedTensorsKeemBay",
 	    {
                 "name" : "GenerateDot",
                 "output" : "final_model.dot",
