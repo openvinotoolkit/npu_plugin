@@ -11,9 +11,6 @@ namespace mv
     template <typename T_node, typename T_edge>
     void transitiveReduction(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator root)
     {
-        // NOTE: what if T_node and T_edge are not hashable?
-        // Let's try with maps, that require only operator <
-
         // Collecting the set of neighbours, as edges
         std::map<T_node, typename graph<T_node, T_edge>::edge_list_iterator> root_adj;
         for(auto e = root->leftmost_output(); e != g.edge_end(); ++e)
@@ -22,6 +19,8 @@ namespace mv
         // Starting a DFS from each neighbour v
         // If a node u is reachable from v and it's also a neighbour of the root
         // Eliminate the edge between root and u
+
+        // NOTE: Can't use unordered map because T_node needs to be hashable (requirement too strict)
         std::map<T_node, typename graph<T_node, T_edge>::edge_list_iterator> toEliminate;
         for(auto e = root->leftmost_output(); e != g.edge_end(); ++e)
         {
