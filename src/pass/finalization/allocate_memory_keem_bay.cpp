@@ -3,9 +3,9 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-static void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void allocateInputOutputTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 // static void allocateForImplicitConcat();
 
@@ -17,19 +17,20 @@ namespace mv
     {
 
         MV_REGISTER_PASS(AllocateInputOutputTensorsKeemBay)
-        .setFunc(allocateInputOutputTensors)
+        .setFunc(allocateInputOutputTensorsKeemBay)
         .setDescription(
             "Perform allocation of all input and output tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocatePopulatedTensorsKeemBay)
-        .setFunc(allocatePopulatedTensorsFcn)
+        .setFunc(allocatePopulatedTensorsFcnKeemBay)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateUnpopulatedTensorsKeemBay)
-        .setFunc(allocateUnpopulatedTensorsFcn)
+        .setFunc(allocateUnpopulatedTensorsFcnKeemBay
+        )
         .setDescription(
             "Perform allocation of all unpopulated tensors using memory allocator"
         );
@@ -185,7 +186,6 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
             {
 
                 auto inTensor = opIterator->getInputTensor(x);
-                std::cout << inTensor->getName() << std::endl << std::endl;;
 
                 if (!inTensor->isPopulated() &&
                     (! inTensor->hasAttr("allocators")) &&
