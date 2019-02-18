@@ -138,9 +138,14 @@ void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &cm, mv::Eleme
 
 // NOTE: We can't invoke this method until Memory allocation passes are run
 // Also, "allocator" attribute will be a vector of strings.
+
+// TODO: This method signature shall change to build a vector of TensorReferenceT instead of a single one.
+// The size of this vector must be determined from outside in order to allocate the correct number of unique_ptr
 void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &cm, mv::Element&, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
 {
     mv::DataModel dm(cm);
+
+    // TODO: Handle allocators as set of strings
     auto allocator = dm.getAllocator(t->get<std::string>("allocator"));
 
     //NOTE: With auto strangely it doesn't work
