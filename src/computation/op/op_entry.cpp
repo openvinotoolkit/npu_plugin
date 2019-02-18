@@ -99,6 +99,12 @@ mv::op::OpEntry& mv::op::OpEntry::setTypeTrait(std::initializer_list<std::string
 
 }
 
+mv::op::OpEntry& mv::op::OpEntry::setExtraInputs(bool allowsExtraInputs)
+{
+    allowsExtraInputs_ = allowsExtraInputs;
+    return *this;
+}
+
 const std::string mv::op::OpEntry::getDescription() const
 {
     return description_;
@@ -233,20 +239,27 @@ const std::set<std::string>& mv::op::OpEntry::getTypeTraits()
     return typeTraits_;
 }
 
-bool mv::op::OpEntry::hasVectorTypesAsInput()
+bool mv::op::OpEntry::hasVectorTypesAsInput() const
 {
     return inputVectorTypes_;
 }
 
-bool mv::op::OpEntry::doInputNeedToBeChecked()
+bool mv::op::OpEntry::doInputNeedToBeChecked() const
 {
     return checkInputs_;
+}
+
+bool mv::op::OpEntry::allowsExtraInputs() const
+{
+    return allowsExtraInputs_;
 }
 
 const std::vector<std::string> &mv::op::OpEntry::getCopyOperations()
 {
     return copyOperations_;
 }
+
+
 
 std::string mv::op::OpEntry::getLogID() const
 {
