@@ -272,18 +272,17 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 }
 
 // NOTE: Only 1 TaskList for now, we will see in the future
-std::unique_ptr<MVCNN::TaskListT> mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor)
+std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
-    std::unique_ptr<MVCNN::TaskListT> toBuild = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
-
-    unsigned i = 0;
+    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
+    toBuild[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     //Only Tasks in TaskLists
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if(opIt->getOpType().find("Task") != std::string::npos)
-            toBuild->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+            toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
     }
 
     return toBuild;
@@ -531,6 +530,7 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
     std::unique_ptr<MVCNN::TaskT> toBuild = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
 
     toBuild->nodeID = opIt->get<unsigned>("taskId");
+    toBuild->name = opIt->getName();
 
     // NOTE: This might change in the future
     toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
@@ -555,16 +555,14 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, mv::Element& compil
     // TASKS
     // BUG: A task list must be built only if there is at least one task.
     // Otherwise it has no sense.
-    graphFile_.task_lists = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
-    graphFile_.task_lists[0] = buildTaskListT(cm, compilationDescriptor);
+    graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // BARRIERS
     // std::vector<std::unique_ptr<BarrierT>> barrier_table;
 
     // BINARY DATA
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
-    unsigned i = 0;
-    for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorBegin(); ++tensorIt)
+    for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorEnd(); ++tensorIt)
     {
         if(tensorIt->isPopulated())
             graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, tensorIt));

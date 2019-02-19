@@ -49,7 +49,7 @@ namespace mv
             static std::unique_ptr<MVCNN::VersionT> buildVersionT(ComputationModel&, mv::Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::ResourcesT> buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::BinaryDataT> buildBinaryDataT(ComputationModel&, mv::Element&, Data::TensorIterator t);
-            static std::unique_ptr<MVCNN::TaskListT> buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor);
+            static std::vector<std::unique_ptr<MVCNN::TaskListT> > buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::TaskT> buildTaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt);
             static void buildSpecificTaskUnion(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask);
 
