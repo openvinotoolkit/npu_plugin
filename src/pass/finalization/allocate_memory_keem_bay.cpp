@@ -39,126 +39,90 @@ namespace mv
 
 /* Tensors from Graph input/output operations are stored in:
  * 1) ProgrammableInput
- * 2) VPU_DDR_Heap
- * 3) ProgrammableOutput
+ * 2) ProgrammableOutput
 */
 void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Allocating input/output tensors");
 
-    using namespace mv;
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
 
-    ControlModel cm(model);
-    DataModel dm(model);
-
-    if (!dm.hasAllocator("ProgrammableInput")){
-        throw ArgumentError(dm, "allocator", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
-    }
-
-    if (!dm.hasAllocator("ProgrammableOutput")){
-        throw ArgumentError(dm, "allocator", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
-    }
-
-    if (!dm.hasAllocator("VPU_DDR_Heap")){
-        throw ArgumentError(dm, "allocator", "VPU_DDR_Heap", "Computation model does not have VPU_DDR_Heap specified");
-    }
-
-    if (cm.stageSize() == 0){
-        throw ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
-    }
+    if (!dm.hasAllocator("ProgrammableInput"))
+        throw mv::ArgumentError(dm, "allocator", "ProgrammableInput", "Computation model does not have ProgrammableInput specified");
 
 
-    OpModel om(dm) ;
+    if (!dm.hasAllocator("ProgrammableOutput"))
+        throw mv::ArgumentError(dm, "allocator", "ProgrammableOutput", "Computation model does not have ProgrammableOutput specified");
+
+
+    if (cm.stageSize() == 0)
+        throw mv::ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
+
+    mv::OpModel om(dm);
     auto stageIt = cm.getStage(0);
 
     auto inputOp = om.getInput();
-    
-    for (unsigned x = 0; x < inputOp->outputSlots(); x++)
-    {
-        auto inTensor = inputOp->getOutputTensor(x);
+    auto inTensor = inputOp->getOutputTensor(0);
 
-        if (!inTensor->isPopulated() && (! inTensor->hasAttr("allocators")))
-        {
-                auto buf0 = dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
-                auto buf1 = dm.allocateTensor("VPU_DDR_Heap", stageIt, inTensor);   
-        }
-    }
+    if (!inTensor->isPopulated() && (! inTensor->hasAttr("allocators")))
+        dm.allocateTensor("ProgrammableInput", stageIt, inTensor);
 
     auto outputOp = om.getOutput();
+    auto outTensor = outputOp->getInputTensor(0);
 
-    for (unsigned x = 0; x < outputOp->inputSlots(); x++)
-    {
-        auto outTensor = outputOp->getInputTensor(x);
-
-        if (!outTensor->isPopulated() && (! outTensor->hasAttr("allocators")))
-        {
-            auto buf0 = dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
-            auto buf1 = dm.allocateTensor("VPU_DDR_Heap", stageIt, outTensor);
-        }
-    }
+    if (!outTensor->isPopulated() && (! outTensor->hasAttr("allocators")))
+        dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
 }
 
 /* Populated Tensors are stored in:
- * 1) VPU_DDR_BSS
- * 2) GraphFile
+ * 1) GraphFile
 */
 void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
 
-    using namespace mv;
-
-    ControlModel cm(model);
-    DataModel dm(model);
-
-    if (!dm.hasAllocator("VPU_DDR_BSS"))
-         throw ArgumentError(dm, "allocator", "CVPU_DDR_BSS", "Computation model does not have VPU_DDR_BSS specified");
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
     
     if (!dm.hasAllocator("GraphFile"))
-         throw ArgumentError(dm, "allocator", "CVPU_DDR_BSS", "Computation model does not have VPU_DDR_BSS specified");
+         throw mv::ArgumentError(dm, "allocator", "GraphFile", "Computation model does not have VPU_DDR_BSS specified");
 
     if (cm.stageSize() == 0)
-         throw ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
+         throw mv::ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
 
     auto stageIt = cm.getStage(0);
 
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
         if (tIt->isPopulated())
-        {
-            auto buf0 = dm.allocateTensor("VPU_DDR_BSS", stageIt, tIt);
-            auto buf1 = dm.allocateTensor("GraphFile", stageIt, tIt);
-        }
-
+            dm.allocateTensor("GraphFile", stageIt, tIt);
     }
 }
 
 
 /* Unpopulated Tensors are stored in:
- * 1) VPU_DDR_BSS
- * 2) GraphFile
+ * 1) VPU_CMX_NN
+ * 2) VPU_DDR_BSS
 */
 void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Allocating unpopulated tensors");
 
-    using namespace mv;
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
 
-    ControlModel cm(model);
-    DataModel dm(model);
+    if (!dm.hasAllocator("VPU_CMX_NN"))
+        throw mv::ArgumentError(dm, "allocator", "VPU_CMX_NN", "Computation model does not have VPU_CMX_NN specified");
 
-    if (!dm.hasAllocator("VPU_CMX_NN")){
-        throw ArgumentError(dm, "allocator", "VPU_CMX_NN", "Computation model does not have VPU_CMX_NN specified");
-    }
+    if (!dm.hasAllocator("VPU_DDR_BSS"))
+        throw mv::ArgumentError(dm, "allocator", "VPU_DDR_BSS", "Computation model does not have VPU_DDR_BSS specified");
 
-    if (cm.stageSize() == 0){
-        throw ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
-    }
+    if (cm.stageSize() == 0)
+        throw mv::ArgumentError(cm , "stages count", "0", "Computation model does not have stages specified");
 
-
-    OpModel om(dm) ;
-    std::vector<std::string> external_names;
+    mv::OpModel om(dm);
     auto stageIt = cm.getStage(0);
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
