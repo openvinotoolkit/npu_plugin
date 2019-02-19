@@ -108,8 +108,10 @@ MVCNN::PPELayerType mv::RuntimeModel::convertPPELayerType(PpeLayerTypeEnum ppe)
 }
 
 
-void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &cm, mv::Element&, mv::Data::OpListIterator op, std::unique_ptr<MVCNN::GraphNodeT> toBuild)
+std::unique_ptr<MVCNN::GraphNodeT> mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &cm, mv::Element&, mv::Data::OpListIterator op)
 {
+    std::unique_ptr<MVCNN::GraphNodeT> toBuild = std::unique_ptr<MVCNN::GraphNodeT>(new MVCNN::GraphNodeT());
+
     mv::OpModel opModel(cm);
     toBuild->name = op->getName();
     toBuild->thisID = op->get<unsigned>("opId");
@@ -120,25 +122,28 @@ void mv::RuntimeModel::buildGraphNodeT(mv::ComputationModel &cm, mv::Element&, m
     for (auto nextParentOp = op.leftmostParent(); nextParentOp != opModel.opEnd(); ++nextParentOp)
         toBuild->sinkID.push_back(nextParentOp->get<unsigned>("opId"));
 
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &cm, mv::Element &compilationDescriptor, std::unique_ptr<MVCNN::SourceStructureT> toBuild)
+std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &cm, mv::Element &compilationDescriptor)
 {
+    std::unique_ptr<MVCNN::SourceStructureT> toBuild = std::unique_ptr<MVCNN::SourceStructureT>(new MVCNN::SourceStructureT());
+
     mv::OpModel opModel(cm);
     auto inputOp = opModel.getInput();
     toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
     for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
-    {
-        toBuild->nodes[i] = std::unique_ptr<MVCNN::GraphNodeT>(new MVCNN::GraphNodeT());
-        buildGraphNodeT(cm, compilationDescriptor, opIt, std::move(toBuild->nodes[i++]));
-    }
+        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
+
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
+std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
 {    
     mv::DataModel dm(cm);
+    std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
@@ -162,50 +167,53 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Eleme
     // toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
     // toBuild.quant_zero; //    std::vector<int8_t> quant_zero;
     // toBuild.quant_shift;//    std::vector<int8_t> quant_shift;
+
+    return toBuild;
 }
 
-// NOTE: Remember to Ask Ian which allocator should be used.
-// Suspect: ProgrammableInput and ProgrammableOutput are really special zones of DDR
-// If that's the case, the multiple allocator paradigm will be used only to handle populated tensors
-
 // The following code is being developed on the above assumption
-void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild)
+std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
 
-    toBuild->version = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
-    buildVersionT(cm, compilationDescriptor, std::move(toBuild->version));
+    std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
+
+    toBuild->version = buildVersionT(cm, compilationDescriptor);
 
     // Just one input for now
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_input[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0), std::move(toBuild->net_input[0]));
+    toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
 
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_output[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0), std::move(toBuild->net_output[0]));
+    toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
 
     //TODO: om.taskCount() needs to be implemented
     toBuild->layer_count = om.opsCount();
     toBuild->task_count = om.opsCount();
 
-    toBuild->resources = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
-    buildResourcesT(cm, compilationDescriptor, std::move(toBuild->resources));
+    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
 
-    toBuild->original_structure = std::unique_ptr<MVCNN::SourceStructureT>(new MVCNN::SourceStructureT());
-    buildSourceStructureT(cm, compilationDescriptor, std::move(toBuild->original_structure));
+    toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
+
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildVersionT(ComputationModel&, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild)
+std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationModel&, mv::Element& compilationDescriptor)
 {
+    std::unique_ptr<MVCNN::VersionT> toBuild = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
+
     toBuild->majorV = compilationDescriptor.get<int>("VersionMajor");
     toBuild->minorV = compilationDescriptor.get<int>("VersionMinor");
     toBuild->patchV = compilationDescriptor.get<int>("VersionPatch");
     toBuild->hash = compilationDescriptor.get<std::string>("VersionHash");
+
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild)
+std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor)
 {
+    std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
+
     toBuild->upa_shaves = compilationDescriptor.get<int>("ResourcesUpaShaves");
     toBuild->nce1_blocks = compilationDescriptor.get<int>("ResourcesNCE1Mask");
     toBuild->nce2_blocks = compilationDescriptor.get<int>("ResourcesNCE2Mask");
@@ -213,9 +221,11 @@ void mv::RuntimeModel::buildResourcesT(ComputationModel&, mv::Element& compilati
     toBuild->nn_cmx_per_slice = compilationDescriptor.get<int>("ResourcesNNCMXPerSlice");
     toBuild->nn_cmx_slice_amount = compilationDescriptor.get<int>("ResourcesNNCMXSliceAmount");
     toBuild->ddr_scratch = compilationDescriptor.get<int>("ResourcesDDRScratch");
+
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild)
+std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, Data::TensorIterator t)
 {
     // NOTE: In the future tensor->toBinary() will probably handle also the sparsity map associated to the tensor.
     // Or maybe not, we will see
@@ -242,18 +252,22 @@ void mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, Data::T
 //    toBuild->bin = binaryData.bin();
 //    toBuild->log = binaryData.log();
 
+    std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     // NEW approach
     auto tensorData = t->getData();
     toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
     toBuild->length = t->getShape().totalSize();
     toBuild->underlying_type = convertDtype(t->getDType());
+
+    return toBuild;
 }
 
 // NOTE: Only 1 TaskList for now, we will see in the future
-void mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::TaskListT> toBuild)
+std::unique_ptr<MVCNN::TaskListT> mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
+    std::unique_ptr<MVCNN::TaskListT> toBuild = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     unsigned i = 0;
 
@@ -261,12 +275,10 @@ void mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compila
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if(opIt->getOpType().find("Task") != std::string::npos)
-        {
-            toBuild->content.push_back(std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT()));
-            buildTaskT(cm, compilationDescriptor, opIt, std::move(toBuild->content[i])); //BUG: After this instruction toBuild->content[i] is null??
-            ++i;
-        }
+            toBuild->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
     }
+
+    return toBuild;
 }
 
 void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask)
@@ -325,23 +337,16 @@ void mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& cm, mv::Element &com
 
 void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::UPADMATaskT* toBuild)
 {
-
-    toBuild->src = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    toBuild->dst = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->src));
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), std::move(toBuild->dst));
+    toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 }
 
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
 {
-    toBuild->src = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    toBuild->dst = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     toBuild->broadcast_mask = opIt->get<unsigned>("BroadcastMask");
     toBuild->compression = opIt->get<bool>("Compression");
-
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->src));
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), std::move(toBuild->dst));
 }
 
 void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild)
@@ -355,8 +360,10 @@ MVCNN::DPULayerType mv::RuntimeModel::convertTaskOp(const std::string& opName)
 }
 
 
-void mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const mv::PPEFixedFunction& ppe, std::unique_ptr<MVCNN::PPEFixedFunctionT> toBuild)
+std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const mv::PPEFixedFunction& ppe)
 {
+    std::unique_ptr<MVCNN::PPEFixedFunctionT> toBuild = std::unique_ptr<MVCNN::PPEFixedFunctionT>(new MVCNN::PPEFixedFunctionT());
+
     auto layers = ppe.getLayers();
     unsigned n = layers.size();
     toBuild->Ops = std::vector<MVCNN::PPELayerType>(n);
@@ -364,15 +371,18 @@ void mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, mv::Element&, c
         toBuild->Ops[i] = convertPPELayerType(layers[i]);
     toBuild->Clamp_Low = ppe.getLowClamp();
     toBuild->Clamp_High = ppe.getHighClamp();
+
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::PPETaskT> toBuild)
+std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt)
 {
+    std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
+
     if(opIt->hasAttr("scale"))
     {
-        toBuild->scale_data = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT);
         Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
-        buildTensorReferenceT(cm, compilationDescriptor, tensorIt, std::move(toBuild->scale_data));
+        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, tensorIt);
     }
 
     // If this function has been called, this part must be built for sure
@@ -380,21 +390,19 @@ void mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilat
     unsigned n = fixed_functions.size();
     toBuild->fixed_function = std::vector<std::unique_ptr<MVCNN::PPEFixedFunctionT>>(n);
     for(unsigned i = 0; i < n; ++i)
-    {
-        toBuild->fixed_function[i] = std::unique_ptr<MVCNN::PPEFixedFunctionT>(new MVCNN::PPEFixedFunctionT());
-        buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions[i], std::move(toBuild->fixed_function[i]));
-    }
+        toBuild->fixed_function[i] = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions[i]);
+
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild)
+std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt)
 {
+    std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
+
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
     if(opIt->hasAttr("PPETask"))
-    {
-        toBuild->ppe_task = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
-        buildPPETaskT(cm, compilationDescriptor, opIt, std::move(toBuild->ppe_task));
-    }
+        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt);
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
 
@@ -426,10 +434,8 @@ void mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Elemen
     toBuild->kernel_strideW = kernelStride[0];
     toBuild->kernel_strideH = kernelStride[1];
 
-    toBuild->input_data = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->input_data));
-    toBuild->output_data = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), std::move(toBuild->output_data));
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
     switch (toBuild->dpu_task_type)
     {
@@ -437,14 +443,15 @@ void mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Elemen
         case MVCNN::DPULayerType_DWCONV:
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
-            toBuild->weights_data = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-            buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1), std::move(toBuild->weights_data));
+            toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
             // NOTE: Bias should be handled as well here.
             // std::unique_ptr<TensorReferenceT> bias_data;
             break;
         default:
             break;
     }
+
+    return toBuild;
 }
 
 MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
@@ -460,8 +467,9 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
     }
 }
 
-void mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, Workload workload, std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild)
+std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, Workload workload)
 {
+    std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
     toBuild->clusterID = workload.clusterID;
     toBuild->workloadID = workload.workloadID;
     if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
@@ -480,25 +488,24 @@ void mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element 
     toBuild->workload_end_X = workload.MaxX;
     toBuild->workload_end_Y = workload.MaxY;
     toBuild->workload_end_Z = workload.MaxZ;
+    return toBuild;
 }
 
-void mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>& toBuild)
+std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt)
 {
     auto workloads = opIt->get<mv::Workloads>("Workloads").getWorkloads();
     unsigned n = workloads.size();
-    toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
+    std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>> toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
-    {
-        toBuild[i] = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
-        buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i], std::move(toBuild[i]));
-    }
+        toBuild[i] = buildNCEVariantFieldsT(cm, compilationDescriptor, opIt, workloads[i]);
+
+    return toBuild;
 }
 
 void mv::RuntimeModel::buildNCE2TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NCE2TaskT* toBuild)
 {
-    toBuild->invariant = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
-    buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt, std::move(toBuild->invariant));
-    buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, toBuild->variant);
+    toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
+    toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
 }
 
 void mv::RuntimeModel::buildNNTensorTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNTensorTaskT* toBuild)
@@ -511,8 +518,10 @@ void mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, mv::Element &c
 
 }
 
-void mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::TaskT> toBuild)
+std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt)
 {
+    std::unique_ptr<MVCNN::TaskT> toBuild = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
+
     toBuild->nodeID = opIt->get<unsigned>("taskId");
 
     // NOTE: This might change in the future
@@ -525,6 +534,7 @@ void mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilation
     }
 
     buildSpecificTaskUnion(cm, compilationDescriptor, opIt, toBuild->task);
+    return toBuild;
 }
 
 void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, mv::Element& compilationDescriptor)
@@ -532,15 +542,13 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, mv::Element& compil
     mv::OpModel om(cm);
 
     // HEADER
-    graphFile_.header = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
-    buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header)); //std::unique_ptr<SummaryHeaderT>
+    graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor);
 
     // TASKS
     // BUG: A task list must be built only if there is at least one task.
     // Otherwise it has no sense.
     graphFile_.task_lists = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
-    graphFile_.task_lists[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
-    buildTaskListT(cm, compilationDescriptor, std::move(graphFile_.task_lists[0]));
+    graphFile_.task_lists[0] = buildTaskListT(cm, compilationDescriptor);
 
     // BARRIERS
     // std::vector<std::unique_ptr<BarrierT>> barrier_table;
@@ -551,10 +559,7 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, mv::Element& compil
     for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorBegin(); ++tensorIt)
     {
         if(tensorIt->isPopulated())
-        {
-            graphFile_.binary_data.push_back(std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT()));
-            buildBinaryDataT(cm, compilationDescriptor, tensorIt, std::move(graphFile_.binary_data[i++]));
-        }
+            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, tensorIt));
     }
 }
 
