@@ -114,9 +114,9 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             // DPUConvOp input slots status: 0 - Input, 1 - Weights, 2 - Weights Table
             om.defineFlow(weightTable, dpuConvOp, 2);
 
-            om.deAllocate(input, inputDeallocationName);
-            om.deAllocate(kernel, kernelDeallocationName);
-            om.deAllocate(weightTable, kernelWeightsTableDeallocationName);
+            om.deallocateTask(input, inputDeallocationName);
+            om.deallocateTask(kernel, kernelDeallocationName);
+            om.deallocateTask(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
@@ -175,8 +175,8 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             std::string inputDeallocationName("Deallocate"+inputOpName);
             std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
 
-            om.deAllocate(input, inputDeallocationName);
-            om.deAllocate(weightTable, kernelWeightsTableDeallocationName);
+            om.deallocateTask(input, inputDeallocationName);
+            om.deallocateTask(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
@@ -234,8 +234,8 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             std::string inputDeallocationName("Deallocate"+inputOpName);
             std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
 
-            om.deAllocate(input, inputDeallocationName);
-            om.deAllocate(weightTable, kernelWeightsTableDeallocationName);
+            om.deallocateTask(input, inputDeallocationName);
+            om.deallocateTask(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
