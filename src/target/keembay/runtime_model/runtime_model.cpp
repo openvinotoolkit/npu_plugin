@@ -187,9 +187,17 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
 
-    //TODO: om.taskCount() needs to be implemented
+    auto taskCount = [](mv::OpModel m)
+    {
+        unsigned i = 0;
+        for(auto opIt = m.opBegin(); opIt != m.opEnd(); ++opIt)
+            if(opIt->getOpType().find("Task") != std::string::npos)
+                ++i;
+        return i;
+    };
+
     toBuild->layer_count = om.opsCount();
-    toBuild->task_count = om.opsCount();
+    toBuild->task_count = taskCount(om);
 
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
 
