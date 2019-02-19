@@ -64,8 +64,9 @@
 				"ResourcesUpaShaves" : 8,
 				"ResourcesNCE1Mask" : 1,
 				"ResourcesNCE2Mask" : 2,
-				"ResourcesUPASharedCMX": 2,
-				"ResourcesNNCMX": 2,
+				"ResourcesUPASharedCMX" : 2,
+				"ResourcesNNCMXPerSlice" : 2,
+				"ResourcesNNCMXSliceAmount": 2,
 				"ResourcesDDRScratch" : 2
 			}
 		]
