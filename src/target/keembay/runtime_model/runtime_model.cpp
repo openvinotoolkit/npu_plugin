@@ -136,34 +136,27 @@ void mv::RuntimeModel::buildSourceStructureT(mv::ComputationModel &cm, mv::Eleme
     }
 }
 
-// NOTE: We can't invoke this method until Memory allocation passes are run
-// Also, "allocator" attribute will be a vector of strings.
-
-// TODO: This method signature shall change to build a vector of TensorReferenceT instead of a single one.
-// The size of this vector must be determined from outside in order to allocate the correct number of unique_ptr
-void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &cm, mv::Element&, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
-{
+void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild)
+{    
     mv::DataModel dm(cm);
 
-    // TODO: Handle allocators as set of strings
-    auto allocator = dm.getAllocator(t->get<std::string>("allocator"));
+    auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
-    //NOTE: With auto strangely it doesn't work
-    mv::Data::BufferIterator bufferIt = allocator.getBuffer(0, t); //0 is the only stage for now, but this will probably change in the future
+    toBuild->dimensions = tensorBufferIt->getData()->getShape(); // Padded or not?
+    toBuild->strides = tensorBufferIt->getData()->computeNumericStrides(); //NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
-    toBuild->dimensions = bufferIt->getData()->getShape(); // Padded or not?
-    toBuild->strides = bufferIt->getData()->computeNumericStrides(); //NOTE: Maybe directly bufferIt->computeStrides() in the future?
-
-    auto strides = bufferIt->getStrides();
+    auto strides = tensorBufferIt->getStrides();
     toBuild->leading_offset = strides[0];
-    toBuild->trailing_offset = strides[strides.size()-1] + bufferIt->getPostAlign();
+    toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
-    toBuild->data->data_index = bufferIt->getOffset();
+    toBuild->data->data_index = tensorBufferIt->getOffset();
     // UNSUPPORTED FOR NOW
     // toBuild->sparsity_index
-    toBuild->locale = convertAllocatorToMemoryLocale(allocator.getAllocatorName());
-    toBuild->data_dtype = convertDtype(bufferIt->getData()->getDType());
+    toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
+    toBuild->data_dtype = convertDtype(tensorBufferIt->getData()->getDType());
 
     // UNSUPPORTED FOR NOW
     // toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
@@ -171,26 +164,31 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel &cm, mv::Eleme
     // toBuild.quant_shift;//    std::vector<int8_t> quant_shift;
 }
 
+// NOTE: Remember to Ask Ian which allocator should be used.
+// Suspect: ProgrammableInput and ProgrammableOutput are really special zones of DDR
+// If that's the case, the multiple allocator paradigm will be used only to handle populated tensors
 
+// The following code is being developed on the above assumption
 void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild)
 {
-    mv::OpModel opModel(cm);
+    mv::OpModel om(cm);
+    mv::DataModel dm(dm);
+
     toBuild->version = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
     buildVersionT(cm, compilationDescriptor, std::move(toBuild->version));
 
     // Just one input for now
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_input[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, opModel.getInput()->getOutputTensor(0), std::move(toBuild->net_input[0]));
+    buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0), std::move(toBuild->net_input[0]));
 
-    // Just one output for now
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, opModel.getOutput()->getInputTensor(0), std::move(toBuild->net_output[0]));
+    buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0), std::move(toBuild->net_output[0]));
 
-    //TODO: opModel.taskCount() needs to be implemented
-    toBuild->layer_count = opModel.opsCount();
-    toBuild->task_count = opModel.opsCount();
+    //TODO: om.taskCount() needs to be implemented
+    toBuild->layer_count = om.opsCount();
+    toBuild->task_count = om.opsCount();
 
     toBuild->resources = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
     buildResourcesT(cm, compilationDescriptor, std::move(toBuild->resources));
@@ -213,7 +211,8 @@ void mv::RuntimeModel::buildResourcesT(ComputationModel&, mv::Element& compilati
     toBuild->nce1_blocks = compilationDescriptor.get<int>("ResourcesNCE1Mask");
     toBuild->nce2_blocks = compilationDescriptor.get<int>("ResourcesNCE2Mask");
     toBuild->upa_shared_cmx = compilationDescriptor.get<int>("ResourcesUPASharedCMX");
-    toBuild->nn_cmx = compilationDescriptor.get<int>("ResourcesNNCMX");
+    toBuild->nn_cmx_per_slice = compilationDescriptor.get<int>("ResourcesNNCMXPerSlice");
+    toBuild->nn_cmx_slice_amount = compilationDescriptor.get<int>("ResourcesNNCMXSliceAmount");
     toBuild->ddr_scratch = compilationDescriptor.get<int>("ResourcesDDRScratch");
 }
 
@@ -221,26 +220,34 @@ void mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, Data::T
 {
     // NOTE: In the future tensor->toBinary() will probably handle also the sparsity map associated to the tensor.
     // Or maybe not, we will see
-    auto binaryData = t->toBinary();
 
-    toBuild->fp64 = binaryData.fp64();
-    toBuild->fp32 = binaryData.fp32();
-    toBuild->fp16 = binaryData.fp16();
-    toBuild->f8 = binaryData.fp8();
-    toBuild->u64 = binaryData.u64();
-    toBuild->u32 = binaryData.u32();
-    toBuild->u16 = binaryData.u16();
-    toBuild->u8 = binaryData.u8();
-    toBuild->i64 = binaryData.i64();
-    toBuild->i32 = binaryData.i32();
-    toBuild->i16 = binaryData.i16();
-    toBuild->i8 = binaryData.i8();
-    toBuild->i4 = binaryData.i4();
-    toBuild->i2 = binaryData.i2();
-    toBuild->i2x = binaryData.i2x();
-    toBuild->i4x = binaryData.i4x();
-    toBuild->bin = binaryData.bin();
-    toBuild->log = binaryData.log();
+    // OLD approach
+//    auto binaryData = t->toBinary();
+
+//    toBuild->fp64 = binaryData.fp64();
+//    toBuild->fp32 = binaryData.fp32();
+//    toBuild->fp16 = binaryData.fp16();
+//    toBuild->f8 = binaryData.fp8();
+//    toBuild->u64 = binaryData.u64();
+//    toBuild->u32 = binaryData.u32();
+//    toBuild->u16 = binaryData.u16();
+//    toBuild->u8 = binaryData.u8();
+//    toBuild->i64 = binaryData.i64();
+//    toBuild->i32 = binaryData.i32();
+//    toBuild->i16 = binaryData.i16();
+//    toBuild->i8 = binaryData.i8();
+//    toBuild->i4 = binaryData.i4();
+//    toBuild->i2 = binaryData.i2();
+//    toBuild->i2x = binaryData.i2x();
+//    toBuild->i4x = binaryData.i4x();
+//    toBuild->bin = binaryData.bin();
+//    toBuild->log = binaryData.log();
+
+
+    // NEW approach
+    toBuild->data = t->getData();
+    toBuild->length = t->getShape().totalSize();
+    toBuild->underlying_type = convertDtype(t->getDType());
 }
 
 // NOTE: Only 1 TaskList for now, we will see in the future
@@ -312,20 +319,23 @@ void mv::RuntimeModel::buildMvTensorTaskT(ComputationModel& cm, mv::Element &com
 
 void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::UPADMATaskT* toBuild)
 {
+
     toBuild->src = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->src));
     toBuild->dst = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+
+    buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->src));
     buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), std::move(toBuild->dst));
 }
 
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
 {
     toBuild->src = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->src));
     toBuild->dst = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
-    buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), std::move(toBuild->dst));
     toBuild->broadcast_mask = opIt->get<unsigned>("BroadcastMask");
     toBuild->compression = opIt->get<bool>("Compression");
+
+    buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0), std::move(toBuild->src));
+    buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0), std::move(toBuild->dst));
 }
 
 void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild)
