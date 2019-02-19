@@ -274,7 +274,7 @@ void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element 
         specificTask.value = new MVCNN::MvTensorTaskT();
         buildMvTensorTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::MvTensorTaskT*>(specificTask.value));
     }
-    else if(taskType == "UPADMATask")
+    else if(taskType == "DMATask")
     {
         specificTask.type = MVCNN::SpecificTask_UPADMATask;
         specificTask.value = new MVCNN::UPADMATaskT();
@@ -292,7 +292,7 @@ void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element 
         specificTask.value = new MVCNN::NCE1TaskT();
         buildNCE1TaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::NCE1TaskT*>(specificTask.value));
     }
-    else if(taskType == "NCE2Task")
+    else if(taskType == "DPUTask")
     {
         specificTask.type = MVCNN::SpecificTask_NCE2Task;
         specificTask.value = new MVCNN::NCE2TaskT();
@@ -478,7 +478,7 @@ void mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element 
 
 void mv::RuntimeModel::buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>& toBuild)
 {
-    auto workloads = opIt->get<mv::Workloads>("workloads").getWorkloads();
+    auto workloads = opIt->get<mv::Workloads>("Workloads").getWorkloads();
     unsigned n = workloads.size();
     toBuild = std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>(n);
     for(unsigned i = 0; i < n; ++i)
