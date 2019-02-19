@@ -67,7 +67,8 @@
 				"ResourcesUPASharedCMX" : 2,
 				"ResourcesNNCMXPerSlice" : 2,
 				"ResourcesNNCMXSliceAmount": 2,
-				"ResourcesDDRScratch" : 2
+				"ResourcesDDRScratch" : 2,
+				"Scheduling" : "Static"
 			}
 		]
 	},
