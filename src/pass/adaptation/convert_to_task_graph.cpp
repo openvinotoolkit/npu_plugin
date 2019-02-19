@@ -45,6 +45,7 @@ mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterato
 {
     std::vector<double> weightTableData(4 * outputChannels, 0);
     auto weightTable = om.constant(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
+    om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     weightTable = om.dMATask(weightTable, mv::DmaDirectionEnum::DDR2CMX);
     dpuTaskOp->addInputTensor(weightTable);
 
@@ -73,6 +74,10 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto kernel = opIt->getInputTensor(1);
             auto inputOpName = om.getSourceOp(input)->getName();
             auto kernelOpName = om.getSourceOp(kernel)->getName();
+            auto opId = opIt->get<unsigned>("opId");
+            auto inputOpId = om.getSourceOp(input)->get<unsigned>("opId");
+            auto kernelOpId = om.getSourceOp(kernel)->get<unsigned>("opId");
+
             std::string inputDeallocationName("Deallocate"+inputOpName);
             std::string kernelDeallocationName("Deallocate"+kernelOpName);
             std::string kernelWeightsTableName(kernelOpName + "WeightsTable");
@@ -85,17 +90,26 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
             // NOTE: This check is always needed, regardless of the above assumption
             if(!isTensorInCMX(input, om))
+            {
                 input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+                om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
+            }
 
-            // NOTE: This check is not actually needed given the above assumption.
-            if(!isTensorInCMX(kernel, om))
-                kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
+
+            // NOTE: This check is not actually needed given the above assumption, as it will always be true.
+            //if(!isTensorInCMX(kernel, om))
+                //kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
+
+            kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
+            om.getSourceOp(kernel)->set<unsigned>("opId", kernelOpId);
 
             auto dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
             auto dpuConvOp = om.getSourceOp(dpuConv);
+            dpuConvOp->set<unsigned>("opId", opId);
 
             // Let's take the data we need for Weights Table (WT)
             auto weightTable = addWeightsTable(om, dpuConvOp, kernelWeightsTableName, kernel->getShape()[3]);
+            om.getSourceOp(weightTable)->set<unsigned>("opId", opId);
 
             // DPUConvOp input slots status: 0 - Input, 1 - Weights, 2 - Weights Table
             om.defineFlow(weightTable, dpuConvOp, 2);
@@ -105,8 +119,11 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             om.deAllocate(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+            dmaInputFreeOp->set<unsigned>("opId", inputOpId);
             auto dmaKernelFreeOp = om.getOp(kernelDeallocationName);
+            dmaKernelFreeOp->set<unsigned>("opId", kernelOpId);
             auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
+            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
 
             cm.defineFlow(dpuConvOp, dmaInputFreeOp);
             cm.defineFlow(dpuConvOp, dmaKernelFreeOp);
@@ -129,20 +146,28 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto input = opIt->getInputTensor(0);
             auto inputOpName = om.getSourceOp(input)->getName();
 
+            auto opId = opIt->get<unsigned>("opId");
+            auto inputOpId = om.getSourceOp(input)->get<unsigned>("opId");
+
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
             auto name = opIt->getName();
 
             if(!isTensorInCMX(input, om))
+            {
                 input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+                om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
+            }
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
+            dpuPoolOp->set<unsigned>("opId", opId);
 
             // Let's take the data we need for Weights Table (WT)
             std::string kernelWeightsTableName(opIt->getName() + "WeightsTable");
             auto weightTable = addWeightsTable(om, dpuPoolOp, kernelWeightsTableName, input->getShape()[2]);
+            om.getSourceOp(weightTable)->set<unsigned>("opId", opId);
 
             // DPUPoolOp input slots status: 0 - Input, 1 Weights Table
             om.defineFlow(weightTable, dpuPoolOp, 1);
@@ -154,7 +179,10 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             om.deAllocate(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+            dmaInputFreeOp->set<unsigned>("opId", inputOpId);
+
             auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
+            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
 
             cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
             cm.defineFlow(dpuPoolOp, dmaKernelWeightsTableFreeOp);
@@ -177,20 +205,28 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto input = opIt->getInputTensor(0);
             auto inputOpName = om.getSourceOp(input)->getName();
 
+            auto opId = opIt->get<unsigned>("opId");
+            auto inputOpId = om.getSourceOp(input)->get<unsigned>("opId");
+
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
             auto name = opIt->getName();
 
             if(!isTensorInCMX(input, om))
+            {
                 input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+                om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
+            }
 
             auto dpuPool = om.dPUTaskAveragePool({input}, kernelSize, strides, padding, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
+            dpuPoolOp->set<unsigned>("opId", opId);
 
             // Let's take the data we need for Weights Table (WT)
             std::string kernelWeightsTableName(opIt->getName() + "WeightsTable");
             auto weightTable = addWeightsTable(om, dpuPoolOp, kernelWeightsTableName, input->getShape()[2]);
+            om.getSourceOp(weightTable)->set<unsigned>("opId", opId);
 
             // DPUPoolOp input slots status: 0 - Input, 1 Weights Table
             om.defineFlow(weightTable, dpuPoolOp, 1);
@@ -202,7 +238,10 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             om.deAllocate(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+            dmaInputFreeOp->set<unsigned>("opId", inputOpId);
+
             auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
+            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
 
             cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
             cm.defineFlow(dpuPoolOp, dmaKernelWeightsTableFreeOp);
@@ -223,13 +262,19 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         if (opIt->getOpType() == "Output")
         {
             auto input = opIt->getInputTensor(0);
+
+            auto opId = opIt->get<unsigned>("opId");
+            std::string oldOutputName(opIt->getName());
+
             if(isTensorInCMX(input, om))
             {
                 auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR);
+                om.getSourceOp(newInput)->set<unsigned>("opId", opId);
                 auto backup = opIt;
                 ++opIt;
                 om.removeOp(backup);
-                om.output(newInput);
+                om.output(newInput, oldOutputName);
+                om.getOp(oldOutputName)->set<unsigned>("opId", opId);
             }
             else
                 ++opIt;
