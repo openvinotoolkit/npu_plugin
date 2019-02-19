@@ -56,14 +56,25 @@ int main()
     cm.defineFlow(dpuconv1Op, input1dmaOutOp);
     cm.defineFlow(dpuconv1Op, dmaOUTWeights1Op);
 
-    unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
-    unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
-    unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-    unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor& compDesc = unit.compilationDescriptor();
+
+    // unit.compilationDescriptor()["GenerateDot"]["output"] = std::string(outputName + ".dot");
+    // unit.compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpControlModel");
+    // unit.compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
+    // unit.compilationDescriptor()["GenerateDot"]["html"] = true;
+
+    compDesc.setPassArg("GenerateDot", "output", std::string(outputName + ".dot"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
+    compDesc.setPassArg("GenerateDot", "content", std::string("full"));
+    compDesc.setPassArg("GenerateDot", "html", true);
+
+    compDesc.remove("serialize");
+    compDesc.remove("finalize");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
-    unit.passManager().disablePass(mv::PassGenre::Serialization);
     unit.run();
 
     system("dot -Tsvg barrier_task.dot -o barrier_task.png");
