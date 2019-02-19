@@ -172,7 +172,6 @@ void mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Eleme
 void mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild)
 {
     mv::OpModel om(cm);
-    mv::DataModel dm(dm);
 
     toBuild->version = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
     buildVersionT(cm, compilationDescriptor, std::move(toBuild->version));
@@ -245,7 +244,8 @@ void mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, Data::T
 
 
     // NEW approach
-    toBuild->data = t->getData();
+    auto tensorData = t->getData();
+    toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
     toBuild->length = t->getShape().totalSize();
     toBuild->underlying_type = convertDtype(t->getDType());
 }
