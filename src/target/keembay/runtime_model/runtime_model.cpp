@@ -256,10 +256,16 @@ void mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compila
     mv::OpModel om(cm);
 
     unsigned i = 0;
+
+    //Only Tasks in TaskLists
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
-        toBuild->content.push_back(std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT()));
-        buildTaskT(cm, compilationDescriptor, opIt, std::move(toBuild->content[i++]));
+        if(opIt->getOpType().find("Task") != std::string::npos)
+        {
+            toBuild->content.push_back(std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT()));
+            buildTaskT(cm, compilationDescriptor, opIt, std::move(toBuild->content[i])); //BUG: After this instruction toBuild->content[i] is null??
+            ++i;
+        }
     }
 }
 
