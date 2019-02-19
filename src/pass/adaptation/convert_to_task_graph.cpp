@@ -52,7 +52,6 @@ mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterato
     return weightTable;
 }
 
-//TODO: Copy OpId, but Ian is needed in this case.
 void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
