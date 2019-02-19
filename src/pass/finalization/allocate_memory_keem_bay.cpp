@@ -157,7 +157,7 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
                     (! inTensor->hasAttr("modelOutput") || ! inTensor->get<bool>("modelOutput"))
                     )
                 {
-                    auto buf = dm.allocateTensor("VPU_CMX_NN", stageIt, inTensor);
+                    dm.allocateTensor("VPU_CMX_NN", stageIt, inTensor);
                 }
             }
             for (unsigned x = 0; x < opIterator->outputSlots(); ++x)
@@ -171,7 +171,7 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
                     (! outTensor->hasAttr("modelOutput") || ! outTensor->get<bool>("modelOutput"))
                     )
                 {
-                    auto buf = dm.allocateTensor("VPU_CMX_NN", stageIt, outTensor);
+                    dm.allocateTensor("VPU_CMX_NN", stageIt, outTensor);
                 }
             }
         }
