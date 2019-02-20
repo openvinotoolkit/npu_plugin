@@ -28,6 +28,11 @@ namespace mv
 
 mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, unsigned tensorSize)
 {
+    // TensorSize is not actually needed. Sparsity map has to be added based either on
+    // 1) Pattern generation given by cheat sheet
+    // 2) Information given by the user.
+
+    // This method is just a STUB to obtain a proper graph
     std::vector<double> sparsityMapData(tensorSize, 1);
     auto sparsityMap = om.constant(sparsityMapData, {tensorSize}, mv::DType("UInt32"), mv::Order("W"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
