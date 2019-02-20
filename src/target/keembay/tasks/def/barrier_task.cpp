@@ -33,7 +33,7 @@ namespace mv
         .setArg<int>("numProducers")
         .setArg<int>("numConsumers")
         .setArg<int>("wait")
-        .setTypeTrait({"exposed"});
+        .setTypeTrait({"executable"});
 
     }
 
