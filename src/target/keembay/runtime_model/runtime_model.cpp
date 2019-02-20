@@ -157,9 +157,18 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
-    toBuild->data->data_index = tensorBufferIt->getOffset();
-    // UNSUPPORTED FOR NOW
-    // toBuild->sparsity_index
+    if(t->isPopulated())
+    {
+        toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
+        // UNSUPPORTED FOR NOW
+        // toBuild->sparsity_index
+    }
+    else
+    {
+        toBuild->data->data_index = tensorBufferIt->getOffset();
+        // UNSUPPORTED FOR NOW
+        // toBuild->sparsity_index
+    }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(tensorBufferIt->getData()->getDType());
 

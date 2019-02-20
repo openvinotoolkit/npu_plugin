@@ -75,9 +75,9 @@ void allocateInputOutputTensorsKeemBay(const mv::pass::PassEntry& pass, mv::Comp
         dm.allocateTensor("ProgrammableOutput", stageIt, outTensor);
 }
 
-/* Populated Tensors are stored in:
- * 1) GraphFile
-*/
+//Populated Tensors are stored in:
+// 1) GraphFile
+//
 void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Allocating populated tensors");
@@ -86,20 +86,23 @@ void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     mv::DataModel dm(model);
     
     if (!dm.hasAllocator("GraphFile"))
-         throw mv::ArgumentError(dm, "allocator", "GraphFile", "Computation model does not have VPU_DDR_BSS specified");
+         throw mv::ArgumentError(dm, "allocator", "GraphFile", "Computation model does not have GraphFile allocator specified");
 
     if (cm.stageSize() == 0)
          throw mv::ArgumentError(cm, "stages count", "0", "Computation model does not have stages specified");
 
     auto stageIt = cm.getStage(0);
 
+    unsigned i = 0;
     for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
     {
         if (tIt->isPopulated())
+        {
             dm.allocateTensor("GraphFile", stageIt, tIt);
+            tIt->set<unsigned>("graphFileIndex", i++);
+        }
     }
 }
-
 
 /* Unpopulated Tensors are stored in:
  * 1) VPU_CMX_NN
