@@ -13,6 +13,7 @@
             "AssignUniqueOpId",
 	    "ConvertToTaskGraph",
 	    "AssignUniqueTaskId",
+	    "InsertBarrierTasks",
             {
                 "name" : "GenerateDot",
                 "output" : "adapt_model.dot",
