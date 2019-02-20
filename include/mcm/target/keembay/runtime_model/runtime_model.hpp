@@ -42,15 +42,15 @@ namespace mv
             static MVCNN::MPE_Mode convertMPEMode(MPE_Mode mpe);
             static MVCNN::PPELayerType convertPPELayerType(PpeLayerTypeEnum ppe);
 
-            static void buildTensorReferenceT(ComputationModel &cm, mv::Element&, Data::TensorIterator t, std::unique_ptr<MVCNN::TensorReferenceT> toBuild);
-            static void buildGraphNodeT(ComputationModel &cm, mv::Element&, Data::OpListIterator op, std::unique_ptr<MVCNN::GraphNodeT> toBuild);
-            static void buildSourceStructureT(ComputationModel &cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SourceStructureT> toBuild);
-            static void buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> toBuild);
-            static void buildVersionT(ComputationModel&, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::VersionT> toBuild);
-            static void buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::ResourcesT> toBuild);
-            static void buildBinaryDataT(ComputationModel&, mv::Element&, Data::TensorIterator t, std::unique_ptr<MVCNN::BinaryDataT> toBuild);
-            static void buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::TaskListT> toBuild);
-            static void buildTaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::TaskT> toBuild);
+            static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, mv::Element&, Data::TensorIterator t);
+            static std::unique_ptr<MVCNN::GraphNodeT> buildGraphNodeT(ComputationModel &cm, mv::Element&, Data::OpListIterator op);
+            static std::unique_ptr<MVCNN::SourceStructureT> buildSourceStructureT(ComputationModel &cm, mv::Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::VersionT> buildVersionT(ComputationModel&, mv::Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::ResourcesT> buildResourcesT(ComputationModel&, mv::Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::BinaryDataT> buildBinaryDataT(ComputationModel&, mv::Element&, Data::TensorIterator t);
+            static std::vector<std::unique_ptr<MVCNN::TaskListT> > buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::TaskT> buildTaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt);
             static void buildSpecificTaskUnion(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask);
 
             // TASKS
@@ -63,11 +63,11 @@ namespace mv
             static void buildControllerTaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild);
 
             // NCE2 TASK
-            static void buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild);
-            static void buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT>>& toBuild);
-            static void buildNCEVariantFieldsT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, Workload workload, std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild);
-            static void buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, std::unique_ptr<MVCNN::PPETaskT> toBuild);
-            static void buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const PPEFixedFunction &ppe, std::unique_ptr<MVCNN::PPEFixedFunctionT> toBuild);
+            static std::unique_ptr<MVCNN::NCEInvariantFieldsT> buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt);
+            static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT> > buildNCEVariantFieldsTVector(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt);
+            static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt, Workload workload);
+            static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Data::OpListIterator opIt);
+            static std::unique_ptr<MVCNN::PPEFixedFunctionT> buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const PPEFixedFunction &ppe);
 
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);

@@ -41,6 +41,7 @@ namespace mv
             std::vector<std::string> copyOperations_;
             bool inputVectorTypes_;
             bool checkInputs_;
+            bool allowsExtraInputs_;
 
         public:
             OpEntry(const std::string& opType);
@@ -58,12 +59,14 @@ namespace mv
             OpEntry& setBaseOperation(const std::string& opType);
             OpEntry& setBaseOperation(std::initializer_list<std::string> ops);
             OpEntry& setInputCheck(bool inputCheck);
+            OpEntry& setExtraInputs(bool allowsExtraInputs);
 
             const std::string getDescription() const;
             std::size_t getInputsCount() const;
             std::size_t getOutputsCount() const;
             bool hasArg(const std::string& name) const;
             bool hasOptionalArg(const std::string& name) const;
+            bool allowsExtraInputs() const;
             std::type_index argType(const std::string& name) const;
             std::vector<std::string> getArgsList() const;
             std::vector<std::pair<std::string, Attribute>> getOptionalArgsList() const;
@@ -77,8 +80,8 @@ namespace mv
             const std::vector<std::string>& getOutputLabel();
             bool hasTypeTrait(const std::string& trait);
             const std::set<std::string>& getTypeTraits();
-            bool hasVectorTypesAsInput();
-            bool doInputNeedToBeChecked();
+            bool hasVectorTypesAsInput() const;
+            bool doInputNeedToBeChecked() const;
             const std::string& getName();
             const std::vector<std::string>& getCopyOperations();
             std::string getLogID() const override;
