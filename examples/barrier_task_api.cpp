@@ -77,6 +77,6 @@ int main()
     unit.initialize();
     unit.run();
 
-    system("dot -Tsvg barrier_task.dot -o barrier_task.png");
+    system("dot -Tpng barrier_task.dot -o barrier_task.png");
 
 }
