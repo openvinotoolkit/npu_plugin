@@ -26,8 +26,6 @@ namespace mv
     }
 }
 
-// WARNING: This function is valid only for sparsity map relative to Weights
-// (Sparsity map can also be relative to input)
 mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, unsigned tensorSize)
 {
     std::vector<double> sparsityMapData(tensorSize, 1);
@@ -91,6 +89,8 @@ static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
     }
 }
 
+// WARNING: This function is valid only for sparsity map relative to Weights
+// (Sparsity maps can also be relative to input)
 static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
