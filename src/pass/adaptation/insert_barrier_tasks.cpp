@@ -44,9 +44,6 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
             barrierGroup = numBarriers / 8;
             barrierIndex = numBarriers % 8;
 
-            std::cout << "In InsertBarrierTasks pass: opType = (" << opType << ") group:index= " << barrierGroup << ":" << barrierIndex;
-            std::cout << " | numP = " << numProducers << " | numC = " << numConsumers << std::endl;
-
             auto barrierTask = om.barrierTask(barrierGroup, barrierIndex, numProducers,
                                     numConsumers, wait, barrierName);
 
