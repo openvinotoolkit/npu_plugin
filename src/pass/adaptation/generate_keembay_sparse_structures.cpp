@@ -26,14 +26,18 @@ namespace mv
     }
 }
 
-mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, unsigned outputChannels)
+// WARNING: This function is valid only for sparsity map relative to Weights
+// (Sparsity map can also be relative to input)
+mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, unsigned tensorSize)
 {
-    std::vector<double> sparsityMapData(4 * outputChannels, 0);
-    auto sparsityMap = om.constant(sparsityMapData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), sparsityMapName);
+    std::vector<double> sparsityMapData(tensorSize, 1);
+    auto sparsityMap = om.constant(sparsityMapData, {tensorSize}, mv::DType("UInt32"), mv::Order("W"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(sparsityMap);
+
+    // Weight tensor packing should be done here
 
     return sparsityMap;
 }
@@ -41,6 +45,13 @@ mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator
 mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName, unsigned outputChannels)
 {
     std::vector<double> weightTableData(4 * outputChannels, 0);
+
+    // WeightTableData should be filled here using packing information (and quantization information maybe?)
+    for(unsigned i = 0; i < outputChannels; ++i)
+    {
+        weightTableData[i + 0] = 0; //DATA_PTR
+        weightTableData[i + 1] = 0; //SP_PTR
+    }
     auto weightTable = om.constant(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     weightTable = om.dMATask(weightTable, mv::DmaDirectionEnum::DDR2CMX);
@@ -49,6 +60,7 @@ mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterato
 
     return weightTable;
 }
+
 
 static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
@@ -84,24 +96,24 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    // NOTE: Extra check needed for the only operation that doesn't need a sparsity map Z
+    // NOTE: Extra check needed for the only operation that doesn't need a sparsity map
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
             auto opId = dpuTask->get<unsigned>("opId");
-            unsigned weightsTableSize;  // NOTE: This has to be different, probably
+            unsigned sparsityMapSize;
             std::string opName = dpuTask->getName();
 
-            weightsTableSize = dpuTask->getOutputTensor(0)->getShape()[2];
+            sparsityMapSize = dpuTask->getOutputTensor(0)->getShape().totalSize();
 
-            std::string kernelWeightsTableName(opName + "SparsityMap");
-            std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
-            auto sparsityMap = addSparsityMap(om, dpuTask, kernelWeightsTableName, weightsTableSize);
+            std::string sparsityMapName(opName + "SparsityMap");
+            std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
+            auto sparsityMap = addSparsityMap(om, dpuTask, sparsityMapName, sparsityMapSize);
 
             om.defineFlow(sparsityMap, dpuTask, dpuTask->inputSlots());
-            om.deallocateTask(sparsityMap, kernelWeightsTableDeallocationName);
-            auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
+            om.deallocateTask(sparsityMap, sparsityMapDeallocationName);
+            auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
 
             dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
             cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
