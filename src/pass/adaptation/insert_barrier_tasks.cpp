@@ -22,28 +22,52 @@ namespace mv
 void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     int numBarriers = 0 ;
     int barrierIndex = 0;
     int barrierGroup = 0;
 
-    for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
+    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
-        int numProducers = 0 ;
-        int numConsumers = 0 ; 
+        auto opType = opIt->getOpType();
 
-        std::cout << "In InsertBarrierTasks pass: group:index= " << barrierGroup << ":" << barrierIndex << std::endl;
+        if (opType == "DPUTask" || (opType == "DMATask" && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR))
+        {
+            std::string barrierName("BarrierTask_" + std::to_string(numBarriers));
 
-        // if op = conv or DMA to DDR       
-        // { 
-        //     create a barrier task as in example (remove from example or make a new example)
-        //     add control flows as in example
- 
-        numBarriers++ ;
-        barrierIndex =numBarriers%8 ;
-        barrierGroup =numBarriers/8 ;
-        // }
- 
-//        operationIt->set<unsigned>(currentIdLabel, currentId++);
+            int numProducers = opIt->inputSlots();
+            int numConsumers = opIt->outputSlots();
+            int wait = -1;
+
+            numBarriers++ ;
+            barrierGroup = numBarriers / 8;
+            barrierIndex = numBarriers % 8;
+
+            std::cout << "In InsertBarrierTasks pass: opType = (" << opType << ") group:index= " << barrierGroup << ":" << barrierIndex;
+            std::cout << " | numP = " << numProducers << " | numC = " << numConsumers << std::endl;
+
+            auto barrierTask = om.barrierTask(barrierGroup, barrierIndex, numProducers,
+                                    numConsumers, wait, barrierName);
+
+            // add control flows to insert this barrier to the control flow graph
+            auto barrierOp = om.getSourceOp(barrierTask);
+            auto inputTensors = opIt->getInputTensor();
+
+            // Input flow
+            for (auto tensorIn = inputTensors.begin(); tensorIn != inputTensors.end(); tensorIn++)
+            {
+                auto sourceOp = om.getSourceOp(*tensorIn);
+                cm.defineFlow(sourceOp, barrierOp);
+            }
+
+            // Output flow
+            auto outputTensors = opIt->getOutputTensor();
+            for (auto tensorOut = outputTensors.begin(); tensorOut != outputTensors.end(); tensorOut++)
+            {
+                auto destOp = om.getSourceOp(*tensorOut);
+                cm.defineFlow(barrierOp, destOp);
+            }
+        }
     }
 }
