@@ -106,6 +106,12 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
 
+            if(kernel->getShape()[2] < 16)
+            {
+                dpuConvOp->erase("taskOp");
+                dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+            }
+
             // Let's take the data we need for Weights Table (WT)
             auto weightTable = addWeightsTable(om, dpuConvOp, kernelWeightsTableName, kernel->getShape()[3]);
             om.getSourceOp(weightTable)->set<unsigned>("opId", opId);

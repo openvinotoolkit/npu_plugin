@@ -180,7 +180,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     return toBuild;
 }
 
-// The following code is being developed on the above assumption
 std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
