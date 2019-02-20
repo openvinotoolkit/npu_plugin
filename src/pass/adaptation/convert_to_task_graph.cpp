@@ -41,17 +41,6 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         return false;
 }
 
-mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName, unsigned outputChannels)
-{
-    std::vector<double> weightTableData(4 * outputChannels, 0);
-    auto weightTable = om.constant(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
-    om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    weightTable = om.dMATask(weightTable, mv::DmaDirectionEnum::DDR2CMX);
-    dpuTaskOp->addInputTensor(weightTable);
-
-    return weightTable;
-}
-
 void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -79,8 +68,6 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
             std::string inputDeallocationName("Deallocate"+inputOpName);
             std::string kernelDeallocationName("Deallocate"+kernelOpName);
-            std::string kernelWeightsTableName(kernelOpName + "WeightsTable");
-            std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
 
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
@@ -93,7 +80,6 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
                 om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
             }
-
 
             // NOTE: This check is not actually needed given the above assumption, as it will always be true.
             //if(!isTensorInCMX(kernel, om))
@@ -112,27 +98,16 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
             }
 
-            // Let's take the data we need for Weights Table (WT)
-            auto weightTable = addWeightsTable(om, dpuConvOp, kernelWeightsTableName, kernel->getShape()[3]);
-            om.getSourceOp(weightTable)->set<unsigned>("opId", opId);
-
-            // DPUConvOp input slots status: 0 - Input, 1 - Weights, 2 - Weights Table
-            om.defineFlow(weightTable, dpuConvOp, 2);
-
             om.deallocateTask(input, inputDeallocationName);
             om.deallocateTask(kernel, kernelDeallocationName);
-            om.deallocateTask(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
             auto dmaKernelFreeOp = om.getOp(kernelDeallocationName);
             dmaKernelFreeOp->set<unsigned>("opId", kernelOpId);
-            auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
-            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
 
             cm.defineFlow(dpuConvOp, dmaInputFreeOp);
             cm.defineFlow(dpuConvOp, dmaKernelFreeOp);
-            cm.defineFlow(dpuConvOp, dmaKernelWeightsTableFreeOp);
 
             for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
             {
@@ -169,28 +144,14 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
 
-            // Let's take the data we need for Weights Table (WT)
-            std::string kernelWeightsTableName(opIt->getName() + "WeightsTable");
-            auto weightTable = addWeightsTable(om, dpuPoolOp, kernelWeightsTableName, input->getShape()[2]);
-            om.getSourceOp(weightTable)->set<unsigned>("opId", opId);
-
-            // DPUPoolOp input slots status: 0 - Input, 1 Weights Table
-            om.defineFlow(weightTable, dpuPoolOp, 1);
-
             std::string inputDeallocationName("Deallocate"+inputOpName);
-            std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
 
             om.deallocateTask(input, inputDeallocationName);
-            om.deallocateTask(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
 
-            auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
-            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
-
             cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
-            cm.defineFlow(dpuPoolOp, dmaKernelWeightsTableFreeOp);
 
             for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
             {
@@ -230,26 +191,15 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
             // Let's take the data we need for Weights Table (WT)
             std::string kernelWeightsTableName(opIt->getName() + "WeightsTable");
-            auto weightTable = addWeightsTable(om, dpuPoolOp, kernelWeightsTableName, input->getShape()[2]);
-            om.getSourceOp(weightTable)->set<unsigned>("opId", opId);
-
-            // DPUPoolOp input slots status: 0 - Input, 1 Weights Table
-            om.defineFlow(weightTable, dpuPoolOp, 1);
 
             std::string inputDeallocationName("Deallocate"+inputOpName);
-            std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
 
             om.deallocateTask(input, inputDeallocationName);
-            om.deallocateTask(weightTable, kernelWeightsTableDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
 
-            auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
-            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
-
             cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
-            cm.defineFlow(dpuPoolOp, dmaKernelWeightsTableFreeOp);
 
             for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
             {

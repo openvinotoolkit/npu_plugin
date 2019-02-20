@@ -136,6 +136,7 @@ file(GLOB pass
     "src/pass/adaptation/replacement_passes.cpp"
     "src/pass/adaptation/conv_dilation_pass.cpp"
     "src/pass/adaptation/assign_unique_task_id.cpp"
+    "src/pass/adaptation/generate_keembay_sparse_structures.cpp"
     "src/pass/adaptation/assign_unique_op_id.cpp"
     "src/pass/adaptation/convert_to_task_graph.cpp"
     "src/pass/finalization/generate_workloads_pass.cpp"
