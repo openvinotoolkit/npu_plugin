@@ -296,6 +296,16 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     return toBuild;
 }
 
+void mv::RuntimeModel::buildBarrierTaskT(ComputationModel& cm, Element& compilationDescriptor, Data::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild)
+{
+    toBuild = new MVCNN::ControllerTaskT();
+    toBuild->task.type = MVCNN::ControllerSubTask_BarrierConfigurationTask;
+
+    auto tmp = new MVCNN::BarrierConfigurationTaskT();
+    tmp->target = buildBarrierT(cm, compilationDescriptor, opIt);
+    toBuild->task.value = tmp;
+}
+
 void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask)
 {
     std::string taskType(opIt->getOpType());
@@ -342,6 +352,12 @@ void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element 
         specificTask.type = MVCNN::SpecificTask_ControllerTask;
         specificTask.value = new MVCNN::ControllerTaskT();
         buildControllerTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::ControllerTaskT*>(specificTask.value));
+    }
+    else if(taskType == "BarrierTask")
+    {
+        specificTask.type = MVCNN::SpecificTask_ControllerTask;
+        specificTask.value = new MVCNN::ControllerTaskT();
+        buildBarrierTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::ControllerTaskT*>(specificTask.value));
     }
 }
 
@@ -541,7 +557,8 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
     toBuild->name = opIt->getName();
 
     // NOTE: This might change in the future
-    toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
+    if(opIt->hasAttr("opId"))
+        toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
 
     if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
     {
@@ -550,6 +567,26 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
     }
 
     buildSpecificTaskUnion(cm, compilationDescriptor, opIt, toBuild->task);
+    return toBuild;
+}
+
+std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::ComputationModel& cm, mv::Element& compilationDescriptor, mv::Data::OpListIterator opIt)
+{
+    std::unique_ptr<MVCNN::BarrierT> toBuild = std::unique_ptr<MVCNN::BarrierT>(new MVCNN::BarrierT());
+    toBuild->barrier_id = opIt->get<int>("index");
+    toBuild->consumer_count = opIt->get<int>("numConsumers");
+    toBuild->producer_count = opIt->get<int>("numProducers");
+    return toBuild;
+}
+
+std::vector<std::unique_ptr<MVCNN::BarrierT>> mv::RuntimeModel::buildBarrierTable(mv::ComputationModel& cm, mv::Element& compilationDescriptor)
+{
+    mv::OpModel om(cm);
+    auto barrierTasks = om.getOps("BarrierTask");
+    unsigned n = barrierTasks.size();
+    std::vector<std::unique_ptr<MVCNN::BarrierT>> toBuild = std::vector<std::unique_ptr<MVCNN::BarrierT>>(n);
+    for(unsigned i = 0; i < n; ++i)
+        toBuild[i] = buildBarrierT(cm, compilationDescriptor, barrierTasks[i]);
     return toBuild;
 }
 
@@ -566,7 +603,8 @@ void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, mv::Element& compil
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // BARRIERS
-    // std::vector<std::unique_ptr<BarrierT>> barrier_table;
+    // ASSUMPTION : 1 BARRIER <-> 1 BARRIERTASK
+    graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
     // BINARY DATA
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
