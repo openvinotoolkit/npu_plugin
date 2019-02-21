@@ -21,7 +21,8 @@ namespace mv
 void generateBlobKeembayFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& passDesc, mv::json::Object& compOutput)
 {   
     mv::RuntimeModel rm;
-    rm.buildGraphFileT(model, passDesc);
+    rm.buildHeader(model, passDesc);
+    rm.buildGraphFile(model, passDesc);
 
     if (!passDesc.hasAttr("output"))
         return;

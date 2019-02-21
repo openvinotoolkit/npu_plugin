@@ -76,7 +76,8 @@ namespace mv
             char * serialize(int& bufferSize);
             void deserialize(const std::string& path);
             void deserialize(char * buffer, int length);
-            void buildGraphFileT(ComputationModel& cm, Element& compilationDescriptor);
+            void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
+            void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
     };
 }
 

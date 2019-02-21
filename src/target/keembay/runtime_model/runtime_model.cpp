@@ -590,20 +590,20 @@ std::vector<std::unique_ptr<MVCNN::BarrierT>> mv::RuntimeModel::buildBarrierTabl
     return toBuild;
 }
 
-void mv::RuntimeModel::buildGraphFileT(ComputationModel& cm, mv::Element& compilationDescriptor)
+void mv::RuntimeModel::buildHeader(ComputationModel &cm, Element &compilationDescriptor)
+{
+    //HEADER
+    graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor);
+}
+
+void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
 
-    // HEADER
-    graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor);
-
     // TASKS
-    // BUG: A task list must be built only if there is at least one task.
-    // Otherwise it has no sense.
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // BARRIERS
-    // ASSUMPTION : 1 BARRIER <-> 1 BARRIERTASK
     graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
     // BINARY DATA
