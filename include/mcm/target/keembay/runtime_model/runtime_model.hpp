@@ -25,6 +25,7 @@ namespace mv
     class RuntimeModel
     {
         private:
+            RuntimeModel() {}
             MVCNN::GraphFileT graphFile_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
@@ -32,8 +33,13 @@ namespace mv
             static const std::unordered_map<PpeLayerTypeEnum, MVCNN::PPELayerType, EnumClassHash> ppeLayerTypeMapping_;
 
         public:
-            RuntimeModel();
-            ~RuntimeModel();
+            static RuntimeModel& getInstance()
+            {
+                static RuntimeModel instance;
+                return instance;
+            }
+            RuntimeModel(RuntimeModel const&) = delete;
+            void operator=(RuntimeModel const&) = delete;
 
             // CONVERT METHODS (String to enums, enums to strings, enums mapping etc)
             static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName);
@@ -45,7 +51,8 @@ namespace mv
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t);
             static std::unique_ptr<MVCNN::GraphNodeT> buildGraphNodeT(ComputationModel &cm, Element&, Data::OpListIterator op);
             static std::unique_ptr<MVCNN::SourceStructureT> buildSourceStructureT(ComputationModel &cm, Element& compilationDescriptor);
-            static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderT(ComputationModel& cm, Element& compilationDescriptor);
+            static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderT(ComputationModel& cm, Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader);
+            static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderMetaInformations(ComputationModel& cm, mv::Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::VersionT> buildVersionT(ComputationModel&, Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::ResourcesT> buildResourcesT(ComputationModel&, Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::BinaryDataT> buildBinaryDataT(ComputationModel&, Element&, Data::TensorIterator t);

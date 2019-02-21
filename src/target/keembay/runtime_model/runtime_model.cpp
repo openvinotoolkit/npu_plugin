@@ -4,17 +4,6 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <fstream>
 
-mv::RuntimeModel::RuntimeModel()
-    :graphFile_(MVCNN::GraphFileT())
-{
-
-}
-
-mv::RuntimeModel::~RuntimeModel()
-{
-
-}
-
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
     {"Float64", MVCNN::DType::DType_FP64},
@@ -180,13 +169,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor)
+std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaInformations(ComputationModel& cm, mv::Element& compilationDescriptor)
+{
+    std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
+
+    toBuild->version = buildVersionT(cm, compilationDescriptor);
+    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
+    toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
+
+    return toBuild;
+}
+
+
+std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(ComputationModel& cm, mv::Element& compilationDescriptor, std::unique_ptr<MVCNN::SummaryHeaderT> originalHeader)
 {
     mv::OpModel om(cm);
 
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
-    toBuild->version = buildVersionT(cm, compilationDescriptor);
+    toBuild->version = std::move(originalHeader->version);
+    toBuild->original_structure = std::move(originalHeader->original_structure);
+    toBuild->resources = std::move(originalHeader->resources);
 
     // Just one input for now
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
@@ -206,10 +209,6 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
 
     toBuild->layer_count = om.opsCount();
     toBuild->task_count = taskCount(om);
-
-    toBuild->resources = buildResourcesT(cm, compilationDescriptor);
-
-    toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
 
     return toBuild;
 }
@@ -593,12 +592,14 @@ std::vector<std::unique_ptr<MVCNN::BarrierT>> mv::RuntimeModel::buildBarrierTabl
 void mv::RuntimeModel::buildHeader(ComputationModel &cm, Element &compilationDescriptor)
 {
     //HEADER
-    graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor);
+    graphFile_.header = buildSummaryHeaderMetaInformations(cm, compilationDescriptor);
 }
 
 void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
+
+    graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
 
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
