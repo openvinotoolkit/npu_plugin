@@ -112,7 +112,9 @@ void mv::Tensor::populate(const std::vector<double>& data)
     set("populated", true);
     log(Logger::MessageType::Debug, "Populated");
 
-    //TODO if sparse then call sparsify
+    //if sparse then call sparsify
+    if (isSparse())
+        populateSparsityMapTensor_();
 }
 
 void mv::Tensor::populate(const std::vector<double>& data, Order order)
@@ -129,10 +131,11 @@ void mv::Tensor::unpopulate()
     data_.clear();
     set<bool>("populated", false);
 
-    //TODO if this happens, then sparsity map should change
-    //Is this function really needed?
-    log(Logger::MessageType::Debug, "Unpopulated");
+    //sparsity map tensor need to unpopulate as well
+    if (isSparse())
+        sparsityMap_->unpopulate();
 
+    log(Logger::MessageType::Debug, "Unpopulated");
 }
 std::shared_ptr<mv::Tensor> mv::Tensor::getSparsityMap() const
 {
@@ -162,6 +165,29 @@ std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel_()
     return zeroPoint;
 }
 
+void mv::Tensor::populateSparsityMapTensor_()
+{
+    //default all zeropoints to zero
+    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
+    std::vector<double> sparsityMapData(sparsityMap_->getShape().totalSize());
+    std::vector<size_t> sub(getShape().ndims());
+    uint8_t map;
+    for (size_t t = 0; t < getShape().totalSize(); t += 8)
+    {
+        map = 0;
+        for (size_t i = 0; i < 8; i++)
+        {
+            sub = getOrder().indToSub(getShape(), t+i);
+            if (sub[2] < getShape()[2] && data_[internalOrder_.subToInd(getShape(), sub)] != zeroPoint[sub[3]])
+            {
+                map += 1 << i;
+                noneZeroElements_++;
+            }
+        }
+        sparsityMapData[t/8] = map;
+    }
+    sparsityMap_->populate(sparsityMapData);
+}
 void mv::Tensor::setSparse()
 {
     if (getOrder() != mv::Order("NWHC"))
@@ -171,51 +197,24 @@ void mv::Tensor::setSparse()
     // sparse then get the specific attributes by name and call toBinary
     // this will avoid duplicate of tensors, but it will not allow iterator to go over them.
 
-    // the other option is to have this all calculated in the pass, use defineTensor and add it as attribute to the tensors.
-    // then the iterator will go through them as well
-
-    //TODO consider creating tensors only on demand, to avoid the need to update their shape/content if
-    // original tensor changes?
-    // in which case, this will be private, Pass will call set the sparsity attribute to true/false.
-    // When tensors are queried, we can genarate them (at that point if tensor data/shape/layout changed, the returned tensor, will
-    // be updated accordingly, the downside is we might recalculate if it's called more that once - should it?)
-
     //Storage Element Tensor
     //se are filled by the DPU @ runtime
     //We just create an unpopulated tensor at this stage.
     storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({getShape()[0], getShape()[1], 1, getShape()[-1]}), mv::DType("Int32"), getOrder());
+
+    set<bool>("sparse", true);
 
     //Sparsity map
     //we choose layout as internal layout, no need to reorder
     mv::Shape mapShape({getShape()[0], getShape()[1], static_cast<std::size_t>(std::ceil(getShape()[2] / 8.0)), getShape()[-1]});
     sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("Int8"), Order(Order::getRowMajorID(mapShape.ndims())));
     noneZeroElements_ = 0;
+
     //populate sparsity map
     if (isPopulated())
     {
-        //default all zeropoints to zero
-        std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
-        std::vector<double> sparsityMapData(mapShape.totalSize());
-        std::vector<size_t> sub(getShape().ndims());
-        uint8_t map;
-        for (size_t t = 0; t < getShape().totalSize(); t += 8)
-        {
-            map = 0;
-            for (size_t i = 0; i < 8; i++)
-            {
-                sub = getOrder().indToSub(getShape(), t+i);
-                if (sub[2] < getShape()[2] && data_[internalOrder_.subToInd(getShape(), sub)] != zeroPoint[sub[3]])
-                {
-                    map += 1 << i;
-                    noneZeroElements_++;
-                }
-            }
-            sparsityMapData[t/8] = map;
-        }
-        sparsityMap_->populate(sparsityMapData);
+        populateSparsityMapTensor_();
     }
-
-    set<bool>("sparse", true);
 }
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)

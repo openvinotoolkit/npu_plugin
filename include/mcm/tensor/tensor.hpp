@@ -33,6 +33,8 @@ namespace mv
         std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
         std::vector<unsigned> getZeroPointsPerChannel_();
+        void populateSparsityMapTensor_();
+
 
     public:
 
