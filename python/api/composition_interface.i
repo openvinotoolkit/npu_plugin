@@ -11,6 +11,8 @@ import_array();
 %}
 
 %module composition_api
+%include "std_string.i"
+%include exception.i
 %{
     #include <include/mcm/compiler/compilation_unit.hpp>
     #include <math.h>
@@ -31,36 +33,35 @@ import_array();
         return unit;
     }
 
-    mv::CompilationUnit* getCompilationUnit(const char* target)
+    mv::CompilationUnit* getCompilationUnit(const std::string& target)
     {
-        //printf("Starting MCM Composition Interface for Target Descriptor: %d\n", target);
+        printf("Starting MCM Composition Interface for Target Descriptor: %s...\n", target.c_str());
         auto unit = new mv::CompilationUnit("pySwigCU");
-        if(strcmp(target, "ma2480")==0)
+        if(target.compare("ma2480") == 0)
         {
             unit->loadTargetDescriptor(mv::Target::ma2480);
             unit->loadCompilationDescriptor(mv::Target::ma2480);
         }
-        else if(strcmp(target, "ma2490")==0)
+        else if(target.compare("ma2490") == 0)
         {
             unit->loadTargetDescriptor(mv::Target::ma2490);
             unit->loadCompilationDescriptor(mv::Target::ma2490);
         }
         else
         {
-            //Preferably throw an error "not supported target descriptor type"
-            printf("ERROR: not supported target descriptor type: %s", target);
-            return NULL;
+            //Throw an error as unsupported target descriptor type supplied
+            PyErr_SetString(PyExc_Exception, "Target descriptor type not supported. Only ma2480 and ma2490 supported.");
         }
 
         return unit;
     }
 
-    mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const char* filepath)
+    mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const std::string filepath)
     {
         //remove default descriptor and load a user defined descriptor
         unit->compilationDescriptor().clear();
         unit->loadCompilationDescriptor(filepath);
-        
+
         return unit;
     }
 
@@ -448,8 +449,8 @@ namespace mv
 
 int testSWIG();
 mv::CompilationUnit* getCompilationUnit();
-mv::CompilationUnit* getCompilationUnit(const char *target);
-mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const char *filepath);
+mv::CompilationUnit* getCompilationUnit(const std::string& target);
+mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const std::string& filepath);
 mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
 void deleteCompilationUnitObject(mv::CompilationUnit *unit);
