@@ -22,7 +22,7 @@ namespace mv
 
         };
     
-        MV_REGISTER_OP(DeallocateTask)
+        MV_REGISTER_OP(Deallocate)
         .setInputs({"inputs"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
