@@ -153,59 +153,20 @@ void mv::tools::GraphComparator::compare_(const MVCNN::BarrierT& lhs, const MVCN
 void mv::tools::GraphComparator::compare_(const MVCNN::BinaryDataT& lhs, const MVCNN::BinaryDataT& rhs,
     std::vector<std::string>& diff, const std::string& label)
 {
-    if (lhs.bin != rhs.bin)
-        diff.push_back(label + "::bin");
+    if (lhs.underlying_type != rhs.underlying_type)
+        diff.push_back(label + "::underlying_type");
+    if (lhs.length != rhs.length)
+        diff.push_back(label + "::length");
+    else
+    {
+        for(unsigned i = 0; i < lhs.length; ++i)
+        {
+            if(lhs.data[i] != rhs.data[i])
+                diff.push_back(label + "::data::"+std::to_string(i));
 
-    if (lhs.f8 != rhs.f8)
-        diff.push_back(label + "::f8");
+        }
+    }
 
-    if (lhs.fp16 != rhs.fp16)
-        diff.push_back(label + "::fp16");
-
-    if (lhs.fp32 != rhs.fp32)
-        diff.push_back(label + "::fp32");
-    
-    if (lhs.fp64 != rhs.fp64)
-        diff.push_back(label + "::fp64");
-
-    if (lhs.i16 != rhs.i16)
-        diff.push_back(label + "::i16");
-    
-    if (lhs.i2 != rhs.i2)
-        diff.push_back(label + "::i2");
-
-    if (lhs.i2x != rhs.i2x)
-        diff.push_back(label + "::i2x");
-    
-    if (lhs.i32 != rhs.i32)
-        diff.push_back(label + "::i32");
-
-    if (lhs.i4 != rhs.i4)
-        diff.push_back(label + "::i4");
-
-    if (lhs.i4x != rhs.i4x)
-        diff.push_back(label + "::i4x");
-
-    if (lhs.i64 != rhs.i64)
-        diff.push_back(label + "::i64");
-    
-    if (lhs.i8 != rhs.i8)
-        diff.push_back(label + "::i8");
-
-    if (lhs.log != rhs.log)
-        diff.push_back(label + "::log");
-
-    if (lhs.u16 != rhs.u16)
-        diff.push_back(label + "::u16");
-
-    if (lhs.u32 != rhs.u32)
-        diff.push_back(label + "::u32");
-    
-    if (lhs.u64 != rhs.u64)
-        diff.push_back(label + "::u64");
-
-    if (lhs.u8 != rhs.u8)
-        diff.push_back(label + "::u8");
 
 }
 
@@ -875,8 +836,11 @@ void mv::tools::GraphComparator::compare_(const MVCNN::ResourcesT& lhs, const MV
     if (lhs.upa_shared_cmx != rhs.upa_shared_cmx)
         diff.push_back(label + "::upa_shared_cmx");
 
-    if (lhs.nn_cmx != rhs.nn_cmx)
-        diff.push_back(label + "::nn_cmx");
+    if (lhs.nn_cmx_per_slice != rhs.nn_cmx_per_slice)
+        diff.push_back(label + "::nn_cmx_per_slice");
+
+    if (lhs.nn_cmx_slice_amount != rhs.nn_cmx_slice_amount)
+        diff.push_back(label + "::nn_cmx_slice_amount");
 
     if (lhs.ddr_scratch != rhs.ddr_scratch)
         diff.push_back(label + "::ddr_scratch");

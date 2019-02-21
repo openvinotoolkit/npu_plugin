@@ -24,8 +24,7 @@ void assignUniqueTaskIdFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     mv::OpModel om(model);
 
     unsigned currentId = 0;
-    std::string currentIdLabel("taskId");
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
-        operationIt->set<unsigned>(currentIdLabel, currentId++);
+        operationIt->set<unsigned>("taskId", currentId++);
 }

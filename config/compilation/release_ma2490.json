@@ -15,6 +15,9 @@
         [
             "GenerateWorkloads",
 	    "ArrangeKeembayExecution"
+	    "AllocatePopulatedTensors",
+            "AllocateUnpopulatedTensors",
+            "AllocateInputOutputTensors"
         ]
     },
 

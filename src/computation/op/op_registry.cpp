@@ -61,6 +61,19 @@ bool mv::op::OpRegistry::checkOpType(const std::string& opType)
     return instance().find(opType) != nullptr;
 }
 
+bool mv::op::OpRegistry::checkExtraInputs(const std::string& opType)
+{
+    if (!checkOpType(opType))
+        throw OpError("OpRegistry", "Attempt of obtaining the arguments list for an unregistered op type " + opType);
+
+    OpEntry* const opPtr1 = instance().find(opType);
+
+    if (!opPtr1)
+        throw MasterError("OpRegistry", "Registered op type " + opType + " not found in the op registry");
+
+    return opPtr1->allowsExtraInputs();
+}
+
 std::vector<std::string> mv::op::OpRegistry::getArgsList(const std::string& opType)
 {
     if (!checkOpType(opType))

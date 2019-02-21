@@ -41,11 +41,15 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         return false;
 }
 
-//TODO: Copy OpId, but Ian is needed in this case.
 void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(om);
+    mv::ControlModel cm(model);
+
+    // TODO/WIP: Add weights table as well
+
+    // Pass main assumption is that we are working on the original graph
+    // So until we start modifing the graph there are no DMA tasks involved
 
     // While loop is preferred in a loop like this were we are performing eliminations
     // as it gives more flexibility on when to increment the iterator
@@ -56,30 +60,51 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         {
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
+            auto inputOpName = om.getSourceOp(input)->getName();
+            auto kernelOpName = om.getSourceOp(kernel)->getName();
+            auto opId = opIt->get<unsigned>("opId");
+            auto inputOpId = om.getSourceOp(input)->get<unsigned>("opId");
+            auto kernelOpId = om.getSourceOp(kernel)->get<unsigned>("opId");
+
+            std::string inputDeallocationName("Deallocate"+inputOpName);
+            std::string kernelDeallocationName("Deallocate"+kernelOpName);
 
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
             auto name = opIt->getName();
 
+            // NOTE: This check is always needed, regardless of the above assumption
             if(!isTensorInCMX(input, om))
+            {
                 input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
-            if(!isTensorInCMX(kernel, om))
-                kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
+                om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
+            }
+
+            // NOTE: This check is not actually needed given the above assumption, as it will always be true.
+            //if(!isTensorInCMX(kernel, om))
+                //kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
+
+            kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
+            om.getSourceOp(kernel)->set<unsigned>("opId", kernelOpId);
 
             auto dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
-
-            auto inputOpName = om.getSourceOp(input)->getName();
-            auto kernelOpName = om.getSourceOp(kernel)->getName();
-            std::string inputDeallocationName("Deallocate"+inputOpName);
-            std::string kernelDeallocationName("Deallocate"+kernelOpName);
-
-            om.deAllocate(input, inputDeallocationName);
-            om.deAllocate(kernel, kernelDeallocationName);
-
             auto dpuConvOp = om.getSourceOp(dpuConv);
+            dpuConvOp->set<unsigned>("opId", opId);
+
+            if(kernel->getShape()[2] < 16)
+            {
+                dpuConvOp->erase("taskOp");
+                dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+            }
+
+            om.deallocateTask(input, inputDeallocationName);
+            om.deallocateTask(kernel, kernelDeallocationName);
+
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+            dmaInputFreeOp->set<unsigned>("opId", inputOpId);
             auto dmaKernelFreeOp = om.getOp(kernelDeallocationName);
+            dmaKernelFreeOp->set<unsigned>("opId", kernelOpId);
 
             cm.defineFlow(dpuConvOp, dmaInputFreeOp);
             cm.defineFlow(dpuConvOp, dmaKernelFreeOp);
@@ -99,6 +124,10 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         if (opIt->getOpType() == "MaxPool")
         {
             auto input = opIt->getInputTensor(0);
+            auto inputOpName = om.getSourceOp(input)->getName();
+
+            auto opId = opIt->get<unsigned>("opId");
+            auto inputOpId = om.getSourceOp(input)->get<unsigned>("opId");
 
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
@@ -106,16 +135,21 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto name = opIt->getName();
 
             if(!isTensorInCMX(input, om))
+            {
                 input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+                om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
+            }
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding, "DPU_" + name);
-
-            auto inputOpName = om.getSourceOp(input)->getName();
-            std::string inputDeallocationName("Deallocate"+inputOpName);
-            om.deAllocate(input, inputDeallocationName);
-
             auto dpuPoolOp = om.getSourceOp(dpuPool);
+            dpuPoolOp->set<unsigned>("opId", opId);
+
+            std::string inputDeallocationName("Deallocate"+inputOpName);
+
+            om.deallocateTask(input, inputDeallocationName);
+
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+            dmaInputFreeOp->set<unsigned>("opId", inputOpId);
 
             cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
 
@@ -135,6 +169,10 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         if (opIt->getOpType() == "AveragePool")
         {
             auto input = opIt->getInputTensor(0);
+            auto inputOpName = om.getSourceOp(input)->getName();
+
+            auto opId = opIt->get<unsigned>("opId");
+            auto inputOpId = om.getSourceOp(input)->get<unsigned>("opId");
 
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
@@ -142,16 +180,24 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto name = opIt->getName();
 
             if(!isTensorInCMX(input, om))
+            {
                 input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
+                om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
+            }
 
             auto dpuPool = om.dPUTaskAveragePool({input}, kernelSize, strides, padding, "DPU_" + name);
-
-            auto inputOpName = om.getSourceOp(input)->getName();
-            std::string inputDeallocationName("Deallocate"+inputOpName);
-            om.deAllocate(input, inputDeallocationName);
-
             auto dpuPoolOp = om.getSourceOp(dpuPool);
+            dpuPoolOp->set<unsigned>("opId", opId);
+
+            // Let's take the data we need for Weights Table (WT)
+            std::string kernelWeightsTableName(opIt->getName() + "WeightsTable");
+
+            std::string inputDeallocationName("Deallocate"+inputOpName);
+
+            om.deallocateTask(input, inputDeallocationName);
+
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
+            dmaInputFreeOp->set<unsigned>("opId", inputOpId);
 
             cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
 
@@ -171,13 +217,19 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         if (opIt->getOpType() == "Output")
         {
             auto input = opIt->getInputTensor(0);
+
+            auto opId = opIt->get<unsigned>("opId");
+            std::string oldOutputName(opIt->getName());
+
             if(isTensorInCMX(input, om))
             {
                 auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR);
+                om.getSourceOp(newInput)->set<unsigned>("opId", opId);
                 auto backup = opIt;
                 ++opIt;
                 om.removeOp(backup);
-                om.output(newInput);
+                om.output(newInput, oldOutputName);
+                om.getOp(oldOutputName)->set<unsigned>("opId", opId);
             }
             else
                 ++opIt;

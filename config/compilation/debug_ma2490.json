@@ -1,84 +1,77 @@
 {
-    "adapt":
-    {
-        "Singular" :
-        [
+    "adapt": {
+        "Singular": [
             {
-                "name" : "GenerateDot",
-                "output" : "original_model.dot",
-		"scope" : "OpControlModel",
-		"content": "full",
-		"html" : true
+                "name": "GenerateDot",
+                "output": "original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
             },
             "AssignUniqueOpId",
-	    "ConvertToTaskGraph",
-	    "AssignUniqueTaskId",
+            "ConvertToTaskGraph",
+            "GenerateSparsityMaps",
+            "GenerateWeightsTables",
+            "InsertBarrierTasks",
+            "AssignUniqueTaskId",
             {
-                "name" : "GenerateDot",
-                "output" : "adapt_model.dot",
-		"scope" : "OpControlModel",
-		"content": "full",
-		"html" : true
+                "name": "GenerateDot",
+                "output": "adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
             }
         ]
     },
-
-    "finalize":
-    {
-        "Singular" :
-        [
+    "finalize": {
+        "Singular": [
             "GenerateWorkloads",
-	    "ArrangeKeembayExecution",
-	    {
-                "name" : "GenerateDot",
-                "output" : "final_model.dot",
-		"scope" : "OpControlModel",
-		"content": "full",
-		"html" : true
+            "ArrangeKeembayExecution",
+            "AllocateInputOutputTensorsKeemBay",
+            "AllocatePopulatedTensorsKeemBay",
+            "AllocateUnpopulatedTensorsKeemBay",
+            {
+                "name": "GenerateDot",
+                "output": "final_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
             }
         ]
     },
-
-    "validate":
-    {
-        "Singular" :
-        [
+    "validate": {
+        "Singular": [
             "CheckTensors"
         ]
     },
-
-	"serialize":
-	{
-		"Singular":
-		[
-			{
-				"name" : "GenerateBlobKeembay",
-				"output": "blob.bin",
-				"VersionMajor" : 3,
-				"VersionMinor" : 2,
-				"VersionPatch" : 1,
-				"VersionHash" : "MarcoHash",
-				"ResourcesUpaShaves" : 8,
-				"ResourcesNCE1Mask" : 1,
-				"ResourcesNCE2Mask" : 2,
-				"ResourcesUPASharedCMX": 2,
-				"ResourcesNNCMX": 2,
-				"ResourcesDDRScratch" : 2
-			}
-		]
-	},
-
-    "root" :
-    {
-        "Singular" :
-        [
+    "serialize": {
+        "Singular": [
+            {
+                "name": "GenerateBlobKeembay",
+                "output": "blob.bin",
+                "VersionMajor": 3,
+                "VersionMinor": 2,
+                "VersionPatch": 1,
+                "VersionHash": "MarcoHash",
+                "ResourcesUpaShaves": 8,
+                "ResourcesNCE1Mask": 1,
+                "ResourcesNCE2Mask": 2,
+                "ResourcesUPASharedCMX": 2,
+                "ResourcesNNCMXPerSlice": 2,
+                "ResourcesNNCMXSliceAmount": 2,
+                "ResourcesDDRScratch": 2,
+                "Scheduling": "Static"
+            }
+        ]
+    },
+    "root": {
+        "Singular": [
             "validate",
             "adapt",
             "finalize",
-	    "serialize"
+            "serialize"
         ],
-        "Recurrent" :
-        [
+        "Recurrent": [
             "validate"
         ]
     }

@@ -67,6 +67,8 @@ namespace mv
             static bool checkTypeTrait(const std::string& typeTrait);
             static const std::set<std::string>& getTypeTraits(const std::string& opType);
             static bool hasTypeTrait(const std::string& opType, const std::string& trait);
+            static bool checkExtraInputs(const std::string& opType);
+
 
             static void generateCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
             static void generateRecordedCompositionAPI(const std::string& eol = "\n", const std::string& tab = "    ");
