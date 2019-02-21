@@ -20,12 +20,9 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
         {
 
-            outputs.push_back(mv::Tensor(":0", {225, 225, 3}, mv::DType("Float16"), mv::Order("CHW")));
-
         };
 
         MV_REGISTER_OP(BarrierTask)
-        .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setArg<int>("group")
