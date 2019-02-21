@@ -36,18 +36,14 @@ import_array();
         auto unit = new mv::CompilationUnit("pySwigCU");
         unit->loadTargetDescriptor(mv::Target::ma2480);
 
-        // Define the manadatory arguments for passes using compilation descriptor obtained from compilation unit
-        unit->compilationDescriptor()["GenerateDot"]["output"] = std::string("pycm.dot");
-        unit->compilationDescriptor()["GenerateDot"]["scope"] = std::string("OpModel");
-        unit->compilationDescriptor()["GenerateDot"]["content"] = std::string("full");
-        unit->compilationDescriptor()["GenerateDot"]["html"] = true;
-        unit->compilationDescriptor()["GenerateJson"]["output"] = std::string("cpp.json");
-        unit->compilationDescriptor()["GenerateCaffe"]["outputPrototxt"] = std::string("cppWrapperGeneratedPrototxt.prototxt");
-        unit->compilationDescriptor()["GenerateCaffe"]["outputCaffeModel"] = std::string("cppWrapperGeneratedWeights.caffemodel");
-        unit->compilationDescriptor()["GenerateBlob"]["fileName"] = std::string("cpp.blob");
-        unit->compilationDescriptor()["GenerateBlob"]["enableFileOutput"] = true;
-        unit->compilationDescriptor()["GenerateBlob"]["enableRAMOutput"] = false;
-        unit->compilationDescriptor()["MarkHardwareOperations"]["disableHardware"] = disableHardware;
+        unit->loadCompilationDescriptor(mv::Target::ma2480);
+        mv::CompilationDescriptor &compDesc = unit->compilationDescriptor();
+
+        std::string blobName = "cpp.blob";
+        compDesc.setPassArg("GenerateBlob", "fileName", blobName);
+        compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
+        compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
+        compDesc.setPassArg("MarkHardwareOperations", "disableHardware", disableHardware);
 
         return unit;
 

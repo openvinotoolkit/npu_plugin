@@ -37,6 +37,8 @@ if (MSVC)
 
 	add_executable(dpu_task_example dpu_task_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+	add_executable(barrier_task_api barrier_task_api.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
 	add_executable(depthwise_convolution depthwise_convolution.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 	add_executable(fully_connected fully_connected.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -49,6 +51,10 @@ else()
 
 	add_executable(cm_linear cm_linear.cpp)
 	target_link_libraries(cm_linear cm)
+
+# FIXME: uncomment after ma2480_memory_allocator_example.cpp is added
+#	add_executable(ma2480_memory_allocator_example ma2480_memory_allocator_example.cpp)
+#	target_link_libraries(ma2480_memory_allocator_example cm)
 
 	add_executable(cm_two_branch cm_two_branch.cpp)
 	target_link_libraries(cm_two_branch cm)
@@ -91,6 +97,13 @@ else()
 
 	add_executable(dpu_task_example dpu_task_example.cpp)
 	target_link_libraries(dpu_task_example cm)
+
+# FIXME: uncomment after metis_example.cpp is added
+#	add_executable(metis_example metis_example.cpp)
+#	target_link_libraries(metis_example cm)
+
+	add_executable(barrier_task_api barrier_task_api.cpp)
+	target_link_libraries(barrier_task_api cm)
 
 	add_executable(hw_pooling hw_pooling.cpp)
 	target_link_libraries(hw_pooling cm)

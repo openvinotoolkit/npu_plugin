@@ -3,9 +3,9 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-static void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void allocateInputOutputTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void allocatePopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void allocateInputOutputTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 // static void allocateForImplicitConcat();
 
@@ -18,21 +18,18 @@ namespace mv
 
         MV_REGISTER_PASS(AllocateInputOutputTensors)
         .setFunc(allocateInputOutputTensors)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "Perform allocation of all input and output tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocatePopulatedTensors)
         .setFunc(allocatePopulatedTensorsFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "Perform allocation of all populated tensors using memory allocator"
         );
 
         MV_REGISTER_PASS(AllocateUnpopulatedTensors)
         .setFunc(allocateUnpopulatedTensorsFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "Perform allocation of all unpopulated tensors using memory allocator"
         );
@@ -41,8 +38,9 @@ namespace mv
 
 }
 
+
 //NOTE:This pass assumes the existence of memory allocators called ProgrammableInput and Programmable. Lucklily this is true for both MX and Keembay.
-void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     std::cout << "Allocate input/output tensors" << std::endl;
 
@@ -133,7 +131,7 @@ void allocateInputOutputTensors(const mv::pass::PassEntry&, mv::ComputationModel
 // NOTE:This pass assumes the existence of a memory allocator called ConstantMemory. This was true only for MX, so this pass has to be changed to use TargetDescriptor.
 // By doing so, we will know what Memories the Target provides for Populated Tensors
 // Also, NCE1_Paddings shall become NCE_Paddings.
-void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     std::cout << "Allocate populated" << std::endl;
@@ -188,7 +186,7 @@ void allocatePopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
 // NOTE:This pass assumes the existence of a memory allocator called IntermediateMemory. This was true only for MX, so this pass has to be changed to use TargetDescriptor to see
 // which allocators are available for IntermediateMemory.
-void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     std::cout << "Allocate unpopulated" << std::endl;

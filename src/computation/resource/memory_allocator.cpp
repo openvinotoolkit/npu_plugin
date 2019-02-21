@@ -301,38 +301,80 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
     if (entries_.find(stageIdx) == entries_.end())
         entries_.emplace(stageIdx, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>());
 
-    if (tensor->hasAttr("allocator"))
-        throw ArgumentError(*this, "tensor", tensor->getName(), "Already allocated in " + tensor->get<std::string>("allocator") +
-            ", deallocate first to allocate again");
+    if (!tensor->hasAttr("allocators")) {
+        
+        Shape shape(tensor->getShape());
+        MemoryBuffer newBuffer;
+        newBuffer.id = currentID_++;
+        newBuffer.offset = 0;
+        newBuffer.size = shape.totalSize() * dataTypeSize_;
+        newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize_;
+        newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
+        newBuffer.postAlign= 0;
+        newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
+        newBuffer.data = tensor;
+        newBuffer.stage = stageIdx;
+        newBuffer.leftPad = std::vector<std::size_t>(shape.ndims());
+        newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
+        newBuffer.masterBuffer = bufferEnd(stageIdx);
+        newBuffer.slaveBuffers = {};
+        newBuffer.dataTypeSize = dataTypeSize_;
 
-    Shape shape(tensor->getShape());
+        std::fill(newBuffer.strides.begin(), newBuffer.strides.end(), 0);
+        std::fill(newBuffer.leftPad.begin(), newBuffer.leftPad.end(), 0);
+        std::fill(newBuffer.rightPad.begin(), newBuffer.rightPad.end(), 0);
 
-    MemoryBuffer newBuffer;
-    newBuffer.id = currentID_++;
-    newBuffer.offset = 0;
-    newBuffer.size = shape.totalSize() * dataTypeSize_;
-    newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize_;
-    newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
-    newBuffer.postAlign= 0;
-    newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
-    newBuffer.data = tensor;
-    newBuffer.stage = stageIdx;
-    newBuffer.leftPad = std::vector<std::size_t>(shape.ndims());
-    newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
-    newBuffer.masterBuffer = bufferEnd(stageIdx);
-    newBuffer.slaveBuffers = {};
-    newBuffer.dataTypeSize = dataTypeSize_;
+        auto buffer = entries_[stageIdx].emplace(std::make_shared<MemoryBuffer>(newBuffer)).first;
+        placeBuffers_(stageIdx);
 
-    std::fill(newBuffer.strides.begin(), newBuffer.strides.end(), 0);
-    std::fill(newBuffer.leftPad.begin(), newBuffer.leftPad.end(), 0);
-    std::fill(newBuffer.rightPad.begin(), newBuffer.rightPad.end(), 0);
+        std::set<std::string> allocatorNames;
+        allocatorNames.insert(name_);
+        tensor->set<std::set<std::string>>("allocators",allocatorNames);
 
-    auto buffer = entries_[stageIdx].emplace(std::make_shared<MemoryBuffer>(newBuffer)).first;
-    placeBuffers_(stageIdx);
-    tensor->set<std::string>("allocator", name_);
+        return buffer;
+    }
+    else {
 
-    return buffer;
+        /*Get attribute allocators*/
+        auto allocators = tensor->get<std::set<std::string>>("allocators");
+       
+        /*If tensor  already has an allocator of the same name*/
+        if (allocators.count(name_) != 0)
+            throw ArgumentError(*this, "tensor", tensor->getName(), "Already has an allocater called " + name_); 
+        else {
 
+            Shape shape(tensor->getShape());
+            
+            MemoryBuffer newBuffer;
+            newBuffer.id = currentID_++;
+            newBuffer.offset = 0;
+            newBuffer.size = shape.totalSize() * dataTypeSize_;
+            newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize_;
+            newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
+            newBuffer.postAlign= 0;
+            newBuffer.strides = std::deque<std::size_t>(newBuffer.blockNum + 1);
+            newBuffer.data = tensor;
+            newBuffer.stage = stageIdx;
+            newBuffer.leftPad = std::vector<std::size_t>(shape.ndims());
+            newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
+            newBuffer.masterBuffer = bufferEnd(stageIdx);
+            newBuffer.slaveBuffers = {};
+            newBuffer.dataTypeSize = dataTypeSize_;
+
+            std::fill(newBuffer.strides.begin(), newBuffer.strides.end(), 0);
+            std::fill(newBuffer.leftPad.begin(), newBuffer.leftPad.end(), 0);
+            std::fill(newBuffer.rightPad.begin(), newBuffer.rightPad.end(), 0);
+
+            auto buffer = entries_[stageIdx].emplace(std::make_shared<MemoryBuffer>(newBuffer)).first;
+            placeBuffers_(stageIdx);
+            
+            /*Add allocator name*/
+            allocators.insert(name_);
+
+            return buffer;
+
+        }
+    }        
 }
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIterator tensor, BufferIterator masterBuffer,

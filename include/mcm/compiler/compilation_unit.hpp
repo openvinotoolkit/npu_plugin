@@ -8,6 +8,7 @@
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/pass/pass_manager.hpp"
 #include "include/mcm/utils/env_loader.hpp"
+#include "include/mcm/compiler/compilation_descriptor.hpp"
 
 namespace mv
 {
@@ -15,10 +16,11 @@ namespace mv
     class CompilationUnit : public LogSender
     {
 
-        static const std::string ma2480DefDescPath_;
-        static const std::string ma2490DefDescPath_;
+        static const std::string ma2480DefTargetDescPath_;
+        static const std::string ma2490DefTargetDescPath_;
 
-        static const std::string compilationDescPath_;
+        static const std::string ma2480DefCompDescPath_;
+        static const std::string ma2490DefCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
 
         static Logger& logger_;
@@ -27,8 +29,8 @@ namespace mv
         RecordedCompositionalModel* recordedModel_;
         PassManager passManager_;
         TargetDescriptor targetDescriptor_;
-        json::Object compilationDescriptor_;
-        const static unsigned jsonParserBufferLenght_ = 256;
+        CompilationDescriptor compDescriptor_;
+        const static unsigned jsonParserBufferLength_ = 256;
 
     public:
 
@@ -38,9 +40,9 @@ namespace mv
         bool loadTargetDescriptor(const std::string& path);
         bool loadTargetDescriptor(Target target);
         bool loadCompilationDescriptor(const std::string& path);
+        bool loadCompilationDescriptor(Target target);
 
-        PassManager& passManager();
-        json::Object& compilationDescriptor();
+        CompilationDescriptor& compilationDescriptor();
         OpModel& model();
         CompositionalModel& recordedModel();
 

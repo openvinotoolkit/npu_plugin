@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
-static void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,14 +13,13 @@ namespace mv
     {
         MV_REGISTER_PASS(FormatMXWeights)
         .setFunc(formatMXWeightsFcn)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "This pass reshapes relevant Convolution weights for the MyriadX NCE"
         );
     }
 }
 
-void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &, mv::json::Object &)
+void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
 
     using namespace mv;

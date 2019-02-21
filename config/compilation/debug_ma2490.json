@@ -1,0 +1,81 @@
+{
+    "adapt": {
+        "Singular": [
+            "AssignUniqueOpId",
+			{
+                "name": "GenerateDot",
+                "output": "original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+			{
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 2,
+                "VersionPatch": 1,
+                "VersionHash": "MarcoHash",
+                "ResourcesUpaShaves": 8,
+                "ResourcesNCE1Mask": 1,
+                "ResourcesNCE2Mask": 2,
+                "ResourcesUPASharedCMX": 2,
+                "ResourcesNNCMXPerSlice": 2,
+                "ResourcesNNCMXSliceAmount": 2,
+                "ResourcesDDRScratch": 2
+            },
+            "ConvertToTaskGraph",
+            "GenerateSparsityMaps",
+            "GenerateWeightsTables",
+            "InsertBarrierTasks",
+            "AssignUniqueTaskId",
+            {
+                "name": "GenerateDot",
+                "output": "adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "GenerateWorkloads",
+            "ArrangeKeembayExecution",
+            "AllocateInputOutputTensorsKeemBay",
+            "AllocatePopulatedTensorsKeemBay",
+            "AllocateUnpopulatedTensorsKeemBay",
+            {
+                "name": "GenerateDot",
+                "output": "final_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
+    "validate": {
+        "Singular": [
+            "CheckTensors"
+        ]
+    },
+    "serialize": {
+        "Singular": [
+            {
+                "name": "GenerateBlobKeembay",
+                "output": "blob.bin",
+                "Scheduling": "Static"
+            }
+        ]
+    },
+    "root": {
+        "Singular": [
+            "validate",
+            "adapt",
+            "finalize",
+            "serialize"
+        ],
+        "Recurrent": [
+            "validate"
+        ]
+    }
+}

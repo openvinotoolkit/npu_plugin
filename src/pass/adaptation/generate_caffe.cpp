@@ -8,7 +8,7 @@
 #include "caffe.pb.h"
 #include <caffe/caffe.hpp>
 
-static void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput);
+static void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
 
 namespace mv
 {
@@ -19,7 +19,6 @@ namespace mv
         
         MV_REGISTER_PASS(GenerateCaffe)
         .setFunc(generateCaffeFcn)
-        .setGenre(PassGenre::Adaptation)
         .defineArg(json::JSONType::String, "outputPrototxt")
         .defineArg(json::JSONType::String, "outputCaffeModel")
         .setDescription("Generates a caffe prototxt file");
@@ -27,20 +26,20 @@ namespace mv
         } // namespace pass
 } // namespace mv
 
-void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::json::Object &compDesc, mv::json::Object &compOutput)
+void generateCaffeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &passDesc, mv::json::Object &compOutput)
 {
     std::cout << "Generating Caffe files" << std::endl;
     using namespace mv;
 
-    if (compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>().empty())
-        throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
+    if (!passDesc.hasAttr("outputPrototxt") || passDesc.get<std::string>("outputPrototxt").empty())
+        throw ArgumentError(model, "output", "", "Unspecified output prototxt name for generate caffe model pass");
 
-    if (compDesc["GenerateCaffe"]["outputCaffeModel"].get<std::string>().empty())
-        throw ArgumentError(model, "output", "", "Unspecified output name for generate prototxt pass");
+    if (!passDesc.hasAttr("outputCaffeModel") || passDesc.get<std::string>("outputCaffeModel").empty())
+        throw ArgumentError(model, "output", "", "Unspecified output model name for generate caffe model pass");
 
     /*Create generated Prototxt and CaffeModel file names*/
-    std::string generatedPrototxtFileName = compDesc["GenerateCaffe"]["outputPrototxt"].get<std::string>();
-    std::string generatedCaffeModelFileName = compDesc["GenerateCaffe"]["outputCaffeModel"].get<std::string>();
+    std::string generatedPrototxtFileName = passDesc.get<std::string>("outputPrototxt");
+    std::string generatedCaffeModelFileName = passDesc.get<std::string>("outputCaffeModel");
 
     /*Create Network objects*/
     caffe::NetParameter netParamPrototxt;

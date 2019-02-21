@@ -135,7 +135,10 @@ file(GLOB pass
     "src/pass/adaptation/remove_passes.cpp"
     "src/pass/adaptation/replacement_passes.cpp"
     "src/pass/adaptation/conv_dilation_pass.cpp"
+    "src/pass/adaptation/create_source_structure.cpp"
     "src/pass/adaptation/assign_unique_task_id.cpp"
+    "src/pass/adaptation/insert_barrier_tasks.cpp"
+    "src/pass/adaptation/generate_keembay_sparse_structures.cpp"
     "src/pass/adaptation/assign_unique_op_id.cpp"
     "src/pass/adaptation/convert_to_task_graph.cpp"
     "src/pass/finalization/generate_workloads_pass.cpp"
@@ -175,7 +178,7 @@ if(VALIDATION)
     add_library(model SHARED ${model})
     add_library(dep SHARED ${deployer})
     target_link_libraries(dep mvnc)
-    target_link_libraries(cm corebase metamodel flatbuffers)
+    target_link_libraries(cm corebase metamodel flatbuffers metis)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)
@@ -190,7 +193,7 @@ else()
 
     add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
-    target_link_libraries(cm corebase metamodel flatbuffers)
+    target_link_libraries(cm corebase metamodel flatbuffers metis)
     add_dependencies(cm generate-comp-api)
     add_dependencies(model generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)

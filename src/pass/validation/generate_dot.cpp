@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
 
-void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+void generateDotFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 
 namespace mv
 {
@@ -13,7 +13,6 @@ namespace mv
 
         MV_REGISTER_PASS(GenerateDot)
         .setFunc(generateDotFcn)
-        .setGenre({PassGenre::Validation, PassGenre::Serialization})
         .defineArg(json::JSONType::String, "output")
         .defineArg(json::JSONType::String, "scope")
         .defineArg(json::JSONType::String, "content")
@@ -26,29 +25,41 @@ namespace mv
 
 }
 
-void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
 
     using namespace mv;
 
-    if (compDesc["GenerateDot"]["output"].get<std::string>().empty())
+    // if (compDesc["GenerateDot"]["output"].get<std::string>().empty())
+    //     throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
+
+    if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())
         throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
 
-    std::string outputScope = compDesc["GenerateDot"]["scope"].get<std::string>();
+    //std::string outputScope = compDesc["GenerateDot"]["scope"].get<std::string>();
+
+    std::string outputScope = passDesc.get<std::string>("scope");
+
     if (outputScope != "OpModel" && outputScope != "ExecOpModel" && outputScope != "ControlModel" &&
         outputScope != "OpControlModel" && outputScope != "ExecOpControlModel" && outputScope != "DataModel")
         throw ArgumentError(model, "scope", outputScope, "Invalid model scope");
 
-    std::string contentLevel = compDesc["GenerateDot"]["content"].get<std::string>();
+    //std::string contentLevel = compDesc["GenerateDot"]["content"].get<std::string>();
+
+    std::string contentLevel = passDesc.get<std::string>("content");
     if (contentLevel != "full" && outputScope != "name")
         throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
 
-    bool htmlLike = compDesc["GenerateDot"]["html"].get<bool>();
+    //bool htmlLike = compDesc["GenerateDot"]["html"].get<bool>();
+    bool htmlLike = passDesc.get("html");
 
     std::ofstream ostream;
-    ostream.open(compDesc["GenerateDot"]["output"].get<std::string>(), std::ios::trunc | std::ios::out);
+    std::string outputFile = passDesc.get<std::string>("output");
+
+    //ostream.open(compDesc["GenerateDot"]["output"].get<std::string>(), std::ios::trunc | std::ios::out);
+    ostream.open(outputFile, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
-        throw ArgumentError(model, "output", compDesc["GenerateDot"]["output"].get<std::string>(), "Unable to open output file");
+        throw ArgumentError(model, "output", outputFile, "Unable to open output file");
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
 

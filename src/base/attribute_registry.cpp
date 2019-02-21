@@ -128,6 +128,45 @@ const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeR
         " not found in the attribute registry");
 }
 
+const std::function<mv::json::Value(const mv::Attribute&)>& mv::attr::AttributeRegistry::getToSimplifiedJSONFunc(std::type_index typeID)
+{
+
+    if (!checkType(typeID))
+    {
+        throw AttributeError("AttributeRegistry", "Attempt of obtaining to-Simplified-JSON conversion function for an unregistered attribute type "
+            + std::string(typeID.name()));
+    }
+
+    AttributeEntry* const attrPtr = instance().find(typeID);
+
+    if (attrPtr)
+    {
+        return attrPtr->getToSimplifiedJSONFunc();
+    }
+
+    throw MasterError("AttributeRegistry", "Registered attribute type " + std::string(typeID.name()) +
+        " not found in the attribute registry");
+}
+
+const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeRegistry::getFromSimplifiedJSONFunc(std::type_index typeID)
+{
+    if (!checkType(typeID))
+    {
+        throw AttributeError("AttributeRegistry", "Attempt of obtaining from-Simplified-JSON conversion function for an unregistered attribute type "
+            + std::string(typeID.name()));
+    }
+
+    AttributeEntry* const attrPtr = instance().find(typeID);
+
+    if (attrPtr)
+    {
+        return attrPtr->getFromSimplifiedJSONFunc();
+    }
+
+    throw MasterError("AttributeRegistry", "Registered attribute type " + std::string(typeID.name()) +
+        " not found in the attribute registry");
+}
+
 const std::function<mv::Attribute(const mv::json::Value&)>& mv::attr::AttributeRegistry::getFromJSONFunc(std::string typeName)
 {
     return getFromJSONFunc(getTypeID(typeName));

@@ -2,8 +2,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
-static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,14 +13,12 @@ namespace mv
 
         MV_REGISTER_PASS(FullyConnectedAsConv2D)
         .setFunc(fullyConnectedAsConv2DFcn)
-        .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Replaces the fullyConnected op with conv2D using 1x1 kernels"
         );
 
         MV_REGISTER_PASS(StandaloneActivationAsPostOps)
         .setFunc(standaloneActivationAsPostOpsFcn)
-        .setGenre(PassGenre::Adaptation)
         .setDescription(
             "Replaces unsupported standalone activation operations with identity operation + postOp activation"
         );
@@ -59,7 +57,7 @@ mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator p
     return opIt;
 }
 
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     using namespace mv;
@@ -102,7 +100,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     }
 }
 
-void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::json::Object&, mv::json::Object&)
+void standaloneActivationAsPostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& targetDescriptor, mv::Element&, mv::json::Object&)
 {
     using namespace mv;
 

@@ -12,6 +12,12 @@ export MCM_HOME=~/mcmCompiler
 export MDK_HOME=~/mdk 
 ```
 
+You must have Metis C++ library and header installed. Metis can be found at the following link:
+
+http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz
+
+To build METIS, follow the instructions in the file metis-5.1.0/Install.txt. 
+
 ## Building
 ```
 cd mcmCompiler

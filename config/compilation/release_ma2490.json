@@ -1,0 +1,32 @@
+{
+    "adapt":
+    {
+        "Singular" :
+        [
+            "AssignUniqueOpId",
+	    "ConvertToTaskGraph",
+	    "AssignUniqueTaskId"
+        ]
+    },
+
+    "finalize":
+    {
+        "Singular" :
+        [
+            "GenerateWorkloads",
+	    "ArrangeKeembayExecution"
+	    "AllocatePopulatedTensors",
+            "AllocateUnpopulatedTensors",
+            "AllocateInputOutputTensors"
+        ]
+    },
+
+    "root" :
+    {
+        "Singular" :
+        [
+            "adapt",
+            "finalize"
+        ]
+    }
+}

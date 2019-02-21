@@ -15,16 +15,21 @@ namespace mv
             return {true, 0};
         };
                 
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, std::vector<Tensor>& )
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
         {
 
         };
-    
+
         MV_REGISTER_OP(BarrierTask)
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
+        .setArg<int>("group")
+        .setArg<int>("index")
+        .setArg<int>("numProducers")
+        .setArg<int>("numConsumers")
+        .setArg<int>("wait")
         .setTypeTrait({"executable"});
 
     }
