@@ -33,6 +33,7 @@ namespace mv
             return get<std::vector<double>>("max");
         }
 
+        unsigned getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;
         virtual std::string toString() const override;
     };

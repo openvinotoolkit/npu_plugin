@@ -1,5 +1,6 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order) :
 Element(name),
@@ -111,6 +112,9 @@ void mv::Tensor::populate(const std::vector<double>& data)
     set("populated", true);
     log(Logger::MessageType::Debug, "Populated");
 
+    //if sparse then call sparsify
+    if (isSparse())
+        populateSparsityMapTensor_();
 }
 
 void mv::Tensor::populate(const std::vector<double>& data, Order order)
@@ -127,8 +131,90 @@ void mv::Tensor::unpopulate()
     data_.clear();
     set<bool>("populated", false);
 
-    log(Logger::MessageType::Debug, "Unpopulated");
+    //sparsity map tensor need to unpopulate as well
+    if (isSparse())
+        sparsityMap_->unpopulate();
 
+    log(Logger::MessageType::Debug, "Unpopulated");
+}
+std::shared_ptr<mv::Tensor> mv::Tensor::getSparsityMap() const
+{
+    if (!isSparse())
+        throw ArgumentError(*this, "currentTensor", "SparsityMap" , " tensor not sparse, cannot get Sparsity Map");
+    return sparsityMap_;
+}
+
+std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
+{
+    if (!isSparse())
+        throw ArgumentError(*this, "currentTensor", "storageElement" , " tensor not sparse, cannot get storage element");
+
+    return storageElement_;
+}
+
+std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel_()
+{
+    //default all zeropoints to zero
+    std::vector<unsigned> zeroPoint(getShape()[3]);
+    if (isQuantized())
+    {
+        auto quantParams = get<mv::QuantizationParams>("quantizationParams");
+        for (size_t t=0; t < zeroPoint.size(); t++)
+            zeroPoint[t] = quantParams.getZeroPoint(t);
+    }
+    return zeroPoint;
+}
+
+void mv::Tensor::populateSparsityMapTensor_()
+{
+    //default all zeropoints to zero
+    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
+    std::vector<double> sparsityMapData(sparsityMap_->getShape().totalSize());
+    std::vector<size_t> sub(getShape().ndims());
+    uint8_t map;
+    for (size_t t = 0; t < getShape().totalSize(); t += 8)
+    {
+        map = 0;
+        for (size_t i = 0; i < 8; i++)
+        {
+            sub = getOrder().indToSub(getShape(), t+i);
+            if (sub[2] < getShape()[2] && data_[internalOrder_.subToInd(getShape(), sub)] != zeroPoint[sub[3]])
+            {
+                map += 1 << i;
+                noneZeroElements_++;
+            }
+        }
+        sparsityMapData[t/8] = map;
+    }
+    sparsityMap_->populate(sparsityMapData);
+}
+void mv::Tensor::setSparse()
+{
+    if (getOrder() != mv::Order("NWHC"))
+        throw ArgumentError(*this, "Order", getOrder().toString() , " Sparsity requires ZMajor layout (NWHC)");
+
+    // we will create tensors here, and set them as attributes, in runtime_modle, need to check if
+    // sparse then get the specific attributes by name and call toBinary
+    // this will avoid duplicate of tensors, but it will not allow iterator to go over them.
+
+    //Storage Element Tensor
+    //se are filled by the DPU @ runtime
+    //We just create an unpopulated tensor at this stage.
+    storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({getShape()[0], getShape()[1], 1, getShape()[-1]}), mv::DType("Int32"), getOrder());
+
+    set<bool>("sparse", true);
+
+    //Sparsity map
+    //we choose layout as internal layout, no need to reorder
+    mv::Shape mapShape({getShape()[0], getShape()[1], static_cast<std::size_t>(std::ceil(getShape()[2] / 8.0)), getShape()[-1]});
+    sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("Int8"), Order(Order::getRowMajorID(mapShape.ndims())));
+    noneZeroElements_ = 0;
+
+    //populate sparsity map
+    if (isPopulated())
+    {
+        populateSparsityMapTensor_();
+    }
 }
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
@@ -269,6 +355,31 @@ std::vector<double> mv::Tensor::getData()
 
     return orderedData;
 
+}
+
+std::vector<double> mv::Tensor::getDataPacked()
+{
+    if (!isPopulated())
+        throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
+
+    if (!isSparse())
+        return getData();
+
+    std::vector<std::size_t> sub(getShape().ndims());
+    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
+    std::vector<double> orderedDataPacked;
+    double datai;
+    orderedDataPacked.reserve(noneZeroElements_);
+
+    for (std::size_t i = 0; i < data_.size(); ++i)
+    {
+        sub = getOrder().indToSub(getShape(), i);
+        datai = data_[internalOrder_.subToInd(getShape(), sub)];
+        if (datai != zeroPoint[sub[2]]) //sub[2] is C
+            orderedDataPacked.emplace_back(datai);
+    }
+
+    return orderedDataPacked;
 }
 
 mv::DType mv::Tensor::getDType() const
@@ -447,8 +558,8 @@ const double& mv::Tensor::at(std::size_t idx) const
     if (getOrder() == internalOrder_)
         return data_[idx];
 
-    auto sub = internalOrder_.indToSub(getShape(), idx);
-    return data_[getOrder().subToInd(getShape(), sub)];
+    auto sub = getOrder().indToSub(getShape(), idx);
+    return data_[internalOrder_.subToInd(getShape(), sub)];
 
 }
 
@@ -498,7 +609,7 @@ std::string mv::Tensor::getLogID() const
 
 mv::BinaryData mv::Tensor::toBinary()
 {
-    return getDType().toBinary(getData());
+    return getDType().toBinary(getDataPacked());
 }
 
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const

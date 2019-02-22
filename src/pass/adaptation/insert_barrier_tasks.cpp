@@ -44,11 +44,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
             barrierGroup = numBarriers / 8;
             barrierIndex = numBarriers % 8;
 
-            auto barrierTask = om.barrierTask(barrierGroup, barrierIndex, numProducers,
+            om.barrierTask(barrierGroup, barrierIndex, numProducers,
                                     numConsumers, wait, barrierName);
 
             // add control flows to insert this barrier to the control flow graph
-            auto barrierOp = om.getSourceOp(barrierTask);
+            auto barrierOp = om.getOp(barrierName);
             auto inputTensors = opIt->getInputTensor();
 
             // Input flow

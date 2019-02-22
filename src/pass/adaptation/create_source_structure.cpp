@@ -1,0 +1,24 @@
+#include "include/mcm/pass/pass_registry.hpp"
+#include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/target/keembay/runtime_model/runtime_model.hpp"
+
+static void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&);
+
+namespace mv
+{
+    namespace pass
+    {
+        MV_REGISTER_PASS(CreateSourceStructure)
+            .setFunc(CreateSourceStructureFcn)
+            .setDescription(
+                "Creates the source structure of the GraphFile");
+    }
+}
+
+void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&)
+{
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
+    rm.buildHeader(model, compilationDescriptor);
+}

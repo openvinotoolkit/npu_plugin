@@ -98,8 +98,8 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
             }
 
-            om.deallocateTask(input, inputDeallocationName);
-            om.deallocateTask(kernel, kernelDeallocationName);
+            om.deallocate(input, inputDeallocationName);
+            om.deallocate(kernel, kernelDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
@@ -145,8 +145,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             dpuPoolOp->set<unsigned>("opId", opId);
 
             std::string inputDeallocationName("Deallocate"+inputOpName);
-
-            om.deallocateTask(input, inputDeallocationName);
+            om.deallocate(input, inputDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
@@ -189,12 +188,8 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
 
-            // Let's take the data we need for Weights Table (WT)
-            std::string kernelWeightsTableName(opIt->getName() + "WeightsTable");
-
             std::string inputDeallocationName("Deallocate"+inputOpName);
-
-            om.deallocateTask(input, inputDeallocationName);
+            om.deallocate(input, inputDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);

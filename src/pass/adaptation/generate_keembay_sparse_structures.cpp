@@ -85,7 +85,7 @@ static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
             auto weightTable = addWeightsTable(om, dpuTask, kernelWeightsTableName, weightsTableSize);
 
             om.defineFlow(weightTable, dpuTask, dpuTask->inputSlots());
-            om.deallocateTask(weightTable, kernelWeightsTableDeallocationName);
+            om.deallocate(weightTable, kernelWeightsTableDeallocationName);
             auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
 
             dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
@@ -117,7 +117,7 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             auto sparsityMap = addSparsityMap(om, dpuTask, sparsityMapName, sparsityMapSize);
 
             om.defineFlow(sparsityMap, dpuTask, dpuTask->inputSlots());
-            om.deallocateTask(sparsityMap, sparsityMapDeallocationName);
+            om.deallocate(sparsityMap, sparsityMapDeallocationName);
             auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
 
             dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);

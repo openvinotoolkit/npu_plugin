@@ -24,11 +24,17 @@ namespace mv
         std::vector<std::vector<double>::iterator> blocks_;
         Shape shape_;
         Order internalOrder_;
+        std::shared_ptr<Tensor> sparsityMap_;
+        std::shared_ptr<Tensor> storageElement_;
+        size_t noneZeroElements_;
 
         void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
 
         std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
+        std::vector<unsigned> getZeroPointsPerChannel_();
+        void populateSparsityMapTensor_();
+
 
     public:
 
@@ -41,6 +47,7 @@ namespace mv
         void populate(const std::vector<double>& data, Order order);
         void unpopulate();
 
+        void setSparse();
         /**
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
@@ -55,12 +62,13 @@ namespace mv
         void broadcast(const Shape& shape);
 
         std::vector<double> getData();
+        std::vector<double> getDataPacked();
         void setDType(DType dType);
         DType getDType() const;
         void setOrder(Order order);
         Order getOrder() const;
         void setShape(const Shape& shape);
-        
+
         void add(const Tensor& other);
         void add(double val);
         void subtract(const Tensor& other);
@@ -91,6 +99,13 @@ namespace mv
             return get<bool>("populated");
         }
 
+        inline bool isSparse() const
+        {
+            if (hasAttr("sparse"))
+                return get<bool>("sparse");
+            return false;
+        }
+
         inline Shape& getShape()
         {
             return shape_;
@@ -110,6 +125,10 @@ namespace mv
         {
             return subToInd_(getShape(), sub);
         }
+
+        std::shared_ptr<Tensor> getSparsityMap() const;
+        std::shared_ptr<Tensor> getStorageElement() const;
+
 
         Tensor& operator=(const Tensor& other);
 

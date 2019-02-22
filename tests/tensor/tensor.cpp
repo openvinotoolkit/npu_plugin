@@ -5,6 +5,10 @@
 #include "include/mcm/tensor/order/order.hpp"
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "include/mcm/tensor/binary_data.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/utils/env_loader.hpp"
+
+#include <fstream>
 
 TEST(tensor, populating)
 {
@@ -1002,4 +1006,147 @@ TEST(tensor, to_binary_i2x_invalid_execution)
     mv::Tensor t("t", tShape, mv::DType("Int2X"), mv::Order("HWCN"));
     t.populate(data);
     ASSERT_ANY_THROW(t.toBinary());
+}
+
+TEST(tensor, sparsity)
+{
+    //Example of weights in res2a_branch2a
+    mv::Shape tShape({1, 1, 64, 64});
+    mv::Tensor t("res2a_branch2a_weigths", tShape, mv::DType("UInt8"), mv::Order("NWHC"));
+    std::ifstream inputfile(mv::utils::projectRootPath() + std::string("/tests/data/res2a_branch2a_weigths_input.bin"), std::ios::binary );
+
+    uint8_t a;
+    size_t count = 0;
+    std::vector<double> indata(t.getShape().totalSize());
+    while(inputfile.read(reinterpret_cast<char *>(&a), sizeof(a)))
+    {
+        indata[count++] = a;
+    }
+    t.populate(indata);
+
+    mv::QuantizationParams q({137}, {0.00282943}, {0},{0});
+    t.set<mv::QuantizationParams>("quantizationParams",q);
+    ASSERT_NO_THROW(t.setSparse());
+    ASSERT_TRUE(t.isSparse());
+    std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();
+
+    std::vector<double> res = sparsityMap->getData();
+    std::vector<double> data_res = t.getData();
+    //reference result of sparsity map
+    std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res2a_branch2a_weigths_output.bin"), std::ios::binary );
+
+    std::vector<double> refdata(res.size());
+    count = 0;
+    while(outputfile.read(reinterpret_cast<char *>(&a), sizeof(a)))
+    {
+        refdata[count++] = a;
+    }
+
+    ASSERT_TRUE(count == res.size());
+
+    for (unsigned i = 0; i < res.size(); ++i)
+    {
+        //std::cout<< i << std::endl;
+        ASSERT_EQ(res[i], refdata[i]);
+        for (size_t k=0; k < 8; k++)
+        {
+            if (data_res[i*8+k] == 137)
+                ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) == 0);
+            if (data_res[i*8+k] != 137)
+                ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) != 0);
+        }
+    }
+
+    mv::Shape seShape({1,1,1,64});
+    ASSERT_TRUE(seShape == t.getStorageElement()->getShape());
+
+    mv::Shape sparsityMapShape({1,1,8,64});
+    ASSERT_TRUE(sparsityMapShape == sparsityMap->getShape());
+}
+
+TEST(tensor, sparsity_res3a_branch2c)
+{
+    //Example of weights in res3a_branch2c
+    mv::Shape tShape({1, 1, 128, 512});
+    mv::Tensor t("res3a_branch2c_weigths", tShape, mv::DType("UInt8"), mv::Order("NWHC"));
+    std::ifstream inputfile(mv::utils::projectRootPath() + std::string("/tests/data/res3a_branch2c_weigths_input.bin"), std::ios::binary );
+
+    uint8_t a;
+    size_t count = 0;
+    std::vector<double> indata(t.getShape().totalSize());
+    while(inputfile.read(reinterpret_cast<char *>(&a), sizeof(a)))
+    {
+        indata[count++] = a;
+    }
+    t.populate(indata);
+
+    mv::QuantizationParams q({137}, {0.00361593}, {0},{0});
+    t.set<mv::QuantizationParams>("quantizationParams",q);
+    ASSERT_NO_THROW(t.setSparse());
+    ASSERT_TRUE(t.isSparse());
+    std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();
+
+    std::vector<double> res = sparsityMap->getData();
+    std::vector<double> data_res = t.getData();
+
+    //reference result of sparsity map
+    std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res3a_branch2c_weigths_output.bin"), std::ios::binary );
+
+    std::vector<double> refdata(res.size());
+    count = 0;
+    while(outputfile.read(reinterpret_cast<char *>(&a), sizeof(a)))
+    {
+        refdata[count++] = a;
+    }
+
+    ASSERT_TRUE(count == res.size());
+    for (unsigned i = 0; i < res.size(); ++i)
+    {
+        for (size_t k=0; k < 8; k++)
+        {
+            if (data_res[i*8+k] == 137)
+                ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) == 0);
+            if (data_res[i*8+k] != 137)
+                ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) != 0);
+        }
+        ASSERT_EQ(res[i], refdata[i]);
+    }
+
+    mv::Shape seShape({1,1,1,512});
+    ASSERT_TRUE(seShape == t.getStorageElement()->getShape());
+
+    mv::Shape sparsityMapShape({1,1,16,512});
+    ASSERT_TRUE(sparsityMapShape == sparsityMap->getShape());
+
+    std::vector<double> denseData = t.getDataPacked();
+    count = 0;
+    size_t j = 0;
+    for (unsigned i = 0; i < data_res.size(); ++i)
+    {
+        if (data_res[i] != 137)
+        {
+            ASSERT_TRUE(data_res[i] == denseData[j]);
+            j++;
+        }
+        else
+        {
+            count++;
+        }
+
+    }
+    ASSERT_TRUE((count + denseData.size()) == data_res.size());
+}
+
+//VPUNND-391
+TEST(tensor, testing_at)
+{
+    mv::Shape tShape({1, 1, 128, 512});
+    mv::Tensor t("res3a_branch2c_weigths", tShape, mv::DType("UInt8"), mv::Order("WCNH"));
+    std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
+    t.populate(data);
+    std::vector<double> resdata = t.getData();
+    for(size_t i=0; i< resdata.size();i++)
+        ASSERT_TRUE(t.at(i) == resdata[i]);
+
+
 }
