@@ -27,13 +27,69 @@ namespace mv
     }
 }
 
-mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<double>& sparsityMapData)
+mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<double>& sparsityMapData)
 {
     auto sparsityMap = om.constant(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(sparsityMap);
+    om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
+
+    return sparsityMap;
+}
+
+
+mv::Data::TensorIterator createSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, mv::Data::TensorIterator tensor)
+{
+    mv::ControlModel cm(om);
+
+    auto tensorShape = tensor->getShape();
+    std::string tensorName = tensor->getName();
+    tensorName.pop_back(); tensorName.pop_back(); //Necessary for .dot files
+
+    std::string sparsityMapName(tensorName+"SparsityMap");
+    auto sparsityMap = om.sparsityMap(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
+    tensor->set<bool>("sparse", true);
+
+    if(tensor->isPopulated())
+    {
+        auto data = tensor->getData();
+        auto nonZeroElements = 0;
+        //default all zeropoints to zero
+        std::vector<unsigned> zeroPoint = tensor->getZeroPointsPerChannel();
+        std::vector<double> sparsityMapData(sparsityMap->getShape().totalSize());
+        std::vector<size_t> sub(tensorShape.ndims());
+        uint8_t map;
+
+        auto internalOrder = tensor->getInternalOrder();
+        auto order = tensor->getOrder();
+
+        for (size_t t = 0; t < tensorShape.totalSize(); t += 8)
+        {
+            map = 0;
+            for (size_t i = 0; i < 8; i++)
+            {
+                sub = order.indToSub(tensorShape, t+i);
+                if (sub[2] < tensorShape[2] && data[internalOrder.subToInd(tensorShape, sub)] != zeroPoint[sub[3]])
+                {
+                    map += 1 << i;
+                    nonZeroElements++;
+                }
+            }
+            sparsityMapData[t/8] = map;
+        }
+        sparsityMap->populate(sparsityMapData);
+
+        //BUG: Why does this give segfault?
+        sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
+    }
+
+    dpuTaskOp->addInputTensor(sparsityMap);
+    om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
+    std::string deallocationTaskName = sparsityMapName+"Deallocate";
+    om.deallocate(sparsityMap,deallocationTaskName);
+    cm.defineFlow(dpuTaskOp, om.getOp(deallocationTaskName));
 
     return sparsityMap;
 }
@@ -42,7 +98,7 @@ mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterato
 {
     std::vector<double> weightTableData(4 * outputChannels, 0);
 
-    // WeightTableData should be filled here using packing information (and quantization information maybe?)
+    // WeightTableData should be filled here using packing information coming from Sparsity map (and quantization information maybe?)
     for(unsigned i = 0; i < outputChannels; ++i)
     {
         weightTableData[i + 0] = 0; //DATA_PTR
@@ -125,9 +181,18 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-bool isZMajor(mv::Order order)
+// This function is necessary, as DMA task hide populated tensors (but should they do it in the first place?)
+
+mv::Data::TensorIterator findSourceOperation(mv::OpModel om, mv::Data::TensorIterator tensor)
 {
-    return (order == mv::Order("NWHC") || order == mv::Order("WHC") || order == mv::Order("WHCN"));
+    auto op = om.getSourceOp(tensor);
+    while(op->getOpType() == "DMATask")
+    {
+        tensor = op->getInputTensor(0);
+        op = om.getSourceOp(tensor);
+    }
+
+    return tensor;
 }
 
 static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
@@ -217,11 +282,10 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 std::string sparsityMapName(opName + "SparsityMap");
                 std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
-                auto sparsityMap = addSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor->getData());
+                auto sparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor->getData());
 
                 dm.undefineTensor(sparsityTensor);
 
-                om.defineFlow(sparsityMap, dpuTask, dpuTask->inputSlots());
                 om.deallocate(sparsityMap, sparsityMapDeallocationName);
                 auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
 
@@ -231,21 +295,25 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
             else
             {
-                for (unsigned i = 0; i < dpuTask->getInputTensor().size(); i++)
-                    if (isZMajor(dpuTask->getInputTensor(i)->getOrder()))
-                        dpuTask->getInputTensor(i)->setSparse();
-                for (unsigned i = 0; i < dpuTask->getOutputTensor().size(); i++)
-                    if (isZMajor(dpuTask->getOutputTensor(i)->getOrder()))
-                        dpuTask->getOutputTensor(i)->setSparse();
+                // Necessary since we are adding tensors to DPUTask
+                unsigned n = dpuTask->getInputTensor().size();
+                for (unsigned i = 0; i < n; ++i)
+                    if (dpuTask->getInputTensor(i)->getOrder().isZMajor())
+                        createSparsityMap(om, dpuTask, findSourceOperation(om, dpuTask->getInputTensor(i)));
+
+//                n = dpuTask->getOutputTensor().size();
+//                for (unsigned i = 0; i < n; ++i)
+//                    if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+//                        createSparsityMap(om, dpuTask, dpuTask->getOutputTensor(i));
 
                 //If HW layer and has weights
-                if (dpuTask->inputSlots() > 1 &&
-                    isZMajor(dpuTask->getInputTensor(0)->getOrder()))
-                {
-                    auto weights = dpuTask->getInputTensor(1);
-                    weights->setOrder(mv::Order("NWHC"));
-                    weights->setSparse();
-                }
+//                if (dpuTask->inputSlots() > 1 &&
+//                    dpuTask->getInputTensor(0)->getOrder().isZMajor())
+//                {
+//                    auto weights = dpuTask->getInputTensor(1);
+//                    weights->setOrder(mv::Order("NWHC"));
+//                    createSparsityMap(om, dpuTask, weights);
+//                }
             }
         }
     }
