@@ -17,7 +17,8 @@ TEST(sparsity, case_cm)
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
     auto convOp = om.getSourceOp(conv);
 
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyCompDesc("dummyPassDesc");
+
     mv::json::Object compOutput;
     mv::TargetDescriptor desc;
 
@@ -62,14 +63,14 @@ TEST(sparsity, case_hwPooling)
     auto pool = om.maxPool(input, {1,1}, {1, 1}, {0, 0, 0, 0}); //stride {1,1}
     auto poolOp = om.getSourceOp(pool);
     auto output = om.output(pool);
-    mv::json::Object dummyCompDesc;
+    mv::Element dummyPassDesc("dummyPassDesc");
     mv::json::Object compOutput;
     mv::TargetDescriptor desc;
 
     desc.setTarget(mv::Target::ma2490);
 
-    mv::pass::PassRegistry::instance().find("MarkHardwareOperations")->run(om, desc, dummyCompDesc, compOutput);
-    mv::pass::PassRegistry::instance().find("Sparsity")->run(om, desc, dummyCompDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("MarkHardwareOperations")->run(om, desc, dummyPassDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("Sparsity")->run(om, desc, dummyPassDesc, compOutput);
 
     //ref data is based on result on POC test res5c/quantized_model.tflite
     mv::DataModel dm(om);

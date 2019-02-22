@@ -7,7 +7,8 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <math.h>
 
-static void setSparsityFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&);
+static void setSparsityFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+
 
 namespace mv
 {
@@ -17,7 +18,6 @@ namespace mv
 
         MV_REGISTER_PASS(Sparsity)
         .setFunc(setSparsityFnc)
-        .setGenre(PassGenre::Finalization)
         .setDescription(
             "Add sparsity map for layers/tensor that qualify"
         );
@@ -66,8 +66,7 @@ bool isZMajor(mv::Order order)
 {
     return (order == mv::Order("NWHC") || order == mv::Order("WHC") || order == mv::Order("WHCN"));
 }
-
-void setSparsityFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object&, mv::json::Object&)
+void setSparsityFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Sparsity Optimization Started");
 
