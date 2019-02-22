@@ -240,7 +240,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, Data::TensorIterator t)
+std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     // NOTE: In the future tensor->toBinary() will probably handle also the sparsity map associated to the tensor.
     // Or maybe not, we will see
@@ -270,10 +270,10 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     // NEW approach
-    auto tensorData = t->getData();
+    auto tensorData = t.getData();
     toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
-    toBuild->length = t->getShape().totalSize();
-    toBuild->underlying_type = convertDtype(t->getDType());
+    toBuild->length = t.getShape().totalSize();
+    toBuild->underlying_type = convertDtype(t.getDType());
 
     return toBuild;
 }
@@ -612,7 +612,11 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorEnd(); ++tensorIt)
     {
         if(tensorIt->isPopulated())
-            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, tensorIt));
+        {
+            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
+            if (tensorIt->isSparse())
+                graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt->getSparsityMap()));
+        }
     }
 }
 
