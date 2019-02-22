@@ -60,7 +60,12 @@
         "Singular" :
         [
             "PopulateSerialFields",
-            "GenerateBlob"
+            {
+                "name" : "GenerateBlob",
+                "fileName" : "cpp.blob",
+                "enableFileOutput" : true,
+                "enableRAMOutput" : false
+            }
         ]
     },
 
