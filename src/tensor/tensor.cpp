@@ -152,7 +152,7 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
     return storageElement_;
 }
 
-std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel_()
+std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel()
 {
     //default all zeropoints to zero
     std::vector<unsigned> zeroPoint(getShape()[3]);
@@ -165,10 +165,15 @@ std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel_()
     return zeroPoint;
 }
 
+const mv::Order& mv::Tensor::getInternalOrder() const
+{
+    return internalOrder_;
+}
+
 void mv::Tensor::populateSparsityMapTensor_()
 {
     //default all zeropoints to zero
-    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
+    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
     std::vector<double> sparsityMapData(sparsityMap_->getShape().totalSize());
     std::vector<size_t> sub(getShape().ndims());
     uint8_t map;
@@ -188,6 +193,7 @@ void mv::Tensor::populateSparsityMapTensor_()
     }
     sparsityMap_->populate(sparsityMapData);
 }
+
 void mv::Tensor::setSparse()
 {
     if (getOrder() != mv::Order("NWHC"))
@@ -366,7 +372,7 @@ std::vector<double> mv::Tensor::getDataPacked()
         return getData();
 
     std::vector<std::size_t> sub(getShape().ndims());
-    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
+    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
     std::vector<double> orderedDataPacked;
     double datai;
     orderedDataPacked.reserve(noneZeroElements_);

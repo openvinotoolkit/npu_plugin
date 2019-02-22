@@ -32,11 +32,11 @@ namespace mv
 
         std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
-        std::vector<unsigned> getZeroPointsPerChannel_();
         void populateSparsityMapTensor_();
 
 
     public:
+        std::vector<unsigned> getZeroPointsPerChannel();
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
@@ -67,6 +67,7 @@ namespace mv
         DType getDType() const;
         void setOrder(Order order);
         Order getOrder() const;
+        const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
 
         void add(const Tensor& other);
