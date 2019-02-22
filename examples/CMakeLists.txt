@@ -75,6 +75,7 @@ else()
 	target_link_libraries(standalone_tanh cm)
 
 	add_executable(standalone_sigmoid standalone_sigmoid.cpp)
+
 	target_link_libraries(standalone_sigmoid cm)
 
 	add_executable(standalone_relu standalone_relu.cpp)
@@ -94,6 +95,9 @@ else()
 
 	add_executable(dpu_conv_example dpu_conv_example.cpp)
 	target_link_libraries(dpu_conv_example cm)
+
+	add_executable(zconv_example zconv_example.cpp)
+	target_link_libraries(zconv_example cm)
 
 	add_executable(dpu_task_example dpu_task_example.cpp)
 	target_link_libraries(dpu_task_example cm)
