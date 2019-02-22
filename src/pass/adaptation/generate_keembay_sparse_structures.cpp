@@ -2,6 +2,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include <math.h>
 
 static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -26,21 +27,13 @@ namespace mv
     }
 }
 
-mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, unsigned tensorSize)
+mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<double>& sparsityMapData)
 {
-    // TensorSize is not actually needed. Sparsity map has to be added based either on
-    // 1) Pattern generation given by cheat sheet
-    // 2) Information given by the user.
-
-    // This method is just a STUB to obtain a proper graph
-    std::vector<double> sparsityMapData(tensorSize, 1);
-    auto sparsityMap = om.constant(sparsityMapData, {tensorSize}, mv::DType("UInt32"), mv::Order("W"), sparsityMapName);
+    auto sparsityMap = om.constant(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(sparsityMap);
-
-    // Weight tensor packing should be done here
 
     return sparsityMap;
 }
@@ -94,34 +87,166 @@ static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
     }
 }
 
-// WARNING: This function is valid only for sparsity map relative to Weights
-// (Sparsity maps can also be relative to input)
+uint16_t getWindowSize(uint16_t kx, uint16_t sx)
+{
+    //Find max mpe where if calc window <= 32
+    //return window size for the max mpe
+    uint16_t windowSize, maxMpeWindowSize = 64;
+    int mpe = 1;
+
+    //mpe in [1,2,4,8,16]
+    while(mpe <= 16)
+    {
+        if (sx <= kx)
+            windowSize = kx + sx * (mpe - 1);
+        else
+            windowSize = kx * mpe;
+
+        if (windowSize <= 32)
+            maxMpeWindowSize = windowSize;
+
+        mpe *= 2;
+    }
+
+    return maxMpeWindowSize;
+}
+
+std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_t windowsSize, uint16_t inputChannels)
+{
+    std::vector<int8_t> bitpattern;
+    bitpattern.reserve(windowsSize*kernelH*inputChannels);
+    for(size_t c = 0; c < inputChannels; c++)
+        for(size_t y = 0; y < kernelH; y++)
+            for(size_t x = 0; x < windowsSize; x++)
+                if (x < kernelW)
+                    bitpattern.emplace_back(1);
+                else
+                    bitpattern.emplace_back(0);
+    return bitpattern;
+}
+
+bool isZMajor(mv::Order order)
+{
+    return (order == mv::Order("NWHC") || order == mv::Order("WHC") || order == mv::Order("WHCN"));
+}
+
 static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
+    mv::DataModel dm(model);
 
-    // NOTE: Extra check needed for the only operation that doesn't need a sparsity map
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
-            auto opId = dpuTask->get<unsigned>("opId");
-            unsigned sparsityMapSize;
-            std::string opName = dpuTask->getName();
+            std::string taskOp = dpuTask->get<std::string>("taskOp");
+            pass.log(mv::Logger::MessageType::Debug, " taskOp "  + dpuTask->get<std::string>("taskOp"));
+            bool isConv = taskOp == "ChannelMajorConvolution";
+            bool isPooling = taskOp == "MaxPool";
+            bool isDepthWiseConv = taskOp == "DepthwiseConv";
 
-            sparsityMapSize = dpuTask->getOutputTensor(0)->getShape().totalSize();
+            //for max pooling and deptwise convolution and channel-major convolution we need to generate sparsity data
+            //even if those layers does not support sparsity.
+            if (isPooling || isDepthWiseConv || isConv)
+            {
+                uint16_t kernelW, kernelH;
 
-            std::string sparsityMapName(opName + "SparsityMap");
-            std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
-            auto sparsityMap = addSparsityMap(om, dpuTask, sparsityMapName, sparsityMapSize);
+                auto strides = dpuTask->get<std::array<unsigned short, 2>>("stride");
+                auto inputChannels = dpuTask->getInputTensor(0)->getShape()[2];
+                auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[2];
 
-            om.defineFlow(sparsityMap, dpuTask, dpuTask->inputSlots());
-            om.deallocate(sparsityMap, sparsityMapDeallocationName);
-            auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
+                if (isPooling)
+                {
+                    auto kernelShape = dpuTask->get<std::array<unsigned short, 2>>("kSize");
+                    kernelW = kernelShape[0];
+                    kernelH = kernelShape[1];
+                }
+                else// its a depthwise conv or conv with NCHW layout
+                {
+                    auto weightsShape = dpuTask->getInputTensor(1)->getShape();
+                    kernelW = weightsShape[0];
+                    kernelH = weightsShape[1];
+                }
 
-            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
-            cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
+                auto windowsSize = getWindowSize(kernelW, strides[0]);
+
+                pass.log(mv::Logger::MessageType::Debug, "windowSize " + std::to_string(windowsSize));
+                pass.log(mv::Logger::MessageType::Debug, "OutputChannels " + std::to_string(outputChannels));
+
+                std::vector<int8_t> bitpattern;
+                std::vector<uint8_t> perChannelSparsity;
+                std::vector<std::size_t> ndims(4);
+                if (isPooling || isDepthWiseConv)
+                {
+                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, 1));
+                    perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);//allocate once
+                    ndims = {16, static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, inputChannels};
+                }
+                else
+                {
+                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));
+                    auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8)); //how many bytes we need per window
+                    auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
+                    perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
+                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
+                }
+
+                //populate sparsity
+                pass.log(mv::Logger::MessageType::Debug, " perChannelSize = " + std::to_string(perChannelSparsity.size()) );
+                for (size_t i = 0; i < bitpattern.size(); i++)
+                {
+                    //pass.log(mv::Logger::MessageType::Debug, " i = " + std::to_string(i));
+                    //pass.log(mv::Logger::MessageType::Debug, " perChannelIDx = " + std::to_string(((i/128)*16 + (i%128)/8)) );
+                    perChannelSparsity.at((i/128)*16 + (i%128)/8) |= bitpattern[i] << (i%8); //use at to check boundaries - just in case
+                }
+
+                //Create Tensor with Sparsity Data
+                mv::Shape sparsityShape(ndims);
+                std::vector<double> data(sparsityShape.totalSize(), 0);
+                auto sparsityTensor = dm.defineTensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), data);
+
+                for(unsigned kx = 0; kx < sparsityShape[0]; ++kx)
+                    for(unsigned ky = 0; ky < sparsityShape[1]; ++ky)
+                        for(unsigned ic = 0; ic < sparsityShape[2]; ++ic)
+                            for(unsigned oc = 0; oc < sparsityShape[3]; ++oc)
+                                sparsityTensor->at({kx, ky, ic, oc}) = perChannelSparsity[ky*sparsityShape[0] + kx];
+
+                auto opId = dpuTask->get<unsigned>("opId");
+                std::string opName = dpuTask->getName();
+
+                std::string sparsityMapName(opName + "SparsityMap");
+                std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
+                auto sparsityMap = addSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor->getData());
+
+                dm.undefineTensor(sparsityTensor);
+
+                om.defineFlow(sparsityMap, dpuTask, dpuTask->inputSlots());
+                om.deallocate(sparsityMap, sparsityMapDeallocationName);
+                auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
+
+                dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
+                cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
+                dpuTask->set<bool>("fakeSparsity", true);
+            }
+            else
+            {
+                for (unsigned i = 0; i < dpuTask->getInputTensor().size(); i++)
+                    if (isZMajor(dpuTask->getInputTensor(i)->getOrder()))
+                        dpuTask->getInputTensor(i)->setSparse();
+                for (unsigned i = 0; i < dpuTask->getOutputTensor().size(); i++)
+                    if (isZMajor(dpuTask->getOutputTensor(i)->getOrder()))
+                        dpuTask->getOutputTensor(i)->setSparse();
+
+                //If HW layer and has weights
+                if (dpuTask->inputSlots() > 1 &&
+                    isZMajor(dpuTask->getInputTensor(0)->getOrder()))
+                {
+                    auto weights = dpuTask->getInputTensor(1);
+                    weights->setOrder(mv::Order("NWHC"));
+                    weights->setSparse();
+                }
+            }
         }
     }
 }
