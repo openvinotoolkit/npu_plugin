@@ -292,7 +292,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        if ((opIt->getOpType() == "DPUTask") && (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution"))
+        if (opIt->getOpType() == "DPUTask")
         {
 
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + "of type " + opIt->get<std::string>("taskOp"));
