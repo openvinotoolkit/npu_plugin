@@ -390,8 +390,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
             /*Add workloads as Attribute*/
             opIt->set<mv::Workloads>("Workloads", workloads);
             std::string validatePartition = validate_workloads(outputTensor, workloads) ? "True" : "False";
-
-            std::cout<<"METIS partition validation is passing (True/False): "<< validatePartition<<std::endl;
+            pass.log(mv::Logger::MessageType::Debug, "METIS partition has passed (True/False): "+ validatePartition);
+            //std::cout<<"METIS partition validation is passing (True/False): "<< validatePartition<<std::endl;
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
@@ -411,7 +411,7 @@ static bool validate_workloads(std::vector<mv::Data::TensorIterator> &inputTenso
     {
         //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of total number of the partitions <=0");
-        std::cout << "METIS partition failed because of the total number of partitions is <=0"<< std::endl;
+        //std::cout << "METIS partition failed because of the total number of partitions is <=0"<< std::endl;
         return false;
     }
 
@@ -420,7 +420,7 @@ static bool validate_workloads(std::vector<mv::Data::TensorIterator> &inputTenso
     {
         //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of volume differences between Original Tensor and partitioned tensors");
-        std::cout << "volumes are different. OutputTensor Volume: " << inputTensor[0]->getShape().totalSize() << "; Total volume of workloads: " << workloads.getAllWorkloadsVolume() << std::endl;
+        //std::cout << "volumes are different. OutputTensor Volume: " << inputTensor[0]->getShape().totalSize() << "; Total volume of workloads: " << workloads.getAllWorkloadsVolume() << std::endl;
         return false;
     }
 
@@ -429,7 +429,7 @@ static bool validate_workloads(std::vector<mv::Data::TensorIterator> &inputTenso
     {
         //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of vertices/bounds being different between Original Tensor and partitioned tensors");
-        std::cout<<"Vertices are different between the outputTensor and the bounds of the (total) workloads"<<std::endl;
+        //std::cout<<"Vertices are different between the outputTensor and the bounds of the (total) workloads"<<std::endl;
         return false;
     }
 
@@ -438,7 +438,7 @@ static bool validate_workloads(std::vector<mv::Data::TensorIterator> &inputTenso
     {
         //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
-        std::cout<<"Metis partition failed because of overlap of the paritioned tensors"<<std::endl;
+        //std::cout<<"Metis partition failed because of overlap of the paritioned tensors"<<std::endl;
         return false;
     }
 
