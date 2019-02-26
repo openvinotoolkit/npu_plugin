@@ -99,6 +99,17 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, co
 
 }
 
+mv::Data::TensorIterator mv::DataModel::defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data)
+{
+
+    if (tensors_->find(name) != tensors_->end())
+        throw ArgumentError(*this, "Tensor::name", name, "Duplicated");
+
+    auto result = tensors_->emplace(name, std::make_shared<Tensor>(name, shape, dType, order, data));
+    log(Logger::MessageType::Info, "Defined " + result.first->second->toString());
+    return result.first;
+
+}
 mv::Data::TensorIterator mv::DataModel::defineTensor(const Tensor& tensor)
 {
 

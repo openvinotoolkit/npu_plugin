@@ -141,7 +141,7 @@ void setSparsityFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model
 
             //Create Tensor with Sparsity Data
             mv::Shape sparsityShape(ndims);
-            std::vector<double> data(sparsityShape.totalSize(), 0);
+            std::vector<int64_t> data(sparsityShape.totalSize(), 0);
             //mv::Tensor sparsityTensor("backup", sparsityShape, mv::DType("UInt8"), mv::Order("WHCN"), data);
             auto sparsityTensor = dm.defineTensor(opIterator->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), data);
 

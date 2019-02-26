@@ -18,8 +18,13 @@ namespace mv
 
     class Tensor : public Element
     {
+        enum InternalType{
+            Int,
+            Double
+        };
 
-        std::vector<double> data_;
+        std::vector<double> doubleData_;
+        std::vector<int64_t> intData_;
         std::size_t blockSize_;
         std::vector<std::vector<double>::iterator> blocks_;
         Shape shape_;
@@ -35,16 +40,19 @@ namespace mv
         std::vector<unsigned> getZeroPointsPerChannel_();
         void populateSparsityMapTensor_();
 
-
+        InternalType getInternalType_(DType dtype);
     public:
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
         Tensor(const Tensor& other);
         ~Tensor();
 
         void populate(const std::vector<double>& data);
         void populate(const std::vector<double>& data, Order order);
+        void populate(const std::vector<int64_t>& data);
+        void populate(const std::vector<int64_t>& data, Order order);
         void unpopulate();
 
         void setSparse();
@@ -61,8 +69,13 @@ namespace mv
         void bindData(Tensor& other, const std::vector<std::size_t>& leftPadding = {}, const std::vector<std::size_t>& rightPadding = {});
         void broadcast(const Shape& shape);
 
-        std::vector<double> getData();
-        std::vector<double> getDataPacked();
+        bool isDoubleType() {
+            return getInternalType_(getDType()) == Double;
+        }
+        std::vector<double> getDoubleData();
+        std::vector<double> getDoubleDataPacked();
+        std::vector<int64_t> getIntData();
+        std::vector<int64_t> getIntDataPacked();
         void setDType(DType dType);
         DType getDType() const;
         void setOrder(Order order);

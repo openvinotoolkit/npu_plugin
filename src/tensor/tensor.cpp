@@ -4,7 +4,7 @@
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order) :
 Element(name),
-data_(shape.totalSize()),
+doubleData_(shape.totalSize()),
 blockSize_(shape[-1]),
 blocks_(shape.totalSize() / blockSize_),
 shape_(shape),
@@ -20,7 +20,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<bool>("populated", false);
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
-        blocks_[i] = data_.begin() + i * blockSize_;
+        blocks_[i] = doubleData_.begin() + i * blockSize_;
 
 }
 
@@ -30,9 +30,16 @@ Tensor(name, shape, dType, order)
     populate(data, order);
 }
 
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data) :
+Tensor(name, shape, dType, order)
+{
+    if (isDoubleType())
+        throw ArgumentError(*this, "data", "int type", "cannot set int data to a double dataType");
+    populate(data, order);
+}
 mv::Tensor::Tensor(const Tensor &other) :
 Element(other),
-data_(other.data_.size()),
+doubleData_(other.doubleData_.size()),
 blockSize_(other.blockSize_),
 blocks_(other.blocks_.size()),
 shape_(other.shape_),
@@ -42,16 +49,23 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
     log(Logger::MessageType::Debug, "Copied");
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
-        blocks_[i] = data_.begin() + i * blockSize_;
+        blocks_[i] = doubleData_.begin() + i * blockSize_;
 
     if (isPopulated())
-        data_ = other.data_;
+        doubleData_ = other.doubleData_;
 
 }
 
 mv::Tensor::~Tensor()
 {
     log(Logger::MessageType::Debug, "Deleted");
+}
+
+mv::Tensor::InternalType mv::Tensor::getInternalType_(DType dtype)
+{
+    if (dtype == DType("Float8") || dtype == DType("Float16") || dtype == DType("Float32") || dtype == DType("Float64"))
+        return Double;
+    return Int;
 }
 
 std::vector<std::size_t> mv::Tensor::indToSub_(const Shape& s, unsigned index) const
@@ -93,6 +107,9 @@ unsigned mv::Tensor::subToInd_(const Shape& s, const std::vector<std::size_t>& s
 
 void mv::Tensor::populate(const std::vector<double>& data)
 {
+    if (!isDoubleType())
+        throw ArgumentError(*this, "data vector", "type double", "Unable to populate, data type is not double"
+            "DType of tensor is " + getDType().toString() + " but populating with double data");
 
     if (data.size() != getShape().totalSize())
         throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
@@ -101,14 +118,14 @@ void mv::Tensor::populate(const std::vector<double>& data)
     if (getOrder() != internalOrder_)
     {
         std::vector<std::size_t> sub(getShape().ndims());
-        for (std::size_t i = 0; i < data_.size(); ++i)
+        for (std::size_t i = 0; i < doubleData_.size(); ++i)
         {
             sub = getOrder().indToSub(getShape(), i);
-            data_[internalOrder_.subToInd(getShape(), sub)] = data[i];
+            doubleData_[internalOrder_.subToInd(getShape(), sub)] = data[i];
         }
     }
     else
-        data_ = data;
+        doubleData_ = data;
     set("populated", true);
     log(Logger::MessageType::Debug, "Populated");
 
@@ -117,7 +134,41 @@ void mv::Tensor::populate(const std::vector<double>& data)
         populateSparsityMapTensor_();
 }
 
+void mv::Tensor::populate(const std::vector<int64_t>& data)
+{
+    if (isDoubleType())
+        throw ArgumentError(*this, "data vector", "type int", "Unable to populate, data type is not int"
+            "DType of tensor is " + getDType().toString() + " but populating with int data");
+
+    if (data.size() != getShape().totalSize())
+        throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
+            "does not match total size the tensor (" + std::to_string(getShape().totalSize()) + ")");
+
+    if (getOrder() != internalOrder_)
+    {
+        std::vector<std::size_t> sub(getShape().ndims());
+        for (std::size_t i = 0; i < intData_.size(); ++i)
+        {
+            sub = getOrder().indToSub(getShape(), i);
+            intData_[internalOrder_.subToInd(getShape(), sub)] = data[i];
+        }
+    }
+    else
+        intData_ = data;
+    set("populated", true);
+    log(Logger::MessageType::Debug, "Populated");
+
+    //if sparse then call sparsify
+    if (isSparse())
+        populateSparsityMapTensor_();
+}
 void mv::Tensor::populate(const std::vector<double>& data, Order order)
+{
+    set<Order>("order", order);
+    populate(data);
+}
+
+void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
 {
     set<Order>("order", order);
     populate(data);
@@ -128,7 +179,11 @@ void mv::Tensor::unpopulate()
     if (!isPopulated())
         return;
 
-    data_.clear();
+    if(isDoubleType())
+        doubleData_.clear();
+    else
+        intData_.clear();
+
     set<bool>("populated", false);
 
     //sparsity map tensor need to unpopulate as well
@@ -178,11 +233,18 @@ void mv::Tensor::populateSparsityMapTensor_()
         for (size_t i = 0; i < 8; i++)
         {
             sub = getOrder().indToSub(getShape(), t+i);
-            if (sub[2] < getShape()[2] && data_[internalOrder_.subToInd(getShape(), sub)] != zeroPoint[sub[3]])
-            {
-                map += 1 << i;
-                noneZeroElements_++;
-            }
+            if (isDoubleType())
+                if (sub[2] < getShape()[2] && doubleData_[internalOrder_.subToInd(getShape(), sub)] != zeroPoint[sub[3]])
+                {
+                    map += 1 << i;
+                    noneZeroElements_++;
+                }
+            else
+                if (sub[2] < getShape()[2] && intData_[internalOrder_.subToInd(getShape(), sub)] != zeroPoint[sub[3]])
+                {
+                    map += 1 << i;
+                    noneZeroElements_++;
+                }
         }
         sparsityMapData[t/8] = map;
     }
@@ -231,7 +293,8 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
         throw ArgumentError(*this, "rightPadding::size", std::to_string(rightPadding.size()), "Invalid dimension of the right padding vector,"
             " must be equal to the dimensionality of the master tensor, which is " + std::to_string(getShape().ndims()));
 
-    data_ = other.data_;
+    doubleData_ = other.doubleData_;
+    intData_ = other.intData_;
     set<bool>("populated", true);
     if (!leftPadding.empty())
         set<std::vector<std::size_t>>("leftPadding", leftPadding);
@@ -330,40 +393,42 @@ void mv::Tensor::broadcast(const Shape& shape)
 
         set<Shape>("shape", sO);
         shape_ = sO;
-        data_ = dataBuf;
+        doubleData_ = dataBuf; //TODO EMAN
 
     }
 
 }
 
 // TODO - Handle the case when tensor got deleted, by the reference is still in use
-std::vector<double> mv::Tensor::getData()
+std::vector<double> mv::Tensor::getDoubleData()
 {
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
+    if (!isDoubleType())
+        throw ValueError(*this, "Attempt of reading double data from an int type tensor");
+
     if (getOrder() == internalOrder_)
-        return data_;
-    
+        return doubleData_;
+
     std::vector<double> orderedData(getShape().totalSize());
     std::vector<std::size_t> sub(getShape().ndims());
-    for (std::size_t i = 0; i < data_.size(); ++i)
+    for (std::size_t i = 0; i < doubleData_.size(); ++i)
     {
         sub = internalOrder_.indToSub(getShape(), i);
-        orderedData[getOrder().subToInd(getShape(), sub)] = data_[i];
+        orderedData[getOrder().subToInd(getShape(), sub)] = doubleData_[i];
     }
 
     return orderedData;
-
 }
 
-std::vector<double> mv::Tensor::getDataPacked()
+std::vector<double> mv::Tensor::getDoubleDataPacked()
 {
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
     if (!isSparse())
-        return getData();
+        return getDoubleData();
 
     std::vector<std::size_t> sub(getShape().ndims());
     std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
@@ -371,10 +436,10 @@ std::vector<double> mv::Tensor::getDataPacked()
     double datai;
     orderedDataPacked.reserve(noneZeroElements_);
 
-    for (std::size_t i = 0; i < data_.size(); ++i)
+    for (std::size_t i = 0; i < doubleData_.size(); ++i)
     {
         sub = getOrder().indToSub(getShape(), i);
-        datai = data_[internalOrder_.subToInd(getShape(), sub)];
+        datai = doubleData_[internalOrder_.subToInd(getShape(), sub)];
         if (datai != zeroPoint[sub[2]]) //sub[2] is C
             orderedDataPacked.emplace_back(datai);
     }
@@ -382,6 +447,52 @@ std::vector<double> mv::Tensor::getDataPacked()
     return orderedDataPacked;
 }
 
+std::vector<int64_t> mv::Tensor::getIntDataPacked()
+{
+    if (!isPopulated())
+        throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
+
+    if (!isSparse())
+        return getIntData();
+
+    std::vector<std::size_t> sub(getShape().ndims());
+    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel_();
+    std::vector<int64_t> orderedDataPacked;
+    double datai;
+    orderedDataPacked.reserve(noneZeroElements_);
+
+    for (std::size_t i = 0; i < intData_.size(); ++i)
+    {
+        sub = getOrder().indToSub(getShape(), i);
+        datai = intData_[internalOrder_.subToInd(getShape(), sub)];
+        if (datai != zeroPoint[sub[2]]) //sub[2] is C
+            orderedDataPacked.emplace_back(datai);
+    }
+
+    return orderedDataPacked;
+}
+
+std::vector<int64_t> mv::Tensor::getIntData()
+{
+    if (!isPopulated())
+        throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
+
+    if (isDoubleType())
+        throw ValueError(*this, "Attempt of reading int data from an double type tensor");
+
+    if (getOrder() == internalOrder_)
+        return intData_;
+
+    std::vector<int64_t> orderedData(getShape().totalSize());
+    std::vector<std::size_t> sub(getShape().ndims());
+    for (std::size_t i = 0; i < intData_.size(); ++i)
+    {
+        sub = internalOrder_.indToSub(getShape(), i);
+        orderedData[getOrder().subToInd(getShape(), sub)] = intData_[i];
+    }
+
+    return orderedData;
+}
 mv::DType mv::Tensor::getDType() const
 {
     return get<DType>("dType");
@@ -420,10 +531,16 @@ void mv::Tensor::elementWise_(const Tensor& other, const std::function<double(do
     for (std::size_t i = 1; i <= s2.ndims(); ++i)
         if (s1[-i] != s2[-i])
             throw ArgumentError(*this, "input tensor:Shape", s2.toString(),
-                "Currently unsupported in combination with " + s1.toString()); 
+                "Currently unsupported in combination with " + s1.toString());
 
     if (s1 == s2)
-        std::transform(data_.begin(), data_.end(), other.data_.begin(), data_.begin(), opFunc);
+        if (isDoubleType())//TODO EMAN handle mix and match?
+            std::transform(doubleData_.begin(), doubleData_.end(), other.doubleData_.begin(), doubleData_.begin(), opFunc);
+        else
+        {
+            std::transform(intData_.begin(), intData_.end(), other.intData_.begin(), intData_.begin(), opFunc);
+        }
+
     else
     {
 
@@ -443,7 +560,10 @@ void mv::Tensor::elementWise_(const Tensor& other, const std::function<double(do
 
 void mv::Tensor::add(const Tensor& other)
 {
-    elementWise_(other, std::plus<double>());
+    if (isDoubleType())
+        elementWise_(other, std::plus<double>());
+    else
+        elementWise_(other, std::plus<int64_t>());
 }
 
 void mv::Tensor::add(double val)
@@ -451,15 +571,22 @@ void mv::Tensor::add(double val)
 
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar addition operation for an unpopulated tensor");
-    
-    for (unsigned i = 0; i < data_.size(); ++i)
-        data_[i] += val;
 
+    if (isDoubleType())
+        for (unsigned i = 0; i < doubleData_.size(); ++i)
+            doubleData_[i] += val;
+    else
+        for (unsigned i = 0; i < intData_.size(); ++i)
+            intData_[i] += val;
 }
 
 void mv::Tensor::subtract(const Tensor& other)
 {
-    elementWise_(other, std::minus<double>());
+    if (isDoubleType())
+        elementWise_(other, std::minus<double>());
+    else
+        elementWise_(other, std::minus<int64_t>());
+
 }
 
 void mv::Tensor::subtract(double val)
@@ -468,24 +595,34 @@ void mv::Tensor::subtract(double val)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar subtraction operation for an unpopulated tensor");
 
-    for (unsigned i = 0; i < data_.size(); ++i)
-        data_[i] -= val;
+    if (isDoubleType())
+        for (unsigned i = 0; i < doubleData_.size(); ++i)
+            doubleData_[i] -= val;
+    else
+        for (unsigned i = 0; i < intData_.size(); ++i)
+            intData_[i] -= val;
 
 }
 
 void mv::Tensor::multiply(const Tensor& other)
 {
-    elementWise_(other, std::multiplies<double>());
+    if (isDoubleType())
+        elementWise_(other, std::multiplies<double>());
+    else
+        elementWise_(other, std::multiplies<int64_t>());
+
 }
 
 void mv::Tensor::multiply(double val)
 {
-
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar multiplication operation for an unpopulated tensor");
-
-    for (unsigned i = 0; i < data_.size(); ++i)
-        data_[i] *= val;
+    if (isDoubleType())
+        for (unsigned i = 0; i < doubleData_.size(); ++i)
+            doubleData_[i] *= val;
+    else
+        for (unsigned i = 0; i < intData_.size(); ++i)
+            intData_[i] *= val;
 
 }
 
@@ -495,14 +632,23 @@ void mv::Tensor::divide(double val)
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar division operation for an unpopulated tensor");
 
-    for (unsigned i = 0; i < data_.size(); ++i)
-        data_[i] /= val;
+    if (isDoubleType())
+        for (unsigned i = 0; i < doubleData_.size(); ++i)
+            doubleData_[i] /= val;
+    else
+        for (unsigned i = 0; i < intData_.size(); ++i)
+            intData_[i] /= val;
+
 
 }
 
 void mv::Tensor::divide(const Tensor& other)
 {
-    elementWise_(other, std::divides<double>());
+    if (isDoubleType())
+        elementWise_(other, std::divides<double>());
+    else
+        elementWise_(other, std::divides<int64_t>());
+
 }
 
 void mv::Tensor::sqrt()
@@ -510,9 +656,12 @@ void mv::Tensor::sqrt()
 
     if (!isPopulated())
         throw ValueError(*this, "Unable to perfom scalar square root operation for an unpopulated tensor");
-
-    for (unsigned i = 0; i < data_.size(); ++i)
-        data_[i] = std::sqrt(data_[i]);
+    if (isDoubleType())
+        for (unsigned i = 0; i < doubleData_.size(); ++i)
+            doubleData_[i] = std::sqrt(doubleData_[i]);
+    else
+        for (unsigned i = 0; i < doubleData_.size(); ++i)
+            intData_[i] = std::sqrt(intData_[i]);
 
 }
 
@@ -521,7 +670,7 @@ double& mv::Tensor::at(const std::vector<std::size_t>& sub)
     if (!isPopulated())
         throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
 
-    return data_[subToInd(sub)];
+    return doubleData_[subToInd(sub)];
 }
 
 const double& mv::Tensor::at(const std::vector<std::size_t>& sub) const
@@ -529,7 +678,7 @@ const double& mv::Tensor::at(const std::vector<std::size_t>& sub) const
     if (!isPopulated())
         throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
 
-    return data_[subToInd(sub)];
+    return doubleData_[subToInd(sub)];
 }
 
 double& mv::Tensor::at(std::size_t idx)
@@ -545,21 +694,21 @@ const double& mv::Tensor::at(std::size_t idx) const
     if (!isPopulated())
         throw ValueError(*this, "Unable to access the data value for an unpopulated tensor");
 
-    if (idx > data_.size())
+    if (idx > doubleData_.size())
         throw IndexError(*this, idx, "Exceeds the total lenght of data vector");
 
     if (hasAttr("master"))
     {
         std::vector<std::size_t> sub = indToSub(idx);
-        return data_[subToInd(sub)];
+        return doubleData_[subToInd(sub)];
 
     }
 
     if (getOrder() == internalOrder_)
-        return data_[idx];
+        return doubleData_[idx];
 
     auto sub = getOrder().indToSub(getShape(), idx);
-    return data_[internalOrder_.subToInd(getShape(), sub)];
+    return doubleData_[internalOrder_.subToInd(getShape(), sub)];
 
 }
 
@@ -580,18 +729,26 @@ double& mv::Tensor::operator()(const std::vector<std::size_t>& sub)
 
 mv::Tensor& mv::Tensor::operator=(const Tensor& other)
 {
-    
+
     Element::operator=(other);
-    data_ = std::vector<double>(other.data_.size());
+    doubleData_ = std::vector<double>(other.doubleData_.size());
+    intData_ = std::vector<int64_t>(other.intData_.size());
     blockSize_ = other.blockSize_;
     blocks_ = std::vector<std::vector<double>::iterator>(other.blocks_.size());
     shape_ = other.shape_;
 
     for (std::size_t i = 0; i < blocks_.size(); ++i)
-        blocks_[i] = data_.begin() + i * blockSize_;
+        //if (isDoubleType()) //TODO EMAN
+            blocks_[i] = doubleData_.begin() + i * blockSize_;
+        //else
+        //    blocks_[i] = intData_.begin() + i * blockSize_;
+
 
     if (isPopulated())
-        data_ = other.data_;
+    {
+        doubleData_ = other.doubleData_;
+        intData_ = other.intData_;
+    }
 
     return *this;
 
@@ -606,10 +763,14 @@ std::string mv::Tensor::getLogID() const
 {
     return "Tensor:" + getName();
 }
-
+//TODO all toBinaryFunctions should expect the right data
+//This should be if else case
 mv::BinaryData mv::Tensor::toBinary()
 {
-    return getDType().toBinary(getDataPacked());
+    //if (isDoubleType())
+        return getDType().toBinary(getDoubleDataPacked());
+    //else
+    //return getDType().toBinary(getIntDataPacked());
 }
 
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const

@@ -120,13 +120,26 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             if (opIterator->hasAttr("bias"))
             {
                 auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
-                auto data = bias->getData();
-                //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
-                //auto Z_bias = biasQuantization.getZeroPoint();
-                //auto S_bias = biasQuantization.getScale();
-                std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int32_t>());
-                bias->populate(data);
-                bias->setDType(mv::DType("Int32"));
+                if (bias->isDoubleType())
+                {
+                    auto data = bias->getDoubleData();
+                    //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
+                    //auto Z_bias = biasQuantization.getZeroPoint();
+                    //auto S_bias = biasQuantization.getScale();
+                    std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int32_t>());
+                    bias->setDType(mv::DType("Int32"));
+                    bias->populate(data);
+                }
+                else
+                {
+                    auto data = bias->getIntData();
+                    //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
+                    //auto Z_bias = biasQuantization.getZeroPoint();
+                    //auto S_bias = biasQuantization.getScale();
+                    std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int32_t>());
+                    bias->setDType(mv::DType("Int32"));
+                    bias->populate(data);
+                }
             }
             else
             {
@@ -141,7 +154,7 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             mv::Shape shape({outputChannels, 1, 1, 4});
 
             auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
-            auto biasData = bias->getData();
+            auto biasData = bias->getIntData(); //Bias has the type Int32 in both cases above
 
             std::vector<int32_t> weightsTableData(shape.totalSize());
             // per channel layout:

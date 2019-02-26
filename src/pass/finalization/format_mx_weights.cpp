@@ -51,23 +51,31 @@ void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &m
                 mv::Shape new_shape = mv::Shape({floor_output_channel, wshape[2] + original_input_channel_padding, wshape[0], wshape[1], 8});
 
                 pass.log(Logger::MessageType::Info, "Changing weight shape from " + wshape.toString() + " to " + new_shape.toString());
+                mv::Data::TensorIterator new_weights;
+                if (oldWeights->isDoubleType())
+                {
+                    std::vector<double> new_data(new_shape.totalSize(), 0);
+                    mv::Tensor backup_tensor("backup", new_shape, oldWeights->getDType(), mv::Order(mv::Order::getRowMajorID(new_shape.ndims())), new_data);
+                    for(unsigned kx = 0; kx < wshape[0]; ++kx)
+                        for(unsigned ky = 0; ky < wshape[1]; ++ky)
+                            for(unsigned ic = 0; ic < wshape[2]; ++ic)
+                                for(unsigned oc = 0; oc < wshape[3]; ++oc)
+                                    backup_tensor.at({oc/8,ic,ky,kx,oc%8}) = oldWeights->at({kx, ky, ic, oc});
+                    new_data = backup_tensor.getDoubleData();
 
-                std::vector<double> new_data(new_shape.totalSize(), 0);
-                mv::Tensor backup_tensor("backup", new_shape, oldWeights->getDType(), mv::Order(mv::Order::getRowMajorID(new_shape.ndims())), new_data);
-                for(unsigned kx = 0; kx < wshape[0]; ++kx)
-                    for(unsigned ky = 0; ky < wshape[1]; ++ky)
-                        for(unsigned ic = 0; ic < wshape[2]; ++ic)
-                            for(unsigned oc = 0; oc < wshape[3]; ++oc)
-                                backup_tensor.at({oc/8,ic,ky,kx,oc%8}) = oldWeights->at({kx, ky, ic, oc});
-                new_data = backup_tensor.getData();
+                    new_weights = om.constant(
+                        new_data,
+                        new_shape,
+                        backup_tensor.getDType(),
+                        backup_tensor.getOrder(),
+                        oldWeights->getName() + "_MxWeights"
+                    );
+                }
+                else
+                {
+                    /* code : TODO EMAN */
+                }
 
-                auto new_weights = om.constant(
-                    new_data,
-                    new_shape,
-                    backup_tensor.getDType(),
-                    backup_tensor.getOrder(),
-                    oldWeights->getName() + "_MxWeights"
-                );
 
                 new_weights->set<bool>("NCE1_WeightTransformed", true);
                 new_weights->set<std::vector<size_t>>("NCE1_Paddings",

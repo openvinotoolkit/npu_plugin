@@ -12,7 +12,7 @@ TEST(sparsity, case_cm)
     mv::OpModel om("testModel");
 
     auto input = om.input({56, 56 , 3}, mv::DType("UInt8"), mv::Order("CWH"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*64);
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(3*3*3*64);
     auto weights = om.constant(weightsData, {3, 3, 3, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
     auto convOp = om.getSourceOp(conv);
@@ -29,7 +29,7 @@ TEST(sparsity, case_cm)
 
     //ref data is based on result on POC test res2a_branch2a/quantized_model.tflite
     mv::DataModel dm(om);
-    auto resData = dm.getTensor(convOp->get<std::string>("sparsityMap"))->getData();
+    auto resData = dm.getTensor(convOp->get<std::string>("sparsityMap"))->getIntData();
 
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res1_sparsity_map.bin"), std::ios::binary );
 
@@ -56,7 +56,7 @@ TEST(sparsity, case_hwPooling)
     mv::OpModel om("testModel");
 
     auto input = om.input({56, 56 , 2048}, mv::DType("UInt8"), mv::Order("CHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*2048);
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*1*2048);
     auto weights = om.constant(weightsData, {1, 1, 2048, 1}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     //auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
 
@@ -74,7 +74,7 @@ TEST(sparsity, case_hwPooling)
 
     //ref data is based on result on POC test res5c/quantized_model.tflite
     mv::DataModel dm(om);
-    auto resData = dm.getTensor(poolOp->get<std::string>("sparsityMap"))->getData();
+    auto resData = dm.getTensor(poolOp->get<std::string>("sparsityMap"))->getIntData();
 
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res5c_sparsity_map.bin"), std::ios::binary );
 

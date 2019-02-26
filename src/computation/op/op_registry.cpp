@@ -368,7 +368,11 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
         }
 
         output.push_back(std::tolower(opType[0]));
-        output += opType.substr(1);
+        size_t intPos = opType.find("__");
+        if (intPos != std::string::npos)
+            output += opType.substr(1, intPos - 1);
+        else
+            output += opType.substr(1);
 
         if(opType != copyOp)
             output += copyOp;

@@ -623,7 +623,7 @@ TEST(tensor, get_data)
 
     mv::Tensor t1("t1", tShape, mv::DType("Float16"), mv::Order("CHW"), data);
 
-    std::cout << t1.getData().size() << std::endl;
+    std::cout << t1.getDoubleData().size() << std::endl;
 
 }
 
@@ -708,16 +708,16 @@ TEST(tensor, to_binary_u64)
 
     mv::Shape tShape({3, 3, 3, 3});
 
-    std::vector<double> data = {
-        0.0f, 27.3f, 54.5f, 9.0f, 36.0f, 63.0f, 18.7f, 45.0f, 72.0f,
-        1.0f, 28.3f, 55.5f, 10.0f, 37.0f, 64.0f, 19.7f, 46.0f, 73.0f,
-        2.0f, 29.3f, 56.5f, 11.0f, 38.0f, 65.0f, 20.7f, 47.0f, 74.0f,
-        3.0f, 30.3f, 57.5f, 12.0f, 39.0f, 66.0f, 21.7f, 48.0f, 75.0f,
-        4.0f, 31.3f, 58.5f, 13.0f, 40.0f, 67.0f, 22.7f, 49.0f, 76.0f,
-        5.0f, 32.3f, 59.5f, 14.0f, 41.0f, 68.0f, 23.7f, 50.0f, 77.0f,
-        6.0f, 33.3f, 60.5f, 15.0f, 42.0f, 69.0f, 24.7f, 51.0f, 78.0f,
-        7.0f, 34.3f, 61.5f, 16.0f, 43.0f, 70.0f, 25.7f, 52.0f, 79.0f,
-        8.0f, 35.3f, 62.5f, 17.0f, 44.0f, 71.0f, 26.7f, 53.0f, 80.0f
+    std::vector<int64_t> data = {
+        0, 27, 54, 9, 36, 63, 18, 45, 72,
+        1, 28, 55, 10, 37, 64, 19, 46, 73,
+        2, 29, 56, 11, 38, 65, 20, 47, 74,
+        3, 30, 57, 12, 39, 66, 21, 48, 75,
+        4, 31, 58, 13, 40, 67, 22, 49, 76,
+        5, 32, 59, 14, 41, 68, 23, 50, 77,
+        6, 33, 60, 15, 42, 69, 24, 51, 78,
+        7, 34, 61, 16, 43, 70, 25, 52, 79,
+        8, 35, 62, 17, 44, 71, 26, 53, 80
     };
 
     mv::Tensor t("t", tShape, mv::DType("UInt64"), mv::Order("HWCN"));
@@ -1030,8 +1030,8 @@ TEST(tensor, sparsity)
     ASSERT_TRUE(t.isSparse());
     std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();
 
-    std::vector<double> res = sparsityMap->getData();
-    std::vector<double> data_res = t.getData();
+    std::vector<double> res = sparsityMap->getDoubleData();
+    std::vector<double> data_res = t.getDoubleData();
     //reference result of sparsity map
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res2a_branch2a_weigths_output.bin"), std::ios::binary );
 
@@ -1086,8 +1086,8 @@ TEST(tensor, sparsity_res3a_branch2c)
     ASSERT_TRUE(t.isSparse());
     std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();
 
-    std::vector<double> res = sparsityMap->getData();
-    std::vector<double> data_res = t.getData();
+    std::vector<double> res = sparsityMap->getDoubleData();
+    std::vector<double> data_res = t.getDoubleData();
 
     //reference result of sparsity map
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res3a_branch2c_weigths_output.bin"), std::ios::binary );
@@ -1118,7 +1118,8 @@ TEST(tensor, sparsity_res3a_branch2c)
     mv::Shape sparsityMapShape({1,1,16,512});
     ASSERT_TRUE(sparsityMapShape == sparsityMap->getShape());
 
-    std::vector<double> denseData = t.getDataPacked();
+    //TODO EMAN
+    std::vector<double> denseData = t.getDoubleDataPacked();
     count = 0;
     size_t j = 0;
     for (unsigned i = 0; i < data_res.size(); ++i)
@@ -1144,7 +1145,7 @@ TEST(tensor, testing_at)
     mv::Tensor t("res3a_branch2c_weigths", tShape, mv::DType("UInt8"), mv::Order("WCNH"));
     std::vector<double> data = mv::utils::generateSequence<double>(tShape.totalSize());
     t.populate(data);
-    std::vector<double> resdata = t.getData();
+    std::vector<double> resdata = t.getDoubleData();
     for(size_t i=0; i< resdata.size();i++)
         ASSERT_TRUE(t.at(i) == resdata[i]);
 

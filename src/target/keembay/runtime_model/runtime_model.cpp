@@ -270,8 +270,16 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     // NEW approach
-    auto tensorData = t.getData();
-    toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
+    if (t.isDoubleType())
+    {
+        auto tensorData = t.getDoubleData();
+        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
+    }
+    else
+    {
+        auto tensorData = t.getIntData();
+        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
+    }
     toBuild->length = t.getShape().totalSize();
     toBuild->underlying_type = convertDtype(t.getDType());
 

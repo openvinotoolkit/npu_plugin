@@ -176,7 +176,7 @@ TEST(quantization, case_conv)
         0 ,      0, 5832764,   63208,
         0 ,      0, 5832764,   54140
     };
-    auto resData = dm.getTensor(convOp->get<std::string>("weightsTable"))->getData();
+    auto resData = dm.getTensor(convOp->get<std::string>("weightsTable"))->getIntData();
     for (unsigned i = 0; i < resData.size(); ++i)
        ASSERT_FLOAT_EQ(resData[i], refData[i]);
 }
