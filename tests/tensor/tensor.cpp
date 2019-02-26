@@ -444,7 +444,7 @@ TEST(tensor, augment)
     for (unsigned k = 0; k < 4; ++k)
         for (unsigned j = 0; j < 4; ++j)
             for (unsigned i = 0; i < 8; ++i)
-                ASSERT_EQ(t({i, j, k}), t({i, 0, k}));
+                ASSERT_EQ((double)t({i, j, k}), (double)t({i, 0, k}));
 
 }
 
@@ -517,7 +517,10 @@ TEST(tensor, add_broadcast_mat)
     for (unsigned i = 0; i < t1Shape[0]; ++i)
         for (unsigned j = 0; j < t2Shape[0]; ++j)
             for (unsigned k = 0; k < t1Shape[2]; ++k)
-                ASSERT_FLOAT_EQ(t3({i, j, k}), t1({i, j, k}) + t2({j, k}));
+            {
+                float res = (float) t1({i, j, k}) + (float)t2({j, k});
+                ASSERT_FLOAT_EQ(t3({i, j, k}), res);
+            }
 
 }
 

@@ -149,7 +149,7 @@ void setSparsityFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                 for(unsigned ky = 0; ky < sparsityShape[1]; ++ky)
                     for(unsigned ic = 0; ic < sparsityShape[2]; ++ic)
                         for(unsigned oc = 0; oc < sparsityShape[3]; ++oc)
-                            sparsityTensor->at({kx, ky, ic, oc}) = perChannelSparsity[ky*sparsityShape[0] + kx];
+                            sparsityTensor->at({kx, ky, ic, oc}) = (int64_t)perChannelSparsity[ky*sparsityShape[0] + kx];
 
             //Add sparsity map to conv
             om.addAttr(opIterator, "sparsityMap", sparsityTensor->getName());
