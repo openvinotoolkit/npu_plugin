@@ -3,6 +3,7 @@
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <fstream>
+#include <iostream>
 
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
@@ -572,9 +573,9 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
 std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::ComputationModel& cm, mv::Element& compilationDescriptor, mv::Data::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::BarrierT> toBuild = std::unique_ptr<MVCNN::BarrierT>(new MVCNN::BarrierT());
-    toBuild->barrier_id = opIt->get<int>("index");
-    toBuild->consumer_count = opIt->get<int>("numConsumers");
-    toBuild->producer_count = opIt->get<int>("numProducers");
+    toBuild->barrier_id = opIt->get<mv::Barrier>("Barrier").getIndex();
+    toBuild->consumer_count = opIt->get<mv::Barrier>("Barrier").getNumConsumers();
+    toBuild->producer_count = opIt->get<mv::Barrier>("Barrier").getNumProducers();
     return toBuild;
 }
 
