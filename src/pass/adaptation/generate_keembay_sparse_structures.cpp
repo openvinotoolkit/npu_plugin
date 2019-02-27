@@ -5,6 +5,8 @@
 
 static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void CompleteTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+
 
 namespace mv
 {
@@ -22,6 +24,12 @@ namespace mv
         .setFunc(GenerateWeightsTablesFcn)
         .setDescription(
             "Generates weights tables for the Tasks that need them"
+        );
+
+        MV_REGISTER_PASS(CompleteTaskGraph)
+        .setFunc(CompleteTaskGraphFcn)
+        .setDescription(
+            "Connect all dealloc tasks to DMA task with direction CMX2DDR"
         );
     }
 }
@@ -124,4 +132,32 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
         }
     }
+}
+
+static void CompleteTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    /*
+     * Connect all Deallocate Nodes to the DMA::CMX2DDR Node
+     */
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+    if (opIt->getOpType() == "DMATask") {
+
+        if(opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR) {
+
+            for (auto opIt1 = om.getInput(); opIt1 != om.opEnd(); ++opIt1) {
+                if (opIt1->getOpType() == "Deallocate") {
+
+                     auto deallocateOp = om.getOp(opIt1->getName());
+                     auto dmaCMX2DDROp = om.getOp(opIt->getName());
+                     cm.defineFlow(deallocateOp, dmaCMX2DDROp);
+                }
+            }
+    }
+    }
+    }
+
 }

@@ -121,6 +121,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             ++opIt;
             om.removeOp(backup);
         }
+
         if (opIt->getOpType() == "MaxPool")
         {
             auto input = opIt->getInputTensor(0);
