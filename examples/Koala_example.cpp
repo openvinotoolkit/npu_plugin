@@ -66,7 +66,7 @@ int main() {
 		if (g.getEdgeNext(ie)) cout << "), ";
 		else cout << ")." << endl;
 	}
-	cout << "Is it the cheapest flow costs? - " << (Flow::testFlow(g, cap, s, t) ? "yes" : "no") << endl;
+	cout << "Is it the cheapest flow costs ? - " << (Flow::testFlow(g, cap, s, t) ? "yes" : "no") << endl;
 	// see graph
 	// output
 
