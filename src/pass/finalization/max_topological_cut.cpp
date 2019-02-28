@@ -84,8 +84,8 @@ void maxTopogicalCut(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                /*if more than 1 parent*/
                if(opIt.parentsSize() > 1) { 
                    
-                   for (auto parentIt = opIt.leftmostParent(); parentIt != opIt.rightmostParent()+1; ++parentIt) {
-                       std::cout << "Parent name: " << parentIt->getName() << std::endl;
+                   for (auto parentIt = opIt.leftmostParent(); parentIt != opIt.rightmostParent(); ++parentIt) {
+                       //TODO
                     }
                }
                 else {
