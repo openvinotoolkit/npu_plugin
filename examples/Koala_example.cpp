@@ -8,6 +8,7 @@ using namespace Koala;
 
 typedef Koala::Graph < char, string > MyGraph;
 
+
 struct edgeIter {
 	void operator=(MyGraph::PEdge e) { cout << e->info; }
 	void operator++() { }

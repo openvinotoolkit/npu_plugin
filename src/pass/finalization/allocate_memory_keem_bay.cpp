@@ -167,7 +167,6 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
             {
 
                 auto outTensor = opIterator->getOutputTensor(x);
-                std::cout << outTensor->getName() << std::endl << std::endl;;
                 if (!outTensor->isPopulated() &&
                     (! outTensor->hasAttr("allocators")) &&
                     (! outTensor->hasAttr("modelInput") || ! outTensor->get<bool>("modelInput")) &&
