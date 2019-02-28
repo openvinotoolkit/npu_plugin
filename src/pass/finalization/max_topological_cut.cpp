@@ -100,9 +100,8 @@ void maxTopogicalCut(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     auto vertex = lookUpKoalaVertexbyName(parentIt->getName(), V, vertexIndex);
 
                     std::cout << "Adding edge to KOALA graph from: " << vertex->info << " -- " << V[vertexIndex-1]->info << std::endl;
-                    //E[edgeIndex] = flowGraph.addEdge(V[vertexIndex-2], V[vertexIndex-1], opIt.leftmostInput()->getName());
-                    //edgeIndex++;
-                    //V[vertexIndex-2]->info;
+                    E[edgeIndex] = flowGraph.addEdge(vertex, V[vertexIndex-1], opIt.leftmostInput()->getName());
+                    edgeIndex++;
                 }
 
                
