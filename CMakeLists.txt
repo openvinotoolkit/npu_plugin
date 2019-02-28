@@ -70,6 +70,8 @@ file(GLOB base
     "src/base/json/string.cpp"
     "src/base/json/bool.cpp"
     "src/base/json/null.cpp"
+    "src/target/keembay/barrier_definition.cpp"
+    "src/target/keembay/barrier_deps.cpp"
     "src/target/keembay/dma_direction.cpp"
     "src/target/keembay/ppe_layer_type.cpp"
     "src/target/keembay/ppe_fixed_function.cpp"

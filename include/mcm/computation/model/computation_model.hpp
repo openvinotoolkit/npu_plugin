@@ -19,6 +19,8 @@
 #include "include/mcm/computation/model/runtime_binary.hpp"
 #include "include/mcm/target/keembay/dma_direction.hpp"
 #include "include/mcm/target/keembay/ppe_layer_type.hpp"
+#include "include/mcm/target/keembay/barrier_definition.hpp"
+#include "include/mcm/target/keembay/barrier_deps.hpp"
 
 namespace mv
 {
