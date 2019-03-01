@@ -9,6 +9,7 @@
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/order/order.hpp"
+#include "include/mcm/tensor/data_element.hpp"
 #include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
@@ -18,28 +19,19 @@ namespace mv
 
     class Tensor : public Element
     {
-    public:
-        class DataElement;
-
     private:
-        enum InternalType{
-            Int,
-            Double
-        };
+        std::vector<DataElement> data_;
 
-        std::vector<double> doubleData_;
-        std::vector<int64_t> intData_;
         std::size_t blockSize_;
-        std::vector<std::vector<double>::iterator> doubleBlocks_;
-        std::vector<std::vector<int64_t>::iterator> intBlocks_;
+        std::vector<std::vector<DataElement>::iterator> blocks_;
+
         Shape shape_;
         Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
         size_t noneZeroElements_;
-        friend class DataElement;    // allow the proxy class access to our data.
 
-        //TODO Eman how about mix and match
+        bool elementWiseChecks_(const Tensor& other);
         void elementWiseDouble_(const Tensor& other, const std::function<double(double, double)>& opFunc);
         void elementWiseInt_(const Tensor& other, const std::function<int64_t(int64_t, int64_t)>& opFunc);
 
@@ -48,79 +40,7 @@ namespace mv
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
         std::vector<unsigned> getZeroPointsPerChannel_();
         void populateSparsityMapTensor_();
-
-        InternalType getInternalType_(DType dtype);
     public:
-
-        class DataElement {
-            size_t idx_;
-            Tensor* pOwner_;                      // pointer to the actual object for which we are a proxy.
-            char    m_TarrayproxyName[4];        // this is the unique name of a particular object.
-
-            static char TarrayproxyName[4];      // This is the global used to create unique object names
-        public:
-            DataElement(Tensor * const p = nullptr, size_t i=0);
-            ~DataElement();
-
-            DataElement & operator = (int64_t val);
-            DataElement & operator = (double val);
-            DataElement & operator += (int64_t val);
-            DataElement & operator += (double val);
-            DataElement & operator = (DataElement src);
-            bool operator==(DataElement& rhs)
-            {//TODO EMAN make const DataElement possible
-                if (pOwner_->isDoubleType())
-                    return this->operator double() == (double)rhs;
-                //else
-                return this->operator int64_t() == (int64_t)rhs;
-            }
-            bool operator==(const double& rhs) const
-            {
-                if (pOwner_->isDoubleType())
-                    return  pOwner_->doubleData_[idx_] == rhs;
-                //else
-                return pOwner_->intData_[idx_] == rhs;
-            }
-            bool operator==(const int& rhs) const
-            {
-                if (pOwner_->isDoubleType())
-                    return  pOwner_->doubleData_[idx_] == rhs;
-                //else
-                return pOwner_->intData_[idx_] == rhs;
-            }
-            bool operator==(const unsigned int& rhs) const
-            {
-                if (pOwner_->isDoubleType())
-                    return  pOwner_->doubleData_[idx_] == rhs;
-                //else
-                return pOwner_->intData_[idx_] == rhs;
-            }
-            bool operator==(const long unsigned int& rhs) const
-            {
-                if (pOwner_->isDoubleType())
-                    return  pOwner_->doubleData_[idx_] == rhs;
-                //else
-                return pOwner_->intData_[idx_] == rhs;
-            }
-            bool operator==(const int64_t& rhs) const
-            {
-                if (pOwner_->isDoubleType())
-                    return  pOwner_->doubleData_[idx_] == rhs;
-                //else
-                return pOwner_->intData_[idx_] == rhs;
-            }
-            bool operator==(const float& rhs) const
-            {
-               if (pOwner_->isDoubleType())
-                    return  pOwner_->doubleData_[idx_] == rhs;
-                //else
-                return pOwner_->intData_[idx_] == rhs;
-            }
-            operator int64_t ();
-            operator double ();
-            operator float ();
-            operator std::string();
-        };
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
@@ -148,13 +68,12 @@ namespace mv
         void bindData(Tensor& other, const std::vector<std::size_t>& leftPadding = {}, const std::vector<std::size_t>& rightPadding = {});
         void broadcast(const Shape& shape);
 
-        bool isDoubleType() {
-            return getInternalType_(getDType()) == Double;
+        bool isDoubleType() const {
+            return getDType().isDoubleType();
         }
         std::vector<double> getDoubleData();
-        std::vector<double> getDoubleDataPacked();
+        std::vector<DataElement> getDataPacked();
         std::vector<int64_t> getIntData();
-        std::vector<int64_t> getIntDataPacked();
         void setDType(DType dType);
         DType getDType() const;
         void setOrder(Order order);
@@ -171,14 +90,14 @@ namespace mv
         void divide(double val);
         void sqrt();
 
-        DataElement at(const std::vector<std::size_t>& sub);
-        //const DataElement at(const std::vector<std::size_t>& sub) const;
-        DataElement at(std::size_t idx);
-        //const DataElement at(std::size_t idx) const;
-        DataElement operator()(std::size_t idx);
-        //const DataElement& operator()(std::size_t idx) const;
-        DataElement operator()(const std::vector<std::size_t>& sub);
-        //const DataElement& operator()(const std::vector<std::size_t>& sub) const;
+        DataElement& at(const std::vector<std::size_t>& sub);
+        const DataElement& at(const std::vector<std::size_t>& sub) const;
+        DataElement& at(std::size_t idx);
+        const DataElement& at(std::size_t idx) const;
+        DataElement& operator()(std::size_t idx);
+        const DataElement& operator()(std::size_t idx) const;
+        DataElement& operator()(const std::vector<std::size_t>& sub);
+        const DataElement& operator()(const std::vector<std::size_t>& sub) const;
 
         inline bool isQuantized() const
         {
@@ -234,4 +153,4 @@ namespace mv
 
 }
 
-#endif // MODEL_TENSOR_HPP_
+#endif // TENSOR_HPP_

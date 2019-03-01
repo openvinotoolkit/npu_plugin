@@ -22,14 +22,14 @@ namespace mv
         {
 
             DType dtype = args.at("dType").get<mv::DType>();
-            if (dtype == DType("Float8") || dtype == DType("Float16") || dtype == DType("Float32") || dtype == DType("Float64"))
+            if (dtype.isDoubleType())
             {
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), dtype,
                     args.at("order").get<mv::Order>(), args.at("data").get<std::vector<double>>()));
             }
             else
             {
-                   outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                   outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), dtype,
                     args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>()));
             }
 
