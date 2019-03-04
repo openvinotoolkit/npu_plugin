@@ -72,22 +72,12 @@ void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, m
 
                 auto nonDialtedKernelOp = opIt.rightmostParent();
 
-                mv::Data::TensorIterator dilatedConstant;
-                if (dilatedKernel.isDoubleType())
-                    dilatedConstant = om.constant(
-                        dilatedKernel.getDoubleData(),
-                        dilatedKernelShape,
-                        dilatedKernel.getDType(),
-                        dilatedKernel.getOrder(),
-                        nonDialtedKernelOp->getName() + "_Dilated");
-                else
-                    dilatedConstant = om.constant(
-                        dilatedKernel.getIntData(),
-                        dilatedKernelShape,
-                        dilatedKernel.getDType(),
-                        dilatedKernel.getOrder(),
-                        nonDialtedKernelOp->getName() + "_Dilated");
-
+                auto dilatedConstant = om.constant(
+                    dilatedKernel.getData(),
+                    dilatedKernelShape,
+                    dilatedKernel.getDType(),
+                    dilatedKernel.getOrder(),
+                    nonDialtedKernelOp->getName() + "_Dilated");
 
                 om.removeOp(nonDialtedKernelOp);
                 om.defineFlow(dilatedConstant, opIt, 1);

@@ -32,10 +32,15 @@ Tensor(name, shape, dType, order)
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data) :
 Tensor(name, shape, dType, order)
 {
-    if (isDoubleType())
-        throw ArgumentError(*this, "data", "int type", "cannot set int data to a double dataType");
     populate(data, order);
 }
+
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data) :
+Tensor(name, shape, dType, order)
+{
+    populate(data, order);
+}
+
 mv::Tensor::Tensor(const Tensor &other) :
 Element(other),
 data_(other.data_.size(), other.isDoubleType()),
@@ -127,6 +132,34 @@ void mv::Tensor::populate(const std::vector<double>& data)
         populateSparsityMapTensor_();
 }
 
+void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
+{
+    if (data.size() != getShape().totalSize())
+        throw ArgumentError(*this, "data vector", std::to_string(data.size()), "Unable to populate, data vector size"
+            "does not match total size the tensor (" + std::to_string(getShape().totalSize()) + ")");
+
+    if (getOrder() != internalOrder_)
+    {
+        std::vector<std::size_t> sub(getShape().ndims());
+        for (std::size_t i = 0; i < data_.size(); ++i)
+        {
+            sub = getOrder().indToSub(getShape(), i);
+            data_[internalOrder_.subToInd(getShape(), sub)] = data[i];
+        }
+    }
+    else
+        for (size_t i=0; i < data.size(); i++)
+            data_[i] = data[i];
+
+
+    set("populated", true);
+    log(Logger::MessageType::Debug, "Populated");
+
+    //if sparse then call sparsify
+    if (isSparse())
+        populateSparsityMapTensor_();
+}
+
 void mv::Tensor::populate(const std::vector<int64_t>& data)
 {
     if (isDoubleType())
@@ -157,6 +190,13 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
     if (isSparse())
         populateSparsityMapTensor_();
 }
+
+void mv::Tensor::populate(const std::vector<mv::DataElement>& data, Order order)
+{
+    set<Order>("order", order);
+    populate(data);
+}
+
 void mv::Tensor::populate(const std::vector<double>& data, Order order)
 {
     set<Order>("order", order);
@@ -397,6 +437,28 @@ std::vector<double> mv::Tensor::getDoubleData()
         throw ValueError(*this, "Attempt of reading double data from an int type tensor");
 
     std::vector<double> orderedData(getShape().totalSize());
+
+    std::vector<std::size_t> sub(getShape().ndims());
+    for (std::size_t i = 0; i < data_.size(); ++i)
+    {
+        if (getOrder() != internalOrder_)
+        {
+            sub = internalOrder_.indToSub(getShape(), i);
+            orderedData[getOrder().subToInd(getShape(), sub)] = data_[i];
+        }
+        else
+            orderedData[i] = data_[i];
+    }
+
+    return orderedData;
+}
+
+std::vector<mv::DataElement> mv::Tensor::getData()
+{
+    if (!isPopulated())
+        throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
+
+    std::vector<DataElement> orderedData(getShape().totalSize(), DataElement(isDoubleType()));
 
     std::vector<std::size_t> sub(getShape().ndims());
     for (std::size_t i = 0; i < data_.size(); ++i)

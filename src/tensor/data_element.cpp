@@ -206,7 +206,7 @@ mv::DataElement::operator float () const
     return data_.i64_;
 }
 
-mv::DataElement::operator std::string()
+mv::DataElement::operator std::string() const
 {
     if (isDouble_)
         return std::to_string(data_.fp64_);

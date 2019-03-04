@@ -20,17 +20,25 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            DType dtype = args.at("dType").get<mv::DType>();
-            if (dtype.isDoubleType())
+            if (args.at("data").getTypeName() != "std::vector<mv::DataElement>")
             {
-                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), dtype,
-                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<double>>()));
+                DType dtype = args.at("dType").get<mv::DType>();
+
+                if (dtype.isDoubleType())
+                {
+                    outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), dtype,
+                        args.at("order").get<mv::Order>(), args.at("data").get<std::vector<double>>()));
+                }
+                else
+                {
+                    outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), dtype,
+                        args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>()));
+                }
             }
             else
             {
-                   outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), dtype,
-                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>()));
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                        args.at("order").get<mv::Order>(), args.at("data").get<std::vector<mv::DataElement>>()));
             }
 
 
@@ -49,6 +57,16 @@ namespace mv
         MV_REGISTER_OP(Constant__Int)
         .setOutputs({"output"})
         .setArg<std::vector<int64_t>>("data")
+        .setArg<mv::Shape>("shape")
+        .setArg<mv::DType>("dType")
+        .setArg<mv::Order>("order")
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDefFcn)
+        .setTypeTrait({"exposed"});
+
+        MV_REGISTER_OP(Constant__DataElement)
+        .setOutputs({"output"})
+        .setArg<std::vector<mv::DataElement>>("data")
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")

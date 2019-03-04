@@ -116,12 +116,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                 else
                 {
                     std::string biasTensorName = parentOpIt->getName() + "_bias";
-                    mv::Data::TensorIterator biasTensor;
-                    if (bias.isDoubleType())
-                        biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getDoubleData());
-                    else
-                        biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getIntData());
-
+                    auto biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData());
 
                     om.addAttr(parentOpIt, "bias", biasTensor->getName());
                     pass.log(Logger::MessageType::Info, "Fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
@@ -234,11 +229,8 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
-            mv::Data::TensorIterator offset;
-            if (offsetParam.isDoubleType())
-                offset = om.constant(offsetParam.getDoubleData(), offsetParam.getShape(), offsetParam.getDType(), offsetParam.getOrder(), batchNormName + "_offset");
-            else
-                offset = om.constant(offsetParam.getIntData(), offsetParam.getShape(), offsetParam.getDType(), offsetParam.getOrder(), batchNormName + "_offset");
+            auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(),
+                offsetParam.getOrder(), batchNormName + "_offset");
 
             Data::TensorIterator sourceTensor;
 
@@ -253,11 +245,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 }
                 else
                 {
-                    mv::Data::TensorIterator scale;
-                    if (scaleParam.isDoubleType())
-                        scale = om.constant(scaleParam.getDoubleData() , scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-                    else
-                        scale = om.constant(scaleParam.getIntData() , scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+                    auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
 
                     sourceTensor = om.scale(opIt->getInputTensor(0), scale);
                     parentOpIt = om.getSourceOp(sourceTensor);
@@ -267,11 +255,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             }
             else
             {
-                mv::Data::TensorIterator scale;
-                if (scaleParam.isDoubleType())
-                    scale = om.constant(scaleParam.getDoubleData() , scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
-                else
-                    scale = om.constant(scaleParam.getIntData() , scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+                auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
 
                 sourceTensor = om.multiply(opIt->getInputTensor(0), scale);
                 parentOpIt = om.getSourceOp(sourceTensor);

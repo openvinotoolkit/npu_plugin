@@ -43,7 +43,8 @@ namespace mv
         operator double () const;
         operator float () const;
 
-        operator std::string();
+        operator std::string() const;
+        bool isDouble() const {return isDouble_;}
     };
 
 }

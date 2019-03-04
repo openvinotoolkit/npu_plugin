@@ -75,25 +75,12 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto sourceTensor = parentOpIt->getOutputTensor(0);
+            auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
-            mv::Data::TensorIterator weights;
-            if (opIt->getInputTensor(1)->isDoubleType())
-            {
-                auto weightsData = opIt->getInputTensor(1)->getDoubleData();
 
-                weights = om.constant(weightsData, {inputShape[0], inputShape[1], inputShape[2],
-                    opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(),
-                    Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
-            }
-            else
-            {
-                auto weightsData = opIt->getInputTensor(1)->getIntData();
-
-                weights = om.constant(weightsData, {inputShape[0], inputShape[1], inputShape[2],
-                    opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(),
-                    Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
-            }
-
+            auto weights = om.constant(weightsData, {inputShape[0], inputShape[1], inputShape[2],
+                opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(),
+                Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
 
             auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1);
             pass.log(Logger::MessageType::Info, "Replaced FullyConnected op " + opIt->getName() + " with " + conv2D->getName());

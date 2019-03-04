@@ -45,6 +45,7 @@ namespace mv
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data);
         Tensor(const Tensor& other);
         ~Tensor();
 
@@ -52,6 +53,9 @@ namespace mv
         void populate(const std::vector<double>& data, Order order);
         void populate(const std::vector<int64_t>& data);
         void populate(const std::vector<int64_t>& data, Order order);
+        void populate(const std::vector<mv::DataElement>& data);
+        void populate(const std::vector<mv::DataElement>& data, Order order);
+
         void unpopulate();
 
         void setSparse();
@@ -71,8 +75,10 @@ namespace mv
         bool isDoubleType() const {
             return getDType().isDoubleType();
         }
-        std::vector<double> getDoubleData();
+
+        std::vector<DataElement> getData();
         std::vector<DataElement> getDataPacked();
+        std::vector<double> getDoubleData();
         std::vector<int64_t> getIntData();
         void setDType(DType dType);
         DType getDType() const;
