@@ -33,7 +33,7 @@ int main()
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
-    compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
