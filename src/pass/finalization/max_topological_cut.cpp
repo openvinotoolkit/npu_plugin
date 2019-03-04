@@ -43,12 +43,71 @@ koalaGraph::PVertex lookUpKoalaVertexbyName(std::string vertexName, koalaGraph::
     }
 }
 
+/**
+ * @brief Encode the mememory requirements of each tash by adding a "MemoryRequirment" attribute to the task.
+ *        Note it should be added to the output tensor but deallocate currently doesn' have an output tensor. 
+ *        The memory requirment is defined as the output tensor N*W*H*C.
+ */
+void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
+
+    mv::OpModel om(model);
+
+    /* Store memory equirement as an attribute of a task. 
+     * This is required also for Ops with no output tensor (i.e. Dealloc tasks).
+    */
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
+        
+        std::cout << "Op is " << opIt->getName() << std::endl; 
+        
+        if (opIt->getOpType() == "Constant" || opIt->getOpType() == "Input" ) {
+
+            mv::Shape shape = opIt->get<mv::Shape>("shape");
+            std::cout << "number dmins " << shape.ndims() << std::endl;
+            int memoryRequirement = 1;
+
+            for (unsigned int i = 0; i < shape.ndims(); i++) 
+                memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+            opIt->set<int>("MemoryRequirement", memoryRequirement);
+            std::cout << "Memory size " << memoryRequirement << std::endl;  
+        }
+        
+        if (opIt->getOpType() == "DPUTask") { 
+
+            int memoryRequirement = 1;
+            for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+                memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+            std::cout << "Memory size " << memoryRequirement << std::endl;
+            opIt->set<int>("MemoryRequirement", memoryRequirement);    
+        }
+
+        if (opIt->getOpType() == "DMATask") { 
+
+            int memoryRequirement = 1;
+            for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+                memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+            std::cout << "Memory size " << memoryRequirement << std::endl;
+            opIt->set<int>("MemoryRequirement", memoryRequirement);    
+        }
+
+        if (opIt->getOpType() == "Deallocate") {
+            int memoryRequirement = 0;
+            opIt->set<int>("MemoryRequirement", memoryRequirement);
+            std::cout << "Memory size " << memoryRequirement << std::endl;
+        }
+    }
+
+}
 
 void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
     mv::ControlModel cm(model);
 
+    encodeMemoryRequirmentsofTask(model);
+   
     /*Name of KOALA graph*/
     koalaGraph flowGraph; 
 
@@ -94,7 +153,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
                     auto thisVertex = lookUpKoalaVertexbyName(opIt->getName(), V, vertexIndex);
 
                     pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + parentVertex->info + " --> " + thisVertex->info);
-                    E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, opIt.leftmostInput()->getName());
+                    E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, opIt.leftmostInput()->getName(), Koala::Directed);
                     edgeIndex++;
                 }
             
@@ -103,7 +162,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
                 auto thisVertex = lookUpKoalaVertexbyName(opIt->getName(), V, vertexIndex);
 
                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + parentVertex->info + " --> " + thisVertex->info);
-                E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, opIt.leftmostInput()->getName());
+                E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, opIt.leftmostInput()->getName(), Koala::Directed);
                 edgeIndex++;
             }
         
@@ -117,7 +176,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
                 auto thisVertex = lookUpKoalaVertexbyName(opIt->getName(), V, vertexIndex);
 
                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + parentVertex->info + " --> " + thisVertex->info);
-                E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, opIt.leftmostInput()->getName());
+                E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, opIt.leftmostInput()->getName(), Koala::Directed);
                 edgeIndex++;
             }
         }
