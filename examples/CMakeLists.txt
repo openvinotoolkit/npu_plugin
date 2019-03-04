@@ -47,6 +47,8 @@ if (MSVC)
 
 	add_executable(dilationExample dilatedExample.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+	add_executable(barrier_dependency_example barrier_dependency_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
 else()
 
 	add_executable(cm_linear cm_linear.cpp)
@@ -104,6 +106,9 @@ else()
 
 	add_executable(barrier_task_api barrier_task_api.cpp)
 	target_link_libraries(barrier_task_api cm)
+
+	add_executable(barrier_dependency_example barrier_dependency_example.cpp)
+	target_link_libraries(barrier_dependency_example cm)
 
 	add_executable(hw_pooling hw_pooling.cpp)
 	target_link_libraries(hw_pooling cm)
