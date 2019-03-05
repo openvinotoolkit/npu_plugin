@@ -6,7 +6,8 @@
 
 namespace mv
 {
-    class DataElement {
+    class DataElement
+    {
         bool isDouble_;
         union {
             double fp64_;
@@ -20,18 +21,18 @@ namespace mv
         DataElement(const DataElement& other);
         ~DataElement();
 
-        DataElement & operator = (int64_t val);
-        DataElement & operator = (double val);
-        DataElement & operator += (int64_t val);
-        DataElement & operator += (double val);
-        DataElement & operator -= (int64_t val);
-        DataElement & operator -= (double val);
-        DataElement & operator *= (int64_t val);
-        DataElement & operator *= (double val);
-        DataElement & operator /= (int64_t val);
-        DataElement & operator /= (double val);
+        DataElement& operator=(int64_t val);
+        DataElement& operator=(double val);
+        DataElement& operator+=(int64_t val);
+        DataElement& operator+=(double val);
+        DataElement& operator-=(int64_t val);
+        DataElement& operator-=(double val);
+        DataElement& operator*=(int64_t val);
+        DataElement& operator*=(double val);
+        DataElement& operator/=(int64_t val);
+        DataElement& operator/=(double val);
 
-        DataElement & operator = (DataElement src);
+        DataElement& operator=(DataElement src);
         bool operator==(DataElement& rhs) const;
         bool operator==(const double& rhs) const;
         bool operator==(const int& rhs) const;
@@ -39,9 +40,9 @@ namespace mv
         bool operator==(const long unsigned int& rhs) const;
         bool operator==(const int64_t& rhs) const;
         bool operator==(const float& rhs) const;
-        operator int64_t () const;
-        operator double () const;
-        operator float () const;
+        operator int64_t() const;
+        operator double() const;
+        operator float() const;
 
         operator std::string() const;
         bool isDouble() const {return isDouble_;}

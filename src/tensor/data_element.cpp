@@ -87,7 +87,7 @@ bool mv::DataElement::operator==(const float& rhs) const
     return data_.i64_ == rhs;
 }
 
-mv::DataElement & mv::DataElement::operator=(int64_t i)
+mv::DataElement& mv::DataElement::operator=(int64_t i)
 {
     if (isDouble_)
         data_.fp64_ = i;
@@ -96,7 +96,7 @@ mv::DataElement & mv::DataElement::operator=(int64_t i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator=(double i)
+mv::DataElement& mv::DataElement::operator=(double i)
 {
     if (isDouble_)
         data_.fp64_ = i;
@@ -105,7 +105,7 @@ mv::DataElement & mv::DataElement::operator=(double i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator+=(int64_t i)
+mv::DataElement& mv::DataElement::operator+=(int64_t i)
 {
     if (isDouble_)
         data_.fp64_ += i;
@@ -114,7 +114,7 @@ mv::DataElement & mv::DataElement::operator+=(int64_t i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator-=(int64_t i)
+mv::DataElement& mv::DataElement::operator-=(int64_t i)
 {
     if (isDouble_)
         data_.fp64_ -= i;
@@ -123,7 +123,7 @@ mv::DataElement & mv::DataElement::operator-=(int64_t i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator-=(double i)
+mv::DataElement& mv::DataElement::operator-=(double i)
 {
     if (isDouble_)
         data_.fp64_ -= i;
@@ -132,7 +132,7 @@ mv::DataElement & mv::DataElement::operator-=(double i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator*=(int64_t i)
+mv::DataElement& mv::DataElement::operator*=(int64_t i)
 {
     if (isDouble_)
         data_.fp64_ *= i;
@@ -141,7 +141,7 @@ mv::DataElement & mv::DataElement::operator*=(int64_t i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator*=(double i)
+mv::DataElement& mv::DataElement::operator*=(double i)
 {
     if (isDouble_)
         data_.fp64_ *= i;
@@ -150,7 +150,7 @@ mv::DataElement & mv::DataElement::operator*=(double i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator/=(int64_t i)
+mv::DataElement& mv::DataElement::operator/=(int64_t i)
 {
     if (isDouble_)
         data_.fp64_ /= i;
@@ -159,7 +159,7 @@ mv::DataElement & mv::DataElement::operator/=(int64_t i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator/=(double i)
+mv::DataElement& mv::DataElement::operator/=(double i)
 {
     if (isDouble_)
         data_.fp64_ /= i;
@@ -168,7 +168,7 @@ mv::DataElement & mv::DataElement::operator/=(double i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator+=(double i)
+mv::DataElement& mv::DataElement::operator+=(double i)
 {
     if (isDouble_)
         data_.fp64_ += i;
@@ -177,7 +177,7 @@ mv::DataElement & mv::DataElement::operator+=(double i)
     return *this;
 }
 
-mv::DataElement & mv::DataElement::operator = (DataElement src)
+mv::DataElement& mv::DataElement::operator=(DataElement src)
 {
     if (isDouble_)
         data_.fp64_ = double(src);
