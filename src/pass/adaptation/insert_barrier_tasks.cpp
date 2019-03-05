@@ -2,6 +2,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/target/keembay/barrier_definition.hpp"
+#include "include/mcm/target/keembay/barrier_deps.hpp"
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
@@ -44,8 +46,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
             barrierGroup = numBarriers / 8;
             barrierIndex = numBarriers % 8;
 
-            om.barrierTask(barrierGroup, barrierIndex, numProducers,
-                                    numConsumers, wait, barrierName);
+            struct mv::Barrier b(barrierGroup, barrierIndex, numProducers, numConsumers);
+            struct mv::BarrierDependencies bdep;
+            bdep.setWaitBarrier(wait);
+
+            om.barrierTask(b, bdep, barrierName);
 
             // add control flows to insert this barrier to the control flow graph
             auto barrierOp = om.getOp(barrierName);

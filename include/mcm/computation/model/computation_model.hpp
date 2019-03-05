@@ -19,6 +19,8 @@
 #include "include/mcm/computation/model/runtime_binary.hpp"
 #include "include/mcm/target/keembay/dma_direction.hpp"
 #include "include/mcm/target/keembay/ppe_layer_type.hpp"
+#include "include/mcm/target/keembay/barrier_definition.hpp"
+#include "include/mcm/target/keembay/barrier_deps.hpp"
 
 namespace mv
 {
@@ -112,6 +114,7 @@ namespace mv
         Data::TensorIterator tensorEnd() const;
         Data::TensorIterator getTensor(const std::string& name);
         
+        bool checkOp(const std::string& name);
         Data::OpListIterator getOp(const std::string& name);
         std::vector<Data::OpListIterator> getOps(const std::string& opType);
         Data::FlowListIterator getDataFlow(const std::string& name);

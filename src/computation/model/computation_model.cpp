@@ -266,6 +266,15 @@ mv::Data::TensorIterator mv::ComputationModel::getTensor(const std::string& name
 
 }
 
+bool mv::ComputationModel::checkOp(const std::string& name)
+{
+    auto it = ops_->find(name);
+
+    if (it == ops_->end())
+        return false;
+    return true;
+}
+
 mv::Data::OpListIterator mv::ComputationModel::getOp(const std::string& name)
 {
     auto it = ops_->find(name);
