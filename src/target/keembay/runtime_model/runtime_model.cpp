@@ -375,8 +375,10 @@ void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compi
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
 {
     toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->broadcast_mask = opIt->get<unsigned>("BroadcastMask");
+
+    //NOTE: For now we are handling just one output tensor
+    toBuild->dst = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+    toBuild->dst[0] = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     toBuild->compression = opIt->get<bool>("Compression");
 }
 
@@ -417,11 +419,8 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
     }
 
     // If this function has been called, this part must be built for sure
-    auto fixed_functions = opIt->get<std::vector<PPEFixedFunction>>("PPETask");
-    unsigned n = fixed_functions.size();
-    toBuild->fixed_function = std::vector<std::unique_ptr<MVCNN::PPEFixedFunctionT>>(n);
-    for(unsigned i = 0; i < n; ++i)
-        toBuild->fixed_function[i] = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions[i]);
+    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
+    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
 
     return toBuild;
 }
@@ -501,8 +500,6 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
 std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, Workload workload)
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
-    toBuild->clusterID = workload.clusterID;
-    toBuild->workloadID = workload.workloadID;
     if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
     {
         // NOTE: Ignoring barriers for now

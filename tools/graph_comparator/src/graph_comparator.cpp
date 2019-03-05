@@ -585,8 +585,6 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NCEInvariantFieldsT& lhs,
     std::vector<std::string>& diff, const std::string& label)
 {
 
-    compare_(lhs.bias_data, rhs.bias_data, diff, label + "::bias_data");
-
     if (lhs.dpu_task_type != rhs.dpu_task_type)
         diff.push_back(label + "::dpu_task_type");
 
@@ -618,9 +616,6 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NCEInvariantFieldsT& lhs,
 void mv::tools::GraphComparator::compare_(const MVCNN::NCEVariantFieldsT& lhs, const MVCNN::NCEVariantFieldsT& rhs,
     std::vector<std::string>& diff, const std::string& label)
 {
-    
-    if (lhs.clusterID != rhs.clusterID)
-        diff.push_back(label + "::clusterID");
 
     if (lhs.mpe_mode != rhs.mpe_mode)
         diff.push_back(label + "::mpe_mode");
@@ -654,9 +649,6 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NCEVariantFieldsT& lhs, c
 
     if (lhs.workload_start_Z != rhs.workload_start_Z)
         diff.push_back(label + "::workload_start_Z");
-
-    if (lhs.workloadID != rhs.workloadID)
-        diff.push_back(label + "::workloadID");
     
 }
 
@@ -668,7 +660,15 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NNDMATaskT& lhs, const MV
         diff.push_back(label + "::compression");
 
     compare_(lhs.src, rhs.src, diff, label + "::src");
-    compare_(lhs.dst, rhs.dst, diff, label + "::dst[");
+
+    if (lhs.dst.size() != rhs.dst.size())
+    {
+        diff.push_back(label + "::dst[");
+        return;
+    }
+
+    for(unsigned i = 0; i < lhs.dst.size(); ++i)
+        compare_(lhs.dst[i], rhs.dst[i], diff, label + "::dst[i]");
 
 }
 
@@ -788,15 +788,7 @@ void mv::tools::GraphComparator::compare_(const MVCNN::PPETaskT& lhs, const MVCN
     std::vector<std::string>& diff, const std::string& label)
 {
 
-    if (lhs.fixed_function.size() != rhs.fixed_function.size())
-        diff.push_back(label + "::fixed_function");
-    else
-    {
-        for (std::size_t i = 0; i < lhs.fixed_function.size(); ++i)
-            compare_(lhs.fixed_function.at(i), rhs.fixed_function.at(i), diff, label + "::fixed_function[" + 
-                std::to_string(i) + "]");
-    }
-
+    compare_(lhs.fixed_function, rhs.fixed_function, diff, label + "::fixed_function[");
     compare_(lhs.scale_data, rhs.scale_data, diff, label + "::scale_data");
 
 }
