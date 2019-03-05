@@ -33,8 +33,8 @@ mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator
     // 2) Information given by the user.
 
     // This method is just a STUB to obtain a proper graph
-    std::vector<double> sparsityMapData(tensorSize, 1);
-    auto sparsityMap = om.constant(sparsityMapData, {tensorSize}, mv::DType("UInt32"), mv::Order("W"), sparsityMapName);
+    std::vector<int64_t> sparsityMapData(tensorSize, 1);
+    auto sparsityMap = om.constantInt(sparsityMapData, {tensorSize}, mv::DType("UInt32"), mv::Order("W"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
@@ -47,7 +47,7 @@ mv::Data::TensorIterator addSparsityMap(mv::OpModel om, mv::Data::OpListIterator
 
 mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName, unsigned outputChannels)
 {
-    std::vector<double> weightTableData(4 * outputChannels, 0);
+    std::vector<int64_t> weightTableData(4 * outputChannels, 0);
 
     // WeightTableData should be filled here using packing information (and quantization information maybe?)
     for(unsigned i = 0; i < outputChannels; ++i)
@@ -55,7 +55,7 @@ mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterato
         weightTableData[i + 0] = 0; //DATA_PTR
         weightTableData[i + 1] = 0; //SP_PTR
     }
-    auto weightTable = om.constant(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
+    auto weightTable = om.constantInt(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     weightTable = om.dMATask(weightTable, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));

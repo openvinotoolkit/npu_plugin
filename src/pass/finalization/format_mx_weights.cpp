@@ -82,7 +82,7 @@ void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &m
                                     backup_tensor.at({oc/8,ic,ky,kx,oc%8}) = oldWeights->at({kx, ky, ic, oc});
 
                     new_data = backup_tensor.getIntData();
-                    new_weights = om.constant(
+                    new_weights = om.constantInt(
                         new_data,
                         new_shape,
                         backup_tensor.getDType(),

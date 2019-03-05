@@ -22,7 +22,7 @@ TEST(quantization, case_conv)
     mv::QuantizationParams biasQuantParams({0}, {2.13339e-05}, {0}, {1});
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(64*64);
-    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
+    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     weights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1);
     auto convOp = om.getSourceOp(conv);
