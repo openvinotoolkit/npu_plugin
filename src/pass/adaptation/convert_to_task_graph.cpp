@@ -98,13 +98,16 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
             }
 
-            om.deallocate(input, inputDeallocationName);
-            om.deallocate(kernel, kernelDeallocationName);
-
+            if(!om.checkOp(inputDeallocationName))
+                om.deallocate(input, inputDeallocationName);
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
+
+            if(!om.checkOp(kernelDeallocationName))
+                om.deallocate(kernel, kernelDeallocationName);
+
             auto dmaKernelFreeOp = om.getOp(kernelDeallocationName);
-            dmaKernelFreeOp->set<unsigned>("opId", kernelOpId);
+            dmaKernelFreeOp->set<unsigned>("opId", inputOpId);
 
             cm.defineFlow(dpuConvOp, dmaInputFreeOp);
             cm.defineFlow(dpuConvOp, dmaKernelFreeOp);
@@ -121,7 +124,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             ++opIt;
             om.removeOp(backup);
         }
-        if (opIt->getOpType() == "MaxPool")
+        else if (opIt->getOpType() == "MaxPool")
         {
             auto input = opIt->getInputTensor(0);
             auto inputOpName = om.getSourceOp(input)->getName();
@@ -143,9 +146,10 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
-
             std::string inputDeallocationName("Deallocate"+inputOpName);
-            om.deallocate(input, inputDeallocationName);
+
+            if(!om.checkOp(inputDeallocationName))
+                om.deallocate(input, inputDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
@@ -165,7 +169,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             om.removeOp(backup);
         }
 
-        if (opIt->getOpType() == "AveragePool")
+        else if (opIt->getOpType() == "AveragePool")
         {
             auto input = opIt->getInputTensor(0);
             auto inputOpName = om.getSourceOp(input)->getName();
@@ -189,7 +193,8 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             dpuPoolOp->set<unsigned>("opId", opId);
 
             std::string inputDeallocationName("Deallocate"+inputOpName);
-            om.deallocate(input, inputDeallocationName);
+            if(!om.checkOp(inputDeallocationName))
+                om.deallocate(input, inputDeallocationName);
 
             auto dmaInputFreeOp = om.getOp(inputDeallocationName);
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
@@ -209,7 +214,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             om.removeOp(backup);
         }
 
-        if (opIt->getOpType() == "Output")
+        else if (opIt->getOpType() == "Output")
         {
             auto input = opIt->getInputTensor(0);
 

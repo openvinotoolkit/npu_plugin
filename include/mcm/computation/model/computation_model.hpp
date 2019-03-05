@@ -114,6 +114,7 @@ namespace mv
         Data::TensorIterator tensorEnd() const;
         Data::TensorIterator getTensor(const std::string& name);
         
+        bool checkOp(const std::string& name);
         Data::OpListIterator getOp(const std::string& name);
         std::vector<Data::OpListIterator> getOps(const std::string& opType);
         Data::FlowListIterator getDataFlow(const std::string& name);
