@@ -2,43 +2,46 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 
-/*void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&);
+static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object& compOutput);
 
 namespace mv
 {
-
     namespace pass
     {
-
         MV_REGISTER_PASS(GenerateJSON)
         .setFunc(generateJSONFcn)
-        .setGenre(PassGenre::Serialization)
-        .defineArg(json::JSONType::String, "output")
+        .defineArg(json::JSONType::String, "filename")
         .setDescription(
-            "Generates the JSON representation of computation model"
+            "Saves the computation model as a JSON file, plus any populated tensors"
         );
-
     }
 
 }
 
-void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::json::Object& compDesc, mv::json::Object&)
+static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object& compOutput)
 {
-    std::ofstream ostream;
-    std::string outputPath(compDesc["GenerateJSON"]["output"].get<std::string>());
+    pass.log(mv::Logger::MessageType::Debug, "Saving computation model to json...");
+
+    // get filename from compilation descriptor
+    std::string outputPath = "computation_model.json"; 
+    if (passDesc.hasAttr("filename")) {
+        outputPath = passDesc.get<std::string>("filename");
+    }
+    // use same filename for tensor outputs (with different extension)
     size_t lastindex = outputPath.find_last_of(".");
     std::string outputPathNoExt(outputPath.substr(0, lastindex));
 
+    std::ofstream ostream;
     ostream.open(outputPath, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
-        throw mv::ArgumentError("output", outputPath, "Unable to open output file");
+        throw mv::ArgumentError(model, "filename", outputPath, "Unable to open output filename");
 
-    mv::json::Value computationModel = model.toJsonValue();
+    mv::json::Value computationModel = model.toJSON();
     ostream << computationModel.stringifyPretty();
     ostream.close();
 
-    //Populated tensors must be serialized in different files
-    if(mv::Jsonable::constructBoolTypeFromJson(computationModel["has_populated_tensors"]))
+    //Any populated tensors are serialized in different files
+    if(model.hasPopulatedTensorsToJSON())
     {
         for(auto tensorIt = model.tensorBegin(); tensorIt != model.tensorEnd(); ++tensorIt)
         {
@@ -51,4 +54,4 @@ void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             currentTensorOutputStream.close();
         }
     }
-}*/
+}

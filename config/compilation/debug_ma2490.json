@@ -55,7 +55,11 @@
     },
     "validate": {
         "Singular": [
-            "CheckTensors"
+            "CheckTensors",
+            {
+                "name": "GenerateJSON",
+                "filename": "computation_model.json"
+            }
         ]
     },
     "serialize": {
