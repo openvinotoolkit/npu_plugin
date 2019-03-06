@@ -6,8 +6,8 @@
 namespace mv
 {
 
-    static std::function<BinaryData(const std::vector<double>&)> toBinaryFunc =
-    [](const std::vector<double> & vals)->mv::BinaryData
+    static std::function<BinaryData(const std::vector<DataElement>&)> toBinaryFunc =
+    [](const std::vector<DataElement> & vals)->mv::BinaryData
     {
         std::vector<int16_t> res;
         mv_num_convert cvtr;
@@ -22,5 +22,6 @@ namespace mv
 
     MV_REGISTER_DTYPE(Float16)
     .setToBinaryFunc(toBinaryFunc)
+    .setIsDoubleType(true)
     .setSizeInBits(16);
 }

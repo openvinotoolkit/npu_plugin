@@ -124,9 +124,10 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
                 //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
                 //auto Z_bias = biasQuantization.getZeroPoint();
                 //auto S_bias = biasQuantization.getScale();
-                std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int32_t>());
-                bias->populate(data);
+                std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
                 bias->setDType(mv::DType("Int32"));
+                bias->populate(data);
+
             }
             else
             {
@@ -141,9 +142,9 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             mv::Shape shape({outputChannels, 1, 1, 4});
 
             auto bias = dm.getTensor(opIterator->get<std::string>("bias"));
-            auto biasData = bias->getData();
+            auto biasData = bias->getData(); //Bias has the type Int32 in both cases above
 
-            std::vector<int32_t> weightsTableData(shape.totalSize());
+            std::vector<int64_t> weightsTableData(shape.totalSize());
             // per channel layout:
             // 3 -> bias
             // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
@@ -157,7 +158,7 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             }
 
             auto weightTableTensor = dm.defineTensor(opIterator->getName() + "_weights_table", shape, mv::DType("Int32"), mv::Order("NWHC"),
-                convertToDoubleVector<int32_t>(weightsTableData));
+                weightsTableData);
             om.addAttr(opIterator, "weightsTable", weightTableTensor->getName());
         }
 

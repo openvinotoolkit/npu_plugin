@@ -24,7 +24,7 @@ namespace mv
             return instance().find(dtype_string) != nullptr;
         }
 
-        static const std::function<BinaryData(const std::vector<double>&)>& getToBinaryFunc(const std::string& typeID)
+        static const std::function<BinaryData(const std::vector<DataElement>&)>& getToBinaryFunc(const std::string& typeID)
         {
 
             if (!checkDType(typeID))
@@ -59,6 +59,26 @@ namespace mv
             throw MasterError("DTypeRegistry", "Registered dtype " + typeID +
                 " not found in the dtype registry");
         }
+
+
+        static bool isDoubleType(const std::string& typeID)
+        {
+
+            if (!checkDType(typeID))
+            {
+                throw DTypeError("DTypeRegistry",
+                        "Attempt of obtaining size in bytes for an unregistered dtype " + typeID);
+            }
+
+            mv::DTypeEntry* const typePtr = instance().find(typeID);
+
+            if (typePtr)
+                return typePtr->isDoubleType();
+
+            throw MasterError("DTypeRegistry", "Registered dtype " + typeID +
+                " not found in the dtype registry");
+        }
+
 
     };
 
