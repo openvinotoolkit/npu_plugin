@@ -91,7 +91,7 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::Computation
     }
 
     // Cleaning unnecessary edges.
-    cm.transitiveReduction();
+    //cm.transitiveReduction();
 
     // Point 2)
     auto stage = cm.addStage();

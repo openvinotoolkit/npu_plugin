@@ -21,7 +21,7 @@ namespace mv
     }
 }
 
-/*Edge Description*/
+/*KOALA Edge Description*/
 struct edgeDescription {
 	int memoryRequirement;
 	std::string name;
@@ -118,6 +118,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
 {
 
     mv::ControlModel cm(model);
+    mv::DataModel dm(model);
 
     encodeMemoryRequirmentsofTask(model);
    
@@ -138,15 +139,15 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             numberOfKoalaVertices++;
     
     /*Count number of edges required for KOALA graph*/
-    // for (auto flowIt = cm.get; opIt != cm.flowEnd(); ++opIt) 
-    //         numberOfKoalaEdges++;
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)
+        numberOfKoalaEdges++;
 
-    koalaGraph::PVertex V[numberOfKoalaVertices]; /*Number of vertices*/
-    koalaGraph::PEdge E[16];   /*Number of vertices - TODO dynamically allocate*/
+    /*Array to store KOALA vertices and edges iterators*/
+    koalaGraph::PVertex V[numberOfKoalaVertices]; 
+    koalaGraph::PEdge E[numberOfKoalaEdges -1];   /* subtract 1 as we do not need last edge to ouput node in MCM graph*/
     
     /* For each task in the ControlModel view of the MCM graph
      * create a corresponding node (task) in the KOALA graph.
-     * 
      * Add all the nodes to the KOALA graph first and then add the edges.
     */
     for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt)
@@ -164,52 +165,44 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
        }
     }
     
-    // /*Add the edges to the KOALA graph*/
-    // for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt) {
-
-    //     /*This operations are not required in the KOALA graph, therefore skip them*/
-    //     if (opIt->getOpType() != "Input" && opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") { 
-            
-    //         /*If more than 1 parent i.e DPU task*/ 
-    //         if(opIt.parentsSize() > 1) {
-                
-    //             for (auto parentIt = opIt.leftmostParent(); parentIt != opIt.rightmostParent(); ++parentIt) {
-
-                
-                    
-    //                 /*Need to look up KOALA vertex iteraor by name (KOALA vertex name is same as MCM vertex name)*/
-    //                 auto parentVertex = lookUpKoalaVertexbyName(parentIt->getName(), V, vertexIndex);
-    //                 auto thisVertex = lookUpKoalaVertexbyName(opIt->getName(), V, vertexIndex);
-
-    //                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + parentVertex->info + " --> " + thisVertex->info + " with memory requirement " + std::to_string(parentIt->get<int>("MemoryRequirement")));
-    //                 E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, edgeDescription(parentIt->get<int>("MemoryRequirement"),opIt.leftmostInput()->getName()), Koala::Directed);
-    //                 edgeIndex++;
-    //             }
-            
-    //             /*Deal with the rightmost parent which is not added in the previous loop*/
-    //             auto parentVertex = lookUpKoalaVertexbyName(opIt.rightmostParent()->getName(), V, vertexIndex);
-    //             auto thisVertex = lookUpKoalaVertexbyName(opIt->getName(), V, vertexIndex);
-
-    //             pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + parentVertex->info + " --> " + thisVertex->info + " with memory requirement " + std::to_string(opIt.rightmostParent()->get<int>("MemoryRequirement")));
-    //             //E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, edgeDescription(1,"hello"), Koala::Directed);
-    //             edgeIndex++;
-    //         }
+    /*Add the edges to the KOALA graph*/
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
         
-    //         /*Only one parent i.e. DMA task, Deallocate task*/
-    //         if(opIt.parentsSize() == 1) {
+        /*Don't add the edge going to Ouput in the MCM graph to the KOALA graph*/
+        if (flowIt.sink()->getOpType() != "Output") { 
+
+            auto sourceName = flowIt.source()->getName();
+            auto sinkName  = flowIt.sink()->getName();
+
+            /* (1) If the sink node of the flow iterator is a Deallocate Op or
+             * (2) or the source node of the flow iterator is a DPU task then
+             *     encode the memory requirment (size of the output tensor) on the edge.
+             *     If not then the memory requirement in 0.
+             */ 
+            if(((flowIt.sink()->getOpType() == "Deallocate") && (flowIt.source()->getOpType() != "DPUTask"))  || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getOpType() != "Deallocate"))) {
                 
-    //             auto parentIt = opIt.leftmostParent();
+                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt.source()->get<int>("MemoryRequirement")));
+        
+                /*Get KOALA Vertix iterator*/
+                auto parentVertex = lookUpKoalaVertexbyName(sourceName, V, vertexIndex);
+                auto thisVertex = lookUpKoalaVertexbyName(sinkName, V, vertexIndex);
 
-    //             /*Need to look up KOALA vertex iteraor by name (KOALA vertex name is same as mcmcompiler vertex name)*/
-    //             auto parentVertex = lookUpKoalaVertexbyName(parentIt->getName(), V, vertexIndex);
-    //             auto thisVertex = lookUpKoalaVertexbyName(opIt->getName(), V, vertexIndex);
+                E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, edgeDescription(flowIt.source()->get<int>("MemoryRequirement"),flowIt->getName()), Koala::Directed);
+                edgeIndex++;
+            }
+            else {
+                
+                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement 0");
+        
+                /*Get KOALA Vertix iterator*/
+                auto parentVertex = lookUpKoalaVertexbyName(sourceName, V, vertexIndex);
+                auto thisVertex = lookUpKoalaVertexbyName(sinkName, V, vertexIndex);
 
-    //             pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + parentVertex->info + " --> " + thisVertex->info + " with memory requirement " + std::to_string(parentIt->get<int>("MemoryRequirement")));
-    //             E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, edgeDescription(parentIt->get<int>("MemoryRequirement"),opIt.leftmostInput()->getName()), Koala::Directed);
-    //             edgeIndex++;
-    //         }
-    //     }
-    // }
+                E[edgeIndex] = flowGraph.addEdge(parentVertex, thisVertex, edgeDescription(0,flowIt->getName()), Koala::Directed);
+                edgeIndex++;
+            }
+        }
+    }
     
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(flowGraph.getVertNo()) + " vertices and " + std::to_string(flowGraph.getEdgeNo()) + " edges");
 

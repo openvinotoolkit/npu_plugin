@@ -46,6 +46,11 @@ mv::Control::FlowListIterator mv::ControlModel::getOutput()
     return switchContext(*output_).leftmostInput();
 }
 
+mv::Control::FlowListIterator mv::ControlModel::flowBegin()
+{
+    return controlGraph_.edge_begin();
+}
+
 mv::Control::FlowListIterator mv::ControlModel::flowEnd()
 {
     return *controlFlowEnd_;

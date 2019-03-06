@@ -124,12 +124,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             ++opIt;
             om.removeOp(backup);
         }
-<<<<<<< 11e9d350e9b8016e6fa74799f9955f90724a8c66
         else if (opIt->getOpType() == "MaxPool")
-=======
-
-        if (opIt->getOpType() == "MaxPool")
->>>>>>> added pass to connect dealloc nodes to DMA task CMX2DDR
         {
             auto input = opIt->getInputTensor(0);
             auto inputOpName = om.getSourceOp(input)->getName();
