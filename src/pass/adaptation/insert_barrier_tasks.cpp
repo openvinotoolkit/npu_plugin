@@ -112,10 +112,13 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
             // Do not insert this barrier into the barrierTask list if a barrier
             // with the same producers already exists.
+            bool addBarrier = true;
             for (auto& b: barriers)
             {
                 if (b.getProducers() == producers)
                 {
+                    addBarrier = false;
+
                     for (auto consumer: consumers)
                         b.addConsumer(consumer);
 
@@ -123,8 +126,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
                 }
             }
 
-            struct mv::Barrier new_barrier(producers, consumers);
-            barriers.push_back(new_barrier);
+            if (addBarrier)
+            {
+                struct mv::Barrier new_barrier(producers, consumers);
+                barriers.push_back(new_barrier);
+            }
         }
     }
 
