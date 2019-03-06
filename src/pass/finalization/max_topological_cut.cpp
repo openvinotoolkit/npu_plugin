@@ -89,6 +89,7 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
         if (opIt->getOpType() == "DPUTask") { 
 
             int memoryRequirement = 1;
+            std::cout << opIt->getOutputTensor()[0]->getShape().toString() << std::endl;
             for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
 
@@ -119,12 +120,33 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
 
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
+    mv::OpModel om(model);
 
     encodeMemoryRequirmentsofTask(model);
    
     /*Name of KOALA graph*/
     koalaGraph flowGraph;
     
+    /*REMOVE THIS WHEN SPARISTY AND WEIGHT TABLE FIXED*/
+    auto op = cm.getOp("DMATask_3");
+    op->set<int>("MemoryRequirement", 4096);
+
+    auto op1 = cm.getOp("DMATask_4");
+    op1->set<int>("MemoryRequirement", 1024);
+
+    /*Compute Fmax*/
+    int Fmax = 0;
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
+        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") {
+            if (opIt->hasAttr("MemoryRequirement")) {
+                Fmax += opIt->get<int>("MemoryRequirement");
+            }
+        }
+        
+    }
+    Fmax += 1;
+    std::cout << "fmax is " << Fmax << std::endl;
+
     /*Values to store on KoalaGraph edges*/
     //Koala::AssocArray< koalaGraph::PEdge, Koala::ed<int, int>> memoryRequirement;
 
@@ -134,9 +156,10 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     int edgeIndex = 0;
 
     /*Count number of vertices required for KOALA graph*/
-    for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt) 
+    for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt) {
         if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") 
             numberOfKoalaVertices++;
+    }
     
     /*Count number of edges required for KOALA graph*/
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)

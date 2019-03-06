@@ -21,7 +21,7 @@ int main()
     auto input = om.input({112, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
     auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {2, 2}, {0, 0, 0, 0});
+    auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
 
     // std::cout << "shape " << conv->getShape().toString();
 
