@@ -18,17 +18,10 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-<<<<<<< HEAD
     auto input = om.input({112, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
     auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {0, 0, 0, 0});
-=======
-    auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
-    auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
->>>>>>> 3c7bb397e302a21d7da8154705292f6f53df0e90
 
     // std::cout << "shape " << conv->getShape().toString();
 
@@ -41,11 +34,7 @@ int main()
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
-<<<<<<< HEAD
     compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
-=======
-    compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
->>>>>>> 3c7bb397e302a21d7da8154705292f6f53df0e90
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
