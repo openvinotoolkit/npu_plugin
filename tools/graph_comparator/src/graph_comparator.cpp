@@ -585,11 +585,8 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NCEInvariantFieldsT& lhs,
     std::vector<std::string>& diff, const std::string& label)
 {
 
-<<<<<<< HEAD
-=======
     compare_(lhs.activation_window, rhs.activation_window, diff, label + "::activation_window");
 
->>>>>>> Fixed graph comparator with latest schema version.
     if (lhs.dpu_task_type != rhs.dpu_task_type)
         diff.push_back(label + "::dpu_task_type");
 
