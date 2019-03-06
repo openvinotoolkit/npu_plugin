@@ -21,7 +21,11 @@ namespace mv
     }
 }
 
+<<<<<<< HEAD
 /*KOALA Edge Description*/
+=======
+/*Edge Description*/
+>>>>>>> 3c7bb397e302a21d7da8154705292f6f53df0e90
 struct edgeDescription {
 	int memoryRequirement;
 	std::string name;
