@@ -466,7 +466,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    //TODO: If fakeSparse attribute is set, activation_window must be built
+
+    unsigned num_inputs = opIt->getInputTensor().size();
+
+    if(opIt->hasAttr("fakeSparsity"))
+        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 2));
+
+    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 1));
 
     switch (toBuild->dpu_task_type)
     {
