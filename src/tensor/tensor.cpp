@@ -196,8 +196,13 @@ void mv::Tensor::populateSparsityMapTensor_()
 
 void mv::Tensor::setSparse()
 {
-    if (getOrder() != mv::Order("NWHC"))
+    if (!getOrder().isZMajor())
         throw ArgumentError(*this, "Order", getOrder().toString() , " Sparsity requires ZMajor layout (NWHC)");
+
+    if(hasAttr("sparse") && get<bool>("sparse") == true)
+        throw ArgumentError(*this, "Sparsity == ", "true" , " Sparsity for this tensor has already been set");
+
+    set<bool>("sparse", true);
 
     // we will create tensors here, and set them as attributes, in runtime_modle, need to check if
     // sparse then get the specific attributes by name and call toBinary
@@ -218,9 +223,7 @@ void mv::Tensor::setSparse()
 
     //populate sparsity map
     if (isPopulated())
-    {
         populateSparsityMapTensor_();
-    }
 }
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)

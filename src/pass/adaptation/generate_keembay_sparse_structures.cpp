@@ -295,25 +295,16 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
             else
             {
-                // Necessary since we are adding tensors to DPUTask
                 unsigned n = dpuTask->getInputTensor().size();
                 for (unsigned i = 0; i < n; ++i)
                     if (dpuTask->getInputTensor(i)->getOrder().isZMajor())
-                        createSparsityMap(om, dpuTask, findSourceOperation(om, dpuTask->getInputTensor(i)));
+                        dpuTask->getInputTensor(i)->setSparse();
 
-//                n = dpuTask->getOutputTensor().size();
-//                for (unsigned i = 0; i < n; ++i)
-//                    if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
-//                        createSparsityMap(om, dpuTask, dpuTask->getOutputTensor(i));
+                n = dpuTask->getOutputTensor().size();
+                for (unsigned i = 0; i < n; ++i)
+                    if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+                        dpuTask->getOutputTensor(i)->setSparse();
 
-                //If HW layer and has weights
-//                if (dpuTask->inputSlots() > 1 &&
-//                    dpuTask->getInputTensor(0)->getOrder().isZMajor())
-//                {
-//                    auto weights = dpuTask->getInputTensor(1);
-//                    weights->setOrder(mv::Order("NWHC"));
-//                    createSparsityMap(om, dpuTask, weights);
-//                }
             }
         }
     }
