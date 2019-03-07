@@ -49,6 +49,9 @@ file(GLOB hw
     "hw/*.cpp"
 )
 
+file(GLOB keembay
+    "target/keembay/*.cpp"
+)
 
 add_executable(mcm_unit_tests
     mcm_unit_tests.cpp
@@ -62,6 +65,7 @@ add_executable(mcm_unit_tests
     ${pass_src}
     ${compiler_src}
     ${model_src}
+    ${keembay}
 )
 if(VALIDATION)
 file(GLOB deployer_src
