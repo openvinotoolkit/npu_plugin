@@ -29,7 +29,7 @@ namespace mv
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.constant(sparsityMapData, sparsityShape, mv::DType("UInt32"), mv::Order("NCHW"), sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt32"), mv::Order("NCHW"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
@@ -40,59 +40,59 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
 }
 
 
-mv::Data::TensorIterator createSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, mv::Data::TensorIterator tensor)
-{
-    mv::ControlModel cm(om);
+//mv::Data::TensorIterator createSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, mv::Data::TensorIterator tensor)
+//{
+//    mv::ControlModel cm(om);
 
-    auto tensorShape = tensor->getShape();
-    std::string tensorName = tensor->getName();
-    tensorName.pop_back(); tensorName.pop_back(); //Necessary for .dot files
+//    auto tensorShape = tensor->getShape();
+//    std::string tensorName = tensor->getName();
+//    tensorName.pop_back(); tensorName.pop_back(); //Necessary for .dot files
 
-    std::string sparsityMapName(tensorName+"SparsityMap");
-    auto sparsityMap = om.sparsityMap(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
-    tensor->set<bool>("sparse", true);
+//    std::string sparsityMapName(tensorName+"SparsityMap");
+//    auto sparsityMap = om.sparsityMap(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
+//    tensor->set<bool>("sparse", true);
 
-    if(tensor->isPopulated())
-    {
-        auto data = tensor->getData();
-        auto nonZeroElements = 0;
-        //default all zeropoints to zero
-        std::vector<unsigned> zeroPoint = tensor->getZeroPointsPerChannel();
-        std::vector<double> sparsityMapData(sparsityMap->getShape().totalSize());
-        std::vector<size_t> sub(tensorShape.ndims());
-        uint8_t map;
+//    if(tensor->isPopulated())
+//    {
+//        auto data = tensor->getData();
+//        auto nonZeroElements = 0;
+//        //default all zeropoints to zero
+//        std::vector<unsigned> zeroPoint = tensor->getZeroPointsPerChannel();
+//        std::vector<double> sparsityMapData(sparsityMap->getShape().totalSize());
+//        std::vector<size_t> sub(tensorShape.ndims());
+//        uint8_t map;
 
-        auto internalOrder = tensor->getInternalOrder();
-        auto order = tensor->getOrder();
+//        auto internalOrder = tensor->getInternalOrder();
+//        auto order = tensor->getOrder();
 
-        for (size_t t = 0; t < tensorShape.totalSize(); t += 8)
-        {
-            map = 0;
-            for (size_t i = 0; i < 8; i++)
-            {
-                sub = order.indToSub(tensorShape, t+i);
-                if (sub[2] < tensorShape[2] && data[internalOrder.subToInd(tensorShape, sub)] != zeroPoint[sub[3]])
-                {
-                    map += 1 << i;
-                    nonZeroElements++;
-                }
-            }
-            sparsityMapData[t/8] = map;
-        }
-        sparsityMap->populate(sparsityMapData);
+//        for (size_t t = 0; t < tensorShape.totalSize(); t += 8)
+//        {
+//            map = 0;
+//            for (size_t i = 0; i < 8; i++)
+//            {
+//                sub = order.indToSub(tensorShape, t+i);
+//                if (sub[2] < tensorShape[2] && data[internalOrder.subToInd(tensorShape, sub)] != zeroPoint[sub[3]])
+//                {
+//                    map += 1 << i;
+//                    nonZeroElements++;
+//                }
+//            }
+//            sparsityMapData[t/8] = map;
+//        }
+//        sparsityMap->populate(sparsityMapData);
 
-        //BUG: Why does this give segfault?
-        sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
-    }
+//        //BUG: Why does this give segfault?
+//        sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
+//    }
 
-    dpuTaskOp->addInputTensor(sparsityMap);
-    om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
-    std::string deallocationTaskName = sparsityMapName+"Deallocate";
-    om.deallocate(sparsityMap,deallocationTaskName);
-    cm.defineFlow(dpuTaskOp, om.getOp(deallocationTaskName));
+//    dpuTaskOp->addInputTensor(sparsityMap);
+//    om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
+//    std::string deallocationTaskName = sparsityMapName+"Deallocate";
+//    om.deallocate(sparsityMap,deallocationTaskName);
+//    cm.defineFlow(dpuTaskOp, om.getOp(deallocationTaskName));
 
-    return sparsityMap;
-}
+//    return sparsityMap;
+//}
 
 mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName, unsigned outputChannels)
 {
@@ -268,21 +268,22 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 //Create Tensor with Sparsity Data
                 mv::Shape sparsityShape(ndims);
-                std::vector<double> data(sparsityShape.totalSize(), 0);
+                std::vector<int64_t> data(sparsityShape.totalSize(), 0);
+                //mv::Tensor sparsityTensor("backup", sparsityShape, mv::DType("UInt8"), mv::Order("WHCN"), data);
                 auto sparsityTensor = dm.defineTensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), data);
 
                 for(unsigned kx = 0; kx < sparsityShape[0]; ++kx)
                     for(unsigned ky = 0; ky < sparsityShape[1]; ++ky)
                         for(unsigned ic = 0; ic < sparsityShape[2]; ++ic)
                             for(unsigned oc = 0; oc < sparsityShape[3]; ++oc)
-                                sparsityTensor->at({kx, ky, ic, oc}) = perChannelSparsity[ky*sparsityShape[0] + kx];
+                                sparsityTensor->at({kx, ky, ic, oc}) = static_cast<int64_t>(perChannelSparsity[ky*sparsityShape[0] + kx]);
 
                 auto opId = dpuTask->get<unsigned>("opId");
                 std::string opName = dpuTask->getName();
 
                 std::string sparsityMapName(opName + "SparsityMap");
                 std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
-                auto sparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor->getData());
+                auto sparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor->getIntData());
 
                 dm.undefineTensor(sparsityTensor);
 
