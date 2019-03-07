@@ -52,11 +52,11 @@ else()
 	add_executable(cm_linear cm_linear.cpp)
 	target_link_libraries(cm_linear cm)
 
-	add_executable(koala Koala_example.cpp)
+	add_executable(koala_example Koala_example.cpp)
+	target_link_libraries(koala_example cm)
 
-# FIXME: uncomment after ma2480_memory_allocator_example.cpp is added
-#	add_executable(ma2480_memory_allocator_example ma2480_memory_allocator_example.cpp)
-#	target_link_libraries(ma2480_memory_allocator_example cm)
+	add_executable(koala_visualiser Koala_example_visualiser.cpp)
+	target_link_libraries(koala_visualiser cm)
 
 	add_executable(cm_two_branch cm_two_branch.cpp)
 	target_link_libraries(cm_two_branch cm)

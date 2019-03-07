@@ -1,75 +1,112 @@
 #include <iostream>
+#include <string>
+#include <limits>
+#include <iterator>
+#include <vector>
 
 #include "../contrib/koala/graph/graph.h"
-#include "../contrib/koala/algorithm/conflow.h"
+#include "../contrib/koala/algorithm/weights.h"
 
 using namespace std;
 using namespace Koala;
 
 typedef Koala::Graph < char, string > MyGraph;
 
+MyGraph g;
+MyGraph::PVertex A, B, C, D, E, F, G;
+MyGraph::PEdge ab, bd, ac, cd, ce, bc, de, df;
 
-struct edgeIter {
-	void operator=(MyGraph::PEdge e) { cout << e->info; }
-	void operator++() { }
-	edgeIter &operator*() { return *this; }
-};
 
-int main() {
-	// create graph
-	MyGraph g;
-	MyGraph::PVertex s = g.addVert('s'), t = g.addVert('t'), a = g.addVert('a'), b = g.addVert('b'),
-		c = g.addVert('c'), d = g.addVert('d'), e = g.addVert('e'), f = g.addVert('f');
-	MyGraph::PEdge sb = g.addEdge(s, b, "sb"), sa = g.addEdge(s, a, "sa"), bc = g.addEdge(b, c, "bc"),
-		ac = g.addEdge(a, c, "ac"), cd = g.addEdge(c, d, "cd"), de = g.addEdge(d, e, "de"),
-		df = g.addEdge(d, f, "df"), et = g.addEdge(e, t, "et"), ft = g.addEdge(f, t, "ft");
+AssocArray < MyGraph::PEdge, DijkstraHeap::EdgeLabs < int > > edgeMap; // input container
+AssocArray < MyGraph::PVertex, DijkstraHeap::VertLabs < int, MyGraph > > vertMap; // output container
 
-	// set edge capacities and costs
-	AssocArray< MyGraph::PEdge, Flow::EdgeLabs< int, int > > cap;
-	cap[sb].capac = 2; cap[sb].cost = 1;
-	cap[sa].capac = 1; cap[sa].cost = 2;
-	cap[bc].capac = 2; cap[bc].cost = 1;
-	cap[ac].capac = 1; cap[ac].cost = 2;
-	cap[cd].capac = 2; cap[cd].cost = 1;
-	cap[de].capac = 1; cap[de].cost = 2;
-	cap[df].capac = 2; cap[df].cost = 1;
-	cap[et].capac = 1; cap[et].cost = 2;
-	cap[ft].capac = 2; cap[ft].cost = 1;
-	// see graph or see graph in editor
+// containters for vertices and edges on paths
+vector < MyGraph::PVertex > vecV;
+vector < MyGraph::PEdge > vecE;
+MyGraph::PEdge tabE[20];
 
-	// compute the flow
-	cout << "The s-t flow is " << Flow::maxFlow(g, cap, s, t) << "." << endl;
-	cout << "The s-t flow on edges: ";
-	for (MyGraph::PEdge ie = g.getEdge(); ie; ie = g.getEdgeNext(ie)) {
-		cout << ie->info << " (" << cap[ie].flow;
-		if (g.getEdgeNext(ie)) cout << "), ";
-		else cout << ")." << endl;
+
+void createGraph() // see graph
+{
+	A = g.addVert('A');
+	B = g.addVert('B');
+	C = g.addVert('C');
+	D = g.addVert('D');
+	E = g.addVert('E');
+	F = g.addVert('F');
+	G = g.addVert('G');
+	
+	ab = g.addEdge(A, B, "ab");
+	bd = g.addEdge(B, D, "bd");
+	ac = g.addEdge(A, C, "ac");
+	cd = g.addEdge(D, C, "cd");
+	ce = g.addEdge(C, E, "ce");
+	bc = g.addArc(B, C, "bc");
+	de = g.addArc(D, E, "de");
+	df = g.addArc(F, D, "fd");
+}
+
+void setEdgeLengths() // see graph
+{
+	edgeMap[ab].length = 1;
+	edgeMap[bd].length = 5;
+	edgeMap[ac].length = 4;
+	edgeMap[cd].length = 2;
+	edgeMap[ce].length = 1;
+	edgeMap[bc].length = 2;
+	edgeMap[de].length = 1;
+	edgeMap[df].length = 2;
+}
+
+
+int main(int argc, char **argv)
+{
+	createGraph();
+	setEdgeLengths();
+	
+	// counting distances from A to all vertices
+	DijkstraHeap::distances(g, vertMap, edgeMap, A); // see graph
+	
+	for (MyGraph::PVertex v = g.getVert(); v; v = g.getVertNext(v))
+		if (vertMap[v].distance < numeric_limits < int >::max()) {
+			cout << "Vertex " << v->info << ":" << vertMap[v].distance << '\n';
+		}
+		else {
+			cout << "Vertex " << v->info << " inaccessible\n";
+		}
+	cout << "\n\n"; // see output
+	
+	// finding shortest path from A to E using data stored in vertMap
+	int eLen = DijkstraHeap::getPath(g, vertMap, E, DijkstraHeap::outPath(back_inserter(vecV), tabE));
+	cout << "Vertices on the path:";
+	for (int i = 0; i <= eLen; i++) {
+		cout << ' ' << vecV[i]->info ;
 	}
-	// see graph
-	// output
-
-	// compute minimal cut
-	cout << "The cut-set of graph consists of edges: ";
-	Flow::minEdgeCut(g, cap, Flow::outCut(blackHole, edgeIter()));
-	cout << "." << endl;
-	// compute minimal cut
-	cout << "The cut-set between vertices s and t consists of edges: ";
-	Flow::minEdgeCut(g, cap, s, t, Flow::outCut(blackHole, edgeIter()));
-	cout << "." << endl;
-	// see graph
-	// output
-
-	// compute the cheapest flow
-	cout << "The cheapest s-t flow costs " << Flow::minCostFlow(g, cap, s, t).first << "." << endl;
-	cout << "The cheapest s-t flow on edges: ";
-	for (MyGraph::PEdge ie = g.getEdge(); ie; ie = g.getEdgeNext(ie)) {
-		cout << ie->info << " (" << cap[ie].flow;
-		if (g.getEdgeNext(ie)) cout << "), ";
-		else cout << ")." << endl;
+	cout << "\nEdges on the path:";
+	for (int i = 0; i < eLen; i++) {
+		cout << ' ' << tabE[i]->info ;
 	}
-	cout << "Is it the cheapest flow costs ? - " << (Flow::testFlow(g, cap, s, t) ? "yes" : "no") << endl;
-	// see graph
-	// output
-
+	cout << "\n\n\n"; // see output
+	
+	
+	// finding shortest paths' tree from A using data stored in vertMap
+	cout << "Edges of the tree:\n";
+	for (MyGraph::PVertex v = g.getVert(); v; v = g.getVertNext(v))
+		if (vertMap[v].ePrev) {
+			cout << v->info << ':' << vertMap[v].ePrev->info << ' ';
+		}
+	cout << "\n\n\n"; // see output
+	
+	
+	// finding shortest path from A to E (different manner):
+	DijkstraHeap::PathLengths < int> res = DijkstraHeap::findPath(g, edgeMap, A, E,
+	                                   DijkstraHeap::outPath(blackHole, back_inserter(vecE)));
+	cout << "A - E distance: " << res.length << "\nEdges on the path:";
+	for (int i = 0; i < res.edgeNo; i++) {
+		cout << ' ' << vecE[i]->info ;
+	}
+	// see output
+	
+	cout << '\n';
 	return 0;
 }

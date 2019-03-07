@@ -169,7 +169,7 @@ namespace Koala
 		 *  form the source and the previous vertex on the shortest path form \a start to \a vert.
 		 *  Only vertices visited during the search from \a start are set in array. However, mind that default value for distance in VertLabs is infinity.
          *  (BlackHole allowed).
-		 *  \param edgeTab the associative container edge->EdgeLabs, keeping the information (weights) about edges.
+		 *  \param edgeTab the associative container edge->Ed	geLabs, keeping the information (weights) about edges.
 		 *  \param start the starting vertex of the searched path.
 		 *  \param end the terminal  vertex of the searched path.
 		 *  \return the distance from \a start to \a end or infinity if such path doesn't exist. If <tt>end == NULL</tt>, the method returns 0.*/
