@@ -75,7 +75,6 @@ else()
 	target_link_libraries(standalone_tanh cm)
 
 	add_executable(standalone_sigmoid standalone_sigmoid.cpp)
-
 	target_link_libraries(standalone_sigmoid cm)
 
 	add_executable(standalone_relu standalone_relu.cpp)
