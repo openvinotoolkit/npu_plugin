@@ -84,6 +84,7 @@ file(GLOB base
     "src/utils/custom_math.cpp"
     "src/base/element.cpp"
     "src/tensor/shape.cpp"
+    "src/tensor/data_element.cpp"
     "src/tensor/tensor.cpp"
     "src/tensor/binary_data.cpp"
     "src/tensor/quantization_params.cpp"

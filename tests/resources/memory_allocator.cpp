@@ -123,10 +123,10 @@ TEST(memory_allocator, slave_tensor_col_major)
     std::cout << tSlave->toString() << std::endl;
 
     for (unsigned i = 0; i < tSlave->getShape().totalSize(); ++i)
-        std::cout << tSlave->at(i) << std::endl;
+        std::cout << (std::string) tSlave->at(i) << std::endl;
 
     tSlave->at({1, 1}) = 30.0;
-    
+
     std::cout << (*masterBuf)->toString(true) << std::endl;
     std::cout << (*masterBuf)->toString(true) << std::endl;
 
