@@ -284,7 +284,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
         if ((opIt->getOpType() == "DPUTask") && (opIt->get<std::string>("taskOp") == "Conv")) 
         {
 
-            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + "of type " + opIt->get<std::string>("taskOp"));
+            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
  
             /*Get output tensor*/
             auto outputTensor = opIt->getOutputTensor();
@@ -317,7 +317,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
             /*Print node partition*/
             for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) { 
                 
-                pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + "of type " + "is in partition " + std::to_string(metisGraph.part[part_i]));
+                pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph.part[part_i]));
             }
 
             /*Workloads class instance*/
@@ -376,16 +376,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                     }
                 }
 
-                pass.log(mv::Logger::MessageType::Debug, "workload: "+ workload);
-                //std::cout << "workload: " << workload << std::endl;
-                //std::cout << "    min_x: " << workloads.getWorkloads()[workload].MinX << std::endl; // DEBUG
-                pass.log(mv::Logger::MessageType::Debug, " min_x: "+ workloads.getWorkloads()[workload].MinX);
-                //std::cout << "    max_x: " << workloads.getWorkloads()[workload].MaxX << std::endl; // DEBUG
-                pass.log(mv::Logger::MessageType::Debug, " max_x: "+ workloads.getWorkloads()[workload].MaxX);
-                //std::cout << "    min_y: " << workloads.getWorkloads()[workload].MinY << std::endl; // DEBUG
-                pass.log(mv::Logger::MessageType::Debug, " min_y: "+ workloads.getWorkloads()[workload].MinY);
-                //std::cout << "    max_y: " << workloads.getWorkloads()[workload].MaxY << std::endl; // DEBUG
-                pass.log(mv::Logger::MessageType::Debug, " max_y: "+ workloads.getWorkloads()[workload].MaxY);
+                pass.log(mv::Logger::MessageType::Debug, "workload: " + std::to_string(workload));
+                pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads.getWorkloads()[workload].MinX));
+                pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads.getWorkloads()[workload].MaxX));
+                pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads.getWorkloads()[workload].MinY));
+                pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads.getWorkloads()[workload].MaxY));
             }
            
             /*Add workloads as Attribute*/
