@@ -13,7 +13,7 @@
 #include <metis.h>
 
 static void generateWorkloadsFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
-static bool validate_workloads(std::vector<mv::Data::TensorIterator> &Tensor,mv::Workloads &workloads);
+static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &Tensor,mv::Workloads &workloads);
 namespace mv
 {
     namespace pass
@@ -93,11 +93,7 @@ struct MetisGraphStructure
 
                 int min_x = k * MPEMode.first;
                 int min_y = j * MPEMode.second;
-                std::cout << "    min_x: " << min_x << std::endl;    // DEBUG
-                std::cout << "    min_y: " << min_y << std::endl;    // DEBUG
-                std::cout << " n_elem_x: " << n_elem_x << std::endl; // DEBUG
-                std::cout << " n_elem_y: " << n_elem_y << std::endl; // DEBUG
-
+        
                 node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
                 nodeIndex++;
             }
@@ -380,24 +376,28 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                     }
                 }
 
-                std::cout << "workload: " << workload << std::endl;                                 // DEBUG
-                std::cout << "    min_x: " << workloads.getWorkloads()[workload].MinX << std::endl; // DEBUG
-                std::cout << "    max_x: " << workloads.getWorkloads()[workload].MaxX << std::endl; // DEBUG
-                std::cout << "    min_y: " << workloads.getWorkloads()[workload].MinY << std::endl; // DEBUG
-                std::cout << "    max_y: " << workloads.getWorkloads()[workload].MaxY << std::endl; // DEBUG
+                pass.log(mv::Logger::MessageType::Debug, "workload: "+ workload);
+                //std::cout << "workload: " << workload << std::endl;
+                //std::cout << "    min_x: " << workloads.getWorkloads()[workload].MinX << std::endl; // DEBUG
+                pass.log(mv::Logger::MessageType::Debug, " min_x: "+ workloads.getWorkloads()[workload].MinX);
+                //std::cout << "    max_x: " << workloads.getWorkloads()[workload].MaxX << std::endl; // DEBUG
+                pass.log(mv::Logger::MessageType::Debug, " max_x: "+ workloads.getWorkloads()[workload].MaxX);
+                //std::cout << "    min_y: " << workloads.getWorkloads()[workload].MinY << std::endl; // DEBUG
+                pass.log(mv::Logger::MessageType::Debug, " min_y: "+ workloads.getWorkloads()[workload].MinY);
+                //std::cout << "    max_y: " << workloads.getWorkloads()[workload].MaxY << std::endl; // DEBUG
+                pass.log(mv::Logger::MessageType::Debug, " max_y: "+ workloads.getWorkloads()[workload].MaxY);
             }
            
             /*Add workloads as Attribute*/
             opIt->set<mv::Workloads>("Workloads", workloads);
-            std::string validatePartition = validate_workloads(outputTensor, workloads) ? "True" : "False";
+            std::string validatePartition = validateWorkloads(outputTensor, workloads) ? "True" : "False";
             pass.log(mv::Logger::MessageType::Debug, "METIS partition has passed (True/False): "+ validatePartition);
-            //std::cout<<"METIS partition validation is passing (True/False): "<< validatePartition<<std::endl;
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }
 
-static bool validate_workloads(std::vector<mv::Data::TensorIterator> &inputTensor,mv::Workloads &workloads)
+static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &inputTensor,mv::Workloads &workloads)
 {
     //    Check if the generated workloads are valid
     //    Check 1: the union of the workload have to make the whole tensor
@@ -409,36 +409,28 @@ static bool validate_workloads(std::vector<mv::Data::TensorIterator> &inputTenso
     // Using size_t variable (nWorkloads) below, you may see a warning. Casting to double or int is unnecessary
     if ((workloads.nWorkloads()) == 0)
     {
-        //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of total number of the partitions <=0");
-        //std::cout << "METIS partition failed because of the total number of partitions is <=0"<< std::endl;
         return false;
     }
 
     // Check 1: Volume of the tensor = sum of volumes of the individual workloads
     if (inputTensor[0]->getShape().totalSize() != workloads.getAllWorkloadsVolume())
     {
-        //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of volume differences between Original Tensor and partitioned tensors");
-        //std::cout << "volumes are different. OutputTensor Volume: " << inputTensor[0]->getShape().totalSize() << "; Total volume of workloads: " << workloads.getAllWorkloadsVolume() << std::endl;
         return false;
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
     if (workloads.getShapefromMinMax() != inputTensor[0]->getShape())
     {
-        //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of vertices/bounds being different between Original Tensor and partitioned tensors");
-        //std::cout<<"Vertices are different between the outputTensor and the bounds of the (total) workloads"<<std::endl;
         return false;
     }
 
     // Check 2: No intersection between workloads.
     if (!workloads.noOverlap())
     {
-        //debug statements below
         workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
-        //std::cout<<"Metis partition failed because of overlap of the paritioned tensors"<<std::endl;
         return false;
     }
 
