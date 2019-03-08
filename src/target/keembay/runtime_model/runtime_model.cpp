@@ -383,10 +383,7 @@ void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compi
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
 {
     toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-
-    //NOTE: For now we are handling just one output tensor
-    toBuild->dst = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->dst[0] = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     toBuild->compression = opIt->get<bool>("Compression");
 }
 
