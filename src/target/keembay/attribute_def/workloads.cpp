@@ -11,7 +11,8 @@ namespace mv
 
     static mv::json::Value toJSON(const Attribute& a)
     {
-       
+        auto w = a.get<Workloads>();
+        return json::Value(w.toString());
     }
 
     static Attribute fromJSON(const json::Value& v)
