@@ -1,4 +1,6 @@
 #include "gtest/gtest.h"
+#include "include/mcm/base/attribute.hpp"
+#include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 #include "include/mcm/target/keembay/barrier_deps.hpp"
 #include <unordered_set>
@@ -77,4 +79,41 @@ TEST(barrier_deps, api)
     std::vector<int> updateExpected = { 2, 3 };
     ASSERT_EQ(bdep.getUpdate(), updateExpected);
 
+}
+
+TEST(barrier, to_json)
+{
+    mv::Barrier b;
+
+    b.setIndex(1);
+    b.setGroup(2);
+    b.addProducer("p1");
+    b.addProducer("p2");
+    b.addConsumer("c1");
+    b.addConsumer("c2");
+
+    mv::Attribute a(b);
+    std::string expected = "{\"attrType\":\"Barrier\",\""
+                            "content\":{\"consumers\":[\"c2\",\"c1\"],"
+                            "\"group\":2,\"index\":1,"
+                            "\"numConsumers\":2,\"numProducers\":2"
+                            ",\"producers\":[\"p2\",\"p1\"]}}";
+
+    ASSERT_EQ(a.toJSON().stringify(), expected);
+}
+
+TEST(barrier_deps, to_json)
+{
+    mv::BarrierDependencies bdep;
+    bdep.setWaitBarrier(1);
+    ASSERT_EQ(bdep.getWait(), 1);
+
+    bdep.addUpdateBarrier(2);
+    bdep.addUpdateBarrier(3);
+
+    mv::Attribute a(bdep);
+    std::string expected = "{\"attrType\":\"BarrierDependencies\","
+                            "\"content\":{\"update\":[2,3],\"wait\":1}}";
+
+    ASSERT_EQ(a.toJSON().stringify(), expected);
 }
