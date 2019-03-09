@@ -146,7 +146,7 @@ bool checkNodesAreNeighbors(InterferenceGraph&g, InterferenceGraph::node_list_it
 bool isSinkNode(mv::Data::OpListIterator& opIterator)
 {
     auto opType = opIterator->getOpType();
-    if (opType == "Deallocate") //TODO && is LeonTask
+    if (opType == "Deallocate") //Deallocate is a LeonTask
         return true;
     if (opType  == "DMATask" &&
         (opIterator->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR /*TODO add OR CMX2UPA*/))
@@ -168,10 +168,7 @@ bool checkNodeInterference(mv::ComputationModel& model, const std::string& tenso
         if (isTensorInTopNames(opIterator->getInputTensor(), model, tensor2) && isSinkNode(opIterator))
             sinkNodeNames.insert(opIterator->getName());
 
-        //TODO
         //Check if there's a path from any node in sink to any node in source, if yes return true
-
-
         //pathExists(mv::Data::OpDFSIterator& source,  mv::Data::OpDFSIterator& sink, mv::Data::OpDFSIterator end)
         for (std::set<std::string>::const_iterator src = sinkNodeNames.begin( ); src != sinkNodeNames.end( ); ++src)
         {
@@ -192,6 +189,8 @@ void genIntereferenceGraph(InterferenceGraph& g, mv::ComputationModel& model , c
     InterferenceGraph directed_g;
     std::set<std::string> inputTensorNames;
     std::set<std::string> outputTensorNames;
+    std::set<std::string> nodeNames;
+    int nodeId = 0;
 
     mv::OpModel om(model);
 
@@ -201,46 +200,54 @@ void genIntereferenceGraph(InterferenceGraph& g, mv::ComputationModel& model , c
         if (!taskFilter || taskFilter(opIterator))
         {
             inputTensorNames = getTaskTopTensors(opIterator->getInputTensor(), model, tensorFilter);
+
+            std::cout << "Collecting output Tensors " << std::endl;
             outputTensorNames = getTaskTopTensors(opIterator->getOutputTensor(), model, tensorFilter);
-        }
-    }
 
-    //Add them as nodes
-    for (std::set<std::string>::const_iterator name = inputTensorNames.begin( ); name != inputTensorNames.end( ); ++name)
-    {
-        directed_g.node_insert(*name);
-        g.node_insert(*name);
-    }
-
-    for (std::set<std::string>::const_iterator name = outputTensorNames.begin( ); name != outputTensorNames.end( ); ++name)
-    {
-        directed_g.node_insert(*name);
-        g.node_insert(*name);
-    }
-
-    //TODO again adding parameters?
-
-    //Add the obvious edges
-    int nodeId = 0;
-    for (std::set<std::string>::const_iterator src = inputTensorNames.begin( ); src != inputTensorNames.end( ); ++src)
-    {
-        auto ni = g.node_find(*src);
-        for (std::set<std::string>::const_iterator target = outputTensorNames.begin( ); target != outputTensorNames.end( ); ++target)
-        {
-            if (*src != *target)
+            for (std::set<std::string>::const_iterator name = inputTensorNames.begin( ); name != inputTensorNames.end( ); ++name)
             {
-                auto nj = g.node_find(*target);
-                g.edge_insert(ni, nj, 2*nodeId);
-                g.edge_insert(nj, ni, 2*nodeId+1); //since we are directed graph need to create a->b and b->a
-                directed_g.edge_insert(ni, nj, nodeId);
-                nodeId++;
+                std::cout << "Adding Input Tensor Node:  " << *name <<  std::endl;
+                auto res = nodeNames.insert(*name);
+                if (res.second)
+                {//if we dont have it already
+                    directed_g.node_insert(*name);
+                    g.node_insert(*name);
+                }
+            }
+            //Add them as nodes
+            for (std::set<std::string>::const_iterator name = outputTensorNames.begin( ); name != outputTensorNames.end( ); ++name)
+            {
+                std::cout << "Adding Output Tensor Node:  " << *name <<  std::endl;
+                auto res = nodeNames.insert(*name);
+                if (res.second)
+                {//if we dont have it already
+                    directed_g.node_insert(*name);
+                    g.node_insert(*name);
+                }
+            }
+            //TODO again adding parameters?
+
+            //Add the obvious edges
+            for (std::set<std::string>::const_iterator src = inputTensorNames.begin( ); src != inputTensorNames.end( ); ++src)
+            {
+                auto ni = g.node_find(*src);
+                auto directed_ni = directed_g.node_find(*src);
+                for (std::set<std::string>::const_iterator target = outputTensorNames.begin( ); target != outputTensorNames.end( ); ++target)
+                {
+                    if (*src != *target)
+                    {
+                        std::cout << " Adding edge :  " << *src << " To " << *target <<  std::endl;
+                        auto nj = g.node_find(*target);
+                        auto directed_nj = directed_g.node_find(*target);
+                        g.edge_insert(ni, nj, 2*nodeId);
+                        g.edge_insert(nj, ni, 2*nodeId+1); //since we are directed graph need to create a->b and b->a
+                        directed_g.edge_insert(directed_ni, directed_nj, nodeId);
+                        nodeId++;
+                    }
+                }
             }
         }
     }
-
-
-    std::set<std::string> nodeNames = inputTensorNames;
-    nodeNames.insert(outputTensorNames.begin(), outputTensorNames.end());
 
     //for each 2 nodes, if they are not yet connected (neighbors) in the undirected graph
     // and dont have a path from one to the other in the directed graph, then check if they
@@ -248,15 +255,16 @@ void genIntereferenceGraph(InterferenceGraph& g, mv::ComputationModel& model , c
     for (std::set<std::string>::const_iterator source = nodeNames.begin( ); source != nodeNames.end( ); ++source)
     {
         auto ni = g.node_find(*source);
+        auto directed_ni = directed_g.node_find(*source);
 
         for (std::set<std::string>::const_iterator target = source; target != nodeNames.end( ); ++target)
         {
             auto nj = g.node_find(*target);
-
-            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !pathExists( ni, nj, directed_g.node_end()) &&
-                !pathExists(nj, ni, directed_g.node_end()))
+            auto directed_nj = directed_g.node_find(*target);
+            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !pathExists( directed_ni, directed_nj, directed_g.node_end()) &&
+                !pathExists(directed_nj, directed_ni, directed_g.node_end()))
             {
-                if (!checkNodeInterference(model, *source, *target) && !checkNodeInterference(model, *target, *source))
+                if (!checkNodeInterference(model, *source, *target) || !checkNodeInterference(model, *target, *source))
                 {
                     g.edge_insert(ni, nj, 2*nodeId);
                     g.edge_insert(nj, ni, 2*nodeId+1);
@@ -283,6 +291,29 @@ InterferenceGraph buildInterferenceGraph(mv::ComputationModel& model, const Tens
     return g;
 }
 
+void printGraph(const InterferenceGraph& g, std::string name)
+{
+     // Nodes list
+    std::cout << "Printing Graph: " << name << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "Nodes list: " << std::endl;
+    for (auto it = g.node_begin(); it != g.node_end(); ++it)
+    {
+        std::cout << *it << " " << std::endl;
+    }
+    std::cout << std::endl;
+
+     // Edges list
+    std::cout << "Edges list: " << std::endl;
+    for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
+    {
+        std::cout << " EDGE: " << *it << " Source " << *(it->source()) <<  " sink " << *(it->sink()) << std::endl;
+    }
+    std::cout << std::endl;
+    std::cout << "=========================================================" << std::endl;
+
+}
+
 void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
@@ -290,6 +321,30 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
+
+    InterferenceGraph ddr_bss_g = buildInterferenceGraph(model,
+            [](const mv::Data::TensorIterator& t) -> bool
+            {
+                return (t->isPopulated());
+            },
+            [](const mv::Data::OpListIterator& t) -> bool
+            {
+                return (t->getOpType() == "DMATask");
+            },
+            true);
+    printGraph(ddr_bss_g, "DDR_BSS");
+
+    InterferenceGraph ddr_heap_g = buildInterferenceGraph(model,
+            [](const mv::Data::TensorIterator& t) -> bool
+            {
+                return (!t->isPopulated());
+            },
+            [](const mv::Data::OpListIterator& t) -> bool
+            {
+                return (t->getOpType() == "DMATask");
+            },
+            false);
+    printGraph(ddr_heap_g, "DDR_HEAP");
 
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");
 }
