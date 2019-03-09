@@ -5,8 +5,13 @@
 #include "../../../contrib/koala/graph/graph.h"
 #include "../../../contrib/koala/algorithm/conflow.h"
 #include "../../../contrib/koala/algorithm/weights.h"
+
 #include "../../../contrib/koala/io/graphml.h"
 #include "../../../contrib/koala/io/text.h"
+
+
+#include "../../../contrib/koala/io/parsetgml.h"
+#include "../../../contrib/koala/classes/create.h"
 
 #include <iostream>
 
@@ -67,12 +72,12 @@ koalaGraph::PVertex lookUpKoalaVertexbyName(std::string vertexName, koalaGraph::
 
 /**
  * @brief Encode the mememory requirements of each tash by adding a "MemoryRequirment" attribute to the task.
- *        Note it should be added to the output tensor but deallocate currently doesn't have an output tensor. 
  *        The memory requirment is defined as the output tensor N*W*H*C.
  */
 void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
 
     mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     /* Store memory equirement as an attribute of a task. 
      * This is required also for Ops with no output tensor (i.e. Dealloc tasks).
@@ -127,68 +132,32 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
             std::cout << "Memory size " << memoryRequirement << std::endl;
         }
     }
-}
 
-/*
- * See Max topological cut algorithm description:
- * 
- * L. Marchal, H. Nagy, B. Simon and F. Vivien, "Parallel Scheduling of DAGs under Memory Constraints," 
- * 2018 IEEE International Parallel and Distributed Processing Symposium (IPDPS), Vancouver, BC, 2018, pp. 204-213.
- * doi: 10.1109/IPDPS.2018.00030 
-*/ 
-
-void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
-    mv::OpModel om(model);
-
-    /*Add the memory requirement of a task as an attribute on the MCM graph*/
-    encodeMemoryRequirmentsofTask(model);
-   
-    /*Name of KOALA graph*/
-    koalaGraph flowGraph;
-    
     /*REMOVE THIS WHEN SPARISTY AND WEIGHT TABLE FIXED - HARD CODING MEMORY REQUIRMENT FOR NOW*/
     auto op = cm.getOp("DMATask_3");
     op->set<int>("MemoryRequirement", 4096);
 
     auto op1 = cm.getOp("DMATask_4");
     op1->set<int>("MemoryRequirement", 1024);
+}
 
-    /*Compute Fmax*/
-    int Fmax = 0;
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
-        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") {
-            if (opIt->hasAttr("MemoryRequirement")) {
-                Fmax += opIt->get<int>("MemoryRequirement");
-            }
-        }  
-    }
-    Fmax += 1;
-    
-    /*Values to store on KoalaGraph edges*/
-    //Koala::AssocArray< koalaGraph::PEdge, Koala::ed<int, int>> memoryRequirement;
 
-    int numberOfKoalaVertices = 0;
-    int numberOfKoalaEdges = 0;
+/**
+ * @brief Convert McM graph (control model view) to KOALA graph
+ * @param pass - 
+ * @param model - MCM computation model
+ * @param flowGraph - An instance of KOALA graph
+ * @param V - Array to store iterators to KOALA vertices 
+ * @param E - Array to store iterators to KOALA edges
+ */
+void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model, koalaGraph& flowGraph, koalaGraph::PVertex V[], koalaGraph::PEdge E[]) {
+
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+    mv::OpModel om(model);
+
     int vertexIndex = 0;
     int edgeIndex = 0;
-
-    /*Count number of vertices required for KOALA graph*/
-    for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt) {
-        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") 
-            numberOfKoalaVertices++;
-    }
-    
-    /*Count number of edges required for KOALA graph*/
-    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)
-        numberOfKoalaEdges++;
-
-    /*Array to store KOALA vertices and edges iterators*/
-    koalaGraph::PVertex V[numberOfKoalaVertices]; 
-    koalaGraph::PEdge E[numberOfKoalaEdges -1];   /* subtract 1 as we do not need last edge to ouput node in MCM graph*/
     
     /* For each task in the ControlModel view of the MCM graph
      * create a corresponding node (task) in the KOALA graph.
@@ -250,13 +219,64 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(flowGraph.getVertNo()) + " vertices and " + std::to_string(flowGraph.getEdgeNo()) + " edges");
 
+}
+
+/*
+ * See Max topological cut algorithm description:
+ * 
+ * L. Marchal, H. Nagy, B. Simon and F. Vivien, "Parallel Scheduling of DAGs under Memory Constraints," 
+ * 2018 IEEE International Parallel and Distributed Processing Symposium (IPDPS), Vancouver, BC, 2018, pp. 204-213.
+ * doi: 10.1109/IPDPS.2018.00030 
+*/ 
+
+void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+
+    mv::ControlModel cm(model);
+    mv::OpModel om(model);
+
+    /*Add the memory requirement of a task as an attribute on the MCM graph*/
+    encodeMemoryRequirmentsofTask(model);
+
+    /*Name of KOALA graph*/
+    koalaGraph flowGraph;
+    int numberOfKoalaVertices = 0;
+    int numberOfKoalaEdges = 0;
+
+    /*Count number of vertices required for KOALA graph*/
+    for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt) {
+        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") 
+            numberOfKoalaVertices++;
+    }
+    
+    /*Count number of edges required for KOALA graph*/
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)
+        numberOfKoalaEdges++;
+
+    /*Array to store KOALA vertices and edges iterators*/
+    koalaGraph::PVertex V[numberOfKoalaVertices]; 
+    koalaGraph::PEdge E[numberOfKoalaEdges -1];   /* subtract 1 as we do not need last edge to ouput node in MCM graph*/
+
+    /*Convert to MCM graph to KOALA graph*/
+    convertMcMGraphToKoalaGraph(pass, model, flowGraph, V, E);
+   
+    /*Compute Fmax - (defined as sum of memory requirments + 1)*/
+    int Fmax = 0;
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
+        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") {
+            if (opIt->hasAttr("MemoryRequirement")) {
+                Fmax += opIt->get<int>("MemoryRequirement");
+            }
+        }  
+    }
+    Fmax += 1;
+    
 
     /* Write KOALA graph to GraphML file - view in yEd application */
-
-    //Koala::IO::GraphML gml;
-    //const char* name = "test";
-    //Koala::IO::GraphMLGraph *gmlg = gml.createGraph(name);
-    //gmlg->writeGraph(flowGraph);
+    // Koala::IO::GraphML gml;
+    // const char* name = "test";
+    // Koala::IO::GraphMLGraph *gmlg = gml.createGraph(name);
+    // gmlg->writeGraph(flowGraph);
 
 
     //----------------------------------------------------------------
@@ -275,7 +295,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     
 
     /*counting distances from graph source node (called "Input_0") to all vertices*/
-    auto sourceNode = lookUpKoalaVertexbyName("Input_0", V, vertexIndex);
+    auto sourceNode = lookUpKoalaVertexbyName("Input_0", V, numberOfKoalaVertices);
     std::cout << "Source node name KOALA " << sourceNode->info << std::endl;
 	Koala::DijkstraHeap::distances(flowGraph, vertMap, edgeMap, sourceNode);
 
@@ -301,7 +321,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     // containters for vertices and edges on paths
     std::vector < koalaGraph::PVertex > vecV;
     std::vector < koalaGraph::PEdge > vecE;
-    koalaGraph::PEdge tabE[edgeIndex]; /*Making this size the number of edges in the graph but in reality it could be less I think*/
+    koalaGraph::PEdge tabE[numberOfKoalaEdges]; /*Making this size the number of edges in the graph but in reality it could be less I think*/
  
     /*For each edge*/
     for (int i = 0; i < M; i++) {

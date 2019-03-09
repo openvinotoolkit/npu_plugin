@@ -1,4 +1,3 @@
-
 GraphML::GraphML() {
 	doc = NULL;
 	xml = NULL;

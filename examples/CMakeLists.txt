@@ -52,11 +52,8 @@ else()
 	add_executable(cm_linear cm_linear.cpp)
 	target_link_libraries(cm_linear cm)
 
-	add_executable(koala_example Koala_example.cpp)
+	add_executable(koala_example Koala_example.cpp /home/john/git/mcmCompiler/contrib/koala/tinyxml/tinyxml.cpp /home/john/git/mcmCompiler/contrib/koala/tinyxml/tinyxmlerror.cpp /home/john/git/mcmCompiler/contrib/koala/tinyxml/tinyxmlparser.cpp /home/john/git/mcmCompiler/contrib/koala/tinyxml/tinystr.cpp)
 	target_link_libraries(koala_example cm)
-
-	add_executable(koala_visualiser Koala_example_visualiser.cpp)
-	target_link_libraries(koala_visualiser cm)
 
 	add_executable(cm_two_branch cm_two_branch.cpp)
 	target_link_libraries(cm_two_branch cm)
