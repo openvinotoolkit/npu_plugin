@@ -69,19 +69,19 @@ TEST(fuse_batch_norm_pass, case_ndim_conv)
     mv::Tensor scale("scale", convShape, mv::DType("Float16"), mv::Order("CHW"), scaleData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
-    mv::Tensor offsetParam = mv::math::subtract(offset, 
+    mv::Tensor offsetParam = mv::math::subtract(offset,
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    auto mulOpData = mulOp->getInputTensor(1)->getDoubleData();
     auto mulOpDataSize = mulOpData.size();
 
-    auto scaleParamData = scaleParam.getData();
+    auto scaleParamData = scaleParam.getDoubleData();
     auto scaleParamDataSize = scaleParamData.size();
 
-    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpData = addOp->getInputTensor(1)->getDoubleData();
     auto addOpDataSize = addOpData.size();
 
-    auto newOffsetData = offsetParam.getData();
+    auto newOffsetData = offsetParam.getDoubleData();
     auto newOffsetDataSize = newOffsetData.size();
 
     ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
@@ -157,12 +157,12 @@ TEST(fuse_batch_norm_pass, case_1dim_conv)
 
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
 
-    auto newWeigthsData = newWeigths.getData();
+    auto newWeigthsData = newWeigths.getDoubleData();
     auto originalWeightsFromConv = convOp->getInputTensor(1);
-    auto originalWeightsFromConvData = originalWeightsFromConv->getData();
+    auto originalWeightsFromConvData = originalWeightsFromConv->getDoubleData();
 
-    auto addOpData = addOp->getInputTensor(1)->getData();
-    auto offsetParamData = offsetParam.getData();
+    auto addOpData = addOp->getInputTensor(1)->getDoubleData();
+    auto offsetParamData = offsetParam.getDoubleData();
 
     for (unsigned i = 0; i < originalWeightsFromConvData.size(); ++i)
         ASSERT_FLOAT_EQ(originalWeightsFromConvData[i], newWeigthsData[i]);
@@ -232,19 +232,23 @@ TEST(fuse_batch_norm_pass, case_ndim_nonconv)
     mv::Tensor scale("scale", poolShape, mv::DType("Float16"), mv::Order("CHW"), scaleData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
-    mv::Tensor offsetParam = mv::math::subtract(offset, 
+    mv::Tensor offsetParam = mv::math::subtract(offset,
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    ASSERT_TRUE(mulOp->getInputTensor(1)->isDoubleType());
+    auto mulOpData = mulOp->getInputTensor(1)->getDoubleData();
     auto mulOpDataSize = mulOpData.size();
 
-    auto addOpData = addOp->getInputTensor(1)->getData();
+    ASSERT_TRUE(addOp->getInputTensor(1)->isDoubleType());
+    auto addOpData = addOp->getInputTensor(1)->getDoubleData();
     auto addOpDataSize = addOpData.size();
 
-    auto offsetParamData = offsetParam.getData();
+    ASSERT_TRUE(offsetParam.isDoubleType());
+    auto offsetParamData = offsetParam.getDoubleData();
     auto offsetParamDataSize = offsetParamData.size();
 
-    auto scaleParamData = scaleParam.getData();
+    ASSERT_TRUE(scaleParam.isDoubleType());
+    auto scaleParamData = scaleParam.getDoubleData();
     auto scaleParamDataSize = scaleParamData.size();
 
     ASSERT_EQ(mulOpDataSize, scaleParamDataSize);
@@ -318,19 +322,21 @@ TEST(fuse_batch_norm_pass, case_1dim_nonconv)
     mv::Tensor scale("scale", {poolShape[-1]}, mv::DType("Float16"), mv::Order("W"), scaleData);
 
     mv::Tensor scaleParam = mv::math::divide(scale, mv::math::sqrt(mv::math::add(variance, eps)));
-    mv::Tensor offsetParam = mv::math::subtract(offset, 
+    mv::Tensor offsetParam = mv::math::subtract(offset,
         mv::math::divide(mv::math::multiply(scale, mean), mv::math::sqrt(mv::math::add(variance, eps))));
 
-    auto mulOpData = mulOp->getInputTensor(1)->getData();
+    ASSERT_TRUE(mulOp->getInputTensor(1)->isDoubleType());
+
+    auto mulOpData = mulOp->getInputTensor(1)->getDoubleData();
     auto mulOpDataSize = mulOpData.size();
 
-    auto scaleParamData = scaleParam.getData();
+    auto scaleParamData = scaleParam.getDoubleData();
     auto scaleParamDataSize = scaleParamData.size();
 
-    auto addOpData = addOp->getInputTensor(1)->getData();
+    auto addOpData = addOp->getInputTensor(1)->getDoubleData();
     auto addOpDataSize = addOpData.size();
 
-    auto newOffsetData = offsetParam.getData();
+    auto newOffsetData = offsetParam.getDoubleData();
     auto newOffsetDataSize = offsetData.size();
 
     ASSERT_EQ(mulOpDataSize, scaleParamDataSize);

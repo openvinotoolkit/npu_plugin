@@ -4,8 +4,8 @@
 namespace mv
 {
 
-    static std::function<BinaryData(const std::vector<double>&)> toBinaryFunc =
-    [](const std::vector<double> & vals)->mv::BinaryData
+    static std::function<BinaryData(const std::vector<DataElement>&)> toBinaryFunc =
+    [](const std::vector<DataElement> & vals)->mv::BinaryData
     {
         std::vector<int8_t> res;
 
@@ -20,20 +20,22 @@ namespace mv
             uint8_t data;
         } temp;
 
+        int64_t val;
         for(size_t i=0; i< vals.size(); i++)
         {
+            val = vals[i];
             if (i%4 == 0)
             {
                 temp.data = 0;
-                temp.b.llb = vals[i];
+                temp.b.llb = val;
             }
             if (i%4 == 1)
-                temp.b.lhb = vals[i];
+                temp.b.lhb = val;
             if (i%4 == 2)
-                temp.b.hlb = vals[i];
+                temp.b.hlb = val;
             if (i%4 == 3)
             {
-                temp.b.hhb = vals[i];
+                temp.b.hhb = val;
                 res.push_back(temp.data);
             }
         }
@@ -48,5 +50,6 @@ namespace mv
 
     MV_REGISTER_DTYPE(Int2)
     .setToBinaryFunc(toBinaryFunc)
+    .setIsDoubleType(false)
     .setSizeInBits(2);
 }

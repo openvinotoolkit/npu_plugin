@@ -28,15 +28,20 @@ std::string mv::DType::toString() const
     return dType_;
 }
 
-mv::BinaryData mv::DType::toBinary(const std::vector<double>& data) const
+mv::BinaryData mv::DType::toBinary(const std::vector<DataElement>& data) const
 {
-    const std::function<mv::BinaryData(const std::vector<double>&)>& func = mv::DTypeRegistry::getToBinaryFunc(dType_);
+    const std::function<mv::BinaryData(const std::vector<DataElement>&)>& func = mv::DTypeRegistry::getToBinaryFunc(dType_);
     return func(data);
 }
 
 unsigned mv::DType::getSizeInBits() const
 {
     return mv::DTypeRegistry::getSizeInBits(dType_);
+}
+
+bool mv::DType::isDoubleType() const
+{
+    return mv::DTypeRegistry::isDoubleType(dType_);
 }
 
 mv::DType& mv::DType::operator=(const DType& other)

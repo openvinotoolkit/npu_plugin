@@ -4,10 +4,14 @@
 namespace mv
 {
 
-    static std::function<BinaryData(const std::vector<double>&)> toBinaryFunc =
-    [](const std::vector<double> & vals)->mv::BinaryData
+    static std::function<BinaryData(const std::vector<DataElement>&)> toBinaryFunc =
+    [](const std::vector<DataElement> & vals)->mv::BinaryData
     {
-        std::vector<uint16_t> res(vals.begin(), vals.end());
+        std::vector<uint16_t> res;
+        for_each(vals.begin(), vals.end(), [&](int64_t  val)
+        {
+            res.push_back(val);
+        });
         mv::BinaryData bdata;
         bdata.setU16(std::move(res));
         return bdata;
@@ -15,5 +19,6 @@ namespace mv
 
     MV_REGISTER_DTYPE(UInt16)
     .setToBinaryFunc(toBinaryFunc)
+    .setIsDoubleType(false)
     .setSizeInBits(16);
 }

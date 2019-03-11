@@ -3,6 +3,7 @@
 #include "contrib/flatbuffers/include/flatbuffers/util.h"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <fstream>
+#include <iostream>
 
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
@@ -270,8 +271,16 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     // NEW approach
-    auto tensorData = t.getData();
-    toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
+    if (t.isDoubleType())
+    {
+        auto tensorData = t.getDoubleData();
+        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
+    }
+    else
+    {
+        auto tensorData = t.getIntData();
+        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
+    }
     toBuild->length = t.getShape().totalSize();
     toBuild->underlying_type = convertDtype(t.getDType());
 
@@ -374,8 +383,10 @@ void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compi
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
 {
     toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->broadcast_mask = opIt->get<unsigned>("BroadcastMask");
+
+    //NOTE: For now we are handling just one output tensor
+    toBuild->dst = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+    toBuild->dst[0] = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
     toBuild->compression = opIt->get<bool>("Compression");
 }
 
@@ -416,11 +427,8 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
     }
 
     // If this function has been called, this part must be built for sure
-    auto fixed_functions = opIt->get<std::vector<PPEFixedFunction>>("PPETask");
-    unsigned n = fixed_functions.size();
-    toBuild->fixed_function = std::vector<std::unique_ptr<MVCNN::PPEFixedFunctionT>>(n);
-    for(unsigned i = 0; i < n; ++i)
-        toBuild->fixed_function[i] = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions[i]);
+    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
+    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
 
     return toBuild;
 }
@@ -500,8 +508,6 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
 std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, Workload workload)
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
-    toBuild->clusterID = workload.clusterID;
-    toBuild->workloadID = workload.workloadID;
     if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
     {
         // NOTE: Ignoring barriers for now
@@ -572,9 +578,9 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
 std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::ComputationModel& cm, mv::Element& compilationDescriptor, mv::Data::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::BarrierT> toBuild = std::unique_ptr<MVCNN::BarrierT>(new MVCNN::BarrierT());
-    toBuild->barrier_id = opIt->get<int>("index");
-    toBuild->consumer_count = opIt->get<int>("numConsumers");
-    toBuild->producer_count = opIt->get<int>("numProducers");
+    toBuild->barrier_id = opIt->get<mv::Barrier>("Barrier").getIndex();
+    toBuild->consumer_count = opIt->get<mv::Barrier>("Barrier").getNumConsumers();
+    toBuild->producer_count = opIt->get<mv::Barrier>("Barrier").getNumProducers();
     return toBuild;
 }
 
