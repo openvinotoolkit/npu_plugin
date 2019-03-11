@@ -1740,63 +1740,6 @@ namespace mv
             return {edge_lower_bound(val), edge_upper_bound(val)};
         }
 
-        // is_DAG() checks if the graph is acyclic (no cycles). 
-        // Algorithm used is similar to the one in python networkX https://networkx.github.io/documentation/networkx-1.9/_modules/networkx/algorithms/dag.html#is_directed_acyclic_graph
-        // for each of the nodes of graph, using recursive DFS check for back edges (backedges get back to the node already explored)
-        bool is_DAG()
-        {
-            int64_t V = this->node_size();
-            // 'explored array' stores if the node is explored. recurStack stores the state of the stack (which node being processed)
-            bool *explored = new bool[V]; 
-            bool *recurStack = new bool[V]; 
-            for (int i = 0; i < V;i++)
-            {
-                explored[i] = false; 
-                recurStack[i] = false;
-            }
-            for (auto it = this->node_begin(); it != this->node_end(); ++it)
-            {
-                if (hasCycle(it, explored, recurStack)) 
-                {
-                      return false; 
-                }
-
-            }
-         return true;   
-        }
-        // hasCycle returns if there are cycles by doing DFS
-        bool hasCycle(node_list_iterator &it, bool *explored, bool *recurStack) 
-        { 
-            int64_t v = it->getID();
-            // below node_list_iterator object needed as the hasCycle method takes these objects only. so 'child iterator' gets masked as node_list_iterator and passed
-            node_list_iterator it1;
-           
-            if(explored[v] == false) 
-            { 
-                // Mark the current node as explored and part of recursion stack 
-                explored[v] = true; 
-                recurStack[v] = true; 
-            }
-
-            for (node_child_iterator cit(it); cit != this->node_end();++cit)
-            {
-                it1 = cit;
-                // recursive call to hasCycle method
-                if ( !explored[cit->getID()] && hasCycle(it1, explored, recurStack) ) 
-                    return true; 
-
-                // below condition checks if there are loops 
-                else if (recurStack[cit->getID()]) 
-                    return true; 
-  
-            } 
-            // update recursion stack by removing the node (from the stack)
-            recurStack[v] = false;  
-     
-            return false; 
-        }
- 
-
     };
 
 }
