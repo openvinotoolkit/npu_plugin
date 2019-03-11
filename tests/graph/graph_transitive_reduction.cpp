@@ -28,6 +28,6 @@ TEST (graph_transitive_reduction, test1)
     g.edge_insert(nc, ne, 1);
     g.edge_insert(nd, ne, 1);
 
-    mv::transitiveReduction(g, na);
+    mv::transitiveReduction(g);
 
 }
