@@ -61,7 +61,7 @@ int main() {
 	g.addLoop(v, DescE(1.5, 'f', "Ewa"));
 
 	//show it
-	Koala::IO::writeGraphText(g, std::cout, Koala::IO::RG_VertexLists | Koala::IO::RG_Info);
+	//Koala::IO::writeGraphText(g, std::cout, Koala::IO::RG_VertexLists | Koala::IO::RG_Info);
 	// see output
 
 	//put into GraphML
@@ -75,7 +75,7 @@ int main() {
 		& Koala::IO::gmlStringField(&DescE::name, "ename")
 		);
 	//write GraphML to a file
-	gml.writeFile("abc.xml");
+	gml.writeFile("abc.graphml");
 
 
 	return 0;

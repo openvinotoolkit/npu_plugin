@@ -150,6 +150,10 @@ file(GLOB pass
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
+    "contrib/koala/tinyxml/tinyxml.cpp"
+    "contrib/koala/tinyxml/tinyxmlerror.cpp" 
+    "contrib/koala/tinyxml/tinyxmlparser.cpp" 
+    "contrib/koala/tinyxml/tinystr.cpp"
 )
 
 file(GLOB compiler
