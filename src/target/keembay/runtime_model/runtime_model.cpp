@@ -325,13 +325,13 @@ void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element 
         specificTask.value = new MVCNN::MvTensorTaskT();
         buildMvTensorTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::MvTensorTaskT*>(specificTask.value));
     }
-    else if(taskType == "DMATask")
+    else if(taskType == "UPADMATask")
     {
         specificTask.type = MVCNN::SpecificTask_UPADMATask;
         specificTask.value = new MVCNN::UPADMATaskT();
         buildUPADMATaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::UPADMATaskT*>(specificTask.value));
     }
-    else if(taskType == "NNDMATask")
+    else if(taskType == "DMATask")
     {
         specificTask.type = MVCNN::SpecificTask_NNDMATask;
         specificTask.value = new MVCNN::NNDMATaskT();
@@ -384,7 +384,8 @@ void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compil
 {
     toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->compression = opIt->get<bool>("Compression");
+    if(opIt->hasAttr("Compression"))
+        toBuild->compression = opIt->get<bool>("Compression");
 }
 
 void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild)
