@@ -59,7 +59,6 @@ static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 std::vector<int64_t> tensorData(tensorIt->getIntData());
                 currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
             }
-
             currentTensorOutputStream.close();
         }
     }
