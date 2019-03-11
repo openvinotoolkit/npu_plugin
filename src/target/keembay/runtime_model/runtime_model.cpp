@@ -417,15 +417,15 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
 {
     std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
 
-    if(opIt->hasAttr("scale"))
-    {
-        Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
-        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, tensorIt);
-    }
+//    if(opIt->hasAttr("scale"))
+//    {
+//        Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
+//        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, tensorIt);
+//    }
 
-    // If this function has been called, this part must be built for sure
-    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
-    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
+//    // If this function has been called, this part must be built for sure
+//    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
+//    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
 
     return toBuild;
 }
