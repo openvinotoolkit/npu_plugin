@@ -306,7 +306,6 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 
 void mv::RuntimeModel::buildBarrierTaskT(ComputationModel& cm, Element& compilationDescriptor, Data::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild)
 {
-    toBuild = new MVCNN::ControllerTaskT();
     toBuild->task.type = MVCNN::ControllerSubTask_BarrierConfigurationTask;
 
     auto tmp = new MVCNN::BarrierConfigurationTaskT();
