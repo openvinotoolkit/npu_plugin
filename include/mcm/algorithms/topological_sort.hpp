@@ -23,7 +23,7 @@ namespace mv
 
     // NOTE: This graph non member function works only on DAGs
     template <typename T_node, typename T_edge>
-    std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)//, typename graph<T_node, T_edge>::node_list_iterator root)
+    std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)
     {
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
