@@ -11,6 +11,8 @@
 #include <map>
 #include <vector>
 #include <utility>
+#include <string>
+#include <iostream>
 
 #include "../algorithm/search.h"
 #include "../algorithm/weights.h"
@@ -122,13 +124,14 @@ namespace Koala
 		{
 			// typ liczbowy przepustowosci luku i objetosci przeplywu
 			CapacType capac;/**< \brief The capacity of arc or achieved cut. */
+			int cutValue; /*Added by John*/
 			int vertNo;/**< \brief Number of vertices reachable from source.
 			 start!=end after deletion of the cut-set.*/
 			int edgeNo;/**<\brief Number of edges in the cut set.*/
 
 			/** \brief Empty constructor.*/
 			EdgeCut(): capac( NumberTypeBounds< CapacType >::zero() ),
-						vertNo( 0 ), edgeNo( 0 )
+						vertNo( 0 ), edgeNo( 0 ), cutValue(0)
 				{ }
 		};
 
@@ -539,6 +542,16 @@ namespace Koala
         template< class GraphType, class EdgeContainer > static bool
             testMinCost(const GraphType &g, const EdgeContainer &edgeTab);
 
+		std::string get_str_between_two_str(const std::string &s, const std::string &start_delim, const std::string &stop_delim) {
+			unsigned first_delim_pos = s.find(start_delim);
+    		unsigned end_pos_of_first_delim = first_delim_pos + start_delim.length();
+    		unsigned last_delim_pos = s.find(stop_delim);
+
+    		return s.substr(end_pos_of_first_delim,
+            last_delim_pos - end_pos_of_first_delim);
+		}
+
+
 		/** \brief Get minimal weighted cut-set.
 		 *
 		 *  The method calculated the minimal (concerning total capacities) cut-set between vertices \a start and \a end.
@@ -579,6 +592,21 @@ namespace Koala
 									{
 										*iters.edgeIter = e;
 										++iters.edgeIter;
+										/*Added by John*/
+										std::ostringstream stream;
+										stream << e->info;
+										std::string str =  stream.str();
+
+										std::string start_delim = "xxx";
+    									std::string stop_delim = "yyy";
+										unsigned first_delim_pos = str.find("xxx");
+    									unsigned end_pos_of_first_delim = first_delim_pos + start_delim.length();
+    									unsigned last_delim_pos = str.find("yyy");
+									
+									   
+										std::cout << std::stoi(str.substr(end_pos_of_first_delim,last_delim_pos - end_pos_of_first_delim)) << std::endl;
+										int memoryRequirement = std::stoi(str.substr(end_pos_of_first_delim,last_delim_pos - end_pos_of_first_delim));
+										res.cutValue += memoryRequirement;
 									}
 							}
 						}
