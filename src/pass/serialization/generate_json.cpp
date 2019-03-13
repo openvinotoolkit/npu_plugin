@@ -49,8 +49,16 @@ static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 continue;
             std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
             std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out | std::ios::binary);
-            std::vector<double> tensorData(tensorIt->getData());
-            currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
+            if (tensorIt->isDoubleType())
+            {
+                std::vector<double> tensorData(tensorIt->getDoubleData());
+                currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
+            }
+            else
+            {
+                std::vector<int64_t> tensorData(tensorIt->getIntData());
+                currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
+            }
             currentTensorOutputStream.close();
         }
     }

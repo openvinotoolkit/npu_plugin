@@ -9,9 +9,19 @@ namespace mv
     namespace attr
     {
 
-    static mv::json::Value toJSON(const Attribute&)
+    static mv::json::Value toJSON(const Attribute& a)
     {
-       
+        auto bdep = a.get<BarrierDependencies>();
+        json::Object result;
+
+        json::Array updateArray;
+        for (auto u: bdep.getUpdate())
+            updateArray.append(static_cast<long long>(u));
+
+        result.emplace("wait", static_cast<long long>(bdep.getWait()));
+        result.emplace("update", updateArray);
+
+        return result;
     }
 
     static Attribute fromJSON(const json::Value&)

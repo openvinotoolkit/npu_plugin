@@ -24,10 +24,11 @@
                 "ResourcesDDRScratch": 2
             },
             "ConvertToTaskGraph",
+	    "MaxTopogicalCut",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             "GraphColoring",
-            "InsertBarrierTasks",
+	        "CompleteTaskGraph",
             "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
@@ -40,7 +41,6 @@
     },
     "finalize": {
         "Singular": [
-            "GenerateWorkloads",
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
@@ -76,8 +76,7 @@
         "Singular": [
             "validate",
             "adapt",
-            "finalize",
-            "serialize"
+            "finalize"
         ],
         "Recurrent": [
             "validate"
