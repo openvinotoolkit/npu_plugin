@@ -27,6 +27,7 @@
 	    "MaxTopogicalCut",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
+            "InsertBarrierTasks",
 	    "CompleteTaskGraph",
             "AssignUniqueTaskId",
             {
@@ -40,6 +41,8 @@
     },
     "finalize": {
         "Singular": [
+            "GenerateWorkloads",
+            "AddBarrierRefs",
             "ArrangeKeembayExecution",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
@@ -75,7 +78,8 @@
         "Singular": [
             "validate",
             "adapt",
-            "finalize"
+            "finalize",
+            "serialize"
         ],
         "Recurrent": [
             "validate"
