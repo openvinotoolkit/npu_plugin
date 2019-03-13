@@ -60,6 +60,7 @@ namespace mv
             static std::vector<std::unique_ptr<MVCNN::BarrierT>> buildBarrierTable(ComputationModel& cm, Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::BarrierT> buildBarrierT(ComputationModel& cm, Element& compilationDescriptor, Data::OpListIterator opIt);
             static std::unique_ptr<MVCNN::TaskT> buildTaskT(ComputationModel& cm, Element& compilationDescriptor, Data::OpListIterator opIt);
+            static std::unique_ptr<MVCNN::BarrierReferenceT> buildBarrierReferenceT(ComputationModel& cm, Element& compilationDescription, BarrierDependencies dep);
 
             // TASKS
             static void buildSpecificTaskUnion(ComputationModel& cm, Element& compilationDescriptor, Data::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask);

@@ -76,7 +76,7 @@ TEST(barrier_deps, api)
 
     bdep.addUpdateBarrier(2);
     bdep.addUpdateBarrier(3);
-    std::vector<int> updateExpected = { 2, 3 };
+    std::vector<unsigned> updateExpected = { 2, 3 };
     ASSERT_EQ(bdep.getUpdate(), updateExpected);
 
 }

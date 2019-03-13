@@ -20,7 +20,7 @@ int mv::BarrierDependencies::getWait()
     return waitBarrier_;
 }
 
-std::vector<int> mv::BarrierDependencies::getUpdate()
+std::vector<unsigned> mv::BarrierDependencies::getUpdate()
 {
     return updateBarriers_;
 }
