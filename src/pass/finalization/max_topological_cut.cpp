@@ -389,6 +389,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
         pass.log(mv::Logger::MessageType::Debug, "Sink Node " + flowGraph.getEdgeEnds(E[i]).second->info.name);
 
         /*Find the shortest path from the input node to the source node of the edge*/
+        /*The source node in the KOALA graph will always be called "Input_0", the same as the MCM graph*/
         Koala::DijkstraHeap::PathLengths <int> res0 = Koala::DijkstraHeap::findPath(flowGraph, edgeMap, lookUpKoalaVertexbyName("Input_0", V, numberOfKoalaVertices),flowGraph.getEdgeEnds(E[i]).first, Koala::DijkstraHeap::outPath(blackHole, back_inserter(vecE)));
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + res0.length);
