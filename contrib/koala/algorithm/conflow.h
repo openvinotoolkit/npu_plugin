@@ -597,14 +597,14 @@ namespace Koala
 										stream << e->info;
 										std::string str =  stream.str();
 
-										std::string start_delim = "xxx";
-    									std::string stop_delim = "yyy";
-										unsigned first_delim_pos = str.find("xxx");
+										std::string start_delim = "start_delimiter";
+    									std::string stop_delim = "end_delimiter";
+										unsigned first_delim_pos = str.find("start_delimiter");
     									unsigned end_pos_of_first_delim = first_delim_pos + start_delim.length();
-    									unsigned last_delim_pos = str.find("yyy");
+    									unsigned last_delim_pos = str.find("end_delimiter");
 									
 									   
-										std::cout << std::stoi(str.substr(end_pos_of_first_delim,last_delim_pos - end_pos_of_first_delim)) << std::endl;
+										//std::cout << std::stoi(str.substr(end_pos_of_first_delim,last_delim_pos - end_pos_of_first_delim)) << std::endl;
 										int memoryRequirement = std::stoi(str.substr(end_pos_of_first_delim,last_delim_pos - end_pos_of_first_delim));
 										res.cutValue += memoryRequirement;
 									}
