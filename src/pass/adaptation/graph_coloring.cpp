@@ -24,16 +24,7 @@ using InterferenceGraph = mv::graph<std::string, int>;
 using TensorIteratorFilter = std::function<bool(const mv::Data::TensorIterator& t)>;
 using OpIteratorFilter = std::function<bool(mv::Data::OpListIterator& t)>;
 
-bool pathExists(const InterferenceGraph::node_list_iterator& source, const InterferenceGraph::node_list_iterator& target,
-    const InterferenceGraph::node_list_iterator& end)
-{
-    for (InterferenceGraph::node_dfs_iterator it(source); it != end; ++it)
-    {
-        if (*it == *target)
-            return true;
-    }
-    return false;
-}
+
 
 bool pathExists(const mv::Data::OpListIterator& source, const mv::Data::OpListIterator& sink, const mv::Data::OpListIterator end)
 {
@@ -277,8 +268,8 @@ void genIntereferenceGraph(InterferenceGraph& g, mv::ComputationModel& model , c
         {
             auto nj = g.node_find(*target);
             auto directed_nj = directed_g.node_find(*target);
-            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !pathExists( directed_ni, directed_nj, directed_g.node_end()) &&
-                !pathExists(directed_nj, directed_ni, directed_g.node_end()))
+            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !mv::pathExists<std::string, int>( directed_ni, directed_nj, directed_g.node_end()) &&
+                !mv::pathExists<std::string, int>(directed_nj, directed_ni, directed_g.node_end()))
             {
                 if (!checkNodeInterference(model, *source, *target) || !checkNodeInterference(model, *target, *source))
                 {
