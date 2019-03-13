@@ -12,7 +12,7 @@ namespace mv
 
     namespace pass
     {
-        MV_REGISTER_PASS(graphColoring)
+        MV_REGISTER_PASS(GraphColoring)
         .setFunc(graphColoringFnc)
         .setDescription(
             "graph coloring implmentation used in memory allocation algorithm"

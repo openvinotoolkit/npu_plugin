@@ -26,6 +26,7 @@
             "ConvertToTaskGraph",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
+            "GraphColoring",
             "InsertBarrierTasks",
             "AssignUniqueTaskId",
             {
