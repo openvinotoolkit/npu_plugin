@@ -27,7 +27,8 @@
 	    "MaxTopogicalCut",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
-	    "CompleteTaskGraph",
+            "GraphColoring",
+	        "CompleteTaskGraph",
             "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
