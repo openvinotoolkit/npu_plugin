@@ -13,16 +13,10 @@ TEST(graph_coloring, case1)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({112, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({24, 24, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
     auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {0, 0, 0, 0});
-
-    // std::cout << "shape " << conv->getShape().toString();
-
-    // std::vector<double> weightsData1 = mv::utils::generateSequence<double>(1*1*15*15);
-    // auto weights1 = om.constant(weightsData1, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    // auto conv1 = om.conv(conv, weights1, {1, 1}, {0, 0, 0, 0});
 
     om.output(conv);
 
