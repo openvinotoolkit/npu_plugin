@@ -28,7 +28,6 @@ namespace mv
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setArg<mv::Barrier>("Barrier")
-        .setArg<mv::BarrierDependencies>("BarrierDeps")
         .setTypeTrait({"executable"});
 
     }
