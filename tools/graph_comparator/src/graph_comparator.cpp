@@ -660,16 +660,7 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NNDMATaskT& lhs, const MV
         diff.push_back(label + "::compression");
 
     compare_(lhs.src, rhs.src, diff, label + "::src");
-
-    if (lhs.dst.size() != rhs.dst.size())
-    {
-        diff.push_back(label + "::dst[");
-        return;
-    }
-
-    for(unsigned i = 0; i < lhs.dst.size(); ++i)
-        compare_(lhs.dst[i], rhs.dst[i], diff, label + "::dst[i]");
-
+    compare_(lhs.dst, rhs.dst, diff, label + "::dst");
 }
 
 void mv::tools::GraphComparator::compare_(const MVCNN::NNTensorTaskT& lhs, const MVCNN::NNTensorTaskT& rhs,
