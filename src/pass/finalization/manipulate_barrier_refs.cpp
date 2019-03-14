@@ -21,7 +21,7 @@ namespace mv
     }
 }
 
-void addBarrierRefsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -39,10 +39,7 @@ void addBarrierRefsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             auto producerOp = om.getOp(producer);
 
             if (!producerOp->hasAttr("BarrierDeps"))
-            {                
-                struct mv::BarrierDependencies bdep;
-                producerOp->set<mv::BarrierDependencies>("BarrierDeps", bdep);
-            }
+                producerOp->set<mv::BarrierDependencies>("BarrierDeps", mv::BarrierDependencies());
 
             auto& barrierRef = producerOp->get<mv::BarrierDependencies>("BarrierDeps");
             barrierRef.addUpdateBarrier(barrier.getIndex());
@@ -53,10 +50,7 @@ void addBarrierRefsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             std::cout << "cons: " << consumer << std::endl;
             auto consumerOp = om.getOp(consumer);
             if (!consumerOp->hasAttr("BarrierDeps"))
-            {                
-                struct mv::BarrierDependencies bdep;
-                consumerOp->set<mv::BarrierDependencies>("BarrierDeps", bdep);
-            }
+                consumerOp->set<mv::BarrierDependencies>("BarrierDeps", mv::BarrierDependencies());
 
             auto& barrierRef = consumerOp->get<mv::BarrierDependencies>("BarrierDeps");
             // Hmm...this won't work always -- there can be several consumers trying to update a single
