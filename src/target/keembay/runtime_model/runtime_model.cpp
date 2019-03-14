@@ -508,11 +508,7 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
 std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, Workload workload)
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
-    if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
-    {
-        // NOTE: Ignoring barriers for now
-        // std::unique_ptr<BarrierReferenceT> associated_barriers;
-    }
+
     toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
     toBuild->padLeft = workload.padLeft;
     toBuild->padRight = workload.padRight;
