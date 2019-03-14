@@ -54,6 +54,8 @@ else()
 	add_executable(cm_linear cm_linear.cpp)
 	target_link_libraries(cm_linear cm)
 
+	add_executable(koala Koala_example.cpp)
+
 # FIXME: uncomment after ma2480_memory_allocator_example.cpp is added
 #	add_executable(ma2480_memory_allocator_example ma2480_memory_allocator_example.cpp)
 #	target_link_libraries(ma2480_memory_allocator_example cm)
@@ -102,6 +104,9 @@ else()
 
 	add_executable(dpu_task_example dpu_task_example.cpp)
 	target_link_libraries(dpu_task_example cm)
+ 
+  add_executable(dpu_conv_example_3_layers dpu_conv_example_3_layers.cpp)
+	target_link_libraries(dpu_conv_example_3_layers cm)
 
 # FIXME: uncomment after metis_example.cpp is added
 #	add_executable(metis_example metis_example.cpp)
