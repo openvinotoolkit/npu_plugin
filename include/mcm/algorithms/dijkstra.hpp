@@ -118,8 +118,8 @@ namespace mv
          return toReturn;
     }
 
-    template <typename T_node, typename T_edge>
-    std::vector<typename graph<T_node, T_edge>::node_list_iterator> dijkstra_nodes(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, const std::map<T_edge, int>& edgeCosts)
+    template <typename T_node, typename T_edge, typename T_edgeItComp>
+    std::vector<typename graph<T_node, T_edge>::node_list_iterator> dijkstra_nodes(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edgeItComp>& edgeCosts)
     {
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
         std::priority_queue<HeapContent<T_node, int>, std::vector<HeapContent<T_node, int>>, std::greater<HeapContent<T_node, int>>> minHeap;
@@ -156,7 +156,7 @@ namespace mv
            for(auto u_vIt = uIt->leftmost_output(); u_vIt != g.edge_end(); ++u_vIt)
            {
                auto vIt = u_vIt->sink();
-               int cost_u_v = edgeCosts.at(*u_vIt);
+               int cost_u_v = edgeCosts.at(u_vIt);
                int distance = distances[*uIt] + cost_u_v;
                if(distances[*vIt] == infiniteCost || distance < distances[*vIt])
                {
@@ -180,8 +180,8 @@ namespace mv
     }
 
 
-    template <typename T_node, typename T_edge>
-    std::vector<typename graph<T_node, T_edge>::edge_list_iterator> dijkstra(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, const std::map<T_edge, int>& edgeCosts)
+    template <typename T_node, typename T_edge, typename T_edgeItComp>
+    std::vector<typename graph<T_node, T_edge>::edge_list_iterator> dijkstra(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edgeItComp>& edgeCosts)
     {
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> buildList = dijkstra_nodes(g, source, sink, edgeCosts);
         std::vector<typename graph<T_node, T_edge>::edge_list_iterator> toReturn;

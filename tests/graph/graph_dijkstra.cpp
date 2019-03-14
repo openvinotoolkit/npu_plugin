@@ -8,6 +8,14 @@
 
 using graph_char_string= mv::graph<std::string, std::string>;
 
+struct IteratorComp
+{
+    bool operator()(const graph_char_string::edge_list_iterator lhs, const graph_char_string::edge_list_iterator rhs) const
+    {
+        return (*lhs) < (*rhs);
+    }
+};
+
 //Example available at https://www.researchgate.net/figure/A-example-of-the-Dijkstra-algorithm_fig1_328036215
 TEST (graph_dijkstra, test1)
 {
@@ -31,14 +39,14 @@ TEST (graph_dijkstra, test1)
     auto n4_n3 = g.edge_insert(n4, n3, "n4_n3");
     auto n4_n5 = g.edge_insert(n4, n5, "n4_n5");
 
-    std::map<std::string, int> costs;
-    costs[*n1_n2] = 1;
-    costs[*n1_n4] = 3;
-    costs[*n1_n5] = 100;
-    costs[*n2_n3] = 5;
-    costs[*n4_n3] = 2;
-    costs[*n4_n5] = 6;
-    costs[*n3_n5] = 1;
+    std::map<graph_char_string::edge_list_iterator, unsigned, IteratorComp> costs;
+    costs[n1_n2] = 1;
+    costs[n2_n3] = 5;
+    costs[n4_n5] = 6;
+    costs[n1_n5] = 100;
+    costs[n1_n4] = 3;
+    costs[n4_n3] = 2;
+    costs[n3_n5] = 1;
 
     auto result2 = mv::dijkstra(g, n4, n5, costs);
     ASSERT_EQ(*result2[0], "n4_n3");
