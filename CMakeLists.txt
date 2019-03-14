@@ -145,7 +145,6 @@ file(GLOB pass
     "src/pass/adaptation/max_topological_cut.cpp"
     "src/pass/adaptation/assign_unique_op_id.cpp"
     "src/pass/adaptation/convert_to_task_graph.cpp"
-    "src/pass/adaptation/graph_coloring.cpp"
     "src/pass/finalization/generate_workloads_pass.cpp"
     "src/pass/adaptation/dpu_conv_pass.cpp"
     "src/pass/finalization/*.cpp"
