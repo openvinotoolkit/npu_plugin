@@ -32,6 +32,8 @@ TEST (graph_topological_sort, test1)
     auto result = mv::topologicalSort(g);
     for(auto r: result)
         std::cout << *r << std::endl;
+
+    // TODO: Write proper test with ASSERTS
     std::cout << "TOPOLOGICAL SORT ENDED" << std::endl;
 
 }
@@ -66,6 +68,8 @@ TEST (graph_topological_sort, test2)
     auto result = mv::topologicalSort(g);
     for(auto r: result)
         std::cout << *r << std::endl;
+
+    // TODO: Write proper test with ASSERTS
     std::cout << "TOPOLOGICAL SORT ENDED" << std::endl;
 
 }
