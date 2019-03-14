@@ -24,7 +24,6 @@
                 "ResourcesDDRScratch": 2
             },
             "ConvertToTaskGraph",
-	    "MaxTopogicalCut",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             "GraphColoring",
