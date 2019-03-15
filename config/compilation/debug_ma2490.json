@@ -5,7 +5,7 @@
 			{
                 "name": "GenerateDot",
                 "output": "original_model.dot",
-                "scope": "OpControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
@@ -32,7 +32,7 @@
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
-                "scope": "OpControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             }
@@ -48,7 +48,7 @@
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
-                "scope": "OpControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             }

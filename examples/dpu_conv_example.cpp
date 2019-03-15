@@ -26,9 +26,9 @@ int main()
 
 
     /*Failing*/
-    auto input = om.input({112, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({112, 224, 3}, mv::DType("Float8"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
-    auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float8"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
 
     om.output(conv);

@@ -37,7 +37,7 @@ namespace mv
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt32"), mv::Order("NCHW"), sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));

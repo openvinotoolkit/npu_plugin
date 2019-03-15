@@ -125,7 +125,7 @@ koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, koalaGraph::PEdge 
 
 /**
  * @brief Encode the mememory requirements of each tash by adding a "MemoryRequirment" attribute to the task in the MCM task graph.
- *        The memory requirment is defined as the output tensor N*W*H*C.
+ *        The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
  */
 void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
 
@@ -139,8 +139,8 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
         
         if (opIt->getOpType() == "Constant"){
 
-            mv::Shape shape = opIt->get<mv::Shape>("shape");
             int memoryRequirement = 1;
+            mv::Shape shape = opIt->get<mv::Shape>("shape");
 
             for (unsigned int i = 0; i < shape.ndims(); i++) 
                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
@@ -157,10 +157,12 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
         if (opIt->getOpType() == "DPUTask") { 
 
             int memoryRequirement = 1;
+            auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
 
             for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
 
+            memoryRequirement = memoryRequirement * dType/8;
             opIt->set<int>("MemoryRequirement", memoryRequirement);    
         }
         
@@ -168,10 +170,12 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
         if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::DDR2CMX)) { 
 
             int memoryRequirement = 1;
+            auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
 
             for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
-
+            
+            memoryRequirement = memoryRequirement * dType/8; 
             opIt->set<int>("MemoryRequirement", memoryRequirement);    
         }
 
@@ -181,13 +185,6 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
             opIt->set<int>("MemoryRequirement", memoryRequirement);
         }
     }
-
-    /*REMOVE THIS WHEN SPARISTY AND WEIGHT TABLE FIXED - HARD CODING MEMORY REQUIRMENT FOR NOW*/
-    // auto op = cm.getOp("DMATask_3");
-    // op->set<int>("MemoryRequirement", 4096);
-
-    // auto op1 = cm.getOp("DMATask_4");
-    // op1->set<int>("MemoryRequirement", 1024);
 }
 
 
