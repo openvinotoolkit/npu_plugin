@@ -9,7 +9,7 @@ namespace mv
     class BarrierDependencies : public LogSender
     {
         int waitBarrier_;
-        std::vector<int> updateBarriers_;
+        std::vector<unsigned> updateBarriers_;
     
     public:
         BarrierDependencies();
@@ -17,7 +17,7 @@ namespace mv
         void addUpdateBarrier(int barrierId);
 
         int getWait();
-        std::vector<int> getUpdate();
+        std::vector<unsigned> getUpdate();
 
         std::string getLogID() const override;
         std::string toString() const;

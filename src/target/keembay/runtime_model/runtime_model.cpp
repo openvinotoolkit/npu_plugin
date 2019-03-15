@@ -512,11 +512,7 @@ MVCNN::MPE_Mode mv::RuntimeModel::convertMPEMode(mv::MPE_Mode mpe)
 std::unique_ptr<MVCNN::NCEVariantFieldsT> mv::RuntimeModel::buildNCEVariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, Workload workload)
 {
     std::unique_ptr<MVCNN::NCEVariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEVariantFieldsT>(new MVCNN::NCEVariantFieldsT());
-    if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
-    {
-        // NOTE: Ignoring barriers for now
-        // std::unique_ptr<BarrierReferenceT> associated_barriers;
-    }
+
     toBuild->mpe_mode = convertMPEMode(workload.MPEMode);
     toBuild->padLeft = workload.padLeft;
     toBuild->padRight = workload.padRight;
@@ -558,7 +554,17 @@ void mv::RuntimeModel::buildControllerTaskT(ComputationModel& cm, mv::Element &c
 
 }
 
-std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt)
+std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenceT(ComputationModel& cm, Element& compilationDescription, BarrierDependencies dep)
+{
+    std::unique_ptr<MVCNN::BarrierReferenceT> toBuild = std::unique_ptr<MVCNN::BarrierReferenceT>(new MVCNN::BarrierReferenceT());
+    int waitBarrier = dep.getWait();
+    if(waitBarrier != -1)
+        toBuild->wait_barriers = {waitBarrier};
+    toBuild->update_barriers = dep.getUpdate();
+    return toBuild;
+}
+
+std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm, Element &compilationDescriptor, Data::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::TaskT> toBuild = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
 
@@ -569,11 +575,9 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
     if(opIt->hasAttr("opId"))
         toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
 
-    if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
-    {
-        // NOTE: Ignoring barriers for now
-        // std::unique_ptr<BarrierReferenceT> associated_barriers;
-    }
+    if(compilationDescriptor.get<std::string>("Scheduling") == "Static")
+        if(opIt->hasAttr("BarrierDeps"))
+            toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
 
     buildSpecificTaskUnion(cm, compilationDescriptor, opIt, toBuild->task);
     return toBuild;
@@ -614,8 +618,9 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
-    // BARRIERS
-    graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
+    // Barrier Table must be build only on dynamic scheduling
+    if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
+        graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
     // BINARY DATA
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();

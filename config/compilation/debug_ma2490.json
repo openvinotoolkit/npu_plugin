@@ -30,6 +30,7 @@
             "ConvertToTaskGraph",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
+            "InsertBarrierTasks",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -41,9 +42,11 @@
     },
     "finalize": {
         "Singular": [
-			"AssignUniqueTaskId",
+            "GenerateWorkloads",
+            "AddBarrierRefs",
+			      "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
-			"MaxTopologicalCut",
+			      "MaxTopologicalCut",
             "TransitiveReduction",
             "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
@@ -81,7 +84,8 @@
 			"initialize",
             "validate",
             "adapt",
-            "finalize"
+            "finalize",
+            "serialize"
         ],
         "Recurrent": [
             "validate"
