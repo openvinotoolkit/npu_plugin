@@ -1,6 +1,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/op/op.hpp"
 #include "include/mcm/algorithms/transitive_reduction.hpp"
+#include "include/mcm/algorithms/critical_path.hpp"
 
 mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
@@ -30,6 +31,10 @@ mv::Control::OpListIterator mv::ControlModel::getLast()
    return opsGraph_->get_second_iterator(it);
 }
 
+mv::Control::OpListIterator mv::ControlModel::opBegin()
+{
+    return controlGraph_.node_begin();
+}
 
 mv::Control::OpListIterator mv::ControlModel::opEnd()
 {
@@ -44,6 +49,11 @@ mv::Control::FlowListIterator mv::ControlModel::getInput()
 mv::Control::FlowListIterator mv::ControlModel::getOutput()
 {
     return switchContext(*output_).leftmostInput();
+}
+
+mv::Control::FlowListIterator mv::ControlModel::flowBegin()
+{
+    return controlGraph_.edge_begin();
 }
 
 mv::Control::FlowListIterator mv::ControlModel::flowEnd()
@@ -198,6 +208,45 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
     auto topologicalSortResult = mv::topologicalSort(controlGraph_);
     std::vector<mv::Control::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
     return toReturn;
+}
+
+struct FlowListIteratorComp
+{
+    bool operator()(const mv::Control::FlowListIterator lhs, const mv::Control::FlowListIterator rhs) const
+    {
+        return (*lhs) < (*rhs);
+    }
+};
+
+struct OpListIteratorComp
+{
+    bool operator()(const mv::Control::OpListIterator lhs, const mv::Control::OpListIterator rhs) const
+    {
+        return (*lhs) < (*rhs);
+    }
+};
+
+std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp, const std::string &nodeAttribute, const std::string &edgeAttribute)
+{
+    std::map<Control::OpListIterator, unsigned, OpListIteratorComp> nodeCosts;
+    std::map<Control::FlowListIterator, unsigned, FlowListIteratorComp> edgeCosts;
+
+    if(nodeAttribute != "")
+        for(auto opIt = opBegin(); opIt != opEnd(); ++opIt)
+            if(opIt->hasAttr(nodeAttribute))
+                nodeCosts[opIt] = opIt->get<unsigned>(nodeAttribute);
+
+    if(edgeAttribute != "")
+        for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
+            if(edgeIt->hasAttr(nodeAttribute))
+                edgeCosts[edgeIt] = edgeIt->get<unsigned>(nodeAttribute);
+
+    return critical_path<Op, ControlFlow, OpListIteratorComp, FlowListIteratorComp>(controlGraph_, sourceOp, sinkOp, nodeCosts, edgeCosts);
+}
+
+std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp, const std::string& nodeAttribute, const std::string& edgeAttribute)
+{
+   return criticalPath(switchContext(sourceOp), switchContext(sinkOp), nodeAttribute, edgeAttribute);
 }
 
 void mv::ControlModel::transitiveReduction()
