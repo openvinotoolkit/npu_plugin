@@ -2,14 +2,14 @@
     "adapt": {
         "Singular": [
             "AssignUniqueOpId",
-			{
+            {
                 "name": "GenerateDot",
                 "output": "original_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
-			{
+            {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -23,12 +23,13 @@
                 "ResourcesNNCMXSliceAmount": 2,
                 "ResourcesDDRScratch": 2
             },
+            "AverageAsDepthWise",
             "ConvertToTaskGraph",
-	    "MaxTopogicalCut",
+            "MaxTopogicalCut",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             "GraphColoring",
-	        "CompleteTaskGraph",
+            "CompleteTaskGraph",
             "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
