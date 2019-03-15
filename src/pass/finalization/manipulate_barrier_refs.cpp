@@ -30,12 +30,10 @@ void addBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, 
 
     for (auto bt: barrierTasks)
     {
-        std::cout << "bt: " << bt->getName() << std::endl;
         auto& barrier = bt->get<mv::Barrier>("Barrier");
 
         for (auto producer: barrier.getProducers())
         {
-            std::cout << "prod: " << producer << std::endl;
             auto producerOp = om.getOp(producer);
 
             if (!producerOp->hasAttr("BarrierDeps"))
@@ -47,7 +45,6 @@ void addBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, 
         
         for (auto consumer: barrier.getConsumers())
         {
-            std::cout << "cons: " << consumer << std::endl;
             auto consumerOp = om.getOp(consumer);
             if (!consumerOp->hasAttr("BarrierDeps"))
                 consumerOp->set<mv::BarrierDependencies>("BarrierDeps", mv::BarrierDependencies());
