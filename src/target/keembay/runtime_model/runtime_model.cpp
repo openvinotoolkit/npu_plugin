@@ -41,7 +41,7 @@ const std::unordered_map<std::string, MVCNN::MemoryLocation> mv::RuntimeModel::m
 const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpuLayerMapping_ =
 {
     {"Conv",MVCNN::DPULayerType::DPULayerType_CONV},
-    {"DepthWiseConv",MVCNN::DPULayerType::DPULayerType_DWCONV},
+    {"DepthwiseConv",MVCNN::DPULayerType::DPULayerType_DWCONV},
     {"MaxPool",MVCNN::DPULayerType::DPULayerType_MAXPOOL},
     {"AveragePool",MVCNN::DPULayerType::DPULayerType_AVEPOOL},
     {"FullyConnected",MVCNN::DPULayerType::DPULayerType_FCL},
