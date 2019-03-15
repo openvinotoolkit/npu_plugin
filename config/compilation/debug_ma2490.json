@@ -48,6 +48,7 @@
         "Singular": [
             "GenerateWorkloads",
             "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
 			      "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
 			      "MaxTopologicalCut",
