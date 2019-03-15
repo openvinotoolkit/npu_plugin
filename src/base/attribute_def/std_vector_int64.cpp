@@ -38,15 +38,7 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            std::string output = "{";
-            auto vec = a.get<std::vector<int64_t>>();
-            if (vec.size() > 0)
-            {
-                for (std::size_t i = 0; i < vec.size() - 1; ++i)
-                    output += std::to_string(vec[i]) + ", ";
-                output += std::to_string(*vec.rbegin());
-            }
-            output += "}";
+            std::string output = "(" + std::to_string(a.get<std::vector<int64_t>>().size()) + ")";
             return output;
         }
 

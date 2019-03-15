@@ -50,12 +50,8 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel
         int index = barrier.getIndex();
         int barrierNum = group * 8 + index;
 
-        int wait = -1;
-        struct mv::BarrierDependencies bdep;
-        bdep.setWaitBarrier(wait);
-
         std::string barrierName("BarrierTask_" + std::to_string(barrierNum));
-        om.barrierTask(barrier, bdep, barrierName);
+        om.barrierTask(barrier, barrierName);
 
         // Add control flows to insert this barrier to the control flow graph
         auto barrierOp = om.getOp(barrierName);

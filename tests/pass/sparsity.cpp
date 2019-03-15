@@ -15,7 +15,6 @@ TEST(sparsity, case_cm)
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(3*3*3*64);
     auto weights = om.constantInt(weightsData, {3, 3, 3, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
-    auto convOp = om.getSourceOp(conv);
 
     mv::Element dummyCompDesc("dummyPassDesc");
 
@@ -24,12 +23,19 @@ TEST(sparsity, case_cm)
 
     desc.setTarget(mv::Target::ma2490);
 
-    mv::pass::PassRegistry::instance().find("MarkHardwareOperations")->run(om, desc, dummyCompDesc, compOutput);
-    mv::pass::PassRegistry::instance().find("Sparsity")->run(om, desc, dummyCompDesc, compOutput);
+    auto assignOpIdPass = mv::pass::PassRegistry::instance().find("AssignUniqueOpId");
+    assignOpIdPass->run(om, desc, dummyCompDesc, compOutput);
+    auto convertToTaskGraphPass = mv::pass::PassRegistry::instance().find("ConvertToTaskGraph");
+    convertToTaskGraphPass->run(om, desc, dummyCompDesc, compOutput);
+    auto generateSparsityMaps = mv::pass::PassRegistry::instance().find("GenerateSparsityMaps");
+    generateSparsityMaps->run(om, desc, dummyCompDesc, compOutput);
 
     //ref data is based on result on POC test res2a_branch2a/quantized_model.tflite
     mv::DataModel dm(om);
-    auto resData = dm.getTensor(convOp->get<std::string>("sparsityMap"))->getIntData();
+    auto convOp = om.getOps("DPUTask")[0];
+    if(convOp->hasAttr("fakeSparsity"))
+        std::cout << "SparsityAdded" << std::endl;
+    auto resData = om.getOp(convOp->getName() + "SparsityMap")->getOutputTensor(0)->getIntData();
 
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res1_sparsity_map.bin"), std::ios::binary );
 
@@ -63,18 +69,25 @@ TEST(sparsity, case_hwPooling)
     auto pool = om.maxPool(input, {1,1}, {1, 1}, {0, 0, 0, 0}); //stride {1,1}
     auto poolOp = om.getSourceOp(pool);
     auto output = om.output(pool);
-    mv::Element dummyPassDesc("dummyPassDesc");
+    mv::Element dummyCompDesc("dummyPassDesc");
     mv::json::Object compOutput;
     mv::TargetDescriptor desc;
 
     desc.setTarget(mv::Target::ma2490);
 
-    mv::pass::PassRegistry::instance().find("MarkHardwareOperations")->run(om, desc, dummyPassDesc, compOutput);
-    mv::pass::PassRegistry::instance().find("Sparsity")->run(om, desc, dummyPassDesc, compOutput);
+    auto assignOpIdPass = mv::pass::PassRegistry::instance().find("AssignUniqueOpId");
+    assignOpIdPass->run(om, desc, dummyCompDesc, compOutput);
+    auto convertToTaskGraphPass = mv::pass::PassRegistry::instance().find("ConvertToTaskGraph");
+    convertToTaskGraphPass->run(om, desc, dummyCompDesc, compOutput);
+    auto generateSparsityMaps = mv::pass::PassRegistry::instance().find("GenerateSparsityMaps");
+    generateSparsityMaps->run(om, desc, dummyCompDesc, compOutput);
 
     //ref data is based on result on POC test res5c/quantized_model.tflite
     mv::DataModel dm(om);
-    auto resData = dm.getTensor(poolOp->get<std::string>("sparsityMap"))->getIntData();
+    auto convOp = om.getOps("DPUTask")[0];
+    if(convOp->hasAttr("fakeSparsity"))
+        std::cout << "SparsityAdded" << std::endl;
+    auto resData = om.getOp(convOp->getName() + "SparsityMap")->getOutputTensor(0)->getIntData();
 
     std::ifstream outputfile(mv::utils::projectRootPath() + std::string("/tests/data/res5c_sparsity_map.bin"), std::ios::binary );
 

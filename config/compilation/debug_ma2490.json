@@ -10,6 +10,7 @@
                 "html": true
             },
             {
+
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -42,7 +43,13 @@
     },
     "finalize": {
         "Singular": [
+            "GenerateWorkloads",
+            "AddBarrierRefs",
+			      "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
+			      "MaxTopologicalCut",
+            "TransitiveReduction",
+            "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
@@ -75,9 +82,11 @@
     },
     "root": {
         "Singular": [
+			"initialize",
             "validate",
             "adapt",
-            "finalize"
+            "finalize",
+            "serialize"
         ],
         "Recurrent": [
             "validate"

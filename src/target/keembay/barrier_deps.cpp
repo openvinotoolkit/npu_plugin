@@ -1,7 +1,7 @@
 #include "include/mcm/target/keembay/barrier_deps.hpp"
 
 mv::BarrierDependencies::BarrierDependencies() :
-waitBarrier_(0)
+waitBarrier_(-1)
 {}
 
 void mv::BarrierDependencies::setWaitBarrier(int barrierId)
@@ -20,7 +20,7 @@ int mv::BarrierDependencies::getWait()
     return waitBarrier_;
 }
 
-std::vector<int> mv::BarrierDependencies::getUpdate()
+std::vector<unsigned> mv::BarrierDependencies::getUpdate()
 {
     return updateBarriers_;
 }
