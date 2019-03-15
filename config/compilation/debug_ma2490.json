@@ -1,8 +1,16 @@
 {
-	"initialize":{
-		"Singular": [
-			"AssignUniqueOpId",
-			{
+    "adapt": {
+        "Singular": [
+            "AssignUniqueOpId",
+            {
+                "name": "GenerateDot",
+                "output": "original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -16,21 +24,14 @@
                 "ResourcesNNCMXSliceAmount": 2,
                 "ResourcesDDRScratch": 2
             },
-			{
-                "name": "GenerateDot",
-                "output": "original_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
-		]
-	},
-    "adapt": {
-        "Singular": [
+            "AverageAsDepthWise",
             "ConvertToTaskGraph",
+            "MaxTopogicalCut",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
-            "InsertBarrierTasks",
+            "GraphColoring",
+            "CompleteTaskGraph",
+            "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
