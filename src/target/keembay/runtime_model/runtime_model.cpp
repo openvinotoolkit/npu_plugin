@@ -287,18 +287,37 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     return toBuild;
 }
 
-// NOTE: Only 1 TaskList for now, we will see in the future
+// We have three taskslist for POC:
+// Tasklist 0: Contains all the DMA Tasks
+// Tasklist 1: Contains all the DPU Tasks
+// Tasklist 2: Contains all leon Tasks.
+// We need to topologically sort the control model graph to get the tasks in the correct order.
+
 std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
-    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
+    mv::ControlModel controlModel(cm);
+    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(3);
     toBuild[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
+    toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
+    toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
+
+    auto topologicallySortedOps = controlModel.topologicalSort();
 
     //Only Tasks in TaskLists
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
-        if(opIt->getOpType().find("Task") != std::string::npos)
-            toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+        auto opIt = *vecIt;
+        std::string opType = opIt->getOpType();
+        if(opType.find("Task") != std::string::npos)
+        {
+            if(opType == "DMATask")
+                toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+            else if(opType == "DPUTask")
+                toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+            else
+                toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+        }
     }
 
     return toBuild;
