@@ -166,7 +166,6 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-
         if (opIt->getOpType() == "AveragePool")
         {
             std::cout << "Found AveragePool op " << std::endl;
@@ -188,8 +187,16 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             //not sure about the order
             auto weights = om.constant(weightsData, {kSize[0], kSize[1], inputShape[2],
                 inputShape[2]}, sourceTensor->getDType(), Order(Order::getRowMajorID(4)));
+            auto weightsOp = om.getSourceOp(weights);
             //Check the last argument name!!!
             auto depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding);
+            auto depthwise_conv_op = om.getSourceOp(depthwise_conv);
+            if(opIt->hasAttr("opId"))
+            {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                weightsOp->set<unsigned>("opId", currentOpId);
+                depthwise_conv_op->set<unsigned>("opId", currentOpId);
+            }
             pass.log(Logger::MessageType::Info, "Replaced AveragePool op " + opIt->getName() + " with " + depthwise_conv->getName());
 
             opIt = linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
