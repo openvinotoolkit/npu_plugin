@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -11,15 +11,15 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(MaxTopogicalCut)
-        .setFunc(maxTopogicalCut)
+        MV_REGISTER_PASS(MaxTopologicalCut)
+        .setFunc(maxTopologicalCut)
         .setDescription(
             "Calculate max topological cut."
         );
     }
 }
 
-void maxTopogicalCut(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void maxTopologicalCut(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
