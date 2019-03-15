@@ -306,7 +306,6 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 
 void mv::RuntimeModel::buildBarrierTaskT(ComputationModel& cm, Element& compilationDescriptor, Data::OpListIterator opIt, MVCNN::ControllerTaskT* toBuild)
 {
-    toBuild = new MVCNN::ControllerTaskT();
     toBuild->task.type = MVCNN::ControllerSubTask_BarrierConfigurationTask;
 
     auto tmp = new MVCNN::BarrierConfigurationTaskT();
@@ -325,13 +324,13 @@ void mv::RuntimeModel::buildSpecificTaskUnion(ComputationModel& cm, mv::Element 
         specificTask.value = new MVCNN::MvTensorTaskT();
         buildMvTensorTaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::MvTensorTaskT*>(specificTask.value));
     }
-    else if(taskType == "DMATask")
+    else if(taskType == "UPADMATask")
     {
         specificTask.type = MVCNN::SpecificTask_UPADMATask;
         specificTask.value = new MVCNN::UPADMATaskT();
         buildUPADMATaskT(cm, compilationDescriptor, opIt, reinterpret_cast<MVCNN::UPADMATaskT*>(specificTask.value));
     }
-    else if(taskType == "NNDMATask")
+    else if(taskType == "DMATask")
     {
         specificTask.type = MVCNN::SpecificTask_NNDMATask;
         specificTask.value = new MVCNN::NNDMATaskT();
@@ -383,11 +382,9 @@ void mv::RuntimeModel::buildUPADMATaskT(ComputationModel& cm, mv::Element &compi
 void mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NNDMATaskT* toBuild)
 {
     toBuild->src = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
-
-    //NOTE: For now we are handling just one output tensor
-    toBuild->dst = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->dst[0] = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
-    toBuild->compression = opIt->get<bool>("Compression");
+    toBuild->dst = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+    if(opIt->hasAttr("Compression"))
+        toBuild->compression = opIt->get<bool>("Compression");
 }
 
 void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Data::OpListIterator opIt, MVCNN::NCE1TaskT* toBuild)
@@ -420,15 +417,15 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationMode
 {
     std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
 
-    if(opIt->hasAttr("scale"))
-    {
-        Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
-        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, tensorIt);
-    }
+//    if(opIt->hasAttr("scale"))
+//    {
+//        Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
+//        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, tensorIt);
+//    }
 
-    // If this function has been called, this part must be built for sure
-    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
-    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
+//    // If this function has been called, this part must be built for sure
+//    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
+//    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
 
     return toBuild;
 }
@@ -474,6 +471,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
+
+    unsigned num_inputs = opIt->getInputTensor().size();
+
+    if(opIt->hasAttr("fakeSparsity"))
+        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 2));
+
+    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 1));
 
     switch (toBuild->dpu_task_type)
     {
@@ -625,6 +629,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
         if(tensorIt->isPopulated())
         {
             graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
+
+            // TODO
             if (tensorIt->isSparse())
                 graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt->getSparsityMap()));
         }

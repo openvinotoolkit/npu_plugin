@@ -212,6 +212,17 @@ bool mv::Order::isRowMajorPlanar()
     return false;
 }
 
+bool mv::Order::isZMajor()
+{
+    if(contVectorStr_ == "NWHC")
+        return true;
+    if(contVectorStr_ == "WHCN")
+        return true;
+    if(contVectorStr_ == "WHC")
+        return true;
+    return false;
+}
+
 bool mv::Order::isColMajorPlanar()
 {
     if(contVectorStr_ == "W")

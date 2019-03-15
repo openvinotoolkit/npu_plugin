@@ -585,6 +585,8 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NCEInvariantFieldsT& lhs,
     std::vector<std::string>& diff, const std::string& label)
 {
 
+    compare_(lhs.activation_window, rhs.activation_window, diff, label + "::activation_window");
+
     if (lhs.dpu_task_type != rhs.dpu_task_type)
         diff.push_back(label + "::dpu_task_type");
 
@@ -660,16 +662,7 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NNDMATaskT& lhs, const MV
         diff.push_back(label + "::compression");
 
     compare_(lhs.src, rhs.src, diff, label + "::src");
-
-    if (lhs.dst.size() != rhs.dst.size())
-    {
-        diff.push_back(label + "::dst[");
-        return;
-    }
-
-    for(unsigned i = 0; i < lhs.dst.size(); ++i)
-        compare_(lhs.dst[i], rhs.dst[i], diff, label + "::dst[i]");
-
+    compare_(lhs.dst, rhs.dst, diff, label + "::dst");
 }
 
 void mv::tools::GraphComparator::compare_(const MVCNN::NNTensorTaskT& lhs, const MVCNN::NNTensorTaskT& rhs,

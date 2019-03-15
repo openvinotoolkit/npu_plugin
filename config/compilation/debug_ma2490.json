@@ -1,14 +1,7 @@
 {
-    "adapt": {
-        "Singular": [
-            "AssignUniqueOpId",
-			{
-                "name": "GenerateDot",
-                "output": "original_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
+	"initialize":{
+		"Singular": [
+			"AssignUniqueOpId",
 			{
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
@@ -23,14 +16,21 @@
                 "ResourcesNNCMXSliceAmount": 2,
                 "ResourcesDDRScratch": 2
             },
+			{
+                "name": "GenerateDot",
+                "output": "original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
+		]
+	},
+    "adapt": {
+        "Singular": [
             "ConvertToTaskGraph",
-	    "MaxTopogicalCut",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
-            "GraphColoring",
             "InsertBarrierTasks",
-            "CompleteTaskGraph",
-            "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -44,7 +44,11 @@
         "Singular": [
             "GenerateWorkloads",
             "AddBarrierRefs",
+			      "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
+			      "MaxTopologicalCut",
+            "TransitiveReduction",
+            "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
@@ -77,6 +81,7 @@
     },
     "root": {
         "Singular": [
+			"initialize",
             "validate",
             "adapt",
             "finalize",
