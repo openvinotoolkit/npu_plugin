@@ -14,14 +14,14 @@
 namespace mv
 {
 
-    template <typename T_node, typename T_edge>
-    std::vector<typename graph<T_node, T_edge>::edge_list_iterator> critical_path(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, const std::map<T_node, int>& nodeCosts, std::map<T_edge, int> edgeCosts = std::map<T_edge, int>())
+    template <typename T_node, typename T_edge, typename T_node_iterator_comp, typename T_edge_iterator_comp>
+    std::vector<typename graph<T_node, T_edge>::edge_list_iterator> critical_path(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator source, typename graph<T_node, T_edge>::node_list_iterator sink, const std::map<typename graph<T_node, T_edge>::node_list_iterator, unsigned, T_node_iterator_comp>& nodeCosts, std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edge_iterator_comp> edgeCosts = std::map<typename graph<T_node, T_edge>::edge_list_iterator, unsigned, T_edge_iterator_comp>())
     {
         for(auto mapIt: nodeCosts)
         {
-            auto nodeIt = g.node_find(mapIt.first);
+            auto nodeIt = mapIt.first;
             for(auto parentIt = nodeIt->leftmost_input(); parentIt != g.edge_end(); ++parentIt)
-                edgeCosts[*parentIt] += mapIt.second;
+                edgeCosts[parentIt] += mapIt.second;
         }
         return dijkstra(g, source, sink, edgeCosts);
     }
