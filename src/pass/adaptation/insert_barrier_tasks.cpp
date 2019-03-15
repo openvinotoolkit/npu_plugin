@@ -5,31 +5,30 @@
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 #include "include/mcm/target/keembay/barrier_deps.hpp"
 
-static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void insertBarrierTasksFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
 
 namespace mv
 {
 
-    namespace pass
-    {
+namespace pass
+{
 
-        MV_REGISTER_PASS(InsertBarrierTasks)
-        .setFunc(insertBarrierTasksFcn)
-        .setDescription(
-            "This pass inserts barrier tasks into the compute graph"
-        );
-    }
+MV_REGISTER_PASS(InsertBarrierTasks)
+    .setFunc(insertBarrierTasksFcn)
+    .setDescription(
+        "This pass inserts barrier tasks into the compute graph");
 }
+} // namespace mv
 
-static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers)
+static void setBarrierGroupAndIndex(std::vector<mv::Barrier> &barriers)
 {
     // TODO: Update barrier group and index based on graph coloring algorithm
 
-    int numBarriers = 0 ;
+    int numBarriers = 0;
     int barrierIndex = 0;
     int barrierGroup = 0;
 
-    for (auto& barrier: barriers)
+    for (auto &barrier : barriers)
     {
         // TODO: Update barrier group and index based on graph coloring algorithm
         barrierGroup = numBarriers / 8;
@@ -42,9 +41,9 @@ static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers)
     }
 }
 
-static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel& cm, const std::vector<mv::Barrier>& barriers)
+static void insertBarriersIntoControlFlowGraph(mv::OpModel &om, mv::ControlModel &cm, const std::vector<mv::Barrier> &barriers)
 {
-    for (auto& barrier: barriers)
+    for (auto &barrier : barriers)
     {
         int group = barrier.getGroup();
         int index = barrier.getIndex();
@@ -57,14 +56,14 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel
         auto barrierOp = om.getOp(barrierName);
 
         // Input flow
-        for (auto producer: barrier.getProducers())
+        for (auto producer : barrier.getProducers())
         {
             auto sourceOp = om.getOp(producer);
             cm.defineFlow(sourceOp, barrierOp);
         }
 
         // Output flow
-        for (auto consumer: barrier.getConsumers())
+        for (auto consumer : barrier.getConsumers())
         {
             auto destOp = om.getOp(consumer);
             cm.defineFlow(barrierOp, destOp);
@@ -72,21 +71,41 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel
     }
 }
 
-void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+
 
     std::vector<mv::Barrier> barriers;
 
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    // for testing, add edge from partial serialization
+    auto inbounddmaOp = om.getOp("DMATask_3");
+    auto aconvOp = om.getOp("DPU_Conv_0");
+    cm.defineFlow(aconvOp, inbounddmaOp);
+
+    // find added edge
+    for(auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    {
+        for(auto childOp = ctlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+        {
+            if (childOp == cm.switchContext(inbounddmaOp))
+            {
+                int x = 6;
+            }
+        }
+    }
+
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         auto opType = opIt->getOpType();
         bool isDPUTask = opType == "DPUTask";
         bool isDMAToCMXTask = (opType == "DMATask" && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR);
+        bool isDMAToDDRTask = (opType == "DMATask" && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX);
         // TODO: may need to add dealloc tasks
 
-        if (isDPUTask || isDMAToCMXTask)
+        if (isDPUTask || isDMAToCMXTask || isDMAToDDRTask)
         {
             std::unordered_set<std::string> producers;
             std::unordered_set<std::string> consumers;
@@ -109,13 +128,13 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
             // Do not insert this barrier into the barrierTask list if a barrier
             // with the same producers already exists.
             bool addBarrier = true;
-            for (auto& b: barriers)
+            for (auto &b : barriers)
             {
                 if (b.getProducers() == producers)
                 {
                     addBarrier = false;
 
-                    for (auto consumer: consumers)
+                    for (auto consumer : consumers)
                         b.addConsumer(consumer);
 
                     break;
