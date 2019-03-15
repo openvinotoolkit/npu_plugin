@@ -41,6 +41,16 @@ int mv::Barrier::getNumConsumers() const
     return numConsumers_;
 }
 
+void mv::Barrier::setNumProducers(int producers)
+{
+    numProducers_ = producers;
+}
+
+void mv::Barrier::setNumConsumers(int consumers)
+{
+    numConsumers_ = consumers;
+}
+
 void mv::Barrier::setGroup(int group)
 {
     group_ = group;
