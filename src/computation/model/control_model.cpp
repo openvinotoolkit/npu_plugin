@@ -196,8 +196,7 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator 
 
 void mv::ControlModel::transitiveReduction()
 {
-    auto input = getFirst();
-    mv::transitiveReduction(controlGraph_, input);
+    mv::transitiveReduction(controlGraph_);
 }
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)

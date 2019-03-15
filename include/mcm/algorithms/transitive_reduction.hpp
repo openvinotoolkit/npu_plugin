@@ -2,6 +2,7 @@
 #define TRANSITIVE_REDUCTION_HPP_
 
 #include "include/mcm/graph/graph.hpp"
+#include "include/mcm/algorithms/topological_sort.hpp"
 #include <map>
 #include <vector>
 
@@ -9,7 +10,7 @@ namespace mv
 {
     // NOTE: This graph non member function works only on DAGs
     template <typename T_node, typename T_edge>
-    void transitiveReduction(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator root)
+    void transitiveReduction_(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator root)
     {
         // Collecting the set of neighbours, as edges
         std::map<T_node, typename graph<T_node, T_edge>::edge_list_iterator> root_adj;
@@ -42,7 +43,22 @@ namespace mv
         for(auto e = root->leftmost_output(); e != g.edge_end(); ++e)
         {
             auto v = e->sink();
-            transitiveReduction(g, v);
+            transitiveReduction_(g, v);
+        }
+    }
+
+    // NOTE: This graph non member function works only on DAGs
+    template <typename T_node, typename T_edge>
+    void transitiveReduction(graph<T_node, T_edge>& g)
+    {
+
+        auto sortedNodes = topologicalSort(g);
+
+        for(auto node : sortedNodes)
+        {
+            if(node->parents_size() != 0)
+                return;
+            transitiveReduction_(g, node);
         }
     }
 }
