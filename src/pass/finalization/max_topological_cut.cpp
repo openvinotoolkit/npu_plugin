@@ -183,11 +183,11 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
     }
 
     /*REMOVE THIS WHEN SPARISTY AND WEIGHT TABLE FIXED - HARD CODING MEMORY REQUIRMENT FOR NOW*/
-    auto op = cm.getOp("DMATask_3");
-    op->set<int>("MemoryRequirement", 4096);
+    // auto op = cm.getOp("DMATask_3");
+    // op->set<int>("MemoryRequirement", 4096);
 
-    auto op1 = cm.getOp("DMATask_4");
-    op1->set<int>("MemoryRequirement", 1024);
+    // auto op1 = cm.getOp("DMATask_4");
+    // op1->set<int>("MemoryRequirement", 1024);
 }
 
 
@@ -218,7 +218,7 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
        /* We do not require MCM constant operations and MCM ouput operation in the KOALA graph. The sink node in the KOALA graph is the DMATask CMX2DDR.
         * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the KOALA graph.
        */
-       if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") {
+       if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt") {
            
            /*Add node to KOALA graph*/
 
@@ -241,8 +241,11 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
     */
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
         
-        /*Don't add the edge going to Ouput in the MCM graph to the KOALA graph*/
-        if (flowIt.sink()->getOpType() != "Output") { 
+        /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
+         * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
+        */ 
+
+        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt") { 
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
@@ -336,19 +339,22 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     int numberOfKoalaEdges = 0;
 
     /*Count number of vertices required for KOALA graph*/
-    /*MCM Constant and Ouput operations are not required in the KOALA graph*/
-    for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt) {
-        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") 
+    /*MCM Constant, Ouput operations and Constant Int (Sparsity Map and Weight Tables) are not required in the KOALA graph*/
+    for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt) 
+        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt") 
             numberOfKoalaVertices++;
-    }   
-
+    
     /*Count number of edges required for KOALA graph. These are the control flow edges in the MCM graph*/
+    /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
+     * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
+     */ 
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)
-        numberOfKoalaEdges++;
+        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt") 
+            numberOfKoalaEdges++;
 
     /*Array to store KOALA vertices and edges iterators*/
     koalaGraph::PVertex V[numberOfKoalaVertices]; 
-    koalaGraph::PEdge E[numberOfKoalaEdges -1];   /* subtract 1 as we do not need the last edge to ouput node in MCM graph*/
+    koalaGraph::PEdge E[numberOfKoalaEdges];   /* subtract 1 as we do not need the last edge to ouput node in MCM graph*/
 
     /*Convert to MCM graph to KOALA graph*/
     convertMcMGraphToKoalaGraph(pass, model, flowGraph, V, E);
@@ -362,7 +368,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     Koala::AssocArray <koalaGraph::PVertex, Koala::DijkstraHeap::VertLabs<int,koalaGraph>> vertMap; /*output container*/
      
     /*Set edge lengths to 1*/
-    setEdgeLengths(edgeMap, E, (numberOfKoalaEdges-1));
+    setEdgeLengths(edgeMap, E, numberOfKoalaEdges);
 
     /* Construct the graph demand: cicle over the edge and add
      * a flow equal to Fmax on a shorest path containing that node
@@ -392,7 +398,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
         /*The source node in the KOALA graph will always be called "Input_0", the same as the MCM graph*/
         Koala::DijkstraHeap::PathLengths <int> res0 = Koala::DijkstraHeap::findPath(flowGraph, edgeMap, lookUpKoalaVertexbyName("Input_0", V, numberOfKoalaVertices),flowGraph.getEdgeEnds(E[i]).first, Koala::DijkstraHeap::outPath(blackHole, back_inserter(vecE)));
 
-        pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + res0.length);
+        pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + std::to_string(res0.length));
 
 	    for (int i = 0; i < res0.edgeNo; i++) {
 		    //std::cout << ' ' << vecE[i]->info.name << std::endl;

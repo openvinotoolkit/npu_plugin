@@ -47,6 +47,8 @@ if (MSVC)
 
 	add_executable(dilationExample dilatedExample.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+	add_executable(barrier_dependency_example barrier_dependency_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
 else()
 
 	add_executable(cm_linear cm_linear.cpp)
@@ -94,8 +96,14 @@ else()
 	add_executable(dpu_conv_example dpu_conv_example.cpp)
 	target_link_libraries(dpu_conv_example cm)
 
+	add_executable(zconv_example zconv_example.cpp)
+	target_link_libraries(zconv_example cm)
+
 	add_executable(dpu_task_example dpu_task_example.cpp)
 	target_link_libraries(dpu_task_example cm)
+ 
+  add_executable(dpu_conv_example_3_layers dpu_conv_example_3_layers.cpp)
+	target_link_libraries(dpu_conv_example_3_layers cm)
 
 # FIXME: uncomment after metis_example.cpp is added
 #	add_executable(metis_example metis_example.cpp)
@@ -103,6 +111,9 @@ else()
 
 	add_executable(barrier_task_api barrier_task_api.cpp)
 	target_link_libraries(barrier_task_api cm)
+
+	add_executable(barrier_dependency_example barrier_dependency_example.cpp)
+	target_link_libraries(barrier_dependency_example cm)
 
 	add_executable(hw_pooling hw_pooling.cpp)
 	target_link_libraries(hw_pooling cm)

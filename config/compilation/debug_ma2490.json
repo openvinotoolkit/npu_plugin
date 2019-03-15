@@ -26,6 +26,7 @@
             "ConvertToTaskGraph",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
+            "GraphColoring",
 	    "CompleteTaskGraph",
             "AssignUniqueTaskId",
             {
@@ -55,7 +56,11 @@
     },
     "validate": {
         "Singular": [
-            "CheckTensors"
+            "CheckTensors",
+            {
+                "name": "GenerateJSON",
+                "filename": "computation_model.json"
+            }
         ]
     },
     "serialize": {

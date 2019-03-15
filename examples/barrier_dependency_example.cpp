@@ -14,29 +14,29 @@
 
 int main()
 {
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    /*Working*/
-    // auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
-    // std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
-    // auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    // auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
+    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
+    auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
+    auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
 
+    auto add1 = om.add(pool1, pool2);
 
-    /*Failing*/
-    auto input = om.input({112, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
-    auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
+    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*32);
+    auto weights3 = om.constant(weights3Data, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv3 = om.conv(add1, weights3, {1, 1}, {1, 1, 1, 1});
 
-    om.output(conv);
+    om.output(conv3);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
-    compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+
+    unit.compilationDescriptor().remove("adapt", "GenerateSparsityMaps");
+    unit.compilationDescriptor().remove("adapt", "GenerateWeightsTables");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

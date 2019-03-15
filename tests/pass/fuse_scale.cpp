@@ -37,15 +37,15 @@ TEST(fuse_scale, case_conv)
 
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
-    
+
     mv::Tensor scaleParam("scale", {32}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(1)), scalesData);
     mv::Tensor originalWeights("originalWeights", {3, 3, 16, 32}, mv::DType("Float16"), mv::Order(mv::Order::getColMajorID(4)), weightsData);
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
 
-    auto originalWeightsTensor = convOp->getInputTensor(1)->getData();
+    auto originalWeightsTensor = convOp->getInputTensor(1)->getDoubleData();
     auto originalWeightsTensorSize = originalWeightsTensor.size();
 
-    auto newWeightsTensor = newWeigths.getData();
+    auto newWeightsTensor = newWeigths.getDoubleData();
 
     for (unsigned i = 0; i < originalWeightsTensorSize; ++i)
         ASSERT_FLOAT_EQ(originalWeightsTensor[i], newWeightsTensor[i]);
@@ -94,16 +94,16 @@ TEST(fuse_scale, case_conv_bias_fused)
     mv::Tensor newWeigths = mv::math::multiply(originalWeights, scaleParam);
     mv::Tensor newBiases = mv::math::multiply(originalBiases, scaleParam);
 
-    auto originalWeightsData = convOp->getInputTensor(1)->getData();
+    auto originalWeightsData = convOp->getInputTensor(1)->getDoubleData();
     auto originalWeightsDataSize = originalWeightsData.size();
 
-    auto newWeigthsData = newWeigths.getData();
+    auto newWeigthsData = newWeigths.getDoubleData();
 
     for (unsigned i = 0; i < originalWeightsDataSize; ++i)
         ASSERT_FLOAT_EQ(originalWeightsData[i], newWeigthsData[i]);
 
-    auto biasVector = dm.getTensor(convOp->get<std::string>("bias"))->getData();
-    auto newBiasesData = newBiases.getData();
+    auto biasVector = dm.getTensor(convOp->get<std::string>("bias"))->getDoubleData();
+    auto newBiasesData = newBiases.getDoubleData();
     for (unsigned i = 0; i < biasVector.size(); ++i)
         ASSERT_FLOAT_EQ(biasVector[i], newBiasesData[i]);
 

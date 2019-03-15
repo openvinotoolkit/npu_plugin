@@ -72,7 +72,7 @@ void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, m
 
                 auto nonDialtedKernelOp = opIt.rightmostParent();
 
-                auto dilatedConstant = om.constant(
+                auto dilatedConstant = om.constantDataElement(
                     dilatedKernel.getData(),
                     dilatedKernelShape,
                     dilatedKernel.getDType(),

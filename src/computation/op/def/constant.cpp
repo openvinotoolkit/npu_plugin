@@ -15,17 +15,31 @@ namespace mv
             return {true, 0};
 
         };
-                
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(), 
+            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
                 args.at("order").get<mv::Order>(), args.at("data").get<std::vector<double>>()));
-
         };
-    
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::vector<Tensor>&)> outputIntDefFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
+        {
+            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>()));
+        };
+
+        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
+            std::vector<Tensor>&)> outputDataElementDefFcn =
+            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
+        {
+            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                args.at("order").get<mv::Order>(), args.at("data").get<std::vector<mv::DataElement>>()));
+        };
+
         MV_REGISTER_OP(Constant)
         .setOutputs({"output"})
         .setArg<std::vector<double>>("data")
@@ -36,6 +50,24 @@ namespace mv
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"exposed"});
 
+        MV_REGISTER_OP(ConstantInt)
+        .setOutputs({"output"})
+        .setArg<std::vector<int64_t>>("data")
+        .setArg<mv::Shape>("shape")
+        .setArg<mv::DType>("dType")
+        .setArg<mv::Order>("order")
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputIntDefFcn)
+        .setTypeTrait({"exposed"});
+
+        MV_REGISTER_OP(ConstantDataElement)
+        .setOutputs({"output"})
+        .setArg<std::vector<mv::DataElement>>("data")
+        .setArg<mv::Shape>("shape")
+        .setArg<mv::DType>("dType")
+        .setArg<mv::Order>("order")
+        .setInputCheck(inputCheckFcn)
+        .setOutputDef(outputDataElementDefFcn);
     }
 
 }

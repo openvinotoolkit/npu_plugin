@@ -66,21 +66,20 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
     DataModel dm(model);
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {   
+    {
 
         if (opIt->getOpType() == "FullyConnected")
         {
-            
+
             pass.log(Logger::MessageType::Debug, "Found FullyConnected op " + opIt->getName());
 
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto sourceTensor = parentOpIt->getOutputTensor(0);
-
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
 
-            auto weights = om.constant(weightsData, {inputShape[0], inputShape[1], inputShape[2],
-                opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(), 
+            auto weights = om.constantDataElement(weightsData, {inputShape[0], inputShape[1], inputShape[2],
+                opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(),
                 Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
 
             auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1);
