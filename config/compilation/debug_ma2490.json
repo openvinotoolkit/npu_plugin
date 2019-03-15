@@ -33,6 +33,7 @@
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             "GraphColoring",
+            "InsertBarrierTasks",
             "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
