@@ -32,20 +32,29 @@ namespace mv
 
 }
 
-static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers)
+static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
 {
     // TODO: Update barrier group and index based on graph coloring algorithm
 
     int numBarriers = 0 ;
     int barrierIndex = 0;
     int barrierGroup = 0;
+    std::string indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
 
     for (auto& barrier: barriers)
     {
-        // TODO: Update barrier group and index based on graph coloring algorithm
-        barrierGroup = numBarriers / 8;
-        barrierIndex = numBarriers % 8;
+        if (indexAssignment == "Static")
+        {
+            barrierGroup = numBarriers / 8;
+            barrierIndex = numBarriers % 8;
+        }
+        else
+        {
+            barrierGroup = 0;
+            barrierIndex = numBarriers;
+        }
 
+        // TODO: Update barrier group and index based on graph coloring algorithm
         barrier.setGroup(barrierGroup);
         barrier.setIndex(barrierIndex);
 
@@ -83,7 +92,7 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel
     }
 }
 
-void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -141,7 +150,7 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         }
     }
 
-    setBarrierGroupAndIndex(barriers);
+    setBarrierGroupAndIndex(barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(om, cm, barriers);
 }
