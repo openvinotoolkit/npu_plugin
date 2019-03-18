@@ -4,6 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 #include "include/mcm/target/keembay/barrier_deps.hpp"
+#include <algorithm>
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
 
@@ -71,12 +72,25 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel &om, mv::ControlModel
     }
 }
 
+
+static bool opHasBarrier(const std::string &opName , std::vector<mv::Barrier> &barriers)
+{
+    for (auto b : barriers)
+    {
+        auto bConsumers = b.getConsumers() ;
+        if ( std::find(bConsumers.begin() , bConsumers.end(), opName ) != bConsumers.end() )
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
-
 
     std::vector<mv::Barrier> barriers;
 
@@ -85,10 +99,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
     auto aconvOp = om.getOp("DPU_Conv_0");
     cm.defineFlow(aconvOp, inbounddmaOp);
 
+/*
     // find added edge
-    for(auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
     {
-        for(auto childOp = ctlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+        for (auto childOp = ctlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
         {
             if (childOp == cm.switchContext(inbounddmaOp))
             {
@@ -97,15 +112,32 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
         }
     }
 
+    // define barrier for control flows into DPU/DMA task from DPU/DMA task
+    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    {
+        auto ctlFlowOpType = ctlFlow->getOpType();
+        std::cout << "Op, type = "<< ctlFlow->getName()<<" , " << ctlFlow->getOpType() <<std::endl;
+        if ((ctlFlowOpType=="DMATask") | (ctlFlowOpType == "DPUTask"))
+        {
+            for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+            {
+                auto parentOpType = parentOp->getOpType();
+                std::cout << "    parentOp, type = "<< parentOp->getName()<<" , " << parentOp->getOpType() <<std::endl;
+                if ((parentOpType == "DPUTask")|(parentOpType == "DMATask" ))
+                {
+                    std::cout << "    found ctl edge" <<std::endl;
+                }
+            }
+        }
+    }
+*/
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         auto opType = opIt->getOpType();
         bool isDPUTask = opType == "DPUTask";
         bool isDMAToCMXTask = (opType == "DMATask" && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR);
-        bool isDMAToDDRTask = (opType == "DMATask" && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX);
-        // TODO: may need to add dealloc tasks
 
-        if (isDPUTask || isDMAToCMXTask || isDMAToDDRTask)
+        if (isDPUTask || isDMAToCMXTask)
         {
             std::unordered_set<std::string> producers;
             std::unordered_set<std::string> consumers;
@@ -145,6 +177,42 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
             {
                 struct mv::Barrier new_barrier(producers, consumers);
                 barriers.push_back(new_barrier);
+            }
+        }
+    }
+
+    // define/update barriers for control flows added by partial serialization (no tensor on edge)
+    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    {
+        auto ctlFlowOpType = ctlFlow->getOpType();
+        std::cout << "Op, type = "<< ctlFlow->getName()<<" , " << ctlFlow->getOpType() <<std::endl;
+        if ((ctlFlowOpType=="DMATask") | (ctlFlowOpType == "DPUTask"))
+        {
+            for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+            {
+                auto parentOpType = parentOp->getOpType();
+                std::cout << "    parentOp, type = "<< parentOp->getName()<<" , " << parentOp->getOpType() <<std::endl;
+                if ((parentOpType == "DPUTask")|(parentOpType == "DMATask" ))
+                {
+                    std::cout << "    found ctl edge" <<std::endl;
+                    // add dependency to existing barrier if this op already preceded by a barrier
+                    if (opHasBarrier( ctlFlow->getName(), barriers ))
+                    {
+                        std::cout << "    exsiting preceeding barrier" <<std::endl;
+                    }
+                    // create new barrier if this op had no existing barrier preceeding it
+                    else
+                    {
+                        std::cout << "    NO exsiting preceeding barrier" <<std::endl;
+                        std::unordered_set<std::string> producers;
+                        std::unordered_set<std::string> consumers;
+
+                        producers.insert(parentOp->getName());
+                        consumers.insert(ctlFlow->getName());
+                        struct mv::Barrier new_barrier(producers, consumers);
+                        barriers.push_back(new_barrier);
+                    }
+                }
             }
         }
     }
