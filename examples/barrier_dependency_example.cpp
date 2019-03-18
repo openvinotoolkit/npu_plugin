@@ -26,11 +26,16 @@ int main()
 
     auto add1 = om.add(pool1, pool2);
 
-    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*32);
-    auto weights3 = om.constant(weights3Data, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(add1, weights3, {1, 1}, {1, 1, 1, 1});
+    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
+    auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv2 = om.conv(add1, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv4 = om.conv(conv3, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv5 = om.conv(conv4, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv6 = om.conv(conv5, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv7 = om.conv(conv6, weights3, {1, 1}, {1, 1, 1, 1});
 
-    om.output(conv3);
+    om.output(conv7);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
