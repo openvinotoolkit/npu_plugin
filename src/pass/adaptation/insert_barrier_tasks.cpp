@@ -72,7 +72,6 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel &om, mv::ControlModel
     }
 }
 
-
 static bool opHasBarrier(const std::string &opName , std::vector<mv::Barrier> &barriers)
 {
     for (auto b : barriers)
@@ -97,40 +96,10 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
     // for testing, add edge from partial serialization
     auto inbounddmaOp = om.getOp("DMATask_3");
     auto aconvOp = om.getOp("DPU_Conv_0");
+    auto bconvOp = om.getOp("DMATask_2");
     cm.defineFlow(aconvOp, inbounddmaOp);
+    cm.defineFlow(bconvOp, inbounddmaOp);
 
-/*
-    // find added edge
-    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
-    {
-        for (auto childOp = ctlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
-        {
-            if (childOp == cm.switchContext(inbounddmaOp))
-            {
-                int x = 6;
-            }
-        }
-    }
-
-    // define barrier for control flows into DPU/DMA task from DPU/DMA task
-    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
-    {
-        auto ctlFlowOpType = ctlFlow->getOpType();
-        std::cout << "Op, type = "<< ctlFlow->getName()<<" , " << ctlFlow->getOpType() <<std::endl;
-        if ((ctlFlowOpType=="DMATask") | (ctlFlowOpType == "DPUTask"))
-        {
-            for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
-            {
-                auto parentOpType = parentOp->getOpType();
-                std::cout << "    parentOp, type = "<< parentOp->getName()<<" , " << parentOp->getOpType() <<std::endl;
-                if ((parentOpType == "DPUTask")|(parentOpType == "DMATask" ))
-                {
-                    std::cout << "    found ctl edge" <<std::endl;
-                }
-            }
-        }
-    }
-*/
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         auto opType = opIt->getOpType();
@@ -181,7 +150,7 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
         }
     }
 
-    // define/update barriers for control flows added by partial serialization (no tensor on edge)
+    // add/update barriers for control flows added by partial serialization (no tensor on edge)
     for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
     {
         auto ctlFlowOpType = ctlFlow->getOpType();
@@ -195,20 +164,33 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
                 if ((parentOpType == "DPUTask")|(parentOpType == "DMATask" ))
                 {
                     std::cout << "    found ctl edge" <<std::endl;
+                    auto sinkOpName = ctlFlow->getName();
+                    auto sourceOpName = parentOp->getName();
+
                     // add dependency to existing barrier if this op already preceded by a barrier
-                    if (opHasBarrier( ctlFlow->getName(), barriers ))
+                    if (opHasBarrier( sinkOpName, barriers ))
                     {
-                        std::cout << "    exsiting preceeding barrier" <<std::endl;
+                        std::cout << "    exsiting preceeding barrier"<< std::endl ;
+                        for (mv::Barrier& b : barriers)
+                        {
+                            auto bConsumers = b.getConsumers() ;
+                            if ( std::find(bConsumers.begin() , bConsumers.end(), sinkOpName ) != bConsumers.end() )
+                            {
+                                b.addProducer(sourceOpName);
+                                auto updatedList = b.getProducers();
+                                for (auto x : updatedList) std::cout <<      x << std::endl ;
+                            }
+                        }
                     }
+
                     // create new barrier if this op had no existing barrier preceeding it
                     else
                     {
                         std::cout << "    NO exsiting preceeding barrier" <<std::endl;
                         std::unordered_set<std::string> producers;
                         std::unordered_set<std::string> consumers;
-
-                        producers.insert(parentOp->getName());
-                        consumers.insert(ctlFlow->getName());
+                        producers.insert(sourceOpName);
+                        consumers.insert(sinkOpName);
                         struct mv::Barrier new_barrier(producers, consumers);
                         barriers.push_back(new_barrier);
                     }
