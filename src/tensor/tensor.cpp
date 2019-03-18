@@ -795,3 +795,28 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
     return getOrder().computeStrides(getShape(), getDType().getSizeInBits() / 8);
 }
+
+std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
+{
+    std::size_t res;
+    if (isSparse())
+    {
+        if (isPopulated())
+        {
+            res = noneZeroElements_ * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+        }
+        else
+        {
+            res = getShape().totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+            res += getSparsityMap()->computeTotalSize();
+            res += getStorageElement()->computeTotalSize();
+        }
+    }
+    else
+    {
+        res = getShape().totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+    }
+    //Round up to align to (alignment) 16 bytes
+    res = ((res + alignment - 1)/alignment) * alignment;
+    return res;
+}
