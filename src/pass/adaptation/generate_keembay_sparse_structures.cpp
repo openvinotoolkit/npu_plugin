@@ -295,17 +295,28 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
             else
             {
-                unsigned n = dpuTask->getInputTensor().size();
-                for (unsigned i = 0; i < n; ++i)
-                    if (dpuTask->getInputTensor(i)->getOrder().isZMajor())
-                        dpuTask->getInputTensor(i)->setSparse();
-
-                n = dpuTask->getOutputTensor().size();
-                for (unsigned i = 0; i < n; ++i)
-                    if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
-                        dpuTask->getOutputTensor(i)->setSparse();
-
+                if (dpuTask->inputSlots() > 1 &&
+                    dpuTask->getInputTensor(0)->getOrder().isZMajor())
+                 {
+                    auto weights = dpuTask->getInputTensor(1);
+                    weights->setOrder(mv::Order("NWHC"));
+                    weights->setSparse();
+                }
             }
+
+        }
+        else
+        {
+            unsigned n = dpuTask->getInputTensor().size();
+            for (unsigned i = 0; i < n; ++i)
+                if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
+                    !dpuTask->getInputTensor(i)->isPopulated()) //only weights are popualted, and we dont want to cover them here
+                    dpuTask->getInputTensor(i)->setSparse();
+
+            n = dpuTask->getOutputTensor().size();
+            for (unsigned i = 0; i < n; ++i)
+                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+                    dpuTask->getOutputTensor(i)->setSparse();
         }
     }
 }

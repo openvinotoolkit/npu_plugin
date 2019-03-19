@@ -287,7 +287,8 @@ void mv::Tensor::setSparse()
         throw ArgumentError(*this, "Order", getOrder().toString() , " Sparsity requires ZMajor layout (NWHC)");
 
     if(hasAttr("sparse") && get<bool>("sparse") == true)
-        throw ArgumentError(*this, "Sparsity == ", "true" , " Sparsity for this tensor has already been set");
+    //    throw ArgumentError(*this, "Sparsity == ", "true" , " Sparsity for this tensor has already been set");
+        return;
 
     set<bool>("sparse", true);
 
@@ -298,7 +299,12 @@ void mv::Tensor::setSparse()
     //Storage Element Tensor
     //se are filled by the DPU @ runtime
     //We just create an unpopulated tensor at this stage.
-    storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({getShape()[0], getShape()[1], 1, getShape()[-1]}), mv::DType("Int32"), getOrder());
+    mv::Order order =  getOrder();
+    if (order.size() == 3)
+    {
+        order = "N" + order.toString();
+    }
+    storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({getShape()[0], getShape()[1], 1, getShape()[-1]}), mv::DType("Int32"), order);
 
     set<bool>("sparse", true);
 
