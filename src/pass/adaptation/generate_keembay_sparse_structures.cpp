@@ -269,22 +269,20 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 mv::Shape sparsityShape(ndims);
                 std::vector<int64_t> data(sparsityShape.totalSize(), 0);
                 //mv::Tensor sparsityTensor("backup", sparsityShape, mv::DType("UInt8"), mv::Order("WHCN"), data);
-                auto sparsityTensor = dm.defineTensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), data);
+                auto sparsityTensor = mv::Tensor(dpuTask->getName() + "_sparse_dw", sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), data);
 
                 for(unsigned kx = 0; kx < sparsityShape[0]; ++kx)
                     for(unsigned ky = 0; ky < sparsityShape[1]; ++ky)
                         for(unsigned ic = 0; ic < sparsityShape[2]; ++ic)
                             for(unsigned oc = 0; oc < sparsityShape[3]; ++oc)
-                                sparsityTensor->at({kx, ky, ic, oc}) = static_cast<int64_t>(perChannelSparsity[ky*sparsityShape[0] + kx]);
+                                sparsityTensor.at({kx, ky, ic, oc}) = static_cast<int64_t>(perChannelSparsity[ky*sparsityShape[0] + kx]);
 
                 auto opId = dpuTask->get<unsigned>("opId");
                 std::string opName = dpuTask->getName();
 
                 std::string sparsityMapName(opName + "SparsityMap");
                 std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
-                auto sparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor->getIntData());
-
-                dm.undefineTensor(sparsityTensor);
+                auto sparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
 
                 om.deallocate(sparsityMap, sparsityMapDeallocationName);
                 auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
