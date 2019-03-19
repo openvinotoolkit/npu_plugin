@@ -61,10 +61,6 @@ else()
 
     add_executable(koala Koala_example.cpp)
 
-# FIXME: uncomment after ma2480_memory_allocator_example.cpp is added
-#    add_executable(ma2480_memory_allocator_example ma2480_memory_allocator_example.cpp)
-#    target_link_libraries(ma2480_memory_allocator_example cm)
-
     add_executable(cm_two_branch cm_two_branch.cpp)
     target_link_libraries(cm_two_branch cm)
 
