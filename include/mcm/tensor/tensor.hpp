@@ -9,6 +9,7 @@
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/tensor/order/order.hpp"
+#include "include/mcm/tensor/data_element.hpp"
 #include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
@@ -18,29 +19,46 @@ namespace mv
 
     class Tensor : public Element
     {
+    private:
+        std::vector<DataElement> data_;
 
-        std::vector<double> data_;
         std::size_t blockSize_;
-        std::vector<std::vector<double>::iterator> blocks_;
+        std::vector<std::vector<DataElement>::iterator> blocks_;
+
         Shape shape_;
         Order internalOrder_;
+        std::shared_ptr<Tensor> sparsityMap_;
+        std::shared_ptr<Tensor> storageElement_;
+        size_t noneZeroElements_;
 
-        void elementWise_(const Tensor& other, const std::function<double(double, double)>& opFunc);
+        bool elementWiseChecks_(const Tensor& other);
+        void elementWiseDouble_(const Tensor& other, const std::function<double(double, double)>& opFunc);
+        void elementWiseInt_(const Tensor& other, const std::function<int64_t(int64_t, int64_t)>& opFunc);
+
 
         std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
-
+        void populateSparsityMapTensor_();
     public:
+        std::vector<unsigned> getZeroPointsPerChannel();
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data);
         Tensor(const Tensor& other);
         ~Tensor();
 
         void populate(const std::vector<double>& data);
         void populate(const std::vector<double>& data, Order order);
+        void populate(const std::vector<int64_t>& data);
+        void populate(const std::vector<int64_t>& data, Order order);
+        void populate(const std::vector<mv::DataElement>& data);
+        void populate(const std::vector<mv::DataElement>& data, Order order);
+
         void unpopulate();
 
+        void setSparse();
         /**
          * @brief Binds the data (values vector) of this tensor (slave) to the given master tensor. After this operation data accessed
          * from this tensor will be actually read/written to the master tensor. Using the leftPadding and rightPadding it is possible
@@ -54,13 +72,21 @@ namespace mv
         void bindData(Tensor& other, const std::vector<std::size_t>& leftPadding = {}, const std::vector<std::size_t>& rightPadding = {});
         void broadcast(const Shape& shape);
 
-        std::vector<double> getData();
+        bool isDoubleType() const {
+            return getDType().isDoubleType();
+        }
+
+        std::vector<DataElement> getData();
+        std::vector<DataElement> getDataPacked();
+        std::vector<double> getDoubleData();
+        std::vector<int64_t> getIntData();
         void setDType(DType dType);
         DType getDType() const;
         void setOrder(Order order);
         Order getOrder() const;
+        const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
-        
+
         void add(const Tensor& other);
         void add(double val);
         void subtract(const Tensor& other);
@@ -71,14 +97,14 @@ namespace mv
         void divide(double val);
         void sqrt();
 
-        double& at(const std::vector<std::size_t>& sub);
-        const double& at(const std::vector<std::size_t>& sub) const;
-        double& at(std::size_t idx);
-        const double& at(std::size_t idx) const;
-        double& operator()(std::size_t idx);
-        const double& operator()(std::size_t idx) const;
-        double& operator()(const std::vector<std::size_t>& sub);
-        const double& operator()(const std::vector<std::size_t>& sub) const;
+        DataElement& at(const std::vector<std::size_t>& sub);
+        const DataElement& at(const std::vector<std::size_t>& sub) const;
+        DataElement& at(std::size_t idx);
+        const DataElement& at(std::size_t idx) const;
+        DataElement& operator()(std::size_t idx);
+        const DataElement& operator()(std::size_t idx) const;
+        DataElement& operator()(const std::vector<std::size_t>& sub);
+        const DataElement& operator()(const std::vector<std::size_t>& sub) const;
 
         inline bool isQuantized() const
         {
@@ -89,6 +115,13 @@ namespace mv
         inline bool isPopulated() const
         {
             return get<bool>("populated");
+        }
+
+        inline bool isSparse() const
+        {
+            if (hasAttr("sparse"))
+                return get<bool>("sparse");
+            return false;
         }
 
         inline Shape& getShape()
@@ -111,6 +144,10 @@ namespace mv
             return subToInd_(getShape(), sub);
         }
 
+        std::shared_ptr<Tensor> getSparsityMap() const;
+        std::shared_ptr<Tensor> getStorageElement() const;
+
+
         Tensor& operator=(const Tensor& other);
 
         std::string toString() const override;
@@ -123,4 +160,4 @@ namespace mv
 
 }
 
-#endif // MODEL_TENSOR_HPP_
+#endif // TENSOR_HPP_

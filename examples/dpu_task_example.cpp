@@ -15,11 +15,11 @@ int main()
 
     auto input1 = test_cm.input({16, 16, 16}, mv::DType("Float16"), mv::Order("CHW"));
     auto input1dmaIN = test_cm.dMATask(input1, mv::DmaDirectionEnum::DDR2CMX);
-    test_cm.deAllocate(input1dmaIN);
+    test_cm.deallocate(input1dmaIN);
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(1*1*16*16);
     auto weights1 = test_cm.constant(weights1Data, {1, 1, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto dmaINweights1 = test_cm.dMATask(weights1, mv::DmaDirectionEnum::DDR2CMX);
-    test_cm.deAllocate(dmaINweights1);
+    test_cm.deallocate(dmaINweights1);
     auto dpuconv1 = test_cm.dPUTaskConv({input1dmaIN, dmaINweights1}, {1,1}, {0,0,0,0});
     auto dmaOutput = test_cm.dMATask(dpuconv1, mv::DmaDirectionEnum::CMX2DDR);
     test_cm.output(dmaOutput);

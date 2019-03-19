@@ -11,13 +11,12 @@ import_array();
 %}
 
 %module composition_api
+%include "std_string.i"
+%include exception.i
 %{
     #include <include/mcm/compiler/compilation_unit.hpp>
     #include <math.h>
     #include <iostream>
-
-    mv::CompilationUnit* getCompilationUnit();
-    mv::CompilationUnit* getCompilationUnit(bool disableHardware);
 
     int testSWIG(){
         /// A simple test to ensure the connection between Python and C++ is working
@@ -27,26 +26,43 @@ import_array();
 
     mv::CompilationUnit* getCompilationUnit()
     {
-        return getCompilationUnit(false);
-    }
-
-    mv::CompilationUnit* getCompilationUnit(bool disableHardware)
-    {
-
         auto unit = new mv::CompilationUnit("pySwigCU");
-        unit->loadTargetDescriptor(mv::Target::ma2480);
-
-        unit->loadCompilationDescriptor(mv::Target::ma2480);
-        mv::CompilationDescriptor &compDesc = unit->compilationDescriptor();
-
-        std::string blobName = "cpp.blob";
-        compDesc.setPassArg("GenerateBlob", "fileName", blobName);
-        compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-        compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-        compDesc.setPassArg("MarkHardwareOperations", "disableHardware", disableHardware);
+        unit->loadTargetDescriptor(mv::Target::ma2490);
+        unit->loadCompilationDescriptor(mv::Target::ma2490);
 
         return unit;
+    }
 
+    mv::CompilationUnit* getCompilationUnit(const std::string& target)
+    {
+        printf("Starting MCM Composition Interface for Target Descriptor: %s...\n", target.c_str());
+        auto unit = new mv::CompilationUnit("pySwigCU");
+        if(target.compare("ma2480") == 0)
+        {
+            unit->loadTargetDescriptor(mv::Target::ma2480);
+            unit->loadCompilationDescriptor(mv::Target::ma2480);
+        }
+        else if(target.compare("ma2490") == 0)
+        {
+            unit->loadTargetDescriptor(mv::Target::ma2490);
+            unit->loadCompilationDescriptor(mv::Target::ma2490);
+        }
+        else
+        {
+            //Throw an error as unsupported target descriptor type supplied
+            PyErr_SetString(PyExc_Exception, "Target descriptor type not supported. Only ma2480 and ma2490 supported.");
+        }
+
+        return unit;
+    }
+
+    mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const std::string filepath)
+    {
+        //remove default descriptor and load a user defined descriptor
+        unit->compilationDescriptor().clear();
+        unit->loadCompilationDescriptor(filepath);
+
+        return unit;
     }
 
     mv::CompositionalModel* getModel(mv::CompilationUnit *unit)
@@ -433,7 +449,8 @@ namespace mv
 
 int testSWIG();
 mv::CompilationUnit* getCompilationUnit();
-mv::CompilationUnit* getCompilationUnit(bool disableHardware);
+mv::CompilationUnit* getCompilationUnit(const std::string& target);
+mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const std::string& filepath);
 mv::CompositionalModel* getModel(mv::CompilationUnit *unit);
 int compile(mv::CompilationUnit *unit);
 void deleteCompilationUnitObject(mv::CompilationUnit *unit);

@@ -6,6 +6,7 @@
 #include <functional>
 #include "include/mcm/base/exception/dtype_error.hpp"
 #include "include/mcm/tensor/binary_data.hpp"
+#include "include/mcm/tensor/data_element.hpp"
 
 namespace mv
 {
@@ -28,8 +29,9 @@ namespace mv
         bool operator!=(const DType& other) const;
 
         std::string getLogID() const override;
-        BinaryData toBinary(const std::vector<double>& data) const;
+        BinaryData toBinary(const std::vector<DataElement>& data) const;
         unsigned getSizeInBits() const;
+        bool isDoubleType() const;
     };
 
 }

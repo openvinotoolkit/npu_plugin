@@ -4,12 +4,14 @@
 namespace mv
 {
 
-    static std::function<BinaryData(const std::vector<double>&)> toBinaryFunc =
-    [](const std::vector<double> & vals)->mv::BinaryData
+    static std::function<BinaryData(const std::vector<DataElement>&)> toBinaryFunc =
+    [](const std::vector<DataElement> & vals)->mv::BinaryData
     {
         (void) vals;
         throw DTypeError("DType", "conversion for Log is not supported yet");
     };
 
-    MV_REGISTER_DTYPE(Log).setToBinaryFunc(toBinaryFunc);
+    MV_REGISTER_DTYPE(Log)
+    .setToBinaryFunc(toBinaryFunc)
+    .setIsDoubleType(false);
 }

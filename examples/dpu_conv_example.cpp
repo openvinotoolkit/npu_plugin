@@ -18,14 +18,25 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({16, 16, 16}, mv::DType("Float16"), mv::Order("CHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*16*16);
-    auto weights = om.constant(weightsData, {1, 1, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    /*Working*/
+    auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
+    auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+
+
+    /*Failing*/
+    // auto input = om.input({112, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    // std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
+    // auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    // auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
+
     om.output(conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

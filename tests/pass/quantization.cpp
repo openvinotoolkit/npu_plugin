@@ -21,12 +21,12 @@ TEST(quantization, case_conv)
     mv::QuantizationParams weightsQuantParams({120}, {0.00272007}, {0}, {1});
     mv::QuantizationParams biasQuantParams({0}, {2.13339e-05}, {0}, {1});
 
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(64*64);
-    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(64*64);
+    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     weights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1);
     auto convOp = om.getSourceOp(conv);
-    std::vector<double> biasesData = {
+    std::vector<int64_t> biasesData = {
          4267,
          14962,
           7493,
@@ -176,7 +176,7 @@ TEST(quantization, case_conv)
         0 ,      0, 5832764,   63208,
         0 ,      0, 5832764,   54140
     };
-    auto resData = dm.getTensor(convOp->get<std::string>("weightsTable"))->getData();
+    auto resData = dm.getTensor(convOp->get<std::string>("weightsTable"))->getIntData();
     for (unsigned i = 0; i < resData.size(); ++i)
        ASSERT_FLOAT_EQ(resData[i], refData[i]);
 }

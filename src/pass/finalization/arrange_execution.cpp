@@ -38,7 +38,9 @@ namespace mv
 // We have to add extra layers of control flows
 // 1) A layer made up of ControlFlows that start from input and go to every DMA DDR to CMX operation
 // Rationale: Until we know more about memory addresses, DMA potentially have no impediments after input operation
-// 2) A layer made up of ControlFlows that are coincident with DataFlows
+// 2) A layer made up of ControlFlows that start from Deallocation and go to final DMA operation
+// Rationale: Needed for MaxTopological cut
+// 3) A layer made up of ControlFlows that are coincident with DataFlows
 // Rationale: Wherever there is a data dependency, there is also a execution dependency
 
 // WARNING: This two layers of control flow can generate unnecessary control flows.
@@ -63,6 +65,26 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::Computation
             cm.defineFlow(inputOp, op);
 
     // Adding layer 2
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if (opIt->getOpType() == "DMATask")
+        {
+            if(opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
+            {
+                for (auto opIt1 = om.getInput(); opIt1 != om.opEnd(); ++opIt1)
+                {
+                    if (opIt1->getOpType() == "Deallocate")
+                    {
+                         auto deallocateOp = om.getOp(opIt1->getName());
+                         auto dmaCMX2DDROp = om.getOp(opIt->getName());
+                         cm.defineFlow(deallocateOp, dmaCMX2DDROp);
+                    }
+                }
+            }
+        }
+    }
+
+    // Adding layer 3
     for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
     {
         auto source = cm.switchContext(dataFlow.source());

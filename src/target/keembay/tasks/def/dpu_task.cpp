@@ -39,7 +39,8 @@ namespace mv
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
-        .setBaseOperation({"Conv", "MaxPool", "AveragePool"});
+        .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv"})
+        .setExtraInputs(true);
     }
 
 }

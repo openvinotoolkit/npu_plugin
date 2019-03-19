@@ -23,9 +23,8 @@ void assignUniqueOpIdFcn(const mv::pass::PassEntry&, mv::ComputationModel& model
 {
     mv::OpModel om(model);
 
-    unsigned currentId = 0;
-    std::string currentIdLabel("opId");
+    unsigned currentId = 1;
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
-        operationIt->set<unsigned>(currentIdLabel, currentId++);
+        operationIt->set<unsigned>("opId", currentId++);
 }

@@ -24,6 +24,16 @@ mv::QuantizationParams::QuantizationParams(std::vector<unsigned> zp, std::vector
     set<std::vector<double>>("max", max);
 }
 
+unsigned mv::QuantizationParams::getZeroPoint(const size_t channel) const
+{
+    std::vector<unsigned> zeroPoint = get<std::vector<unsigned>>("zeroPoint");
+    if (zeroPoint.size() == 1)
+        return zeroPoint[0];
+    if (channel >= zeroPoint.size())
+        throw ArgumentError("QuantizationParams", "channel", std::to_string(channel),
+            "Invalid index: channel is greater than zeroPoint vector");
+    return zeroPoint[channel];
+}
 std::string mv::QuantizationParams::getLogID() const
 {
     return "QuantizationParams: " + getName();

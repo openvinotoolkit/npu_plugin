@@ -36,7 +36,7 @@ TEST(fuse_bias, case_conv)
     // Check predecessing operation
     ASSERT_EQ(convOp.childrenSize(), 1);
 
-    for (unsigned i = 0; i < dm.getTensor(convOp->get<std::string>("bias"))->getData().size(); ++i)
-        ASSERT_FLOAT_EQ(dm.getTensor(convOp->get<std::string>("bias"))->getData()[i], biasesData[i]);
+    for (unsigned i = 0; i < dm.getTensor(convOp->get<std::string>("bias"))->getDoubleData().size(); ++i)
+        ASSERT_FLOAT_EQ(dm.getTensor(convOp->get<std::string>("bias"))->getDoubleData()[i], biasesData[i]);
 
 }

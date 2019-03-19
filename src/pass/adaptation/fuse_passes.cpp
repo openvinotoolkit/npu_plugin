@@ -117,6 +117,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                 {
                     std::string biasTensorName = parentOpIt->getName() + "_bias";
                     auto biasTensor = dm.defineTensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData());
+
                     om.addAttr(parentOpIt, "bias", biasTensor->getName());
                     pass.log(Logger::MessageType::Info, "Fused bias op " + opIt->getName() + " into " + parentOpIt->getName());
                 }
@@ -228,7 +229,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
-            auto offset = om.constant(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(), 
+            auto offset = om.constantDataElement(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(),
                 offsetParam.getOrder(), batchNormName + "_offset");
 
             Data::TensorIterator sourceTensor;
@@ -244,7 +245,8 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 }
                 else
                 {
-                    auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+                    auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+
                     sourceTensor = om.scale(opIt->getInputTensor(0), scale);
                     parentOpIt = om.getSourceOp(sourceTensor);
                     pass.log(Logger::MessageType::Info, "Replaced multiplicative term of BatchNorm op " + opIt->getName() + 
@@ -253,7 +255,8 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             }
             else
             {
-                auto scale = om.constant(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+                auto scale = om.constantDataElement(scaleParam.getData(), scaleParam.getShape(), scaleParam.getDType(), scaleParam.getOrder());
+
                 sourceTensor = om.multiply(opIt->getInputTensor(0), scale);
                 parentOpIt = om.getSourceOp(sourceTensor);
                 pass.log(Logger::MessageType::Info, "Replaced multiplicative term of BatchNorm op " + opIt->getName() + 

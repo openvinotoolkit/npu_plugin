@@ -11,7 +11,9 @@ namespace mv
     enum DmaDirectionEnum
     {
         DDR2CMX,
-        CMX2DDR
+        CMX2DDR,
+        CMX2UPA,
+        UPA2CMX
     };
 
     struct DmaDirectionEnumHash
