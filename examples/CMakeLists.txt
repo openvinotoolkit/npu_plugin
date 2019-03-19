@@ -93,6 +93,9 @@ else()
 	add_executable(hw_convolution hw_convolution.cpp)
 	target_link_libraries(hw_convolution cm)
 
+	add_executable(dpu_conv_example_exceed_cmx dpu_conv_example_exceed_CMX.cpp)
+	target_link_libraries(dpu_conv_example_exceed_cmx cm)
+
 	add_executable(dpu_conv_example dpu_conv_example.cpp)
 	target_link_libraries(dpu_conv_example cm)
 
