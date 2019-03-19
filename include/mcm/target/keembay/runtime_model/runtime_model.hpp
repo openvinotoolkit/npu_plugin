@@ -62,7 +62,6 @@ namespace mv
             static std::unique_ptr<MVCNN::BarrierReferenceT> buildBarrierReferenceT(ComputationModel& cm, Element& compilationDescription, BarrierDependencies dep);
             static std::unique_ptr<MVCNN::BarrierT> buildBarrierT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::unique_ptr<MVCNN::TaskT> buildTaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
->>>>>>> Changed all RuntimeModel static methods to use Control::OpListIterator.
 
             // TASKS
             static void buildSpecificTaskUnion(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, MVCNN::SpecificTaskUnion& specificTask);
