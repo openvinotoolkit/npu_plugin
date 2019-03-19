@@ -414,8 +414,6 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
 
         /*Find the shortest path from the sink node of the edge to the sink node (DMA task CMX to DDR)*/
 
-
-        //TODO FIND SINK NODE IN KOALA GRAPH ASAP
         Koala::DijkstraHeap::PathLengths <int> res1 = Koala::DijkstraHeap::findPath(flowGraph, edgeMap, flowGraph.getEdgeEnds(E[i]).second, lookUpKoalaSinkNode(true, V, numberOfKoalaVertices), Koala::DijkstraHeap::outPath(blackHole, back_inserter(vecE)));
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + res1.length);
@@ -450,7 +448,7 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
         & Koala::IO::gmlStringField(&edgeDescription::name, "edgeName")
         );
 	/*write GraphML to a file*/
-	gml.writeFile("john.graphml");
+	gml.writeFile("max_topological_cut.graphml");
     //----------------------------------------------------------------------------------------------------
 
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
@@ -469,7 +467,11 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     }
 
 	/*compute minimal cut*/	
-    auto res = Koala::Flow::minEdgeCut(flowGraph, cap, lookUpKoalaVertexbyName("Input_0", V, numberOfKoalaVertices), lookUpKoalaVertexbyName("DMATask_2", V, numberOfKoalaVertices), Koala::Flow::outCut(blackHole, edgeIter()));
+    auto res = Koala::Flow::minEdgeCut(flowGraph, cap, lookUpKoalaVertexbyName("Input_0", V, numberOfKoalaVertices), lookUpKoalaSinkNode(true, V, numberOfKoalaVertices), Koala::Flow::outCut(blackHole, edgeIter()));
     
+    /*Add Max topological cut value as attribute to output node*/
+    auto output = cm.getOutput();
+    output->set<int>("MaxTopologicalCutValue", res.cutValue); 
+
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(res.cutValue) + " bytes");
 }
