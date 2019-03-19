@@ -53,7 +53,7 @@ struct edgeDescription {
     
     friend std::ostream& operator<<(std::ostream& os, const edgeDescription& ed) {
         os << "Edge name: " << ed.name << std::endl;
-        os << "Memory requirement: " << "start_delimiter" << ed.memoryRequirement << "start_delimiter" << std::endl; /*delimeters are 'hack' necessary to get maximum peak memory back from KOALA, removing these will break the KOALA library*/ 
+        os << "Memory requirement: " << ed.memoryRequirement << std::endl;  
         os << "Flow: " << ed.flow << std::endl;
         os << "Length: " << ed.length << std::endl;
         return os;
@@ -466,12 +466,19 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
         cap[E[i]].cost = 1;
     }
 
-	/*compute minimal cut*/	
-    auto res = Koala::Flow::minEdgeCut(flowGraph, cap, lookUpKoalaVertexbyName("Input_0", V, numberOfKoalaVertices), lookUpKoalaSinkNode(true, V, numberOfKoalaVertices), Koala::Flow::outCut(blackHole, edgeIter()));
+    /*store the cut edges*/
+    std::vector<koalaGraph::PEdge> cutEdges;
+    int memoryRequirement = 0;
+
+    /*compute minimal cut*/
+    auto res = Koala::Flow::minEdgeCut(flowGraph, cap, lookUpKoalaVertexbyName("Input_0", V, numberOfKoalaVertices), lookUpKoalaSinkNode(true, V, numberOfKoalaVertices), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
     
+    for (size_t i = 0; i < cutEdges.size(); i++)
+        memoryRequirement += cutEdges[i]->info.memoryRequirement;
+
     /*Add Max topological cut value as attribute to output node*/
     auto output = cm.getOutput();
-    output->set<int>("MaxTopologicalCutValue", res.cutValue); 
+    output->set<int>("MaxTopologicalCutValue", memoryRequirement); 
 
-    pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(res.cutValue) + " bytes");
+    pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(memoryRequirement) + " bytes");
 }
