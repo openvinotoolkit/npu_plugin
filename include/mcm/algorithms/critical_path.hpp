@@ -23,7 +23,7 @@ namespace mv
             for(auto parentIt = nodeIt->leftmost_input(); parentIt != g.edge_end(); ++parentIt)
                 edgeCosts[parentIt] += mapIt.second;
         }
-        return dijkstra(g, source, sink, edgeCosts);
+        return dijkstra<T_node, T_edge, T_node_iterator_comp, T_edge_iterator_comp>(g, source, sink, edgeCosts);
     }
 
 }

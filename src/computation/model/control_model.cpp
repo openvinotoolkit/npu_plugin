@@ -210,26 +210,25 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
     return toReturn;
 }
 
-struct FlowListIteratorComp
+
+struct OpItComparator
 {
-    bool operator()(const mv::Control::FlowListIterator lhs, const mv::Control::FlowListIterator rhs) const
-    {
+    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator rhs) const {
         return (*lhs) < (*rhs);
     }
 };
 
-struct OpListIteratorComp
+struct EdgeItComparator
 {
-    bool operator()(const mv::Control::OpListIterator lhs, const mv::Control::OpListIterator rhs) const
-    {
+    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator rhs) const {
         return (*lhs) < (*rhs);
     }
 };
 
 std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp, const std::string &nodeAttribute, const std::string &edgeAttribute)
 {
-    std::map<Control::OpListIterator, unsigned, OpListIteratorComp> nodeCosts;
-    std::map<Control::FlowListIterator, unsigned, FlowListIteratorComp> edgeCosts;
+    std::map<mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator, unsigned, OpItComparator> nodeCosts;
+    std::map<mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator, unsigned, EdgeItComparator> edgeCosts;
 
     if(nodeAttribute != "")
         for(auto opIt = opBegin(); opIt != opEnd(); ++opIt)
@@ -241,7 +240,9 @@ std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Contro
             if(edgeIt->hasAttr(nodeAttribute))
                 edgeCosts[edgeIt] = edgeIt->get<unsigned>(nodeAttribute);
 
-    return critical_path<Op, ControlFlow, OpListIteratorComp, FlowListIteratorComp>(controlGraph_, sourceOp, sinkOp, nodeCosts, edgeCosts);
+    auto toReturnToBeCasted = mv::critical_path<Op, ControlFlow, OpItComparator, EdgeItComparator>(controlGraph_, sourceOp, sinkOp, nodeCosts, edgeCosts);
+    std::vector<mv::Control::FlowListIterator> toReturn(toReturnToBeCasted.begin(), toReturnToBeCasted.end());
+    return toReturn;
 }
 
 std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp, const std::string& nodeAttribute, const std::string& edgeAttribute)
