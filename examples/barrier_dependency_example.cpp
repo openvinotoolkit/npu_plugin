@@ -34,8 +34,10 @@ int main()
     auto conv5 = om.conv(conv4, weights3, {1, 1}, {1, 1, 1, 1});
     auto conv6 = om.conv(conv5, weights3, {1, 1}, {1, 1, 1, 1});
     auto conv7 = om.conv(conv6, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv8 = om.conv(conv7, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv9 = om.conv(conv8, weights3, {1, 1}, {1, 1, 1, 1});
 
-    om.output(conv7);
+    om.output(conv9);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
