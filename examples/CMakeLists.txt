@@ -106,8 +106,10 @@ else()
 	add_executable(dpu_task_example dpu_task_example.cpp)
 	target_link_libraries(dpu_task_example cm)
  
-  add_executable(dpu_conv_example_3_layers dpu_conv_example_3_layers.cpp)
-	target_link_libraries(dpu_conv_example_3_layers cm)
+  add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
+	target_link_libraries(dpu_conv_3_conv cm)
+  add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
+	target_link_libraries(dpu_conv_2_conv cm)
 
 # FIXME: uncomment after metis_example.cpp is added
 #    add_executable(metis_example metis_example.cpp)
