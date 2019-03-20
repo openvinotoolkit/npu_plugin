@@ -32,9 +32,8 @@
             "ConvertToTaskGraph",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
-            "GraphColoring",
-            "InsertBarrierTasks",
-            "AssignUniqueTaskId",
+            "InputOutputControlFlows",
+            "DmaControlFlows",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -47,11 +46,12 @@
     "finalize": {
         "Singular": [
             "GenerateWorkloads",
+            "MaxTopologicalCut",
+            "InsertBarrierTasks",
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
-			      "AssignUniqueTaskId",
+            "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
-			      "MaxTopologicalCut",
             "TransitiveReduction",
             "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
@@ -86,7 +86,7 @@
     },
     "root": {
         "Singular": [
-			"initialize",
+            "initialize",
             "validate",
             "adapt",
             "finalize",

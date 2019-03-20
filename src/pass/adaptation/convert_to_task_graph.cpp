@@ -119,7 +119,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             dmaKernelFreeOp->set<unsigned>("opId", inputOpId);
 
             cm.defineFlow(dpuConvOp, dmaInputFreeOp);
-            cm.defineFlow(dpuConvOp, dmaKernelFreeOp);
+            cm.defineFlow(dpuConvOp, dmaKernelFreeOp); 
 
             for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
             {
@@ -127,7 +127,14 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
                 auto slot = output->get<size_t>("sinkInput");
                 consumer->setInputTensor(dpuConv, slot, false);
                 om.defineFlow(dpuConv, consumer, slot);
+                cm.defineFlow(dmaInputFreeOp, consumer);
+                cm.defineFlow(dmaKernelFreeOp, consumer);
             }
+
+            // Before removing the operation, we have to copy eventual input Control flows
+            auto controlOpIt = cm.switchContext(opIt);
+            for(auto inputControlFlow = controlOpIt.leftmostInput(); inputControlFlow != cm.flowEnd(); ++inputControlFlow)
+                cm.defineFlow(inputControlFlow.source(), cm.switchContext(dpuConvOp));
 
             auto backup = opIt;
             ++opIt;
@@ -164,14 +171,19 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             dmaInputFreeOp->set<unsigned>("opId", inputOpId);
 
             cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
-
             for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
             {
                 auto consumer = output.sink();
                 auto slot = output->get<size_t>("sinkInput");
                 consumer->setInputTensor(dpuPool, slot, false);
                 om.defineFlow(dpuPool, consumer, slot);
+                cm.defineFlow(dmaInputFreeOp, consumer);
             }
+
+            // Before removing the operation, we have to copy eventual input Control flows
+            auto controlOpIt = cm.switchContext(opIt);
+            for(auto inputControlFlow = controlOpIt.leftmostInput(); inputControlFlow != cm.flowEnd(); ++inputControlFlow)
+                cm.defineFlow(inputControlFlow.source(), cm.switchContext(dpuPoolOp));
 
             auto backup = opIt;
             ++opIt;
@@ -188,7 +200,14 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             if(isTensorInCMX(input, om))
             {
                 auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR);
-                om.getSourceOp(newInput)->set<unsigned>("opId", opId);
+                auto newInputOp = om.getSourceOp(newInput);
+
+                // Before removing the operation, we have to copy eventual input Control flows
+                auto controlOpIt = cm.switchContext(opIt);
+                for(auto inputControlFlow = controlOpIt.leftmostInput(); inputControlFlow != cm.flowEnd(); ++inputControlFlow)
+                    cm.defineFlow(inputControlFlow.source(), cm.switchContext(newInputOp));
+
+                newInputOp->set<unsigned>("opId", opId);
                 auto backup = opIt;
                 ++opIt;
                 om.removeOp(backup);

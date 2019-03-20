@@ -117,6 +117,7 @@ static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
+    mv::DataModel dm(model);
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -138,6 +139,14 @@ static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 
             dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
             cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
+
+            // Define a flow between dmaKernelWeightsTableFreeOp and next operation in the graph (but avoid dealloc)
+            for(auto outputDataFlow = dpuTask.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
+            {
+                auto sink = outputDataFlow.sink();
+                if(sink->getOpType() != "Deallocate")
+                    cm.defineFlow(dmaKernelWeightsTableFreeOp, sink);
+            }
         }
     }
 }
@@ -282,13 +291,22 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
                 std::string sparsityMapName(opName + "SparsityMap");
                 std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
-                auto sparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
+                auto sparsityMapDma = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
 
-                om.deallocate(sparsityMap, sparsityMapDeallocationName);
-                auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
+                om.deallocate(sparsityMapDma, sparsityMapDeallocationName);
+                auto dmaSparsityMapFreeOp = om.getOp(sparsityMapDeallocationName);
 
-                dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
-                cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
+                dmaSparsityMapFreeOp->set<unsigned>("opId", opId);
+                cm.defineFlow(dpuTask, dmaSparsityMapFreeOp);
+
+                // Define a flow between dmaSparsityMapFreeOp and next operation in the graph (but avoid dealloc)
+                for(auto outputDataFlow = dpuTask.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
+                {
+                    auto sink = outputDataFlow.sink();
+                    if(sink->getOpType() != "Deallocate")
+                        cm.defineFlow(dmaSparsityMapFreeOp, sink);
+                }
+
                 dpuTask->set<bool>("fakeSparsity", true);
             }
             else
