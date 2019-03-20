@@ -278,8 +278,8 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
 
 void setEdgeLengths(Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int >> &edgeMap, std::vector<koalaGraph::PEdge>& E) 
 {
-    for (size_t i = 0; i < E.size(); i++) {
-	edgeMap[E[i]].length = 1;
+   for (const auto& e : E) {
+        edgeMap[e].length = 1;
     }
 }
 
@@ -354,9 +354,6 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
      * Find the shortest path from the edges sink node to the sink node (DMA task CMX to DDR) 
     */
     for (int i = 0; i < numberofEdges; i++) {
-
-		std::cout << E[i]->info << "Source: " << flowGraph.getEdgeEnds(E[i]).first->info.name << std::endl;
-        std::cout << "Sink: " << flowGraph.getEdgeEnds(E[i]).second->info.name << std::endl;
 
         /*get the source and sink node of the edge*/
         pass.log(mv::Logger::MessageType::Debug, "Source Node " + flowGraph.getEdgeEnds(E[i]).first->info.name);
