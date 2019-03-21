@@ -259,7 +259,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/arrange_execution.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/format_mx_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/fuse_relu_mx.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/graph_coloring.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/manipulate_barrier_refs.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/mark_hardware_operations.cpp"
@@ -283,6 +282,14 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 )
 
+# TODO: temporary measure as this file requires Metis, which is not x-compiled
+IF(NOT CMAKE_CROSSCOMPILING)
+    SET(pass 
+        ${pass} 
+        "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
+    )
+ENDIF()
+
 SET(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
@@ -290,7 +297,18 @@ SET(compiler
     "${PROJECT_SOURCE_DIR}/src/target/keembay/runtime_model/runtime_model.cpp"
 )
 
-add_subdirectory(meta)
+IF(CMAKE_CROSSCOMPILING)
+    message(STATUS "Cross-compiling, so assumes meta/ files already generated...")
+    add_library(metamodel SHARED
+        ${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
+        ${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
+        ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
+    )
+    target_link_libraries(metamodel model)
+ELSE()
+    message(STATUS "Standard build...")
+    add_subdirectory(meta)
+ENDIF()
 
 if (MSVC)
     add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
@@ -323,21 +341,28 @@ else()
         add_subdirectory(contrib/googletest)
     else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
-
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
-        target_link_libraries(cm corebase metamodel flatbuffers metis)
-        add_dependencies(cm generate-comp-api)
-        add_dependencies(model generate-comp-api)
-        add_dependencies(cm generate-graphfile-headers)
-        add_subdirectory(python/api)
-        add_subdirectory(tests)
-        add_subdirectory(contrib/googletest)
-    endif(VALIDATION)
 
+        IF(CMAKE_CROSSCOMPILING)
+            # Flatbuffers and Metis not x-compiled yet
+            target_link_libraries(cm corebase metamodel)
+        ELSE()
+            target_link_libraries(cm corebase metamodel flatbuffers metis)
+            add_dependencies(cm generate-comp-api)
+            add_dependencies(model generate-comp-api)
+            add_dependencies(cm generate-graphfile-headers)
+            add_subdirectory(python/api)
+            add_subdirectory(tests)
+            add_subdirectory(contrib/googletest)
+        ENDIF()
+       
+    endif(VALIDATION)
 endif(MSVC)
 
 add_subdirectory(examples)
-add_subdirectory(tools)
-add_subdirectory(schema)
-add_subdirectory(contrib/flatbuffers)
+IF(NOT CMAKE_CROSSCOMPILING)
+    add_subdirectory(tools)
+    add_subdirectory(schema)
+    add_subdirectory(contrib/flatbuffers)
+ENDIF()

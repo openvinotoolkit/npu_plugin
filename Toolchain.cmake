@@ -22,12 +22,17 @@ SET(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}g++)
 SET(PYTHON_LIBRARY /usr/lib/x86_64-linux-gnu/libpython3.6m.so)
 SET(PYTHON_INCLUDE_DIR /usr/lib/python3.7/)
 
-#set(CMAKE_SYSROOT /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/)
-#set(CMAKE_FIND_ROOT_PATH ${CMAKE_SYSROOT})
+SET(CMAKE_SYSROOT /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc)
+
+SET(CMAKE_FIND_ROOT_PATH 
+    #/opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu
+    /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc
+    /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc/lib
+)
 
 # search for programs in the build host directories
-#SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 # for libraries and headers in the target directories
-#SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-#SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
