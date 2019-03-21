@@ -79,7 +79,7 @@ struct edgeIter {
  * @return The KOALA vertex iterator 
  * 
  */
-koalaGraph::PVertex lookUpKoalaVertexbyName(std::string vertexName, std::vector<koalaGraph::PVertex>& koalaVertices) {
+koalaGraph::PVertex lookUpKoalaVertexbyName(const std::string& vertexName, const std::vector<koalaGraph::PVertex>& koalaVertices) {
 
     for (size_t i = 0; i < koalaVertices.size(); i++) {
 
@@ -95,7 +95,7 @@ koalaGraph::PVertex lookUpKoalaVertexbyName(std::string vertexName, std::vector<
  * @return The KOALA vertex iterator 
  * 
  */
-koalaGraph::PVertex lookUpKoalaSinkNode(bool sinknode, std::vector<koalaGraph::PVertex>& koalaVertices) {
+koalaGraph::PVertex lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
 
     for (size_t i = 0; i < koalaVertices.size(); i++) {
 
@@ -111,7 +111,7 @@ koalaGraph::PVertex lookUpKoalaSinkNode(bool sinknode, std::vector<koalaGraph::P
  * @return The KOALA edge iterator 
  * 
  */
-koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, std::vector<koalaGraph::PEdge>& koalaEdges) {
+koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
 
     for (size_t i = 0; i < koalaEdges.size(); i++) {
 
@@ -276,7 +276,7 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
  * Example: http://koala.os.niwa.gda.pl/api/examples/weights/dijkstra_h/dijkstra_h.html
  */
 
-void setEdgeLengths(Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int >> &edgeMap, std::vector<koalaGraph::PEdge>& E) 
+void setEdgeLengths(const Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int >> &edgeMap, const std::vector<koalaGraph::PEdge>& E) 
 {
    for (const auto& e : E) {
         edgeMap[e].length = 1;
