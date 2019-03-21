@@ -42,8 +42,8 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    auto inputOp = om.getInput();
-    cm.defineFlow(inputOp, inputOp.leftmostChild());
+    //auto inputOp = om.getInput();
+    //cm.defineFlow(inputOp, inputOp.leftmostChild());
 
     auto outputOp = om.getOp("Output_0");
     auto lastDMAOp = outputOp.leftmostParent();

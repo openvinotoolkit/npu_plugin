@@ -72,6 +72,30 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
+    auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
+    {
+        list.erase(std::remove_if(list.begin(), list.end(), [opType](mv::Data::OpListIterator it) { return it->getOpType() == opType;}), list.end());
+    };
+
+    auto sortedOps = om.topologicalSort();
+    removeOps(sortedOps, "Constant");
+    removeOps(sortedOps, "ConstantInt");
+    removeOps(sortedOps, "ConstantDataElement");
+
+    // How self.nn_cmx_memory is computed
+    //    cmxSize = 4194304;
+    //    4194304 / 4 (cluster) = 1048576;
+    //    0.9 (safety_factor) * 1048576 = 943718.4
+    //dma_dependency = std::min(std::max(1, self.nn_cmx_memory/param.cluster_size), dma_dependency);
+    //cluster size (memory of the tensor) = tensor dims multiplied * (data type /8)
+
+    auto numCluster = 4;
+    auto safetyFactor = 0.9;
+    auto cmxSize = 4 * 1024 * 1024; //4MB in bytes.
+    cmxSize /= numCluster;
+    cmxSize *= safetyFactor;
+    auto dma_dependency = sortedOps.size();
+
     // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks
     // We don't need to perform eliminations in this pass, we can use a for loop to iterate among operations
     for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
@@ -98,6 +122,15 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                     om.undefineFlow(backupFlow);
                     opIt->setInputTensor(inputTensorDma, i, false);
                     om.defineFlow(inputTensorDmaOp, 0, opIt, i);
+
+
+                    auto inputTensorDmaDimension = inputTensorDma->getShape().totalSize() * (inputTensorDma->getDType().getSizeInBits()/8);
+                    dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), dma_dependency);
+                    auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
+                    if(index <= dma_dependency)
+                        cm.defineFlow(om.getInput(), inputTensorDmaOp);
+                    else
+                        cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
                     inputTensor = inputTensorDma;
                 }
                 else
