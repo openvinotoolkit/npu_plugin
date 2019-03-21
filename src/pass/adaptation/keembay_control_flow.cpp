@@ -5,6 +5,7 @@
 
 static void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -24,6 +25,12 @@ namespace mv
             ""
         );
 
+        MV_REGISTER_PASS(DeallocationControlFlows)
+        .setFunc(deallocationControlFlowsFcn)
+        .setDescription(
+            ""
+        );
+
     }
 
 }
@@ -32,9 +39,6 @@ namespace mv
 
 void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
-
-    pass.log(mv::Logger::MessageType::Debug, "Starting arrange Keembay execution");
-
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
@@ -48,9 +52,6 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 
 void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
-
-    pass.log(mv::Logger::MessageType::Debug, "Starting arrange Keembay execution");
-
     mv::OpModel om(model);
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
@@ -66,6 +67,25 @@ void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 if(sink->getOpType() != "Deallocate")
                     cm.defineFlow(op, sink);
             }
+        }
+    }
+}
+
+void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+
+    auto deallocateOps = om.getOps("Deallocate");
+    for(auto op : deallocateOps)
+    {
+        auto controlInputOp = cm.switchContext(op).leftmostParent();
+        for(auto outputDataFlow = om.switchContext(controlInputOp).leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
+        {
+            auto sink = outputDataFlow.sink();
+            if(sink->getOpType() != "Deallocate")
+                cm.defineFlow(op, sink);
         }
     }
 }

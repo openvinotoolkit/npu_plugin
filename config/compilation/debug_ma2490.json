@@ -69,6 +69,7 @@
         "Singular" : [
             "InputOutputControlFlows",
             "DmaControlFlows",
+            "DeallocationControlFlows",
             {
                 "name": "GenerateDot",
                 "output": "control_model.dot",
