@@ -1,15 +1,16 @@
 {
-    "adapt": {
+    "initialize": {
         "Singular": [
             "AssignUniqueOpId",
-			{
+            {
                 "name": "GenerateDot",
                 "output": "original_model.dot",
-                "scope": "OpModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
-			{
+            {
+
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -22,17 +23,21 @@
                 "ResourcesNNCMXPerSlice": 2,
                 "ResourcesNNCMXSliceAmount": 2,
                 "ResourcesDDRScratch": 2
-            },
+            }
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "AverageAsDepthWise",
             "ConvertToTaskGraph",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
-            "GraphColoring",
-	    "CompleteTaskGraph",
-            "AssignUniqueTaskId",
+            "InputOutputControlFlows",
+            "DmaControlFlows",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
-                "scope": "OpModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             }
@@ -40,15 +45,17 @@
     },
     "finalize": {
         "Singular": [
+            "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
-	    "MaxTopogicalCut",
+            "TransitiveReduction",
+            "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
-                "scope": "OpModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             }
@@ -74,6 +81,7 @@
     },
     "root": {
         "Singular": [
+            "initialize",
             "validate",
             "adapt",
             "finalize"

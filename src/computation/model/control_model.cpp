@@ -194,15 +194,20 @@ mv::Control::FlowListIterator mv::ControlModel::defineFlow(Control::OpListIterat
 
 mv::Control::FlowListIterator mv::ControlModel::defineFlow(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp)
 {
-
    return defineFlow(switchContext(sourceOp), switchContext(sinkOp));
+}
 
-} 
+std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
+{
+    // Necessary for correct iterator casting
+    auto topologicalSortResult = mv::topologicalSort(controlGraph_);
+    std::vector<mv::Control::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
+    return toReturn;
+}
 
 void mv::ControlModel::transitiveReduction()
 {
-    auto input = getFirst();
-    mv::transitiveReduction(controlGraph_, input);
+    mv::transitiveReduction(controlGraph_);
 }
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)

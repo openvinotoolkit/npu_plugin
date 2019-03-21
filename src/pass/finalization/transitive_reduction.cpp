@@ -25,14 +25,8 @@ namespace mv
 void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
-    pass.log(mv::Logger::MessageType::Debug, "Starting transitive redcution on control flow");
-
+    pass.log(mv::Logger::MessageType::Debug, "Starting transitive reduction pass");
     mv::ControlModel cm(model);
-
-    // Cleaning unnecessary edges.
     cm.transitiveReduction();
-
-    pass.log(mv::Logger::MessageType::Debug, "Exiting transitive redcution on control flow");
-
+    pass.log(mv::Logger::MessageType::Debug, "Ended transitive reduction pass");
 }
-

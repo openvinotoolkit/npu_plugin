@@ -25,9 +25,7 @@ namespace mv
         MV_REGISTER_OP(Deallocate)
         .setInputs({"inputs"})
         .setInputCheck(inputCheckFcn)
-        .setOutputDef(outputDefFcn)
-        .setTypeTrait({"executable"});
-
+        .setOutputDef(outputDefFcn);
     }
 
 }

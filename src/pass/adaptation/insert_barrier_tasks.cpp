@@ -4,8 +4,10 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 #include "include/mcm/target/keembay/barrier_deps.hpp"
+#include "include/mcm/target/keembay/workloads.hpp"
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -18,7 +20,16 @@ namespace mv
         .setDescription(
             "This pass inserts barrier tasks into the compute graph"
         );
+
+        MV_REGISTER_PASS(UpdateBarrierProducerConsumerCounts)
+        .setFunc(updateCountsFcn)
+        .setDescription(
+            "This pass updates producer and consumer counts in barriers based on workloads in producer and consumer \
+            DxxTasks in the compute graph"
+        );
+
     }
+
 }
 
 static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers)
@@ -50,12 +61,8 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel
         int index = barrier.getIndex();
         int barrierNum = group * 8 + index;
 
-        int wait = -1;
-        struct mv::BarrierDependencies bdep;
-        bdep.setWaitBarrier(wait);
-
         std::string barrierName("BarrierTask_" + std::to_string(barrierNum));
-        om.barrierTask(barrier, bdep, barrierName);
+        om.barrierTask(barrier, barrierName);
 
         // Add control flows to insert this barrier to the control flow graph
         auto barrierOp = om.getOp(barrierName);
@@ -137,4 +144,42 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     setBarrierGroupAndIndex(barriers);
 
     insertBarriersIntoControlFlowGraph(om, cm, barriers);
+}
+
+static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    auto barrierTasks = om.getOps("BarrierTask");
+
+    for (auto bt: barrierTasks)
+    {
+        auto& barrier = bt->get<mv::Barrier>("Barrier");
+
+        for (auto producer: barrier.getProducers())
+        {
+            auto producerOp = om.getOp(producer);
+            if (producerOp->hasAttr("Workloads"))
+            {
+                auto& workloads = producerOp->get<mv::Workloads>("Workloads");
+                int count = barrier.getNumProducers();
+                count = count - 1 + workloads.nWorkloads();
+                barrier.setNumProducers(count);
+            }
+        }
+
+        for (auto consumer: barrier.getConsumers())
+        {
+            auto consumerOp = om.getOp(consumer);
+
+            if (consumerOp->hasAttr("Workloads"))
+            {
+                auto& workloads = consumerOp->get<mv::Workloads>("Workloads");
+                int count = barrier.getNumConsumers();
+                count = count - 1 + workloads.nWorkloads();
+                barrier.setNumConsumers(count);
+            }
+        }
+    }
 }
