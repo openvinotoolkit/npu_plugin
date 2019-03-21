@@ -9,6 +9,8 @@
 # 2) Use this file with command:
 #    cmake -DCMAKE_TOOLCHAIN_FILE=./Toolchain.cmake ..
 #
+# NOTE! This build does NOT run the meta build and create generated files.
+# Temporarily, run a standard build first then run this Cross Compile build
 
 # specify system type (required)
 SET(CMAKE_SYSTEM_NAME Linux)
@@ -25,7 +27,7 @@ SET(PYTHON_INCLUDE_DIR /usr/lib/python3.7/)
 SET(CMAKE_SYSROOT /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc)
 
 SET(CMAKE_FIND_ROOT_PATH 
-    #/opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu
+    /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu
     /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc
     /opt/gcc-linaro-7.4.1-2019.02-x86_64_aarch64-linux-gnu/aarch64-linux-gnu/libc/lib
 )
