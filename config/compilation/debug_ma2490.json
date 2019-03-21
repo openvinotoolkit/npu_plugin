@@ -33,7 +33,10 @@
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             "GraphColoring",
-            "InsertBarrierTasks",
+            {
+                "name": "InsertBarrierTasks",
+                "barrier_index_assignment" : "Dynamic"
+            },
             "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
@@ -80,7 +83,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "Scheduling": "Static"
+                "barrier_index_assignment": "Dynamic"
             }
         ]
     },
