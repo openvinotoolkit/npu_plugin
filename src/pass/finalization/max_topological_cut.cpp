@@ -320,6 +320,11 @@ int calculateFMax(mv::ComputationModel& model) {
     return Fmax;
 }
 
+// void performPartialSerialisation(int cutValue, std::vector<koalaGraph::PEdge> cutEdges, koalaGraph::PVertex source, koalaGraph::PVertex sink) {
+
+
+// }
+
 void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::ControlModel cm(model);
@@ -459,4 +464,10 @@ void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     output->set<int>("MaxTopologicalCutValue", memoryRequirement); 
 
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(memoryRequirement) + " bytes");
+
+    // if (memoryRequirement > 943718.4) {
+    //     performPartialSerialisation(memoryRequirment, cutEdges,lookUpKoalaVertexbyName("Input_0", V),lookUpKoalaSinkNode(true, V));
+
+    // }
+
 }
