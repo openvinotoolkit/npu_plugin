@@ -39,11 +39,7 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
     mv::ControlModel cm(model);
 
     auto inputOp = om.getInput();
-    auto dmaOps = om.getOps("DMATask");
-
-    for(auto op : dmaOps)
-        if(op->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
-            cm.defineFlow(inputOp, op);
+    cm.defineFlow(inputOp, inputOp.leftmostChild());
 
     auto outputOp = om.getOp("Output_0");
     auto lastDMAOp = outputOp.leftmostParent();
