@@ -29,12 +29,23 @@
     "adapt": {
         "Singular": [
             "AverageAsDepthWise",
+            {
+                "name": "GenerateDot",
+                "output": "adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
+    "keembay_adapt": {
+        "Singular": [
             "ConvertOpsToTasks",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
-                "output": "adapt_model.dot",
+                "output": "keembay_adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
@@ -113,6 +124,7 @@
             "initialize",
             "validate",
             "adapt",
+            "keembay_adapt",
             "dma",
             "control_flows",
             "finalize",
