@@ -29,14 +29,38 @@
     "adapt": {
         "Singular": [
             "AverageAsDepthWise",
-            "ConvertToTaskGraph",
+            "ConvertOpsToTasks",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
+            "AddDMATasks",
+            "AddFinalDMATask",
+            {
+                "name": "GenerateDot",
+                "output": "dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
             "InputOutputControlFlows",
             "DmaControlFlows",
             {
                 "name": "GenerateDot",
-                "output": "adapt_model.dot",
+                "output": "control_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
@@ -89,6 +113,8 @@
             "initialize",
             "validate",
             "adapt",
+            "dma",
+            "control_flows",
             "finalize",
             "serialize"
         ],
