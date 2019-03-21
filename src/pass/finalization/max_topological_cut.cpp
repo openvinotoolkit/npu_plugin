@@ -120,6 +120,16 @@ koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<
     }
 }
 
+
+// koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
+
+//      for (const auto& e : koalaEdges) {
+
+//         if(e->info.name == edgeName) 
+//             return e;
+//     }
+// }
+
 /**
  * @brief Encode the mememory requirements of each tash by adding a "MemoryRequirment" attribute to the task in the MCM task graph.
  *        The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
