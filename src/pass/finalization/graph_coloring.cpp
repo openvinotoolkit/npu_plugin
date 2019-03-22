@@ -21,12 +21,27 @@ namespace mv
     }
 }
 
+struct InterferenceGraphNode
+{
+    std::string name;
+    size_t weight;
+    size_t neighborsWeight;
 
-using InterferenceGraph = mv::graph<std::string, int>;
+    InterferenceGraphNode(std::string name_) : name(name_) {
+
+    }
+
+    bool operator==(const InterferenceGraphNode& rhs) const
+    {
+        return (name == rhs.name);
+    }
+};
+
+using InterferenceGraph = mv::graph<InterferenceGraphNode, int>;
 using TensorIteratorFilter = std::function<bool(const mv::Data::TensorIterator& t)>;
 using OpIteratorFilter = std::function<bool(mv::Data::OpListIterator& t)>;
 using NodeWeightPair = std::pair<std::string,size_t>;
-using OrderingStrategyFunc = std::function<std::vector<std::string>(InterferenceGraph& g, mv::ComputationModel& model, std::size_t alignment)>;
+using OrderingStrategyFunc = std::function<std::vector<std::string>(InterferenceGraph& g)>;
 
 struct OrderingStrategyClassHash
 {
@@ -37,13 +52,24 @@ struct OrderingStrategyClassHash
     }
 };
 
-bool sortbyWeightAsc(const NodeWeightPair &a, const NodeWeightPair &b)
+
+bool sortbyWeightAsc(const InterferenceGraphNode &a, const InterferenceGraphNode &b)
 {
-    return (a.second < b.second);
+    return (a.weight < b.weight);
 }
-bool sortbyWeightDesc(const NodeWeightPair &a, const NodeWeightPair &b)
+bool sortbyWeightDesc(const InterferenceGraphNode &a, const InterferenceGraphNode &b)
 {
-    return (a.second >= b.second);
+    return (a.weight >= b.weight);
+}
+
+bool sortbyNeighborWeightAsc(const InterferenceGraphNode &a, const InterferenceGraphNode &b)
+{
+    return (a.neighborsWeight < b.neighborsWeight);
+}
+
+bool sortbyNeighborWeightDesc(const InterferenceGraphNode &a, const InterferenceGraphNode &b)
+{
+    return (a.neighborsWeight >= b.neighborsWeight);
 }
 
 std::size_t getNeighborsWeight(InterferenceGraph& g, mv::ComputationModel& model, std::string& node, std::size_t alignment)
@@ -61,7 +87,7 @@ std::size_t getNeighborsWeight(InterferenceGraph& g, mv::ComputationModel& model
     //add parents
     for (InterferenceGraph::node_parent_iterator itr(ni); itr != g.node_end(); ++itr)
     {
-        totalWeights += model.getTensor(*itr)->computeTotalSize(alignment);
+        totalWeights += model.getTensor((*itr).name)->computeTotalSize(alignment);
     }
     return totalWeights;
 }
@@ -70,76 +96,74 @@ const std::unordered_map<mv::OrderingStrategy,
     OrderingStrategyFunc , OrderingStrategyClassHash> interferenceGraphNodeSorters_=
 {
     {
-        mv::OrderingStrategy::IG_RANDOM_ORDER, [](InterferenceGraph& g, mv::ComputationModel& model, std::size_t alignment)->std::vector<std::string>
+        mv::OrderingStrategy::IG_RANDOM_ORDER, [](InterferenceGraph& g)->std::vector<std::string>
         {
             std::vector<std::string> res;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
-                res.push_back(*itr);
+                res.push_back((*itr).name);
             }
             std::random_shuffle ( res.begin(), res.end() );
             return res;
         }
     },
     {
-        mv::OrderingStrategy::IG_LARGEST_FIRST_ORDER, [](InterferenceGraph& g, mv::ComputationModel& model, std::size_t alignment)->std::vector<std::string>
+        mv::OrderingStrategy::IG_LARGEST_FIRST_ORDER, [](InterferenceGraph& g)->std::vector<std::string>
         {
             std::vector<std::string> res;
-            std::vector<NodeWeightPair> nodeWeights;
+            std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
-                nodeWeights.push_back(std::make_pair(*itr, model.getTensor(*itr)->computeTotalSize(alignment)));
+                nodeWeights.push_back(*itr);
             }
             sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightDesc);
             std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
-                (const std::string& (*)(const NodeWeightPair&))std::get<0>);
+                [](InterferenceGraphNode c) -> std::string { return c.name; });
             return res;
         }
     },
     {
-        mv::OrderingStrategy::IG_SMALLEST_FIRST_ORDER, [](InterferenceGraph& g, mv::ComputationModel& model, std::size_t alignment)->std::vector<std::string>
+        mv::OrderingStrategy::IG_SMALLEST_FIRST_ORDER, [](InterferenceGraph& g)->std::vector<std::string>
         {
             std::vector<std::string> res;
-            std::vector<NodeWeightPair> nodeWeights;
+            std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
-                nodeWeights.push_back(std::make_pair(*itr, model.getTensor(*itr)->computeTotalSize(alignment)));
+                nodeWeights.push_back(*itr);
             }
-            sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightDesc);
+            sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightAsc);
             std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
-                (const std::string& (*)(const NodeWeightPair&))std::get<0>);
+                [](InterferenceGraphNode c) -> std::string { return c.name; });
             return res;
         }
     },
     {
-        mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST, [](InterferenceGraph& g, mv::ComputationModel& model, std::size_t alignment)->std::vector<std::string>
+        mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST, [](InterferenceGraph& g)->std::vector<std::string>
         {
             std::vector<std::string> res;
-            std::vector<NodeWeightPair> nodeNeighborsWeights;
+            std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
-                nodeNeighborsWeights.push_back(std::make_pair(*itr, getNeighborsWeight(g, model, *itr, alignment)));
+                nodeWeights.push_back(*itr);
             }
-
-            sort(nodeNeighborsWeights.begin(), nodeNeighborsWeights.end(), sortbyWeightDesc);
-            std::transform(nodeNeighborsWeights.begin(), nodeNeighborsWeights.end(), std::back_inserter(res),
-                (const std::string& (*)(const NodeWeightPair&))std::get<0>);
+            sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightDesc);
+            std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
+                [](InterferenceGraphNode c) -> std::string { return c.name; });
             return res;
         }
     },
     {
-        mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST, [](InterferenceGraph& g, mv::ComputationModel& model, std::size_t alignment)->std::vector<std::string>
+        mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST, [](InterferenceGraph& g)->std::vector<std::string>
         {
-            std::vector<std::string> res;
-            std::vector<NodeWeightPair> nodeNeighborsWeights;
+         std::vector<std::string> res;
+            std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
-                nodeNeighborsWeights.push_back(std::make_pair(*itr, getNeighborsWeight(g, model, *itr, alignment)));
+                nodeWeights.push_back(*itr);
             }
-
-            sort(nodeNeighborsWeights.begin(), nodeNeighborsWeights.end(), sortbyWeightAsc);
-            std::transform(nodeNeighborsWeights.begin(), nodeNeighborsWeights.end(), std::back_inserter(res),
-                (const std::string& (*)(const NodeWeightPair&))std::get<0>);
+            sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightAsc);
+            std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
+                [](InterferenceGraphNode c) -> std::string { return c.name; });
             return res;
         }
     },
@@ -217,7 +241,7 @@ void buildCompleteGraph(InterferenceGraph& g, std::set<std::string> tensorNames)
 {
     for (std::set<std::string>::const_iterator name = tensorNames.begin( ); name != tensorNames.end( ); ++name)
     {
-        g.node_insert(*name);
+        g.node_insert(InterferenceGraphNode(*name));
     }
 
     int nodeId = 0;
@@ -299,16 +323,17 @@ void drawGraph(InterferenceGraph &g, std::string outputFile, mv::ComputationMode
 
     for (auto it = g.node_begin(); it != g.node_end(); ++it)
     {
-        std::string nodeDef = "\t\"" + *it + "\" [shape=box,";
-        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + *it + "</B></FONT></TD></TR>";
-        nodeDef += "<TR><TD ALIGN=\"CENTER\"><FONT POINT-SIZE=\"11.0\"> size: " + std::to_string(model.getTensor(*it)->computeTotalSize(16))  + "</FONT></TD></TR>";
+        auto name = (*it).name;
+        std::string nodeDef = "\t\"" + name + "\" [shape=box,";
+        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + name + "</B></FONT></TD></TR>";
+        nodeDef += "<TR><TD ALIGN=\"CENTER\"><FONT POINT-SIZE=\"11.0\"> size: " + std::to_string(model.getTensor(name)->computeTotalSize(16))  + "</FONT></TD></TR>";
         nodeDef += "</TABLE>>";
         ostream << nodeDef << "];\n";
     }
 
     for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
     {
-        std::string edgeDef = "\t\"" + *(it->source()) + "\" -> \"" +  *(it->sink()) + "\"";
+        std::string edgeDef = "\t\"" + (*it->source()).name + "\" -> \"" +  (*it->sink()).name + "\"";
         ostream << edgeDef << "\n";
     }
     ostream << "}\n";
@@ -389,8 +414,8 @@ void genIntereferenceGraph(InterferenceGraph& g, mv::ComputationModel& model , c
         {
             auto nj = g.node_find(*target);
             auto directed_nj = directed_g.node_find(*target);
-            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !mv::pathExists<std::string, int>( directed_ni, directed_nj, directed_g.node_end()) &&
-                !mv::pathExists<std::string, int>(directed_nj, directed_ni, directed_g.node_end()))
+            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !mv::pathExists<InterferenceGraphNode, int>( directed_ni, directed_nj, directed_g.node_end()) &&
+                !mv::pathExists<InterferenceGraphNode, int>(directed_nj, directed_ni, directed_g.node_end()))
             {
                 if (!checkNodeInterference(model, *source, *target) || !checkNodeInterference(model, *target, *source))
                 {
@@ -411,14 +436,14 @@ void printGraph(const InterferenceGraph& g, std::string name)
     std::cout << "==========================================" << std::endl;
     std::cout << "Nodes list: " << std::endl;
     for (auto it = g.node_begin(); it != g.node_end(); ++it)
-        std::cout << *it << " " << std::endl;
+        std::cout << (*it).name << " " << std::endl;
 
     std::cout << std::endl;
 
      // Edges list
     std::cout << "Edges list: " << std::endl;
     for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
-        std::cout << " EDGE: " << *it << " Source " << *(it->source()) <<  " sink " << *(it->sink()) << std::endl;
+        std::cout << " EDGE: " << *it << " Source " << (*it->source()).name <<  " sink " << (*it->sink()).name << std::endl;
 
     std::cout << std::endl;
     std::cout << "=========================================================" << std::endl;
@@ -438,9 +463,9 @@ void cleanupDMATensorNodes(InterferenceGraph& g)
     std::vector<std::string> nodesToRemove;
     for (InterferenceGraph::node_dfs_iterator it = g.node_begin(); it != g.node_end(); ++it)
     {
-        if ((*it).rfind("DMATask", 0) == 0)
+        if ((*it).name.rfind("DMATask", 0) == 0)
         {
-            nodesToRemove.push_back(*it);
+            nodesToRemove.push_back((*it).name);
         }
     }
 
@@ -463,7 +488,16 @@ void cleanupDMATensorNodes(InterferenceGraph& g)
     }
 }
 
-InterferenceGraph buildInterferenceGraph(mv::ComputationModel& model, const TensorIteratorFilter& tensorFilter = nullptr,
+void  addWeightsToInterferenceGraph(mv::ComputationModel& model, InterferenceGraph g, std::size_t alignment)
+{
+    for (InterferenceGraph::node_dfs_iterator it = g.node_begin(); it != g.node_end(); ++it)
+    {
+        (*it).weight = model.getTensor((*it).name)->computeTotalSize(alignment);
+        (*it).neighborsWeight = getNeighborsWeight(g, model, (*it).name, alignment);
+    }
+}
+
+InterferenceGraph buildInterferenceGraph(mv::ComputationModel& model, std::size_t alignment, const TensorIteratorFilter& tensorFilter = nullptr,
     const OpIteratorFilter& taskFilter = nullptr, bool isCompleteTig = false)
 {
 
@@ -477,6 +511,7 @@ InterferenceGraph buildInterferenceGraph(mv::ComputationModel& model, const Tens
         genIntereferenceGraph(g, model , tensorFilter, taskFilter);
     }
     cleanupDMATensorNodes(g);
+    addWeightsToInterferenceGraph(model, g, alignment);
     return g;
 }
 
@@ -498,25 +533,31 @@ InterferenceGraph createGraphCopy(InterferenceGraph& g)
     return copyG;
 }
 
-//TODO we can improve by saving a table of node => neighbors weights
-// and then update the map everytime we remove a node (decrease the weights of it's neighbors
-// by its size before removing it)
-bool isNodeSimplificable(InterferenceGraph& g, mv::ComputationModel& model, std::string& node, long long memorySize, std::size_t alignment)
+bool isNodeSimplificable(InterferenceGraph::node_list_iterator ni, long long memorySize)
 {
-    auto neighborsSize = getNeighborsWeight(g, model, node, alignment);
-    std::cout << "isSimplificable " << node << " neighbor size " << neighborsSize << std::endl;
-
-    return (model.getTensor(node)->getShape().totalSize() <= (memorySize - neighborsSize));
+    //std::cout << " name " << (*ni).name << " weight " << (*ni).weight << " ne_Weight " << (*ni).neighborsWeight << std::endl;
+    return ((*ni).weight <= (memorySize - (*ni).neighborsWeight));
 }
 
-std::string maxWeightedNeighbors(InterferenceGraph& g, mv::ComputationModel& model, std::size_t alignment)
+std::string maxWeightedNeighbors(InterferenceGraph& g)
 {
     auto orderingFunc = interferenceGraphNodeSorters_.at(mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
-    auto orderedNodes = orderingFunc(g, model, alignment);
+    auto orderedNodes = orderingFunc(g);
     return orderedNodes[0];
 }
 
-std::stack<std::string> aggressiveSimplify(InterferenceGraph& g, mv::ComputationModel& model, long long memorySize, std::size_t alignment, mv::OrderingStrategy orderStrategy)
+void removeNodeAndUpdateWeights(InterferenceGraph& g, InterferenceGraph::node_list_iterator ni)
+{
+    auto parentWeight = (*ni).weight;
+    for (InterferenceGraph::node_child_iterator itc(ni); itc != g.node_end(); ++itc)
+    {
+        (*itc).neighborsWeight -= parentWeight;
+    }
+
+    g.node_erase(ni);
+}
+
+std::stack<std::string> aggressiveSimplify(InterferenceGraph& g, long long memorySize, mv::OrderingStrategy orderStrategy)
 {
     //create a copy of g since we are going to delete nodes from it
     InterferenceGraph gCopy = createGraphCopy(g);
@@ -529,26 +570,25 @@ std::stack<std::string> aggressiveSimplify(InterferenceGraph& g, mv::Computation
     while (continueSimplify)
     {
         continueSimplify = false;
-        orderedNodes = orderingFunc(gCopy, model, alignment); //TODO: if random order, we can improve by just removing node from existing orderedNodes
+        orderedNodes = orderingFunc(gCopy);
 
         for (auto itr = orderedNodes.begin(); itr != orderedNodes.end(); itr++)
         {
-            std::cout << "checking " << *itr << std::endl;
-            if (isNodeSimplificable(gCopy, model, *itr, memorySize, alignment))
+            //std::cout << "checking " << *itr << std::endl;
+            auto ni = gCopy.node_find(*itr);
+            if (isNodeSimplificable(ni, memorySize))
             {
-                std::cout << "isSimplificable " << *itr << std::endl;
                 agNodeOrder.push(*itr);
-                auto ni = gCopy.node_find(*itr);
-                gCopy.node_erase(ni);
+                removeNodeAndUpdateWeights(gCopy, ni);
                 continueSimplify = true;
             }
 
             if (gCopy.node_size() > 0 && !continueSimplify)
             {
-                auto node = maxWeightedNeighbors(gCopy, model, alignment);
+                auto node = maxWeightedNeighbors(gCopy);
                 agNodeOrder.push(node);
-                auto ni = gCopy.node_find(node);
-                gCopy.node_erase(ni);
+                auto nj = gCopy.node_find(node);
+                removeNodeAndUpdateWeights(gCopy, nj);
                 continueSimplify = true;
             }
         }
@@ -577,9 +617,9 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
 
     auto memDefs = target.memoryDefs();
 
-    std::cout << "MemoryDefs " << std::endl;
+    pass.log(mv::Logger::MessageType::Debug, "MemoryDefs ");
     for (auto i = memDefs.begin(); i != memDefs.end(); i++)
-        std::cout << i->first << " "  << " size " << i->second.size <<  " alignment " << i->second.alignment << std::endl;
+        pass.log(mv::Logger::MessageType::Debug, ""+ i->first + " size " + std::to_string(i->second.size) +  " alignment " +  std::to_string(i->second.alignment));
 
     //Collect all input/output tensor names
     /*for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
@@ -589,8 +629,9 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
            std::cout << "\t\t DMA direction" << opIterator->get<mv::DmaDirection>("direction");
         std::cout << std::endl;
     }*/
-
-    InterferenceGraph ddr_bss_g = buildInterferenceGraph(model,
+    auto memsize = memDefs.find("VPU_DDR_BSS")->second.size;
+    auto alignment = memDefs.find("VPU_DDR_BSS")->second.alignment;
+    InterferenceGraph ddr_bss_g = buildInterferenceGraph(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
                 return (t->isPopulated());
@@ -603,11 +644,9 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     //printGraph(ddr_bss_g, "DDR_BSS");
     //drawGraph(ddr_bss_g, "ddr_bss.dot", model);
     //system("dot -Tpng ddr_bss.dot -o ddr_bss.png");
-    auto memsize = memDefs.find("VPU_DDR_BSS")->second.size;
-    auto alignment = memDefs.find("VPU_DDR_BSS")->second.alignment;
-    auto agOrder = aggressiveSimplify(ddr_bss_g, model, memsize, alignment, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     printASOrder(agOrder, "DDR_BSS");
-    InterferenceGraph ddr_heap_g = buildInterferenceGraph(model,
+    InterferenceGraph ddr_heap_g = buildInterferenceGraph(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
                 return (!t->isPopulated());
@@ -622,13 +661,13 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     //system("dot -Tpng ddr_heap.dot -o ddr_heap.png");
     memsize = memDefs.find("VPU_DDR_Heap")->second.size;
     alignment = memDefs.find("VPU_DDR_Heap")->second.alignment;
-    agOrder = aggressiveSimplify(ddr_heap_g, model, memsize, alignment, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     printASOrder(agOrder, "DDR_HEAP");
 
-    InterferenceGraph nncmx_g = buildInterferenceGraph(model, nullptr, nullptr, false);
+    InterferenceGraph nncmx_g = buildInterferenceGraph(model, alignment, nullptr, nullptr, false);
     memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
     alignment = memDefs.find("VPU_CMX_NN")->second.alignment;
-    agOrder = aggressiveSimplify(nncmx_g, model, memsize, alignment, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     //printGraph(nncmx_g, "NNCMX");
     //drawGraph(nncmx_g, "nncmx.dot", model);
     //system("dot -Tpng nncmx.dot -o nncmx.png");
