@@ -13,17 +13,16 @@ TEST(graph_coloring, case1)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({24, 24, 3}, mv::DType("Float16"), mv::Order("CHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
-    auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {2, 2}, {0, 0, 0, 0});
+    auto input = om.input({112, 224, 3}, mv::DType("UInt8"), mv::Order("CWH"));
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(7*7*3*64);
+    auto weights = om.constantInt(weightsData, {7, 7, 3, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
 
     om.output(conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    //mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
-    //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
