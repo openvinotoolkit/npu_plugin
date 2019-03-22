@@ -41,6 +41,7 @@
     "keembay_adapt": {
         "Singular": [
             "ConvertOpsToTasks",
+            "AlignTaskWeights",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             {
