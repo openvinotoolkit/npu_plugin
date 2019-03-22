@@ -3,6 +3,8 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/graph/graph.hpp"
+#include "include/mcm/algorithms/edge_exists.hpp"
+#include "include/mcm/algorithms/path_exists.hpp"
 
 
 static void graphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -23,18 +25,6 @@ namespace mv
 using InterferenceGraph = mv::graph<std::string, int>;
 using TensorIteratorFilter = std::function<bool(const mv::Data::TensorIterator& t)>;
 using OpIteratorFilter = std::function<bool(mv::Data::OpListIterator& t)>;
-
-
-
-bool pathExists(const mv::Data::OpListIterator& source, const mv::Data::OpListIterator& sink, const mv::Data::OpListIterator end)
-{
-    for (mv::Data::OpDFSIterator it(source); it != end; ++it)
-    {
-        if (*it == *sink)
-            return true;
-    }
-    return false;
-}
 
 std::string getTensorTopMaster(const mv::Data::TensorIterator& t, mv::ComputationModel& model)
 {
@@ -161,7 +151,7 @@ bool checkNodeInterference(mv::ComputationModel& model, const std::string& tenso
         {
             for (std::set<std::string>::const_iterator target = sourceNodeNames.begin( ); target != sourceNodeNames.end( ); ++target)
             {
-                if (pathExists(om.getOp(*src), om.getOp(*target), om.opEnd()))
+                if (om.pathExists(om.getOp(*src), om.getOp(*target)))
                     return true;
             }
         }
@@ -268,8 +258,8 @@ void genIntereferenceGraph(InterferenceGraph& g, mv::ComputationModel& model , c
         {
             auto nj = g.node_find(*target);
             auto directed_nj = directed_g.node_find(*target);
-            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !mv::pathExists<std::string, int>( directed_ni, directed_nj, directed_g.node_end()) &&
-                !mv::pathExists<std::string, int>(directed_nj, directed_ni, directed_g.node_end()))
+            if (source != target && !checkNodesAreNeighbors(g, ni, nj) && !mv::pathExists(directed_g, directed_ni, directed_nj) &&
+                !mv::pathExists(directed_g, directed_nj, directed_ni))
             {
                 if (!checkNodeInterference(model, *source, *target) || !checkNodeInterference(model, *target, *source))
                 {
@@ -304,14 +294,6 @@ void printGraph(const InterferenceGraph& g, std::string name)
 
 }
 
-bool edgeExists(InterferenceGraph::node_parent_iterator p, InterferenceGraph::node_child_iterator c, InterferenceGraph& g)
-{
-    for (InterferenceGraph::node_child_iterator itc(p); itc != g.node_end(); ++itc)
-        if (*itc == *c)
-            return true;
-    return false;
-}
-
 void cleanupDMATensorNodes(InterferenceGraph& g)
 {
     std::vector<std::string> nodesToRemove;
@@ -332,7 +314,7 @@ void cleanupDMATensorNodes(InterferenceGraph& g)
         {
             for (InterferenceGraph::node_child_iterator itc(ni); itc != g.node_end(); ++itc)
             {
-                if (itp != itc && !edgeExists(itp, itc, g))
+                if (itp != itc && !mv::edgeExists(g, itp, itc))
                 {
                     g.edge_insert(itp, itc, nodeIdx++);
                 }

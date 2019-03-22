@@ -6,6 +6,8 @@
 #include "include/mcm/target/keembay/barrier_deps.hpp"
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/graph/graph.hpp"
+#include "include/mcm/algorithms/path_exists.hpp"
+#include "include/mcm/algorithms/edge_exists.hpp"
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -76,40 +78,6 @@ static void addEdge(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterfe
     big.edge_insert(n2, n1, b2.getID());
 }
 
-static bool hasPath(const mv::Data::OpListIterator& n1, const mv::Data::OpListIterator& n2, const mv::Data::OpListIterator end)
-{
-    for (mv::Data::OpDFSIterator it(n1); it != end; ++it)
-    {
-        if (*it == *n2)
-            return true;
-    }
-
-    for (mv::Data::OpDFSIterator it(n2); it != end; ++it)
-    {
-        if (*it == *n1)
-            return true;
-    }
-
-    return false;
-}
-
-static bool edgeExists(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterferenceGraph& big)
-{
-    auto n1 = big.node_find(b1);
-    auto n2 = big.node_find(b2);
-
-    // since BIG is an undirected graph, checking either parents or children
-    // list is sufficient to tell whether there exists an edge between two
-    // barriers.
-    for (BarrierInterferenceGraph::node_parent_iterator it(n1); it != big.node_end(); ++it)
-    {
-        if (*it == *n2)
-            return true;
-    }
-
-    return false;
-}
-
 static void generateBarrierInterferenceGraph(mv::OpModel& om, std::vector<mv::Barrier>& barriers)
 {
     BarrierInterferenceGraph big;
@@ -157,7 +125,9 @@ static void generateBarrierInterferenceGraph(mv::OpModel& om, std::vector<mv::Ba
                 {
                     for (auto& c2: b2.getConsumers())
                     {
-                        if (!hasPath(om.getOp(c1), om.getOp(c2), om.opEnd()) && !edgeExists(b1, b2, big))
+                        auto b1It = big.node_find(b1);
+                        auto b2It = big.node_find(b2);
+                        if (!om.pathExists(om.getOp(c1), om.getOp(c2)) && !mv::edgeExists(big, b1It, b2It))
                             addEdge(b1, b2, big);
                     }
                 }
