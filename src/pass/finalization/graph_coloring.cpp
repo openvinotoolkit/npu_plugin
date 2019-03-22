@@ -40,8 +40,7 @@ struct InterferenceGraphNode
 using InterferenceGraph = mv::graph<InterferenceGraphNode, int>;
 using TensorIteratorFilter = std::function<bool(const mv::Data::TensorIterator& t)>;
 using OpIteratorFilter = std::function<bool(mv::Data::OpListIterator& t)>;
-using NodeWeightPair = std::pair<std::string,size_t>;
-using OrderingStrategyFunc = std::function<std::vector<std::string>(InterferenceGraph& g)>;
+using OrderingStrategyFunc = std::function<std::vector<InterferenceGraphNode>(InterferenceGraph& g)>;
 
 struct OrderingStrategyClassHash
 {
@@ -96,75 +95,63 @@ const std::unordered_map<mv::OrderingStrategy,
     OrderingStrategyFunc , OrderingStrategyClassHash> interferenceGraphNodeSorters_=
 {
     {
-        mv::OrderingStrategy::IG_RANDOM_ORDER, [](InterferenceGraph& g)->std::vector<std::string>
+        mv::OrderingStrategy::IG_RANDOM_ORDER, [](InterferenceGraph& g)->std::vector<InterferenceGraphNode>
         {
-            std::vector<std::string> res;
+            std::vector<InterferenceGraphNode> res;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
-                res.push_back((*itr).name);
+                res.push_back((*itr));
             }
             std::random_shuffle ( res.begin(), res.end() );
             return res;
         }
     },
     {
-        mv::OrderingStrategy::IG_LARGEST_FIRST_ORDER, [](InterferenceGraph& g)->std::vector<std::string>
+        mv::OrderingStrategy::IG_LARGEST_FIRST_ORDER, [](InterferenceGraph& g)->std::vector<InterferenceGraphNode>
         {
-            std::vector<std::string> res;
             std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
                 nodeWeights.push_back(*itr);
             }
             sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightDesc);
-            std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
-                [](InterferenceGraphNode c) -> std::string { return c.name; });
-            return res;
+            return nodeWeights;
         }
     },
     {
-        mv::OrderingStrategy::IG_SMALLEST_FIRST_ORDER, [](InterferenceGraph& g)->std::vector<std::string>
+        mv::OrderingStrategy::IG_SMALLEST_FIRST_ORDER, [](InterferenceGraph& g)->std::vector<InterferenceGraphNode>
         {
-            std::vector<std::string> res;
             std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
                 nodeWeights.push_back(*itr);
             }
             sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightAsc);
-            std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
-                [](InterferenceGraphNode c) -> std::string { return c.name; });
-            return res;
+            return nodeWeights;
         }
     },
     {
-        mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST, [](InterferenceGraph& g)->std::vector<std::string>
+        mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST, [](InterferenceGraph& g)->std::vector<InterferenceGraphNode>
         {
-            std::vector<std::string> res;
             std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
                 nodeWeights.push_back(*itr);
             }
             sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightDesc);
-            std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
-                [](InterferenceGraphNode c) -> std::string { return c.name; });
-            return res;
+            return nodeWeights;
         }
     },
     {
-        mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST, [](InterferenceGraph& g)->std::vector<std::string>
+        mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST, [](InterferenceGraph& g)->std::vector<InterferenceGraphNode>
         {
-         std::vector<std::string> res;
             std::vector<InterferenceGraphNode> nodeWeights;
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
                 nodeWeights.push_back(*itr);
             }
             sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightAsc);
-            std::transform(nodeWeights.begin(), nodeWeights.end(), std::back_inserter(res),
-                [](InterferenceGraphNode c) -> std::string { return c.name; });
-            return res;
+            return nodeWeights;
         }
     },
 };
@@ -543,7 +530,24 @@ std::string maxWeightedNeighbors(InterferenceGraph& g)
 {
     auto orderingFunc = interferenceGraphNodeSorters_.at(mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     auto orderedNodes = orderingFunc(g);
-    return orderedNodes[0];
+
+    //In case of a tie, return the node with min weight to minimize the spill cost
+    auto itr = orderedNodes.begin();
+    auto max = (*itr).neighborsWeight;
+    auto minWeight = (*itr).weight;
+    auto selectedNode = (*itr).name;
+    itr++;
+    while (itr != orderedNodes.end() && (*itr).neighborsWeight == max)
+    {
+        if ((*itr).weight < minWeight)
+        {
+            selectedNode = (*itr).name;
+            minWeight = (*itr).weight;
+        }
+        itr++;
+    }
+
+    return selectedNode;
 }
 
 void removeNodeAndUpdateWeights(InterferenceGraph& g, InterferenceGraph::node_list_iterator ni)
@@ -562,7 +566,7 @@ std::stack<std::string> aggressiveSimplify(InterferenceGraph& g, long long memor
     //create a copy of g since we are going to delete nodes from it
     InterferenceGraph gCopy = createGraphCopy(g);
     std::stack<std::string> agNodeOrder;
-    std::vector<std::string> orderedNodes;
+    std::vector<InterferenceGraphNode> orderedNodes;
     auto orderingFunc = interferenceGraphNodeSorters_.at(orderStrategy);
 
     bool continueSimplify = true;
@@ -578,7 +582,7 @@ std::stack<std::string> aggressiveSimplify(InterferenceGraph& g, long long memor
             auto ni = gCopy.node_find(*itr);
             if (isNodeSimplificable(ni, memorySize))
             {
-                agNodeOrder.push(*itr);
+                agNodeOrder.push((*itr).name);
                 removeNodeAndUpdateWeights(gCopy, ni);
                 continueSimplify = true;
             }
