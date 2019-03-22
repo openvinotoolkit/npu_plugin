@@ -41,6 +41,7 @@ namespace mv
 
         void addGroupElement(Data::OpListIterator element, GroupIterator group);
         void removeGroupElement(Data::OpListIterator element, GroupIterator group);
+        std::vector<Data::OpListIterator> topologicalSort();
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
 

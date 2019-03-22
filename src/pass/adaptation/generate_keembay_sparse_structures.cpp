@@ -4,8 +4,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <math.h>
 
-static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,13 +13,13 @@ namespace mv
     {
 
         MV_REGISTER_PASS(GenerateSparsityMaps)
-        .setFunc(GenerateSparsityMapsFcn)
+        .setFunc(generateSparsityMapsFcn)
         .setDescription(
             "Generates sparsity maps for the Tasks that need them"
         );
 
         MV_REGISTER_PASS(GenerateWeightsTables)
-        .setFunc(GenerateWeightsTablesFcn)
+        .setFunc(generateWeightsTablesFcn)
         .setDescription(
             "Generates weights tables for the Tasks that need them"
         );
@@ -29,8 +29,6 @@ namespace mv
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
     auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
-    om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
@@ -105,48 +103,28 @@ mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterato
     }
     auto weightTable = om.constantInt(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    weightTable = om.dMATask(weightTable, mv::DmaDirectionEnum::DDR2CMX);
-    om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(weightTable);
+    om.defineFlow(weightTable, dpuTaskOp, dpuTaskOp->inputSlots());
 
     return weightTable;
 }
 
 
-static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
-            auto opId = dpuTask->get<unsigned>("opId");
             unsigned weightsTableSize;
             std::string opName = dpuTask->getName();
 
             weightsTableSize = dpuTask->getOutputTensor(0)->getShape()[2];
 
             std::string kernelWeightsTableName(opName + "WeightsTable");
-            std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
-            auto weightTable = addWeightsTable(om, dpuTask, kernelWeightsTableName, weightsTableSize);
-
-            om.defineFlow(weightTable, dpuTask, dpuTask->inputSlots());
-            om.deallocate(weightTable, kernelWeightsTableDeallocationName);
-            auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
-
-            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
-            cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
-
-            // Define a flow between dmaKernelWeightsTableFreeOp and next operation in the graph (but avoid dealloc)
-            for(auto outputDataFlow = dpuTask.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
-            {
-                auto sink = outputDataFlow.sink();
-                if(sink->getOpType() != "Deallocate")
-                    cm.defineFlow(dmaKernelWeightsTableFreeOp, sink);
-            }
+            addWeightsTable(om, dpuTask, kernelWeightsTableName, weightsTableSize);
         }
     }
 }
@@ -203,11 +181,9 @@ mv::Data::TensorIterator findSourceOperation(mv::OpModel om, mv::Data::TensorIte
     return tensor;
 }
 
-static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -286,26 +262,10 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                             for(unsigned oc = 0; oc < sparsityShape[3]; ++oc)
                                 sparsityTensor.at({kx, ky, ic, oc}) = static_cast<int64_t>(perChannelSparsity[ky*sparsityShape[0] + kx]);
 
-                auto opId = dpuTask->get<unsigned>("opId");
                 std::string opName = dpuTask->getName();
 
                 std::string sparsityMapName(opName + "SparsityMap");
-                std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
-                auto sparsityMapDma = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
-
-                om.deallocate(sparsityMapDma, sparsityMapDeallocationName);
-                auto dmaSparsityMapFreeOp = om.getOp(sparsityMapDeallocationName);
-
-                dmaSparsityMapFreeOp->set<unsigned>("opId", opId);
-                cm.defineFlow(dpuTask, dmaSparsityMapFreeOp);
-
-                // Define a flow between dmaSparsityMapFreeOp and next operation in the graph (but avoid dealloc)
-                for(auto outputDataFlow = dpuTask.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
-                {
-                    auto sink = outputDataFlow.sink();
-                    if(sink->getOpType() != "Deallocate")
-                        cm.defineFlow(dmaSparsityMapFreeOp, sink);
-                }
+                createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
 
                 dpuTask->set<bool>("fakeSparsity", true);
             }

@@ -36,31 +36,31 @@ static void generateJSONFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     if (!ostream.is_open())
         throw mv::ArgumentError(model, "filename", outputPath, "Unable to open output filename");
 
-    mv::json::Value computationModel = model.toJSON();
-    ostream << computationModel.stringifyPretty();
-    ostream.close();
+    // mv::json::Value computationModel = model.toJSON();
+    // ostream << computationModel.stringifyPretty();
+    // ostream.close();
 
     //Any populated tensors are serialized in different files
-    if(model.hasPopulatedTensorsToJSON())
-    {
-        for(auto tensorIt = model.tensorBegin(); tensorIt != model.tensorEnd(); ++tensorIt)
-        {
-            if(!tensorIt->isPopulated())
-                continue;
-            std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
-            std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out | std::ios::binary);
+    // if(model.hasPopulatedTensorsToJSON())
+    // {
+    //     for(auto tensorIt = model.tensorBegin(); tensorIt != model.tensorEnd(); ++tensorIt)
+    //     {
+    //         if(!tensorIt->isPopulated())
+    //             continue;
+    //         std::string currentTensorOutputPath(outputPathNoExt+"_"+tensorIt->getName());
+    //         std::ofstream currentTensorOutputStream(currentTensorOutputPath, std::ios::trunc | std::ios::out | std::ios::binary);
 
-            if (tensorIt->isDoubleType())
-            {
-                std::vector<double> tensorData(tensorIt->getDoubleData());
-                currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
-            }
-            else
-            {
-                std::vector<int64_t> tensorData(tensorIt->getIntData());
-                currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
-            }
-            currentTensorOutputStream.close();
-        }
-    }
+    //         if (tensorIt->isDoubleType())
+    //         {
+    //             std::vector<double> tensorData(tensorIt->getDoubleData());
+    //             currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
+    //         }
+    //         else
+    //         {
+    //             std::vector<int64_t> tensorData(tensorIt->getIntData());
+    //             currentTensorOutputStream.write(reinterpret_cast<char*>(&tensorData[0]), tensorData.size() * sizeof(tensorData[0]));
+    //         }
+    //         currentTensorOutputStream.close();
+    //     }
+    // }
 }
