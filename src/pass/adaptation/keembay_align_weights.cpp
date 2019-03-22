@@ -13,7 +13,7 @@ namespace mv
         MV_REGISTER_PASS(AlignTaskWeights)
             .setFunc(alignTaskWeightsFcn)
             .setDescription(
-                "Aligns weights involved in DPUTasks in the correct order required by Keembay");
+                "Aligns weights involved in DPUTasks in the correct shape and order required by Keembay");
     }
 }
 
