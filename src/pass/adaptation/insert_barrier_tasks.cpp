@@ -5,6 +5,7 @@
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 #include "include/mcm/target/keembay/barrier_deps.hpp"
 #include "include/mcm/target/keembay/workloads.hpp"
+#include "include/mcm/graph/graph.hpp"
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -32,33 +33,169 @@ namespace mv
 
 }
 
-static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers, const mv::Element& passDesc)
-{
-    // TODO: Update barrier group and index based on graph coloring algorithm
+using BarrierInterferenceGraph = mv::graph<mv::Barrier, int>;
 
+static void drawBIG(BarrierInterferenceGraph &g, std::string outputFile)
+{
+    std::ofstream ostream;
+
+    ostream.open(outputFile, std::ios::trunc | std::ios::out);
+    ostream << "digraph G {\n\tgraph [splines=spline]\n";
+
+    for (auto it = g.node_begin(); it != g.node_end(); ++it)
+    {
+        std::string vIdx = std::to_string((*it).getID());
+        std::string nodeDef = "\t\"" + vIdx + "\" [shape=box,";
+        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + vIdx + "</B></FONT></TD></TR>";
+        nodeDef += "</TABLE>>";
+        ostream << nodeDef << "];\n";
+    }
+
+    for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
+    {
+        std::string vIdxSrc = std::to_string((*(it->source())).getID());
+        std::string vIdxSnk = std::to_string((*(it->sink())).getID());
+        std::string edgeDef = "\t\"" + vIdxSrc + "\" -> \"" +  vIdxSnk + "\"";
+        ostream << edgeDef << "\n";
+    }
+    ostream << "}\n";
+    ostream.close();
+
+    std::string pngFile = outputFile.substr(0, outputFile.find(".dot")) + ".png";
+
+    std::string systemCmd = "dot -Tpng " + outputFile + " -o " + pngFile;
+    std::cout << systemCmd;
+    system(systemCmd.c_str());
+}
+
+static void addEdge(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterferenceGraph& big)
+{
+    auto n1 = big.node_find(b1);
+    auto n2 = big.node_find(b2);
+    big.edge_insert(n1, n2, b1.getID());
+    big.edge_insert(n2, n1, b2.getID());
+}
+
+static bool hasPath(const mv::Data::OpListIterator& n1, const mv::Data::OpListIterator& n2, const mv::Data::OpListIterator end)
+{
+    for (mv::Data::OpDFSIterator it(n1); it != end; ++it)
+    {
+        if (*it == *n2)
+            return true;
+    }
+
+    for (mv::Data::OpDFSIterator it(n2); it != end; ++it)
+    {
+        if (*it == *n1)
+            return true;
+    }
+
+    return false;
+}
+
+static bool edgeExists(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterferenceGraph& big)
+{
+    auto n1 = big.node_find(b1);
+    auto n2 = big.node_find(b2);
+
+    // since BIG is an undirected graph, checking either parents or children
+    // list is sufficient to tell whether there exists an edge between two
+    // barriers.
+    for (BarrierInterferenceGraph::node_parent_iterator it(n1); it != big.node_end(); ++it)
+    {
+        if (*it == *n2)
+            return true;
+    }
+
+    return false;
+}
+
+static void generateBarrierInterferenceGraph(mv::OpModel& om, std::vector<mv::Barrier>& barriers)
+{
+    BarrierInterferenceGraph big;
+
+    // Insert all barriers into interference graph
+    for (auto& b: barriers)
+    {
+        big.node_insert(b);
+    }
+
+    // Draw edges
+    // Case 1: 2 barriers share the same op in their producer and consumer list,
+    // like so: b1->op->b2. i.e. op is in b1's consumer list and b2's producer list.
+    // In this case b1 and b2 are concurrent, so an edge exists between b1 and b2.
+
+    for (auto& b1: barriers)
+    {
+        for (auto& c: b1.getConsumers())
+        {
+            for (auto& b2: barriers)
+            {
+                auto concurrentBarrier = std::find(b2.getProducers().begin(), b2.getProducers().end(), c);
+                if (concurrentBarrier != b2.getProducers().end())
+                {
+                    // b1's consumer is the same as b2's producer, so add an edge
+                    addEdge(b1, b2, big);
+                }
+            }
+        }
+    }
+
+    // Case 2: b1 and b2 are on parallel paths.
+    // Try all possible combinations of operations & check whether they're an ancestor
+    // or a descendent of this op.
+    // Subsequently check whether an edge already exists between barriers associated with
+    // the two ops. If not, add an edge between the two barriers in the BIG.
+
+    for (auto& b1: barriers)
+    {
+        for (auto& c1: b1.getConsumers())
+        {
+            for (auto& b2: barriers)
+            {
+                if (b1 != b2)
+                {
+                    for (auto& c2: b2.getConsumers())
+                    {
+                        if (!hasPath(om.getOp(c1), om.getOp(c2), om.opEnd()) && !edgeExists(b1, b2, big))
+                            addEdge(b1, b2, big);
+                    }
+                }
+            }
+        }
+    }
+
+    drawBIG(big, "big.dot");
+}
+
+static void setBarrierGroupAndIndex(mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
+{
     int numBarriers = 0 ;
     int barrierIndex = 0;
     int barrierGroup = 0;
     std::string indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
 
-    for (auto& barrier: barriers)
+    // TODO: Update barrier group and index based on graph coloring algorithm
+    if (indexAssignment == "Static")
     {
-        if (indexAssignment == "Static")
-        {
-            barrierGroup = numBarriers / 8;
-            barrierIndex = numBarriers % 8;
-        }
-        else
-        {
-            barrierGroup = 0;
-            barrierIndex = numBarriers;
-        }
+        // 1) generate BIG
+        // 2) Apply coloring algorithm to assign indices below
 
-        // TODO: Update barrier group and index based on graph coloring algorithm
-        barrier.setGroup(barrierGroup);
-        barrier.setIndex(barrierIndex);
+        generateBarrierInterferenceGraph(om, barriers);
 
-        numBarriers++;
+        for (auto& barrier: barriers)
+        {
+            barrierGroup = barrier.getID() / 8;
+            barrierIndex = barrier.getID() % 8;
+
+            barrier.setGroup(barrierGroup);
+            barrier.setIndex(barrierIndex);
+        }
+    }
+    else
+    {
+        for (auto& barrier: barriers)
+            barrier.setIndex(barrier.getID());
     }
 }
 
@@ -71,16 +208,7 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
 
     for (auto& barrier: barriers)
     {
-        int group = barrier.getGroup();
-        int index = barrier.getIndex();
-        int barrierNum;
-
-        if (indexAssignment == "Static")
-            barrierNum = group * 8 + index;
-        else
-            barrierNum = index;
-
-        std::string barrierName("BarrierTask_" + std::to_string(barrierNum));
+        std::string barrierName("BarrierTask_" + std::to_string(barrier.getID()));
         om.barrierTask(barrier, barrierName);
 
         // Add control flows to insert this barrier to the control flow graph
@@ -160,7 +288,7 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         }
     }
 
-    setBarrierGroupAndIndex(barriers, passDesc);
+    setBarrierGroupAndIndex(om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
 }
