@@ -38,9 +38,11 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             // NOTE: Is the assumption double correct?
             auto weightSetDimension = kernelShape[0]*kernelShape[1]*kernelShape[2];
             mv::Shape newShape({kernelShape[3], 1, 1, mv::round_up(weightSetDimension, 16)});
-            std::vector<double> newData(newShape.totalSize(), 0);
             std::vector<double> oldData = kernel->getDoubleData();
-            std::copy(oldData.begin(), oldData.end(), newData.begin());
+            oldData.reserve(newShape.totalSize());
+            for(unsigned i = 0; i < newShape.totalSize() - kernelShape.totalSize(); ++i)
+                oldData.push_back(0);
+            std::vector<double> newData(std::move(oldData));
             auto newKernelOp = om.constant(newData, newShape, kernel->getDType(), kernel->getOrder(), "Aligned"+kernelOp->getName());
             om.removeOp(kernelOp);
 
