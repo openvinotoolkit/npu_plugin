@@ -7,6 +7,7 @@
 #include "include/mcm/computation/model/model_element.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
+#include "include/mcm/tensor/shape.hpp"
 
 namespace mv
 {
@@ -48,6 +49,9 @@ namespace mv
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         std::string toString() const;
+        double getAllWorkloadsVolume() const;
+        bool noOverlap() const;
+        mv::Shape getShapefromMinMax() const;
     };
 }
 

@@ -36,7 +36,11 @@
             "ConvertToTaskGraph",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
-            "InsertBarrierTasks",
+            "GraphColoring",
+            {
+                "name": "InsertBarrierTasks",
+                "barrier_index_assignment" : "Dynamic"
+            },
             "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
@@ -51,6 +55,7 @@
         "Singular": [
             "GenerateWorkloads",
             "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
 			      "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
 			      "MaxTopologicalCut",
@@ -82,7 +87,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "Scheduling": "Static"
+                "barrier_index_assignment": "Dynamic"
             }
         ]
     },

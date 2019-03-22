@@ -29,6 +29,16 @@ namespace mv
         int getNumProducers() const;
         int getNumConsumers() const;
 
+        /**
+         * Note#1: These APIs are required to support workloads in DPU tasks. If these APIs are
+         * invoked, numProducers will no longer be the same size as producers_.size(). Same
+         * comment for numConsumers as well.
+         * Note#2: numProducers and numConsumers does not affect interference graph generation or
+         * it's coloring.
+         */
+        void setNumProducers(int producers);
+        void setNumConsumers(int consumers);
+
         void setGroup(int group);
         void setIndex(int index);
 

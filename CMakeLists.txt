@@ -76,6 +76,7 @@ file(GLOB base
     "src/target/keembay/ppe_layer_type.cpp"
     "src/target/keembay/ppe_fixed_function.cpp"
     "src/target/keembay/workloads.cpp"
+    "src/target/keembay/rectangle.cpp"
     "src/utils/parser/json_text.cpp"
     "src/utils/serializer/file_buffer.cpp"
     "src/deployer/Fp16Convert.cpp"

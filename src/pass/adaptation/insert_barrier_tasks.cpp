@@ -4,8 +4,10 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 #include "include/mcm/target/keembay/barrier_deps.hpp"
+#include "include/mcm/target/keembay/workloads.hpp"
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -18,23 +20,41 @@ namespace mv
         .setDescription(
             "This pass inserts barrier tasks into the compute graph"
         );
+
+        MV_REGISTER_PASS(UpdateBarrierProducerConsumerCounts)
+        .setFunc(updateCountsFcn)
+        .setDescription(
+            "This pass updates producer and consumer counts in barriers based on workloads in producer and consumer \
+            DxxTasks in the compute graph"
+        );
+
     }
+
 }
 
-static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers)
+static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers, const mv::Element& passDesc)
 {
     // TODO: Update barrier group and index based on graph coloring algorithm
 
     int numBarriers = 0 ;
     int barrierIndex = 0;
     int barrierGroup = 0;
+    std::string indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
 
     for (auto& barrier: barriers)
     {
-        // TODO: Update barrier group and index based on graph coloring algorithm
-        barrierGroup = numBarriers / 8;
-        barrierIndex = numBarriers % 8;
+        if (indexAssignment == "Static")
+        {
+            barrierGroup = numBarriers / 8;
+            barrierIndex = numBarriers % 8;
+        }
+        else
+        {
+            barrierGroup = 0;
+            barrierIndex = numBarriers;
+        }
 
+        // TODO: Update barrier group and index based on graph coloring algorithm
         barrier.setGroup(barrierGroup);
         barrier.setIndex(barrierIndex);
 
@@ -42,13 +62,23 @@ static void setBarrierGroupAndIndex(std::vector<mv::Barrier>& barriers)
     }
 }
 
-static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel& cm, const std::vector<mv::Barrier>& barriers)
+static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, const mv::Element& passDesc, const std::vector<mv::Barrier>& barriers)
 {
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    std::string indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
+
     for (auto& barrier: barriers)
     {
         int group = barrier.getGroup();
         int index = barrier.getIndex();
-        int barrierNum = group * 8 + index;
+        int barrierNum;
+
+        if (indexAssignment == "Static")
+            barrierNum = group * 8 + index;
+        else
+            barrierNum = index;
 
         std::string barrierName("BarrierTask_" + std::to_string(barrierNum));
         om.barrierTask(barrier, barrierName);
@@ -72,7 +102,7 @@ static void insertBarriersIntoControlFlowGraph(mv::OpModel& om, mv::ControlModel
     }
 }
 
-void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -130,7 +160,45 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         }
     }
 
-    setBarrierGroupAndIndex(barriers);
+    setBarrierGroupAndIndex(barriers, passDesc);
 
-    insertBarriersIntoControlFlowGraph(om, cm, barriers);
+    insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
+}
+
+static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    auto barrierTasks = om.getOps("BarrierTask");
+
+    for (auto bt: barrierTasks)
+    {
+        auto& barrier = bt->get<mv::Barrier>("Barrier");
+
+        for (auto producer: barrier.getProducers())
+        {
+            auto producerOp = om.getOp(producer);
+            if (producerOp->hasAttr("Workloads"))
+            {
+                auto& workloads = producerOp->get<mv::Workloads>("Workloads");
+                int count = barrier.getNumProducers();
+                count = count - 1 + workloads.nWorkloads();
+                barrier.setNumProducers(count);
+            }
+        }
+
+        for (auto consumer: barrier.getConsumers())
+        {
+            auto consumerOp = om.getOp(consumer);
+
+            if (consumerOp->hasAttr("Workloads"))
+            {
+                auto& workloads = consumerOp->get<mv::Workloads>("Workloads");
+                int count = barrier.getNumConsumers();
+                count = count - 1 + workloads.nWorkloads();
+                barrier.setNumConsumers(count);
+            }
+        }
+    }
 }
