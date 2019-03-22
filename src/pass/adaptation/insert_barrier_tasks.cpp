@@ -92,14 +92,14 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
     mv::DataModel dm(model);
 
     std::vector<mv::Barrier> barriers;
-
+/*
     // for testing, add edge from partial serialization
     auto inbounddmaOp = om.getOp("DMATask_3");
     auto aconvOp = om.getOp("DPU_Conv_0");
     auto bconvOp = om.getOp("DMATask_2");
     cm.defineFlow(aconvOp, inbounddmaOp);
     cm.defineFlow(bconvOp, inbounddmaOp);
-
+*/
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         auto opType = opIt->getOpType();
