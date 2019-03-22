@@ -285,7 +285,7 @@ void mv::Tensor::setSparse()
 {
     mv::Order order =  getOrder();
     if (!order.isZMajor())
-        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NWHC)");
+        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
 
     if (order.size() < 3)
         throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires order of size >= 3");
