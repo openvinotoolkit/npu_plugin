@@ -52,18 +52,21 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
 
     auto opIt = om.getOutput();
     auto input = opIt->getInputTensor(0);
+    auto inputOp = om.getSourceOp(input);
 
     auto opId = opIt->get<unsigned>("opId");
     std::string oldOutputName(opIt->getName());
 
     if(isTensorInCMX(input, om))
     {
-        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR);
-        om.getSourceOp(newInput)->set<unsigned>("opId", opId);
+        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, "DMA"+inputOp->getName());
+        auto newInputOp = om.getSourceOp(newInput);
+        newInputOp->set<unsigned>("opId", opId);
         auto backup = opIt;
         om.removeOp(backup);
         om.output(newInput, oldOutputName);
-        om.getOp(oldOutputName)->set<unsigned>("opId", opId);
+        auto newOutputOp = om.getOp(oldOutputName);
+        newOutputOp->set<unsigned>("opId", opId);
     }
 }
 
@@ -113,7 +116,7 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                 std::string inputDeallocationName("Deallocate"+inputOpName);
                 if(!isTensorInCMX(inputTensor, om))
                 {
-                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX);
+                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, "DMA"+inputOp->getName());
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
