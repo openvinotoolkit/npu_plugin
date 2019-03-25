@@ -816,6 +816,29 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
 {
     std::size_t res;
+
+    auto shape = getShape();
+
+    //use shape of master
+    if (hasAttr("master"))
+    {
+        if (hasAttr("leftPadding"))
+        {
+            auto padding = get<std::vector<std::size_t>>("leftPadding");
+            for (std::size_t i = 0; i < padding.size(); ++i)
+            {
+                shape[i] += padding[i];
+            }
+        }
+        if (hasAttr("rightPadding"))
+        {
+            auto padding = get<std::vector<std::size_t>>("rightPadding");
+            for (std::size_t i = 0; i < padding.size(); ++i)
+                shape[i] += padding[i];
+
+        }
+    }
+
     if (isSparse())
     {
         if (isPopulated())
@@ -824,14 +847,14 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
         }
         else
         {
-            res = getShape().totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+            res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
             res += getSparsityMap()->computeTotalSize();
             res += getStorageElement()->computeTotalSize();
         }
     }
     else
     {
-        res = getShape().totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+        res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
     }
     //Round up to align to (alignment) 16 bytes
     res = ((res + alignment - 1)/alignment) * alignment;
