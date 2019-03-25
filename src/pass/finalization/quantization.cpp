@@ -104,15 +104,19 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
 
             //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
-            auto bits = output->getDType().getSizeInBits();
-            auto shift = 2*bits - 1;
-            auto intScale = pow(2, shift);
-
+            auto bits = 2*output->getDType().getSizeInBits() - 1;
+            auto mSize = m.size();
+            int exponent;
+            double mantissa;
+            std::vector<int> shift(mSize);
             std::vector<int16_t> mScaled(m.size());
 
-            //m*intScaled
-            for (unsigned i = 0; i < m.size(); ++i)
-                mScaled[i] = (int16_t) (m[i] * intScale);
+            for (size_t i = 0; i < mSize; i++)
+            {
+                mantissa = std::frexp(m[i], &exponent);
+                shift[i] = bits - exponent;
+                mScaled[i] = (mantissa * pow(2, bits));
+            }
 
             std::vector<int32_t> zeroPointScaled(m.size());
             std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
@@ -153,7 +157,7 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             // TODO mult & prelu are currently not implemented
             for (size_t i = 0; i < weightsTableData.size(); i+=4)
             {
-                weightsTableData[i+2] = ((int32_t)mScaled[i/4] << 16) | shift << 2;
+                weightsTableData[i+2] = ((int32_t)mScaled[i/4] << 16) | ((int32_t)shift[i/4]) << 8;
                 weightsTableData[i+3] = biasData[i/4];
             }
 
