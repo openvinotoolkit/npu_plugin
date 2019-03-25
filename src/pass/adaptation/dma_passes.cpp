@@ -139,8 +139,10 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                 if(!om.checkOp(inputDeallocationName))
                     om.deallocate(inputTensor, inputDeallocationName);
                 auto deallocateInputOp = om.getOp(inputDeallocationName);
+                auto inputTensorOp = om.getSourceOp(inputTensor);
                 deallocateInputOp->set<unsigned>("opId", opId);
                 cm.defineFlow(opIt, deallocateInputOp);
+                cm.defineFlow(inputTensorOp, deallocateInputOp);
             }
         }
     }
