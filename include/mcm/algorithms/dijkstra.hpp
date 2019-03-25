@@ -57,8 +57,8 @@ namespace mv
          // Inserting the source into heap and graph
          distances[source] = zeroCost;
          previous[source] = source;
-         HeapContent<NodeValue, DistanceValue> source_heap = {source, distances[source]};
-         minHeap.push(source_heap);
+         HeapContent<NodeValue, DistanceValue> sourceHeap = {source, distances[source]};
+         minHeap.push(sourceHeap);
          generatedNodes.insert(source);
 
          while(!minHeap.empty())
@@ -136,8 +136,8 @@ namespace mv
         distances[source] = zeroCost;
         previous[source] = source;
 
-        HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int> source_heap = {source, distances[source]};
-        minHeap.push(source_heap);
+        HeapContent<typename graph<T_node, T_edge>::node_list_iterator, int> sourceHeap = {source, distances[source]};
+        minHeap.push(sourceHeap);
 
         while(!minHeap.empty())
         {
