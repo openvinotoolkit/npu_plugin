@@ -35,6 +35,8 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             auto kernelOp = om.getSourceOp(kernel);
             auto kernelShape = kernel->getShape();
 
+            opIt->set<std::array<unsigned short, 2>>("ksize", {kernelShape[0], kernelShape[1]});
+
             // NOTE: Is the assumption double correct?
             auto weightSetDimension = kernelShape[0]*kernelShape[1]*kernelShape[2];
             mv::Shape newShape({kernelShape[3], 1, 1, mv::round_up(weightSetDimension, 16)});
