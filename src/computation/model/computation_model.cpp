@@ -501,6 +501,7 @@ std::string mv::ComputationModel::getName() const
 {
     return name_;
 }
+<<<<<<< Upstream, based on master
 
 mv::Element mv::ComputationModel::getGlobalConfigParams() const
 {
@@ -515,4 +516,20 @@ void mv::ComputationModel::setGlobalConfigParams(mv::Element element)
     //for (auto key : element.attrsKeys())
     //    log(Logger::MessageType::Debug, key);
     //log(Logger::MessageType::Debug, element.get<std::string>("barrier_index_assignment"));
+=======
+/*
+mv::Element mv::ComputationModel::getGlobalConfigParams() const
+{
+    return globalConfigParams_;
+}
+*/
+void mv::ComputationModel::setGlobalConfigParams(mv::Element element)
+{
+    //globalConfigParams_ = element;
+    
+    //TODO: debug, remove
+    for (auto key : element.attrsKeys())
+        log(Logger::MessageType::Debug, key);
+    log(Logger::MessageType::Debug, element.get<std::string>("barrier_index_assignment"));
+>>>>>>> c60fe2a First pass at adding global params to CM
 }

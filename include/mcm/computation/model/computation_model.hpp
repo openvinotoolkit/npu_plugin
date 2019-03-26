@@ -128,11 +128,15 @@ namespace mv
 
         std::reference_wrapper<ComputationModel> getRef();
 
+<<<<<<< Upstream, based on master
         /**
          * @brief gets global params stored under GlobalConfigParams in Compilation Descriptor
          * 
          * @return compilation descriptor Element*/
         mv::Element getGlobalConfigParams() const;
+=======
+        //mv::Element getGlobalConfigParams() const;
+>>>>>>> c60fe2a First pass at adding global params to CM
         void setGlobalConfigParams(mv::Element element);
 
         std::string getName() const;
