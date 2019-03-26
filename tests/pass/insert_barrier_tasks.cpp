@@ -147,7 +147,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
 
     auto conv5 = om.conv(add1, weights5, {1, 1}, {1, 1, 1, 1}); // barrier 7
 
-    om.output(conv5); // one barrier for DMA out from CMX to DDR barrier 8
+    om.output(conv5); // one barrier for DMA out from CMX to DDR: barrier 8
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -163,7 +163,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     unit.initialize();
     unit.run();
     
-    // add edge to task graph, simulating partial serialization
+    // add edges to task graph, simulating partial serialization
     auto inbounddma4 = om.getOp("DMATask_4");
     auto conv0Op = om.getOp("DPU_Conv_0");
     auto conv1Op = om.getOp("DPU_Conv_1");
@@ -189,7 +189,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     size_t expected_num_barriers = 9;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
 
-    // barrier added by partial serialization should have 2 producers
+    // barriers affected by partial serialization should have extra producers
     for (auto b : barrierOps)
     {
         if (b->getName() == "BarrierTask_0") EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getNumProducers()); 

@@ -129,23 +129,19 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
     for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
     {
         auto ctlFlowOpType = ctlFlow->getOpType();
-        std::cout << "Op, type = "<< ctlFlow->getName()<<" , " << ctlFlow->getOpType() <<std::endl;
         if ((ctlFlowOpType=="DMATask") | (ctlFlowOpType == "DPUTask"))
         {
             for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
             {
                 auto parentOpType = parentOp->getOpType();
-                std::cout << "    parentOp, type = "<< parentOp->getName()<<" , " << parentOp->getOpType() <<std::endl;
                 if ((parentOpType == "DPUTask")|(parentOpType == "DMATask" ))
                 {
-                    std::cout << "    found ctl edge" <<std::endl;
                     auto sinkOpName = ctlFlow->getName();
                     auto sourceOpName = parentOp->getName();
 
                     // add dependency to existing barrier if this op already preceded by a barrier
                     if (opHasBarrier( sinkOpName, barriers ))
                     {
-                        std::cout << "    exsiting preceeding barrier"<< std::endl ;
                         for (mv::Barrier& b : barriers)
                         {
                             auto bConsumers = b.getConsumers() ;
@@ -153,7 +149,6 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
                             {
                                 b.addProducer(sourceOpName);
                                 auto updatedList = b.getProducers();
-                                for (auto x : updatedList) std::cout <<      x << std::endl ;
                             }
                         }
                     }
@@ -161,7 +156,6 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
                     // create new barrier if this op had no existing barrier preceeding it
                     else
                     {
-                        std::cout << "    NO exsiting preceeding barrier" <<std::endl;
                         std::unordered_set<std::string> producers;
                         std::unordered_set<std::string> consumers;
                         producers.insert(sourceOpName);
@@ -175,23 +169,23 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
     }
 
     // combine redundant barriers (same producers) into 1 barrier
-    for (auto& b : barriers)
+    for (auto b = barriers.begin(); b != barriers.end(); b++ )
     {
-        for (auto& c : barriers )
+        for (auto c=std::next(b); c!= barriers.end(); c++ )
         {
-            if ((c.getConsumers() != b.getConsumers()) && (b.getProducers() == c.getProducers()) && (c.hasConsumers()) && (b.hasConsumers()))
+            if ((b->getProducers() == c->getProducers()) && (c->hasConsumers()) && (b->hasConsumers()))
             {
                 // move c consumers to b
-                for (auto consumer : c.getConsumers())
+                for (auto consumer : c->getConsumers())
                 {
-                    b.addConsumer(consumer);
-                    c.removeConsumer(consumer);
+                    b->addConsumer(consumer);
+                    c->removeConsumer(consumer);
                 }
             }
         }
     }
 
-    // remove redundant barrier
+    // remove redundant barriers
     auto newEnd = std::remove_if(barriers.begin(), barriers.end(), [](mv::Barrier &x)
         { return !(x.hasConsumers()); } );
     barriers.erase(newEnd, barriers.end());
