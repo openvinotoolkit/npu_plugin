@@ -104,7 +104,7 @@ void quantizationFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
             std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
 
             //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
-            auto bits = 2*output->getDType().getSizeInBits() - 1;
+            auto bits = 15;
             auto mSize = m.size();
             int exponent;
             double mantissa;
