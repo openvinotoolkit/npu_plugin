@@ -60,7 +60,7 @@
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",
-                "scope": "OpControlModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             }
@@ -69,12 +69,27 @@
     "control_flows":{
         "Singular" : [
             "DeallocationControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "DeallocationControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "DmaControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "DmaControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            
             "InputOutputControlFlows",
             {
                 "name": "GenerateDot",
-                "output": "control_model.dot",
-                "scope": "OpControlModel",
+                "output": "InputOutputControlFlows_model.dot",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             }
@@ -105,11 +120,7 @@
     },
     "validate": {
         "Singular": [
-            "CheckTensors",
-            {
-                "name": "GenerateJSON",
-                "filename": "computation_model.json"
-            }
+            "CheckTensors"
         ]
     },
     "serialize": {

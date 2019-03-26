@@ -97,7 +97,8 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     auto cmxSize = 4 * 1024 * 1024; //4MB in bytes.
     cmxSize /= numCluster;
     cmxSize *= safetyFactor;
-    auto dma_dependency = sortedOps.size();
+    unsigned long _dma_dependency = 5;
+    int dma_dependency;
 
     // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks
     // We don't need to perform eliminations in this pass, we can use a for loop to iterate among operations
@@ -128,13 +129,15 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
 
 
                     auto inputTensorDmaDimension = inputTensorDma->getShape().totalSize() * (inputTensorDma->getDType().getSizeInBits()/8);
-                    dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), dma_dependency);
+                    dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), _dma_dependency);
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
-                    if(index <= dma_dependency)
+                    if(index <= dma_dependency) {
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
-                    else
+                    }
+                    else {
                         cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
                     inputTensor = inputTensorDma;
+                    }
                 }
                 else
                     ++flow;
