@@ -42,7 +42,7 @@ namespace mv
         std::shared_ptr<mv::RuntimeBinary> binary_;
         dataGraph &dataGraph_;
         controlGraph &controlGraph_;
-        mv::Element &globalConfigParams_;
+        mv::Element globalConfigParams_;
         /*
         There are two reasons to use sets as underlying containers:
         - All operations complexity n * log(n)
@@ -128,7 +128,11 @@ namespace mv
 
         std::reference_wrapper<ComputationModel> getRef();
 
-        //mv::Element getGlobalConfigParams() const;
+        /**
+         * @brief gets global params stored under GlobalConfigParams in Compilation Descriptor
+         * 
+         * @return compilation descriptor Element*/
+        mv::Element getGlobalConfigParams() const;
         void setGlobalConfigParams(mv::Element element);
 
         std::string getName() const;
