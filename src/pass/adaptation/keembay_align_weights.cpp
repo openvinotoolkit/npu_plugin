@@ -20,7 +20,6 @@ namespace mv
 void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
 
     // Pass main assumption is that we are working on the task graph, no DMA involved yet (just AveragePooling substituted)
     auto dpuTasks = om.getOps("DPUTask");
@@ -34,20 +33,23 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             auto kernel = opIt->getInputTensor(1);
             auto kernelOp = om.getSourceOp(kernel);
             auto kernelShape = kernel->getShape();
+            auto opId = opIt->get<unsigned>("opId");
 
             opIt->set<std::array<unsigned short, 2>>("kSize", {kernelShape[0], kernelShape[1]});
+            opIt->set<unsigned>("inputChannels", kernelShape[2]);
 
             // NOTE: Is the assumption double correct?
             auto weightSetDimension = kernelShape[0]*kernelShape[1]*kernelShape[2];
             mv::Shape newShape({kernelShape[3], 1, 1, mv::round_up(weightSetDimension, 16)});
-            std::vector<double> oldData = kernel->getDoubleData();
+            auto oldData = kernel->getData();
             oldData.resize(newShape.totalSize(), 0);
-            std::vector<double> newData(std::move(oldData));
-            auto newKernelOp = om.constant(newData, newShape, kernel->getDType(), kernel->getOrder(), "Aligned"+kernelOp->getName());
+            auto newData(std::move(oldData));
+            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), "Aligned"+kernelOp->getName());
+            om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
 
-            opIt->setInputTensor(newKernelOp, 1, false);
-            om.defineFlow(newKernelOp, opIt, 1);
+            opIt->setInputTensor(newKernel, 1, false);
+            om.defineFlow(newKernel, opIt, 1);
         }
     }
 }
