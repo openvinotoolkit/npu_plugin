@@ -283,11 +283,16 @@ void mv::Tensor::populateSparsityMapTensor_()
 
 void mv::Tensor::setSparse()
 {
-    if (!getOrder().isZMajor())
-        throw ArgumentError(*this, "Order", getOrder().toString() , " Sparsity requires ZMajor layout (NWHC)");
+    mv::Order order =  getOrder();
+    if (!order.isZMajor())
+        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NWHC)");
+
+    if (order.size() < 3)
+        throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires order of size >= 3");
 
     if(hasAttr("sparse") && get<bool>("sparse") == true)
-        throw ArgumentError(*this, "Sparsity == ", "true" , " Sparsity for this tensor has already been set");
+    //    throw ArgumentError(*this, "Sparsity == ", "true" , " Sparsity for this tensor has already been set");
+        return;
 
     set<bool>("sparse", true);
 
@@ -298,13 +303,25 @@ void mv::Tensor::setSparse()
     //Storage Element Tensor
     //se are filled by the DPU @ runtime
     //We just create an unpopulated tensor at this stage.
-    storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({getShape()[0], getShape()[1], 1, getShape()[-1]}), mv::DType("Int32"), getOrder());
+    size_t N;
+    auto shape = getShape();
+    if (order.size() == 3)
+    {
+        order = "N" + order.toString();
+        N = 1;
+    }
+    else
+    {
+        N = shape[-1];
+    }
+
+    storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
 
     set<bool>("sparse", true);
 
     //Sparsity map
     //we choose layout as internal layout, no need to reorder
-    mv::Shape mapShape({getShape()[0], getShape()[1], static_cast<std::size_t>(std::ceil(getShape()[2] / 8.0)), getShape()[-1]});
+    mv::Shape mapShape({shape[0], shape[1], static_cast<std::size_t>(std::ceil(shape[2] / 8.0)), N});
     sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("Int8"), Order(Order::getRowMajorID(mapShape.ndims())));
     noneZeroElements_ = 0;
 
@@ -794,4 +811,29 @@ mv::BinaryData mv::Tensor::toBinary()
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
     return getOrder().computeStrides(getShape(), getDType().getSizeInBits() / 8);
+}
+
+std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
+{
+    std::size_t res;
+    if (isSparse())
+    {
+        if (isPopulated())
+        {
+            res = noneZeroElements_ * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+        }
+        else
+        {
+            res = getShape().totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+            res += getSparsityMap()->computeTotalSize();
+            res += getStorageElement()->computeTotalSize();
+        }
+    }
+    else
+    {
+        res = getShape().totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
+    }
+    //Round up to align to (alignment) 16 bytes
+    res = ((res + alignment - 1)/alignment) * alignment;
+    return res;
 }

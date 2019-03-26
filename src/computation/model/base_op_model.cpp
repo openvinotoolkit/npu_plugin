@@ -1,5 +1,6 @@
 #include "include/mcm/computation/model/base_op_model.hpp"
 #include "include/mcm/algorithms/topological_sort.hpp"
+#include "include/mcm/algorithms/path_exists.hpp"
 
 mv::BaseOpModel::BaseOpModel(const std::string& name) :
 ComputationModel(name)
@@ -147,6 +148,12 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::TensorIterator sour
     return inputFlow;
 
 }
+
+bool mv::BaseOpModel::pathExists(Data::OpListIterator source, Data::OpListIterator target)
+{
+    return mv::pathExists(dataGraph_, source, target);
+}
+
 
 mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::OpListIterator sourceOp, std::size_t outputIdx, Data::OpListIterator sinkOp, std::size_t inputIdx)
 {

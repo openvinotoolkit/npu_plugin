@@ -10,7 +10,6 @@
                 "html": true
             },
             {
-
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -29,6 +28,10 @@
     "adapt": {
         "Singular": [
             "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -84,7 +87,6 @@
                 "content": "full",
                 "html": true
             },
-            
             "InputOutputControlFlows",
             {
                 "name": "GenerateDot",
@@ -99,7 +101,10 @@
         "Singular": [
             "GenerateWorkloads",
             "MaxTopologicalCut",
-            "InsertBarrierTasks",
+            {
+                "name":"InsertBarrierTasks",
+                "barrier_index_assignment": "Dynamic"
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "AssignUniqueTaskId",
@@ -128,7 +133,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "Scheduling": "Static"
+                "barrier_index_assignment": "Dynamic"
             }
         ]
     },
