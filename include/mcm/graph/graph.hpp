@@ -1741,19 +1741,6 @@ namespace mv
         }
 
     };
-
-    template <typename T_node, typename T_edge>
-    bool pathExists(const typename graph<T_node, T_edge>::node_list_iterator& source, const typename graph<T_node, T_edge>::node_list_iterator& target,
-    const typename graph<T_node, T_edge>::node_list_iterator& end)
-    {
-        for (typename graph<T_node, T_edge>::node_dfs_iterator it(source); it != end; ++it)
-        {
-            if (*it == *target)
-                return true;
-        }
-        return false;
-    }
-
 }
 
 template <class T_size>
