@@ -5,7 +5,7 @@
 
 static void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-
+static void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -20,6 +20,11 @@ namespace mv
             .setFunc(addFinalDMATaskFcn)
             .setDescription(
                "Add final DMA task for output");
+
+        MV_REGISTER_PASS(AddDeallocationTasks)
+            .setFunc(addDeallocationTasksFcn)
+            .setDescription(
+               "Add deallocation tasks where needed in the Task graph");
     }
 }
 
@@ -45,6 +50,7 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         return false;
 }
 
+// Pass role: Add final DMA Task CMX2DDR (if needed)
 void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -70,6 +76,8 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     }
 }
 
+// Pass role: Add DMA Task DDR2CMX where needed for each tensor input of Tasks.
+// NOTE: This is the only DMA Pass that adds control flows (DMA dependencies)
 void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -114,7 +122,6 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                 auto inputTensor = opIt->getInputTensor(i);
                 auto inputOp = om.getSourceOp(inputTensor);
                 auto inputOpName = inputOp->getName();
-                std::string inputDeallocationName("Deallocate"+inputOpName);
                 if(!isTensorInCMX(inputTensor, om))
                 {
                     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, "DMA"+inputOp->getName());
@@ -139,13 +146,40 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                 }
                 else
                     ++flow;
-
-                if(!om.checkOp(inputDeallocationName))
-                    om.deallocate(inputTensor, inputDeallocationName);
-                auto deallocateInputOp = om.getOp(inputDeallocationName);
-                deallocateInputOp->set<unsigned>("opId", opId);
-                cm.defineFlow(opIt, deallocateInputOp);
             }
         }
+    }
+}
+
+// Pass role: Add deallocation tasks for each Tensor
+void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    for(auto dataFlowIt = dm.flowBegin(); dataFlowIt != dm.flowEnd(); ++dataFlowIt)
+    {
+        auto inputOp = dataFlowIt.source();
+        auto outputOp = dataFlowIt.sink();
+
+        if(outputOp->getOpType() == "Output")
+            continue;
+
+        if(inputOp->getOpType() == "Input")
+            continue;
+
+        if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement")
+            continue;
+
+        auto opId = inputOp->get<unsigned>("opId");
+        auto inputOpName = inputOp->getName();
+        auto inputTensor = dataFlowIt->getTensor();
+
+        std::string deallocationName("Deallocate"+inputOpName);
+
+        if(!om.checkOp(deallocationName))
+            om.deallocate(inputTensor, deallocationName);
+        auto deallocateInputOp = om.getOp(deallocationName);
+        deallocateInputOp->set<unsigned>("opId", opId);
     }
 }
