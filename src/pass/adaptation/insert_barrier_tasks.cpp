@@ -92,14 +92,8 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
     mv::DataModel dm(model);
 
     std::vector<mv::Barrier> barriers;
-/*
-    // for testing, add edge from partial serialization
-    auto inbounddmaOp = om.getOp("DMATask_3");
-    auto aconvOp = om.getOp("DPU_Conv_0");
-    auto bconvOp = om.getOp("DMATask_2");
-    cm.defineFlow(aconvOp, inbounddmaOp);
-    cm.defineFlow(bconvOp, inbounddmaOp);
-*/
+    
+    //add barriers due to data flow dependencies
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         auto opType = opIt->getOpType();
@@ -126,27 +120,8 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
                 consumers.insert(destOp->getName());
             }
 
-            // Do not insert this barrier into the barrierTask list if a barrier
-            // with the same producers already exists.
-            bool addBarrier = true;
-            for (auto &b : barriers)
-            {
-                if (b.getProducers() == producers)
-                {
-                    addBarrier = false;
-
-                    for (auto consumer : consumers)
-                        b.addConsumer(consumer);
-
-                    break;
-                }
-            }
-
-            if (addBarrier)
-            {
-                struct mv::Barrier new_barrier(producers, consumers);
-                barriers.push_back(new_barrier);
-            }
+            struct mv::Barrier new_barrier(producers, consumers);
+            barriers.push_back(new_barrier);
         }
     }
 
@@ -198,6 +173,28 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry &, mv::ComputationModel &mo
             }
         }
     }
+
+    // combine redundant barriers (same producers) into 1 barrier
+    for (auto& b : barriers)
+    {
+        for (auto& c : barriers )
+        {
+            if ((c.getConsumers() != b.getConsumers()) && (b.getProducers() == c.getProducers()) && (c.hasConsumers()) && (b.hasConsumers()))
+            {
+                // move c consumers to b
+                for (auto consumer : c.getConsumers())
+                {
+                    b.addConsumer(consumer);
+                    c.removeConsumer(consumer);
+                }
+            }
+        }
+    }
+
+    // remove redundant barrier
+    auto newEnd = std::remove_if(barriers.begin(), barriers.end(), [](mv::Barrier &x)
+        { return !(x.hasConsumers()); } );
+    barriers.erase(newEnd, barriers.end());
 
     setBarrierGroupAndIndex(barriers);
 

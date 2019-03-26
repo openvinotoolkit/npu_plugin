@@ -103,9 +103,8 @@ TEST(insert_barrier_tasks, single_control_edge)
     
     // add edge to task graph, simulating partial serialization
     auto inbounddmaOp = om.getOp("DMATask_3");
-    auto aconvOp = om.getOp("DPU_Conv_0");
-    auto bconvOp = om.getOp("DMATask_2");
-    cm.defineFlow(aconvOp, inbounddmaOp);   // one barrier for inbound DMA
+    auto holdOp = om.getOp("DPU_MaxPool_1");
+    cm.defineFlow(holdOp, inbounddmaOp);   // one barrier for inbound DMA
 
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
@@ -168,8 +167,10 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     auto inbounddma4 = om.getOp("DMATask_4");
     auto conv0Op = om.getOp("DPU_Conv_0");
     auto conv1Op = om.getOp("DPU_Conv_1");
+    auto holdOp = om.getOp("DMATask_3");
     cm.defineFlow(conv0Op, inbounddma4);   // barrier 9
-    cm.defineFlow(conv1Op, inbounddma4);   /// reuse barrier 9
+    cm.defineFlow(conv1Op, inbounddma4);   // reuse barrier 9
+    cm.defineFlow(holdOp, conv0Op);        // reuse barrier 1
 
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
@@ -188,12 +189,10 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     size_t expected_num_barriers = 9;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
 
-    // added barrier should have 2 producers
+    // barrier added by partial serialization should have 2 producers
     for (auto b : barrierOps)
     {
-        if (b->getName() == "BarrierTask_8")
-        {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getNumProducers()); 
-        }
+        if (b->getName() == "BarrierTask_0") EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getNumProducers()); 
+        if (b->getName() == "BarrierTask_8") EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getNumProducers()); 
     }
 }
