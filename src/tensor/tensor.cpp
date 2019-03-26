@@ -1,6 +1,7 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/utils/custom_math.hpp"
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order):
 Element(name),
@@ -857,6 +858,6 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
         res = shape.totalSize() * std::ceil(getDType().getSizeInBits()/8.0); //TODO check if we need ceil here?
     }
     //Round up to align to (alignment) 16 bytes
-    res = ((res + alignment - 1)/alignment) * alignment;
+    res = mv::round_up(res, alignment);
     return res;
 }
