@@ -506,18 +506,27 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
     if (!isPopulated())
         throw ValueError(*this, "Attempt of restoring data from an unpopulated tensor");
 
-    std::vector<std::size_t> sub(getShape().ndims());
+    auto shape = getShape();
+    std::vector<std::size_t> sub(shape.ndims());
     std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
     std::vector<DataElement> orderedDataPacked;
     double datai;
-
+    size_t outputChannelSize = shape.totalSize() / shape[3];
     for (std::size_t i = 0; i < data_.size(); ++i)
     {
         sub = getOrder().indToSub(getShape(), i);
         datai = data_[internalOrder_.subToInd(getShape(), sub)];
-        if (!isSparse() || datai != zeroPoint[sub[2]]) //sub[2] is C
+        if (!isSparse() || datai != zeroPoint[sub[3]]) //zero point per output channel
             orderedDataPacked.push_back(DataElement(isDoubleType(), datai));
-
+        //Add padding if needed
+        if (isSparse() && ((i+1) % outputChannelSize) == 0) //we reached the end of the outputchannel
+        {
+            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
+            auto padsize = mv::round_up(size, 16) - size;
+            int64_t zeroPointVal = zeroPoint[sub[3]];
+            for (std::size_t j = 0; j < padsize; ++j)
+                orderedDataPacked.push_back(DataElement(isDoubleType(), zeroPointVal));
+        }
     }
     return orderedDataPacked;
 }

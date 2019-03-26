@@ -1124,8 +1124,14 @@ TEST(tensor, sparsity_res3a_branch2c)
     std::vector<mv::DataElement> denseData = t.getDataPacked();
     count = 0;
     size_t j = 0;
+    size_t padsize = 0;
     for (unsigned i = 0; i < data_res.size(); ++i)
     {
+        while (denseData[j] == 137 && j < denseData.size()) //its padding ignore it
+        {
+            j++;
+            padsize++;
+        }
         if (data_res[i] != 137)
         {
             ASSERT_TRUE(data_res[i] == (int64_t) denseData[j]);
@@ -1137,7 +1143,7 @@ TEST(tensor, sparsity_res3a_branch2c)
         }
 
     }
-    ASSERT_TRUE((count + denseData.size()) == data_res.size());
+    ASSERT_TRUE((count + denseData.size() - padsize) == data_res.size());
 }
 
 //VPUNND-391
