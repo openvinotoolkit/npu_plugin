@@ -42,6 +42,7 @@ namespace mv
         std::shared_ptr<mv::RuntimeBinary> binary_;
         dataGraph &dataGraph_;
         controlGraph &controlGraph_;
+        mv::Element &globalConfigParams_;
         /*
         There are two reasons to use sets as underlying containers:
         - All operations complexity n * log(n)
@@ -126,6 +127,9 @@ namespace mv
         std::shared_ptr<mv::RuntimeBinary> getBinaryBuffer();
 
         std::reference_wrapper<ComputationModel> getRef();
+
+        //mv::Element getGlobalConfigParams() const;
+        void setGlobalConfigParams(mv::Element element);
 
         std::string getName() const;
         virtual std::string getLogID() const override;
