@@ -5,6 +5,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/target/keembay/workloads.hpp"
+#include "include/mcm/target/keembay/rectangle.hpp"
 #include "include/mcm/graph/graph.hpp"
 #include <algorithm>
 #include <climits>
@@ -12,7 +13,7 @@
 #include <metis.h>
 
 static void generateWorkloadsFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
-
+static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &Tensor,mv::Workloads &workloads);
 namespace mv
 {
     namespace pass
@@ -23,18 +24,6 @@ namespace mv
                 "Generate workloads using the METIS graph partitioning library");
     }
 }
-
-/* Coordinates of METIS graph node:
- * use it to restore coordinates
- * after leveraging METIS for
- * partitioning of workloads.
-*/ 
-
-struct NodeCoords
-{
-    int16_t min_x, n_elem_x;
-    int16_t min_y, n_elem_y;
-};
 
 /* METIS parameters*/
 struct MetisGraphStructure
@@ -52,7 +41,7 @@ struct MetisGraphStructure
     int m_xDim;
     int m_yDim;
 
-    NodeCoords* node_coords;
+    mv::Rectangle* node_coords;
 
     MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode){
 
@@ -74,7 +63,7 @@ struct MetisGraphStructure
         part = new idx_t[m_numberTensorVertices];
         vwgt = new idx_t[m_numberTensorVertices* nWeights];
 
-        node_coords = new NodeCoords [ m_numberTensorVertices ];
+        node_coords = new mv::Rectangle [ m_numberTensorVertices ];
         
         /* Weights of METIS vertices
          * Description page 23 Metis manual
@@ -102,10 +91,10 @@ struct MetisGraphStructure
             
                 vwgt[nodeIndex] = n_elem_x * n_elem_y;
 
-                node_coords[nodeIndex].min_x = k * MPEMode.first;
-                node_coords[nodeIndex].min_y = j * MPEMode.second;
-                node_coords[nodeIndex].n_elem_x = n_elem_x;
-                node_coords[nodeIndex].n_elem_y = n_elem_y;
+                int min_x = k * MPEMode.first;
+                int min_y = j * MPEMode.second;
+        
+                node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
                 nodeIndex++;
             }
             
@@ -295,7 +284,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
         if (opIt->getOpType() == "DPUTask")
         {
 
-            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + "of type " + opIt->get<std::string>("taskOp"));
+            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
  
             /*Get output tensor*/
             auto outputTensor = opIt->getOutputTensor();
@@ -328,7 +317,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
             /*Print node partition*/
             for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) { 
                 
-                pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + "of type " + "is in partition " + std::to_string(metisGraph.part[part_i]));
+                pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph.part[part_i]));
             }
 
             /*Workloads class instance*/
@@ -356,14 +345,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                  * into tensor coordinates and populating these fields of workload 
                 */
 
-                /*NB: references (just shorter aliases for WL coordinates)*/
-                int16_t& wl_min_x = workloads.getWorkloads()[workload].MinX;
-                int16_t& wl_min_y = workloads.getWorkloads()[workload].MinY;
-                int16_t& wl_max_x = workloads.getWorkloads()[workload].MaxX;
-                int16_t& wl_max_y = workloads.getWorkloads()[workload].MaxY;
+                using xyz_type = decltype(mv::Workload::MinX);
 
-                wl_min_x = SHRT_MAX;
-                wl_min_y = SHRT_MAX;
+                // NB: references (just shorter aliases for WL coordinates)
+                xyz_type& wl_min_x = workloads.getWorkloads()[workload].MinX;
+                xyz_type& wl_min_y = workloads.getWorkloads()[workload].MinY;
+                xyz_type& wl_max_x = workloads.getWorkloads()[workload].MaxX;
+                xyz_type& wl_max_y = workloads.getWorkloads()[workload].MaxY;
+
+                wl_min_x = std::numeric_limits<xyz_type>::max();
+                wl_min_y = std::numeric_limits<xyz_type>::max();
                 wl_max_x = -1;
                 wl_max_y = -1;
 
@@ -371,25 +362,72 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                 {
                     if (metisGraph.part[i] == workload)
                     {
-                        int16_t min_x = metisGraph.node_coords[i].min_x;
-                        int16_t min_y = metisGraph.node_coords[i].min_y;
-                        int16_t max_x = min_x + metisGraph.node_coords[i].n_elem_x - 1;
-                        int16_t max_y = min_y + metisGraph.node_coords[i].n_elem_y - 1;
+                        int min_x = metisGraph.node_coords[i].min_x();
+                        int max_x = metisGraph.node_coords[i].max_x();
+                        int min_y = metisGraph.node_coords[i].min_y();
+                        int max_y = metisGraph.node_coords[i].max_y();
 
-                        /* Guard calling to std::min/max with parentheses,
-                         * as they may mess with same-named macro on Windows
-                        */ 
-                        wl_min_x = (std::min)(wl_min_x, min_x);
-                        wl_min_y = (std::min)(wl_min_y, min_y);
-                        wl_max_x = (std::max)(wl_max_x, max_x);
-                        wl_max_y = (std::max)(wl_max_y, max_y);
+                        // NB: guard calling to std::min/max with parentheses,
+                        //     as they may mess with same-named macro on Windows
+                        wl_min_x = (std::min)(wl_min_x, static_cast<xyz_type>(min_x));
+                        wl_max_x = (std::max)(wl_max_x, static_cast<xyz_type>(max_x));
+                        wl_min_y = (std::min)(wl_min_y, static_cast<xyz_type>(min_y));
+                        wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
                     }
                 }
+
+                pass.log(mv::Logger::MessageType::Debug, "workload: " + std::to_string(workload));
+                pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads.getWorkloads()[workload].MinX));
+                pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads.getWorkloads()[workload].MaxX));
+                pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads.getWorkloads()[workload].MinY));
+                pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads.getWorkloads()[workload].MaxY));
             }
            
             /*Add workloads as Attribute*/
             opIt->set<mv::Workloads>("Workloads", workloads);
+            std::string validatePartition = validateWorkloads(outputTensor, workloads) ? "True" : "False";
+            pass.log(mv::Logger::MessageType::Debug, "METIS partition has passed (True/False): "+ validatePartition);
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
+}
+
+static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &inputTensor,mv::Workloads &workloads)
+{
+    //    Check if the generated workloads are valid
+    //    Check 1: the union of the workload have to make the whole tensor
+    //          - Same Volume
+    //          - Same vertices
+    //    Check 2: no workload intersection
+
+    // Check 0: empty workloads are not valid
+    // Using size_t variable (nWorkloads) below, you may see a warning. Casting to double or int is unnecessary
+    if ((workloads.nWorkloads()) == 0)
+    {
+        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of total number of the partitions <=0");
+        return false;
+    }
+
+    // Check 1: Volume of the tensor = sum of volumes of the individual workloads
+    if (inputTensor[0]->getShape().totalSize() != workloads.getAllWorkloadsVolume())
+    {
+        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of volume differences between Original Tensor and partitioned tensors");
+        return false;
+    }
+
+    // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
+    if (workloads.getShapefromMinMax() != inputTensor[0]->getShape())
+    {
+        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of vertices/bounds being different between Original Tensor and partitioned tensors");
+        return false;
+    }
+
+    // Check 2: No intersection between workloads.
+    if (!workloads.noOverlap())
+    {
+        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+        return false;
+    }
+
+    return true;
 }

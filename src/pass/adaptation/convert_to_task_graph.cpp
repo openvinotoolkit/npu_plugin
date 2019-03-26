@@ -56,7 +56,8 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     auto opIt = om.getInput();
     while (opIt != om.opEnd())
     {
-        if (opIt->getOpType() == "Conv")
+        std::string opType = opIt->getOpType();
+        if (opType == "Conv" || opType == "DepthwiseConv")
         {
             auto input = opIt->getInputTensor(0);
             auto kernel = opIt->getInputTensor(1);
@@ -88,14 +89,22 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             kernel = om.dMATask(kernel, mv::DmaDirectionEnum::DDR2CMX);
             om.getSourceOp(kernel)->set<unsigned>("opId", kernelOpId);
 
-            auto dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
+            mv::Data::TensorIterator dpuConv;
+            if(opType == "Conv")
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
+            else
+                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
+
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
 
-            if(kernel->getShape()[2] < 16)
+            if(opType == "Conv")
             {
-                dpuConvOp->erase("taskOp");
-                dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+                if(kernel->getShape()[2] < 16)
+                {
+                    dpuConvOp->erase("taskOp");
+                    dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+                }
             }
 
             if(!om.checkOp(inputDeallocationName))
@@ -124,7 +133,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             ++opIt;
             om.removeOp(backup);
         }
-        else if (opIt->getOpType() == "MaxPool")
+        else if (opType == "MaxPool")
         {
             auto input = opIt->getInputTensor(0);
             auto inputOpName = om.getSourceOp(input)->getName();
@@ -169,52 +178,7 @@ void ConvertToTaskGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             om.removeOp(backup);
         }
 
-        else if (opIt->getOpType() == "AveragePool")
-        {
-            auto input = opIt->getInputTensor(0);
-            auto inputOpName = om.getSourceOp(input)->getName();
-
-            auto opId = opIt->get<unsigned>("opId");
-            auto inputOpId = om.getSourceOp(input)->get<unsigned>("opId");
-
-            auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
-            auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
-            auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-            auto name = opIt->getName();
-
-            if(!isTensorInCMX(input, om))
-            {
-                input = om.dMATask(input, mv::DmaDirectionEnum::DDR2CMX);
-                om.getSourceOp(input)->set<unsigned>("opId", inputOpId);
-            }
-
-            auto dpuPool = om.dPUTaskAveragePool({input}, kernelSize, strides, padding, "DPU_" + name);
-            auto dpuPoolOp = om.getSourceOp(dpuPool);
-            dpuPoolOp->set<unsigned>("opId", opId);
-
-            std::string inputDeallocationName("Deallocate"+inputOpName);
-            if(!om.checkOp(inputDeallocationName))
-                om.deallocate(input, inputDeallocationName);
-
-            auto dmaInputFreeOp = om.getOp(inputDeallocationName);
-            dmaInputFreeOp->set<unsigned>("opId", inputOpId);
-
-            cm.defineFlow(dpuPoolOp, dmaInputFreeOp);
-
-            for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
-            {
-                auto consumer = output.sink();
-                auto slot = output->get<size_t>("sinkInput");
-                consumer->setInputTensor(dpuPool, slot, false);
-                om.defineFlow(dpuPool, consumer, slot);
-            }
-
-            auto backup = opIt;
-            ++opIt;
-            om.removeOp(backup);
-        }
-
-        else if (opIt->getOpType() == "Output")
+        else if (opType == "Output")
         {
             auto input = opIt->getInputTensor(0);
 

@@ -29,6 +29,7 @@ namespace mv
         void addGroupElement(Control::FlowListIterator element, GroupIterator group);
         void removeGroupElement(Control::OpListIterator element, GroupIterator group);
         void removeGroupElement(Control::FlowListIterator element, GroupIterator group);
+        std::vector<Control::OpListIterator> topologicalSort();
         void transitiveReduction();
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;

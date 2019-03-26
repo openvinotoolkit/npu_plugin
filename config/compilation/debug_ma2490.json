@@ -1,8 +1,16 @@
 {
-	"initialize":{
-		"Singular": [
-			"AssignUniqueOpId",
-			{
+    "initialize": {
+        "Singular": [
+            "AssignUniqueOpId",
+            {
+                "name": "GenerateDot",
+                "output": "original_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -15,22 +23,25 @@
                 "ResourcesNNCMXPerSlice": 2,
                 "ResourcesNNCMXSliceAmount": 2,
                 "ResourcesDDRScratch": 2
-            },
-			{
-                "name": "GenerateDot",
-                "output": "original_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
             }
-		]
-	},
+        ]
+    },
     "adapt": {
         "Singular": [
+            "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
             "ConvertToTaskGraph",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
-            "InsertBarrierTasks",
+            "GraphColoring",
+            {
+                "name": "InsertBarrierTasks",
+                "barrier_index_assignment" : "Dynamic"
+            },
+            "AssignUniqueTaskId",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -44,6 +55,7 @@
         "Singular": [
             "GenerateWorkloads",
             "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
 			      "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
 			      "MaxTopologicalCut",
@@ -75,7 +87,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "Scheduling": "Static"
+                "barrier_index_assignment": "Dynamic"
             }
         ]
     },

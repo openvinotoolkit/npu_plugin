@@ -61,3 +61,56 @@ std::string mv::Workloads::getLogID() const
 {
     return "Workloads:" + toString();
 }
+
+double mv::Workloads::getAllWorkloadsVolume() const
+{
+    double volume = 0;
+    for (std::size_t i = 0; i < this->nWorkloads(); ++i) {
+        volume += (this->workloads_[i].MaxX - this->workloads_[i].MinX + 1) * (this->workloads_[i].MaxY - this->workloads_[i].MinY + 1) * (this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1);
+    }
+    return volume;
+}
+
+bool mv::Workloads::noOverlap() const
+{
+    bool noIntersect = false;
+    for(std::size_t i=0; i< this->nWorkloads(); i++)
+        {
+            for(std::size_t j=0;j<this->nWorkloads();j++){
+                if(i==j)
+                {
+                    continue;
+                }
+        // applying De Morgan's law ((A U B)' == A' ): Two rectangles donot overlap if one rectangle's minimum in a dimension is greater than the other rectangle's maximum in that dimension
+        // check to be done for both the X and Y dimension.
+                noIntersect = noIntersect || this->workloads_[i].MinX > this->workloads_[j].MaxX ||
+                        this->workloads_[j].MinX > this->workloads_[i].MaxX ||
+                        this->workloads_[i].MinY > this->workloads_[j].MaxY ||
+                        this->workloads_[j].MinY > this->workloads_[i].MaxY ;
+            
+            }
+
+        }
+        return noIntersect; 
+}
+
+mv::Shape mv::Workloads::getShapefromMinMax() const
+{
+    // get the global min and max of the workloads
+    std::int16_t minX=0, maxX=0, minY=0, maxY=0, minZ=0, maxZ = 0;
+    for(std::size_t i=0; i< this->nWorkloads(); i++)
+    {
+        minX = minX < this->workloads_[i].MinX ? minX : this->workloads_[i].MinX;
+        minY = minY < this->workloads_[i].MinY ? minY : this->workloads_[i].MinY;
+        minZ = minZ < this->workloads_[i].MinZ ? minZ : this->workloads_[i].MinZ;
+        maxX = maxX > this->workloads_[i].MaxX ? maxX : this->workloads_[i].MaxX;
+        maxY = maxY > this->workloads_[i].MaxY ? maxY : this->workloads_[i].MaxY;
+        maxZ = maxZ > this->workloads_[i].MaxZ ? maxZ : this->workloads_[i].MaxZ;
+    }
+
+    std::vector<std::size_t> minMax;
+    minMax.push_back(maxX - minX + 1);    
+    minMax.push_back(maxY - minY + 1);    
+    minMax.push_back(maxZ - minZ + 1);   
+    return mv::Shape(minMax);
+}

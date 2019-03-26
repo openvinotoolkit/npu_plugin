@@ -58,6 +58,11 @@ TEST(barrier, api)
     ASSERT_EQ(b2.getProducers(), pList);
     ASSERT_EQ(b2.getConsumers(), cList);
 
+    b2.setNumProducers(2);
+    b2.setNumConsumers(42);
+    ASSERT_EQ(b2.getNumProducers(), 2);
+    ASSERT_EQ(b2.getNumConsumers(), 42);
+
     b2.clear();
     ASSERT_EQ(b2.getNumProducers(), 0);
     ASSERT_EQ(b2.getNumProducers(), 0);

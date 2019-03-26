@@ -1,34 +1,49 @@
 #include "include/mcm/target/keembay/barrier_definition.hpp"
 
+int mv::Barrier::barrierCounter_ = 0;
+
 mv::Barrier::Barrier(int group, int index) :
 group_(group),
 index_(index),
+barrierID_(barrierCounter_),
 numProducers_(0),
 numConsumers_(0)
 {
-
+    barrierCounter_++;
 }
 
 mv::Barrier::Barrier(int group, int index, std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers) :
 group_(group),
 index_(index),
+barrierID_(barrierCounter_),
 numProducers_(producers.size()),
 numConsumers_(consumers.size()),
 producers_(producers),
 consumers_(consumers)
 {
-
+    barrierCounter_++;
 }
 
 mv::Barrier::Barrier(std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers) :
 group_(-1),
 index_(-1),
+barrierID_(barrierCounter_),
 numProducers_(producers.size()),
 numConsumers_(consumers.size()),
 producers_(producers),
 consumers_(consumers)
 {
+    barrierCounter_++;
+}
 
+bool mv::Barrier::operator==(const Barrier& other)
+{
+    return barrierID_ == other.barrierID_;
+}
+
+bool mv::Barrier::operator!=(const Barrier& other)
+{
+    return barrierID_ != other.barrierID_;
 }
 
 int mv::Barrier::getNumProducers() const
@@ -41,6 +56,16 @@ int mv::Barrier::getNumConsumers() const
     return numConsumers_;
 }
 
+void mv::Barrier::setNumProducers(int producers)
+{
+    numProducers_ = producers;
+}
+
+void mv::Barrier::setNumConsumers(int consumers)
+{
+    numConsumers_ = consumers;
+}
+
 void mv::Barrier::setGroup(int group)
 {
     group_ = group;
@@ -49,6 +74,11 @@ void mv::Barrier::setGroup(int group)
 void mv::Barrier::setIndex(int index)
 {
     index_ = index;
+}
+
+int mv::Barrier::getID() const
+{
+    return barrierID_;
 }
 
 int mv::Barrier::getIndex() const
