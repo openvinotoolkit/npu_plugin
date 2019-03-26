@@ -3,7 +3,7 @@
     {
         "Singular" :
         [
-            "AssignUniqueOpId",
+        "AssignUniqueOpId",
 	    "ConvertToTaskGraph",
 	    "AssignUniqueTaskId"
         ]
@@ -13,11 +13,15 @@
     {
         "Singular" :
         [
-            "GenerateWorkloads",
-	    "ArrangeKeembayExecution"
+        {
+            "name": "GenerateWorkloads",
+            "costfunction": "balanced",
+            "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
+        },
+	    "ArrangeKeembayExecution",
 	    "AllocatePopulatedTensors",
-            "AllocateUnpopulatedTensors",
-            "AllocateInputOutputTensors"
+        "AllocateUnpopulatedTensors",
+        "AllocateInputOutputTensors"
         ]
     },
 

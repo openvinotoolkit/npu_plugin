@@ -10,10 +10,26 @@
 #include <algorithm>
 #include <climits>
 #include <math.h>
+#include <cmath>
 #include <metis.h>
 
+/** 
+ * @brief Cost Function types to be used when evaluating execution cycles of a workload 
+ */ 
+enum class CostFunctions
+{
+    Balanced,
+    CriticalPath,
+    Greedy,
+    MinMaxWorkloads
+};
+
+// method declarations
 static void generateWorkloadsFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
 static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &Tensor,mv::Workloads &workloads);
+static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator> &outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction);
+float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
+
 namespace mv
 {
     namespace pass
@@ -266,7 +282,7 @@ int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads)
 }
 
 
-void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &)
+void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &passDesc, mv::json::Object &)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
@@ -278,6 +294,26 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
     int nDPUxCluster = nDPU/nClusters;  /*Number of DPUs per cluster*/
     std::set<int> workloadsList;
     std::pair <int,int> MPEMode (4, 4); /*MPE mode*/
+
+    //parse CostFunction from Comp Descriptor
+    CostFunctions costFunction = CostFunctions::Balanced; //default
+    std::string sCostFunction = std::string(); 
+    if (passDesc.hasAttr("costfunction")) {
+        sCostFunction = passDesc.get<std::string>("costfunction");
+        if (sCostFunction == "balanced")
+            costFunction = CostFunctions::Balanced;
+        else if (sCostFunction == "criticalpath")
+            costFunction = CostFunctions::CriticalPath;
+        else if (sCostFunction == "minmax")
+            costFunction = CostFunctions::MinMaxWorkloads;
+        else if (sCostFunction == "greedy")
+            costFunction = CostFunctions::Greedy;
+        else 
+            pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
+    }
+    else
+        pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
+
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
@@ -333,7 +369,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                 workloads.getWorkloads()[workload].workloadID = workload;
                 workloads.getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
                 workloads.getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
-                workloads.getWorkloads()[workload].MaxZ = 15;               /*WW09 deliverbale is less than 16 channels*/
+                workloads.getWorkloads()[workload].MaxZ = outputTensor[0]->getShape()[2] -1;  //output channels
                 workloads.getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
                 workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
@@ -375,18 +411,20 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
                         wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
                     }
                 }
-
-                pass.log(mv::Logger::MessageType::Debug, "workload: " + std::to_string(workload));
+                pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
                 pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads.getWorkloads()[workload].MinX));
                 pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads.getWorkloads()[workload].MaxX));
                 pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads.getWorkloads()[workload].MinY));
                 pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads.getWorkloads()[workload].MaxY));
+                pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads.getWorkloads()[workload].MinZ));
+                pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads.getWorkloads()[workload].MaxZ));
             }
            
             /*Add workloads as Attribute*/
             opIt->set<mv::Workloads>("Workloads", workloads);
-            std::string validatePartition = validateWorkloads(outputTensor, workloads) ? "True" : "False";
-            pass.log(mv::Logger::MessageType::Debug, "METIS partition has passed (True/False): "+ validatePartition);
+
+            std::vector<float> exeCycle = getExecutionCycles(outputTensor, workloads, nDPUxCluster, MPEMode, costFunction);
+            // TODO: process the execution cycles
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
@@ -409,16 +447,20 @@ static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &inputTensor
     }
 
     // Check 1: Volume of the tensor = sum of volumes of the individual workloads
+    double vol = workloads.getAllWorkloadsVolume();
+    std::size_t totalVol = inputTensor[0]->getShape().totalSize();
     if (inputTensor[0]->getShape().totalSize() != workloads.getAllWorkloadsVolume())
     {
-        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of volume differences between Original Tensor and partitioned tensors");
+        workloads.log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
+                    std::to_string(inputTensor[0]->getShape().totalSize()) + " Partitioned Tensor: " + std::to_string(workloads.getAllWorkloadsVolume()));
         return false;
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
     if (workloads.getShapefromMinMax() != inputTensor[0]->getShape())
     {
-        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of vertices/bounds being different between Original Tensor and partitioned tensors");
+        workloads.log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
+                                     inputTensor[0]->getShape().toString() + " and Partitioned Tensor " + workloads.getShapefromMinMax().toString());
         return false;
     }
 
@@ -430,4 +472,97 @@ static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &inputTensor
     }
 
     return true;
+}
+
+static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator> &outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction)
+{
+    // notes from POC compiler:  Execution time is bounded by
+    //      sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
+    if (nDPUxCluster < 1)
+        throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
+
+    std::vector<float> workloads_execution_cycles;
+    if (validateWorkloads(outputTensor, workloads))
+    {   
+        for(std::vector<mv::Workload>::iterator itWL = workloads.getWorkloads().begin(); itWL != workloads.getWorkloads().end(); ++itWL) 
+        {
+            float height = itWL->MaxY - itWL->MinY + MPEMode.first;
+            float width = itWL->MaxX - itWL->MinX + MPEMode.second;
+
+            float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / MPEMode.first) * ceil(width / MPEMode.second);
+            workloads_execution_cycles.push_back(sumExeCycles);
+        }
+    }
+    else
+    {   //workload not schedulable
+        workloads_execution_cycles = {INFINITY};
+    }
+    
+    float critical_wl = *std::max_element(workloads_execution_cycles.begin(), workloads_execution_cycles.end());
+    //float lower_wl = *std::min_element(workloads_execution_cycles.begin(), workloads_execution_cycles.end());
+
+    float wl_sum = float(0);
+    for (auto& cycles : workloads_execution_cycles)
+        wl_sum += cycles;
+
+    float min_range = wl_sum/nDPUxCluster;
+    float max_range = wl_sum/nDPUxCluster + critical_wl;
+    
+    if (costFunction == CostFunctions::Balanced)
+    {
+        float balancing = float(0.0);
+        if (!isinf(wl_sum))
+            balancing = wl_sum/(ceil(wl_sum/nDPUxCluster) * nDPUxCluster);
+
+        return {-balancing, -balancing};
+    }
+    else if(costFunction == CostFunctions::MinMaxWorkloads)
+         return {min_range, max_range};
+
+    else if(costFunction == CostFunctions::CriticalPath)
+    {
+        if (nDPUxCluster == 1)
+            return {min_range, min_range};
+        else
+            return {max_range, max_range};
+    }
+    
+    else if(costFunction == CostFunctions::Greedy)
+    {
+        if (isinf(wl_sum))
+            return {INFINITY, INFINITY};
+        else
+        {
+            float greedy = greedyTaskAssignment(nDPUxCluster, workloads_execution_cycles);
+            return {greedy, greedy};
+        }
+    }
+
+    else
+        throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
+}
+
+/**
+ * @brief
+ * @param nProcessors is the number of computing resources
+ * @param workloadCosts vector of workload costs
+ */
+float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts)
+{
+    //std::priority_queue<int> exeCycles;
+    std::priority_queue<int, std::vector<int>, std::greater<int> > exeCycles; //ascending sizes
+    for (int i=0; i<nProcessors; ++i)
+        exeCycles.push(0);
+    
+    for (size_t idxWorkload=0; idxWorkload<workloadCosts.size(); ++idxWorkload)
+    {
+        int smallestTime = exeCycles.top();
+        exeCycles.pop();
+        exeCycles.push(smallestTime + workloadCosts[idxWorkload]);
+    }
+    
+    //return max value (ie, last value) in queue
+    for (int i=0; i<nProcessors-1; ++i)
+        exeCycles.pop();
+    return exeCycles.top();
 }

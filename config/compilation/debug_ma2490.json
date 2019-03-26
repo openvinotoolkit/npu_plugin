@@ -53,12 +53,16 @@
     },
     "finalize": {
         "Singular": [
-            "GenerateWorkloads",
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "balanced",
+                "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
-			      "AssignUniqueTaskId",
+			"AssignUniqueTaskId",
             "ArrangeKeembayExecution",
-			      "MaxTopologicalCut",
+			"MaxTopologicalCut",
             "TransitiveReduction",
             "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
