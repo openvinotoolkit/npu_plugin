@@ -167,20 +167,6 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-// This function is necessary, as DMA task hide populated tensors (but should they do it in the first place?)
-
-mv::Data::TensorIterator findSourceOperation(mv::OpModel om, mv::Data::TensorIterator tensor)
-{
-    auto op = om.getSourceOp(tensor);
-    while(op->getOpType() == "DMATask")
-    {
-        tensor = op->getInputTensor(0);
-        op = om.getSourceOp(tensor);
-    }
-
-    return tensor;
-}
-
 static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
