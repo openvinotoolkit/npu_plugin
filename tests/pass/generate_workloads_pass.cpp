@@ -10,6 +10,29 @@ mv::Data::TensorIterator GetTestTensor_modelA();
 mv::Workloads GenerateTestWorkloads_modelB();
 mv::Data::TensorIterator GetTestTensor_modelB();
 
+
+TEST(generate_workloads_pass, generateWorkloadsFcn_Greedy)
+{
+    mv::CompilationUnit unit("testModel");
+    mv::OpModel& om = unit.model();
+
+    /*Working*/
+    auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
+    auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::Element dummyPassDesc("GenerateWorkloads");
+    dummyPassDesc.set("costfunction", std::string("greedy"));
+
+    mv::TargetDescriptor dummyTargDesc;
+    mv::json::Object compOutput;
+    mv::pass::PassRegistry::instance().find("GenerateWorkloads")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
+
+    ASSERT_TRUE(true);
+}
+
 /*
 TODO: Cannot test internal methods of a Pass 
 causes a "Duplicated Registry entry" when the *pass.cpp file included
