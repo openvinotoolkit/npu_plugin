@@ -55,8 +55,9 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 
 // This pass adds Control flows relative to a DeallocateTask
 // A deallocate task must happen after the operation in which the data is involved. Basically all siblings in DataFlow Context (inflows)
+// A deallocate task must also happen after the operation that allocated the data. (inflows)
 
-// A deallocate task must also happen before the his nieces (outflow) in both DataFlow and ControlFlow contex
+// A deallocate task must also happen before the his nieces (outflow) in both DataFlow and ControlFlow contex.
 void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -66,6 +67,7 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
     for(auto op : deallocateOps)
     {
         auto parentOp = op.leftmostParent();
+        cm.defineFlow(parentOp, op);
 
         for(auto sibling = parentOp.leftmostChild(); sibling != om.opEnd(); ++sibling)
         {
