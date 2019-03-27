@@ -65,7 +65,6 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     if (outputScope != "DataModel")
     {
-
         OpModel opModel(model);
 
         for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
@@ -73,6 +72,16 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
             {
                 std::string nodeDef = "\t\"" + opIt->getName() + "\" [shape=box,";
+
+                if(opIt->getOpType() == "DMATask")
+                {
+                    if(opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX)
+                        nodeDef += " style=filled, fillcolor=green,";
+                    else
+                        nodeDef += " style=filled, fillcolor=red,";
+                }
+                if(opIt->getOpType() == "Deallocate")
+                    nodeDef += " style=filled, fillcolor=orange,";
 
                 if (htmlLike)
                 {
@@ -159,7 +168,6 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         if (outputScope == "ControlModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
-
             ControlModel controlModel(model);
 
             for (auto opIt = controlModel.getFirst(); opIt != controlModel.opEnd(); ++opIt)
@@ -174,7 +182,6 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 }
 
             }
-
         }
 
     }
