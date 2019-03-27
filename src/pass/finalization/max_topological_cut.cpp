@@ -227,7 +227,7 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
        /* We do not require MCM constant operations and MCM ouput operation in the KOALA graph. The sink node in the KOALA graph is the DMATask CMX2DDR.
         * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the KOALA graph.
        */
-       if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt") {
+       if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt") {
            
            /*Add node to KOALA graph*/
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
