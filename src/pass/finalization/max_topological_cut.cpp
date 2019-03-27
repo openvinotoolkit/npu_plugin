@@ -157,7 +157,6 @@ void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
          }
          else {
             flowIt->set<int>("MemoryRequirement", 0);
-            flowIt->set<bool>("PositiveMemory", false);
          }
     }
 }

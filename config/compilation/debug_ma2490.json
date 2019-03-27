@@ -114,6 +114,14 @@
     },
     "finalize": {
         "Singular": [
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "transitive_reduction_before_max_cut_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "MaxTopologicalCut",
             {
                 "name": "GenerateDot",
