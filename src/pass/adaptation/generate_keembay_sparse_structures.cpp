@@ -2,6 +2,8 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "meta/include/mcm/op_model.hpp"
+#include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 #include <math.h>
 
 static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -91,22 +93,132 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
 //    return sparsityMap;
 //}
 
-mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName, unsigned outputChannels)
-{
-    std::vector<int64_t> weightTableData(4 * outputChannels, 0);
 
-    // WeightTableData should be filled here using packing information coming from Sparsity map (and quantization information maybe?)
-    for(unsigned i = 0; i < outputChannels; ++i)
+template <class T, class R>
+std::vector<R> extendToK(size_t size, std::vector<T> value)
+{
+    if (value.size() == 1)
+        return mv::utils::generateSequence<R>(size, static_cast<R>(value[0]) , 0);
+
+    if (value.size() == size)
+        return std::vector<R>(value.begin(), value.end());
+
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
+                std::to_string(value.size()));
+}
+
+template <class T>
+std::vector<double> convertToDoubleVector(std::vector<T> input)
+{
+    std::vector<double> result(input.begin(), input.end());
+    return result;
+}
+
+void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName)
+{
+    auto output = dpuTaskOp->getOutputTensor(0);
+    auto input = dpuTaskOp->getInputTensor(0);
+
+    if (!output->hasAttr("quantizationParams") || !input->hasAttr("quantizationParams") ||
+        !output->isQuantized() || !input->isQuantized())
+        return;
+
+    mv::DataModel dm(model);
+
+    // Quantization for Gemmlowp output
+    // S1 = weight scale
+    // S2 = input activation scale
+    // S3 = output activation scale
+    // m  = (S1 * S2)/S3, scale for MAC output
+    // zeroPointScaled = output zero point scaled to MAC output precision
+    // biasScaled = bias scaled to MAC output precision
+    auto outputChannels = output->getShape()[2];
+
+    auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
+    std::vector<float> S2 = extendToK<double, float>(outputChannels, inputQuantization.getScale());
+
+    auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
+    std::vector<float> S3 = extendToK<double, float>(outputChannels, outputQuantization.getScale());
+
+    std::vector<int32_t> zeroPoint = extendToK<unsigned, int32_t>(outputChannels, outputQuantization.getZeroPoint());
+
+    auto m = S2;
+    if (dpuTaskOp->inputSlots() > 1)
     {
-        weightTableData[i + 0] = 0; //DATA_PTR
-        weightTableData[i + 1] = 0; //SP_PTR
+        auto weights = dpuTaskOp->getInputTensor(1);
+        auto weightsQuantization = weights->get<mv::QuantizationParams>("quantizationParams");
+        std::vector<float> S1 = extendToK<double, float>(outputChannels,weightsQuantization.getScale());
+        //S1*S2
+        std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
     }
-    auto weightTable = om.constantInt(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
+
+    // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
+
+    // m / S3
+    std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
+
+    //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
+    auto bits = output->getDType().getSizeInBits();
+    auto shift = 2*bits - 1;
+    auto intScale = pow(2, shift);
+
+    std::vector<int16_t> mScaled(m.size());
+
+    //m*intScaled
+    for (unsigned i = 0; i < m.size(); ++i)
+        mScaled[i] = (int16_t) (m[i] * intScale);
+
+    std::vector<int32_t> zeroPointScaled(m.size());
+    std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
+
+    if (dpuTaskOp->hasAttr("bias"))
+    {
+        auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
+        auto data = bias->getData();
+        //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
+        //auto Z_bias = biasQuantization.getZeroPoint();
+        //auto S_bias = biasQuantization.getScale();
+        std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
+        bias->setDType(mv::DType("Int32"));
+        bias->populate(data);
+
+    }
+    else
+    {
+        mv::Order order(mv::Order::getColMajorID(1));
+        const std::string biasTensorName = dpuTaskOp->getName() + "_bias";
+        mv::Shape shape({outputChannels});
+
+        auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, convertToDoubleVector<int32_t>(zeroPointScaled));
+        om.addAttr(dpuTaskOp, "bias", biasTensor->getName());
+    }
+
+    mv::Shape shape({outputChannels, 1, 1, 4});
+
+    auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
+    auto biasData = bias->getData(); //Bias has the type Int32 in both cases above
+
+    std::vector<int64_t> weightsTableData(shape.totalSize());
+    // per channel layout:
+    // 3 -> bias
+    // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
+    // 1 -> SP_PTR
+    // 0 -> DATA_PTR
+    // TODO mult & prelu are currently not implemented
+    for (size_t i = 0; i < weightsTableData.size(); i+=4)
+    {
+        weightsTableData[i+0] = 0; //DATA_PTR
+        weightsTableData[i+1] = 0; //SP_PTR
+        weightsTableData[i+2] = ((int32_t)mScaled[i/4] << 16) | shift << 2;
+        weightsTableData[i+3] = biasData[i/4];
+    }
+
+    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(weightTable);
     om.defineFlow(weightTable, dpuTaskOp, dpuTaskOp->inputSlots());
 
-    return weightTable;
+    return;
 }
 
 
@@ -118,13 +230,10 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
-            unsigned weightsTableSize;
             std::string opName = dpuTask->getName();
 
-            weightsTableSize = dpuTask->getOutputTensor(0)->getShape()[2];
-
             std::string kernelWeightsTableName(opName + "WeightsTable");
-            addWeightsTable(om, dpuTask, kernelWeightsTableName, weightsTableSize);
+            addWeightsTable(model, om, dpuTask, kernelWeightsTableName);
         }
     }
 }
