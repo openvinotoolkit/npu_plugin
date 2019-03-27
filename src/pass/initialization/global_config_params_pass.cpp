@@ -22,6 +22,6 @@ namespace mv
 
 static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::json::Object&)
 {
-    mv::Element element = mv::Element(compilationDescriptor);
-    model.setGlobalConfigParams(element);
+    //set the global params to be this pass's compilation descriptor element
+    model.setGlobalConfigParams(compilationDescriptor);
 }

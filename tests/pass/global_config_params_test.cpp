@@ -12,20 +12,54 @@ TEST(GlobalConfigParams, case_read)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    mv::Element testyPassDesc("GlobalConfigParams");
-    testyPassDesc.set("test_string", std::string("testing"));
-    testyPassDesc.set("test_bool", true);
-    testyPassDesc.set("test_double", 1.4);
-    testyPassDesc.set("test_int", 2);
+    mv::Element testPassDesc("GlobalConfigParams");
+    testPassDesc.set("test_string", std::string("testing"));
+    testPassDesc.set("test_bool", true);
+    testPassDesc.set("test_double", 1.4);
+    testPassDesc.set("test_int", 2);
 
     mv::TargetDescriptor dummyTargDesc;
     mv::json::Object compOutput;
-    mv::pass::PassRegistry::instance().find("GlobalConfigParams")->run(om, dummyTargDesc, testyPassDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("GlobalConfigParams")->run(om, dummyTargDesc, testPassDesc, compOutput);
     
-    // Check general model properties
-    mv::Element returnedParams = om.getGlobalConfigParams();
-    ASSERT_EQ(returnedParams.get<std::string>("test_string"), std::string("testing"));
-    ASSERT_EQ(returnedParams.get<bool>("test_bool"), true);
-    ASSERT_EQ(returnedParams.get<double>("test_double"), 1.4);
-    ASSERT_EQ(returnedParams.get<int>("test_int"), 2);
+    // Check global params
+    std::shared_ptr<mv::Element> returnedParams = om.getGlobalConfigParams();
+    std::string s = returnedParams->get<std::string>("test_string");
+    
+    ASSERT_EQ(returnedParams->get<std::string>("test_string"), std::string("testing"));
+    ASSERT_EQ(returnedParams->get<bool>("test_bool"), true);
+    ASSERT_EQ(returnedParams->get<double>("test_double"), 1.4);
+    ASSERT_EQ(returnedParams->get<int>("test_int"), 2);
+}
+
+TEST(GlobalConfigParams, case_readlast)
+{
+    mv::CompilationUnit unit("testModel");
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    mv::OpModel& om = unit.model();
+
+    mv::Element testPassDesc("GlobalConfigParams");
+    testPassDesc.set("test_string", std::string("testing"));
+    testPassDesc.set("test_bool", true);
+    testPassDesc.set("test_double", 1.4);
+    testPassDesc.set("test_int", 2);
+
+    mv::TargetDescriptor dummyTargDesc;
+    dummyTargDesc.setTarget(mv::Target::ma2490);
+    mv::json::Object compOutput;
+    mv::pass::PassRegistry::instance().find("GlobalConfigParams")->run(om, dummyTargDesc, testPassDesc, compOutput);
+
+    //run another pass to see if config is still correct after
+    mv::Element testPassDescDot("GenerateWorkloads");
+    testPassDescDot.set("costfunction", std::string("balanced"));
+    mv::pass::PassRegistry::instance().find("GenerateWorkloads")->run(om, dummyTargDesc, testPassDescDot, compOutput);
+
+    // Check global params still correct
+    std::shared_ptr<mv::Element> returnedParams = om.getGlobalConfigParams();
+    std::string s = returnedParams->get<std::string>("test_string");
+    
+    ASSERT_EQ(returnedParams->get<std::string>("test_string"), std::string("testing"));
+    ASSERT_EQ(returnedParams->get<bool>("test_bool"), true);
+    ASSERT_EQ(returnedParams->get<double>("test_double"), 1.4);
+    ASSERT_EQ(returnedParams->get<int>("test_int"), 2);
 }

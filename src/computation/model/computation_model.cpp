@@ -7,7 +7,7 @@ opsGraph_(std::make_shared<conjoined_graph<Op, DataFlow, ControlFlow>>()),
 binary_(std::make_shared<mv::RuntimeBinary>()),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
-globalConfigParams_("GlobalConfigParams"),
+globalConfigParams_(std::make_shared<mv::Element>("GlobalConfigParams")),
 ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
 dataFlows_(std::make_shared<std::unordered_map<std::string, Data::FlowListIterator>>()),
 controlFlows_(std::make_shared<std::unordered_map<std::string, Control::FlowListIterator>>()),
@@ -502,17 +502,12 @@ std::string mv::ComputationModel::getName() const
     return name_;
 }
 
-mv::Element mv::ComputationModel::getGlobalConfigParams() const
+std::shared_ptr<mv::Element>mv::ComputationModel::getGlobalConfigParams() const
 {
     return globalConfigParams_;
 }
 
-void mv::ComputationModel::setGlobalConfigParams(mv::Element element)
+void mv::ComputationModel::setGlobalConfigParams(mv::Element& element)
 {
-    globalConfigParams_ = element;
-    
-    //TODO: debug, remove
-    //for (auto key : element.attrsKeys())
-    //    log(Logger::MessageType::Debug, key);
-    //log(Logger::MessageType::Debug, element.get<std::string>("barrier_index_assignment"));
+    *globalConfigParams_ = element;
 }
