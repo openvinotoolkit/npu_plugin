@@ -10,7 +10,6 @@
 #include <algorithm>
 #include <climits>
 #include <math.h>
-#include <cmath>
 #include <metis.h>
 
 /** 
@@ -25,9 +24,9 @@ enum class CostFunctions
 };
 
 // method declarations
-static void generateWorkloadsFcn(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::json::Object &);
-static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &Tensor,mv::Workloads &workloads);
-static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator> &outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction);
+static void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static bool validateWorkloads(std::vector<mv::Data::TensorIterator>& Tensor, mv::Workloads& workloads);
+static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction);
 float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 
 namespace mv
@@ -282,7 +281,7 @@ int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads)
 }
 
 
-void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &passDesc, mv::json::Object &)
+void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object &)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
@@ -430,7 +429,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry & pass, mv::ComputationModel
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }
 
-static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &inputTensor,mv::Workloads &workloads)
+static bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor, mv::Workloads& workloads)
 {
     //    Check if the generated workloads are valid
     //    Check 1: the union of the workload have to make the whole tensor
@@ -474,7 +473,7 @@ static bool validateWorkloads(std::vector<mv::Data::TensorIterator> &inputTensor
     return true;
 }
 
-static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator> &outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction)
+static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction)
 {
     // notes from POC compiler:  Execution time is bounded by
     //      sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
@@ -549,7 +548,6 @@ static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterato
  */
 float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts)
 {
-    //std::priority_queue<int> exeCycles;
     std::priority_queue<int, std::vector<int>, std::greater<int> > exeCycles; //ascending sizes
     for (int i=0; i<nProcessors; ++i)
         exeCycles.push(0);
