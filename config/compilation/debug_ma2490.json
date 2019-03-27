@@ -106,7 +106,7 @@
             {
                 "name": "GenerateDot",
                 "output": "InputOutputControlFlows_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             }
@@ -115,7 +115,6 @@
     "finalize": {
         "Singular": [
             "GenerateWorkloads",
-            "MaxTopologicalCut",
             {
                 "name":"InsertBarrierTasks",
                 "barrier_index_assignment": "Dynamic"

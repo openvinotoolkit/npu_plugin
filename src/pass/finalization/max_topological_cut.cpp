@@ -143,8 +143,10 @@ void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
      * This is required also for Ops with no output tensor (i.e. Dealloc tasks).
     */
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
+
+        std::cout << "op is " << opIt->getOpType() << std::endl;
         
-        if (opIt->getOpType() == "Constant"){
+        if (opIt->getOpType() == "Constant" || opIt->getOpType() == "ConstantInt"){
 
             int memoryRequirement = 1;
             mv::Shape shape = opIt->get<mv::Shape>("shape");
