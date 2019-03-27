@@ -114,7 +114,7 @@
     },
     "finalize": {
         "Singular": [
-            "GenerateWorkloads",
+            "MaxTopologicalCut",
             {
                 "name":"InsertBarrierTasks",
                 "barrier_index_assignment": "Dynamic"
@@ -159,8 +159,7 @@
             "keembay_adapt",
             "dma",
             "control_flows",
-            "finalize",
-            "serialize"
+            "finalize"
         ],
         "Recurrent": [
             "validate"
