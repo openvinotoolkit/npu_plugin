@@ -51,6 +51,8 @@ int main()
     system("dot -Tpng adapt_model.dot -o adapt_model.png");
     system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
     system("dot -Tpng dma_model.dot -o dma_model.png");
+    system("dot -Tpng deallocation_model_data.dot -o deallocation_model_data.png");
+    system("dot -Tpng deallocation_model_control.dot -o deallocation_model_control.png");
     system("dot -Tpng DeallocationControlFlows_model.dot -o DeallocationControlFlows_model.png");
     system("dot -Tpng DmaControlFlows_model.dot -o DmaControlFlows_model.png");
     system("dot -Tpng InputOutputControlFlows_model.dot -o InputOutputControlFlows_model.png");

@@ -54,27 +54,35 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 }
 
 // This pass adds Control flows relative to a DeallocateTask
-// Rational: A Deallocate task has to be connected via a Control flow to the next operations in the graph (coming in DataFlow order)
+// A deallocate task must happen after the operation in which the data is involved. Basically all siblings in DataFlow Context (inflows)
 
-// So we take the leftMostParent of the deallocTask(in terms of ControlFlow), take the output of this op (in terms of DataFlow)
-// verify that it is not a dealloc task and connect it.
+// A deallocate task must also happen before the his nieces (outflow) in both DataFlow and ControlFlow contex
 void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
-    mv::DataModel dm(model);
 
     auto deallocateOps = om.getOps("Deallocate");
     for(auto op : deallocateOps)
     {
-        auto controlInputOp = cm.switchContext(op).leftmostParent();
-        auto dataInputOp = dm.switchContext(controlInputOp);
-        for(auto outputDataFlow = dataInputOp.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
+        auto parentOp = op.leftmostParent();
+
+        for(auto sibling = parentOp.leftmostChild(); sibling != om.opEnd(); ++sibling)
         {
-            auto sink = outputDataFlow.sink();
-            if(sink->getOpType() != "Deallocate")
-                if(!cm.checkControlFlow(op, sink))
-                    cm.defineFlow(op, sink);
+            if(sibling->getOpType() == "Deallocate")
+                continue;
+
+            // In flows
+            cm.defineFlow(sibling, op);
+
+            // Out flows
+            for(auto dataNiece = sibling.leftmostChild(); dataNiece != om.opEnd(); ++dataNiece)
+                if(dataNiece->getOpType() != "Deallocate")
+                    cm.defineFlow(op, dataNiece);
+
+            for(auto controlNiece = cm.switchContext(sibling).leftmostChild(); controlNiece != cm.opEnd(); ++controlNiece)
+                if(controlNiece->getOpType() != "Deallocate")
+                    cm.defineFlow(cm.switchContext(op), controlNiece);
         }
     }
 }

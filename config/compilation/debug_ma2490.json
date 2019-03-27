@@ -63,6 +63,21 @@
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "AddDeallocationTasks",
+            {
+                "name": "GenerateDot",
+                "output": "deallocation_model_data.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "deallocation_model_control.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
