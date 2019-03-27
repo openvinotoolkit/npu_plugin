@@ -8,32 +8,42 @@
 
 namespace mv
 {
+    template <typename NodeIterator>
+    struct OpItComparatorTemplate
+    {
+        bool operator()(NodeIterator lhs, NodeIterator rhs) const
+        {
+            return (*lhs) < (*rhs);
+        }
+    };
+
+
     // NOTE: This graph non member function works only on DAGs
-    template <typename T_node, typename T_edge>
-    void transitiveReduction_(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator root)
+    template <typename T_node, typename T_edge, typename EdgeItComp>
+    void transitiveReduction_(graph<T_node, T_edge>& g, typename graph<T_node, T_edge>::node_list_iterator root, const std::set<typename graph<T_node, T_edge>::edge_list_iterator, EdgeItComp>& filteredEdges)
     {
         // Collecting the set of neighbours, as edges
-        std::map<T_node, typename graph<T_node, T_edge>::edge_list_iterator> root_adj;
+        std::map<typename graph<T_node, T_edge>::node_list_iterator, typename graph<T_node, T_edge>::edge_list_iterator, OpItComparatorTemplate<typename graph<T_node, T_edge>::node_list_iterator>> root_adj;
         for(auto e = root->leftmost_output(); e != g.edge_end(); ++e)
-            root_adj[*(e->sink())] = e;
+            root_adj[e->sink()] = e;
 
         // Starting a DFS from each neighbour v
         // If a node u is reachable from v and it's also a neighbour of the root
         // Eliminate the edge between root and u
 
-        // NOTE: Can't use unordered map because T_node needs to be hashable (requirement too strict)
-        std::map<T_node, typename graph<T_node, T_edge>::edge_list_iterator> toEliminate;
+        // NOTE: Can't use unordered map because node_list_iterator needs to be hashable (requirement too strict)
+        std::map<typename graph<T_node, T_edge>::node_list_iterator, typename graph<T_node, T_edge>::edge_list_iterator, OpItComparatorTemplate<typename graph<T_node, T_edge>::node_list_iterator>> toEliminate;
+
         for(auto e = root->leftmost_output(); e != g.edge_end(); ++e)
         {
-            auto v = e->sink();
             // Must skip first node (itself)
-            typename graph<T_node, T_edge>::node_dfs_iterator u(v);
-            ++u;
-            for (; u != g.node_end(); ++u)
+            typename graph<T_node, T_edge>::edge_dfs_iterator u(e);
+            for (; u != g.edge_end(); ++u)
             {
-                auto it = root_adj.find(*u);
-                if(it != root_adj.end())
-                    toEliminate[*u] = it->second;
+                auto it = root_adj.find(u->sink());
+                auto it2 = filteredEdges.find(u);
+                if(it != root_adj.end() && it2 == filteredEdges.end())
+                    toEliminate[u->sink()] = it->second;
             }
         }
 
@@ -43,22 +53,21 @@ namespace mv
         for(auto e = root->leftmost_output(); e != g.edge_end(); ++e)
         {
             auto v = e->sink();
-            transitiveReduction_(g, v);
+            transitiveReduction_(g, v, filteredEdges);
         }
     }
 
     // NOTE: This graph non member function works only on DAGs
-    template <typename T_node, typename T_edge>
-    void transitiveReduction(graph<T_node, T_edge>& g)
+    template <typename T_node, typename T_edge, typename EdgeItComparator>
+    void transitiveReduction(graph<T_node, T_edge>& g, const std::set<typename graph<T_node, T_edge>::edge_list_iterator, EdgeItComparator>& filteredEdges = std::set<typename graph<T_node, T_edge>::edge_list_iterator, EdgeItComparator>())
     {
-
         auto sortedNodes = topologicalSort(g);
 
         for(auto node : sortedNodes)
         {
             if(node->parents_size() != 0)
                 return;
-            transitiveReduction_(g, node);
+            transitiveReduction_<T_node, T_edge, EdgeItComparator>(g, node, filteredEdges);
         }
     }
 }

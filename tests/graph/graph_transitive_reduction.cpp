@@ -8,6 +8,13 @@
 
 using graph_string_string = mv::graph<std::string, std::string>;
 
+struct EdgeItComparator
+{
+    bool operator()(graph_string_string::edge_list_iterator lhs, graph_string_string::edge_list_iterator rhs) const {
+        return (*lhs) < (*rhs);
+    }
+};
+
 TEST (graph_transitive_reduction, test1)
 {
     // Define graph
@@ -28,7 +35,7 @@ TEST (graph_transitive_reduction, test1)
     g.edge_insert(nc, ne, "nc_ne");
     g.edge_insert(nd, ne, "nd_ne");
 
-    mv::transitiveReduction(g);
+    mv::transitiveReduction<std::string, std::string, EdgeItComparator>(g);
 
     // After transitive reduction, the edges removed should be
     // na_nd, na_ne, nc_ne
