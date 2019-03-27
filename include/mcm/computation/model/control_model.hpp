@@ -26,7 +26,6 @@ namespace mv
         Control::FlowListIterator getOutput();
         Control::FlowListIterator flowBegin();
         Control::FlowListIterator flowEnd();
-        Control::FlowListIterator flowBegin();
 
         void addGroupElement(Control::OpListIterator element, GroupIterator group);
         void addGroupElement(Control::FlowListIterator element, GroupIterator group);
