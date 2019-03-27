@@ -38,7 +38,7 @@ namespace mv
 
 using BarrierInterferenceGraph = mv::graph<mv::Barrier, int>;
 
-static void drawBIG(BarrierInterferenceGraph &g, std::string outputFile)
+static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
 {
     std::ofstream ostream;
 
@@ -208,7 +208,7 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     }
 }
 
-static bool opHasBarrier(const std::string &opName , std::vector<mv::Barrier> &barriers)
+static bool opHasBarrier(const std::string& opName , std::vector<mv::Barrier>& barriers)
 {
     for (auto b : barriers)
     {
@@ -320,7 +320,7 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     }
 
     // remove redundant barriers
-    auto newEnd = std::remove_if(barriers.begin(), barriers.end(), [](mv::Barrier &x)
+    auto newEnd = std::remove_if(barriers.begin(), barriers.end(), [](mv::Barrier& x)
         { return !(x.hasConsumers()); } );
     barriers.erase(newEnd, barriers.end());
 
