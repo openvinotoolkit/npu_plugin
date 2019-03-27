@@ -134,73 +134,6 @@ koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<
  * @brief Encode the mememory requirements of each tash by adding a "MemoryRequirment" attribute to the task in the MCM task graph.
  *        The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
  */
-// void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
-
-//     mv::OpModel om(model);
-//     mv::ControlModel cm(model);
-
-//     /* Store memory requirement as an attribute of a task. 
-//      * This is required also for Ops with no output tensor (i.e. Dealloc tasks).
-//     */
-//     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
-
-//         std::cout << opIt->getName() << std::endl;
-//         std::cout << opIt->getOpType() << std::endl;
-        
-//         if (opIt->getOpType() == "ConstantDataElement" || opIt->getOpType() == "ConstantInt"){
-
-//             int memoryRequirement = 1;
-//             auto dType = opIt->getOutputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
-
-//             mv::Shape shape = opIt->get<mv::Shape>("shape");
-
-//             for (unsigned int i = 0; i < shape.ndims(); i++) 
-//                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
-
-//             memoryRequirement = memoryRequirement * dType/8;
-//             opIt->set<int>("MemoryRequirement", memoryRequirement);
-//         }
-
-//           if (opIt->getOpType() == "Input") {
-
-//             int memoryRequirement = 0;
-//             opIt->set<int>("MemoryRequirement", memoryRequirement);
-//         }
-        
-//         if (opIt->getOpType() == "DPUTask") { 
-
-//             int memoryRequirement = 1;
-//             auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
-
-//             std::cout << "ouput tensor name is " << opIt->getOutputTensor()[0]->getName() << std::endl;
-
-//             for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
-//                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
-
-//             memoryRequirement = memoryRequirement * dType/8;
-//             opIt->set<int>("MemoryRequirement", memoryRequirement);    
-//         }
-        
-//         /*Memory requirement attribute is only required on DMA task from DDR to CMX*/
-//         if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::DDR2CMX)) { 
-
-//             int memoryRequirement = 1;
-//             auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
-
-//             for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
-//                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
-            
-//             memoryRequirement = memoryRequirement * dType/8; 
-//             opIt->set<int>("MemoryRequirement", memoryRequirement);    
-//         }
-
-//         /*Deallocate memory size is 0*/
-//         if (opIt->getOpType() == "Deallocate") {
-//             int memoryRequirement = 0;
-//             opIt->set<int>("MemoryRequirement", memoryRequirement);
-//         }
-//     }
-// }
 
 void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
 
@@ -336,17 +269,13 @@ void setEdgeLengths(const Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraH
 
 int calculateFMax(mv::ComputationModel& model) {
 
-    mv::OpModel om(model);
+    mv::ControlModel cm(model);
 
     /*Compute Fmax - (defined as sum of memory requirments + 1)*/
     int Fmax = 0;
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
-        if (opIt->getOpType() != "Constant" && opIt->getOpType() != "Output") {
-            if (opIt->hasAttr("MemoryRequirement")) {
-                Fmax += opIt->get<int>("MemoryRequirement");
-            }
-        }  
-    }
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)
+        Fmax += flowIt->get<int>("MemoryRequirement");
+    
     Fmax += 1;
 
     return Fmax;
