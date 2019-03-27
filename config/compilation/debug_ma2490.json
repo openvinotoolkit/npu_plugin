@@ -10,7 +10,6 @@
                 "html": true
             },
             {
-
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -29,6 +28,10 @@
     "adapt": {
         "Singular": [
             "AverageAsDepthWise",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -41,6 +44,7 @@
     "keembay_adapt": {
         "Singular": [
             "ConvertOpsToTasks",
+            "AlignTaskWeights",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
             {
@@ -59,7 +63,7 @@
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",
-                "scope": "OpModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             }
@@ -67,13 +71,27 @@
     },
     "control_flows":{
         "Singular" : [
-            "InputOutputControlFlows",
-            "DmaControlFlows",
             "DeallocationControlFlows",
             {
                 "name": "GenerateDot",
-                "output": "control_model.dot",
-                "scope": "OpModel",
+                "output": "DeallocationControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "DmaControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "DmaControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "InputOutputControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "InputOutputControlFlows_model.dot",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             }
@@ -82,7 +100,11 @@
     "finalize": {
         "Singular": [
             "GenerateWorkloads",
-            "InsertBarrierTasks",
+            "MaxTopologicalCut",
+            {
+                "name":"InsertBarrierTasks",
+                "barrier_index_assignment": "Dynamic"
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "AssignUniqueTaskId",
@@ -103,11 +125,7 @@
     },
     "validate": {
         "Singular": [
-            "CheckTensors",
-            {
-                "name": "GenerateJSON",
-                "filename": "computation_model.json"
-}
+            "CheckTensors"
         ]
     },
     "serialize": {
@@ -115,7 +133,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "Scheduling": "Static"
+                "barrier_index_assignment": "Dynamic"
             }
         ]
     },

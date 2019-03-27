@@ -84,6 +84,7 @@ void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
 
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
+    mv::OpModel om(model);
     
     if (!dm.hasAllocator("GraphFile"))
          throw mv::ArgumentError(dm, "allocator", "GraphFile", "Computation model does not have GraphFile allocator specified");
@@ -94,10 +95,12 @@ void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     auto stageIt = cm.getStage(0);
 
     unsigned i = 0;
-    for (auto tIt = dm.tensorBegin(); tIt != dm.tensorEnd(); ++tIt)
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (tIt->isPopulated())
+        std::string opType = opIterator->getOpType();
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
         {
+            auto tIt = opIterator->getOutputTensor(0);
             dm.allocateTensor("GraphFile", stageIt, tIt);
             tIt->set<unsigned>("graphFileIndex", i++);
         }
@@ -130,18 +133,22 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
 
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
-        if (opIterator->getOpType() == "Input")
+        std::string opType = opIterator->getOpType();
+        if (opType == "Input")
         {
             auto outTensor = opIterator->getOutputTensor(0);
             outTensor->set<bool>("modelInput", true); /*Assign tensor attribute  modelInput"*/
         }
 
-        else if (opIterator->getOpType() == "Output")
+        else if (opType == "Output")
         {
             auto inTensor = opIterator->getInputTensor(0);
             inTensor->set<bool>("modelOutput", true); /*Assign tensor attribute  modelOutput"*/
     
         }
+
+        else if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
+            continue;
 
         /*
             For each input and output, allocate if it has not already been done.
@@ -154,7 +161,7 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
 
                 auto inTensor = opIterator->getInputTensor(x);
 
-                if (!inTensor->isPopulated() &&
+                if (
                     (! inTensor->hasAttr("allocators")) &&
                     (! inTensor->hasAttr("modelInput") || ! inTensor->get<bool>("modelInput")) &&
                     (! inTensor->hasAttr("modelOutput") || ! inTensor->get<bool>("modelOutput"))
@@ -167,7 +174,8 @@ void allocateUnpopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::C
             {
 
                 auto outTensor = opIterator->getOutputTensor(x);
-                if (!outTensor->isPopulated() &&
+                std::cout << outTensor->getName() << std::endl << std::endl;;
+                if (
                     (! outTensor->hasAttr("allocators")) &&
                     (! outTensor->hasAttr("modelInput") || ! outTensor->get<bool>("modelInput")) &&
                     (! outTensor->hasAttr("modelOutput") || ! outTensor->get<bool>("modelOutput"))

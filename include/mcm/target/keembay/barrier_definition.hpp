@@ -12,19 +12,24 @@ namespace mv
     class Barrier : public LogSender
     {
         int group_;
-        int index_;        
+        int index_;
+        int barrierID_;
         int numProducers_;
         int numConsumers_;
         std::unordered_set<std::string> producers_; // names of the input ops
         std::unordered_set<std::string> consumers_; // names of the op that consume this barrier
+        static int barrierCounter_;
 
     public:
         Barrier(int group = -1, int index = -1);
         Barrier(int group, int index, std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers);
         Barrier(std::unordered_set<std::string>& producers, std::unordered_set<std::string>& consumers);
+        bool operator==(const Barrier& other);
+        bool operator!=(const Barrier& other);
 
         int getGroup() const;
         int getIndex() const;
+        int getID() const;
 
         int getNumProducers() const;
         int getNumConsumers() const;
@@ -40,7 +45,7 @@ namespace mv
         void setNumConsumers(int consumers);
 
         void setGroup(int group);
-        void setIndex(int index);
+        void setIndex(int index); // sets HW index for this barrier. Guaranteed to be in the 0-7 range.
 
         void addProducer(const std::string& producer);
         void addConsumer(const std::string& consumer);

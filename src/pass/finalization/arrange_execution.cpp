@@ -29,22 +29,6 @@ namespace mv
 
 }
 
-// NOTE: Probably this function is not needed anymore as we are adding ControlFlows in a more cautious way in two separate passes
-bool checkControlFlowExistence(mv::Control::OpListIterator source, mv::Control::OpListIterator sink, mv::ControlModel cm)
-{
-    bool found = false;
-    for(auto childOp = source.leftmostChild(); childOp != cm.opEnd(); ++childOp)
-    {
-        if(childOp == sink)
-        {
-            found = true;
-            break;
-        }
-    }
-
-    return found;
-}
-
 // This pass has one main duty
 // 1) Put the stages
 // Point 1) is trivial for now (just 1 stage), but will be probably updated when Pat completes his analysis

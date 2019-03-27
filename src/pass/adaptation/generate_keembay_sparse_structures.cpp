@@ -205,13 +205,15 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 auto inputChannels = dpuTask->getInputTensor(0)->getShape()[2];
                 auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[2];
 
-                if (isPooling)
+                // Using the check in this way, instead of on the operation type
+                // makes this pass work on both aligned and unaligned convolutions.
+                if (dpuTask->hasAttr("kSize"))
                 {
                     auto kernelShape = dpuTask->get<std::array<unsigned short, 2>>("kSize");
                     kernelW = kernelShape[0];
                     kernelH = kernelShape[1];
                 }
-                else// its a depthwise conv or conv with NCHW layout
+                else
                 {
                     auto weightsShape = dpuTask->getInputTensor(1)->getShape();
                     kernelW = weightsShape[0];
@@ -271,17 +273,28 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
             else
             {
-                unsigned n = dpuTask->getInputTensor().size();
-                for (unsigned i = 0; i < n; ++i)
-                    if (dpuTask->getInputTensor(i)->getOrder().isZMajor())
-                        dpuTask->getInputTensor(i)->setSparse();
-
-                n = dpuTask->getOutputTensor().size();
-                for (unsigned i = 0; i < n; ++i)
-                    if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
-                        dpuTask->getOutputTensor(i)->setSparse();
-
+                if (dpuTask->inputSlots() > 1 &&
+                    dpuTask->getInputTensor(0)->getOrder().isZMajor())
+                 {
+                    auto weights = dpuTask->getInputTensor(1);
+                    weights->setOrder(mv::Order("NWHC"));
+                    weights->setSparse();
+                }
             }
+
+        }
+        else
+        {
+            unsigned n = dpuTask->getInputTensor().size();
+            for (unsigned i = 0; i < n; ++i)
+                if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
+                    !dpuTask->getInputTensor(i)->isPopulated()) //only weights are popualted, and we dont want to cover them here
+                    dpuTask->getInputTensor(i)->setSparse();
+
+            n = dpuTask->getOutputTensor().size();
+            for (unsigned i = 0; i < n; ++i)
+                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+                    dpuTask->getOutputTensor(i)->setSparse();
         }
     }
 }

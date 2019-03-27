@@ -147,7 +147,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
-    if(t->isPopulated())
+    auto allocators = t->get<std::set<std::string>>("allocators");
+    if (allocators.count("GraphFile") != 0)
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
         // UNSUPPORTED FOR NOW
@@ -243,31 +244,6 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
 
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
-    // NOTE: In the future tensor->toBinary() will probably handle also the sparsity map associated to the tensor.
-    // Or maybe not, we will see
-
-    // OLD approach
-//    auto binaryData = t->toBinary();
-
-//    toBuild->fp64 = binaryData.fp64();
-//    toBuild->fp32 = binaryData.fp32();
-//    toBuild->fp16 = binaryData.fp16();
-//    toBuild->f8 = binaryData.fp8();
-//    toBuild->u64 = binaryData.u64();
-//    toBuild->u32 = binaryData.u32();
-//    toBuild->u16 = binaryData.u16();
-//    toBuild->u8 = binaryData.u8();
-//    toBuild->i64 = binaryData.i64();
-//    toBuild->i32 = binaryData.i32();
-//    toBuild->i16 = binaryData.i16();
-//    toBuild->i8 = binaryData.i8();
-//    toBuild->i4 = binaryData.i4();
-//    toBuild->i2 = binaryData.i2();
-//    toBuild->i2x = binaryData.i2x();
-//    toBuild->i4x = binaryData.i4x();
-//    toBuild->bin = binaryData.bin();
-//    toBuild->log = binaryData.log();
-
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     // NEW approach
@@ -594,9 +570,8 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
     if(opIt->hasAttr("opId"))
         toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
 
-    if(compilationDescriptor.get<std::string>("Scheduling") == "Static")
-        if(opIt->hasAttr("BarrierDeps"))
-            toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
+    if(opIt->hasAttr("BarrierDeps"))
+        toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
 
     buildSpecificTaskUnion(cm, compilationDescriptor, opIt, toBuild->task);
     return toBuild;
@@ -639,22 +614,18 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // Barrier Table must be build only on dynamic scheduling
-    if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
+    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
-    // BINARY DATA
+    // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
     for(auto tensorIt = om.tensorBegin(); tensorIt != om.tensorEnd(); ++tensorIt)
     {
-        if(tensorIt->isPopulated())
-        {
-            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
-
-            // TODO
-            if (tensorIt->isSparse())
-                graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt->getSparsityMap()));
-        }
+        auto allocators = tensorIt->get<std::set<std::string>>("allocators");
+        if (allocators.count("GraphFile") != 0)
+            buildBinaryDataT(cm, compilationDescriptor, *tensorIt);
     }
+
 }
 
 char * mv::RuntimeModel::serialize(int& bufferSize)

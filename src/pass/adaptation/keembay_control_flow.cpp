@@ -13,8 +13,8 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(InputOutputControlFlows)
-        .setFunc(inputOutputControlFlowsFcn)
+        MV_REGISTER_PASS(DeallocationControlFlows)
+        .setFunc(deallocationControlFlowsFcn)
         .setDescription(
             ""
         );
@@ -25,8 +25,8 @@ namespace mv
             ""
         );
 
-        MV_REGISTER_PASS(DeallocationControlFlows)
-        .setFunc(deallocationControlFlowsFcn)
+        MV_REGISTER_PASS(InputOutputControlFlows)
+        .setFunc(inputOutputControlFlowsFcn)
         .setDescription(
             ""
         );
@@ -36,41 +36,28 @@ namespace mv
 }
 
 
-
+// This pass adds Input and Output control flows of a network.
 void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    //auto inputOp = om.getInput();
-    //cm.defineFlow(inputOp, inputOp.leftmostChild());
+    auto inputOp = om.getInput();
+    auto nextOp = inputOp.leftmostChild();
+    if(!cm.checkControlFlow(inputOp, nextOp))
+        cm.defineFlow(inputOp, nextOp);
 
-    auto outputOp = om.getOp("Output_0");
+    auto outputOp = om.getOutput();
     auto lastDMAOp = outputOp.leftmostParent();
-    cm.defineFlow(lastDMAOp, outputOp);
+    if(!cm.checkControlFlow(lastDMAOp, outputOp))
+        cm.defineFlow(lastDMAOp, outputOp);
 }
 
-void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
+// This pass adds Control flows relative to a DeallocateTask
+// Rational: A Deallocate task has to be connected via a Control flow to the next operations in the graph (coming in DataFlow order)
 
-    auto dmaOps = om.getOps("DMATask");
-    for(auto op : dmaOps)
-    {
-        if(op->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
-        {
-            for(auto outputDataFlow = op.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
-            {
-                auto sink = outputDataFlow.sink();
-                //if(sink->getOpType() != "Deallocate")
-                cm.defineFlow(op, sink);
-            }
-        }
-    }
-}
-
+// So we take the leftMostParent of the deallocTask(in terms of ControlFlow), take the output of this op (in terms of DataFlow)
+// verify that it is not a dealloc task and connect it.
 void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -81,11 +68,35 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
     for(auto op : deallocateOps)
     {
         auto controlInputOp = cm.switchContext(op).leftmostParent();
-        for(auto outputDataFlow = om.switchContext(controlInputOp).leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
+        auto dataInputOp = dm.switchContext(controlInputOp);
+        for(auto outputDataFlow = dataInputOp.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
         {
             auto sink = outputDataFlow.sink();
             if(sink->getOpType() != "Deallocate")
+                if(!cm.checkControlFlow(op, sink))
+                    cm.defineFlow(op, sink);
+        }
+    }
+}
+
+// This pass adds control flows relative to a DMA Task.
+// Rationale: Each DMA Task should be connected via a ControlFlow to the same operations he is connected via a DataFlow
+void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+    mv::DataModel dm(model);
+
+    auto dmaOps = om.getOps("DMATask");
+    for(auto op : dmaOps)
+    {
+        for(auto outputDataFlow = op.leftmostOutput(); outputDataFlow != dm.flowEnd(); ++outputDataFlow)
+        {
+            auto sink = outputDataFlow.sink();
+            if(!cm.checkControlFlow(op, sink))
                 cm.defineFlow(op, sink);
         }
     }
 }
+
+

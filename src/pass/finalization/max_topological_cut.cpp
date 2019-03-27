@@ -11,7 +11,7 @@
 #include "../../../contrib/koala/classes/create.h"
 #include <iostream>
 
-static void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -19,8 +19,8 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(MaxTopogicalCut)
-        .setFunc(maxTopogicalCut)
+        MV_REGISTER_PASS(MaxTopologicalCut)
+        .setFunc(maxTopologicalCut)
         .setDescription(
             "Perform the max topological cut algorithm to find the maximumpeak memory of a task graph."
         );
@@ -325,7 +325,7 @@ int calculateFMax(mv::ComputationModel& model) {
 
 // }
 
-void maxTopogicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::ControlModel cm(model);
     mv::OpModel om(model);

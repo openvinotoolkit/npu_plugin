@@ -14,24 +14,9 @@
 
 int main()
 {
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
-
-    // auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
-
-    // std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
-    // auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    // auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
-
-    // std::vector<double> weightsData1 = mv::utils::generateSequence<double>(1*1*15*15);
-    // auto weights1 = om.constant(weightsData1, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    // auto conv1 = om.conv(conv, weights1, {1, 1}, {0, 0, 0, 0});
-
-    // std::vector<double> weightsData2 = mv::utils::generateSequence<double>(1*1*15*15);
-    // auto weights2 = om.constant(weightsData2, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    // auto conv2 = om.conv(conv1, weights2, {1, 1}, {0, 0, 0, 0});
-
-    // om.output(conv2);
 
     auto input = om.input({40, 40, 3}, mv::DType("Float16"), mv::Order("CHW"));
 
@@ -40,17 +25,19 @@ int main()
     auto conv = om.conv(input, weights, {1, 1}, {3, 3, 3, 3});
 
     std::vector<double> weightsData1 = mv::utils::generateSequence<double>(7*7*90*90);
-    auto weights1 = om.constant(weightsData1, {7, 7, 90, 90}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weights1 = om.constant(weightsData1, {7, 7, 90, 90}, mv::DType("Float8"), mv::Order("NCWH"));
     auto conv1 = om.conv(conv, weights1, {1, 1}, {3, 3, 3, 3});
 
     std::vector<double> weightsData2 = mv::utils::generateSequence<double>(7*7*90*90);
-    auto weights2 = om.constant(weightsData2, {7, 7, 90, 90}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weights2 = om.constant(weightsData2, {7, 7, 90, 90}, mv::DType("Float8"), mv::Order("NCWH"));
     auto conv2 = om.conv(conv1, weights2, {1, 1}, {3, 3, 3, 3});
 
     om.output(conv2);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
@@ -60,5 +47,9 @@ int main()
     system("dot -Tpng control_model.dot -o control_model.png");
     system("dot -Tpng dma_model.dot -o dma_model.png");
     system("dot -Tpng adapt_model.dot -o adapt_model.png");
-    system("dot -Tpng final_model.dot -o final_model.png");
+    system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
+    system("dot -Tpng dma_model.dot -o dma_model.png");
+    system("dot -Tpng DeallocationControlFlows_model.dot -o DeallocationControlFlows_model.png");
+    system("dot -Tpng DmaControlFlows_model.dot -o DmaControlFlows_model.png");
+    system("dot -Tpng InputOutputControlFlows_model.dot -o InputOutputControlFlows_model.png");
 }
