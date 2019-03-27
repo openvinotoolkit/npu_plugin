@@ -237,8 +237,8 @@ std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Contro
 
     if(edgeAttribute != "")
         for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
-            if(edgeIt->hasAttr(nodeAttribute))
-                edgeCosts[edgeIt] = edgeIt->get<unsigned>(nodeAttribute);
+            if(edgeIt->hasAttr(edgeAttribute))
+                edgeCosts[edgeIt] = edgeIt->get<unsigned>(edgeAttribute);
 
     auto toReturnToBeCasted = mv::critical_path<Op, ControlFlow, OpItComparator, EdgeItComparator>(controlGraph_, sourceOp, sinkOp, nodeCosts, edgeCosts);
     std::vector<mv::Control::FlowListIterator> toReturn(toReturnToBeCasted.begin(), toReturnToBeCasted.end());
