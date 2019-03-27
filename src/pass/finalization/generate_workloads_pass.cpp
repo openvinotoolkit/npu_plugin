@@ -507,11 +507,11 @@ static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterato
 
     float min_range = wl_sum/nDPUxCluster;
     float max_range = wl_sum/nDPUxCluster + critical_wl;
-    
+
     if (costFunction == CostFunctions::Balanced)
     {
         float balancing = float(0.0);
-        if (!isinf(wl_sum))
+        if (!std::isinf(wl_sum))
             balancing = wl_sum/(ceil(wl_sum/nDPUxCluster) * nDPUxCluster);
 
         return {-balancing, -balancing};
@@ -526,10 +526,10 @@ static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterato
         else
             return {max_range, max_range};
     }
-    
+
     else if(costFunction == CostFunctions::Greedy)
     {
-        if (isinf(wl_sum))
+        if (std::isinf(wl_sum))
             return {INFINITY, INFINITY};
         else
         {
