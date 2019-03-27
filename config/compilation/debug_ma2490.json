@@ -122,7 +122,11 @@
     },
     "finalize": {
         "Singular": [
-            "GenerateWorkloads",
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "balanced",
+                "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
+            },
             "MaxTopologicalCut",
             {
                 "name":"InsertBarrierTasks",
