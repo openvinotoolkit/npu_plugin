@@ -60,14 +60,7 @@ namespace mv
 
         static std::string toString(const Attribute& a)
         {
-            std::string output = "{[";
-            auto vec = a.get<std::vector<mv::DataElement>>();
-            if (vec.size() > 0)
-            {
-                for (std::size_t i = 0; i < vec.size() - 1; ++i)
-                    output += "\"" + std::string(vec[i]) + "\", ";
-            }
-            output += "]}";
+            std::string output = "(" + std::to_string(a.get<std::vector<mv::DataElement>>().size()) + ")";
             return output;
         }
 
