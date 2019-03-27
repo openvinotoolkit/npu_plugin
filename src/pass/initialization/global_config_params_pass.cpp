@@ -15,7 +15,7 @@ namespace mv
         MV_REGISTER_PASS(GlobalConfigParams)
         .setFunc(GlobalConfigParamsFcn)
         .setDescription(
-            "Parses global config parameters from the Compilation Descriptor and stores them in a hashmap in the Computation Model."
+            "Parses global config parameters from the Compilation Descriptor and stores them in the Computation Model."
         );
     }
 }
@@ -24,9 +24,4 @@ static void GlobalConfigParamsFcn(const mv::pass::PassEntry& pass, mv::Computati
 {
     mv::Element element = mv::Element(compilationDescriptor);
     model.setGlobalConfigParams(element);
-    
-
-    //if (!compilationDescriptor.hasAttr("outputPrototxt") || compilationDescriptor.get<std::string>("outputPrototxt").empty())
-    //    std::string generatedPrototxtFileName = compilationDescriptor.get<std::string>("outputPrototxt");
 }
-
