@@ -14,6 +14,7 @@
 
 int main()
 {
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
@@ -27,14 +28,12 @@ int main()
     auto weights1 = om.constant(weightsData1, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(conv, weights1, {1, 1}, {0, 0, 0, 0});
 
-    std::vector<double> weightsData2 = mv::utils::generateSequence<double>(1*1*15*15);
-    auto weights2 = om.constant(weightsData2, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(conv1, weights2, {1, 1}, {0, 0, 0, 0});
-
-    om.output(conv2);
+    om.output(conv1);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
@@ -42,5 +41,8 @@ int main()
 
     system("dot -Tpng original_model.dot -o original_model.png");
     system("dot -Tpng adapt_model.dot -o adapt_model.png");
+    system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
+    system("dot -Tpng dma_model.dot -o dma_model.png");
+    system("dot -Tpng control_model.dot -o control_model.png");
     system("dot -Tpng final_model.dot -o final_model.png");
 }

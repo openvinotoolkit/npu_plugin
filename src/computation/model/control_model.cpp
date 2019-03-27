@@ -220,3 +220,26 @@ std::string mv::ControlModel::getLogID() const
 {
     return "ControlModel:" + name_;
 }
+
+bool mv::ControlModel::checkControlFlow(mv::Control::OpListIterator source, mv::Control::OpListIterator sink)
+{
+    bool found = false;
+    for(auto childOp = source.leftmostChild(); childOp != opEnd(); ++childOp)
+    {
+        if(childOp == sink)
+        {
+            found = true;
+            break;
+        }
+    }
+
+    return found;
+}
+
+
+bool mv::ControlModel::checkControlFlow(mv::Data::OpListIterator source, mv::Data::OpListIterator sink)
+{
+    return checkControlFlow(switchContext(source), switchContext(sink));
+}
+
+
