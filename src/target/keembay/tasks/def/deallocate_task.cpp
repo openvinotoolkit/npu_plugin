@@ -27,7 +27,6 @@ namespace mv
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable"});
-
     }
 
 }

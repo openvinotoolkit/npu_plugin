@@ -20,9 +20,11 @@ namespace mv
 
         Control::OpListIterator getFirst();
         Control::OpListIterator getLast();
+        Control::OpListIterator opBegin();
         Control::OpListIterator opEnd();
         Control::FlowListIterator getInput();
         Control::FlowListIterator getOutput();
+        Control::FlowListIterator flowBegin();
         Control::FlowListIterator flowEnd();
 
         void addGroupElement(Control::OpListIterator element, GroupIterator group);
@@ -31,6 +33,8 @@ namespace mv
         void removeGroupElement(Control::FlowListIterator element, GroupIterator group);
         std::vector<Control::OpListIterator> topologicalSort();
         void transitiveReduction();
+        std::vector<Control::FlowListIterator> criticalPath(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");
+        std::vector<Control::FlowListIterator> criticalPath(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
 
@@ -41,6 +45,9 @@ namespace mv
         void addToStage(Control::StageIterator stage, Data::OpListIterator op);
         void removeFromStage(Control::OpListIterator op);
         std::size_t stageSize() const;
+
+        bool checkControlFlow(mv::Control::OpListIterator source, mv::Control::OpListIterator sink);
+        bool checkControlFlow(mv::Data::OpListIterator source, mv::Data::OpListIterator sink);
 
         Control::StageIterator stageBegin();
         Control::StageIterator stageEnd();
