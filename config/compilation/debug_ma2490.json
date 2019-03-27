@@ -116,6 +116,13 @@
         "Singular": [
             "MaxTopologicalCut",
             {
+                "name": "GenerateDot",
+                "output": "max_cut_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name":"InsertBarrierTasks",
                 "barrier_index_assignment": "Dynamic"
             },
