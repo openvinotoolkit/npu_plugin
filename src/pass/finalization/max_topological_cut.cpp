@@ -134,71 +134,95 @@ koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<
  * @brief Encode the mememory requirements of each tash by adding a "MemoryRequirment" attribute to the task in the MCM task graph.
  *        The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
  */
-void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
+// void encodeMemoryRequirmentsofTask(mv::ComputationModel& model) {
+
+//     mv::OpModel om(model);
+//     mv::ControlModel cm(model);
+
+//     /* Store memory requirement as an attribute of a task. 
+//      * This is required also for Ops with no output tensor (i.e. Dealloc tasks).
+//     */
+//     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
+
+//         std::cout << opIt->getName() << std::endl;
+//         std::cout << opIt->getOpType() << std::endl;
+        
+//         if (opIt->getOpType() == "ConstantDataElement" || opIt->getOpType() == "ConstantInt"){
+
+//             int memoryRequirement = 1;
+//             auto dType = opIt->getOutputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+
+//             mv::Shape shape = opIt->get<mv::Shape>("shape");
+
+//             for (unsigned int i = 0; i < shape.ndims(); i++) 
+//                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+//             memoryRequirement = memoryRequirement * dType/8;
+//             opIt->set<int>("MemoryRequirement", memoryRequirement);
+//         }
+
+//           if (opIt->getOpType() == "Input") {
+
+//             int memoryRequirement = 0;
+//             opIt->set<int>("MemoryRequirement", memoryRequirement);
+//         }
+        
+//         if (opIt->getOpType() == "DPUTask") { 
+
+//             int memoryRequirement = 1;
+//             auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+
+//             std::cout << "ouput tensor name is " << opIt->getOutputTensor()[0]->getName() << std::endl;
+
+//             for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+//                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+//             memoryRequirement = memoryRequirement * dType/8;
+//             opIt->set<int>("MemoryRequirement", memoryRequirement);    
+//         }
+        
+//         /*Memory requirement attribute is only required on DMA task from DDR to CMX*/
+//         if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::DDR2CMX)) { 
+
+//             int memoryRequirement = 1;
+//             auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+
+//             for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+//                 memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+            
+//             memoryRequirement = memoryRequirement * dType/8; 
+//             opIt->set<int>("MemoryRequirement", memoryRequirement);    
+//         }
+
+//         /*Deallocate memory size is 0*/
+//         if (opIt->getOpType() == "Deallocate") {
+//             int memoryRequirement = 0;
+//             opIt->set<int>("MemoryRequirement", memoryRequirement);
+//         }
+//     }
+// }
+
+void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    /* Store memory requirement as an attribute of a task. 
-     * This is required also for Ops with no output tensor (i.e. Dealloc tasks).
-    */
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt) {
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
 
-        std::cout << opIt->getName() << std::endl;
-        std::cout << opIt->getOpType() << std::endl;
-        
-        if (opIt->getOpType() == "ConstantDataElement" || opIt->getOpType() == "ConstantInt"){
+         if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find(flowIt.source()->getName()) != std::string::npos))) 
+         {
+             int memoryRequirement = 1;
+             auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+             
+             for (unsigned int i = 0; i < flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+                 memoryRequirement = flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
 
-            int memoryRequirement = 1;
-            auto dType = opIt->getOutputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
-
-            mv::Shape shape = opIt->get<mv::Shape>("shape");
-
-            for (unsigned int i = 0; i < shape.ndims(); i++) 
-                memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
-
-            memoryRequirement = memoryRequirement * dType/8;
-            opIt->set<int>("MemoryRequirement", memoryRequirement);
-        }
-
-          if (opIt->getOpType() == "Input") {
-
-            int memoryRequirement = 0;
-            opIt->set<int>("MemoryRequirement", memoryRequirement);
-        }
-        
-        if (opIt->getOpType() == "DPUTask") { 
-
-            int memoryRequirement = 1;
-            auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
-
-            std::cout << "ouput tensor name is " << opIt->getOutputTensor()[0]->getName() << std::endl;
-
-            for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
-                memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
-
-            memoryRequirement = memoryRequirement * dType/8;
-            opIt->set<int>("MemoryRequirement", memoryRequirement);    
-        }
-        
-        /*Memory requirement attribute is only required on DMA task from DDR to CMX*/
-        if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::DDR2CMX)) { 
-
-            int memoryRequirement = 1;
-            auto dType = opIt->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
-
-            for (unsigned int i = 0; i < opIt->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
-                memoryRequirement = opIt->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
-            
-            memoryRequirement = memoryRequirement * dType/8; 
-            opIt->set<int>("MemoryRequirement", memoryRequirement);    
-        }
-
-        /*Deallocate memory size is 0*/
-        if (opIt->getOpType() == "Deallocate") {
-            int memoryRequirement = 0;
-            opIt->set<int>("MemoryRequirement", memoryRequirement);
-        }
+             memoryRequirement = memoryRequirement * dType/8;
+             flowIt->set<int>("MemoryRequirement", memoryRequirement);  
+         
+         }
+         else 
+            flowIt->set<int>("MemoryRequirement", 0);
     }
 }
 
@@ -250,7 +274,7 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
         /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
         */ 
-
+       
         if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt") { 
 
             auto sourceName = flowIt.source()->getName();
@@ -261,14 +285,14 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
              *     encode the memory requirment (size of the output tensor) on the edge.
              *     If not then the memory requirement in 0.
              */ 
-            if(((flowIt.sink()->getOpType() == "Deallocate") && (flowIt.source()->getOpType() != "DPUTask"))  || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getOpType() != "Deallocate"))) {
+            if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find(flowIt.source()->getName()) != std::string::npos))) {
                 
-                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt.source()->get<int>("MemoryRequirement")));
+                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
         
                 /*Add KOALA Vertix iterator*/
                 E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
                                             *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
-                                            edgeDescription(flowIt.source()->get<int>("MemoryRequirement"),flowIt->getName()), 
+                                            edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
                                             Koala::Directed));
             }
             else {
@@ -339,7 +363,7 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     mv::OpModel om(model);
 
     /*Add the memory requirement of a task as an attribute on the MCM graph*/
-    encodeMemoryRequirmentsofTask(model);
+    encodeMemoryRequirmentsOnEdges(model);
 
     /*Name of KOALA graph*/
     koalaGraph flowGraph;

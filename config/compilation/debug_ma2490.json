@@ -109,14 +109,6 @@
                 "scope": "OpModel",
                 "content": "full",
                 "html": true
-            },
-            "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "TransitiveReduction.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
             }
         ]
     },
