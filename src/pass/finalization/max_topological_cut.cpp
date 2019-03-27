@@ -142,20 +142,23 @@ void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
 
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
 
-         if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find(flowIt.source()->getName()) != std::string::npos))) 
-         {
-             int memoryRequirement = 1;
-             auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+        if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find(flowIt.source()->getName()) != std::string::npos))) 
+        {
+            int memoryRequirement = 1;
+            auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
              
-             for (unsigned int i = 0; i < flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
-                 memoryRequirement = flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+            for (unsigned int i = 0; i < flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+                memoryRequirement = flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
 
-             memoryRequirement = memoryRequirement * dType/8;
-             flowIt->set<int>("MemoryRequirement", memoryRequirement);  
+            memoryRequirement = memoryRequirement * dType/8;
+            flowIt->set<int>("MemoryRequirement", memoryRequirement);
+            flowIt->set<bool>("PositiveMemory", true);  
          
          }
-         else 
+         else {
             flowIt->set<int>("MemoryRequirement", 0);
+            flowIt->set<bool>("PositiveMemory", false);
+         }
     }
 }
 

@@ -106,7 +106,7 @@
             {
                 "name": "GenerateDot",
                 "output": "InputOutputControlFlows_model.dot",
-                "scope": "OpModel",
+                "scope": "ControlModel",
                 "content": "full",
                 "html": true
             }
