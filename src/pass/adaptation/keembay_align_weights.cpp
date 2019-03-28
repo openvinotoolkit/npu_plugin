@@ -17,28 +17,45 @@ namespace mv
     }
 }
 
+// This pass aligns weights for Convolutions that will be executed as DPUTasks
+// Pass main assumption is that we are working on the task graph, no DMA involved yet
+// Another assumption is that if a tensor of weights is involved in more than one OP
+// Then either all these ops are DPUTasks or neither of them.
+
 void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
-    // Pass main assumption is that we are working on the task graph, no DMA involved yet (just AveragePooling substituted)
-    auto dpuTasks = om.getOps("DPUTask");
+    auto constants = om.getOps("Constant");
+    auto constantInts = om.getOps("ConstantInt");
+    auto constantsDataElements = om.getOps("ConstantDataElement");
 
-    for(auto vecIt = dpuTasks.begin(); vecIt != dpuTasks.end(); ++vecIt)
+    constants.insert(constants.end(), std::make_move_iterator(constantInts.begin()), std::make_move_iterator(constantInts.end()));
+    constants.insert(constants.end(), std::make_move_iterator(constantsDataElements.begin()), std::make_move_iterator(constantsDataElements.end()));
+
+    for(auto vecIt = constants.begin(); vecIt != constants.end(); ++vecIt)
     {
-        auto opIt = *vecIt;
-        std::string opType = opIt->get<std::string>("taskOp");
-        if (opType == "ChannelMajorConvolution" || opType == "DepthwiseConv" || opType == "Conv")
+        auto kernelOp = *vecIt;
+        auto opId = kernelOp->get<unsigned>("opId");
+
+        std::vector<mv::Data::OpListIterator> toUpdate;
+        bool hasOneDPUTask = false;
+        for(auto opIt = kernelOp.leftmostChild(); opIt != om.opEnd(); ++opIt)
         {
-            auto kernel = opIt->getInputTensor(1);
-            auto kernelOp = om.getSourceOp(kernel);
+            if(opIt->getOpType() == "DPUTask")
+            {
+                hasOneDPUTask = true;
+                toUpdate.push_back(opIt);
+            }
+            else if(!hasOneDPUTask)
+                throw "Assumption violated!";
+        }
+
+        if(hasOneDPUTask)
+        {
+            auto kernel = kernelOp->getOutputTensor(0);
             auto kernelShape = kernel->getShape();
-            auto opId = opIt->get<unsigned>("opId");
 
-            opIt->set<std::array<unsigned short, 2>>("kSize", {kernelShape[0], kernelShape[1]});
-            opIt->set<unsigned>("inputChannels", kernelShape[2]);
-
-            // NOTE: Is the assumption double correct?
             auto weightSetDimension = kernelShape[0]*kernelShape[1]*kernelShape[2];
             mv::Shape newShape({kernelShape[3], 1, 1, mv::round_up(weightSetDimension, 16)});
             auto oldData = kernel->getData();
@@ -47,9 +64,13 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), "Aligned"+kernelOp->getName());
             om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
-
-            opIt->setInputTensor(newKernel, 1, false);
-            om.defineFlow(newKernel, opIt, 1);
+            for(auto toUpdateIt = toUpdate.begin(); toUpdateIt != toUpdate.end(); ++toUpdateIt)
+            {
+                (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[0], kernelShape[1]});
+                (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[2]);
+                (*toUpdateIt)->setInputTensor(newKernel, 1, false);
+                om.defineFlow(newKernel, (*toUpdateIt), 1);
+            }
         }
     }
 }
