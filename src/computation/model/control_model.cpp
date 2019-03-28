@@ -237,8 +237,8 @@ std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Contro
 
     if(edgeAttribute != "")
         for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
-            if(edgeIt->hasAttr(nodeAttribute))
-                edgeCosts[edgeIt] = edgeIt->get<unsigned>(nodeAttribute);
+            if(edgeIt->hasAttr(edgeAttribute))
+                edgeCosts[edgeIt] = edgeIt->get<unsigned>(edgeAttribute);
 
     auto toReturnToBeCasted = mv::critical_path<Op, ControlFlow, OpItComparator, EdgeItComparator>(controlGraph_, sourceOp, sinkOp, nodeCosts, edgeCosts);
     std::vector<mv::Control::FlowListIterator> toReturn(toReturnToBeCasted.begin(), toReturnToBeCasted.end());
@@ -250,9 +250,14 @@ std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Data::
    return criticalPath(switchContext(sourceOp), switchContext(sinkOp), nodeAttribute, edgeAttribute);
 }
 
-void mv::ControlModel::transitiveReduction()
+void mv::ControlModel::transitiveReduction(const std::string& edgeAttribute)
 {
-    mv::transitiveReduction(controlGraph_);
+    std::set<mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator, EdgeItComparator> toSave;
+    if(edgeAttribute != "")
+        for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
+            if(edgeIt->hasAttr(edgeAttribute))
+                toSave.insert(edgeIt);
+    mv::transitiveReduction<Op, ControlFlow, EdgeItComparator>(controlGraph_, toSave);
 }
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
