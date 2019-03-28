@@ -36,15 +36,20 @@ namespace mv
 
         for(auto e = root->leftmost_output(); e != g.edge_end(); ++e)
         {
-            // Must skip first node (itself)
-            typename graph<T_node, T_edge>::edge_dfs_iterator u(e);
-            ++u;
-            for (; u != g.edge_end(); ++u)
+            // Must skip first edge (itself)
+            typename graph<T_node, T_edge>::edge_dfs_iterator edge_dfs(e);
+            ++edge_dfs;
+            for (; edge_dfs != g.edge_end(); ++edge_dfs)
             {
-                auto it = root_adj.find(u->sink());
-                auto it2 = filteredEdges.find(u);
-                if(it != root_adj.end() && it2 == filteredEdges.end())
-                    toEliminate[u->sink()] = it->second;
+                auto u = edge_dfs->sink();
+                auto it = root_adj.find(u);
+                if(it != root_adj.end())
+                {
+                    auto it2 = filteredEdges.find(it->second);
+                    if(it2 != filteredEdges.end())
+                        continue;
+                    toEliminate[u] = it->second;
+                }
             }
         }
 
