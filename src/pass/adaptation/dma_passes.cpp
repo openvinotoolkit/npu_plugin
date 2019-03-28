@@ -44,10 +44,12 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         else
             return false;
     }
-    else if(opType.find("Task") != std::string::npos)
-        return true;
-    else
+    else if(opType.find("Constant") != std::string::npos)
         return false;
+    else if(opType.find("Input") != std::string::npos)
+        return false;
+    else
+        return true;
 }
 
 // Pass role: Add final DMA Task CMX2DDR (if needed)
