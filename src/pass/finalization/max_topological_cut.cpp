@@ -153,7 +153,7 @@ void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
 
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
 
-        if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find(flowIt.source()->getName()) != std::string::npos))) 
+        if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find("Deallocate"+flowIt.source()->getName()) != std::string::npos))) 
         {
             int memoryRequirement = 1;
             auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
@@ -231,7 +231,7 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
              *     encode the memory requirment (size of the output tensor) on the edge.
              *     If not then the memory requirement in 0.
              */ 
-            if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find(flowIt.source()->getName()) != std::string::npos))) {
+            if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find("Deallocate"+flowIt.source()->getName()) != std::string::npos))) {
                 
                 pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
         
@@ -286,10 +286,14 @@ int calculateFMax(mv::ComputationModel& model) {
 
     /*Compute Fmax - (defined as sum of memory requirments + 1)*/
     int Fmax = 0;
-    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt)
+    for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
+        std::cout << "memory is " << flowIt->get<int>("MemoryRequirement") << std::endl;
         Fmax += flowIt->get<int>("MemoryRequirement");
+    }
     
     Fmax += 1;
+
+    std::cout << "Fmax is " << Fmax << std::endl;
 
     return Fmax;
 }

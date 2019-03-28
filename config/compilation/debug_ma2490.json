@@ -108,17 +108,24 @@
                 "output": "InputOutputControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true    
             }
         ]
     },
     "finalize": {
         "Singular": [
             "AddMemoryRequirmentAttributeOnControlFlows",
-            "TransitiveReduction",
             {
                 "name": "GenerateDot",
                 "output": "AddMemoryRequirmentAttributeOnControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "aftertrans_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
