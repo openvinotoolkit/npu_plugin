@@ -107,13 +107,6 @@ std::vector<R> extendToK(size_t size, std::vector<T> value)
                 std::to_string(value.size()));
 }
 
-template <class T>
-std::vector<double> convertToDoubleVector(std::vector<T> input)
-{
-    std::vector<double> result(input.begin(), input.end());
-    return result;
-}
-
 void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName)
 {
     auto output = dpuTaskOp->getOutputTensor(0);
