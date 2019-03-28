@@ -153,8 +153,24 @@ void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
 
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
 
-        if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find("Deallocate"+flowIt.source()->getName()) != std::string::npos))) 
+        if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find("Deallocate"+flowIt.source()->getName()) != std::string::npos)) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getOpType() == "DMATask")))
         {
+            if(flowIt.sink()->hasAttr("direction")) {
+
+                if(flowIt.sink()->get<mv::DmaDirection>("direction") == mv::CMX2DDR) {
+                    
+                    int memoryRequirement = 1;
+                    auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+             
+                    for (unsigned int i = 0; i < flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+                        memoryRequirement = flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+                    memoryRequirement = memoryRequirement * dType/8;
+                    flowIt->set<int>("MemoryRequirement", memoryRequirement);
+                    flowIt->set<bool>("PositiveMemory", true);
+                }
+            }
+            else {
             int memoryRequirement = 1;
             auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
              
@@ -164,6 +180,7 @@ void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
             memoryRequirement = memoryRequirement * dType/8;
             flowIt->set<int>("MemoryRequirement", memoryRequirement);
             flowIt->set<bool>("PositiveMemory", true);  
+            }
          
          }
          else {
@@ -226,31 +243,38 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();
 
-            /* (1) If the sink node of the MCMC flow iterator is a Deallocate Op or
-             * (2) or the source node of the flow iterator is a DPU task then
-             *     encode the memory requirment (size of the output tensor) on the edge.
-             *     If not then the memory requirement in 0.
-             */ 
-            if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find("Deallocate"+flowIt.source()->getName()) != std::string::npos))) {
+            pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
+
+            E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
+                                             *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
+                                             edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
+                                             Koala::Directed));
+
+        //    /*  (1) If the sink node of the MCMC flow iterator is a Deallocate Op or
+        //      * (2) or the source node of the flow iterator is a DPU task then
+        //      *     encode the memory requirment (size of the output tensor) on the edge.
+        //      *     If not then the memory requirement in 0.
+        //      */ 
+        //     if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find("Deallocate"+flowIt.source()->getName()) != std::string::npos))) {
                 
-                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
+        //         pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
         
-                /*Add KOALA Vertix iterator*/
-                E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
-                                            *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
-                                            edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
-                                            Koala::Directed));
-            }
-            else {
+        //         /*Add KOALA Vertix iterator*/
+        //         E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
+        //                                     *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
+        //                                     edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
+        //                                     Koala::Directed));
+        //     }
+        //     else {
                 
-                pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement 0");
+        //         pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement 0");
         
-                 /*Add KOALA Vertix iterator*/
-                E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
-                                            *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
-                                            edgeDescription(0,flowIt->getName()), 
-                                            Koala::Directed));
-            }
+        //          /*Add KOALA Vertix iterator*/
+        //         E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
+        //                                     *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
+        //                                     edgeDescription(0,flowIt->getName()), 
+        //                                     Koala::Directed));
+        //     }
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(flowGraph.getVertNo()) + " vertices and " + std::to_string(flowGraph.getEdgeNo()) + " edges");
