@@ -1,4 +1,5 @@
 #include "include/mcm/computation/model/base_op_model.hpp"
+#include "include/mcm/algorithms/topological_sort.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"
 
 mv::BaseOpModel::BaseOpModel(const std::string& name) :
@@ -160,6 +161,14 @@ mv::Data::FlowListIterator mv::BaseOpModel::defineFlow(Data::OpListIterator sour
     auto sourceTensor = sourceOp->getOutputTensor(outputIdx);
     return defineFlow(sourceTensor, sinkOp, inputIdx);
 
+}
+
+std::vector<mv::Data::OpListIterator> mv::BaseOpModel::topologicalSort()
+{
+    // Necessary for correct iterator casting
+    auto topologicalSortResult = mv::topologicalSort(dataGraph_);
+    std::vector<mv::Data::OpListIterator> toReturn(topologicalSortResult.begin(), topologicalSortResult.end());
+    return toReturn;
 }
 
 void mv::BaseOpModel::undefineFlow(Data::FlowListIterator flow)
