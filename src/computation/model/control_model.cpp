@@ -213,14 +213,16 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
 
 struct OpItComparator
 {
-    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator rhs) const {
+    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator rhs) const
+    {
         return (*lhs) < (*rhs);
     }
 };
 
 struct EdgeItComparator
 {
-    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator rhs) const {
+    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator rhs) const
+    {
         return (*lhs) < (*rhs);
     }
 };
