@@ -264,36 +264,25 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 }
 
 // We have three taskslist for POC:
-// Tasklist 0: Contains all the DMA Tasks
-// Tasklist 1: Contains all the DPU Tasks
-// Tasklist 2: Contains all leon Tasks.
+// Tasklist 0: Contains all the tasks
 // We need to topologically sort the control model graph to get the tasks in the correct order.
 
 std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
     mv::ControlModel controlModel(cm);
-    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(3);
+    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
     toBuild[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
-    toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
-    toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     auto topologicallySortedOps = controlModel.topologicalSort();
 
-    //Only Tasks in TaskLists
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
         std::string opType = opIt->getOpType();
+        //Only Tasks in TaskLists
         if(opType.find("Task") != std::string::npos)
-        {
-            if(opType == "DMATask")
-                toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            else if(opType == "DPUTask")
-                toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            else
-                toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-        }
+            toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
     }
 
     return toBuild;
