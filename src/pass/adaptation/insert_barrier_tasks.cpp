@@ -263,12 +263,12 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
     {
         auto ctlFlowOpType = ctlFlow->getOpType();
-        if ((ctlFlowOpType=="DMATask") | (ctlFlowOpType == "DPUTask"))
+        if ((ctlFlowOpType == "DMATask") || (ctlFlowOpType == "DPUTask"))
         {
             for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
             {
                 auto parentOpType = parentOp->getOpType();
-                if ((parentOpType == "DPUTask")|(parentOpType == "DMATask" ))
+                if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ))
                 {
                     auto sinkOpName = ctlFlow->getName();
                     auto sourceOpName = parentOp->getName();
@@ -305,7 +305,7 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     // combine redundant barriers (same producers) into 1 barrier
     for (auto b = barriers.begin(); b != barriers.end(); b++ )
     {
-        for (auto c=std::next(b); c!= barriers.end(); c++ )
+        for (auto c = std::next(b); c!= barriers.end(); c++ )
         {
             if ((b->getProducers() == c->getProducers()) && (c->hasConsumers()) && (b->hasConsumers()))
             {
