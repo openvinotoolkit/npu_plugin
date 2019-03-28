@@ -74,15 +74,6 @@ struct edgeDescription {
 /*Define KOALA graph's node and edge type*/
 using koalaGraph = Koala::Graph <nodeDescription, edgeDescription>;
 
-/* iters the pair of insert iterators to the containers with the reachable (from start) vertices 
- * (after subtraction of cut) and the edges of output  cut-set.
- */
-struct edgeIter {
-	void operator=(koalaGraph::PEdge e) {}
-	void operator++() {}
-	edgeIter &operator*() {return *this;}
-};
-
 /**
  * @brief Returns a KOALA vertex iterator corresonding to the name of the iterator 
  * @param vertexName - the name of the KOALA vertex you are searching for
@@ -142,7 +133,7 @@ koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<
 // }
 
 /**
- * @brief Encode the mememory requirements of each tash by adding a "MemoryRequirment" attribute to the task in the MCM task graph.
+ * @brief Encode the mememory requirements of each task by adding a "MemoryRequirment" attribute to the flow in the MCM task graph.
  *        The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
  */
 
@@ -167,7 +158,7 @@ void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
 
                     memoryRequirement = memoryRequirement * dType/8;
                     flowIt->set<int>("MemoryRequirement", memoryRequirement);
-                    flowIt->set<bool>("PositiveMemory", true);
+                    flowIt->set<bool>("PositiveMemory", true); //Required for transitive reduction filter
                 }
             }
             else {
@@ -249,32 +240,6 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
                                              *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
                                              edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
                                              Koala::Directed));
-
-        //    /*  (1) If the sink node of the MCMC flow iterator is a Deallocate Op or
-        //      * (2) or the source node of the flow iterator is a DPU task then
-        //      *     encode the memory requirment (size of the output tensor) on the edge.
-        //      *     If not then the memory requirement in 0.
-        //      */ 
-        //     if(((flowIt.source()->getOpType() == "DMATask") && (flowIt.sink()->getOpType() == "Deallocate")) || ((flowIt.source()->getOpType() == "DPUTask") && (flowIt.sink()->getName().find("Deallocate"+flowIt.source()->getName()) != std::string::npos))) {
-                
-        //         pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement " + std::to_string(flowIt->get<int>("MemoryRequirement")));
-        
-        //         /*Add KOALA Vertix iterator*/
-        //         E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
-        //                                     *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
-        //                                     edgeDescription(flowIt->get<int>("MemoryRequirement"),flowIt->getName()), 
-        //                                     Koala::Directed));
-        //     }
-        //     else {
-                
-        //         pass.log(mv::Logger::MessageType::Debug, "Adding edge to KOALA graph from: " + sourceName + " --> " + sinkName + " with memory requirement 0");
-        
-        //          /*Add KOALA Vertix iterator*/
-        //         E.push_back(flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
-        //                                     *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
-        //                                     edgeDescription(0,flowIt->getName()), 
-        //                                     Koala::Directed));
-        //     }
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(flowGraph.getVertNo()) + " vertices and " + std::to_string(flowGraph.getEdgeNo()) + " edges");
@@ -422,22 +387,22 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 
     //----------------------------------------------------------------------------------------------------
     /* Write KOALA graph to GraphML file: View the graph with this tool: https://gephi.org/ */
-	Koala::IO::GraphML gml;
-	Koala::IO::GraphMLGraph *gmlg;
+	// Koala::IO::GraphML gml;
+	// Koala::IO::GraphMLGraph *gmlg;
 
-    /*Display all graph info in the console*/
-    //Koala::IO::writeGraphText(flowGraph, std::cout, Koala::IO::RG_VertexLists | Koala::IO::RG_Info);
+    // /*Display all graph info in the console*/
+    // //Koala::IO::writeGraphText(flowGraph, std::cout, Koala::IO::RG_VertexLists | Koala::IO::RG_Info);
 
-    gmlg = gml.createGraph("first");
-		gmlg->writeGraph(flowGraph, 
-        Koala::IO::gmlStringField(&nodeDescription::name, "nodeName"), 
-        Koala::IO::gmlLongField(&edgeDescription::memoryRequirement, "memory")
-        & Koala::IO::gmlLongField(&edgeDescription::flow, "flow")
-        & Koala::IO::gmlLongField(&edgeDescription::length, "length")
-        & Koala::IO::gmlStringField(&edgeDescription::name, "edgeName")
-        );
-	/*write GraphML to a file*/
-	gml.writeFile("max_topological_cut.graphml");
+    // gmlg = gml.createGraph("first");
+	// 	gmlg->writeGraph(flowGraph, 
+    //     Koala::IO::gmlStringField(&nodeDescription::name, "nodeName"), 
+    //     Koala::IO::gmlLongField(&edgeDescription::memoryRequirement, "memory")
+    //     & Koala::IO::gmlLongField(&edgeDescription::flow, "flow")
+    //     & Koala::IO::gmlLongField(&edgeDescription::length, "length")
+    //     & Koala::IO::gmlStringField(&edgeDescription::name, "edgeName")
+    //     );
+	// /*write GraphML to a file*/
+	// gml.writeFile("max_topological_cut.graphml");
     //----------------------------------------------------------------------------------------------------
 
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
