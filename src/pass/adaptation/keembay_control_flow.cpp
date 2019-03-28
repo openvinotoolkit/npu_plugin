@@ -49,8 +49,12 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 
     auto outputOp = om.getOutput();
     auto lastDMAOp = outputOp.leftmostParent();
+    auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
+
     if(!cm.checkControlFlow(lastDMAOp, outputOp))
         cm.defineFlow(lastDMAOp, outputOp);
+    if(!cm.checkControlFlow(lastOpBeforeLastDma, lastDMAOp))
+        cm.defineFlow(lastOpBeforeLastDma, lastDMAOp);
 }
 
 // This pass adds Control flows relative to a DeallocateTask
