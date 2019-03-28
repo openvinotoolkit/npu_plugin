@@ -11,6 +11,7 @@
 #include "../../../contrib/koala/classes/create.h"
 #include <iostream>
 
+static void addMemoryRequirmentAttributeOnControlFlows(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
@@ -22,7 +23,17 @@ namespace mv
         MV_REGISTER_PASS(MaxTopologicalCut)
         .setFunc(maxTopologicalCut)
         .setDescription(
-            "Perform the max topological cut algorithm to find the maximumpeak memory of a task graph."
+            "Perform the max topological cut algorithm to find the maximum eak memory of a task graph."
+        );
+    }
+
+    namespace pass
+    {
+
+        MV_REGISTER_PASS(AddMemoryRequirmentAttributeOnControlFlows)
+        .setFunc(addMemoryRequirmentAttributeOnControlFlows)
+        .setDescription(
+            "Add memory requirment as attrbute to control flow edges. "
         );
     }
 }
@@ -288,13 +299,17 @@ int calculateFMax(mv::ComputationModel& model) {
 
 // }
 
+void addMemoryRequirmentAttributeOnControlFlows(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    /*Add the memory requirement of a task as an attribute on the MCM graph*/
+    encodeMemoryRequirmentsOnEdges(model);
+
+}
+
 void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::ControlModel cm(model);
     mv::OpModel om(model);
-
-    /*Add the memory requirement of a task as an attribute on the MCM graph*/
-    encodeMemoryRequirmentsOnEdges(model);
 
     /*Name of KOALA graph*/
     koalaGraph flowGraph;

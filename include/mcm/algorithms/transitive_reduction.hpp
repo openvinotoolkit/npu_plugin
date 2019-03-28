@@ -38,6 +38,7 @@ namespace mv
         {
             // Must skip first node (itself)
             typename graph<T_node, T_edge>::edge_dfs_iterator u(e);
+            ++u;
             for (; u != g.edge_end(); ++u)
             {
                 auto it = root_adj.find(u->sink());

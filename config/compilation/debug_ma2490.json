@@ -114,10 +114,11 @@
     },
     "finalize": {
         "Singular": [
+            "AddMemoryRequirmentAttributeOnControlFlows",
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "transitive_reduction_before_max_cut_model.dot",
+                "output": "AddMemoryRequirmentAttributeOnControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
@@ -138,7 +139,6 @@
             "UpdateBarrierProducerConsumerCounts",
             "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
-            "TransitiveReduction",
             "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
