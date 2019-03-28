@@ -37,11 +37,7 @@ TEST(quantization, case_conv)
     };
     mv::DataModel dm(om);
     auto biasTensor = dm.defineTensor("biasdata", {64}, mv::DType("Int32"), mv::Order(mv::Order::getColMajorID(1)), biasesData);
-    om.addAttr(convOp, "bias", biasTensor->getName());
     biasTensor->set<mv::QuantizationParams>("quantizationParams", biasQuantParams);
-
-    auto conv_output = convOp->getOutputTensor(0);
-    conv_output->set<mv::QuantizationParams>("quantizationParams", outputQuantParams);
 
     mv::Element dummyPassDesc("dummyPassDesc");
     mv::json::Object compOutput;
@@ -49,8 +45,21 @@ TEST(quantization, case_conv)
 
     desc.setTarget(mv::Target::ma2490);
 
-    mv::pass::PassRegistry::instance().find("MarkHardwareOperations")->run(om, desc, dummyPassDesc, compOutput);
-    mv::pass::PassRegistry::instance().find("Quantization")->run(om, desc, dummyPassDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("AssignUniqueOpId")->run(om, desc, dummyPassDesc, compOutput);
+    mv::pass::PassRegistry::instance().find("ConvertOpsToTasks")->run(om, desc, dummyPassDesc, compOutput);
+    for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
+    {
+        if(dpuTask->getOpType() == "DPUTask")
+        {
+          //these two workarounds should be handled internally:
+          // 1. defining quantization params when generating output tensor
+          // 2. bias attribute should be passed from op to it's dputask
+          auto conv_output = dpuTask->getOutputTensor(0);
+          conv_output->set<mv::QuantizationParams>("quantizationParams", outputQuantParams);
+          om.addAttr(dpuTask, "bias", biasTensor->getName());
+        }
+    }
+    mv::pass::PassRegistry::instance().find("GenerateWeightsTables")->run(om, desc, dummyPassDesc, compOutput);
 
     //ref data is based on result on POC test res2a_branch2a/quantized_model.tflite
     std::vector<double> refData = {
@@ -119,7 +128,24 @@ TEST(quantization, case_conv)
       0 , 0 , 1555502848 , 49228,
       0 , 0 , 1555502848 , 51458
     };
-    auto resData = dm.getTensor(convOp->get<std::string>("weightsTable"))->getIntData();
-    for (unsigned i = 0; i < resData.size(); ++i)
-       ASSERT_FLOAT_EQ(resData[i], refData[i]);
+
+    for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
+    {
+        if(dpuTask->getOpType() == "DPUTask")
+        {
+          auto weightTableName = dpuTask->getName()+"WeightsTable:0";
+          auto inputs = dpuTask->getInputTensor();
+          for (auto itr=inputs.begin(); itr != inputs.end(); itr++)
+          {
+            //if (itr-> dpuTask->getName()+"WeightsTable"
+            if ((*itr)->getName() == weightTableName)
+            {
+              auto resData = (*itr)->getIntData();
+              for (unsigned i = 0; i < resData.size(); ++i)
+                ASSERT_FLOAT_EQ(resData[i], refData[i]);
+            }
+          }
+
+        }
+    }
 }

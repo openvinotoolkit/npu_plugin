@@ -190,8 +190,9 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
             mv::Order order(mv::Order::getColMajorID(1));
             const std::string biasTensorName = dpuTaskOp->getName() + "_bias";
             mv::Shape shape({outputChannels});
+            std::vector<int64_t> zeroPointScaled64(zeroPointScaled.begin(), zeroPointScaled.end());
 
-            auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, convertToDoubleVector<int32_t>(zeroPointScaled));
+            auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, zeroPointScaled64);
             om.addAttr(dpuTaskOp, "bias", biasTensor->getName());
         }
     }
