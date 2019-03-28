@@ -39,19 +39,19 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         auto opId = kernelOp->get<unsigned>("opId");
 
         std::vector<mv::Data::OpListIterator> toUpdate;
-        bool hasOneDPUTask = false;
+        bool hasAtLeastOneDPUTask = false;
         for(auto opIt = kernelOp.leftmostChild(); opIt != om.opEnd(); ++opIt)
         {
             if(opIt->getOpType() == "DPUTask")
             {
-                hasOneDPUTask = true;
+                hasAtLeastOneDPUTask = true;
                 toUpdate.push_back(opIt);
             }
-            else if(!hasOneDPUTask)
+            else if(!hasAtLeastOneDPUTask)
                 throw "Assumption violated!";
         }
 
-        if(hasOneDPUTask)
+        if(hasAtLeastOneDPUTask)
         {
             auto kernel = kernelOp->getOutputTensor(0);
             auto kernelShape = kernel->getShape();
