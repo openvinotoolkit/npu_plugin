@@ -25,7 +25,7 @@ TEST(sparsity, case_cm)
 
     auto assignOpIdPass = mv::pass::PassRegistry::instance().find("AssignUniqueOpId");
     assignOpIdPass->run(om, desc, dummyCompDesc, compOutput);
-    auto convertToTaskGraphPass = mv::pass::PassRegistry::instance().find("ConvertToTaskGraph");
+    auto convertToTaskGraphPass = mv::pass::PassRegistry::instance().find("ConvertOpsToTasks");
     convertToTaskGraphPass->run(om, desc, dummyCompDesc, compOutput);
     auto generateSparsityMaps = mv::pass::PassRegistry::instance().find("GenerateSparsityMaps");
     generateSparsityMaps->run(om, desc, dummyCompDesc, compOutput);
@@ -77,7 +77,7 @@ TEST(sparsity, case_hwPooling)
 
     auto assignOpIdPass = mv::pass::PassRegistry::instance().find("AssignUniqueOpId");
     assignOpIdPass->run(om, desc, dummyCompDesc, compOutput);
-    auto convertToTaskGraphPass = mv::pass::PassRegistry::instance().find("ConvertToTaskGraph");
+    auto convertToTaskGraphPass = mv::pass::PassRegistry::instance().find("ConvertOpsToTasks");
     convertToTaskGraphPass->run(om, desc, dummyCompDesc, compOutput);
     auto generateSparsityMaps = mv::pass::PassRegistry::instance().find("GenerateSparsityMaps");
     generateSparsityMaps->run(om, desc, dummyCompDesc, compOutput);
