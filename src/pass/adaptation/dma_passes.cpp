@@ -44,10 +44,12 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         else
             return false;
     }
-    else if(opType.find("Task") != std::string::npos)
-        return true;
-    else
+    else if(opType.find("Constant") != std::string::npos)
         return false;
+    else if(opType.find("Input") != std::string::npos)
+        return false;
+    else
+        return true;
 }
 
 // Pass role: Add final DMA Task CMX2DDR (if needed)
@@ -82,6 +84,7 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
+    mv::DataModel dm(model);
 
     auto removeOps = [] (std::vector<mv::Data::OpListIterator>& list, const std::string& opType)
     {
@@ -116,24 +119,28 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
         if (opType == "DPUTask")
         {
             auto opId = opIt->get<unsigned>("opId");
-            auto flow = opIt.leftmostInput();
-            for(unsigned i = 0; i < opIt->inputSlots(); ++i)
+            unsigned n = opIt->inputSlots();
+            for(unsigned i = 0; i < n; ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
                 auto inputOp = om.getSourceOp(inputTensor);
-                auto inputOpName = inputOp->getName();
                 if(!isTensorInCMX(inputTensor, om))
                 {
+                    auto flows = inputTensor->get<std::set<std::string>>("flows");
+
                     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, "DMA"+inputOp->getName());
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
-                    auto backupFlow = flow;
-                    ++flow;
-                    om.undefineFlow(backupFlow);
-                    opIt->setInputTensor(inputTensorDma, i, false);
-                    om.defineFlow(inputTensorDmaOp, 0, opIt, i);
-
+                    for(auto flowStr: flows)
+                    {
+                        auto backupFlow = dm.getDataFlow(flowStr);
+                        auto idx = backupFlow->get<std::size_t>("sinkInput");
+                        auto sink = backupFlow.sink();
+                        om.undefineFlow(backupFlow);
+                        sink->setInputTensor(inputTensorDma, idx, false);
+                        om.defineFlow(inputTensorDmaOp, 0, sink, idx);
+                    }
 
                     auto inputTensorDmaDimension = inputTensorDma->getShape().totalSize() * (inputTensorDma->getDType().getSizeInBits()/8);
                     dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), _dma_dependency);
@@ -142,10 +149,7 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
                     else
                         cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
-                    inputTensor = inputTensorDma;
                 }
-                else
-                    ++flow;
             }
         }
     }
