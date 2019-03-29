@@ -260,24 +260,47 @@ const mv::Order& mv::Tensor::getInternalOrder() const
 
 void mv::Tensor::populateSparsityMapTensor_()
 {
+    auto shape = getShape();
+
     std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
     std::vector<int64_t> sparsityMapData(sparsityMap_->getShape().totalSize());
-    std::vector<size_t> sub(getShape().ndims());
-    uint8_t map;
-    for (size_t t = 0; t < getShape().totalSize(); t += 8)
+    std::vector<size_t> sub(shape.ndims());
+    uint8_t map = 0;
+    std::size_t sparsityMapIdx = 0;
+    size_t n = 0;
+    int shift = 0;
+    for (size_t t = 0; t < shape.totalSize(); t++)
     {
-        map = 0;
-        for (size_t i = 0; i < 8; i++)
+        sub = getOrder().indToSub(shape, t);
+        if (sub[3] != n) //starting a new channel, reset map
         {
-            sub = getOrder().indToSub(getShape(), t+i);
-            if (sub[2] < getShape()[2] &&
-                static_cast<int64_t>(data_[internalOrder_.subToInd(getShape(), sub)]) != zeroPoint[sub[3]])
+            n = sub[3];
+            if (shift != 0)
             {
-                map += 1 << i;
-                noneZeroElements_++;
+                //write map
+                sparsityMapData.at(sparsityMapIdx++) = map;
+                // TODO : add padding to sparsityMap Channel
+                map = 0;
+                shift = 0;
             }
         }
-        sparsityMapData[t/8] = map;
+        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[3]])
+        {
+            map += 1 << shift;
+            noneZeroElements_++;
+        }
+        shift++;
+        if (shift == 8)//finished one map entry
+        {
+            sparsityMapData.at(sparsityMapIdx++) = map;
+            map = 0;
+            shift = 0;
+        }
+    }
+    if (shift != 0)
+    {
+        //write map
+        sparsityMapData.at(sparsityMapIdx++) = map;
     }
     sparsityMap_->populate(sparsityMapData);
 }
