@@ -280,6 +280,11 @@ void mv::Tensor::populateSparsityMapTensor_()
                 //write map
                 sparsityMapData.at(sparsityMapIdx++) = map;
                 // TODO : add padding to sparsityMap Channel
+                /*if (sparsityMapIdx % 16 != 0)
+                {
+                    auto padding = 16 - (sparsityMapIdx%16);
+                    sparsityMapIdx += padding;
+                }*/
                 map = 0;
                 shift = 0;
             }
@@ -346,7 +351,13 @@ void mv::Tensor::setSparse()
     //Sparsity map
     //we choose layout as internal layout, no need to reorder
     mv::Shape mapShape({shape[0], shape[1], static_cast<std::size_t>(std::ceil(shape[2] / 8.0)), N});
-    sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("Int8"), Order(Order::getRowMajorID(mapShape.ndims())));
+    /*if (isPopulated())
+    {
+        //pad the shape
+        auto paddedDim = mv::round_up(mapShape[0] * mapShape[1] * mapShape[2], 16);
+        mapShape = {paddedDim, 1, 1, N};
+    }*/
+    sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("UInt8"), Order("NCHW"));
     noneZeroElements_ = 0;
 
     //populate sparsity map
