@@ -37,6 +37,7 @@ namespace mv
         std::vector<Control::FlowListIterator> criticalPath(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp, const std::string& nodeAttribute = "", const std::string& edgeAttribute = "");
         using ComputationModel::addGroupElement;
         using ComputationModel::removeGroupElement;
+        bool pathExists(Control::OpListIterator source, Control::OpListIterator target);
 
         Control::StageIterator addStage();
         Control::StageIterator getStage(std::size_t stageIdx);

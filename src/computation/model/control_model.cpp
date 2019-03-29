@@ -2,6 +2,7 @@
 #include "include/mcm/computation/op/op.hpp"
 #include "include/mcm/algorithms/transitive_reduction.hpp"
 #include "include/mcm/algorithms/critical_path.hpp"
+#include "include/mcm/algorithms/path_exists.hpp"
 
 mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
@@ -292,6 +293,12 @@ bool mv::ControlModel::checkControlFlow(mv::Control::OpListIterator source, mv::
 
     return found;
 }
+
+bool mv::ControlModel::pathExists(Control::OpListIterator source, Control::OpListIterator target)
+{
+    return mv::pathExists(controlGraph_, source, target);
+}
+
 
 
 bool mv::ControlModel::checkControlFlow(mv::Data::OpListIterator source, mv::Data::OpListIterator sink)
