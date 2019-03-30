@@ -433,7 +433,7 @@ void cleanupDMATensorNodes(InterferenceGraph& g)
     std::vector<std::string> nodesToRemove;
     for (InterferenceGraph::node_dfs_iterator it = g.node_begin(); it != g.node_end(); ++it)
     {
-        if ((*it).name.rfind("DMATask", 0) == 0)
+        if ((*it).name.rfind("DMA", 0) == 0)
         {
             nodesToRemove.push_back((*it).name);
         }
