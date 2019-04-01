@@ -4,7 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-void adaptOutputTaskFlow(mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator dpuTask);
+void adaptOutputTaskFlow(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& dpuTask);
 
 namespace mv
 {
@@ -111,7 +111,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-void adaptOutputTaskFlow(mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator dpuTask)
+void adaptOutputTaskFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, mv::Data::TensorIterator &dpuTask)
 {
     for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
     {
@@ -124,6 +124,4 @@ void adaptOutputTaskFlow(mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Dat
     auto backup = opIt;
     ++opIt;
     om.removeOp(backup);
-
-    return;
 }
