@@ -4,6 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+void adaptOutputTaskFlow(mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator dpuTask);
 
 namespace mv
 {
@@ -18,7 +19,7 @@ namespace mv
     }
 }
 
-void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -60,17 +61,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
             }
 
-            for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
-            {
-                auto consumer = output.sink();
-                auto slot = output->get<size_t>("sinkInput");
-                consumer->setInputTensor(dpuConv, slot, false);
-                om.defineFlow(dpuConv, consumer, slot);
-            }
-
-            auto backup = opIt;
-            ++opIt;
-            om.removeOp(backup);
+            adaptOutputTaskFlow(om, opIt, dpuConv);
         }
         else if (opType == "MaxPool")
         {
@@ -86,19 +77,53 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
 
-            for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
-            {
-                auto consumer = output.sink();
-                auto slot = output->get<size_t>("sinkInput");
-                consumer->setInputTensor(dpuPool, slot, false);
-                om.defineFlow(dpuPool, consumer, slot);
-            }
+            adaptOutputTaskFlow(om, opIt, dpuPool);
+        }
+        else if (opType == "Add" || opType == "Subtract" || opType == "Multiply")
+        {
+            auto input1 = opIt->getInputTensor(0);
+            auto input2 = opIt->getInputTensor(1);
+            std::vector<mv::Data::TensorIterator> inputs;{}
+            inputs.push_back(input1);
+            inputs.push_back(input2);
+            auto name = opIt->getName();
 
-            auto backup = opIt;
-            ++opIt;
-            om.removeOp(backup);
+            auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskAdd(vec,s);};
+            auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskSubtract(vec,s);};
+            auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskMultiply(vec,s);};
+
+            auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const std::string&)>>
+                                                       {{"Add", addFcn},
+                                                       {"Subtract", subFcn},
+                                                       {"Multiply", multFcn}};
+
+            auto opId = opIt->get<unsigned>("opId");
+
+            auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
+            auto dpuElementWise = dpuElementWiseFunctor(inputs, "DPU_"+name);
+            auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
+            dpuElementWiseOp->set<unsigned>("opId", opId);
+
+            adaptOutputTaskFlow(om, opIt, dpuElementWise);
         }
         else
             ++opIt;
     }
+}
+
+void adaptOutputTaskFlow(mv::OpModel& om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator dpuTask)
+{
+    for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
+    {
+        auto consumer = output.sink();
+        auto slot = output->get<size_t>("sinkInput");
+        consumer->setInputTensor(dpuTask, slot, false);
+        om.defineFlow(dpuTask, consumer, slot);
+    }
+
+    auto backup = opIt;
+    ++opIt;
+    om.removeOp(backup);
+
+    return;
 }
