@@ -25,26 +25,39 @@ int main()
     auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
 
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
+    auto weights2 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});
+
     auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(pool1, weights3, {1, 1}, {1, 1, 1, 1});
     auto conv3 = om.conv(pool2, weights3, {1, 1}, {1, 1, 1, 1});
 
     auto add1 = om.add(conv2, conv3);
 
-    auto conv4 = om.conv(add1, weights3, {1, 1}, {1, 1, 1, 1});
-    auto conv5 = om.conv(conv4, weights3, {1, 1}, {1, 1, 1, 1});
-    auto conv6 = om.conv(conv5, weights3, {1, 1}, {1, 1, 1, 1});
-    auto conv7 = om.conv(conv6, weights3, {1, 1}, {1, 1, 1, 1});
-    auto conv8 = om.conv(conv7, weights3, {1, 1}, {1, 1, 1, 1});
-    auto conv9 = om.conv(conv8, weights3, {1, 1}, {1, 1, 1, 1});
+    auto weights4 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv4 = om.conv(add1, weights4, {1, 1}, {1, 1, 1, 1});
+    
+    auto weights5 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));    
+    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
+    
+    auto weights6 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv6 = om.conv(conv5, weights6, {1, 1}, {1, 1, 1, 1});
+    
+    // auto weights7 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    // auto conv7 = om.conv(conv6, weights7, {1, 1}, {1, 1, 1, 1});
 
-    om.output(conv9);
+    // auto weights8 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    // auto conv8 = om.conv(conv7, weights8, {1, 1}, {1, 1, 1, 1});
+
+    // auto weights9 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    // auto conv9 = om.conv(conv8, weights9, {1, 1}, {1, 1, 1, 1});
+
+    om.output(conv6);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
 
-    unit.compilationDescriptor().remove("adapt", "GenerateSparsityMaps");
-    unit.compilationDescriptor().remove("adapt", "GenerateWeightsTables");
+    unit.compilationDescriptor().remove("keembay_adapt", "GenerateSparsityMaps");
+    unit.compilationDescriptor().remove("keembay_adapt", "GenerateWeightsTables");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
