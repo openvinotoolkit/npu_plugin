@@ -10,8 +10,8 @@ namespace mv
     class PPEFixedFunction : public LogSender
     {
         private:
-            unsigned low_clamp_;
-            unsigned high_clamp_;
+            int lowClamp_;
+            int highClamp_;
             std::vector<PpeLayerType> layers_;
 
         public:
