@@ -42,11 +42,12 @@ namespace mv
 struct nodeDescription {
 
 	std::string name;
+    int cost; /*Required for partial serialisation*/
     bool sourceNode;
     bool sinkNode;
     
 
-    nodeDescription(std::string aname = "", bool sourcenode = false, bool sinknode = false) :name(aname), sourceNode(sourcenode), sinkNode(sinknode){}
+    nodeDescription(std::string aname = "", int cost = 0, bool sourcenode = false, bool sinknode = false) :name(aname), cost(cost), sourceNode(sourcenode), sinkNode(sinknode){}
     
 };
 
@@ -215,15 +216,15 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
            if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),false, true)));
+               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),0, false, true)));
            }
            if (opIt->getOpType() == "Input") {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),true, false)));
+               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),0, true, false)));
            }
            else {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),false,false)));
+               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),0, false,false)));
            }
        }
     }
@@ -292,6 +293,76 @@ int calculateFMax(mv::ComputationModel& model) {
 
     return Fmax;
 }
+
+int criticalPathCost(koalaGraph::PVertex source, koalaGraph::PVertex target) {
+
+}
+
+/**
+ * @brief Perform 'partial serilisation of KOALA graph to reduce maximum peak memory
+ * @param cutValue  - Maximum peak memory of the graph
+ * @param cutEdges - Vector of cut edges from the max topological cut
+ * @param graphSource - Source node of KOALA graph
+ * @param graphSource - Sink node of KOALA graph
+ */
+void performPartialSerialisation(int cutValue, std::vector<koalaGraph::PEdge> cutEdges, koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink) {
+
+    /*Sources and sinks of cut edges*/
+    std::vector<koalaGraph::PVertex> sources;
+    std::vector<koalaGraph::PVertex> sinks;
+
+    std::vector<std::pair<koalaGraph::PVertex,koalaGraph::PVertex>> possibleEdges;
+    std::vector<std::pair<koalaGraph::PVertex,koalaGraph::PVertex>> cutEdgesSourceSink;
+    std::vector<std::pair<koalaGraph::PVertex,koalaGraph::PVertex>> partialSerialisationEdges;
+
+    /*Get the source and sink of each cut edge and store in std::pair*/
+    for (const auto& edge : cutEdges)
+        cutEdgesSourceSink.push_back(std::make_pair(edge->getEnd1(), edge->getEnd2()));
+    
+
+    /*Get cut edges sources*/
+    for (const auto& edge : cutEdges) {
+        if(std::find(sources.begin(), sources.end(), edge->getEnd1()) != sources.end()) {   
+            /* sources already contains the edge source node */
+        } else {
+            /* add edge source node to sources */
+            std::cout << "add source " << edge->getEnd1()->info.name << std::endl;
+            sources.push_back(edge->getEnd1());
+        }   
+    }
+
+    /*Get cut edges sinks*/
+    for (const auto& edge : cutEdges) {
+        if(std::find(sinks.begin(), sinks.end(), edge->getEnd2()) != sinks.end()) {   
+            /* sources already contains the edge sink node */
+        } else {
+            /* add edge sink node to sources */
+            std::cout << "add sinks " << edge->getEnd2()->info.name << std::endl;
+            sinks.push_back(edge->getEnd2());
+        }   
+    }
+
+    /*Populate possible edges but including original cutset)*/
+    
+    for (const auto& sinknode : sinks) {
+        for (const auto& sourcenode : sources) {
+            bool found = false;
+
+            for(int i = 0; i < cutEdgesSourceSink.size(); i++) {
+                
+                if((cutEdgesSourceSink[i].first->info.name == sourcenode->info.name) && (cutEdgesSourceSink[i].second->info.name == sinknode->info.name)) {
+                     found = true;
+                     break;
+                }
+    
+            }
+            if (!found) 
+                possibleEdges.push_back(std::make_pair(sourcenode, sinknode));
+        }
+    }
+
+}
+
 
 void addMemoryRequirmentAttributeOnControlFlows(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
@@ -414,5 +485,11 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     output->set<int>("MaxTopologicalCutValue", memoryRequirement); 
 
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(memoryRequirement) + " bytes");
+
+    if (memoryRequirement > 943718.4) {
+
+         performPartialSerialisation(memoryRequirement, cutEdges,lookUpKoalaSourceNode(true, Vertices),lookUpKoalaSinkNode(true, Vertices));
+
+    }
 
 }
