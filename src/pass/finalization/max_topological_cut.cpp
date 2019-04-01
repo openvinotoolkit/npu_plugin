@@ -305,7 +305,7 @@ int criticalPathCost(koalaGraph::PVertex source, koalaGraph::PVertex target) {
  * @param graphSource - Source node of KOALA graph
  * @param graphSource - Sink node of KOALA graph
  */
-void performPartialSerialisation(int cutValue, std::vector<koalaGraph::PEdge> cutEdges, koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink) {
+void performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& flowGraph, int cutValue, std::vector<koalaGraph::PEdge> cutEdges, koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink, std::vector<koalaGraph::PVertex>& V, std::vector<koalaGraph::PEdge>& E) {
 
     /*Sources and sinks of cut edges*/
     std::vector<koalaGraph::PVertex> sources;
@@ -313,7 +313,6 @@ void performPartialSerialisation(int cutValue, std::vector<koalaGraph::PEdge> cu
 
     std::vector<std::pair<koalaGraph::PVertex,koalaGraph::PVertex>> possibleEdges;
     std::vector<std::pair<koalaGraph::PVertex,koalaGraph::PVertex>> cutEdgesSourceSink;
-    std::vector<std::pair<koalaGraph::PVertex,koalaGraph::PVertex>> partialSerialisationEdges;
 
     /*Get the source and sink of each cut edge and store in std::pair*/
     for (const auto& edge : cutEdges)
@@ -342,7 +341,7 @@ void performPartialSerialisation(int cutValue, std::vector<koalaGraph::PEdge> cu
         }   
     }
 
-    /*Populate possible edges but including original cutset)*/
+    /*Populate possible edges but not including original cutset*/
     
     for (const auto& sinknode : sinks) {
         for (const auto& sourcenode : sources) {
@@ -359,6 +358,35 @@ void performPartialSerialisation(int cutValue, std::vector<koalaGraph::PEdge> cu
             if (!found) 
                 possibleEdges.push_back(std::make_pair(sourcenode, sinknode));
         }
+    }
+
+    for(int i = 0; i < possibleEdges.size(); i++) {
+
+        auto sourceName = possibleEdges[i].second->info.name;
+        auto sinkName  = possibleEdges[i].first->info.name;
+
+        pass.log(mv::Logger::MessageType::Debug, "Adding partial serialisation edge to KOALA graph from: " + sourceName + " --> " + sinkName );
+
+        auto newEdge = flowGraph.addEdge(*std::find_if(V.begin(), V.end(), [&sourceName](koalaGraph::PVertex const& V) {return sourceName == V->info.name;}), 
+                                             *std::find_if(V.begin(), V.end(), [&sinkName](koalaGraph::PVertex const& V) {return sinkName == V->info.name;}), 
+                                             edgeDescription(0,"PS_edge_"+sinkName+sourceName), 
+                                             Koala::Directed);
+        int n = flowGraph.getVertNo();
+		koalaGraph::PVertex LOCALARRAY(tabV, n);
+		
+		Koala::DAGAlgs::topOrd(flowGraph, tabV); // searching for topological order
+		
+		bool isDag = Koala::DAGAlgs::isDAG(flowGraph, tabV, tabV + n);
+
+        if(isDag) {
+		    std::cout << "Is DAG: " << isDag << '\n';
+            break;
+        }
+        else {
+            pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is not a DAG, from: " + sourceName + " --> " + sinkName );
+            flowGraph.delEdge(newEdge);
+        }
+
     }
 
 }
@@ -488,7 +516,7 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 
     if (memoryRequirement > 943718.4) {
 
-         performPartialSerialisation(memoryRequirement, cutEdges,lookUpKoalaSourceNode(true, Vertices),lookUpKoalaSinkNode(true, Vertices));
+         performPartialSerialisation(pass, flowGraph, memoryRequirement, cutEdges,lookUpKoalaSourceNode(true, Vertices),lookUpKoalaSinkNode(true, Vertices),Vertices, Edges);
 
     }
 
