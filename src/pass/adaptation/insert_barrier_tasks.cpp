@@ -186,7 +186,9 @@ static void combineRedundantBarriers(std::vector<mv::Barrier>& barriers)
 
 static void addDataFlowBarriers(mv::OpModel& om, std::vector<mv::Barrier>& barriers)
 {
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    auto sortedOps = om.topologicalSort();
+
+    for (auto opIt: sortedOps)
     {
         auto opType = opIt->getOpType();
         bool isDPUTask = opType == "DPUTask";
@@ -220,7 +222,10 @@ static void addDataFlowBarriers(mv::OpModel& om, std::vector<mv::Barrier>& barri
 static void addControlFlowBarriers(mv::ControlModel& cm, std::vector<mv::Barrier>& barriers)
 {
     // add/update barriers for control flows added by partial serialization (no tensor on edge)
-    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+
+    auto sortedControlFlow = cm.topologicalSort();
+
+    for (auto ctlFlow: sortedControlFlow)
     {
         auto ctlFlowOpType = ctlFlow->getOpType();
         if ((ctlFlowOpType == "DMATask") || (ctlFlowOpType == "DPUTask"))
