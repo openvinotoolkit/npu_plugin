@@ -18,7 +18,7 @@ if (MSVC)
 
 else()
 
-    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
+    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-fpermissive" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
     SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 
 endif()
@@ -155,6 +155,10 @@ file(GLOB pass
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
+    "contrib/koala/tinyxml/tinyxml.cpp"
+    "contrib/koala/tinyxml/tinyxmlerror.cpp"
+    "contrib/koala/tinyxml/tinyxmlparser.cpp"
+    "contrib/koala/tinyxml/tinystr.cpp"
 )
 
 file(GLOB compiler
