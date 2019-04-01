@@ -47,7 +47,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
                 hasAtLeastOneDPUTask = true;
                 toUpdate.push_back(opIt);
             }
-            else if(!hasAtLeastOneDPUTask)
+            else if(hasAtLeastOneDPUTask)
                 throw "Assumption violated!";
         }
 
