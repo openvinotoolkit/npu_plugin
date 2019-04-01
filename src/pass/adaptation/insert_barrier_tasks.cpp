@@ -16,6 +16,7 @@
 #include "../contrib/koala/io/graphml.h"
 
 
+#define MAX_AVAILABLE_BARRIERS 8
 
 using namespace Koala;
 
@@ -116,14 +117,13 @@ static void addEdge(const mv::Barrier& b1, const mv::Barrier& b2, BarrierInterfe
 }
 
 
-static void colorKoalaGraph(BIGKoala& bigK, std::vector<BIGKoala::PVertex> verts, AssocArray<BIGKoala::PVertex, int>& colors)
+static int colorKoalaGraph(BIGKoala& bigK, std::vector<BIGKoala::PVertex> verts, AssocArray<BIGKoala::PVertex, int>& colors)
 {
-    int maxColors = SeqVertColoring::greedy(bigK, colors);
+    return SeqVertColoring::greedy(bigK, colors);
 }
 
 static void convertToKoalaGraph(const BarrierInterferenceGraph& big, BIGKoala& bigK, std::vector<BIGKoala::PVertex>& koalaVerts)
 {
-    //std::vector<BIGKoala::PVertex> koalaVerts;
     for (auto it = big.node_begin(); it != big.node_end(); ++it)
     {
         std::cout << "adding vtx to koala Graph: bId(" << (*it).getID() << "), nodeId(" << it->getID() << ")" << std::endl;
@@ -389,24 +389,26 @@ static void setBarrierGroupAndIndex(mv::OpModel& om, std::vector<mv::Barrier>& b
     BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers);
     drawBIG(big, "big.dot");
 
-    // TODO: Update barrier group and index based on graph coloring algorithm
+    BIGKoala bigK;
+    std::vector<BIGKoala::PVertex> koalaVertices;
+    convertToKoalaGraph(big, bigK, koalaVertices);
+    drawBigK(bigK);
+
+    AssocArray<BIGKoala::PVertex, int> colors;
+    int numColors = colorKoalaGraph(bigK, koalaVertices, colors);
+    if (numColors > MAX_AVAILABLE_BARRIERS)
+        throw mv::RuntimeError(om,
+                "Cannot execute graph with " +
+                std::to_string(MAX_AVAILABLE_BARRIERS) +
+                " barriers; more graph serialization required.");
+
+    for (int i = 0; i < bigK.getVertNo(); i++)
+    {
+        std::cout << koalaVertices[i]->info << " : color = " << colors[koalaVertices[i]] << std::endl;
+    }
+
     if (indexAssignment == "Static")
     {
-        // 1) generate BIG
-        // 2) Apply coloring algorithm to assign indices below
-
-        BIGKoala bigK;
-        std::vector<BIGKoala::PVertex> koalaVertices;
-        convertToKoalaGraph(big, bigK, koalaVertices);
-        drawBigK(bigK);
-
-        AssocArray<BIGKoala::PVertex, int> colors;
-        colorKoalaGraph(bigK, koalaVertices, colors);
-        for (int i = 0; i < bigK.getVertNo(); i++)
-        {
-            std::cout << koalaVertices[i]->info << " : color = " << colors[koalaVertices[i]] << std::endl;
-        }
-
         // assign colors to indices
         for (auto& b: barriers)
         {
