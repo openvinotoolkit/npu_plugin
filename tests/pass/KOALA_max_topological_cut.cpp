@@ -33,7 +33,7 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
     if(output->hasAttr("MaxTopologicalCutValue"))
         maxTopologicalCutValue = output->get<int>("MaxTopologicalCutValue");
 
-    /*The max topological cut of the equivalent network in the PoC compiler is 491200*/
+    /*The max topological cut of the equivalent network in the PoC compiler is 492032*/
     ASSERT_EQ(maxTopologicalCutValue, 492032);
 
 }
@@ -75,7 +75,7 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     if(output->hasAttr("MaxTopologicalCutValue"))
         maxTopologicalCutValue = output->get<int>("MaxTopologicalCutValue");
 
-    /*The max topological cut of the equivalent network in the PoC compiler is 1084320*/
+    /*The max topological cut of the equivalent network in the PoC compiler is 1085760*/
     ASSERT_EQ(maxTopologicalCutValue, 1085760);
 
 }
