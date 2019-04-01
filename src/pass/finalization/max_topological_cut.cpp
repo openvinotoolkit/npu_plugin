@@ -42,14 +42,12 @@ namespace mv
 struct nodeDescription {
 
 	std::string name;
-    bool sinkNode = false;
-
-    nodeDescription(std::string aname = "", bool sinknode = false) :name(aname), sinkNode(sinknode){}
+    bool sourceNode;
+    bool sinkNode;
     
-    friend std::ostream& operator<<(std::ostream& os, const nodeDescription& nd) {
-        os << "Node name: " << nd.name << std::endl;
-        return os;
-    }
+
+    nodeDescription(std::string aname = "", bool sourcenode = false, bool sinknode = false) :name(aname), sourceNode(sourcenode), sinkNode(sinknode){}
+    
 };
 
 /*KOALA Edge Description*/
@@ -62,13 +60,6 @@ struct edgeDescription {
 
     edgeDescription(int m = 0, std::string aname = "", int f = 0, int l = 1) : memoryRequirement(m), name(aname), flow(f), length(l) {}
     
-    friend std::ostream& operator<<(std::ostream& os, const edgeDescription& ed) {
-        os << "Edge name: " << ed.name << std::endl;
-        os << "Memory requirement: " << ed.memoryRequirement << std::endl;  
-        os << "Flow: " << ed.flow << std::endl;
-        os << "Length: " << ed.length << std::endl;
-        return os;
-    }
 };
 
 /*Define KOALA graph's node and edge type*/
@@ -107,6 +98,22 @@ koalaGraph::PVertex lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGr
 }
 
 /**
+ * @brief Returns a KOALA vertex iterator corresonding to the source node of the KOALA graph 
+ * @param sinkNode - attribute of the KOALA node indicating if it is the source node (true) 
+ * @param koalaVertices - vector of KOALA vertices iterators
+ * @return The KOALA vertex iterator 
+ * 
+ */
+koalaGraph::PVertex lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
+
+    for (size_t i = 0; i < koalaVertices.size(); i++) {
+
+        if(koalaVertices[i]->info.sourceNode == sourcenode) 
+            return koalaVertices[i];
+    }
+}
+
+/**
  * @brief Returns a KOALA edge iterator corresonding to the name of the iterator 
  * @param edgeName - the name of the KOALA vertex you are searching for
  * @param koalaEdges - vector of KOALA edges iterators
@@ -122,19 +129,16 @@ koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<
     }
 }
 
-
-// koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
-
-//      for (const auto& e : koalaEdges) {
-
-//         if(e->info.name == edgeName) 
-//             return e;
-//     }
-// }
-
 /**
+ * TODO: Moce this to Control flow pass
+ * 
  * @brief Encode the mememory requirements of each task by adding a "MemoryRequirment" attribute to the flow in the MCM task graph.
  *        The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
+ *        
+ *        Memory requirments are added to these flows only.
+ *        1. DMA -> Dealloc
+ *        2. DPU task -> Corresponding DPU Task Dealloc
+ *        3. DPU task -> DMA CMX2DDR direction (last DPU task)
  */
 
 void encodeMemoryRequirmentsOnEdges(mv::ComputationModel& model) {
@@ -211,11 +215,15 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
            if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),true)));
+               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),false, true)));
+           }
+           if (opIt->getOpType() == "Input") {
+               pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
+               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),true, false)));
            }
            else {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
-               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),false)));
+               V.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),false,false)));
            }
        }
     }
@@ -282,15 +290,8 @@ int calculateFMax(mv::ComputationModel& model) {
     
     Fmax += 1;
 
-    std::cout << "Fmax is " << Fmax << std::endl;
-
     return Fmax;
 }
-
-// void performPartialSerialisation(int cutValue, std::vector<koalaGraph::PEdge> cutEdges, koalaGraph::PVertex source, koalaGraph::PVertex sink) {
-
-
-// }
 
 void addMemoryRequirmentAttributeOnControlFlows(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
@@ -308,11 +309,11 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     koalaGraph flowGraph;
 
     /*Vector to store KOALA vertices and edges iterators*/
-    std::vector<koalaGraph::PVertex> V; 
-    std::vector<koalaGraph::PEdge> E;
+    std::vector<koalaGraph::PVertex> Vertices; 
+    std::vector<koalaGraph::PEdge> Edges;
 
     /*Convert to MCM graph to KOALA graph*/
-    convertMcMGraphToKoalaGraph(pass, model, flowGraph, V, E);
+    convertMcMGraphToKoalaGraph(pass, model, flowGraph, Vertices, Edges);
    
     /*Calculate Fmax*/
     int Fmax = calculateFMax(model); /*Compute Fmax - (defined as sum of memory requirments + 1)*/
@@ -323,14 +324,14 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     Koala::AssocArray <koalaGraph::PVertex, Koala::DijkstraHeap::VertLabs<int,koalaGraph>> vertMap; /*output container*/
      
     /*Set edge lengths to 1*/
-    setEdgeLengths(edgeMap, E);
+    setEdgeLengths(edgeMap, Edges);
 
     /* Construct the graph demand: cicle over the edge and add
      * a flow equal to Fmax on a shorest path containing that node
     */
 
     /*containter to store the edges on shorest paths*/
-    std::vector <koalaGraph::PEdge> vecE;
+    std::vector <koalaGraph::PEdge> shortestPathEdges;
     koalaGraph::PEdge LOCALARRAY(edges, flowGraph.getEdgeNo());
     int numberofEdges = flowGraph.getEdges(edges);
  
@@ -342,72 +343,50 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     for (int i = 0; i < numberofEdges; i++) {
 
         /*get the source and sink node of the edge*/
-        pass.log(mv::Logger::MessageType::Debug, "Source Node " + flowGraph.getEdgeEnds(E[i]).first->info.name);
-        pass.log(mv::Logger::MessageType::Debug, "Sink Node " + flowGraph.getEdgeEnds(E[i]).second->info.name);
+        pass.log(mv::Logger::MessageType::Debug, "Source Node " + flowGraph.getEdgeEnds(Edges[i]).first->info.name);
+        pass.log(mv::Logger::MessageType::Debug, "Sink Node " + flowGraph.getEdgeEnds(Edges[i]).second->info.name);
 
         /*Find the shortest path from the input node to the source node of the edge*/
-        /*The source node in the KOALA graph will always be called "Input_0", the same as the MCM graph*/
-        Koala::DijkstraHeap::PathLengths <int> res0 = Koala::DijkstraHeap::findPath(flowGraph, edgeMap, lookUpKoalaVertexbyName("Input_0", V),flowGraph.getEdgeEnds(E[i]).first, Koala::DijkstraHeap::outPath(blackHole, back_inserter(vecE)));
+        Koala::DijkstraHeap::PathLengths <int> resInputToSource = Koala::DijkstraHeap::findPath(flowGraph, edgeMap, lookUpKoalaSourceNode(true, Vertices),flowGraph.getEdgeEnds(Edges[i]).first, Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
 
-        pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + std::to_string(res0.length));
+        pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + std::to_string(resInputToSource.length));
 
-	    for (int i = 0; i < res0.edgeNo; i++) {
-		    //std::cout << ' ' << vecE[i]->info.name << std::endl;
-            pass.log(mv::Logger::MessageType::Debug, vecE[i]->info.name);
+	    for (int i = 0; i < resInputToSource.edgeNo; i++) {
+
+            pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[i]->info.name);
 
             /*Add Fmax to the flow attribute of the edge*/
-            auto edge = lookUpKoalaEdgebyName(vecE[i]->info.name, E);
+            auto edge = lookUpKoalaEdgebyName(shortestPathEdges[i]->info.name, Edges);
             edge->info.flow +=Fmax;
 	    }
 
         /*The above calculation stops at source node of the edge so doesn't include the edge in question - add Fmax to this edge*/
-        E[i]->info.flow +=Fmax;
+        Edges[i]->info.flow +=Fmax;
 
         /*Clear the container used to store the the edges on shorest paths*/
-        vecE.clear(); 
+        shortestPathEdges.clear(); 
 
         /*Find the shortest path from the sink node of the edge to the sink node (DMA task CMX to DDR)*/
 
-        Koala::DijkstraHeap::PathLengths <int> res1 = Koala::DijkstraHeap::findPath(flowGraph, edgeMap, flowGraph.getEdgeEnds(E[i]).second, lookUpKoalaSinkNode(true, V), Koala::DijkstraHeap::outPath(blackHole, back_inserter(vecE)));
+        Koala::DijkstraHeap::PathLengths <int> resSinkToOuput = Koala::DijkstraHeap::findPath(flowGraph, edgeMap, flowGraph.getEdgeEnds(Edges[i]).second, lookUpKoalaSinkNode(true, Vertices), Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
 
-        pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + res1.length);
+        pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path is " + resSinkToOuput.length);
 
-	    for (int i = 0; i < res1.edgeNo; i++) {
+	    for (int i = 0; i < resSinkToOuput.edgeNo; i++) {
 		    
-            //std::cout << ' ' << vecE[i]->info.name << std::endl;
-            pass.log(mv::Logger::MessageType::Debug, vecE[i]->info.name);
+            pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[i]->info.name);
 
             /*Add Fmax to the flow attribute of the edge*/
-            auto edge = lookUpKoalaEdgebyName(vecE[i]->info.name, E);
+            auto edge = lookUpKoalaEdgebyName(shortestPathEdges[i]->info.name, Edges);
             edge->info.flow +=Fmax;
 	    }
         /*Clear the container used to store the the edges on shorest paths*/
-        vecE.clear();
+        shortestPathEdges.clear();
     }
-
-    //----------------------------------------------------------------------------------------------------
-    /* Write KOALA graph to GraphML file: View the graph with this tool: https://gephi.org/ */
-	// Koala::IO::GraphML gml;
-	// Koala::IO::GraphMLGraph *gmlg;
-
-    // /*Display all graph info in the console*/
-    // //Koala::IO::writeGraphText(flowGraph, std::cout, Koala::IO::RG_VertexLists | Koala::IO::RG_Info);
-
-    // gmlg = gml.createGraph("first");
-	// 	gmlg->writeGraph(flowGraph, 
-    //     Koala::IO::gmlStringField(&nodeDescription::name, "nodeName"), 
-    //     Koala::IO::gmlLongField(&edgeDescription::memoryRequirement, "memory")
-    //     & Koala::IO::gmlLongField(&edgeDescription::flow, "flow")
-    //     & Koala::IO::gmlLongField(&edgeDescription::length, "length")
-    //     & Koala::IO::gmlStringField(&edgeDescription::name, "edgeName")
-    //     );
-	// /*write GraphML to a file*/
-	// gml.writeFile("max_topological_cut.graphml");
-    //----------------------------------------------------------------------------------------------------
 
     /*Subtract Memory attribute of edge from the Flow attribute of the edge*/
     for (int i = 0; i < numberofEdges; i++)
-		E[i]->info.flow = E[i]->info.flow - E[i]->info.memoryRequirement;
+		Edges[i]->info.flow = Edges[i]->info.flow - Edges[i]->info.memoryRequirement;
     
 
     /* Perform Min cut on the graph, see this example: http://koala.os.niwa.gda.pl/api/examples/flow/example_Flow.html*/
@@ -416,8 +395,8 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 	Koala::AssocArray< koalaGraph::PEdge, Koala::Flow::EdgeLabs<int,int>> cap;
 
     for (int i = 0; i < numberofEdges; i++) {
-        cap[E[i]].capac = E[i]->info.flow; 
-        cap[E[i]].cost = 1;
+        cap[Edges[i]].capac = Edges[i]->info.flow; 
+        cap[Edges[i]].cost = 1;
     }
 
     /*store the cut edges*/
@@ -425,7 +404,7 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     int memoryRequirement = 0;
 
     /*compute minimal cut*/
-    Koala::Flow::minEdgeCut(flowGraph, cap, lookUpKoalaVertexbyName("Input_0", V), lookUpKoalaSinkNode(true, V), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
+    Koala::Flow::minEdgeCut(flowGraph, cap, lookUpKoalaSourceNode(true, Vertices), lookUpKoalaSinkNode(true, Vertices), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
     
     for (size_t i = 0; i < cutEdges.size(); i++)
         memoryRequirement += cutEdges[i]->info.memoryRequirement;
@@ -435,10 +414,5 @@ void maxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     output->set<int>("MaxTopologicalCutValue", memoryRequirement); 
 
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(memoryRequirement) + " bytes");
-
-    // if (memoryRequirement > 943718.4) {
-    //     performPartialSerialisation(memoryRequirment, cutEdges,lookUpKoalaVertexbyName("Input_0", V),lookUpKoalaSinkNode(true, V));
-
-    // }
 
 }
