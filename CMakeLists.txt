@@ -128,6 +128,7 @@ file(GLOB logger
 )
 
 file(GLOB pass
+    "src/graph/tensor_interference_graph.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
     "src/pass/pass_registry.cpp"
