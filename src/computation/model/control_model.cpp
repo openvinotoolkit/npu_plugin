@@ -1,6 +1,8 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/op/op.hpp"
 #include "include/mcm/algorithms/transitive_reduction.hpp"
+#include "include/mcm/algorithms/critical_path.hpp"
+#include "include/mcm/algorithms/path_exists.hpp"
 
 mv::ControlModel::ControlModel(ComputationModel &other) :
 ComputationModel(other)
@@ -30,6 +32,10 @@ mv::Control::OpListIterator mv::ControlModel::getLast()
    return opsGraph_->get_second_iterator(it);
 }
 
+mv::Control::OpListIterator mv::ControlModel::opBegin()
+{
+    return controlGraph_.node_begin();
+}
 
 mv::Control::OpListIterator mv::ControlModel::opEnd()
 {
@@ -44,6 +50,11 @@ mv::Control::FlowListIterator mv::ControlModel::getInput()
 mv::Control::FlowListIterator mv::ControlModel::getOutput()
 {
     return switchContext(*output_).leftmostInput();
+}
+
+mv::Control::FlowListIterator mv::ControlModel::flowBegin()
+{
+    return controlGraph_.edge_begin();
 }
 
 mv::Control::FlowListIterator mv::ControlModel::flowEnd()
@@ -200,9 +211,56 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::topologicalSort()
     return toReturn;
 }
 
-void mv::ControlModel::transitiveReduction()
+
+struct OpItComparator
 {
-    mv::transitiveReduction(controlGraph_);
+    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator rhs) const
+    {
+        return (*lhs) < (*rhs);
+    }
+};
+
+struct EdgeItComparator
+{
+    bool operator()(mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator rhs) const
+    {
+        return (*lhs) < (*rhs);
+    }
+};
+
+std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Control::OpListIterator sourceOp, Control::OpListIterator sinkOp, const std::string& nodeAttribute, const std::string& edgeAttribute)
+{
+    std::map<mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator, unsigned, OpItComparator> nodeCosts;
+    std::map<mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator, unsigned, EdgeItComparator> edgeCosts;
+
+    if(nodeAttribute != "")
+        for(auto opIt = opBegin(); opIt != opEnd(); ++opIt)
+            if(opIt->hasAttr(nodeAttribute))
+                nodeCosts[opIt] = opIt->get<unsigned>(nodeAttribute);
+
+    if(edgeAttribute != "")
+        for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
+            if(edgeIt->hasAttr(edgeAttribute))
+                edgeCosts[edgeIt] = edgeIt->get<unsigned>(edgeAttribute);
+
+    auto toReturnToBeCasted = mv::critical_path<Op, ControlFlow, OpItComparator, EdgeItComparator>(controlGraph_, sourceOp, sinkOp, nodeCosts, edgeCosts);
+    std::vector<mv::Control::FlowListIterator> toReturn(toReturnToBeCasted.begin(), toReturnToBeCasted.end());
+    return toReturn;
+}
+
+std::vector<mv::Control::FlowListIterator> mv::ControlModel::criticalPath(Data::OpListIterator sourceOp, Data::OpListIterator sinkOp, const std::string& nodeAttribute, const std::string& edgeAttribute)
+{
+   return criticalPath(switchContext(sourceOp), switchContext(sinkOp), nodeAttribute, edgeAttribute);
+}
+
+void mv::ControlModel::transitiveReduction(const std::string& edgeAttribute)
+{
+    std::set<mv::graph<mv::Op, mv::ControlFlow>::edge_list_iterator, EdgeItComparator> toSave;
+    if(edgeAttribute != "")
+        for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
+            if(edgeIt->hasAttr(edgeAttribute))
+                toSave.insert(edgeIt);
+    mv::transitiveReduction<Op, ControlFlow, EdgeItComparator>(controlGraph_, toSave);
 }
 
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
@@ -220,3 +278,32 @@ std::string mv::ControlModel::getLogID() const
 {
     return "ControlModel:" + name_;
 }
+
+bool mv::ControlModel::checkControlFlow(mv::Control::OpListIterator source, mv::Control::OpListIterator sink)
+{
+    bool found = false;
+    for(auto childOp = source.leftmostChild(); childOp != opEnd(); ++childOp)
+    {
+        if(childOp == sink)
+        {
+            found = true;
+            break;
+        }
+    }
+
+    return found;
+}
+
+bool mv::ControlModel::pathExists(Control::OpListIterator source, Control::OpListIterator target)
+{
+    return mv::pathExists(controlGraph_, source, target);
+}
+
+
+
+bool mv::ControlModel::checkControlFlow(mv::Data::OpListIterator source, mv::Data::OpListIterator sink)
+{
+    return checkControlFlow(switchContext(source), switchContext(sink));
+}
+
+

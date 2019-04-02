@@ -24,13 +24,21 @@ int main()
     auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
     auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
 
-    auto add1 = om.add(pool1, pool2);
+    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
+    auto weights3 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv2 = om.conv(pool1, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv3 = om.conv(pool2, weights3, {1, 1}, {1, 1, 1, 1});
 
-    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*32);
-    auto weights3 = om.constant(weights3Data, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(add1, weights3, {1, 1}, {1, 1, 1, 1});
+    auto add1 = om.add(conv2, conv3);
 
-    om.output(conv3);
+    auto conv4 = om.conv(add1, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv5 = om.conv(conv4, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv6 = om.conv(conv5, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv7 = om.conv(conv6, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv8 = om.conv(conv7, weights3, {1, 1}, {1, 1, 1, 1});
+    auto conv9 = om.conv(conv8, weights3, {1, 1}, {1, 1, 1, 1});
+
+    om.output(conv9);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

@@ -29,22 +29,10 @@ namespace mv
 
 }
 
-// This pass has two main duties
-// 1) Put all the control flows needed in the graph
-// 2) Put the stages
-// Point 2) is trivial for now (just 1 stage), but will be probably updated when Pat completes his analysis
+// This pass has one main duty
+// 1) Put the stages
+// Point 1) is trivial for now (just 1 stage), but will be probably updated when Pat completes his analysis
 
-// For point 1, we know that non trivial control flows have already been added during the conversion pass
-// We have to add extra layers of control flows
-// 1) A layer made up of ControlFlows that start from input and go to every DMA DDR to CMX operation
-// Rationale: Until we know more about memory addresses, DMA potentially have no impediments after input operation
-// 2) A layer made up of ControlFlows that start from Deallocation and go to final DMA operation
-// Rationale: Needed for MaxTopological cut
-// 3) A layer made up of ControlFlows that are coincident with DataFlows
-// Rationale: Wherever there is a data dependency, there is also a execution dependency
-
-// WARNING: This two layers of control flow can generate unnecessary control flows.
-// At the end those need to be eliminated by Transitive reduction on the ControlFlow pass.
 void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
 
@@ -52,68 +40,6 @@ void arrangeKeembayExecutionFcn(const mv::pass::PassEntry& pass, mv::Computation
 
     mv::OpModel om(model);
     mv::ControlModel cm(model);
-    mv::DataModel dm(model);
-
-    // Point 1)
-
-    // Adding layer 1
-    auto inputOp = om.getInput();
-    auto dmaOps = om.getOps("DMATask");
-
-    for(auto op : dmaOps)
-        if(op->get<mv::DmaDirection>("direction") == mv::DDR2CMX)
-            cm.defineFlow(inputOp, op);
-
-    // Adding layer 2
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
-    {
-        if (opIt->getOpType() == "DMATask")
-        {
-            if(opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)
-            {
-                for (auto opIt1 = om.getInput(); opIt1 != om.opEnd(); ++opIt1)
-                {
-                    if (opIt1->getOpType() == "Deallocate")
-                    {
-                         auto deallocateOp = om.getOp(opIt1->getName());
-                         auto dmaCMX2DDROp = om.getOp(opIt->getName());
-                         cm.defineFlow(deallocateOp, dmaCMX2DDROp);
-                    }
-                }
-            }
-        }
-    }
-
-    // Adding layer 3
-    for(auto dataFlow = dm.flowBegin(); dataFlow != dm.flowEnd(); ++dataFlow)
-    {
-        auto source = cm.switchContext(dataFlow.source());
-        auto sink = cm.switchContext(dataFlow.sink());
-
-        // No control flow shall be added between constant operation and their
-        // DMA op. Constant Ops are used only to carry data.
-
-        // NOTE: Possibly this check can be eliminated for better readibility
-        // Since Transitive Reduction will take care of it
-        if(source->getOpType() == "Constant" && sink->getOpType() == "DMATask")
-            continue;
-
-        // Must check if a control flow exists already
-        bool found = false;
-        for(auto childOp = source.leftmostChild(); childOp != cm.opEnd(); ++childOp)
-        {
-            if(childOp == sink)
-            {
-                found = true;
-                break;
-            }
-        }
-        if(!found)
-            cm.defineFlow(dataFlow.source(), dataFlow.sink());
-    }
-
-    // Cleaning unnecessary edges.
-    cm.transitiveReduction();
 
     // Point 2)
     auto stage = cm.addStage();

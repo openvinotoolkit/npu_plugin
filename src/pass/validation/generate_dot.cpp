@@ -65,7 +65,6 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     if (outputScope != "DataModel")
     {
-
         OpModel opModel(model);
 
         for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
@@ -73,6 +72,16 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel") || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
             {
                 std::string nodeDef = "\t\"" + opIt->getName() + "\" [shape=box,";
+
+                if(opIt->getOpType() == "DMATask")
+                {
+                    if(opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2CMX)
+                        nodeDef += " style=filled, fillcolor=green,";
+                    else
+                        nodeDef += " style=filled, fillcolor=red,";
+                }
+                if(opIt->getOpType() == "Deallocate")
+                    nodeDef += " style=filled, fillcolor=orange,";
 
                 if (htmlLike)
                 {
@@ -159,7 +168,6 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         if (outputScope == "ControlModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
-
             ControlModel controlModel(model);
 
             for (auto opIt = controlModel.getFirst(); opIt != controlModel.opEnd(); ++opIt)
@@ -167,14 +175,35 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
                 for (auto controlIt = opIt.leftmostOutput(); controlIt != controlModel.flowEnd(); ++controlIt)
                 {
+                    std::string edgeDef = "\t\"" + opIt->getName() + "\" -> \"" + controlIt.sink()->getName() + "\"";
+                    if (htmlLike)
+                    {
+                        edgeDef += " [penwidth=2.0, style=dashed label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + controlIt->getName() + "</B></FONT></TD></TR>";
+                        if (contentLevel == "full")
+                        {
+                            std::vector<std::string> attrKeys(controlIt->attrsKeys());
+                            for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
+                                edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\">" + *attrIt + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">" + controlIt->get(*attrIt).toString() + "</FONT></TD></TR>";
+                        }
+                        edgeDef += "</TABLE>>];";
+                    }
+                    else
+                    {
+                        edgeDef += " [label=\"" + controlIt->getName() + "\\n";
+                        if (contentLevel == "full")
+                        {
+                            std::vector<std::string> attrKeys(controlIt->attrsKeys());
+                            for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
+                                edgeDef += *attrIt + ": " + controlIt->get(*attrIt).toString() + "\\n";
+                        }
+                        edgeDef += "\"];";
+                    }
 
-                    std::string edgeDef = "\t" + opIt->getName() + " -> " + controlIt.sink()->getName() + " [penwidth=2.0, style=dashed]";
                     ostream << edgeDef << "\n";
 
                 }
 
             }
-
         }
 
     }

@@ -10,7 +10,6 @@
                 "html": true
             },
             {
-
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 2,
@@ -29,12 +28,10 @@
     "adapt": {
         "Singular": [
             "AverageAsDepthWise",
-            "ConvertToTaskGraph",
-            "GenerateSparsityMaps",
-            "GenerateWeightsTables",
-            "GraphColoring",
-            "InsertBarrierTasks",
-            "AssignUniqueTaskId",
+            "FuseBatchNorm",
+            "FuseBias",
+            "FuseRelu",
+            "FuseScale",
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
@@ -44,14 +41,101 @@
             }
         ]
     },
+    "keembay_adapt": {
+        "Singular": [
+            "ConvertOpsToTasks",
+            "AlignTaskWeights",
+            "GenerateSparsityMaps",
+            "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
+    "dma": {
+        "Singular" : [
+            "AddDMATasks",
+            "AddDeallocationTasks",
+            "AddFinalDMATask",
+            {
+                "name": "GenerateDot",
+                "output": "dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "deallocation_model_data.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "deallocation_model_control.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "DeallocationControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "DeallocationControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "DmaControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "DmaControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "InputOutputControlFlows",
+            {
+                "name": "GenerateDot",
+                "output": "InputOutputControlFlows_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "TransitiveReduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
     "finalize": {
         "Singular": [
-            "GenerateWorkloads",
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "balanced",
+                "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
+            },
+            "MaxTopologicalCut",
+            {
+                "name":"InsertBarrierTasks",
+                "barrier_index_assignment": "Dynamic"
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
-			      "AssignUniqueTaskId",
+            "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
-			      "MaxTopologicalCut",
             "TransitiveReduction",
             "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
@@ -68,11 +152,7 @@
     },
     "validate": {
         "Singular": [
-            "CheckTensors",
-            {
-                "name": "GenerateJSON",
-                "filename": "computation_model.json"
-            }
+            "CheckTensors"
         ]
     },
     "serialize": {
@@ -80,15 +160,18 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "Scheduling": "Static"
+                "barrier_index_assignment": "Dynamic"
             }
         ]
     },
     "root": {
         "Singular": [
-			"initialize",
+            "initialize",
             "validate",
             "adapt",
+            "keembay_adapt",
+            "dma",
+            "control_flows",
             "finalize",
             "serialize"
         ],

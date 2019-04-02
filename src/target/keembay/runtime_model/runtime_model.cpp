@@ -264,36 +264,25 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 }
 
 // We have three taskslist for POC:
-// Tasklist 0: Contains all the DMA Tasks
-// Tasklist 1: Contains all the DPU Tasks
-// Tasklist 2: Contains all leon Tasks.
+// Tasklist 0: Contains all the tasks
 // We need to topologically sort the control model graph to get the tasks in the correct order.
 
 std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
     mv::OpModel om(cm);
     mv::ControlModel controlModel(cm);
-    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(3);
+    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
     toBuild[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
-    toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
-    toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     auto topologicallySortedOps = controlModel.topologicalSort();
 
-    //Only Tasks in TaskLists
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
         std::string opType = opIt->getOpType();
+        //Only Tasks in TaskLists
         if(opType.find("Task") != std::string::npos)
-        {
-            if(opType == "DMATask")
-                toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            else if(opType == "DPUTask")
-                toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            else
-                toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-        }
+            toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
     }
 
     return toBuild;
@@ -389,6 +378,8 @@ void mv::RuntimeModel::buildNCE1TaskT(ComputationModel& cm, mv::Element &compila
 
 MVCNN::DPULayerType mv::RuntimeModel::convertTaskOp(const std::string& opName)
 {
+    if (opName == "Add" || opName == "Subtract" || opName == "Multiply")
+        return dpuLayerMapping_.at("ElementWise");
     return dpuLayerMapping_.at(opName);
 }
 
@@ -436,34 +427,19 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
 
-    switch (toBuild->dpu_task_type)
+    if (opIt->hasAttr("kSize"))
     {
-        case MVCNN::DPULayerType_CONV:
-        case MVCNN::DPULayerType_DWCONV:
-        case MVCNN::DPULayerType_CMCONV:
-        {
-            auto weightsShape = opIt->getInputTensor(1)->getShape();
-            toBuild->kernelW = weightsShape[0];
-            toBuild->kernelH = weightsShape[1];
-            break;
-        }
-        case MVCNN::DPULayerType_MAXPOOL:
-        case MVCNN::DPULayerType_AVEPOOL:
-        {
-            auto kernelShape = opIt->get<std::array<unsigned short, 2>>("kSize");
-            toBuild->kernelW = kernelShape[0];
-            toBuild->kernelH = kernelShape[1];
-            break;
-        }
-        default:
-            break;
+        auto kernelShape = opIt->get<std::array<unsigned short, 2>>("kSize");
+        toBuild->kernelW = kernelShape[0];
+        toBuild->kernelH = kernelShape[1];
     }
 
-    //Stride is always an attribute
-    auto kernelStride = opIt->get<std::array<unsigned short, 2>>("stride");
-    toBuild->kernel_strideW = kernelStride[0];
-    toBuild->kernel_strideH = kernelStride[1];
-
+    if (opIt->hasAttr("stride"))
+    {
+        auto kernelStride = opIt->get<std::array<unsigned short, 2>>("stride");
+        toBuild->kernel_strideW = kernelStride[0];
+        toBuild->kernel_strideH = kernelStride[1];
+    }
     toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(0));
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getOutputTensor(0));
 
@@ -570,9 +546,8 @@ std::unique_ptr<MVCNN::TaskT> mv::RuntimeModel::buildTaskT(ComputationModel& cm,
     if(opIt->hasAttr("opId"))
         toBuild->sourceTaskIDs = {opIt->get<unsigned>("opId")};
 
-    if(compilationDescriptor.get<std::string>("Scheduling") == "Static")
-        if(opIt->hasAttr("BarrierDeps"))
-            toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
+    if(opIt->hasAttr("BarrierDeps"))
+        toBuild->associated_barriers = buildBarrierReferenceT(cm, compilationDescriptor, opIt->get<mv::BarrierDependencies>("BarrierDeps"));
 
     buildSpecificTaskUnion(cm, compilationDescriptor, opIt, toBuild->task);
     return toBuild;
@@ -615,7 +590,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
 
     // Barrier Table must be build only on dynamic scheduling
-    if(compilationDescriptor.get<std::string>("Scheduling") == "Dynamic")
+    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
 
     // Binary Data

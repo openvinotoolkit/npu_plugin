@@ -9,6 +9,8 @@ if (MSVC)
 
     add_executable(average_to_depthwise average_to_depthwise.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+    add_executable(elementwise_to_dpu.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
     add_executable(cm_linear cm_linear.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
     add_executable(cm_two_branch cm_two_branch.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -56,6 +58,8 @@ else()
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
+    add_executable(elementwise_to_dpu elementwise_to_dpu.cpp)
+    target_link_libraries(elementwise_to_dpu cm)
     add_executable(cm_linear cm_linear.cpp)
     target_link_libraries(cm_linear cm)
 
@@ -106,8 +110,10 @@ else()
 	add_executable(dpu_task_example dpu_task_example.cpp)
 	target_link_libraries(dpu_task_example cm)
  
-  add_executable(dpu_conv_example_3_layers dpu_conv_example_3_layers.cpp)
-	target_link_libraries(dpu_conv_example_3_layers cm)
+  add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
+	target_link_libraries(dpu_conv_3_conv cm)
+  add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
+	target_link_libraries(dpu_conv_2_conv cm)
 
 # FIXME: uncomment after metis_example.cpp is added
 #    add_executable(metis_example metis_example.cpp)

@@ -72,7 +72,7 @@ namespace mv
         void bindData(Tensor& other, const std::vector<std::size_t>& leftPadding = {}, const std::vector<std::size_t>& rightPadding = {});
         void broadcast(const Shape& shape);
 
-        bool isDoubleType() const {
+        inline bool isDoubleType() const {
             return getDType().isDoubleType();
         }
 
@@ -155,6 +155,7 @@ namespace mv
 
         BinaryData toBinary();
         std::vector<unsigned> computeNumericStrides() const;
+        std::size_t computeTotalSize(unsigned int alignment = 16) const;
 
     };
 

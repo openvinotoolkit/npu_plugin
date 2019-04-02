@@ -17,21 +17,23 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
+    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
 
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
-    auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    std::vector<double> weights2Data = mv::utils::generateSequence<double>(3*3*3*16);
+    auto weights2 = om.constant(weights2Data, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv2 = om.conv(input, weights2, {1, 1}, {1, 1, 1, 1});
 
-    std::vector<double> weightsData1 = mv::utils::generateSequence<double>(1*1*15*15);
-    auto weights1 = om.constant(weightsData1, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(conv, weights1, {1, 1}, {0, 0, 0, 0});
+    auto add1 = om.add(conv1, conv2);
+    om.output(add1);
 
-    std::vector<double> weightsData2 = mv::utils::generateSequence<double>(1*1*15*15);
-    auto weights2 = om.constant(weightsData2, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(conv1, weights2, {1, 1}, {0, 0, 0, 0});
+//    auto sub1 = om.subtract(conv1, conv2);
+//    om.output(sub1);
 
-    om.output(conv2);
+//    auto mul1 = om.multiply(conv1, conv2);
+//    om.output(mul1);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);

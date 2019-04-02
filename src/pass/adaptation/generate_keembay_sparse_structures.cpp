@@ -4,8 +4,8 @@
 #include "meta/include/mcm/op_model.hpp"
 #include <math.h>
 
-static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -13,13 +13,13 @@ namespace mv
     {
 
         MV_REGISTER_PASS(GenerateSparsityMaps)
-        .setFunc(GenerateSparsityMapsFcn)
+        .setFunc(generateSparsityMapsFcn)
         .setDescription(
             "Generates sparsity maps for the Tasks that need them"
         );
 
         MV_REGISTER_PASS(GenerateWeightsTables)
-        .setFunc(GenerateWeightsTablesFcn)
+        .setFunc(generateWeightsTablesFcn)
         .setDescription(
             "Generates weights tables for the Tasks that need them"
         );
@@ -29,8 +29,6 @@ namespace mv
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
     auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
-    om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    sparsityMap = om.dMATask(sparsityMap, mv::DmaDirectionEnum::DDR2CMX);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
@@ -105,39 +103,28 @@ mv::Data::TensorIterator addWeightsTable(mv::OpModel om, mv::Data::OpListIterato
     }
     auto weightTable = om.constantInt(weightTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    weightTable = om.dMATask(weightTable, mv::DmaDirectionEnum::DDR2CMX);
-    om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     dpuTaskOp->addInputTensor(weightTable);
+    om.defineFlow(weightTable, dpuTaskOp, dpuTaskOp->inputSlots());
 
     return weightTable;
 }
 
 
-static void GenerateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
-            auto opId = dpuTask->get<unsigned>("opId");
             unsigned weightsTableSize;
             std::string opName = dpuTask->getName();
 
             weightsTableSize = dpuTask->getOutputTensor(0)->getShape()[2];
 
             std::string kernelWeightsTableName(opName + "WeightsTable");
-            std::string kernelWeightsTableDeallocationName("Deallocate"+kernelWeightsTableName);
-            auto weightTable = addWeightsTable(om, dpuTask, kernelWeightsTableName, weightsTableSize);
-
-            om.defineFlow(weightTable, dpuTask, dpuTask->inputSlots());
-            om.deallocate(weightTable, kernelWeightsTableDeallocationName);
-            auto dmaKernelWeightsTableFreeOp = om.getOp(kernelWeightsTableDeallocationName);
-
-            dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
-            cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
+            addWeightsTable(om, dpuTask, kernelWeightsTableName, weightsTableSize);
         }
     }
 }
@@ -180,25 +167,9 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-// This function is necessary, as DMA task hide populated tensors (but should they do it in the first place?)
-
-mv::Data::TensorIterator findSourceOperation(mv::OpModel om, mv::Data::TensorIterator tensor)
-{
-    auto op = om.getSourceOp(tensor);
-    while(op->getOpType() == "DMATask")
-    {
-        tensor = op->getInputTensor(0);
-        op = om.getSourceOp(tensor);
-    }
-
-    return tensor;
-}
-
-static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
-    mv::DataModel dm(model);
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -220,13 +191,15 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 auto inputChannels = dpuTask->getInputTensor(0)->getShape()[2];
                 auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[2];
 
-                if (isPooling)
+                // Using the check in this way, instead of on the operation type
+                // makes this pass work on both aligned and unaligned convolutions.
+                if (dpuTask->hasAttr("kSize"))
                 {
                     auto kernelShape = dpuTask->get<std::array<unsigned short, 2>>("kSize");
                     kernelW = kernelShape[0];
                     kernelH = kernelShape[1];
                 }
-                else// its a depthwise conv or conv with NCHW layout
+                else
                 {
                     auto weightsShape = dpuTask->getInputTensor(1)->getShape();
                     kernelW = weightsShape[0];
@@ -277,33 +250,37 @@ static void GenerateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                             for(unsigned oc = 0; oc < sparsityShape[3]; ++oc)
                                 sparsityTensor.at({kx, ky, ic, oc}) = static_cast<int64_t>(perChannelSparsity[ky*sparsityShape[0] + kx]);
 
-                auto opId = dpuTask->get<unsigned>("opId");
                 std::string opName = dpuTask->getName();
 
                 std::string sparsityMapName(opName + "SparsityMap");
-                std::string sparsityMapDeallocationName("Deallocate"+sparsityMapName);
-                auto sparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
+                createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
 
-                om.deallocate(sparsityMap, sparsityMapDeallocationName);
-                auto dmaKernelWeightsTableFreeOp = om.getOp(sparsityMapDeallocationName);
-
-                dmaKernelWeightsTableFreeOp->set<unsigned>("opId", opId);
-                cm.defineFlow(dpuTask, dmaKernelWeightsTableFreeOp);
                 dpuTask->set<bool>("fakeSparsity", true);
             }
             else
             {
-                unsigned n = dpuTask->getInputTensor().size();
-                for (unsigned i = 0; i < n; ++i)
-                    if (dpuTask->getInputTensor(i)->getOrder().isZMajor())
-                        dpuTask->getInputTensor(i)->setSparse();
-
-                n = dpuTask->getOutputTensor().size();
-                for (unsigned i = 0; i < n; ++i)
-                    if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
-                        dpuTask->getOutputTensor(i)->setSparse();
-
+                if (dpuTask->inputSlots() > 1 &&
+                    dpuTask->getInputTensor(0)->getOrder().isZMajor())
+                 {
+                    auto weights = dpuTask->getInputTensor(1);
+                    weights->setOrder(mv::Order("NWHC"));
+                    weights->setSparse();
+                }
             }
+
+        }
+        else
+        {
+            unsigned n = dpuTask->getInputTensor().size();
+            for (unsigned i = 0; i < n; ++i)
+                if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
+                    !dpuTask->getInputTensor(i)->isPopulated()) //only weights are popualted, and we dont want to cover them here
+                    dpuTask->getInputTensor(i)->setSparse();
+
+            n = dpuTask->getOutputTensor().size();
+            for (unsigned i = 0; i < n; ++i)
+                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+                    dpuTask->getOutputTensor(i)->setSparse();
         }
     }
 }

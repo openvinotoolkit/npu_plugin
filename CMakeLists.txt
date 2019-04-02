@@ -178,7 +178,6 @@ SET(base
     
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/op/op_registry.cpp"
-    #"${PROJECT_SOURCE_DIR}/src/computation/op/op.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/deployer/Fp16Convert.cpp"
 
@@ -275,10 +274,14 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/dma_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_align_weights.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_control_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/create_source_structure.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/generate_keembay_sparse_structures.cpp"
