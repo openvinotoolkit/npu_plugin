@@ -155,6 +155,7 @@ file(GLOB pass
     "src/pass/serialization/*.cpp"
     "src/deployer/*.cpp"
     "src/deployer/blob_serialization/*.cpp"
+    "src/pass/initialization/global_config_params_pass.cpp"
 )
 
 file(GLOB compiler
