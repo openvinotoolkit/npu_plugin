@@ -3,10 +3,10 @@ project(mcmComplier VERSION 0.0.1)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 SET(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
-#set(CMAKE_VERBOSE_MAKEFILE on) # for debugging
+SET(CMAKE_VERBOSE_MAKEFILE ON) # for debugging
 
 #############################################################################################
-### MCMCompiler version
+### Setup
 #############################################################################################
 SET(PROJECT_VERSION_MAJOR 0)
 SET(PROJECT_VERSION_MINOR 1)
@@ -34,35 +34,28 @@ add_code_coverage()
 find_package(METIS)
 if(METIS_FOUND)
     set(METIS_LIBS ${METIS_LIBRARIES})
-
-    message(STATUS "METIS found. Including ${METIS_INCLUDE_DIRS}...")
     include_directories(${METIS_INCLUDE_DIRS})
 else()
-    message(STATUS "Metis not found.")
+    message(STATUS "Metis not found!")
 endif(METIS_FOUND)
 
 
+# find_package(Flatbuffers)
+# if(FLATBUFFERS_FOUND)
+#     include_directories(${FLATBUFFERS_INCLUDE_DIR})
+# else()
+#     message(STATUS "Flatbuffers not found!")
+# endif(FLATBUFFERS_FOUND)
 
-find_package(Flatbuffers)
-if(FLATBUFFERS_FOUND)
-    message(STATUS "Flatbuffers found. Including ${FLATBUFFERS_INCLUDE_DIR}...")
-    include_directories(${FLATBUFFERS_INCLUDE_DIR})
-else()
-    message(STATUS "Flatbuffers not found.")
-endif(FLATBUFFERS_FOUND)
-
-
-
+#############################################################################################
+### Main build
+#############################################################################################
 if (MSVC)
-
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
     SET(VALIDATION false)
-
 else()
-
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
     SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
-
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
@@ -70,7 +63,6 @@ include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
 
 if(VALIDATION)
-
     include_directories("/opt/movidius/caffe/include")
     include_directories("/opt/movidius/caffe/build/include")
     include_directories("/opt/movidius/caffe/build/include/caffe/proto")
@@ -92,7 +84,6 @@ if(VALIDATION)
     SET(pass_validation
         "${PROJECT_SOURCE_DIR}/src/pass/adaptation/generate_caffe.cpp"
     )
-
 endif(VALIDATION)
 
 SET(base
@@ -324,14 +315,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 )
 
-# TODO: temporary measure as this file requires Metis, which is not x-compiled
-# IF(NOT CMAKE_CROSSCOMPILING)
-#     SET(pass 
-#         ${pass} 
-#         "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
-#     )
-# ENDIF()
-
 SET(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
@@ -339,19 +322,18 @@ SET(compiler
     "${PROJECT_SOURCE_DIR}/src/target/keembay/runtime_model/runtime_model.cpp"
 )
 
-# IF(CMAKE_CROSSCOMPILING)
-#     message(STATUS "Cross-compiling, so assumes meta/ files already generated...")
-#     add_library(metamodel SHARED
-#         ${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
-#         ${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
-#         ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
-#     )
-#     target_link_libraries(metamodel model)
-# ELSE()
-#     message(STATUS "Standard build...")
-#     add_subdirectory(meta)
-# ENDIF()
-add_subdirectory(meta)
+IF(CMAKE_CROSSCOMPILING)
+    message(STATUS "Cross-compiling, assumes meta/ files already generated...")
+    add_library(metamodel SHARED
+        ${CMAKE_SOURCE_DIR}/meta/src/compositional_model.cpp
+        ${CMAKE_SOURCE_DIR}/meta/src/op_model.cpp
+        ${CMAKE_SOURCE_DIR}/meta/src/recorded_compositional_model.cpp
+    )
+    target_link_libraries(metamodel model)
+ELSE()
+    message(STATUS "Standard build...")
+    add_subdirectory(meta)
+ENDIF()
 
 if (MSVC)
     add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
@@ -387,10 +369,10 @@ else()
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
 
-        #IF(CMAKE_CROSSCOMPILING)
-            # Flatbuffers and Metis not x-compiled yet
-        #    target_link_libraries(cm corebase metamodel)
-        #ELSE()
+        IF(CMAKE_CROSSCOMPILING)
+            #Flatbuffers and Metis not x-compiled yet
+            target_link_libraries(cm corebase metamodel)
+        ELSE()
             target_link_libraries(cm corebase metamodel flatbuffers metis)
             add_dependencies(cm generate-comp-api)
             add_dependencies(model generate-comp-api)
@@ -398,14 +380,14 @@ else()
             add_subdirectory(python/api)
             add_subdirectory(tests)
             add_subdirectory(contrib/googletest)
-        #ENDIF()
+        ENDIF(CMAKE_CROSSCOMPILING)
        
     endif(VALIDATION)
 endif(MSVC)
 
-add_subdirectory(examples)
-#IF(NOT CMAKE_CROSSCOMPILING)
+IF(NOT CMAKE_CROSSCOMPILING)
+    add_subdirectory(examples)
     add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
-#ENDIF()
+ENDIF()
