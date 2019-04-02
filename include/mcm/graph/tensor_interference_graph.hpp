@@ -13,6 +13,7 @@ namespace mv
         size_t weight;
         size_t neighborsWeight;
         size_t address;
+        size_t height;
         bool isColored;
 
         TensorInterferenceGraphNode(std::string name_) : name(name_), weight(0), neighborsWeight(0), address(0), isColored(false) {

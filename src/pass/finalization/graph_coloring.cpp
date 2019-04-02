@@ -115,7 +115,7 @@ const std::unordered_map<mv::OrderingStrategy,
     },
 };
 
-bool isNodeSimplificable(mv::TensorInterferenceGraph::node_list_iterator ni, long long memorySize)
+bool isNodeSimplificable(mv::TensorInterferenceGraph::node_list_iterator& ni, long long memorySize)
 {
     //std::cout << " name " << (*ni).name << " weight " << (*ni).weight << " ne_Weight " << (*ni).neighborsWeight << std::endl;
     return ((*ni).weight <= (memorySize - (*ni).neighborsWeight));
@@ -207,6 +207,143 @@ void printASOrder(std::stack<std::string> order, std::string name)
     std::cout << " ========================================" << std::endl;
 }
 
+std::list<std::string> getColoredNeighbors(mv::TensorInterferenceGraph& g, mv::TensorInterferenceGraph::node_list_iterator ni)
+{
+    std::list<std::string> coloredNeighbors;
+    for (mv::TensorInterferenceGraph::node_parent_iterator itr(ni); itr != g.node_end(); ++itr)
+    {
+        if ((*itr).isColored)
+            coloredNeighbors.push_back((*itr).name);
+    }
+    return coloredNeighbors;
+}
+
+std::list<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g, long long memorySize, bool addRightMost = true)
+{
+    std::list<std::pair<size_t, size_t>> gaps;
+
+    if (coloredNeighbors.size() == 0)
+    {
+        gaps.push_back(std::pair<size_t, size_t>(0, memorySize));
+        return gaps;
+    }
+
+    size_t maxHeight = 0;
+    std::vector<std::pair<size_t, size_t>> intervals;
+    for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
+    {
+        auto coloredNode = g.node_find(*it);
+        intervals.push_back(std::pair<size_t, size_t>((*coloredNode).address, (*coloredNode).height));
+        if ((*coloredNode).height > maxHeight)
+            maxHeight = (*coloredNode).height;
+    }
+
+    sort(intervals.begin(), intervals.end(), [](const std::pair<size_t, size_t> & a, const std::pair<size_t, size_t> & b)
+        {
+            if (a.first < b.first)
+                return true;
+            if (a.first == b.first)
+                return (a.second <= b.second);
+            return false;
+        });
+
+    size_t currentAddress = 0;
+    size_t gap;
+
+    for (auto it = intervals.begin(); it != intervals.end(); it++)
+    {
+        gap = it->first - currentAddress;
+        if (gap > 0)
+            gaps.push_back(std::pair<size_t, size_t>(currentAddress, gap));
+        currentAddress = it->second;
+    }
+
+    //add rightmost gap
+    if (addRightMost)
+    {
+        gap = memorySize - maxHeight;
+        if (gap > 0)
+            gaps.push_back(std::pair<size_t, size_t>(maxHeight, gap));
+    }
+    return gaps;
+}
+
+void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph::node_list_iterator& ni,
+    std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g)
+{
+    auto currentNode = directedGraph.node_find((*ni).name);
+    for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
+    {
+        auto neighbor = g.node_find(*it);
+        auto dn = directedGraph.node_find((*neighbor).name);
+
+        if ((*ni).address < (*neighbor).address)
+        {
+            directedGraph.edge_insert(dn, currentNode, 0);
+        }
+        else
+        {
+            directedGraph.edge_insert(currentNode, dn, 0);
+        }
+
+    }
+
+    //TODO remove edges...?
+}
+
+std::size_t updateNodeAddress(std::size_t startAddress, mv::TensorInterferenceGraph::node_list_iterator& ni, size_t chromaticNumber,
+    std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
+{
+    (*ni).address = startAddress;
+    (*ni).height = startAddress + (*ni).weight;
+    (*ni).isColored = true;
+    assignOrientation(directedGraph, ni, coloredNeighbors, g);
+
+    return std::max(chromaticNumber, (*ni).height);
+}
+
+std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, long long memorySize, size_t chromaticNumber,
+    mv::graph<std::string, int>& directedGraph)
+{
+    auto ni = g.node_find(name);
+    auto coloredNeighbors = std::move(getColoredNeighbors(g, ni));
+    coloredNeighbors.sort();
+
+    auto gaps = calculateGaps(coloredNeighbors, g, memorySize);
+
+    for (auto itr = gaps.begin(); itr != gaps.end(); itr++)
+    {
+        if (itr->second > (*ni).weight)
+        {
+            chromaticNumber = updateNodeAddress(itr->first, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
+            return chromaticNumber;
+        }
+    }
+
+    ///TODO - no gap big enough
+    return chromaticNumber;
+}
+
+void bestFitMemoryAllocation(std::stack<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
+{
+    size_t chromaticNumber = 0;
+    //build orientation assignment dag
+    mv::graph<std::string, int> directedGraph;
+    for (auto ni = g.node_begin(); ni != g.node_end(); ++ni)
+    {
+        directedGraph.node_insert((*ni).name);
+    }
+
+    while (!order.empty())
+    {
+        std::string node = order.top();
+        order.pop();
+        chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph);
+    }
+
+    //TODO now update original tensors with address
+}
+
 void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
@@ -245,6 +382,9 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     printASOrder(agOrder, "DDR_BSS");
 
+    bestFitMemoryAllocation(agOrder, ddr_bss_g, memsize);
+    ddr_bss_g.drawGraph("ddr_bss_memory");
+
     mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
@@ -261,6 +401,8 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     alignment = memDefs.find("VPU_DDR_Heap")->second.alignment;
     agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     printASOrder(agOrder, "DDR_HEAP");
+    bestFitMemoryAllocation(agOrder, ddr_heap_g, memsize);
+    ddr_heap_g.drawGraph("ddr_heap_memory");
 
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false);
     memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
@@ -269,5 +411,8 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     //nncmx_g.printGraph("NNCMX");
     nncmx_g.drawGraph("nncmx");
     printASOrder(agOrder, "NNCMX");
+    bestFitMemoryAllocation(agOrder, nncmx_g, memsize);
+    nncmx_g.drawGraph("nncmx_memory");
+
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");
 }

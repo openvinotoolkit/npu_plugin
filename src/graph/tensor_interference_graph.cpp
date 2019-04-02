@@ -327,6 +327,7 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
         std::string nodeDef = "\t\"" + name + "\" [shape=box,";
         nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + name + "</B></FONT></TD></TR>";
         nodeDef += "<TR><TD ALIGN=\"CENTER\"><FONT POINT-SIZE=\"11.0\"> size: " + std::to_string((*it).weight) + "</FONT></TD></TR>";
+        nodeDef += "<TR><TD ALIGN=\"CENTER\"><FONT POINT-SIZE=\"11.0\"> address: " + std::to_string((*it).address) + "</FONT></TD></TR>";
         nodeDef += "</TABLE>>";
         ostream << nodeDef << "];\n";
     }
