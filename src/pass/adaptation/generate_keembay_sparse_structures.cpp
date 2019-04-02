@@ -136,6 +136,15 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
 
         std::vector<int32_t> zeroPoint = extendToK<unsigned, int32_t>(outputChannels, outputQuantization.getZeroPoint());
 
+        std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
+        bool isPooling = taskOp == "MaxPool" || taskOp == "AvgPool";
+        //Workaround for HW bug #227
+        if (isPooling)
+        {
+            std::vector<int32_t> inputZeroPoint = extendToK<unsigned, int32_t>(outputChannels, inputQuantization.getZeroPoint());
+            std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
+        }
+
         auto m = S2;
         if (dpuTaskOp->inputSlots() > 1)
         {
