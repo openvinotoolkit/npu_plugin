@@ -114,14 +114,6 @@
     },
     "finalize": {
         "Singular": [
-            "AddMemoryRequirmentAttributeOnControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "AddMemoryRequirmentAttributeOnControlFlows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
@@ -130,7 +122,7 @@
                 "content": "full",
                 "html": true
             },
-            "MaxTopologicalCut",
+            "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
                 "output": "max_cut_model.dot",

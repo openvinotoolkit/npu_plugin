@@ -53,8 +53,26 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 
     if(!cm.checkControlFlow(lastDMAOp, outputOp))
         cm.defineFlow(lastDMAOp, outputOp);
-    if(!cm.checkControlFlow(lastOpBeforeLastDma, lastDMAOp))
-        cm.defineFlow(lastOpBeforeLastDma, lastDMAOp);
+    if(!cm.checkControlFlow(lastOpBeforeLastDma, lastDMAOp)) {
+
+         /* 
+          Add the memory requirment of the DPU task -> DMA CMX2DDR direction (last DPU task) by adding a "MemoryRequirment" attribute to the flow in the MCM task graph.
+          The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
+          This is required for the max topological cut pass.
+        */
+        auto flowIt = cm.defineFlow(lastOpBeforeLastDma, lastDMAOp);
+
+        int memoryRequirement = 1;
+        auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+             
+        for (unsigned int i = 0; i < flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+            memoryRequirement = flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+        memoryRequirement = memoryRequirement * dType/8;
+        flowIt->set<int>("MemoryRequirement", memoryRequirement);
+        flowIt->set<bool>("PositiveMemory", true); 
+
+    }
 }
 
 // This pass adds Control flows relative to a DeallocateTask
@@ -71,8 +89,26 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
     for(auto op : deallocateOps)
     {
         auto parentOp = op.leftmostParent();
-        cm.defineFlow(parentOp, op);
+        auto flowIt = cm.defineFlow(parentOp, op);
 
+        /* 
+          Add the memory requirment of the DPU task -> DMA CMX2DDR direction (last DPU task) by adding a "MemoryRequirment" attribute to the flow in the MCM task graph.
+          The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
+          This is required for the max topological cut pass.
+
+          DMA/DPU -> Dealloc
+        */
+        int memoryRequirement = 1;
+        auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+             
+        for (unsigned int i = 0; i < flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
+            memoryRequirement = flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
+
+        memoryRequirement = memoryRequirement * dType/8;
+        flowIt->set<int>("MemoryRequirement", memoryRequirement);
+        flowIt->set<bool>("PositiveMemory", true); /*Required for transitive reduction filter*/
+
+        
         for(auto sibling = parentOp.leftmostChild(); sibling != om.opEnd(); ++sibling)
         {
             if(sibling->getOpType() == "Deallocate")

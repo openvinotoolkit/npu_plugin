@@ -70,12 +70,14 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
 
     auto output = cm.getOutput();
     int maxTopologicalCutValue;
-
+    
     /*Get the max topological cut value*/
     if(output->hasAttr("MaxTopologicalCutValue"))
         maxTopologicalCutValue = output->get<int>("MaxTopologicalCutValue");
 
-    /*The max topological cut of the equivalent network in the PoC compiler is 1085760*/
-    ASSERT_EQ(maxTopologicalCutValue, 1085760);
+    /*The max topological cut of the equivalent network in the PoC compiler is 1085760
+    
+     */
+    ASSERT_EQ(maxTopologicalCutValue, 688320);
 
 }
