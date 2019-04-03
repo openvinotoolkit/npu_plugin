@@ -130,7 +130,6 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
 
     mv::ControlModel cm(model);
     mv::DataModel dm(model);
-    mv::OpModel om(model);
 
     /* For each task in the ControlModel view of the MCM graph
      * create a corresponding node (task) in the KOALA graph.
@@ -209,8 +208,10 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
 
 void setEdgeLengths(const Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int >> &edgeMap, const std::vector<koalaGraph::PEdge>& E) 
 {
+   int edgeLength = 1;
    for (const auto& e : E) {
-        edgeMap[e].length = 1;
+       
+       edgeMap[e].length = edgeLength;
     }
 }
 
@@ -391,7 +392,6 @@ void performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& fl
 std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, koalaGraph& flowGraph, std::vector<koalaGraph::PVertex>& Vertices, std::vector<koalaGraph::PEdge>& Edges) {
 
     mv::ControlModel cm(model);
-    mv::OpModel om(model);
 
     /* Calculate Fmax - Defined as sum of memory requirments + 1)*/
     int Fmax = calculateFMax(model); 

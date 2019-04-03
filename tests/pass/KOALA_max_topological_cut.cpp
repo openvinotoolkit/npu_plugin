@@ -39,6 +39,9 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
 
 }
 
+/* This test perform max topological cut and inserts two partial serialisation edges*/
+/* The edges inserted are non optimal at present and should be inserted to minimise an increase in critical path*/
+/* It is not possible to do a direct comparison with the PoC compiler until the edges are inserted optimally*/
 TEST(MaxTopologicalCut, greaterThanCMXMemory)
 {
 
@@ -76,9 +79,6 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     if(output->hasAttr("MaxTopologicalCutValue"))
         maxTopologicalCutValue = output->get<int>("MaxTopologicalCutValue");
 
-    /*The max topological cut of the equivalent network in the PoC compiler is 1085760
-    
-     */
     ASSERT_EQ(maxTopologicalCutValue, 688320);
 
 }

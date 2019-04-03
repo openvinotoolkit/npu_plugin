@@ -24,6 +24,22 @@ mv::QuantizationParams::QuantizationParams(std::vector<unsigned> zp, std::vector
     set<std::vector<double>>("max", max);
 }
 
+void mv::QuantizationParams::extendParamsToOutputChannelSize(const size_t outputChannelsSize)
+{
+    auto zeroPoint = get<std::vector<unsigned>>("zeroPoint");
+    if (zeroPoint.size() != outputChannelsSize)
+        set<std::vector<unsigned>>("zeroPoint", extendToK_<unsigned>(outputChannelsSize, zeroPoint));
+    auto scale = get<std::vector<double>>("scale");
+    if (scale.size() != outputChannelsSize)
+        set<std::vector<double>>("scale", extendToK_<double>(outputChannelsSize, scale));
+    auto min = get<std::vector<double>>("min");
+    if (min.size() != outputChannelsSize)
+        set<std::vector<double>>("min", extendToK_<double>(outputChannelsSize, min));
+    auto max = get<std::vector<double>>("max");
+    if (max.size() != outputChannelsSize)
+        set<std::vector<double>>("max", extendToK_<double>(outputChannelsSize, max));
+}
+
 unsigned mv::QuantizationParams::getZeroPoint(const size_t channel) const
 {
     std::vector<unsigned> zeroPoint = get<std::vector<unsigned>>("zeroPoint");
