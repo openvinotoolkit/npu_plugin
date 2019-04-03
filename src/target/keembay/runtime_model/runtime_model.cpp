@@ -212,6 +212,11 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         return i;
     };
 
+    toBuild->options = std::vector<MVCNN::ExecutionFlag>();
+    //toBuild->options.push_back(MVCNN::ExecutionFlag_Compiled_For_VPU3);
+    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
+        toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
+
     toBuild->layer_count = originalHeader->layer_count;
     toBuild->task_count = taskCount(om);
 
