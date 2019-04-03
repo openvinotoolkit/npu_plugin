@@ -428,6 +428,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
+    // mpe_frequent_mode: MPE_Mode;
+    // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
     {
@@ -447,10 +449,18 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     unsigned num_inputs = opIt->getInputTensor().size();
 
+    //OP inputs == n ->
+    // n - 2 activation window (when present)
+    // n - 1 weights table
     if(opIt->hasAttr("fakeSparsity"))
-        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 2));
+    {
+        auto activationWindowTensorIterator = opIt->getInputTensor(num_inputs - 2);
+        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, activationWindowTensorIterator);
+        toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
+    }
 
-    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 1));
+    auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
 
     switch (toBuild->dpu_task_type)
     {
@@ -459,8 +469,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
             toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
-            // NOTE: Bias should be handled as well here.
-            // std::unique_ptr<TensorReferenceT> bias_data;
             break;
         default:
             break;
