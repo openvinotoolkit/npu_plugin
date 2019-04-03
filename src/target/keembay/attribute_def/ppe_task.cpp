@@ -21,8 +21,7 @@ namespace mv
             throw AttributeError(v, "Unable to convert JSON value of type " + json::Value::typeName(v.valueType()) +
                 " to mv::DType");
 
-        //return PPETask(v.get<std::string>());
-        return PPETask();
+        return PPETask(v);
     }
 
     static std::string toString(const Attribute& a)

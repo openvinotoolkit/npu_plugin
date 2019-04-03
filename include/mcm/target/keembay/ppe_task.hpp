@@ -4,22 +4,29 @@
 #include <string>
 #include <array>
 #include "include/mcm/tensor/tensor.hpp"
+#include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/target/keembay/ppe_fixed_function.hpp"
 
 namespace mv
 {
-    class PPETask : public LogSender
+    class PPETask : public Element
     {
-        private:
-            std::shared_ptr<Tensor> scaleData_;
-            PPEFixedFunction fixedFunction_;
-
         public:
-            std::string toString() const;
-            PPETask();
-            PPETask(const std::string& value);
-            ~PPETask();
-            std::string getLogID() const;
+            PPETask(const json::Value& content);
+            PPETask(const PPEFixedFunction &fixedFunction);
+
+            inline mv::Data::TensorIterator getScaleData() const
+            {
+                return get<Data::TensorIterator>("scaleData");
+            }
+
+            inline PPEFixedFunction getFixedFunction() const
+            {
+                return get<PPEFixedFunction>("fixedFunction");
+            }
+
+            virtual std::string getLogID() const override;
+            virtual std::string toString() const override;
     };
 }
 

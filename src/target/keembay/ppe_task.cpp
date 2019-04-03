@@ -1,24 +1,26 @@
 #include "include/mcm/target/keembay/ppe_task.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-mv::PPETask::PPETask()
+mv::PPETask::PPETask(const json::Value& content)
+    :Element(content)
 {
 
 }
 
-mv::PPETask::PPETask(const std::string& value)
+mv::PPETask::PPETask(const PPEFixedFunction& fixedFunction)
+    :Element("PPETask")
 {
-
-}
-
-mv::PPETask::~PPETask()
-{
-
+    set<PPEFixedFunction>("fixedFunction", fixedFunction);
 }
 
 std::string mv::PPETask::toString() const
 {
     std::string output = "";
+
+    if(hasAttr("scaleData"))
+        output += getScaleData()->toString();
+
+    output += getFixedFunction().toString();
     
     return output;
 }
