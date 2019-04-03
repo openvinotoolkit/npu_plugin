@@ -282,15 +282,18 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
         if ((*ni).address < (*neighbor).address)
         {
             directedGraph.edge_insert(dn, currentNode, 0);
+            //std::cout << "\tassignOrientation::adding edge from" << *dn << " -> " << *currentNode << std::endl;
         }
         else
         {
             directedGraph.edge_insert(currentNode, dn, 0);
+            //std::cout << "\tassignOrientation::adding edge from" << *currentNode  << " -> "  << *dn << std::endl;
         }
 
     }
 
     //collect redundent edges of predecessors and successors of colored neighbors in DAG
+    //POC removes edges when detecting one, and dont collect then remove, that might leave some edges (since it's order dependant)
     std::vector<mv::graph<std::string, int>::edge_sibling_iterator> redundantEdges;
     for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
     {
@@ -304,9 +307,12 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
             //now check if any of successors of  current neighbor is in the map
             for (mv::graph<std::string, int>::node_child_iterator childIt(dn); childIt != directedGraph.node_end(); ++childIt)
             {
-                auto edgeEntry = sinkMap.find(*dn);
+                auto edgeEntry = sinkMap.find(*childIt);
                 if (edgeEntry != sinkMap.end())
+                {
                     redundantEdges.push_back(edgeEntry->second);
+                    //std::cout << "\tassignOrientation::removing edge from" << *parentIt  << " -> "  << edgeEntry->first << std::endl;
+                }
             }
         }
     }
@@ -409,6 +415,8 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
 
     //no gap big enough
     if (gaps.size() == 1)
+        //Actual Spill will be handled in runtime
+        //eventually, the exception is just to indicate that currently it's not handled
         throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
 
     auto lastgap = gaps.end();
@@ -427,6 +435,8 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
     }
 
     if (insertionChromaticNumbersMin > memorySize)
+        //Actual Spill will be handled in runtime
+        //eventually, the exception is just to indicate that currently it's not handled
         throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
 
     chromaticNumber = updateNodeAddress(gaps[index].first, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
@@ -434,7 +444,28 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
     return chromaticNumber;
 }
 
-void bestFitMemoryAllocation(std::stack<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
+void printGraph(std::string name, mv::graph<std::string, int>& g)
+{
+     // Nodes list
+    std::cout << "Printing Graph: " << name << std::endl;
+    std::cout << "==========================================" << std::endl;
+    std::cout << "Nodes list: " << std::endl;
+    for (auto it = g.node_begin(); it != g.node_end(); ++it)
+        std::cout << (*it) << " " << std::endl;
+
+    std::cout << std::endl;
+
+     // Edges list
+    std::cout << "Edges list: " << std::endl;
+    for (auto it = g.edge_begin(); it != g.edge_end(); ++it)
+        std::cout << " EDGE: " << *it << " Source " << (*it->source()) <<  " sink " << (*it->sink()) << std::endl;
+
+    std::cout << std::endl;
+    std::cout << "=========================================================" << std::endl;
+
+}
+
+void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
 {
     size_t chromaticNumber = 0;
     //build orientation assignment dag
@@ -449,9 +480,17 @@ void bestFitMemoryAllocation(std::stack<std::string>& order, mv::TensorInterfere
         std::string node = order.top();
         order.pop();
         chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph);
+        //printGraph("BestFitDirectedGraph", directedGraph);
+
+    }
+    //printGraph("BestFitDirectedGraphFinal", directedGraph);
+
+    //set address in tensors
+    for (mv::TensorInterferenceGraph::node_dfs_iterator it = g.node_begin(); it != g.node_end(); ++it)
+    {
+        model.getTensor((*it).name)->setAddress((*it).address);
     }
 
-    //TODO now update original tensors with address
 }
 
 void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
@@ -492,7 +531,7 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     printASOrder(agOrder, "DDR_BSS");
 
-    bestFitMemoryAllocation(agOrder, ddr_bss_g, memsize);
+    bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
     ddr_bss_g.drawGraph("ddr_bss_memory");
 
     mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
@@ -511,7 +550,7 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     alignment = memDefs.find("VPU_DDR_Heap")->second.alignment;
     agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     printASOrder(agOrder, "DDR_HEAP");
-    bestFitMemoryAllocation(agOrder, ddr_heap_g, memsize);
+    bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
     ddr_heap_g.drawGraph("ddr_heap_memory");
 
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false);
@@ -521,7 +560,7 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     //nncmx_g.printGraph("NNCMX");
     nncmx_g.drawGraph("nncmx");
     printASOrder(agOrder, "NNCMX");
-    bestFitMemoryAllocation(agOrder, nncmx_g, memsize);
+    bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
     nncmx_g.drawGraph("nncmx_memory");
 
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");

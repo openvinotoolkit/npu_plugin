@@ -91,6 +91,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/double.cpp" 
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/dtype.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int64.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/mv_element.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/order.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/shape.cpp"
