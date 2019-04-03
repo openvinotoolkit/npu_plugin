@@ -307,6 +307,8 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/splits_over_h.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_field_storage.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
+
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_keembay.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob.cpp"
@@ -316,9 +318,9 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
-)
 
-SET(compiler
+
+    SET(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
     "${PROJECT_SOURCE_DIR}/src/utils/hardware_tests.cpp"
