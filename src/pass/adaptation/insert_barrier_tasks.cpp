@@ -14,6 +14,7 @@
 #include "../contrib/koala/io/parsetgml.h"
 #include "../contrib/koala/coloring/vertex.h"
 #include "../contrib/koala/io/graphml.h"
+#include "include/mcm/logger/logger.hpp"
 
 
 #define MAX_AVAILABLE_BARRIERS 8
@@ -104,7 +105,6 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     std::string pngFile = outputFile.substr(0, outputFile.find(".dot")) + ".png";
 
     std::string systemCmd = "dot -Tpng " + outputFile + " -o " + pngFile;
-    std::cout << systemCmd;
     system(systemCmd.c_str());
 }
 
@@ -122,12 +122,10 @@ static int colorKoalaGraph(BIGKoala& bigK, std::vector<BIGKoala::PVertex> verts,
     return SeqVertColoring::greedy(bigK, colors);
 }
 
-static void convertToKoalaGraph(const BarrierInterferenceGraph& big, BIGKoala& bigK, std::vector<BIGKoala::PVertex>& koalaVerts)
+static void convertToKoalaGraph(const mv::pass::PassEntry& pass, const BarrierInterferenceGraph& big, BIGKoala& bigK, std::vector<BIGKoala::PVertex>& koalaVerts)
 {
     for (auto it = big.node_begin(); it != big.node_end(); ++it)
     {
-        std::cout << "adding vtx to koala Graph: bId(" << (*it).getID() << "), nodeId(" << it->getID() << ")" << std::endl;
-
         BIGKoala::PVertex v = bigK.addVert(BigKVertexInfo((*it).getID()));
         koalaVerts.push_back(v);
     }
@@ -136,19 +134,12 @@ static void convertToKoalaGraph(const BarrierInterferenceGraph& big, BIGKoala& b
     {
         auto& src = *it->source();
         auto& snk = *it->sink();
-        std::cout << "e_src = " << (*it->source()).getID()
-                    << " | e_snk = " << (*it->sink()).getID() << std::endl;
-        
+
         auto srcVtx = std::find_if(
                     koalaVerts.begin(),
                     koalaVerts.end(), 
                     [src](BIGKoala::PVertex& v) { return src.getID() == v->info.barrierId; }
         );
-
-        if (srcVtx != koalaVerts.end())
-        {
-            std::cout << "koala src vtx = " << (*srcVtx)->info << std::endl;
-        }
 
         auto snkVtx = std::find_if(
                     koalaVerts.begin(),
@@ -156,15 +147,11 @@ static void convertToKoalaGraph(const BarrierInterferenceGraph& big, BIGKoala& b
                     [snk](BIGKoala::PVertex& v) { return snk.getID() == v->info.barrierId; }
         );
 
-        if (snkVtx != koalaVerts.end())
-        {
-            std::cout << "koala snk vtx = " << (*snkVtx)->info.barrierId << std::endl;
-        }
-
         if (*srcVtx && *snkVtx)
         {
-            std::cout << "Trying to add edge between: k_src = " << (*srcVtx)->info.barrierId
-                        << ", k_snk = " << (*snkVtx)->info.barrierId << std::endl;
+            pass.log(mv::Logger::MessageType::Info,
+                "Trying to add edge between: k_src = " + std::to_string((*srcVtx)->info.barrierId)
+                + ", k_snk = " + std::to_string((*snkVtx)->info.barrierId));
 
             if (!bigK.getEdgeNo(*srcVtx, *snkVtx, Koala::Undirected))
             {
@@ -172,8 +159,9 @@ static void convertToKoalaGraph(const BarrierInterferenceGraph& big, BIGKoala& b
             }
             else
             {
-                std::cout << "edge exists between k_src = " << (*srcVtx)->info.barrierId
-                        << ", k_snk = " << (*snkVtx)->info.barrierId << std::endl;
+                pass.log(mv::Logger::MessageType::Info,
+                    "edge exists between k_src = " + std::to_string((*srcVtx)->info.barrierId)
+                    + ", k_snk = " + std::to_string((*snkVtx)->info.barrierId));
             }
         }
     }
@@ -382,7 +370,7 @@ static void addControlFlowBarriers(mv::ControlModel& cm, std::vector<mv::Barrier
     }
 }
 
-static void setBarrierGroupAndIndex(mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
+static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
 {
     std::string indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
     
@@ -391,7 +379,7 @@ static void setBarrierGroupAndIndex(mv::OpModel& om, std::vector<mv::Barrier>& b
 
     BIGKoala bigK;
     std::vector<BIGKoala::PVertex> koalaVertices;
-    convertToKoalaGraph(big, bigK, koalaVertices);
+    convertToKoalaGraph(pass, big, bigK, koalaVertices);
     drawBigK(bigK);
 
     AssocArray<BIGKoala::PVertex, int> colors;
@@ -404,7 +392,9 @@ static void setBarrierGroupAndIndex(mv::OpModel& om, std::vector<mv::Barrier>& b
 
     for (int i = 0; i < bigK.getVertNo(); i++)
     {
-        std::cout << koalaVertices[i]->info << " : color = " << colors[koalaVertices[i]] << std::endl;
+        pass.log(mv::Logger::MessageType::Info,
+            "bId = " + std::to_string(koalaVertices[i]->info.barrierId)
+            + " : color = " + std::to_string(colors[koalaVertices[i]]));
     }
 
     if (indexAssignment == "Static")
@@ -414,9 +404,6 @@ static void setBarrierGroupAndIndex(mv::OpModel& om, std::vector<mv::Barrier>& b
         {
             auto koalaVertex = std::find_if(koalaVertices.begin(), koalaVertices.end(),
                             [b](BIGKoala::PVertex v){ return v->info.barrierId == b.getID(); } );
-
-            std::cout << "bId = " << b.getID() << " | kbId = " << (*koalaVertex)->info.barrierId;
-            std::cout << " : color = " << colors[*koalaVertex] << std::endl;
 
             b.setIndex(colors[*koalaVertex]);
         }
@@ -459,7 +446,7 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     }
 }
 
-void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -472,7 +459,7 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
     combineRedundantBarriers(barriers);
 
-    setBarrierGroupAndIndex(om, barriers, passDesc);
+    setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
     insertBarriersIntoControlFlowGraph(model, passDesc, barriers);
 }

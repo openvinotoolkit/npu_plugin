@@ -3,6 +3,7 @@
 #include "include/mcm/utils/serializer/Fp16Convert.h"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/utils/hardware_tests.hpp"
+#include "include/mcm/logger/logger.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -14,6 +15,8 @@
 
 int main()
 {
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
