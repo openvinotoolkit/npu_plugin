@@ -50,7 +50,7 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
 };
 
-const std::unordered_map<mv::PpeLayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
+const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
 {
    {PPELayerType_STORE, MVCNN::PPELayerType::PPELayerType_STORE},
    {PPELayerType_LOAD, MVCNN::PPELayerType::PPELayerType_LOAD},
@@ -92,7 +92,7 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-MVCNN::PPELayerType mv::RuntimeModel::convertPPELayerType(PpeLayerTypeEnum ppe)
+MVCNN::PPELayerType mv::RuntimeModel::convertPPELayerType(PPELayerTypeEnum ppe)
 {
     return ppeLayerTypeMapping_.at(ppe);
 }
@@ -384,34 +384,28 @@ MVCNN::DPULayerType mv::RuntimeModel::convertTaskOp(const std::string& opName)
 }
 
 
-std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const mv::PPEFixedFunction& ppe)
+std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const mv::PPEFixedFunction& ppeFixedFunction)
 {
     std::unique_ptr<MVCNN::PPEFixedFunctionT> toBuild = std::unique_ptr<MVCNN::PPEFixedFunctionT>(new MVCNN::PPEFixedFunctionT());
 
-    auto layers = ppe.getLayers();
+    auto layers = ppeFixedFunction.getLayers();
     unsigned n = layers.size();
     toBuild->Ops = std::vector<MVCNN::PPELayerType>(n);
     for(unsigned i = 0; i < n; ++i)
         toBuild->Ops[i] = convertPPELayerType(layers[i]);
-    toBuild->Clamp_Low = ppe.getLowClamp();
-    toBuild->Clamp_High = ppe.getHighClamp();
+    toBuild->Clamp_Low = ppeFixedFunction.getLowClamp();
+    toBuild->Clamp_High = ppeFixedFunction.getHighClamp();
 
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Control::OpListIterator opIt)
+std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, const mv::PPETask& ppeTask)
 {
     std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
 
-//    if(opIt->hasAttr("scale"))
-//    {
-//        Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
-//        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, tensorIt);
-//    }
-
-//    // If this function has been called, this part must be built for sure
-//    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
-//    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
+    if(ppeTask.hasAttr("scaleData"))
+        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, ppeTask.getScaleData());
+    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, ppeTask.getFixedFunction());
 
     return toBuild;
 }
@@ -423,7 +417,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
     if(opIt->hasAttr("PPETask"))
-        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt);
+        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
 

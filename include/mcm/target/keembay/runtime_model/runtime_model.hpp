@@ -9,6 +9,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/target/keembay/workloads.hpp"
+#include "include/mcm/target/keembay/ppe_task.hpp"
 #include "include/mcm/target/keembay/ppe_layer_type.hpp"
 #include "include/mcm/target/keembay/ppe_fixed_function.hpp"
 
@@ -31,7 +32,7 @@ namespace mv
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
             static const std::unordered_map<std::string, MVCNN::DPULayerType> dpuLayerMapping_;
-            static const std::unordered_map<PpeLayerTypeEnum, MVCNN::PPELayerType, EnumClassHash> ppeLayerTypeMapping_;
+            static const std::unordered_map<PPELayerTypeEnum, MVCNN::PPELayerType, EnumClassHash> ppeLayerTypeMapping_;
 
         public:
             static RuntimeModel& getInstance()
@@ -47,7 +48,7 @@ namespace mv
             static MVCNN::DType convertDtype(const DType& dtype);
             static MVCNN::DPULayerType convertTaskOp(const std::string& opName);
             static MVCNN::MPE_Mode convertMPEMode(MPE_Mode mpe);
-            static MVCNN::PPELayerType convertPPELayerType(PpeLayerTypeEnum ppe);
+            static MVCNN::PPELayerType convertPPELayerType(PPELayerTypeEnum ppe);
 
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t);
             static std::unique_ptr<MVCNN::GraphNodeT> buildGraphNodeT(ComputationModel &cm, Element&, Data::OpListIterator op);
@@ -78,8 +79,8 @@ namespace mv
             static std::unique_ptr<MVCNN::NCEInvariantFieldsT> buildNCEInvariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::vector<std::unique_ptr<MVCNN::NCEVariantFieldsT> > buildNCEVariantFieldsTVector(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
             static std::unique_ptr<MVCNN::NCEVariantFieldsT> buildNCEVariantFieldsT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt, Workload workload);
-            static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT(ComputationModel& cm, Element& compilationDescriptor, Control::OpListIterator opIt);
-            static std::unique_ptr<MVCNN::PPEFixedFunctionT> buildPPEFixedFunctionT(ComputationModel&, Element&, const PPEFixedFunction &ppe);
+            static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT(ComputationModel& cm, Element& compilationDescriptor, const PPETask &ppeTask);
+            static std::unique_ptr<MVCNN::PPEFixedFunctionT> buildPPEFixedFunctionT(ComputationModel&, Element&, const PPEFixedFunction &ppeFixedFunction);
 
             void serialize(const std::string& path);
             char * serialize(int& bufferSize);
