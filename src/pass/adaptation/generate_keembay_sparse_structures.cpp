@@ -93,20 +93,6 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
 //    return sparsityMap;
 //}
 
-
-template <class T, class R>
-std::vector<R> extendToK(size_t size, std::vector<T> value)
-{
-    if (value.size() == 1)
-        return mv::utils::generateSequence<R>(size, static_cast<R>(value[0]) , 0);
-
-    if (value.size() == size)
-        return std::vector<R>(value.begin(), value.end());
-
-    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
-                std::to_string(value.size()));
-}
-
 void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName)
 {
     auto output = dpuTaskOp->getOutputTensor(0);
@@ -129,19 +115,23 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         // biasScaled = bias scaled to MAC output precision
 
         auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
-        std::vector<float> S2 = extendToK<double, float>(outputChannels, inputQuantization.getScale());
+        auto scale = inputQuantization.getScale();
+        std::vector<float> S2(scale.begin(), scale.end());
 
         auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
-        std::vector<float> S3 = extendToK<double, float>(outputChannels, outputQuantization.getScale());
+        scale = outputQuantization.getScale();
+        std::vector<float> S3(scale.begin(), scale.end());
 
-        std::vector<int32_t> zeroPoint = extendToK<unsigned, int32_t>(outputChannels, outputQuantization.getZeroPoint());
+        auto zeroPointU =  outputQuantization.getZeroPoint();
+        std::vector<int32_t> zeroPoint(zeroPointU.begin(), zeroPointU.end());
 
         std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
         bool isPooling = taskOp == "MaxPool" || taskOp == "AvgPool";
         //Workaround for HW bug #227
         if (isPooling)
         {
-            std::vector<int32_t> inputZeroPoint = extendToK<unsigned, int32_t>(outputChannels, inputQuantization.getZeroPoint());
+            auto inZP = inputQuantization.getZeroPoint();
+            std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
             std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
         }
 
@@ -150,7 +140,8 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         {
             auto weights = dpuTaskOp->getInputTensor(1);
             auto weightsQuantization = weights->get<mv::QuantizationParams>("quantizationParams");
-            std::vector<float> S1 = extendToK<double, float>(outputChannels,weightsQuantization.getScale());
+            scale = weightsQuantization.getScale();
+            std::vector<float> S1(scale.begin(), scale.end());
             //S1*S2
             std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
         }

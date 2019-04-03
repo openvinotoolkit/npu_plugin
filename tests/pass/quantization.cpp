@@ -59,6 +59,7 @@ TEST(quantization, case_conv)
           om.addAttr(dpuTask, "bias", biasTensor->getName());
         }
     }
+    mv::pass::PassRegistry::instance().find("ExtendQuantizationParams")->run(om, desc, dummyPassDesc, compOutput);
     mv::pass::PassRegistry::instance().find("GenerateWeightsTables")->run(om, desc, dummyPassDesc, compOutput);
 
     //ref data is based on result on POC test res2a_branch2a/quantized_model.tflite

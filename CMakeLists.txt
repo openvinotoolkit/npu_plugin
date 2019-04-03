@@ -288,6 +288,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_control_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/create_source_structure.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/extend_quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/generate_keembay_sparse_structures.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
