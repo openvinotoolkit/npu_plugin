@@ -12,7 +12,7 @@ int main()
     mv::CompositionalModel& om = unit.model();
 
     auto input = om.input({32, 32, 3}, mv::DType("Float16"), mv::Order("CHW"));
-    unsigned alpha = 1;
+    double alpha = 0.1;
     auto leaky_relu = om.leakyRelu(input, alpha);
     auto output = om.output(leaky_relu);
 

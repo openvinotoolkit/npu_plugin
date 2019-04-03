@@ -11,6 +11,20 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+
+            auto order_str = args.at("order").get<std::string>();
+            if (!order_str.empty())
+            {
+                try
+                {
+                    mv::Order order(order_str);
+                }
+                catch(...)
+                {
+                    errMsg = "Invalid parameter: order=" + order_str;
+                    return {false, 1};
+                }
+            }
             
             if (inputs[0]->getShape().totalSize() != args.at("shape").get<mv::Shape>().totalSize())
             {
@@ -26,13 +40,36 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), inputs[0]->getDType(), inputs[0]->getOrder()));
+            mv::Order new_order(inputs[0]->getOrder()); // by default: do not change order
+
+            auto order_str = args.at("order").get<std::string>();
+            if (!order_str.empty())
+                new_order = mv::Order(order_str);
+
+            outputs.push_back(mv::Tensor(":0",  args.at("shape").get<mv::Shape>(), inputs[0]->getDType(), new_order));
         };
-    
+
+        // Reshape:
+        // Change tensor shape w/o physically moving data
+        //
+        // By default, tensor's order remains not changed.
+        // If you need to change tensor's order as well,
+        // please provide a not-empty "order" parameter.
+        //
+        // For example:
+        // Given NxCxHxW input tensor, you may reshape it
+        // into Nx(C*H*W) with parameters: order="NC" and
+        // shape=mv::Shape({C*H*W, N})
+
+        // TODO: introduce "undefined" value of mv::Order
+        // Undefined new order means: do not change order
+        static std::string empty;
+
         MV_REGISTER_OP(Reshape)
         .setInputs({"data0"})
         .setOutputs({"output"})
         .setArg<mv::Shape>("shape")
+        .setOptionalArg<std::string>("order", empty)
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
