@@ -51,9 +51,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
             auto name = opIt->getName();
 
+            unsigned group=1;
+            if (opType == "Conv")
+                group = opIt->get<unsigned>("group");
+
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, "DPU_" + name);
             else
                 dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
 
@@ -79,9 +83,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+            auto exclude_pad = opIt->get<bool>("exclude_pad");
+            auto auto_pad = opIt->get<std::string>("auto_pad");
+            auto rounding_type = opIt->get<std::string>("rounding_type");
             auto name = opIt->getName();
 
-            auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding, "DPU_" + name);
+            auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
+                               exclude_pad, auto_pad, rounding_type, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
 

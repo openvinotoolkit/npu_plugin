@@ -12,10 +12,10 @@ TEST(ops, leaky_relu_default)
     auto leakyRelu = om.leakyRelu(input);
     auto leakyReluOp = om.getSourceOp(leakyRelu);
     auto output = om.output(leakyRelu);
-    auto alpha = leakyReluOp->get<unsigned>("alpha");
+    auto alpha = leakyReluOp->get<double>("alpha");
     
     ASSERT_EQ(leakyReluOp->getOpType(), "LeakyRelu");
-    ASSERT_EQ(alpha, 1);
+    ASSERT_EQ(alpha, 0.0);
     
 }
 
@@ -25,12 +25,12 @@ TEST(ops, leaky_relu_custom)
     mv::OpModel om("testModel");
     auto input = om.input({224, 224, 3}, mv::DType("Float16"),  mv::Order("HWC"));
 
-    auto leakyRelu = om.leakyRelu(input, 2);
+    auto leakyRelu = om.leakyRelu(input, 0.1);
     auto leakyReluOp = om.getSourceOp(leakyRelu);
     auto output = om.output(leakyRelu);
-    auto alpha = leakyReluOp->get<unsigned>("alpha");
+    auto alpha = leakyReluOp->get<double>("alpha");
     
     ASSERT_EQ(leakyReluOp->getOpType(), "LeakyRelu");
-    ASSERT_EQ(alpha, 2);
+    ASSERT_EQ(alpha, 0.1);
 
 }
