@@ -12,6 +12,7 @@
 #include "include/mcm/target/keembay/ppe_task.hpp"
 #include "include/mcm/target/keembay/ppe_layer_type.hpp"
 #include "include/mcm/target/keembay/ppe_fixed_function.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace mv
 {

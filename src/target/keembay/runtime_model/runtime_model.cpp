@@ -163,10 +163,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(tensorBufferIt->getData()->getDType());
 
-    // UNSUPPORTED FOR NOW
-    // toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
-    // toBuild.quant_zero; //    std::vector<int8_t> quant_zero;
-    // toBuild.quant_shift;//    std::vector<int8_t> quant_shift;
+    // could also be t->hasAttr("quantizationParameters")
+    // but in my opinion quantization for a tensor of floats makes very little sense
+    // leaving this comment here for future generations
+    if(t->isQuantized())
+    {
+        auto quantizationParams = t->get<mv::QuantizationParams>("quantizationParams");
+        auto quantZero = quantizationParams.getZeroPoint();
+        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        //toBuild->quant_shift = quantizationParams.getShift(); // FUTURE?
+        //toBuild->quant_scale = quantizationParams.getScale(); // FUTURE?
+    }
 
     return toBuild;
 }
