@@ -115,15 +115,12 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
         std::string opType = opIt->getOpType();
         if (opType == "DPUTask")
         {
-            std::cout << "DPUTask name is " << opIt->getName() << std::endl;
             auto opId = opIt->get<unsigned>("opId");
             auto flow = opIt.leftmostInput();
             for(unsigned i = 0; i < opIt->inputSlots(); ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
-                std::cout << "Input tensor name is " << inputTensor->getName() << std::endl;
                 auto inputOp = om.getSourceOp(inputTensor);
-                auto inputOpName = inputOp->getName();
                 if(!isTensorInCMX(inputTensor, om))
                 {
                     auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, "DMA"+inputOp->getName());
@@ -140,13 +137,10 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                     auto inputTensorDmaDimension = inputTensorDma->getShape().totalSize() * (inputTensorDma->getDType().getSizeInBits()/8);
                     dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), _dma_dependency);
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
-                    std::cout << "Index for layer " << opIt->getName() << "is " << index << std::endl;
                     if(index <= dma_dependency) {
-                        std::cout << "connecting " << inputOpName << "to " << "input" << std::endl;
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
                     }
                     else{
-                        std::cout << "not connecting " << inputOpName << "to " << "input" << std::endl;
                         cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
                     inputTensor = inputTensorDma;
                     }
