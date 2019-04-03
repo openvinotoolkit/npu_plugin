@@ -32,8 +32,8 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
 {
     auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    dpuTaskOp->addInputTensor(sparsityMap);
-    om.defineFlow(sparsityMap, dpuTaskOp, dpuTaskOp->inputSlots());
+    unsigned newSize = dpuTaskOp->addInputTensor(sparsityMap);
+    om.defineFlow(sparsityMap, dpuTaskOp, newSize - 1);
 
     return sparsityMap;
 }
@@ -214,8 +214,8 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
 
     auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    dpuTaskOp->addInputTensor(weightTable);
-    om.defineFlow(weightTable, dpuTaskOp, dpuTaskOp->inputSlots());
+    unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
+    om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
 
     return;
 }

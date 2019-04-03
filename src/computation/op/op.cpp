@@ -189,10 +189,13 @@ void mv::Op::setInputTensor(Data::TensorIterator tensor, std::size_t idx, bool c
 
 // The most brutal method ever: no checks, but only some ops are allowed to do this.
 // Obviously there is no cascade effect to handle
-void mv::Op::addInputTensor(Data::TensorIterator tensor)
+unsigned mv::Op::addInputTensor(Data::TensorIterator tensor)
 {
     if(mv::op::OpRegistry::checkExtraInputs(getOpType()))
+    {
         inputs_.push_back(tensor);
+        return inputs_.size();
+    }
     else
         throw OpError(*this, "This operation does not support extra inputs after creation");
 }
