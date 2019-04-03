@@ -6,6 +6,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/compiler/compilation_unit.hpp"
 
+/*This test calculates max topological cut and does not perform partial serialisation as it is not required*/
 TEST(MaxTopologicalCut, lessThanCMXMemory)
 {
 
