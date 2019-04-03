@@ -173,11 +173,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
 std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaInformations(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
+    mv::OpModel om(cm);
+
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
     toBuild->version = buildVersionT(cm, compilationDescriptor);
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
     toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
+    toBuild->layer_count = om.opsCount();
 
     return toBuild;
 }
@@ -209,7 +212,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         return i;
     };
 
-    toBuild->layer_count = om.opsCount();
+    toBuild->layer_count = originalHeader->layer_count;
     toBuild->task_count = taskCount(om);
 
     return toBuild;
