@@ -231,7 +231,6 @@ int calculateFMax(mv::ComputationModel& model) {
     int Fmax = 0;
     for (auto flowIt = cm.flowBegin(); flowIt != cm.flowEnd(); ++flowIt) {
         if(flowIt->hasAttr("MemoryRequirement")) {
-            std::cout << "memory is " << flowIt->get<int>("MemoryRequirement") << std::endl;
             Fmax += flowIt->get<int>("MemoryRequirement");
         }
     }
@@ -239,9 +238,40 @@ int calculateFMax(mv::ComputationModel& model) {
     return Fmax;
 }
 
-/*This is a sub function for critical path cost*/
-int criticalPathCost(koalaGraph::PVertex source, koalaGraph::PVertex target) {
 
+void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model, std::vector<koalaGraph::PEdge>& partialSerialisationEdgesAdded) {
+
+    for (const auto& edge : partialSerialisationEdgesAdded) {
+        
+        std::string edgeSourceName = edge->getEnd1()->info.name;
+        std::string edgeSinkName = edge->getEnd2()->info.name;
+
+        mv::ControlModel cm(model);
+
+        mv::Control::OpListIterator mcmSourceNodeIterator;
+        mv::Control::OpListIterator mcmSinkNodeIterator;
+
+        /*Find the McM iterator for the source node*/
+        for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) {
+            
+            if(opItSource->getName() == edgeSourceName) {
+                mcmSourceNodeIterator = opItSource;
+            }
+        }
+
+        /*Find the McM iterator for the sink node*/
+        for (auto opItSink = cm.getFirst(); opItSink != cm.opEnd(); ++opItSink) {
+            
+            if(opItSink->getName() == edgeSinkName) {
+                mcmSinkNodeIterator = opItSink;
+            }
+        }
+        
+        /*Add the edge to graph*/
+        auto partialSerialisationEdge = cm.defineFlow( mcmSourceNodeIterator, mcmSinkNodeIterator);
+        partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+
+    }
 }
 
 /**
@@ -253,7 +283,9 @@ int criticalPathCost(koalaGraph::PVertex source, koalaGraph::PVertex target) {
  * @param vertices - Vector of KOALA vertices iterators
  * @param edges - Vector of KOALA edge iterators
  */
-void performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& flowGraph, int cutValue, std::vector<koalaGraph::PEdge> cutEdges, koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink, std::vector<koalaGraph::PVertex>& vertices, std::vector<koalaGraph::PEdge>& edges) {
+void performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& flowGraph, int cutValue, std::vector<koalaGraph::PEdge> cutEdges, 
+                                    koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink, std::vector<koalaGraph::PVertex>& vertices, 
+                                        std::vector<koalaGraph::PEdge>& edges, std::vector<koalaGraph::PEdge>& partialSerialisationEdgesAdded) {
 
     /* Partial serialisation works by getting the source and sink nodes of the cutEdges returned from max topoloigcal cut
      * It then creates a pool of all possible edges that it can add to the graph using these source and sink nodes.
@@ -340,7 +372,12 @@ void performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& fl
 
         if(isDag) {
             pass.log(mv::Logger::MessageType::Debug, "The graph is still a DAG after adding partial serialisation edge, recalulating max topological cut value");
-            edges.push_back(newEdge); /*add edge to the vector*/
+            
+            /*add edge iterator to the vector of KOALA edge iterators*/
+            edges.push_back(newEdge); 
+
+            /*keep track of the edges added as these edges will be added to mcmGraph*/
+            partialSerialisationEdgesAdded.push_back(newEdge);
             break;
         }
         else {
@@ -351,7 +388,7 @@ void performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& fl
     }
 }
 
-std::pair<int,std::vector<koalaGraph::PEdge>> calcualteMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, koalaGraph& flowGraph, std::vector<koalaGraph::PVertex>& Vertices, std::vector<koalaGraph::PEdge>& Edges) {
+std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, koalaGraph& flowGraph, std::vector<koalaGraph::PVertex>& Vertices, std::vector<koalaGraph::PEdge>& Edges) {
 
     mv::ControlModel cm(model);
     mv::OpModel om(model);
@@ -461,25 +498,33 @@ std::pair<int,std::vector<koalaGraph::PEdge>> calcualteMaxTopologicalCut(const m
     return std::make_pair(maxTopologicalCutValue, cutEdges);
 }
 
-void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
     /*KOALA graph instance*/
     koalaGraph flowGraph;
 
     /*Vectors to store KOALA vertices and edges iterators*/
-    std::vector<koalaGraph::PVertex> Vertices; 
-    std::vector<koalaGraph::PEdge> Edges;
+    std::vector<koalaGraph::PVertex> vertices; 
+    std::vector<koalaGraph::PEdge> edges;
 
     /*Convert to MCM graph to KOALA graph*/
-    convertMcMGraphToKoalaGraph(pass, model, flowGraph, Vertices, Edges);
+    convertMcMGraphToKoalaGraph(pass, model, flowGraph, vertices, edges);
 
     /*Calculate max topological cut and get the cut edges*/
-    auto maxTopologicalCut = calcualteMaxTopologicalCut(pass, model, flowGraph, Vertices, Edges);
+    auto maxTopologicalCut = calculateMaxTopologicalCut(pass, model, flowGraph, vertices, edges);
    
-    //TODO get CMX memory from target descriptor and multiply by safety factory
+    /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
+    std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded;
+
+    auto memDefs = target.memoryDefs();
+    auto availableNNCMX = memDefs.find("VPU_CMX_NN")->second.size;
+
     /*Repeat partial serialisation until max topological cut is less than CMX memory*/
-    while (maxTopologicalCut.first > 846028) {
-        performPartialSerialisation(pass, flowGraph, maxTopologicalCut.first, maxTopologicalCut.second,lookUpKoalaSourceNode(true, Vertices),lookUpKoalaSinkNode(true, Vertices),Vertices, Edges);
-        maxTopologicalCut = calcualteMaxTopologicalCut(pass, model, flowGraph, Vertices, Edges);
+    while (maxTopologicalCut.first > availableNNCMX/4) {
+        performPartialSerialisation(pass, flowGraph, maxTopologicalCut.first, maxTopologicalCut.second,lookUpKoalaSourceNode(true, vertices),lookUpKoalaSinkNode(true, vertices),vertices, edges, partialSerialisationEdgesAdded);
+        maxTopologicalCut = calculateMaxTopologicalCut(pass, model, flowGraph, vertices, edges);
     }
+
+    /*Add the partial serialisaion edges to the mcmGraph*/
+    insertpartialSerialisationEdgesInMcmGraph(model, partialSerialisationEdgesAdded);
 }
