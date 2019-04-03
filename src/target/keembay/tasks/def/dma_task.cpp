@@ -25,6 +25,8 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
             if (inputs[0]->isPopulated())
                 outputs[0].populate(inputs[0]->getData());
+            if (inputs[0]->hasAttr("channelLength"))
+                outputs[0].set<int>("channelLength", inputs[0]->get<int>("channelLength"));
         };
 
         MV_REGISTER_OP(DMATask)
