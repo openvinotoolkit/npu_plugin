@@ -274,7 +274,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
@@ -318,9 +317,9 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
+)
 
-
-    SET(compiler
+ SET(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
     "${PROJECT_SOURCE_DIR}/src/utils/hardware_tests.cpp"
