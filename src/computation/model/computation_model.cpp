@@ -7,6 +7,7 @@ opsGraph_(std::make_shared<conjoined_graph<Op, DataFlow, ControlFlow>>()),
 binary_(std::make_shared<mv::RuntimeBinary>()),
 dataGraph_(opsGraph_->get_first()),
 controlGraph_(opsGraph_->get_second()),
+globalConfigParams_(std::make_shared<mv::Element>("GlobalConfigParams")),
 ops_(std::make_shared<std::unordered_map<std::string, Data::OpListIterator>>()),
 dataFlows_(std::make_shared<std::unordered_map<std::string, Data::FlowListIterator>>()),
 controlFlows_(std::make_shared<std::unordered_map<std::string, Control::FlowListIterator>>()),
@@ -33,6 +34,7 @@ opsGraph_(other.opsGraph_),
 binary_(other.binary_),
 dataGraph_(other.dataGraph_),
 controlGraph_(other.controlGraph_),
+globalConfigParams_(other.globalConfigParams_),
 ops_(other.ops_),
 dataFlows_(other.dataFlows_),
 controlFlows_(other.controlFlows_),
@@ -498,4 +500,14 @@ std::string mv::ComputationModel::getLogID() const
 std::string mv::ComputationModel::getName() const
 {
     return name_;
+}
+
+std::shared_ptr<mv::Element>mv::ComputationModel::getGlobalConfigParams() const
+{
+    return globalConfigParams_;
+}
+
+void mv::ComputationModel::setGlobalConfigParams(mv::Element& element)
+{
+    *globalConfigParams_ = element;
 }

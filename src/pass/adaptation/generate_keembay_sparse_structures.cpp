@@ -263,7 +263,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                     dpuTask->getInputTensor(0)->getOrder().isZMajor())
                  {
                     auto weights = dpuTask->getInputTensor(1);
-                    weights->setOrder(mv::Order("NWHC"));
+                    weights->setOrder(mv::Order("NHWC"));
                     weights->setSparse();
                 }
             }

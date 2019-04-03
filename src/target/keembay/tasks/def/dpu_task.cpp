@@ -29,17 +29,16 @@ namespace mv
 
             mv::op::OpRegistry::getOutputsDef(opIt, inputs, args, outputs);
         };
-    
+
         MV_REGISTER_OP(DPUTask)
         .setInputs({"inputs"})
         .setOutputs({"output"})
-        .setArg<std::string>("taskOp")
         .setInputCheck(inputCheckFcn)
         .setInputCheck(false)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)
-        .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv"})
+        .setBaseOperation({"Conv", "MaxPool", "DepthwiseConv", "Add", "Subtract", "Multiply"})
         .setExtraInputs(true);
     }
 

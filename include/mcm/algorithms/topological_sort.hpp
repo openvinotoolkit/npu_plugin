@@ -2,6 +2,7 @@
 #define TOPOLOGICAL_SORT_HPP_
 
 #include "include/mcm/graph/graph.hpp"
+#include "include/mcm/algorithms/is_dag.hpp"
 #include <set>
 #include <vector>
 #include <algorithm>
@@ -34,6 +35,9 @@ namespace mv
     std::vector<typename graph<T_node, T_edge>::node_list_iterator> topologicalSort(graph<T_node, T_edge>& g)
     {
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
+
+        if(!is_DAG(g))
+            throw "Trying to execute topologicalSort on a graph that is not a DAG";
 
         std::set<typename graph<T_node, T_edge>::node_list_iterator, OpItComparatorTemplate2<typename graph<T_node, T_edge>::node_list_iterator>> unmarkedNodes;
         for(auto node = g.node_begin(); node != g.node_end(); ++node)

@@ -15,7 +15,6 @@ TEST(ops, maxPool2D)
     auto poolOp = om.getSourceOp(pool);
     auto output = om.output(pool);
 
-    
 
     ASSERT_EQ(pool->getShape(), mv::Shape({4, 4, 3}));
     ASSERT_EQ(poolOp->getOpType(), "MaxPool");
@@ -34,5 +33,8 @@ TEST(ops, maxPool2D)
     ASSERT_EQ(p3, 1);
     ASSERT_EQ(poolOp->inputSlots(), 1);
     ASSERT_EQ(poolOp->outputSlots(), 1);
+    ASSERT_EQ(poolOp->get<bool>("exclude_pad"), true);
+    ASSERT_EQ(poolOp->get<std::string>("auto_pad"), "");
+    ASSERT_EQ(poolOp->get<std::string>("rounding_type"), "floor");
     ASSERT_TRUE(poolOp->hasTypeTrait("executable"));
 }
