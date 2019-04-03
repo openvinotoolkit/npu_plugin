@@ -38,6 +38,14 @@ int main()
 
     system("dot -Tpng original_model.dot -o original_model.png");
     system("dot -Tpng adapt_model.dot -o adapt_model.png");
+    system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
+    system("dot -Tpng dma_model.dot -o dma_model.png");
+    system("dot -Tpng TransitiveReduction.dot -o TransitiveReduction.png");
+    system("dot -Tpng deallocation_model_data.dot -o deallocation_model_data.png");
+    system("dot -Tpng deallocation_model_control.dot -o deallocation_model_control.png");
+    system("dot -Tpng DeallocationControlFlows_model.dot -o DeallocationControlFlows_model.png");
+    system("dot -Tpng DmaControlFlows_model.dot -o DmaControlFlows_model.png");
+    system("dot -Tpng InputOutputControlFlows_model.dot -o InputOutputControlFlows_model.png");
     system("dot -Tpng final_model.dot -o final_model.png");
     system("flatc -t ../../schema/graphfile/src/schema/graphfile.fbs -- blob.bin");
 }
