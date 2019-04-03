@@ -433,7 +433,7 @@ void cleanupDMATensorNodes(InterferenceGraph& g)
     std::vector<std::string> nodesToRemove;
     for (InterferenceGraph::node_dfs_iterator it = g.node_begin(); it != g.node_end(); ++it)
     {
-        if ((*it).name.rfind("DMATask", 0) == 0)
+        if ((*it).name.rfind("DMA", 0) == 0)
         {
             nodesToRemove.push_back((*it).name);
         }
@@ -621,7 +621,7 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     InterferenceGraph ddr_bss_g = buildInterferenceGraph(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
-                return (t->isPopulated());
+                return (t->isPopulated() || t->hasAttr("slave"));
             },
             [](const mv::Data::OpListIterator& t) -> bool
             {
@@ -629,14 +629,14 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             },
             true);
     //printGraph(ddr_bss_g, "DDR_BSS");
-    //drawGraph(ddr_bss_g, "ddr_bss.dot", model);
-    //system("dot -Tpng ddr_bss.dot -o ddr_bss.png");
+    drawGraph(ddr_bss_g, "ddr_bss.dot", model);
+    system("dot -Tpng ddr_bss.dot -o ddr_bss.png");
     auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
     printASOrder(agOrder, "DDR_BSS");
     InterferenceGraph ddr_heap_g = buildInterferenceGraph(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
-                return (!t->isPopulated());
+                return (!t->isPopulated() && !t->hasAttr("slave"));
             },
             [](const mv::Data::OpListIterator& t) -> bool
             {

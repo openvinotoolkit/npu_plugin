@@ -31,9 +31,9 @@ namespace mv
                 return {false, 1};
             }
 
-            if (weights->getShape()[3] != weights->getShape()[2])
+            if (weights->getShape()[3] != 1 /*weights->getShape()[2]*/)
             {
-                errMsg = "Number of output channels for weight shape does not match number of input channels " + std::to_string(opInput->getShape()[3]);
+                errMsg = "Number of output channels for weight shape does not match 1 " + std::to_string(opInput->getShape()[3]);
                 return {false, 1};
             }
             
