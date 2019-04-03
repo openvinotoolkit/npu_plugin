@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/target/keembay/ppe_task.hpp"
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& dpuTask);
@@ -111,6 +112,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
 
+            auto ppeLayerType = mv::PPELayerType(opType);
+            auto ppeFixedFunction = mv::PPEFixedFunction();
+            ppeFixedFunction.addLayer(ppeLayerType);
+            auto ppeTask = mv::PPETask(ppeFixedFunction);
+            dpuElementWiseOp->set<mv::PPETask>("PPETask", ppeTask);
             adaptOutputDataFlow(om, opIt, dpuElementWise);
         }
         else
