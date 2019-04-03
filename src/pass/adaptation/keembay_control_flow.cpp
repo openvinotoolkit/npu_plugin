@@ -67,7 +67,9 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
     for(auto op : deallocateOps)
     {
         auto parentOp = op.leftmostParent();
-        cm.defineFlow(parentOp, op);
+
+        if(!cm.checkControlFlow(parentOp, op))
+            cm.defineFlow(parentOp, op);
 
         for(auto sibling = parentOp.leftmostChild(); sibling != om.opEnd(); ++sibling)
         {
@@ -75,16 +77,19 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
                 continue;
 
             // In flows
-            cm.defineFlow(sibling, op);
+            if(!cm.checkControlFlow(sibling, op))
+                cm.defineFlow(sibling, op);
 
             // Out flows
             for(auto dataNiece = sibling.leftmostChild(); dataNiece != om.opEnd(); ++dataNiece)
                 if(dataNiece->getOpType() != "Deallocate")
-                    cm.defineFlow(op, dataNiece);
+                    if(!cm.checkControlFlow(op, dataNiece))
+                        cm.defineFlow(op, dataNiece);
 
             for(auto controlNiece = cm.switchContext(sibling).leftmostChild(); controlNiece != cm.opEnd(); ++controlNiece)
                 if(controlNiece->getOpType() != "Deallocate")
-                    cm.defineFlow(cm.switchContext(op), controlNiece);
+                    if(!cm.checkControlFlow(cm.switchContext(op), controlNiece))
+                        cm.defineFlow(cm.switchContext(op), controlNiece);
         }
     }
 }

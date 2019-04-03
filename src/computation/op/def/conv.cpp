@@ -12,6 +12,15 @@ namespace mv
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
 
+            auto group = args.at("group").get<unsigned>();
+            if (group < 1)
+            {
+                std::stringstream err;
+                err << "Group factor must be non-zero: group=" << group;
+                errMsg = err.str();
+                return {false, 0};
+            }
+
             if (inputs[0]->getShape().ndims() != 3)
             {
                 errMsg = "Shape ndims is not equal to 3";
@@ -63,10 +72,16 @@ namespace mv
 
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
-           
+            auto group = args.at("group").get<unsigned>();
+
+            // TODO: Please take dilation factor into account!
             // Make sure that the result of subtract will not be negative
-            mv::Shape outputShape({(inputs[0]->getShape()[0] + padding[0] + padding[1] - inputs[1]->getShape()[0]) / stride[0] + 1, (
-                inputs[0]->getShape()[1] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1, inputs[1]->getShape()[3]});
+            auto W = (inputs[0]->getShape()[0] + padding[0] + padding[1] - inputs[1]->getShape()[0]) / stride[0] + 1;
+            auto H = (inputs[0]->getShape()[1] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1;
+            auto C =  inputs[1]->getShape()[3] * group;
+
+            // TODO: un-hardcode assumption about "CHW" layout
+            mv::Shape outputShape({W, H, C});
 
             outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
         
@@ -76,8 +91,9 @@ namespace mv
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
         .setArg<std::array<unsigned short, 2>>("stride")
-        .setOptionalArg<unsigned>("dilationFactor", 1)
         .setArg<std::array<unsigned short, 4>>("padding")
+        .setOptionalArg<unsigned>("dilationFactor", 1)
+        .setOptionalArg<unsigned>("group", 1)
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

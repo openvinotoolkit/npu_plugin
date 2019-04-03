@@ -19,11 +19,11 @@ namespace mv
                 return {false, 0};
             }
             
-            auto alpha = args.at("alpha").get<unsigned>();
+            auto alpha = args.at("alpha").get<double>();
 
             if (alpha < 0)
             {
-                errMsg = "Invalid value for alpha parameter - must be a positive numnber";
+                errMsg = "Invalid value (must be non-negative): alpha=" + std::to_string(alpha);
                     
                 return {false, 0};
             }
@@ -42,7 +42,7 @@ namespace mv
     
         MV_REGISTER_OP(LeakyRelu)
         .setInputs({"data"})
-        .setOptionalArg<unsigned>("alpha", 1)
+        .setOptionalArg<double>("alpha", 0)
         .setOutputs({"output"})
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
