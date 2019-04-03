@@ -29,12 +29,6 @@ int main()
     auto add1 = om.add(conv1, conv2);
     om.output(add1);
 
-//    auto sub1 = om.subtract(conv1, conv2);
-//    om.output(sub1);
-
-//    auto mul1 = om.multiply(conv1, conv2);
-//    om.output(mul1);
-
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
 
@@ -45,4 +39,5 @@ int main()
     system("dot -Tpng original_model.dot -o original_model.png");
     system("dot -Tpng adapt_model.dot -o adapt_model.png");
     system("dot -Tpng final_model.dot -o final_model.png");
+    system("flatc -t ../../schema/graphfile/src/schema/graphfile.fbs -- blob.bin");
 }
