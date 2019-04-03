@@ -32,7 +32,7 @@ namespace mv
         bool hasTypeTrait(const std::string& typeTrait) const;
 
         void setInputTensor(Data::TensorIterator tensor, std::size_t idx, bool cascade = true);
-        void addInputTensor(Data::TensorIterator tensor);
+        unsigned addInputTensor(Data::TensorIterator tensor);
 
         Data::TensorIterator getInputTensor(std::size_t idx);
         Data::TensorIterator getInputTensor(const std::string& label);
