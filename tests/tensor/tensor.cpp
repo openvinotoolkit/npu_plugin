@@ -1015,7 +1015,7 @@ TEST(tensor, sparsity)
 {
     //Example of weights in res2a_branch2a
     mv::Shape tShape({1, 1, 64, 64});
-    mv::Tensor t("res2a_branch2a_weigths", tShape, mv::DType("UInt8"), mv::Order("NWHC"));
+    mv::Tensor t("res2a_branch2a_weigths", tShape, mv::DType("UInt8"), mv::Order("NHWC"));
     std::ifstream inputfile(mv::utils::projectRootPath() + std::string("/tests/data/res2a_branch2a_weigths_input.bin"), std::ios::binary );
 
     uint8_t a;
@@ -1071,7 +1071,7 @@ TEST(tensor, sparsity_res3a_branch2c)
 {
     //Example of weights in res3a_branch2c
     mv::Shape tShape({1, 1, 128, 512});
-    mv::Tensor t("res3a_branch2c_weigths", tShape, mv::DType("UInt8"), mv::Order("NWHC"));
+    mv::Tensor t("res3a_branch2c_weigths", tShape, mv::DType("UInt8"), mv::Order("NHWC"));
     std::ifstream inputfile(mv::utils::projectRootPath() + std::string("/tests/data/res3a_branch2c_weigths_input.bin"), std::ios::binary );
 
     uint8_t a;
@@ -1124,8 +1124,14 @@ TEST(tensor, sparsity_res3a_branch2c)
     std::vector<mv::DataElement> denseData = t.getDataPacked();
     count = 0;
     size_t j = 0;
+    size_t padsize = 0;
     for (unsigned i = 0; i < data_res.size(); ++i)
     {
+        while (denseData[j] == 137 && j < denseData.size()) //its padding ignore it
+        {
+            j++;
+            padsize++;
+        }
         if (data_res[i] != 137)
         {
             ASSERT_TRUE(data_res[i] == (int64_t) denseData[j]);
@@ -1137,7 +1143,7 @@ TEST(tensor, sparsity_res3a_branch2c)
         }
 
     }
-    ASSERT_TRUE((count + denseData.size()) == data_res.size());
+    ASSERT_TRUE((count + denseData.size() - padsize) == data_res.size());
 }
 
 //VPUNND-391

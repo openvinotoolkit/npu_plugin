@@ -8,6 +8,7 @@
 #include "include/mcm/graph/graph.hpp"
 #include "include/mcm/algorithms/path_exists.hpp"
 #include "include/mcm/algorithms/edge_exists.hpp"
+#include <algorithm>
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -37,7 +38,7 @@ namespace mv
 
 using BarrierInterferenceGraph = mv::graph<mv::Barrier, int>;
 
-static void drawBIG(BarrierInterferenceGraph &g, std::string outputFile)
+static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
 {
     std::ofstream ostream;
 
@@ -145,6 +146,123 @@ static void generateBarrierInterferenceGraph(mv::OpModel& om, std::vector<mv::Ba
     drawBIG(big, "big.dot");
 }
 
+
+static bool opHasBarrier(const std::string& opName , std::vector<mv::Barrier>& barriers)
+{
+    for (auto b : barriers)
+    {
+        auto bConsumers = b.getConsumers() ;
+        if ( std::find(bConsumers.begin() , bConsumers.end(), opName ) != bConsumers.end() )
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void combineRedundantBarriers(std::vector<mv::Barrier>& barriers)
+{
+    // combine redundant barriers (same producers) into 1 barrier
+    for (auto b = barriers.begin(); b != barriers.end(); b++ )
+    {
+        for (auto c = std::next(b); c!= barriers.end(); c++ )
+        {
+            if ((b->getProducers() == c->getProducers()) && (c->hasConsumers()) && (b->hasConsumers()))
+            {
+                // move c consumers to b
+                for (auto consumer : c->getConsumers())
+                {
+                    b->addConsumer(consumer);
+                    c->removeConsumer(consumer);
+                }
+            }
+        }
+    }
+
+    auto newEnd = std::remove_if(barriers.begin(), barriers.end(), [](mv::Barrier& x)
+        { return !(x.hasConsumers()); } );
+    barriers.erase(newEnd, barriers.end());
+}
+
+static void addDataFlowBarriers(mv::OpModel& om, std::vector<mv::Barrier>& barriers)
+{
+    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        auto opType = opIt->getOpType();
+        bool isDPUTask = opType == "DPUTask";
+        bool isDMAToCMXTask = (opType == "DMATask" && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR);
+
+        if (isDPUTask || isDMAToCMXTask)
+        {
+            std::unordered_set<std::string> producers;
+            std::unordered_set<std::string> consumers;
+
+            auto inputTensors = opIt->getInputTensor();
+            for (auto tensorIn = inputTensors.begin(); tensorIn != inputTensors.end(); tensorIn++)
+            {
+                auto sourceOp = om.getSourceOp(*tensorIn);
+                producers.insert(sourceOp->getName());
+            }
+
+            auto outputTensors = opIt->getOutputTensor();
+            for (auto tensorOut = outputTensors.begin(); tensorOut != outputTensors.end(); tensorOut++)
+            {
+                auto destOp = om.getSourceOp(*tensorOut);
+                consumers.insert(destOp->getName());
+            }
+
+            struct mv::Barrier new_barrier(producers, consumers);
+            barriers.push_back(new_barrier);
+        }
+    }
+}
+
+static void addControlFlowBarriers(mv::ControlModel& cm, std::vector<mv::Barrier>& barriers)
+{
+    // add/update barriers for control flows added by partial serialization (no tensor on edge)
+    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    {
+        auto ctlFlowOpType = ctlFlow->getOpType();
+        if ((ctlFlowOpType == "DMATask") || (ctlFlowOpType == "DPUTask"))
+        {
+            for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+            {
+                auto parentOpType = parentOp->getOpType();
+                if ((parentOpType == "DPUTask") || (parentOpType == "DMATask" ))
+                {
+                    auto sinkOpName = ctlFlow->getName();
+                    auto sourceOpName = parentOp->getName();
+
+                    // add dependency to existing barrier if this op already preceded by a barrier
+                    if (opHasBarrier( sinkOpName, barriers ))
+                    {
+                        for (mv::Barrier& b : barriers)
+                        {
+                            auto bConsumers = b.getConsumers() ;
+                            if ( std::find(bConsumers.begin() , bConsumers.end(), sinkOpName ) != bConsumers.end() )
+                            {
+                                b.addProducer(sourceOpName);
+                                auto updatedList = b.getProducers();
+                            }
+                        }
+                    }
+
+                    // create new barrier if this op had no existing barrier preceeding it
+                    else
+                    {
+                        std::unordered_set<std::string> producers;
+                        std::unordered_set<std::string> consumers;
+                        producers.insert(sourceOpName);
+                        consumers.insert(sinkOpName);
+                        struct mv::Barrier new_barrier(producers, consumers);
+                        barriers.push_back(new_barrier);
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void setBarrierGroupAndIndex(mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
 {
     int numBarriers = 0 ;
@@ -214,56 +332,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
     std::vector<mv::Barrier> barriers;
 
-    for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-    {
-        auto opType = opIt->getOpType();
-        bool isDPUTask = opType == "DPUTask";
-        bool isDMAToCMXTask = (opType == "DMATask" && opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::CMX2DDR);
-        // TODO: may need to add dealloc tasks
+    addDataFlowBarriers(om, barriers);
 
-        if (isDPUTask || isDMAToCMXTask)
-        {
-            std::unordered_set<std::string> producers;
-            std::unordered_set<std::string> consumers;
+    addControlFlowBarriers(cm, barriers);
 
-            // Input flow
-            auto inputTensors = opIt->getInputTensor();
-            for (auto tensorIn = inputTensors.begin(); tensorIn != inputTensors.end(); tensorIn++)
-            {
-                auto sourceOp = om.getSourceOp(*tensorIn);
-                producers.insert(sourceOp->getName());
-            }
-
-            auto outputTensors = opIt->getOutputTensor();
-            for (auto tensorOut = outputTensors.begin(); tensorOut != outputTensors.end(); tensorOut++)
-            {
-                auto destOp = om.getSourceOp(*tensorOut);
-                consumers.insert(destOp->getName());
-            }
-
-            // Do not insert this barrier into the barrierTask list if a barrier
-            // with the same producers already exists.
-            bool addBarrier = true;
-            for (auto& b: barriers)
-            {
-                if (b.getProducers() == producers)
-                {
-                    addBarrier = false;
-
-                    for (auto consumer: consumers)
-                        b.addConsumer(consumer);
-
-                    break;
-                }
-            }
-
-            if (addBarrier)
-            {
-                struct mv::Barrier new_barrier(producers, consumers);
-                barriers.push_back(new_barrier);
-            }
-        }
-    }
+    combineRedundantBarriers(barriers);
 
     setBarrierGroupAndIndex(om, barriers, passDesc);
 

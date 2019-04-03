@@ -11,11 +11,12 @@ TEST(ops, softmax)
     auto output = om.output(softmax);
 
     ASSERT_EQ(softmax->getShape(), mv::Shape({32, 32, 3}));
+    ASSERT_EQ(softmax->attrsCount(), 6);
+
     ASSERT_EQ(softmaxOp->getOpType(), "Softmax");
-    ASSERT_EQ(softmaxOp->attrsCount(), 2);
+    ASSERT_EQ(softmaxOp->attrsCount(), 3);
     ASSERT_EQ(softmaxOp->inputSlots(), 1);
     ASSERT_EQ(softmaxOp->outputSlots(), 1);
-    ASSERT_EQ(softmax->attrsCount(), 6);
+    ASSERT_EQ(softmaxOp->get<std::string>("axis"), "C");
     ASSERT_TRUE(softmaxOp->hasTypeTrait("executable"));
-
 }
