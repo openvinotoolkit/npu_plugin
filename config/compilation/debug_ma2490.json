@@ -48,6 +48,7 @@
     },
     "keembay_adapt": {
         "Singular": [
+            "ExtendQuantizationParams",
             "ConvertOpsToTasks",
             "AlignTaskWeights",
             "GenerateSparsityMaps",
