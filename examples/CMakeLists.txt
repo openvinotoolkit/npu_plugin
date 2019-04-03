@@ -58,17 +58,8 @@ else()
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
-<<<<<<< HEAD
 	  add_executable(koala_example Koala_example.cpp /home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinyxml.cpp /home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinyxmlerror.cpp /home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinyxmlparser.cpp /home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinystr.cpp)
 	  target_link_libraries(koala_example cm)
-=======
-    add_executable(elementwise_to_dpu elementwise_to_dpu.cpp)
-    target_link_libraries(elementwise_to_dpu cm)
-    add_executable(cm_linear cm_linear.cpp)
-    target_link_libraries(cm_linear cm)
-
-    add_executable(koala Koala_example.cpp)
->>>>>>> master
 
     add_executable(cm_two_branch cm_two_branch.cpp)
     target_link_libraries(cm_two_branch cm)

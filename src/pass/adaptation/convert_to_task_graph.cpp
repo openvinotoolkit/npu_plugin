@@ -116,9 +116,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         else
             ++opIt;
     }
-<<<<<<< HEAD
-}
-=======
 }
 
 void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, mv::Data::TensorIterator &dpuTask)
@@ -135,4 +132,3 @@ void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, mv::Da
     ++opIt;
     om.removeOp(backup);
 }
->>>>>>> master

@@ -89,7 +89,6 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
     for(auto op : deallocateOps)
     {
         auto parentOp = op.leftmostParent();
-<<<<<<< HEAD
         auto flowIt = cm.defineFlow(parentOp, op);
 
         /* 
@@ -110,12 +109,6 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
         flowIt->set<bool>("PositiveMemory", true); /*Required for transitive reduction filter*/
 
         
-=======
-
-        if(!cm.checkControlFlow(parentOp, op))
-            cm.defineFlow(parentOp, op);
-
->>>>>>> master
         for(auto sibling = parentOp.leftmostChild(); sibling != om.opEnd(); ++sibling)
         {
             if(sibling->getOpType() == "Deallocate")

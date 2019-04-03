@@ -32,11 +32,7 @@ int main()
 
     std::vector<double> weightsData2 = mv::utils::generateSequence<double>(7*7*90*90);
     auto weights2 = om.constant(weightsData2, {7, 7, 90, 90}, mv::DType("Float8"), mv::Order("NCWH"));
-<<<<<<< HEAD
     auto conv2 = om.conv(conv1, weights2, {1, 1}, {3, 3, 3, 3});
-=======
-    auto conv2 = om.conv(conv1, weights2, {1, 1}, {3, 3, 3, 3}, 1, 1, "Output");
->>>>>>> master
 
     om.output(conv2);
 
