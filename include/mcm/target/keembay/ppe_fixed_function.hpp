@@ -12,16 +12,17 @@ namespace mv
         private:
             int lowClamp_;
             int highClamp_;
-            std::vector<PpeLayerType> layers_;
-
+            std::vector<PPELayerType> layers_;
         public:
-            std::string toString() const;
-            PPEFixedFunction(unsigned low_clamp = 0, unsigned high_clamp = 0);
-            unsigned getLowClamp() const;
-            unsigned getHighClamp() const ;
-            const std::vector<PpeLayerType>& getLayers() const;
-            void addLayer(PpeLayerType layer);
+            PPEFixedFunction(int low_clamp = -2147483648, int high_clamp = 2147483647);
+
+            int getLowClamp() const;
+            int getHighClamp() const ;
+            const std::vector<mv::PPELayerType>& getLayers() const;
+            void addLayer(PPELayerType layer);
+
             std::string getLogID() const;
+            std::string toString() const;
     };
 }
 

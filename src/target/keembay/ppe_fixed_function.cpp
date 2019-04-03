@@ -1,29 +1,30 @@
 #include "include/mcm/target/keembay/ppe_fixed_function.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-mv::PPEFixedFunction::PPEFixedFunction(unsigned low_clamp, unsigned high_clamp)
+mv::PPEFixedFunction::PPEFixedFunction(int low_clamp, int high_clamp)
     : lowClamp_(low_clamp),
-      highClamp_(high_clamp)
+      highClamp_(high_clamp),
+      layers_(std::vector<PPELayerType>())
 {
 
 }
 
-void mv::PPEFixedFunction::addLayer(PpeLayerType layer)
+void mv::PPEFixedFunction::addLayer(PPELayerType layer)
 {
     layers_.push_back(layer);
 }
 
-unsigned mv::PPEFixedFunction::getLowClamp() const
+int mv::PPEFixedFunction::getLowClamp() const
 {
     return lowClamp_;
 }
 
-unsigned mv::PPEFixedFunction::getHighClamp() const
+int mv::PPEFixedFunction::getHighClamp() const
 {
     return highClamp_;
 }
 
-const std::vector<mv::PpeLayerType>& mv::PPEFixedFunction::getLayers() const
+const std::vector<mv::PPELayerType>& mv::PPEFixedFunction::getLayers() const
 {
     return layers_;
 }
