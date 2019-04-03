@@ -4,6 +4,8 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/graph/tensor_interference_graph.hpp"
 #include "include/mcm/target/keembay/interference_graph_ordering_strategy.hpp"
+#include "include/mcm/algorithms/edge_exists.hpp"
+#include <limits.h>
 
 
 static void graphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -218,9 +220,9 @@ std::list<std::string> getColoredNeighbors(mv::TensorInterferenceGraph& g, mv::T
     return coloredNeighbors;
 }
 
-std::list<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g, long long memorySize, bool addRightMost = true)
+std::vector<std::pair<size_t, size_t>> calculateGaps(std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g, long long memorySize, bool addRightMost = true)
 {
-    std::list<std::pair<size_t, size_t>> gaps;
+    std::vector<std::pair<size_t, size_t>> gaps;
 
     if (coloredNeighbors.size() == 0)
     {
@@ -288,7 +290,32 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
 
     }
 
-    //TODO remove edges...?
+    //collect redundent edges of predecessors and successors of colored neighbors in DAG
+    std::vector<mv::graph<std::string, int>::edge_sibling_iterator> redundantEdges;
+    for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
+    {
+        mv::graph<std::string, int>::node_list_iterator dn = directedGraph.node_find(*it);
+        for (mv::graph<std::string, int>::node_parent_iterator parentIt(dn); parentIt != directedGraph.node_end(); ++parentIt)
+        {
+            //for each parent collect map of children to edges
+            std::map<std::string, mv::graph<std::string, int>::edge_sibling_iterator> sinkMap;
+            for(auto e = parentIt->leftmost_output(); e != directedGraph.edge_end(); ++e)
+                sinkMap.emplace(*e->sink(), e);
+            //now check if any of successors of  current neighbor is in the map
+            for (mv::graph<std::string, int>::node_child_iterator childIt(dn); childIt != directedGraph.node_end(); ++childIt)
+            {
+                auto edgeEntry = sinkMap.find(*dn);
+                if (edgeEntry != sinkMap.end())
+                    redundantEdges.push_back(edgeEntry->second);
+            }
+        }
+    }
+
+    //remove those edges
+    for (auto it = redundantEdges.begin(); it != redundantEdges.end(); it++)
+    {
+        directedGraph.edge_erase((*it));
+    }
 }
 
 std::size_t updateNodeAddress(std::size_t startAddress, mv::TensorInterferenceGraph::node_list_iterator& ni, size_t chromaticNumber,
@@ -300,6 +327,66 @@ std::size_t updateNodeAddress(std::size_t startAddress, mv::TensorInterferenceGr
     assignOrientation(directedGraph, ni, coloredNeighbors, g);
 
     return std::max(chromaticNumber, (*ni).height);
+}
+
+std::size_t maxHeight(mv::TensorInterferenceGraph::node_list_iterator& ni, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
+{
+    auto directedNode = directedGraph.node_find((*ni).name);
+    if (ni->parents_size() == 0)
+        return (*ni).height;
+
+    size_t currMaxHeight = 0;
+    for (mv::graph<std::string, int>::node_parent_iterator parentIt(directedNode); parentIt != directedGraph.node_end(); ++parentIt)
+    {
+        auto nj = g.node_find(*parentIt);
+        auto currHeight = maxHeight(nj, directedGraph, g);
+        if (currHeight > currMaxHeight)
+            currMaxHeight = currHeight;
+    }
+    return currMaxHeight;
+}
+
+std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceGraph::node_list_iterator& ni, size_t chromaticNumber,
+    std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
+{
+    auto startAddress = gap.first;
+    auto size = gap.second;
+    auto gapDelta = (*ni).weight - size;
+
+    size_t currMaxHeight = 0;
+
+    for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
+    {
+        auto neighbor = g.node_find(*it);
+        if ((*neighbor).address > startAddress)
+        {
+            auto dn = directedGraph.node_find((*neighbor).name);
+            auto neighborMax = maxHeight(neighbor, directedGraph, g);
+            if (neighborMax > currMaxHeight)
+                currMaxHeight = neighborMax;
+        }
+    }
+    //is it possible that currMaxHeight stays 0??
+    return currMaxHeight + gapDelta;
+}
+
+std::size_t updateHeights(mv::TensorInterferenceGraph::node_list_iterator& ni, mv::graph<std::string, int>& directedGraph,
+    mv::TensorInterferenceGraph& g, size_t chromaticNumber = 0)
+{
+    size_t maxChromaticNumber = chromaticNumber;
+    auto directedNode = directedGraph.node_find((*ni).name);
+    for (mv::graph<std::string, int>::node_parent_iterator parentIt(directedNode); parentIt != directedGraph.node_end(); ++parentIt)
+    {
+        auto parentNodeIt = g.node_find(*parentIt);
+        auto parentNode = *parentNodeIt;
+        parentNode.address = std::max(parentNode.address, (*ni).height);
+        parentNode.height = parentNode.address + parentNode.weight;
+        chromaticNumber = std::max(chromaticNumber, parentNode.height);
+        auto currChromaticnumber = updateHeights(parentNodeIt, directedGraph, g, chromaticNumber);
+        if (currChromaticnumber > maxChromaticNumber)
+            maxChromaticNumber = currChromaticnumber;
+    }
+    return maxChromaticNumber;
 }
 
 std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, long long memorySize, size_t chromaticNumber,
@@ -320,7 +407,30 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
         }
     }
 
-    ///TODO - no gap big enough
+    //no gap big enough
+    if (gaps.size() == 1)
+        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
+
+    auto lastgap = gaps.end();
+    lastgap--;
+    size_t insertionChromaticNumbersMin = ULONG_MAX;
+    size_t index = 0;
+    size_t currChromaticNumber;
+    for (auto itr = gaps.begin(); itr != lastgap; itr++)
+    {
+        currChromaticNumber = tryInsertion(*itr, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
+        if (currChromaticNumber < insertionChromaticNumbersMin)
+        {
+            insertionChromaticNumbersMin = currChromaticNumber;
+            index = (itr - gaps.begin());
+        }
+    }
+
+    if (insertionChromaticNumbersMin > memorySize)
+        throw mv::ArgumentError("bestFitSelect", "gaps size", "", "TODO Implement Actual Spill Routine");
+
+    chromaticNumber = updateNodeAddress(gaps[index].first, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
+    chromaticNumber = updateHeights(ni, directedGraph, g);
     return chromaticNumber;
 }
 
