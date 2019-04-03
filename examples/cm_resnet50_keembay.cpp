@@ -38,23 +38,10 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
 
     auto weights = model.constant(weightsData, kernelShape, mv::DType("Float16"), mv::Order("HWCN"));
     auto conv = model.conv(input, weights, stride, padding, 1);
-
-    // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
-    std::vector<double> bnScaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto bnScale = model.scale(conv, bnScaleParam);
-    
-    std::vector<double> bnOffsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto bnOffset = model.bias(bnScale, bnOffsetParam);
-    
-    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto scale = model.scale(bnOffset, scaleParam);
     
     std::vector<double> biasData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
     auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    return model.bias(scale, biasParam);
+    return model.bias(conv, biasParam);
 
 }
 
@@ -70,13 +57,14 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
 
     auto inputShape = input->getShape();
     auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, {1, 1}, {0, 0, 0, 0});
-    branch2a = model.relu(branch2a);
+    //branch2a = model.relu(branch2a);
     auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
-    branch2b = model.relu(branch2b);
+    //branch2b = model.relu(branch2b);
     auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, inputShape[2]}, {1, 1}, {0, 0, 0, 0});
 
     auto res = model.add(input, branch2c);
-    return model.relu(res);
+    return res;
+    //return model.relu(res);
 
 }
 
@@ -96,13 +84,14 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
     auto inputShape = input->getShape();
     auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0});
     auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, stride, {0, 0, 0, 0});
-    branch2a = model.relu(branch2a);
+    //branch2a = model.relu(branch2a);
     auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
-    branch2b = model.relu(branch2b);
+    //branch2b = model.relu(branch2b);
     auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, outputDepth}, {1, 1}, {0, 0, 0, 0});
 
     auto res = model.add(branch1, branch2c);
-    return model.relu(res);
+    return res;
+    //return model.relu(res);
 
 }
 
@@ -114,7 +103,7 @@ int main()
     // Compose the model for ResNet50
     auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("HWC"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
-    conv1 = cm.relu(conv1);
+    //conv1 = cm.relu(conv1);
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1});
     auto res2b = residualBlock(cm, res2a, 64);
