@@ -26,7 +26,7 @@ import_array();
 
     mv::CompilationUnit* getCompilationUnit()
     {
-        mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Starting MCM Composition Interface for Target Descriptor: ma2490...\n");
+        mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Starting MCM Composition Interface for Target Descriptor: ma2490...");
         auto unit = new mv::CompilationUnit("pySwigCU");
         unit->loadTargetDescriptor(mv::Target::ma2490);
         unit->loadCompilationDescriptor(mv::Target::ma2490);
@@ -36,7 +36,7 @@ import_array();
 
     mv::CompilationUnit* getCompilationUnit(const std::string& target)
     {
-        mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Starting MCM Composition Interface for Target Descriptor: " + target + " ...\n");
+        mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Starting MCM Composition Interface for Target Descriptor: " + target + " ...");
         auto unit = new mv::CompilationUnit("pySwigCU");
         if(target.compare("ma2480") == 0)
         {
@@ -59,7 +59,7 @@ import_array();
 
     mv::CompilationUnit* loadCompilationDescriptor(mv::CompilationUnit *unit, const std::string& filepath)
     {
-        mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Loading custom Compilation Descriptor: " + filepath + " ...\n");
+        mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Loading custom Compilation Descriptor: " + filepath + " ...");
         //remove default descriptor and load a user defined descriptor
         unit->compilationDescriptor().clear();
         unit->loadCompilationDescriptor(filepath);
