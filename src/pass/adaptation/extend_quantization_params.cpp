@@ -15,7 +15,7 @@ namespace mv
         MV_REGISTER_PASS(ExtendQuantizationParams)
         .setFunc(extendQuantizationParams)
         .setDescription(
-            "This pass assigns an unique ID to each op in the graph."
+            "This pass extends all quantization params to the size of output channel, preparing them for serialization."
         );
     }
 }
