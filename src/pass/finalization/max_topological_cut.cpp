@@ -11,7 +11,6 @@
 #include "../../../contrib/koala/classes/create.h"
 #include <iostream>
 
-//static void addMemoryRequirmentAttributeOnControlFlows(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
