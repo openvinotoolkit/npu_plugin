@@ -198,32 +198,6 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
     pass.log(mv::Logger::MessageType::Debug, "KOALA graph has " + std::to_string(flowGraph.getVertNo()) + " vertices and " + std::to_string(flowGraph.getEdgeNo()) + " edges");
 }
 
-/**
- * @brief Set the lengths of the edges of the KOALA graph to be 1. This is required for shorest path algorithm which is a step in the max topoloigcal cut algorithm
- * @param egdeMap  - Container to store the edge length lengths  
- * @param E - The KOALA edge iterators
- * 
- * Example: http://koala.os.niwa.gda.pl/api/examples/weights/dijkstra_h/dijkstra_h.html
- */
-
-void setEdgeLengths(const Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int >> &edgeMap, const std::vector<koalaGraph::PEdge>& E) 
-{
-   int edgeLength = 1;
-   for (const auto& e : E) {
-       
-       edgeMap[e].length = edgeLength;
-    }
-}
-
-
-/*
- * See Max topological cut algorithm description in this paper:
- * 
- * L. Marchal, H. Nagy, B. Simon and F. Vivien, "Parallel Scheduling of DAGs under Memory Constraints," 
- * 2018 IEEE International Parallel and Distributed Processing Symposium (IPDPS), Vancouver, BC, 2018, pp. 204-213.
- * doi: 10.1109/IPDPS.2018.00030 
-*/ 
-
 int calculateFMax(mv::ComputationModel& model) {
 
     mv::ControlModel cm(model);
@@ -389,6 +363,13 @@ void performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& fl
     }
 }
 
+/*
+ * See Max topological cut algorithm description in this paper:
+ * 
+ * L. Marchal, H. Nagy, B. Simon and F. Vivien, "Parallel Scheduling of DAGs under Memory Constraints," 
+ * 2018 IEEE International Parallel and Distributed Processing Symposium (IPDPS), Vancouver, BC, 2018, pp. 204-213.
+ * doi: 10.1109/IPDPS.2018.00030 
+*/ 
 std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model, koalaGraph& flowGraph, std::vector<koalaGraph::PVertex>& Vertices, std::vector<koalaGraph::PEdge>& Edges) {
 
     mv::ControlModel cm(model);
@@ -403,9 +384,6 @@ std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const m
     Koala::AssocArray <koalaGraph::PEdge, Koala::DijkstraHeap::EdgeLabs<int>> edgeMap; /*input container*/
     Koala::AssocArray <koalaGraph::PVertex, Koala::DijkstraHeap::VertLabs<int,koalaGraph>> vertMap; /*output container*/
      
-    /*Set edge lengths to 1*/
-    setEdgeLengths(edgeMap, Edges);
-
     /* Construct the graph demand: cicle over the edge and add
      * a flow equal to Fmax on a shorest path containing that node
     */
