@@ -192,9 +192,10 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
     mv::Shape shape({outputChannels, 1, 1, 4});
     std::vector<mv::DataElement> biasData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
+    mv::Data::TensorIterator bias;
     if (hasBias)
     {
-        auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
+        bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
         biasData = bias->getData(); //Bias has the type Int32 in both cases above
     }
 
@@ -211,6 +212,9 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         if (hasBias)
             weightsTableData[i+3] = biasData[i/4];
     }
+
+    if (hasBias)
+        dm.undefineTensor(bias);
 
     auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
