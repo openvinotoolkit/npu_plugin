@@ -22,6 +22,8 @@ namespace mv
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
+
     mv::ControlModel cm(model);
 
     auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskAdd(vec,s);};
@@ -63,6 +65,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
+
+            if (opIt->hasAttr("bias"))
+            {
+                auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
+                auto name = biasTensor->getName();
+                om.addAttr(dpuConvOp, "bias", name);
+            }
 
             if(opType == "Conv")
             {
