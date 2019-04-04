@@ -127,7 +127,7 @@
             {
                 "name": "GenerateDot",
                 "output": "TransitiveReduction.dot",
-                "scope": "ControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },

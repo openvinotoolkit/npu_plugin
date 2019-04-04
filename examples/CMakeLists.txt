@@ -67,6 +67,9 @@ else()
     add_executable(cm_resnet50 cm_resnet50.cpp)
     target_link_libraries(cm_resnet50 cm)
 
+    add_executable(cm_resnet50_test cm_resnet50_test.cpp)
+    target_link_libraries(cm_resnet50_test cm)
+
     add_executable(cm_resnet18 cm_resnet18.cpp)
     target_link_libraries(cm_resnet18 cm)
 
