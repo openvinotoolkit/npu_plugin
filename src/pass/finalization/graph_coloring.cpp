@@ -553,7 +553,7 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
     ddr_heap_g.drawGraph("ddr_heap_memory");
 
-    mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false);
+    mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
     memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
     alignment = memDefs.find("VPU_CMX_NN")->second.alignment;
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);

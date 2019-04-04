@@ -50,7 +50,7 @@ namespace mv
             bool isSinkNode_(Data::OpListIterator& opIterator);
             void genIntereferenceGraph_(ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter);
             std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter);
-            void cleanupDMATensorNodes_();
+            void cleanupDuplicateTensorNodes_(bool isDMA);
             void addWeightsToInterferenceGraph_(ComputationModel& model, std::size_t alignment);
             std::size_t  getNeighborsWeight_(ComputationModel& model, std::string& node, std::size_t alignment);
             void buildCompleteGraph_(std::set<std::string> tensorNames);
@@ -58,7 +58,7 @@ namespace mv
         public:
             TensorInterferenceGraph() : graph<mv::TensorInterferenceGraphNode, int>() {}
             TensorInterferenceGraph(ComputationModel& model, std::size_t alignment, const TensorIteratorFilter& tensorFilter = nullptr,
-                const mv::OpIteratorFilter& taskFilter = nullptr, bool isCompleteTig = false);
+                const mv::OpIteratorFilter& taskFilter = nullptr, bool isCompleteTig = false, bool isDMA = false);
 
             TensorInterferenceGraph(const mv::TensorInterferenceGraph& g);
             void drawGraph(std::string outputFile);

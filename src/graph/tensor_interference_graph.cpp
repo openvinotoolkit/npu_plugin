@@ -134,12 +134,15 @@ std::set<std::string> mv::TensorInterferenceGraph::getTensorNames_(mv::Computati
 }
 
 
-void mv::TensorInterferenceGraph::cleanupDMATensorNodes_()
+void mv::TensorInterferenceGraph::cleanupDuplicateTensorNodes_(bool isDMA)
 {
     std::vector<std::string> nodesToRemove;
     for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
-        if ((*it).name.rfind("DMA", 0) == 0)
+        //if it's a DMA Tig remove anything that doesn't have DMA in it's name
+        //if it's not a DMA TIG then remove anything that has DMA in it's name
+        if ((!isDMA && (*it).name.rfind("DMA", 0) == 0) ||
+            (isDMA && (*it).name.find("DMA", 0) == std::string::npos))
         {
             nodesToRemove.push_back((*it).name);
         }
@@ -189,7 +192,7 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::Computatio
 }
 
 mv::TensorInterferenceGraph::TensorInterferenceGraph(mv::ComputationModel& model, std::size_t alignment, const mv::TensorIteratorFilter& tensorFilter,
-    const mv::OpIteratorFilter& taskFilter, bool isCompleteTig)
+    const mv::OpIteratorFilter& taskFilter, bool isCompleteTig, bool isDMA)
 {
 
     if (isCompleteTig)
@@ -200,7 +203,7 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(mv::ComputationModel& model
     {
         genIntereferenceGraph_(model , tensorFilter, taskFilter);
     }
-    cleanupDMATensorNodes_();
+    cleanupDuplicateTensorNodes_(isDMA);
     addWeightsToInterferenceGraph_(model, alignment);
 }
 
