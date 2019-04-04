@@ -283,6 +283,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/dma_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_align_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_control_flow.cpp"

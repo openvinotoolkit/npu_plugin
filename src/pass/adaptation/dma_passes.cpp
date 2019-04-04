@@ -5,7 +5,6 @@
 
 static void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -20,11 +19,6 @@ namespace mv
             .setFunc(addFinalDMATaskFcn)
             .setDescription(
                "Add final DMA task for output");
-
-        MV_REGISTER_PASS(AddDeallocationTasks)
-            .setFunc(addDeallocationTasksFcn)
-            .setDescription(
-               "Add deallocation tasks where needed in the Task graph");
     }
 }
 
@@ -152,38 +146,5 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                 }
             }
         }
-    }
-}
-
-// Pass role: Add deallocation tasks for each Tensor
-void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    for(auto dataFlowIt = dm.flowBegin(); dataFlowIt != dm.flowEnd(); ++dataFlowIt)
-    {
-        auto inputOp = dataFlowIt.source();
-        auto outputOp = dataFlowIt.sink();
-
-        if(outputOp->getOpType() == "Output")
-            continue;
-
-        if(inputOp->getOpType() == "Input")
-            continue;
-
-        if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement")
-            continue;
-
-        auto opId = inputOp->get<unsigned>("opId");
-        auto inputOpName = inputOp->getName();
-        auto inputTensor = dataFlowIt->getTensor();
-
-        std::string deallocationName("Deallocate"+inputOpName);
-
-        if(!om.checkOp(deallocationName))
-            om.deallocate(inputTensor, deallocationName);
-        auto deallocateInputOp = om.getOp(deallocationName);
-        deallocateInputOp->set<unsigned>("opId", opId);
     }
 }

@@ -195,6 +195,69 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     }
 }
 
+TEST(insert_barrier_tasks, dealloc_edge)
+{
+    mv::CompilationUnit unit("testModel");
+    mv::OpModel& om = unit.model();
+    mv::ControlModel cm(om);
+
+    auto input = om.input({224, 224, 1}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
+    auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight1 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight2 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto weight3 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv0 = om.conv(input, weight0, {1, 1}, {0, 0, 0, 0}); // one barrier, #0
+    auto conv1 = om.conv(input, weight1, {1, 1}, {0, 0, 0, 0}); // one barrier, #1
+    auto conv2 = om.conv(conv0, weight2, {1, 1}, {0, 0, 0, 0}); // one barrier, #2
+
+    auto add1 = om.add(conv2, conv1);   // one barrier, #3
+
+    om.output(add1); // one barrier for DMA out from CMX to DDR, #4
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+
+    unit.compilationDescriptor().remove("finalize");
+    unit.compilationDescriptor().remove("validate");
+    unit.compilationDescriptor().remove("serialize");
+
+    // run only the passes to build the task graph
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.initialize();
+    unit.run();
+
+    // add an edge to task graph, simulating partial serialization
+    auto holdOp = om.getOp("DMAAlignedConstant_1");
+    auto deAllocOp = om.getOp("DeallocateDMAAlignedConstant_0");
+    cm.defineFlow(deAllocOp, holdOp);        // one barrier #5
+
+    unit.loadCompilationDescriptor(compDescPath);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.compilationDescriptor().remove("initialize");
+    unit.compilationDescriptor().remove("adapt");
+    unit.compilationDescriptor().remove("keembay_adapt");
+    unit.compilationDescriptor().remove("dma");
+    unit.compilationDescriptor().remove("control_flows");
+
+    // run passes after partial serilization, including insert barriers pass
+    unit.initialize();
+    unit.run();
+
+    system("dot -Tpng final_model.dot -o final_model.png");
+    auto barrierOps = om.getOps("BarrierTask");
+
+    size_t expected_num_barriers = 6;
+    ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+
+    // Check new barrier required by partial serialization
+    for (auto b : barrierOps)
+    {
+        if (b->getName() == "BarrierTask_5") EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
+        if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+    }
+}
+
 TEST(insert_barrier_tasks, static_index_assignment)
 {
     mv::CompilationUnit unit("testModel");
