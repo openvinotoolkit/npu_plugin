@@ -324,7 +324,7 @@ SET(pass
 
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp" 
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp" 
+    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinystr.cpp"
 )
 
