@@ -14,7 +14,7 @@ SET(PROJECT_VERSION_PATCH 0)
 
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
     if (NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
     endif()
 endif()
 
@@ -322,11 +322,10 @@ SET(pass
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
-
-    "/home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinyxml.cpp"
-    "/home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinyxmlerror.cpp" 
-    "/home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinyxmlparser.cpp" 
-    "/home/johnbrady/git/mcmCompiler/contrib/koala/tinyxml/tinystr.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp" 
+    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp" 
+    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinystr.cpp"
 )
 
  SET(compiler
