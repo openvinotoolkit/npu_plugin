@@ -18,14 +18,6 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    /*Working*/
-    // auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
-    // std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
-    // auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
-    // auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
-
-
-    /*Failing*/
     auto input = om.input({112, 224, 3}, mv::DType("Float8"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
     auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float8"), mv::Order("NCWH"));

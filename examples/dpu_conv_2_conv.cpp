@@ -30,10 +30,10 @@ int main()
     unit.initialize();
     unit.run();
 
-    // system("dot -Tpng original_model.dot -o original_model.png");
-    // system("dot -Tpng adapt_model.dot -o adapt_model.png");
-    // system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
-    // system("dot -Tpng dma_model.dot -o dma_model.png");
-    // system("dot -Tpng control_model.dot -o control_model.png");
-    // system("dot -Tpng final_model.dot -o final_model.png");
+    system("dot -Tpng original_model.dot -o original_model.png");
+    system("dot -Tpng adapt_model.dot -o adapt_model.png");
+    system("dot -Tpng keembay_adapt_model.dot -o keembay_adapt_model.png");
+    system("dot -Tpng dma_model.dot -o dma_model.png");
+    system("dot -Tpng control_model.dot -o control_model.png");
+    system("dot -Tpng final_model.dot -o final_model.png");
 }

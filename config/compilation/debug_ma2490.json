@@ -43,7 +43,7 @@
             {
                 "name": "GenerateDot",
                 "output": "adapt_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             }
@@ -59,7 +59,7 @@
             {
                 "name": "GenerateDot",
                 "output": "keembay_adapt_model.dot",
-                "scope": "ControlModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             }
@@ -117,7 +117,15 @@
                 "output": "InputOutputControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true    
+                "html": true
+            },
+            "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "TransitiveReduction.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
             }
         ]
     },
@@ -140,13 +148,15 @@
                 "html": true
             },
             {
-                "name":"InsertBarrierTasks",
-                "barrier_index_assignment": "Dynamic"
+                "name": "GenerateWorkloads",
+                "costfunction": "balanced",
+                "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
             },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
+            "TransitiveReduction",
             "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
@@ -154,7 +164,7 @@
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
-                "scope": "OpModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             }
@@ -182,7 +192,8 @@
             "keembay_adapt",
             "dma",
             "control_flows",
-            "finalize"
+            "finalize",
+            "serialize"
         ],
         "Recurrent": [
             "validate"
