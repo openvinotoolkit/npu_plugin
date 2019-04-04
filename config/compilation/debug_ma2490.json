@@ -126,7 +126,7 @@
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "aftertrans_model.dot",
+                "output": "TransitiveReduction.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
@@ -134,7 +134,7 @@
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
-                "output": "max_cut_model.dot",
+                "output": "MaxTopologicalCutAndPartialSerialisation.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true

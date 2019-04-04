@@ -11,8 +11,6 @@
 #include <map>
 #include <vector>
 #include <utility>
-#include <string>
-#include <iostream>
 
 #include "../algorithm/search.h"
 #include "../algorithm/weights.h"
@@ -541,16 +539,6 @@ namespace Koala
 		 * \return true if minimum, false otherwise.*/
         template< class GraphType, class EdgeContainer > static bool
             testMinCost(const GraphType &g, const EdgeContainer &edgeTab);
-
-		std::string get_str_between_two_str(const std::string &s, const std::string &start_delim, const std::string &stop_delim) {
-			unsigned first_delim_pos = s.find(start_delim);
-    		unsigned end_pos_of_first_delim = first_delim_pos + start_delim.length();
-    		unsigned last_delim_pos = s.find(stop_delim);
-
-    		return s.substr(end_pos_of_first_delim,
-            last_delim_pos - end_pos_of_first_delim);
-		}
-
 
 		/** \brief Get minimal weighted cut-set.
 		 *
