@@ -3,7 +3,7 @@ project(mcmComplier VERSION 0.0.1)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 SET(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
-SET(CMAKE_VERBOSE_MAKEFILE ON) # for debugging
+SET(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
 
 #############################################################################################
 ### Setup
@@ -364,7 +364,8 @@ else()
     if(VALIDATION)
 
         SET(deployer
-            "${PROJECT_SOURCE_DIR}/src/utils/deployer/*"
+            "${PROJECT_SOURCE_DIR}/src/utils/deployer/deployer_utils.cpp"
+            "${PROJECT_SOURCE_DIR}/src/utils/deployer/executor.cpp"
         )
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
         add_library(corebase SHARED ${base} ${logger})
