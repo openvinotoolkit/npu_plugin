@@ -319,9 +319,17 @@ void mv::op::OpRegistry::outputOptionalArgList(std::vector<std::pair<std::string
             {
                 auto attributeName = optionalArgsList[i];
                 auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(optionalArgsList[i].first));
+                auto typeID = optionalArgsList[i].second.getTypeID();
                 optionalArgsDef += "const " + argTypeName + "& " + optionalArgsList[i].first;
                 if (defaultArgs)
-                    optionalArgsDef += " = " + optionalArgsList[i].second.toString();
+                {
+                    if (attr::AttributeRegistry::hasTypeTrait(typeID, "large") == true)
+                    {
+                        optionalArgsDef += " = " + optionalArgsList[i].second.toLongString();
+                    }
+                    else
+                        optionalArgsDef += " = " + optionalArgsList[i].second.toString();
+                }
             }
             else
                 optionalArgsDef += optionalArgsList[i].first;
