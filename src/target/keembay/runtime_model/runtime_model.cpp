@@ -566,7 +566,14 @@ std::vector<std::unique_ptr<MVCNN::BarrierT>> mv::RuntimeModel::buildBarrierTabl
 {
     mv::OpModel om(cm);
     mv::ControlModel controlModel(cm);
+
     auto barrierTasks = om.getOps("BarrierTask");
+    std::sort(
+        barrierTasks.begin(),
+        barrierTasks.end(),
+        [](const mv::Data::OpListIterator& a, const mv::Data::OpListIterator& b) -> bool { return a->getName() < b->getName(); }
+        );
+
     unsigned n = barrierTasks.size();
     std::vector<std::unique_ptr<MVCNN::BarrierT>> toBuild = std::vector<std::unique_ptr<MVCNN::BarrierT>>(n);
     for(unsigned i = 0; i < n; ++i)
