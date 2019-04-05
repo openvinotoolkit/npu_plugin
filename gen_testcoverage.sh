@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Install any required packages
-if [ $(dpkg-query -W -f='${Status}' wmctrl 2>/dev/null | grep -c "ok installed") -eq 0 ] && 
+if [ $(dpkg-query -W -f='${Status}' wmctrl 2>/dev/null | grep -c "ok installed") -eq 0 ] || 
    [ $(dpkg-query -W -f='${Status}' lcov 2>/dev/null | grep -c "ok installed") -eq 0 ];
 then
     sudo apt-get install -y lcov wmctrl; # package brings specified window to the front
