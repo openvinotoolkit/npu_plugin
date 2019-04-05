@@ -2,6 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include <algorithm>
 
 static void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -64,8 +65,20 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::Computation
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
     
+    std::vector<std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator>> oldEdges ;
     std::vector<std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator>> newEdges ;
 
+    // build a list of all the control flow edges
+    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    {
+        for ( auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+        {
+            std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator> oldEdge(om.switchContext(parentOp), om.switchContext(ctlFlow));
+            oldEdges.push_back(oldEdge);
+        }
+    }
+
+    // build list of edges to add around deallocs
     for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
     {
         auto ctlFlowOpType = ctlFlow->getOpType();
@@ -91,19 +104,38 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::Computation
                     {
                         std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator> newEdge(om.switchContext(parentOp), om.switchContext(childOp));
                         newEdges.push_back(newEdge);
-                        cm.defineFlow(om.switchContext(parentOp), om.switchContext(childOp));
                     }
                 }
             }
         }
     }
 
-    auto deallocTasks = om.getOps("Deallocate");
+    // insert the new edges around the deallocs into the graph
+    for (auto newPair : newEdges )
+    {
+        // do not add edge if it already was there
+        bool AddNewEdge = true ;
+        for ( auto tryEdge : oldEdges )
+        {
+            if ((tryEdge.first->getName()==newPair.first->getName()) && (tryEdge.second->getName()==newPair.second->getName()))
+            {
+                AddNewEdge = false;
+                break;
+            }
+        }
+        if (AddNewEdge)
+        {
+            std::cout << "REMOVE DEALLOC PASS adding edge " << newPair.first->getName() << " " << newPair.second->getName() << std::endl ;
+            cm.defineFlow(newPair.first , newPair.second );
+        }
+    }
 
+    // remove the deallocs
+    auto deallocTasks = om.getOps("Deallocate");
     for(auto vecIt = deallocTasks.begin(); vecIt != deallocTasks.end(); ++vecIt)
     {
         auto deallocTaskDataIt = *vecIt;
-
         om.removeOp(deallocTaskDataIt);
     }
+    std::cout << "Leaving REMOVE DEALLOC PASS" << std::endl ;
 }
