@@ -361,7 +361,8 @@ else()
     if(VALIDATION)
 
         SET(deployer
-            "${PROJECT_SOURCE_DIR}/src/utils/deployer/*"
+            "${PROJECT_SOURCE_DIR}/src/utils/deployer/deployer_utils.cpp"
+            "${PROJECT_SOURCE_DIR}/src/utils/deployer/executor.cpp"
         )
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
         add_library(corebase SHARED ${base} ${logger})
