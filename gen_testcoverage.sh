@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Install any required packages
-if [ $(dpkg-query -W -f='${Status}' wmctrl 2>/dev/null | grep -c "ok installed") -eq 0 ];
+if [ $(dpkg-query -W -f='${Status}' wmctrl 2>/dev/null | grep -c "ok installed") -eq 0 ] && 
+   [ $(dpkg-query -W -f='${Status}' lcov 2>/dev/null | grep -c "ok installed") -eq 0 ];
 then
-    sudo apt-get install -y wmctrl; # package brings specified window to the front
+    sudo apt-get install -y lcov wmctrl; # package brings specified window to the front
 fi
 
 # change to build dir if exists, and remove any previous build files
@@ -40,6 +41,12 @@ eval lcov --remove coverage_filtered.info \
         '${MCM_HOME}/tests/resources/*' \
         '${MCM_HOME}/tests/target/keembay/*' \
         '${MCM_HOME}/tests/tensor/*' \
+        '${MCM_HOME}/contrib/koala/base/*' \
+        '${MCM_HOME}/contrib/koala/coloring/*' \
+        '${MCM_HOME}/contrib/koala/container/*' \
+        '${MCM_HOME}/contrib/koala/graph/*' \
+        '${MCM_HOME}/contrib/koala/io/*' \
+        '${MCM_HOME}/contrib/koala/tinyxml/*' \
     -o coverage_filtered.info
 
 genhtml coverage_filtered.info --ignore-errors source --legend --title "MCM Compiler TestCoverage" --output-directory=./ccov
