@@ -24,6 +24,32 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
         blocks_[i] = data_.begin() + i * blockSize_;
 }
 
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<unsigned>& zero, const std::vector<double>& scale,
+                   const std::vector<double>& min, const std::vector<double>& max):
+Element(name),
+blockSize_(shape[-1]),
+blocks_(shape.totalSize() / blockSize_),
+shape_(shape),
+internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
+{
+
+    log(Logger::MessageType::Debug, "Initialized");
+    if(order.size() != shape.ndims())
+        throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
+    set<Shape>("shape", shape_);
+    set<Order>("order", order);
+    set<DType>("dType", dType);
+    set<std::vector<unsigned>>("zero_point", zero);
+    set<std::vector<double>>("scale", scale);
+    set<std::vector<double>>("min", min);
+    set<std::vector<double>>("max", max);
+    set<bool>("populated", false);
+
+    data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
+    for (std::size_t i = 0; i < blocks_.size(); ++i)
+        blocks_[i] = data_.begin() + i * blockSize_;
+}
+
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data) :
 Tensor(name, shape, dType, order)
 {
