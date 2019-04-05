@@ -52,6 +52,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto strides = opIt->get<std::array<unsigned short, 2>>("stride");
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+
+            auto zero = opIt->get<std::vector<unsigned>>("zero_point");
+            auto scale = opIt->get<std::vector<double>>("scale");
+            auto min = opIt->get<std::vector<double>>("min");
+            auto max = opIt->get<std::vector<double>>("max");
             auto name = opIt->getName();
 
             unsigned group=1;
@@ -60,7 +65,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, "DPU_" + name);
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, zero, scale, min, max, "DPU_" + name);
             else
                 dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
 
