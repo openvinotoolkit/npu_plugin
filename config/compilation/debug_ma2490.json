@@ -152,6 +152,10 @@
                 "costfunction": "balanced",
                 "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
             },
+            {
+                "name":"InsertBarrierTasks",
+                "barrier_index_assignment": "Dynamic"
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "AssignUniqueTaskId",

@@ -122,14 +122,13 @@ namespace Koala
 		{
 			// typ liczbowy przepustowosci luku i objetosci przeplywu
 			CapacType capac;/**< \brief The capacity of arc or achieved cut. */
-			int cutValue; /*Added by John*/
 			int vertNo;/**< \brief Number of vertices reachable from source.
 			 start!=end after deletion of the cut-set.*/
 			int edgeNo;/**<\brief Number of edges in the cut set.*/
 
 			/** \brief Empty constructor.*/
 			EdgeCut(): capac( NumberTypeBounds< CapacType >::zero() ),
-						vertNo( 0 ), edgeNo( 0 ), cutValue(0)
+						vertNo( 0 ), edgeNo( 0 )
 				{ }
 		};
 
