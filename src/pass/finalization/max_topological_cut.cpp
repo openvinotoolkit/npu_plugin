@@ -256,10 +256,11 @@ void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model, std:
  * @param graphSink - Sink node of KOALA graph
  * @param vertices - Vector of KOALA vertices iterators
  * @param edges - Vector of KOALA edge iterators
+ * @return - 0 success, -1 Failure
  */
 int performPartialSerialisation(const mv::pass::PassEntry& pass, koalaGraph& flowGraph, int cutValue, std::vector<koalaGraph::PEdge> cutEdges, 
-                                    koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink, std::vector<koalaGraph::PVertex>& vertices, 
-                                        std::vector<koalaGraph::PEdge>& edges, std::vector<koalaGraph::PEdge>& partialSerialisationEdgesAdded) {
+                                koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink, std::vector<koalaGraph::PVertex>& vertices, 
+                                std::vector<koalaGraph::PEdge>& edges, std::vector<koalaGraph::PEdge>& partialSerialisationEdgesAdded) {
 
     /* Partial serialisation works by getting the source and sink nodes of the cutEdges returned from max topoloigcal cut
      * It then creates a pool of all possible edges that it can add to the graph using these source and sink nodes.
