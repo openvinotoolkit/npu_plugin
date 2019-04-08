@@ -310,6 +310,19 @@ void mv::Tensor::populateSparsityMapTensor_()
     sparsityMap_->populate(sparsityMapData);
 }
 
+void mv::Tensor::setAddress(int64_t address)
+{
+    set<int64_t>("address", address);
+    if (isSparse() && !isPopulated())
+    {
+        auto tensorSize = computeTotalSize();
+        auto sparsitySize = sparsityMap_->computeTotalSize();
+        storageElement_->set<int64_t>("address", address +
+            (tensorSize - storageElement_->computeTotalSize() - sparsitySize));
+        sparsityMap_->set<int64_t>("address", address +(tensorSize - sparsitySize));
+    }
+}
+
 void mv::Tensor::setSparse()
 {
     mv::Order order =  getOrder();
