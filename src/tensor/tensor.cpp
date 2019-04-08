@@ -39,10 +39,8 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<Shape>("shape", shape_);
     set<Order>("order", order);
     set<DType>("dType", dType);
-    set<std::vector<unsigned>>("zero_point", zero);
-    set<std::vector<double>>("scale", scale);
-    set<std::vector<double>>("min", min);
-    set<std::vector<double>>("max", max);
+    auto outputQuantParams = new mv::QuantizationParams(zero, scale, min, max);
+    set<mv::QuantizationParams>("quantizationParams", *outputQuantParams);
     set<bool>("populated", false);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
