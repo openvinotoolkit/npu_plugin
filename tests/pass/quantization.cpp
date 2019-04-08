@@ -20,7 +20,6 @@ TEST(quantization, case_conv)
     std::vector<double> scale{0.00784314};
     std::vector<double> min{0};
     std::vector<double> max{1};
-//    mv::QuantizationParams outputQuantParams({128}, {0.00784314}, {0}, {1});
     mv::QuantizationParams weightsQuantParams({120}, {0.0028294341}, {0}, {1});
     mv::QuantizationParams biasQuantParams({0}, {2.219164e-05}, {0}, {1});
 
@@ -58,20 +57,6 @@ TEST(quantization, case_conv)
           // 1. defining quantization params when generating output tensor
           // 2. bias attribute should be passed from op to it's dputask
           auto conv_output = dpuTask->getOutputTensor(0);
-
-          for (unsigned int i = 0; i < conv_output->get<std::vector<unsigned>>("zero_point").size(); i++){
-              std::cout << conv_output->get<std::vector<unsigned>>("zero_point")[i] << std::endl;
-          }
-          for (unsigned int i = 0; i < conv_output->get<std::vector<double>>("scale").size(); i++){
-              std::cout << conv_output->get<std::vector<double>>("scale")[i] << std::endl;
-          }
-          for (unsigned int i = 0; i < conv_output->get<std::vector<double>>("min").size(); i++){
-              std::cout << conv_output->get<std::vector<double>>("min")[i] << std::endl;
-          }
-          for (unsigned int i = 0; i < conv_output->get<std::vector<double>>("max").size(); i++){
-              std::cout << conv_output->get<std::vector<double>>("max")[i] << std::endl;
-          }
-//                    conv_output->set<mv::QuantizationParams>("quantizationParams", outputQuantParams);
           om.addAttr(dpuTask, "bias", biasTensor->getName());
         }
     }
