@@ -285,6 +285,8 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
 static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
+
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -380,6 +382,19 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                     auto weights = dpuTask->getInputTensor(1);
                     weights->setOrder(mv::Order("NHWC"));
                     weights->setSparse();
+                    if (weights->isPopulated()) //that's always true
+                    {
+                        //SparsityMap will be saved as attribute
+                        auto smInternalTensor = weights->getSparsityMap();
+                        //auto smTensor = dm.defineTensor(smInternalTensor->getName(), smInternalTensor->getShape(), smInternalTensor->getDType(),
+                        // /    smInternalTensor->getOrder(), smInternalTensor->getData());
+                        auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
+                            smInternalTensor->getOrder(), smInternalTensor->getName());
+                        om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+                        unsigned newSize = dpuTask->addInputTensor(sparsityMap);
+                        om.defineFlow(sparsityMap, dpuTask, newSize - 1);
+                        dpuTask->set<std::string>("sparsityMap", sparsityMap->getName());
+                    }
                 }
             }
 
