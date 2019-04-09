@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace mv
 {
@@ -80,10 +81,11 @@ namespace mv
             auto H = (inputs[0]->getShape()[1] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1;
             auto C =  inputs[1]->getShape()[3] * group;
 
-            auto zero_point = args.at("zero_point").get<std::vector<unsigned>>();
-            auto scale = args.at("scale").get<std::vector<double>>();
-            auto min = args.at("min").get<std::vector<double>>();
-            auto max = args.at("max").get<std::vector<double>>();
+            auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
+            auto zero_point = quantParams.getZeroPoint();
+            auto scale = quantParams.getScale();
+            auto min = quantParams.getMin();
+            auto max = quantParams.getMax();
             // TODO: un-hardcode assumption about "CHW" layout
             mv::Shape outputShape({W, H, C});
 
@@ -92,9 +94,6 @@ namespace mv
 
         };
 
-        static std::vector<unsigned> empty_un;
-        static std::vector<double> empty_d;
-
         MV_REGISTER_OP(Conv)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
@@ -102,10 +101,7 @@ namespace mv
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<unsigned>("dilationFactor", 1)
         .setOptionalArg<unsigned>("group", 1)
-        .setOptionalArg<std::vector<unsigned>>("zero_point", empty_un)
-        .setOptionalArg<std::vector<double>>("scale", empty_d)
-        .setOptionalArg<std::vector<double>>("min", empty_d)
-        .setOptionalArg<std::vector<double>>("max", empty_d)
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

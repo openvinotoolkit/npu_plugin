@@ -715,6 +715,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << "#define MV_COMPOSITIONAL_MODEL_HPP_" << eol << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/tensor.hpp\"" << eol << eol;
+    incStream << "#include \"include/mcm/tensor/quantization_params.hpp\"" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;

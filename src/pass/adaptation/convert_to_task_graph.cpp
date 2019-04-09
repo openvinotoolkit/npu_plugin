@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/target/keembay/ppe_task.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 void adaptOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& dpuTask);
@@ -53,11 +54,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
 
-            auto zero = opIt->get<std::vector<unsigned>>("zero_point");
-            auto scale = opIt->get<std::vector<double>>("scale");
-            auto min = opIt->get<std::vector<double>>("min");
-            auto max = opIt->get<std::vector<double>>("max");
             auto name = opIt->getName();
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             unsigned group=1;
             if (opType == "Conv")
@@ -65,7 +63,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             mv::Data::TensorIterator dpuConv;
             if(opType == "Conv")
-                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, zero, scale, min, max, "DPU_" + name);
+                dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, "DPU_" + name);
             else
                 dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
 

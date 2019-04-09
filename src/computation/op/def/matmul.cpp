@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace mv
 {
@@ -42,25 +43,20 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
 
-            auto zero_point = args.at("zero_point").get<std::vector<unsigned>>();
-            auto scale = args.at("scale").get<std::vector<double>>();
-            auto min = args.at("min").get<std::vector<double>>();
-            auto max = args.at("max").get<std::vector<double>>();
+            auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
+            auto zero_point = quantParams.getZeroPoint();
+            auto scale = quantParams.getScale();
+            auto min = quantParams.getMin();
+            auto max = quantParams.getMax();
             outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder(), zero_point, scale,
                 min, max));
 
         };
-    
-        static std::vector<unsigned> empty_un;
-        static std::vector<double> empty_d;
 
         MV_REGISTER_OP(MatMul)
         .setInputs({"data0", "data1"})
         .setOutputs({"output"})
-        .setOptionalArg<std::vector<unsigned>>("zero_point", empty_un)
-        .setOptionalArg<std::vector<double>>("scale", empty_d)
-        .setOptionalArg<std::vector<double>>("min", empty_d)
-        .setOptionalArg<std::vector<double>>("max", empty_d)
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
