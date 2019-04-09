@@ -16,17 +16,14 @@ TEST(quantization, case_conv)
     input->set<mv::QuantizationParams>("quantizationParams", inputQuantParams);
     auto testShape = input->getShape();
     //EC: output defs are deduced from inputs
-    std::vector<unsigned> zp{128};
-    std::vector<double> scale{0.00784314};
-    std::vector<double> min{0};
-    std::vector<double> max{1};
+
     mv::QuantizationParams weightsQuantParams({120}, {0.0028294341}, {0}, {1});
     mv::QuantizationParams biasQuantParams({0}, {2.219164e-05}, {0}, {1});
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(64*64);
     auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     weights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, zp, scale, min, max);
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, inputQuantParams);
     auto convOp = om.getSourceOp(conv);
     std::vector<int64_t> biasesData = {
         13559,  17916,  18802,   2546,   2108,  -6720,  11957,   6745,   7859,   4116,
