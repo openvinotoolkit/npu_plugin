@@ -315,6 +315,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
+    mv::Barrier::reset();
 
     system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
 
@@ -382,6 +383,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
+    mv::Barrier::reset();
 
     system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
 
