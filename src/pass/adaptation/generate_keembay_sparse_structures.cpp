@@ -234,7 +234,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
-        if(dpuTask->getOpType() == "DPUTask")
+        if((dpuTask->getOpType() == "DPUTask") && ((dpuTask->get<std::string>("taskOp") == "Conv") || (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution")))
         {
             std::string opName = dpuTask->getName();
 

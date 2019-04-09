@@ -105,10 +105,10 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
 
     auto numCluster = 4;
     auto safetyFactor = 0.9;
-    auto cmxSize = 4 * 1024 * 1024; //4MB in bytes.
+    auto cmxSize = 3760128; //4MB in bytes.
     cmxSize /= numCluster;
     cmxSize *= safetyFactor;
-    unsigned long _dma_dependency = 5;
+    unsigned long _dma_dependency = 2;
     int dma_dependency;
 
     // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks
@@ -143,7 +143,7 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                     }
 
                     auto inputTensorDmaDimension = inputTensorDma->getShape().totalSize() * (inputTensorDma->getDType().getSizeInBits()/8);
-                    dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), _dma_dependency);
+                    dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), _dma_dependency + 1);
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
                     if(index <= dma_dependency) {
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
