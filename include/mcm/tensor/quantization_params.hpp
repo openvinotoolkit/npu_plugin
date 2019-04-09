@@ -18,10 +18,14 @@ namespace mv
         if (value.size() == 1)
             return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
 
+        //for Operations with no quant Params
+        if (value.size() == 0)
+            return mv::utils::generateSequence<T>(size, static_cast<T>(1) , 0);
+
         if (value.size() == size)
             return value;
 
-        throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
+        throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimensions doesn't match size of output_channels or 1",
                     std::to_string(value.size()));
     }
     public:
