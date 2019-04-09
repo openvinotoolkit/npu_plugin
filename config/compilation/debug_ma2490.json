@@ -130,15 +130,7 @@
         ]
     },
     "finalize": {
-        "Singular": [
-            "TransitiveReduction",
-            {
-                "name": "GenerateDot",
-                "output": "TransitiveReduction.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
+        "Singular": [           
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",

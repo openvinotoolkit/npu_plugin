@@ -142,21 +142,26 @@ void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::Computatio
        */
        if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt") {
            
+           bool nodeAdded = false;
            /*Add node to KOALA graph*/
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
            if ((opIt->getOpType() == "DMATask") && (opIt->get<mv::DmaDirection>("direction") == mv::CMX2DDR)) {
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
                vertices.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),0, false, true)));
+               nodeAdded = true;
            }
+           
            /*Keep track of the source node i.e. input*/
            if (opIt->getOpType() == "Input") { 
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
                vertices.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),0, true, false)));
+               nodeAdded = true;
            }
-           /*All nodes between source and sink node*/
-           else { 
+           /*All other nodes between source and sink node*/
+           else if (!nodeAdded) { 
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
                vertices.push_back(flowGraph.addVert(nodeDescription(opIt->getName(),0, false,false)));
+                nodeAdded = true;
            }
        }
     }
