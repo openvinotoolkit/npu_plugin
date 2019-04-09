@@ -63,6 +63,8 @@ TEST(insert_barrier_tasks, parallel_paths)
     // barrier 0 is used by 2 convs (multiple consumers)
     for (auto b : barrierOps)
     {
+        //std::cout << " In parallel_paths test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
+        //std::cout << " In parallel_paths test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_0") EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getNumProducers());
         if (b->getName() == "BarrierTask_0") EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumConsumers());
     }
@@ -126,6 +128,8 @@ TEST(insert_barrier_tasks, single_control_edge)
     // Check new barrier required by partial serialization
     for (auto b : barrierOps)
     {
+        //std::cout << " In single_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
+        //std::cout << " In single_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5") EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
         if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
     }
@@ -190,6 +194,8 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     // barriers affected by partial serialization should have extra producers
     for (auto b : barrierOps)
     {
+        //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
+        //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5") EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumProducers());
         if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
     }
@@ -253,6 +259,8 @@ TEST(insert_barrier_tasks, dealloc_edge)
     // Check new barrier required by partial serialization
     for (auto b : barrierOps)
     {
+        //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
+        //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5") EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
         if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
     }
@@ -266,32 +274,34 @@ TEST(insert_barrier_tasks, static_index_assignment)
     auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights0 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv0 = om.conv(input, weights0, {1, 1}, {1, 1, 1, 1});  // barrier #0 index 0
-    auto pool0 = om.maxPool(conv0, {2, 2}, {2, 2}, {0, 0, 0, 0}); // barrier #3 index 2
-    auto pool1 = om.maxPool(conv0, {4, 4}, {2, 2}, {1, 1, 1, 1}); // barrier #1 index 1
+    auto conv0 = om.conv(input, weights0, {1, 1}, {1, 1, 1, 1});  // barrier index 0
+    auto pool0 = om.maxPool(conv0, {2, 2}, {2, 2}, {0, 0, 0, 0}); // barrier index 1
+    auto pool1 = om.maxPool(conv0, {4, 4}, {2, 2}, {1, 1, 1, 1}); // barrier index 2
+                                                                  // prefetch sparsity barrier index 3
 
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*16*16);
     auto weights1 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv1 = om.conv(pool0, weights1, {1, 1}, {1, 1, 1, 1});  // barrier #4 index 3
+    auto conv1 = om.conv(pool0, weights1, {1, 1}, {1, 1, 1, 1});  // barrier index 0
 
     auto weights2 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});  // barrier #2 index 0
+    auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});  // barrier index 3
+                                                                  // prefetch barrier index 4
 
-    auto add0 = om.add(conv1, conv2);   // barrier #5  index
+    auto add0 = om.add(conv1, conv2);   // barrier #30 index 1
 
     auto weights3 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv3 = om.conv(add0, weights3, {1, 1}, {1, 1, 1, 1});    // barrier #6  index 0
-                                                                   // wts prefetch barrier #11
+    auto conv3 = om.conv(add0, weights3, {1, 1}, {1, 1, 1, 1});    // barrier index 0
+                                                                   // wts prefetch reuse barrier
 
     auto weights4 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});   // barrier #7  index 1
-                                                                   // wts prefetch barrier #15
+    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});   // barrier index 1
+                                                                   // wts prefetch barrier
 
     auto weights5 = om.constant(weights1Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
-    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});   // barrier #8  index 0
-                                                                   // wts prefetch reuse barrier #11
+    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});   // barrier index 0
+                                                                   // wts prefetch barrier
 
-    om.output(conv5);    // barrier #9  index 1
+    om.output(conv5);    // barrier index 1
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
@@ -310,12 +320,13 @@ TEST(insert_barrier_tasks, static_index_assignment)
 
     auto barrierOps = om.getOps("BarrierTask");
 
-    size_t expected_num_barriers = 13;
+    size_t expected_num_barriers = 14;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
 
     // Expect reuse of barrier index numbers due to graph coloring + static index assignment
     for (auto b : barrierOps)
     {
+        //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
         if (b->getName() == "BarrierTask_0") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
         if (b->getName() == "BarrierTask_2") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
         if (b->getName() == "BarrierTask_6") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
@@ -376,12 +387,13 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
 
     auto barrierOps = om.getOps("BarrierTask");
 
-    size_t expected_num_barriers = 13;
+    size_t expected_num_barriers = 14;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
 
     // Expect index assignment (no reuse) in dynamic mode
     for (auto b : barrierOps)
     {
+        //std::cout << " In dynamic_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
         if (b->getName() == "BarrierTask_0") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
         if (b->getName() == "BarrierTask_1") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
         if (b->getName() == "BarrierTask_2") EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
@@ -395,6 +407,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
         if (b->getName() == "BarrierTask_10") EXPECT_EQ(10, b->get<mv::Barrier>("Barrier").getIndex());
         if (b->getName() == "BarrierTask_11") EXPECT_EQ(11, b->get<mv::Barrier>("Barrier").getIndex());
         if (b->getName() == "BarrierTask_15") EXPECT_EQ(15, b->get<mv::Barrier>("Barrier").getIndex());
+        if (b->getName() == "BarrierTask_17") EXPECT_EQ(17, b->get<mv::Barrier>("Barrier").getIndex());
     }
 
 }
