@@ -77,6 +77,30 @@ import_array();
         delete unit;
     }
 
+    void setLogLevel(const std::string& logLevel)
+    {
+        if(logLevel.compare("debug") == 0)
+        {
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
+        }
+        else if(logLevel.compare("info") == 0)
+        {
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+        }
+        else if(logLevel.compare("warning") == 0)
+        {
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
+        }
+        else if(logLevel.compare("silent") == 0)
+        {
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Silent);
+        }
+        else //default "error"
+        {
+            mv::Logger::setVerboseLevel(mv::VerboseLevel::Error);
+        }
+    }
+
     int compile(mv::CompilationUnit *unit)
     {
         unit->initialize();
@@ -334,8 +358,10 @@ import_array();
         return o.matMul(input, weights);
     }
 
-    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding){
-        return o.averagePool(input, kernelSize, stride, padding);
+    mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX, 
+        short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY)
+    {
+        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY}, {padX, padX, padY, padY});
     }
 
     mv::Data::TensorIterator avgpool2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
@@ -493,7 +519,7 @@ mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data:
 mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor);
 
 mv::Data::TensorIterator matMul(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator weights);
-mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, std::array<unsigned short, 2> kernelSize, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding);
+mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX, short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY);
 mv::Data::TensorIterator batchNorm(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator mean, mv::Data::TensorIterator variance, mv::Data::TensorIterator offset, mv::Data::TensorIterator scale, double varianceEps);
 mv::Data::TensorIterator scale(mv::CompositionalModel& o,mv::Data::TensorIterator input, mv::Data::TensorIterator scale);
 mv::Data::TensorIterator relu(mv::CompositionalModel& o,mv::Data::TensorIterator input);
@@ -510,6 +536,8 @@ mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
 mv::Data::TensorIterator dropOut(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 bool isValid(mv::CompositionalModel& o);
+/** Sets Verbose Logging Level. Values are silent, error, warning, info, debug*/
+void setLogLevel(const std::string& logLevel);
 
 int testConv(
     mv::Data::OpListIterator &target,

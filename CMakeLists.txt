@@ -3,7 +3,7 @@ project(mcmComplier VERSION 0.0.1)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 SET(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
-SET(CMAKE_VERBOSE_MAKEFILE ON) # for debugging
+SET(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
 
 #############################################################################################
 ### Setup
@@ -91,6 +91,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/double.cpp" 
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/dtype.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int64.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/mv_element.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/order.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/shape.cpp"
@@ -202,6 +203,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dpu_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
+
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
@@ -323,6 +325,7 @@ SET(pass
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp"
@@ -362,7 +365,8 @@ else()
     if(VALIDATION)
 
         SET(deployer
-            "${PROJECT_SOURCE_DIR}/src/utils/deployer/*"
+            "${PROJECT_SOURCE_DIR}/src/utils/deployer/deployer_utils.cpp"
+            "${PROJECT_SOURCE_DIR}/src/utils/deployer/executor.cpp"
         )
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${pass_validation})
         add_library(corebase SHARED ${base} ${logger})
