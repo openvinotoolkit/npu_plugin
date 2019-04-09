@@ -177,3 +177,8 @@ std::string mv::Barrier::getLogID() const
 {
     return "Barrier:" + toString();
 }
+
+void mv::Barrier::reset()
+{
+    barrierCounter_ = 0;
+}
