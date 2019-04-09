@@ -180,7 +180,7 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
             //inputShape[2] == opIt->getOutputTensor(0)->getShape()[2] depthwise
-            unsigned short total_shape = inputShape[2] * inputShape[2] * kSize[1] * kSize[0];
+            size_t total_shape = inputShape[2] * inputShape[2] * kSize[1] * kSize[0];
             double value = 1/double(kSize[0] * kSize[1]);
             std::vector<double> weightsData(total_shape, value);
 
