@@ -109,6 +109,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_size_t.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_string.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_unsigned.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned_short.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned.cpp"
     
@@ -197,7 +198,6 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_deps.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/dma_direction.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/workloads.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_fixed_function.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/barrier_task.cpp"
