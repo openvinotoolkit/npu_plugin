@@ -125,7 +125,6 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::Computation
         }
         if (AddNewEdge)
         {
-            std::cout << "REMOVE DEALLOC PASS adding edge " << newPair.first->getName() << " " << newPair.second->getName() << std::endl ;
             cm.defineFlow(newPair.first , newPair.second );
         }
     }
@@ -137,5 +136,4 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::Computation
         auto deallocTaskDataIt = *vecIt;
         om.removeOp(deallocTaskDataIt);
     }
-    std::cout << "Leaving REMOVE DEALLOC PASS" << std::endl ;
 }
