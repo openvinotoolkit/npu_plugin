@@ -57,6 +57,12 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
 
     if (isPopulated())
         data_ = other.data_;
+    if (other.isSparse())
+    {
+        sparsityMap_ = std::make_shared<Tensor>(*other.sparsityMap_);
+        storageElement_ = std::make_shared<Tensor>(*other.storageElement_);
+        noneZeroElements_ = other.noneZeroElements_;
+    }
 }
 
 mv::Tensor::~Tensor()
