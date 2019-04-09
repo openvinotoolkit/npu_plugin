@@ -34,13 +34,13 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
         auto inputOp = dataFlowIt.source();
         auto outputOp = dataFlowIt.sink();
 
-        if(outputOp->getOpType() == "Output")
+        if (outputOp->getOpType() == "Output")
             continue;
 
-        if(inputOp->getOpType() == "Input")
+        if (inputOp->getOpType() == "Input")
             continue;
 
-        if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement")
+        if (inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement")
             continue;
 
         auto opId = inputOp->get<unsigned>("opId");
@@ -49,7 +49,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
         std::string deallocationName("Deallocate"+inputOpName);
 
-        if(!om.checkOp(deallocationName))
+        if (!om.checkOp(deallocationName))
             om.deallocate(inputTensor, deallocationName);
         auto deallocateInputOp = om.getOp(deallocationName);
         deallocateInputOp->set<unsigned>("opId", opId);

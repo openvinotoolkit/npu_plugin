@@ -19,6 +19,7 @@ TEST(insert_barrier_tasks, serial_path)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
+    mv::Barrier::reset();
 
     auto barrierOps = om.getOps("BarrierTask");
 
@@ -53,21 +54,29 @@ TEST(insert_barrier_tasks, parallel_paths)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
+    mv::Barrier::reset();
 
     system("dot -Tpng final_model.dot -o final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
+    int numChecks = 0;
     size_t expected_num_barriers = 4;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+    numChecks++;
 
     // barrier 0 is used by 2 convs (multiple consumers)
     for (auto b : barrierOps)
     {
         //std::cout << " In parallel_paths test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
         //std::cout << " In parallel_paths test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_0") EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getNumProducers());
-        if (b->getName() == "BarrierTask_0") EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumConsumers());
+        if (b->getName() == "BarrierTask_0") 
+        {
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumConsumers());
+            numChecks=numChecks+2;
+        }
     }
+    EXPECT_EQ(3, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, single_control_edge)
@@ -118,21 +127,29 @@ TEST(insert_barrier_tasks, single_control_edge)
     // run passes after partial serilization, including insert barriers pass
     unit.initialize();
     unit.run();
+    mv::Barrier::reset();
 
     system("dot -Tpng final_model.dot -o final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
+    int numChecks = 0;
     size_t expected_num_barriers = 6;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+    numChecks++;
 
     // Check new barrier required by partial serialization
     for (auto b : barrierOps)
     {
         //std::cout << " In single_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
         //std::cout << " In single_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+        if (b->getName() == "BarrierTask_5")
+        {
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+            numChecks=numChecks+2;
+        }
     }
+    EXPECT_EQ(3, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, multiple_control_edges)
@@ -184,21 +201,29 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     // run passes after partial serilization, including insert barriers pass
     unit.initialize();
     unit.run();
+    mv::Barrier::reset();
 
     system("dot -Tpng final_model.dot -o final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
+    int numChecks = 0;
     size_t expected_num_barriers = 6;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+    numChecks++;
 
     // barriers affected by partial serialization should have extra producers
     for (auto b : barrierOps)
     {
         //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
         //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumProducers());
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+        if (b->getName() == "BarrierTask_5")
+        {
+            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+            numChecks=numChecks+2;
+        }
     }
+    EXPECT_EQ(3, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, dealloc_edge)
@@ -249,21 +274,29 @@ TEST(insert_barrier_tasks, dealloc_edge)
     // run passes after partial serilization, including insert barriers pass
     unit.initialize();
     unit.run();
+    mv::Barrier::reset();
 
     system("dot -Tpng final_model.dot -o final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
+    int numChecks = 0;
     size_t expected_num_barriers = 6;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+    numChecks++;
 
     // Check new barrier required by partial serialization
     for (auto b : barrierOps)
     {
         //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumProducers() << std::endl;
         //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+        if (b->getName() == "BarrierTask_5")
+        {
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
+            numChecks=numChecks+2;
+        }
     }
+    EXPECT_EQ(3, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, static_index_assignment)
@@ -321,22 +354,56 @@ TEST(insert_barrier_tasks, static_index_assignment)
 
     auto barrierOps = om.getOps("BarrierTask");
 
+    int numChecks = 0;
     size_t expected_num_barriers = 14;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
+    numChecks++;
 
     // Expect reuse of barrier index numbers due to graph coloring + static index assignment
     for (auto b : barrierOps)
     {
         //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
-        if (b->getName() == "BarrierTask_0") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_2") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_6") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_8") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_1") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_7") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_9") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+        if (b->getName() == "BarrierTask_0")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_2")
+        {   EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_6")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_8")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_1")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_5")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_7")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_9")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
     }
+    EXPECT_EQ(9, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, dynamic_index_assignment)
@@ -389,27 +456,85 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
 
     auto barrierOps = om.getOps("BarrierTask");
 
+    int numChecks = 0;
     size_t expected_num_barriers = 14;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
+    numChecks++;
 
     // Expect index assignment (no reuse) in dynamic mode
     for (auto b : barrierOps)
     {
         //std::cout << " In dynamic_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
-        if (b->getName() == "BarrierTask_0") EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_1") EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_2") EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_3") EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_4") EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_5") EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_6") EXPECT_EQ(6, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_7") EXPECT_EQ(7, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_8") EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_9") EXPECT_EQ(9, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_10") EXPECT_EQ(10, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_11") EXPECT_EQ(11, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_15") EXPECT_EQ(15, b->get<mv::Barrier>("Barrier").getIndex());
-        if (b->getName() == "BarrierTask_17") EXPECT_EQ(17, b->get<mv::Barrier>("Barrier").getIndex());
+        if (b->getName() == "BarrierTask_0")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_1")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_2")
+        {
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_3")
+        {
+            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_4")
+        {
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_5")
+        {
+            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_6")
+        {
+            EXPECT_EQ(6, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_7")
+        {
+            EXPECT_EQ(7, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_8")
+        {
+            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_9")
+        {
+            EXPECT_EQ(9, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_10")
+        {
+            EXPECT_EQ(10, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_11")
+        {
+            EXPECT_EQ(11, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_14")
+        {
+            EXPECT_EQ(14, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_17")
+        {
+            EXPECT_EQ(17, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
     }
-
+    EXPECT_EQ(15, numChecks);   // coverage check
 }
