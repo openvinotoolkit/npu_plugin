@@ -7,7 +7,7 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 
-TEST(graph_coloring, case1)
+TEST(graph_coloring, single_conv)
 {
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
     mv::CompilationUnit unit("testModel");
@@ -23,11 +23,37 @@ TEST(graph_coloring, case1)
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
 
-
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
 
+    std::map<std::string, std::pair<uint64_t, int64_t>> refTensorSizeAddress;
+    //CMX
+    refTensorSizeAddress["DMAAlignedConstantInt_0:0"] = std::make_pair(10240, 5120);
+    refTensorSizeAddress["DMAAlignedConstantInt_0:0"] = std::make_pair(10240, 5120);
+    refTensorSizeAddress["DMADPU_Conv_0SparsityMap:0"] = std::make_pair(4096, 1024);
+    refTensorSizeAddress["DMADPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
+    refTensorSizeAddress["DMAInput_0:0"] = std::make_pair(75264, 15360);
+    refTensorSizeAddress["DPU_Conv_0:0"] = std::make_pair(401408, 90624); // POC std::make_pair(476672, 90624);
+
+    //BSS
+    refTensorSizeAddress["AlignedConstantInt_0:0"  ] = std::make_pair(10240,  5120);
+    refTensorSizeAddress["DPU_Conv_0SparsityMap:0" ] = std::make_pair(4096, 1024);
+    refTensorSizeAddress["DPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
+
+    //TODO HEAP, not yet fully implemented on POC
+    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(401408, 75264);
+    refTensorSizeAddress["Input_0:0"    ] = std::make_pair(75264, 0);
+
+
+    for (auto itr = refTensorSizeAddress.begin(); itr != refTensorSizeAddress.end(); itr++)
+    {
+        std::cout << "checking " << itr->first << std::endl;
+        auto tensor = om.getTensor(itr->first);
+        ASSERT_TRUE(tensor->hasAttr("address"));
+        ASSERT_TRUE(tensor->getAddress() == itr->second.second);
+        ASSERT_TRUE(tensor->computeTotalSize() == itr->second.first);
+    }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");
     system("dot -Tpng final_model.dot -o final_model.png");
@@ -68,14 +94,14 @@ TEST(graph_coloring, three_conv)
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    //mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
 
-    std::map<std::string, std::pair<int64_t, int64_t>> refTensorSizeAddress;
+    std::map<std::string, std::pair<uint64_t, int64_t>> refTensorSizeAddress;
     //CMX
     refTensorSizeAddress["DMAAlignedConstantInt_0:0"] = std::make_pair(1024, 86016);
 	refTensorSizeAddress["DMAAlignedConstantInt_0:0_sm:0"] = std::make_pair(1024, 84992);
