@@ -306,7 +306,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/format_mx_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/fuse_relu_mx.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/graph_coloring.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_graph_coloring.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/manipulate_barrier_refs.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/mark_hardware_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"

@@ -146,7 +146,7 @@
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
-            "GraphColoring",
+            "TensorGraphColoring",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",

@@ -13,7 +13,7 @@ TEST(graph_coloring, single_conv)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({112, 224, 3}, mv::DType("UInt8"), mv::Order("CWH"));
+    auto input = om.input({112, 224, 3}, mv::DType("UInt8"), mv::Order("CHW"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(7*7*3*64);
     auto weights = om.constantInt(weightsData, {7, 7, 3, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
@@ -42,7 +42,7 @@ TEST(graph_coloring, single_conv)
     refTensorSizeAddress["DPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
 
     //TODO HEAP, not yet fully implemented on POC
-    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(401408, 75264);
+    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(401408, 75264);// POC std::make_pair(476672, 75264);
     refTensorSizeAddress["Input_0:0"    ] = std::make_pair(75264, 0);
 
 

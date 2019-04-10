@@ -8,17 +8,17 @@
 #include <limits.h>
 
 
-static void graphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
 
     namespace pass
     {
-        MV_REGISTER_PASS(GraphColoring)
-        .setFunc(graphColoringFnc)
+        MV_REGISTER_PASS(TensorGraphColoring)
+        .setFunc(tensorGraphColoringFnc)
         .setDescription(
-            "graph coloring implmentation used in memory allocation algorithm"
+            "Tensor graph coloring implementation used in memory allocation algorithm"
         );
     }
 }
@@ -493,7 +493,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string
 
 }
 
-void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
 
