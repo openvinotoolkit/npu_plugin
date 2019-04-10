@@ -352,7 +352,7 @@ std::size_t maxHeight(mv::TensorInterferenceGraph::node_list_iterator& ni, mv::g
     return currMaxHeight;
 }
 
-std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceGraph::node_list_iterator& ni, size_t chromaticNumber,
+std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceGraph::node_list_iterator& ni,
     std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
 {
     auto startAddress = gap.first;
@@ -426,7 +426,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
     size_t currChromaticNumber;
     for (auto itr = gaps.begin(); itr != lastgap; itr++)
     {
-        currChromaticNumber = tryInsertion(*itr, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
+        currChromaticNumber = tryInsertion(*itr, ni, coloredNeighbors, directedGraph, g);
         if (currChromaticNumber < insertionChromaticNumbersMin)
         {
             insertionChromaticNumbersMin = currChromaticNumber;
