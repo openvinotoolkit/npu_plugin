@@ -27,6 +27,8 @@ namespace mv
                 outputs[0].populate(inputs[0]->getData());
             if (inputs[0]->isSparse())
                 outputs[0].setSparse();
+            if (inputs[0]->hasAttr("channelLength"))
+                outputs[0].set<int>("channelLength", inputs[0]->get<int>("channelLength"));
         };
 
         MV_REGISTER_OP(DMATask)

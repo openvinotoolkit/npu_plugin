@@ -1,16 +1,16 @@
 #include "include/mcm/target/keembay/ppe_layer_type.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 
-const std::unordered_map<mv::PpeLayerTypeEnum, std::string, mv::PpeLayerTypeEnumHash> mv::PpeLayerType::ppeLayerTypeStrings_ =
+const std::unordered_map<mv::PPELayerTypeEnum, std::string, mv::PPELayerTypeEnumHash> mv::PPELayerType::ppeLayerTypeStrings_ =
 {
     {PPELayerType_STORE, "STORE"},
     {PPELayerType_LOAD, "LOAD"},
     {PPELayerType_CLEAR, "CLEAR"},
     {PPELayerType_NOOP, "NOOP"},
     {PPELayerType_HALT, "HALT"},
-    {PPELayerType_ADD, "ADD"},
-    {PPELayerType_SUB, "SUB"},
-    {PPELayerType_MULT, "MULT"},
+    {PPELayerType_ADD, "Add"},
+    {PPELayerType_SUB, "Subtract"},
+    {PPELayerType_MULT, "Multiply"},
     {PPELayerType_LRELU, "LRELU"},
     {PPELayerType_LRELUX, "LRELUX"},
     {PPELayerType_LPRELU, "LPRELU"},
@@ -33,62 +33,60 @@ const std::unordered_map<mv::PpeLayerTypeEnum, std::string, mv::PpeLayerTypeEnum
     {PPELayerType_FLEXARB, "FLEXARB"}
 };
 
-mv::PpeLayerType::PpeLayerType(PpeLayerTypeEnum value) :
+mv::PPELayerType::PPELayerType(PPELayerTypeEnum value) :
 type_(value)
 {
 
 }
 
-mv::PpeLayerType::PpeLayerType() :
-type_(PpeLayerTypeEnum::PPELayerType_STORE)
+mv::PPELayerType::PPELayerType() :
+type_(PPELayerTypeEnum::PPELayerType_STORE)
 {
 
 }
 
-mv::PpeLayerType::PpeLayerType(const PpeLayerType& other) :
+mv::PPELayerType::PPELayerType(const PPELayerType& other) :
 type_(other.type_)
 {
 
 }
 
-mv::PpeLayerType::PpeLayerType(const std::string& value)
+mv::PPELayerType::PPELayerType(const std::string& value)
 {
-
-    PpeLayerType(
-        [=]()->PpeLayerType
-        {
-            for (auto &e : ppeLayerTypeStrings_)
-                if (e.second == value)
-                    return e.first;
-            throw ArgumentError(*this, "Invalid initialization - string value specified as", value, "Initializer");
-        }()
-    );
-
+    auto enumFunctor = [=](const std::string& v)->PPELayerTypeEnum
+    {
+        for (auto &e : ppeLayerTypeStrings_)
+            if (e.second == v)
+                return e.first;
+        throw ArgumentError(*this, "Invalid initialization - string value specified as", value, "Initializer");
+    };
+    auto correctEnum = enumFunctor(value);
+    type_ = correctEnum;
 }
 
-std::string mv::PpeLayerType::toString() const
+std::string mv::PPELayerType::toString() const
 {
     return ppeLayerTypeStrings_.at(*this);
 }
 
-mv::PpeLayerType& mv::PpeLayerType::operator=(const PpeLayerType& other)
+mv::PPELayerType& mv::PPELayerType::operator=(const PPELayerType& other)
 {
     type_ = other.type_;
     return *this;
 }
 
-mv::PpeLayerType& mv::PpeLayerType::operator=(const PpeLayerTypeEnum& other)
+mv::PPELayerType& mv::PPELayerType::operator=(const PPELayerTypeEnum& other)
 {
     type_ = other;
     return *this;
 }
 
-mv::PpeLayerType::operator PpeLayerTypeEnum() const
+mv::PPELayerType::operator PPELayerTypeEnum() const
 {
     return type_;
 }
 
-std::string mv::PpeLayerType::getLogID() const
+std::string mv::PPELayerType::getLogID() const
 {
     return "PPeLayerType:" + toString();
 }
