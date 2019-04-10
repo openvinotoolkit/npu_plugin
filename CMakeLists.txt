@@ -109,7 +109,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_size_t.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_string.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_unsigned.cpp"
-    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/quantization_params.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned_short.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned.cpp"
     
