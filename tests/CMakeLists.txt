@@ -86,3 +86,19 @@ target_link_libraries(mcm_unit_tests cm)
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
 set_target_properties(mcm_unit_tests PROPERTIES LINKER_LANGUAGE C)
+
+#
+# Regression tests
+#
+
+file(GLOB layers
+    "layers/*.cpp"
+)
+
+add_executable(regression_tests
+    mcm_unit_tests.cpp
+    ${layers}
+)
+
+target_link_libraries (regression_tests gtest)
+target_link_libraries (regression_tests cm)
