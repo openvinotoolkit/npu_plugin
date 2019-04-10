@@ -143,10 +143,10 @@
             "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
             "TransitiveReduction",
-            "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
+            "GraphColoring",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",

@@ -29,16 +29,21 @@ std::string mv::TensorInterferenceGraph::getTensorTopMaster_(const mv::Data::Ten
     return t->getName();
 }
 
-std::set<std::string> mv::TensorInterferenceGraph::getTaskTopTensors_(const std::vector<mv::Data::TensorIterator>& tensorList, mv::ComputationModel& model, const mv::TensorIteratorFilter& tensorFilter)
+std::set<std::string> mv::TensorInterferenceGraph::getTaskTopTensors_(const std::vector<mv::Data::TensorIterator>& tensorList,
+    mv::ComputationModel& model, const mv::TensorIteratorFilter& tensorFilter, bool isDMA)
 {
     std::set<std::string> topTensors;
 
     for (unsigned i = 0; i < tensorList.size(); i++)
     {
-        std::string name = getTensorTopMaster_(tensorList[i], model);
-        if (!tensorFilter || tensorFilter(model.getTensor(name)))
+        bool isCMXTensor = checkIsCMXTensor_(tensorList[i]);
+        if ((isDMA && isCMXTensor) || (!isDMA && !isCMXTensor))
         {
-            topTensors.insert(name);
+            std::string name = getTensorTopMaster_(tensorList[i], model);
+            if (!tensorFilter || tensorFilter(model.getTensor(name)))
+            {
+                topTensors.insert(name);
+            }
         }
     }
     return topTensors;
@@ -115,7 +120,8 @@ bool mv::TensorInterferenceGraph::checkNodeInterference_(mv::ComputationModel& m
     return false;
 }
 
-std::set<std::string> mv::TensorInterferenceGraph::getTensorNames_(mv::ComputationModel& model, const mv::TensorIteratorFilter& tensorFilter, const mv::OpIteratorFilter& taskFilter)
+std::set<std::string> mv::TensorInterferenceGraph::getTensorNames_(mv::ComputationModel& model, const mv::TensorIteratorFilter& tensorFilter,
+    const mv::OpIteratorFilter& taskFilter, bool isDMA)
 {
     mv::OpModel om(model);
     std::set<std::string> tensorNames;
@@ -124,47 +130,14 @@ std::set<std::string> mv::TensorInterferenceGraph::getTensorNames_(mv::Computati
     {
         if (!taskFilter || taskFilter(opIterator))
         {
-            std::set<std::string> temp = getTaskTopTensors_(opIterator->getInputTensor(), model, tensorFilter);
+            std::set<std::string> temp = getTaskTopTensors_(opIterator->getInputTensor(), model, tensorFilter, isDMA);
             tensorNames.insert(temp.begin(), temp.end());
-            temp = getTaskTopTensors_(opIterator->getOutputTensor(), model, tensorFilter);
+
+            temp = getTaskTopTensors_(opIterator->getOutputTensor(), model, tensorFilter, isDMA);
             tensorNames.insert(temp.begin(), temp.end());
         }
     }
     return tensorNames;
-}
-
-
-void mv::TensorInterferenceGraph::cleanupDuplicateTensorNodes_(bool isDMA)
-{
-    std::vector<std::string> nodesToRemove;
-    for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
-    {
-        //if it's a DMA Tig remove anything that doesn't have DMA in it's name
-        //if it's not a DMA TIG then remove anything that has DMA in it's name
-        if ((!isDMA && (*it).name.rfind("DMA", 0) == 0) ||
-            (isDMA && (*it).name.find("DMA", 0) == std::string::npos))
-        {
-            nodesToRemove.push_back((*it).name);
-        }
-    }
-
-    //before deleting the edge, connect parents with childs
-    int nodeIdx = this->edge_size();
-    for (size_t i = 0; i< nodesToRemove.size(); i++)
-    {
-        auto ni = this->node_find(nodesToRemove[i]);
-        for (mv::TensorInterferenceGraph::node_parent_iterator itp(ni); itp != this->node_end(); ++itp)
-        {
-            for (mv::TensorInterferenceGraph::node_child_iterator itc(ni); itc != this->node_end(); ++itc)
-            {
-                if (itp != itc && !mv::edgeExists(*this, itp, itc))
-                {
-                    this->edge_insert(itp, itc, nodeIdx++);
-                }
-            }
-        }
-        this->node_erase(ni);
-    }
 }
 
 std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(mv::ComputationModel& model, std::string& inode, std::size_t alignment)
@@ -197,13 +170,12 @@ mv::TensorInterferenceGraph::TensorInterferenceGraph(mv::ComputationModel& model
 
     if (isCompleteTig)
     {
-        buildCompleteGraph_(getTensorNames_(model, tensorFilter, taskFilter));
+        buildCompleteGraph_(getTensorNames_(model, tensorFilter, taskFilter, isDMA));
     }
     else
     {
-        genIntereferenceGraph_(model , tensorFilter, taskFilter);
+        genIntereferenceGraph_(model , tensorFilter, taskFilter, isDMA);
     }
-    cleanupDuplicateTensorNodes_(isDMA);
     addWeightsToInterferenceGraph_(model, alignment);
 }
 
@@ -223,16 +195,33 @@ void mv::TensorInterferenceGraph::buildCompleteGraph_(std::set<std::string> tens
         for (std::set<std::string>::const_iterator target = tensorNames.begin( ); target != tensorNames.end( ); ++target)
         {
             if (src != target)
-            this->  edge_insert(ni, this->node_find(*target), nodeId++);
+            this->edge_insert(ni, this->node_find(*target), nodeId++);
         }
     }
 }
 
+bool mv::TensorInterferenceGraph::checkIsCMXTensor_(const Data::TensorIterator tensorIt)
+{
+    if (tensorIt->hasAttr("allocators"))
+    {
+        auto allocators = tensorIt->get<std::set<std::string>>("allocators");
+        if (allocators.count("VPU_CMX_NN") != 0)
+            return true;
+    }
+    else
+    {
+        throw mv::ArgumentError("checkIsCMXTensor_", "no allocators for tensor", tensorIt->getName(), "no allocators for tensor");
+    }
+
+    return false;
+}
+
 void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& model , const mv::TensorIteratorFilter& tensorFilter,
-    const mv::OpIteratorFilter& taskFilter)// : graph<InterferenceGraphNode, int>()
+    const mv::OpIteratorFilter& taskFilter, bool isDMA)
 {
     mv::TensorInterferenceGraph directed_g;
     std::set<std::string> inputTensorNames;
+
     std::set<std::string> outputTensorNames;
     std::set<std::string> nodeNames;
     int nodeId = 0;
@@ -244,7 +233,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
     {
         if (!taskFilter || taskFilter(opIterator))
         {
-            inputTensorNames = getTaskTopTensors_(opIterator->getInputTensor(), model, tensorFilter);
+
+            inputTensorNames = getTaskTopTensors_(opIterator->getInputTensor(), model, tensorFilter, isDMA);
 
             for (std::set<std::string>::const_iterator name = inputTensorNames.begin( ); name != inputTensorNames.end( ); ++name)
             {
@@ -256,7 +246,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
                 }
             }
 
-            outputTensorNames = getTaskTopTensors_(opIterator->getOutputTensor(), model, tensorFilter);
+            outputTensorNames = getTaskTopTensors_(opIterator->getOutputTensor(), model, tensorFilter, isDMA);
 
             for (std::set<std::string>::const_iterator name = outputTensorNames.begin( ); name != outputTensorNames.end( ); ++name)
             {
@@ -268,6 +258,8 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
                 }
             }
 
+            if (inputTensorNames.size() == 0 || outputTensorNames.size() == 0)
+                continue;
             //Add the obvious edges
             for (std::set<std::string>::const_iterator src = inputTensorNames.begin( ); src != inputTensorNames.end( ); ++src)
             {
@@ -305,7 +297,7 @@ void mv::TensorInterferenceGraph::genIntereferenceGraph_(mv::ComputationModel& m
             if (source != target && !checkNodesAreNeighbors_(ni, nj) && !mv::pathExists(directed_g, directed_ni, directed_nj) &&
                 !mv::pathExists(directed_g, directed_nj, directed_ni))
             {
-                if (!checkNodeInterference_(model, *source, *target) || !checkNodeInterference_(model, *target, *source))
+                if (!checkNodeInterference_(model, *source, *target) && !checkNodeInterference_(model, *target, *source))
                 {
                     this->edge_insert(ni, nj, 2*nodeId);
                     this->edge_insert(nj, ni, 2*nodeId+1);

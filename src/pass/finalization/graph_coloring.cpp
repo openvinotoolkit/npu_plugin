@@ -498,7 +498,6 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
 
     mv::OpModel om(model);
-    mv::DataModel dm(model);
 
     auto memDefs = target.memoryDefs();
 
