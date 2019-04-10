@@ -86,13 +86,13 @@ namespace mv
             outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[0]->getShape()[1], lastDim}, inputs[0]->getDType(), inputs[0]->getOrder()));
         };
 
-        // TODO: Introduce enum mv::Axis {N, C, D, H, W} type for axis
         // Default axis is channels (like for Intel Inference Engine)
         static std::string channels = "C";
 
         MV_REGISTER_OP(Concat)
-        .setInputs({"data0", "data1"})
+        .setInputs({"inputs"})
         .setOutputs({"output"})
+        .setVariableInputNum(true)
         .setOptionalArg<std::string>("axis", channels)
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)

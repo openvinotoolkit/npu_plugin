@@ -496,12 +496,22 @@ std::string mv::op::OpRegistry::getStringifiedInputsCall_(const std::string opTy
 
     std::string output = "";
     auto inputLabels = opPtr->getInputLabel();
+    bool isVector = opPtr->hasVectorTypesAsInput();
     if (inputLabels.size() > 0)
     {
         for (std::size_t i = 0; i < inputLabels.size() - 1; ++i)
-            output += getLabelNameStringifyCall_(inputLabels[i], "input", i, indent, eol);
-        
-        output += getLabelNameStringifyCall_(inputLabels.back(), "input", inputLabels.size() - 1, indent, eol);
+        {
+            if(isVector)
+                output += getLabelNameStringifyCall_(inputLabels[i]+"[0]", "input", i, indent, eol);
+            else
+                output += getLabelNameStringifyCall_(inputLabels[i], "input", i, indent, eol);
+        }
+
+        if(isVector)
+            output += getLabelNameStringifyCall_(inputLabels.back()+"[0]", "input", inputLabels.size() - 1, indent, eol);
+        else
+            output += getLabelNameStringifyCall_(inputLabels.back(), "input", inputLabels.size() - 1, indent, eol);
+
         
     }
 
