@@ -260,7 +260,8 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp"    
+    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala.cpp"   
 )
 
 SET(logger
@@ -293,6 +294,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut_test.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_myriadX.cpp"
@@ -303,7 +305,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/graph_coloring.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/manipulate_barrier_refs.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/mark_hardware_operations.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/myriad_x_paddings.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_convolutions.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_poolings.cpp"

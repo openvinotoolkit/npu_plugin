@@ -120,24 +120,24 @@ int main()
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     //conv1 = cm.relu(conv1);
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1});
-    /*auto res2b = residualBlock(cm, res2a, 64);
+    auto res2a = residualConvBlock(cm, pool1, 64, 206, {1, 1});
+    auto res2b = residualBlock(cm, res2a, 64);
     auto res2c = residualBlock(cm, res2b, 64);
-    auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2});
+    auto res3a = residualConvBlock(cm, res2c, 128, 206, {2, 2});
     auto res3b = residualBlock(cm, res3a, 128);
     auto res3c = residualBlock(cm, res3b, 128);
     auto res3d = residualBlock(cm, res3c, 128);
-    auto res4a = residualConvBlock(cm, res3d, 256, 1024, {2, 2});
-    auto res4b = residualBlock(cm, res4a, 256);
-    auto res4c = residualBlock(cm, res4b, 256);
-    auto res4d = residualBlock(cm, res4c, 256);
-    auto res4e = residualBlock(cm, res4d, 256);
-    auto res4f = residualBlock(cm, res4e, 256);
-    auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2});
-    auto res5b = residualBlock(cm, res5a, 512);
-    auto res5c = residualBlock(cm, res5b, 512);*/
+    auto res4a = residualConvBlock(cm, res3d, 206, 200, {2, 2});
+    auto res4b = residualBlock(cm, res4a, 206);
+    auto res4c = residualBlock(cm, res4b, 206);
+    auto res4d = residualBlock(cm, res4c, 206);
+    auto res4e = residualBlock(cm, res4d, 206);
+    auto res4f = residualBlock(cm, res4e, 206);
+    auto res5a = residualConvBlock(cm, res4f, 206, 512, {2, 2});
+    auto res5b = residualBlock(cm, res5a, 206);
+    auto res5c = residualBlock(cm, res5b, 206);
     //auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
-    cm.output(res2a);
+    cm.output(res5c);
 
     // Load target descriptor for the selected target to the compilation unit
     if (!unit.loadTargetDescriptor(mv::Target::ma2490))
