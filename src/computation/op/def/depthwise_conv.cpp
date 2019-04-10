@@ -25,18 +25,12 @@ namespace mv
                 return {false, 1};
             }
 
-            if (opInput->getShape()[2] != weights->getShape()[3])
+            if (opInput->getShape()[2] != weights->getShape()[2])
             {
-                errMsg = "Output channel does not match the channel dimension of input " + std::to_string(opInput->getShape()[2]);
+                errMsg = "Number of weights channels not match input_channels " + std::to_string(opInput->getShape()[2]);
                 return {false, 1};
             }
 
-            if (weights->getShape()[2] != 1 /*weights->getShape()[2]*/)
-            {
-                errMsg = "Number of weights channels not match 1 " + std::to_string(opInput->getShape()[2]);
-                return {false, 1};
-            }
-            
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
 
             if (opInput->getShape()[0] + padding[0] + padding[1] < weights->getShape()[0])
@@ -74,7 +68,7 @@ namespace mv
 
             // Make sure that the result of subtract will not be negative
             mv::Shape outputShape({(inputs[0]->getShape()[0] + padding[0] + padding[1] - weights->getShape()[0]) / stride[0] + 1, (
-                inputs[0]->getShape()[1] + padding[2] + padding[3] - weights->getShape()[1]) / stride[1] + 1, inputs[0]->getShape()[2]});
+                inputs[0]->getShape()[1] + padding[2] + padding[3] - weights->getShape()[1]) / stride[1] + 1, inputs[0]->getShape()[2] * weights->getShape()[3]});
 
             outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
 
