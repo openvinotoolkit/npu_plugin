@@ -171,8 +171,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto quantizationParams = t->get<mv::QuantizationParams>("quantizationParams");
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        //toBuild->quant_shift = quantizationParams.getShift(); // FUTURE?
-        //toBuild->quant_scale = quantizationParams.getScale(); // FUTURE?
     }
 
     return toBuild;
