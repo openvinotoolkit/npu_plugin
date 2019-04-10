@@ -82,15 +82,9 @@ namespace mv
             auto C =  inputs[1]->getShape()[3] * group;
 
             auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
-            auto zero_point = quantParams.getZeroPoint();
-            auto scale = quantParams.getScale();
-            auto min = quantParams.getMin();
-            auto max = quantParams.getMax();
             // TODO: un-hardcode assumption about "CHW" layout
             mv::Shape outputShape({W, H, C});
-
-            outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), zero_point, scale,
-                min, max));
+            outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), quantParams));
 
         };
 

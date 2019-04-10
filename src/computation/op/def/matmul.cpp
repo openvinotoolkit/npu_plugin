@@ -44,12 +44,7 @@ namespace mv
         {
 
             auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
-            auto zero_point = quantParams.getZeroPoint();
-            auto scale = quantParams.getScale();
-            auto min = quantParams.getMin();
-            auto max = quantParams.getMax();
-            outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder(), zero_point, scale,
-                min, max));
+            outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder(), quantParams));
 
         };
 

@@ -1,6 +1,5 @@
 #include "include/mcm/tensor/tensor.hpp"
 #include "include/mcm/tensor/math.hpp"
-#include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order):
@@ -24,8 +23,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
         blocks_[i] = data_.begin() + i * blockSize_;
 }
 
-mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<unsigned>& zero, const std::vector<double>& scale,
-                   const std::vector<double>& min, const std::vector<double>& max):
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const mv::QuantizationParams &quantParams):
 Element(name),
 blockSize_(shape[-1]),
 blocks_(shape.totalSize() / blockSize_),
@@ -39,8 +37,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<Shape>("shape", shape_);
     set<Order>("order", order);
     set<DType>("dType", dType);
-    auto outputQuantParams = new mv::QuantizationParams(zero, scale, min, max);
-    set<mv::QuantizationParams>("quantizationParams", *outputQuantParams);
+    set<mv::QuantizationParams>("quantizationParams", quantParams);
     set<bool>("populated", false);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
