@@ -140,7 +140,7 @@ std::set<std::string> mv::TensorInterferenceGraph::getTensorNames_(mv::Computati
     return tensorNames;
 }
 
-std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(mv::ComputationModel& model, std::string& inode, std::size_t alignment)
+std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(std::string& inode)
 {
     size_t totalWeights = 0;
     //Since we use a directed graph to represent undirected IG, every parent node is also a child node
@@ -150,7 +150,7 @@ std::size_t  mv::TensorInterferenceGraph::getNeighborsWeight_(mv::ComputationMod
     //add parents
     for (mv::TensorInterferenceGraph::node_parent_iterator itr(ni); itr != this->node_end(); ++itr)
     {
-        totalWeights += model.getTensor((*itr).name)->computeTotalSize(alignment);
+        totalWeights += (*itr).weight;
     }
     return totalWeights;
 }
@@ -160,7 +160,10 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::Computatio
     for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
         (*it).weight = model.getTensor((*it).name)->computeTotalSize(alignment);
-        (*it).neighborsWeight = getNeighborsWeight_(model, (*it).name, alignment);
+    }
+    for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
+    {
+        (*it).neighborsWeight = getNeighborsWeight_((*it).name);
     }
 }
 
