@@ -25,15 +25,15 @@ namespace mv
                 return {false, 1};
             }
 
-            if (opInput->getShape()[2] != weights->getShape()[2])
+            if (opInput->getShape()[2] != weights->getShape()[3])
             {
-                errMsg = "Does not match the channel dimension of input " + std::to_string(opInput->getShape()[2]);
+                errMsg = "Output channel does not match the channel dimension of input " + std::to_string(opInput->getShape()[2]);
                 return {false, 1};
             }
 
-            if (weights->getShape()[3] != 1 /*weights->getShape()[2]*/)
+            if (weights->getShape()[2] != 1 /*weights->getShape()[2]*/)
             {
-                errMsg = "Number of output channels for weight shape does not match 1 " + std::to_string(opInput->getShape()[3]);
+                errMsg = "Number of weights channels not match 1 " + std::to_string(opInput->getShape()[2]);
                 return {false, 1};
             }
             

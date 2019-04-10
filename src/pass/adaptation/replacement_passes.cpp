@@ -185,7 +185,7 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             std::vector<double> weightsData(total_shape, value);
 
             //not sure about the order
-            auto weights = om.constant(weightsData, {kSize[0], kSize[1], inputShape[2], 1},
+            auto weights = om.constant(weightsData, {kSize[0], kSize[1], 1, inputShape[2]},
                             sourceTensor->getDType(), Order(Order::getRowMajorID(4)));
             auto weightsOp = om.getSourceOp(weights);
             //Check the last argument name!!!
