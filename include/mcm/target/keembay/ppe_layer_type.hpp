@@ -7,7 +7,7 @@
 
 namespace mv
 {
-    enum PpeLayerTypeEnum
+    enum PPELayerTypeEnum
     {
         PPELayerType_STORE = 0,
         PPELayerType_LOAD = 1,
@@ -39,7 +39,7 @@ namespace mv
         PPELayerType_FLEXARB = 27
     };
 
-    struct PpeLayerTypeEnumHash
+    struct PPELayerTypeEnumHash
     {
         template <typename T>
         std::size_t operator()(T t) const
@@ -48,42 +48,42 @@ namespace mv
         }
     };
 
-    class PpeLayerType : public LogSender
+    class PPELayerType : public LogSender
     {
 
     private:
 
-        static const std::unordered_map<PpeLayerTypeEnum, std::string, PpeLayerTypeEnumHash> ppeLayerTypeStrings_;
-        PpeLayerTypeEnum type_;
+        static const std::unordered_map<PPELayerTypeEnum, std::string, PPELayerTypeEnumHash> ppeLayerTypeStrings_;
+        PPELayerTypeEnum type_;
 
     public:
 
-        PpeLayerType();
-        PpeLayerType(PpeLayerTypeEnum value);
-        PpeLayerType(const PpeLayerType& other);
-        PpeLayerType(const std::string& value);
+        PPELayerType();
+        PPELayerType(PPELayerTypeEnum value);
+        PPELayerType(const PPELayerType& other);
+        PPELayerType(const std::string& value);
 
         std::string toString() const;
 
-        PpeLayerType& operator=(const PpeLayerType& other);
-        PpeLayerType& operator=(const PpeLayerTypeEnum& other);
-        operator PpeLayerTypeEnum() const;
+        PPELayerType& operator=(const PPELayerType& other);
+        PPELayerType& operator=(const PPELayerTypeEnum& other);
+        operator PPELayerTypeEnum() const;
 
         std::string getLogID() const override;
 
-        inline friend bool operator==(const PpeLayerType& a, const PpeLayerType& b)
+        inline friend bool operator==(const PPELayerType& a, const PPELayerType& b)
         {
             return a.type_ == b.type_;
         }
-        inline friend bool operator==(const PpeLayerType& a, const PpeLayerTypeEnum& b)
+        inline friend bool operator==(const PPELayerType& a, const PPELayerTypeEnum& b)
         {
             return a.type_ == b;
         }
-        inline friend bool operator!=(const PpeLayerType& a, const PpeLayerType& b)
+        inline friend bool operator!=(const PPELayerType& a, const PPELayerType& b)
         {
             return a.type_ != b.type_;
         }
-        inline friend bool operator!=(const PpeLayerType& a, const PpeLayerTypeEnum& b)
+        inline friend bool operator!=(const PPELayerType& a, const PPELayerTypeEnum& b)
         {
             return a.type_ != b;
         }
