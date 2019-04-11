@@ -247,6 +247,48 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             }
 
         }
+        if (jsonDescriptor["resources"]["nce_block"].valueType() != json::JSONType::Array)
+        {
+            reset();
+            return false;
+        }
+        else
+        {
+
+            for (std::size_t i = 0; i < jsonDescriptor["resources"]["nce_block"].size(); ++i)
+            {
+
+                std::string name;
+                std::size_t totalNumber;
+
+                if (!jsonDescriptor["resources"]["nce_block"][i].hasKey("name") ||
+                    !jsonDescriptor["resources"]["nce_block"][i].hasKey("totalNumber"))
+                {
+                    reset();
+                    return false;
+                }
+
+                if (jsonDescriptor["resources"]["nce_block"][i]["name"].valueType() != json::JSONType::String ||
+                    jsonDescriptor["resources"]["nce_block"][i]["totalNumber"].valueType() != json::JSONType::NumberInteger)
+                {
+                    reset();
+                    return false;
+                }
+
+                name = jsonDescriptor["resources"]["nce_block"][i]["name"].get<std::string>();
+                totalNumber = jsonDescriptor["resources"]["nce_block"][i]["totalNumber"].get<long long>();
+              
+                if (totalNumber < 0)
+                {
+                    reset();
+                    return false;
+                }
+
+                nceDefs_[name] = {totalNumber};
+
+            }
+
+        }
 
     }
 
@@ -372,6 +414,11 @@ mv::Element mv::TargetDescriptor::getSerialDefinition(std::string op_name, std::
 const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetDescriptor::memoryDefs() const
 {
     return memoryDefs_;
+}
+
+const std::map<std::string, mv::TargetDescriptor::NceDescriptor>& mv::TargetDescriptor::nceDefs() const
+{
+    return nceDefs_;
 }
 
 std::string mv::TargetDescriptor::getLogID() const

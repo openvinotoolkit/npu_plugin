@@ -145,10 +145,13 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                     auto inputTensorDmaDimension = inputTensorDma->getShape().totalSize() * (inputTensorDma->getDType().getSizeInBits()/8);
                     dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), _dma_dependency + 1);
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
-                    if(index <= dma_dependency)
+                    if(index <= dma_dependency) {
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);
-                    else
+                    }
+                    else {
                         cm.defineFlow(sortedOps[index - dma_dependency], inputTensorDmaOp);
+                        inputTensor = inputTensorDma;
+                    }
                 }
             }
         }
@@ -202,6 +205,10 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
             // Attaching also through a ControlFlow
             auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
+            auto outputTensor = flowIt.source()->getOutputTensor(0);
+
+            flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
+            flowIt->set<bool>("PositiveMemory", true);
             deallocateInputOp->set<unsigned>("opId", opId);
 
             // Control flows for the newly created operation must be attached now.

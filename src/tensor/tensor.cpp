@@ -210,6 +210,11 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
     populate(data);
 }
 
+int mv::Tensor::computeMemoryRequirement() const
+{
+    return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
+}
+
 void mv::Tensor::unpopulate()
 {
     if (!isPopulated())

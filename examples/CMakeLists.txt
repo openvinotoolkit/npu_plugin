@@ -58,13 +58,6 @@ else()
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
-    add_executable(elementwise_to_dpu elementwise_to_dpu.cpp)
-    target_link_libraries(elementwise_to_dpu cm)
-    add_executable(cm_linear cm_linear.cpp)
-    target_link_libraries(cm_linear cm)
-
-    add_executable(koala Koala_example.cpp)
-
     add_executable(cm_two_branch cm_two_branch.cpp)
     target_link_libraries(cm_two_branch cm)
 
@@ -76,6 +69,9 @@ else()
 
     add_executable(cm_resnet50_keembay cm_resnet50_keembay.cpp)
     target_link_libraries(cm_resnet50_keembay cm)
+
+    add_executable(cm_resnet50_test cm_resnet50_test.cpp)
+    target_link_libraries(cm_resnet50_test cm)
 
     add_executable(cm_resnet18 cm_resnet18.cpp)
     target_link_libraries(cm_resnet18 cm)
