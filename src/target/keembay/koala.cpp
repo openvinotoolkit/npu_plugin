@@ -273,15 +273,15 @@ void mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass
     /* Note in future here is where the optimal edge should be selected such that it minimises the increase in the critical path of the graph*/
 
   
-    for(size_t i = 0; i < possibleEdges.size(); i++) {
+    for(std::size_t i = 0; i < possibleEdges.size(); i++) {
 
         auto sourceName = possibleEdges[i].second->info.name;
         auto sinkName  = possibleEdges[i].first->info.name;
 
         pass.log(mv::Logger::MessageType::Debug, "Adding partial serialisation edge to KOALA graph from: " + sourceName + " --> " + sinkName );
 
-        auto newEdge = this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName, this](koalaGraph::PVertex const& vertices_) {return sourceName == vertices_->info.name;}), 
-                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName, this](koalaGraph::PVertex const& vertices_) {return sinkName == vertices_->info.name;}), 
+        auto newEdge = this->getGraph().addEdge(*std::find_if(vertices_.begin(), vertices_.end(), [&sourceName](koalaGraph::PVertex const& v) {return sourceName == v->info.name;}), 
+                                             *std::find_if(vertices_.begin(), vertices_.end(), [&sinkName](koalaGraph::PVertex const& v) {return sinkName == v->info.name;}), 
                                              edgeDescription(0,"PS_edge_"+sinkName+sourceName), 
                                              Koala::Directed);
         /*get number of vertices*/
@@ -358,12 +358,12 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from Input to source node of the current edge is " + std::to_string(resInputToSource.edgeNo));
 
-	    for (int i = 0; i < resInputToSource.edgeNo; i++) {
+	    for (int k = 0; k < resInputToSource.edgeNo; k++) {
 
             pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[i]->info.name);
 
             /*Add Fmax to the flow attribute of the edge*/
-            auto edge = lookUpKoalaEdgebyName(shortestPathEdges[i]->info.name, this->edges_);
+            auto edge = lookUpKoalaEdgebyName(shortestPathEdges[k]->info.name, this->edges_);
             (*edge)->info.flow +=Fmax;
 	    }
 
@@ -378,12 +378,12 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from the sink node of the current edge to the ouput node is " + std::to_string(resSinkToOuput.edgeNo));
 
-	    for (int i = 0; i < resSinkToOuput.edgeNo; i++) {
+	    for (int j = 0; j < resSinkToOuput.edgeNo; j++) {
 		    
             pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[i]->info.name);
 
             /*Add Fmax to the flow attribute of the edge*/
-            auto edge = lookUpKoalaEdgebyName(shortestPathEdges[i]->info.name, this->edges_);
+            auto edge = lookUpKoalaEdgebyName(shortestPathEdges[j]->info.name, this->edges_);
             (*edge)->info.flow +=Fmax;
 	    }
         /*Clear the container used to store the the edges on shorest paths*/
@@ -396,7 +396,6 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
     
 
     /* Perform Min cut on the graph, see this example: http://koala.os.niwa.gda.pl/api/examples/flow/example_Flow.html*/
-
     /* Set edge capacities (flow attribute of the edge ) and costs (=1)*/
 	Koala::AssocArray< koalaGraph::PEdge, Koala::Flow::EdgeLabs<int,int>> cap;
 
@@ -412,7 +411,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
     /*compute minimal cut*/
     Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
     
-    for (size_t i = 0; i < cutEdges.size(); i++)
+    for (std::size_t i = 0; i < cutEdges.size(); i++)
         maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
 
     /*Add Max topological cut value as attribute to output node*/
