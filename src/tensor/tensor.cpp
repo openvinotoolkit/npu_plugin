@@ -272,22 +272,14 @@ void mv::Tensor::populateSparsityMapTensor_()
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
         sub = getOrder().indToSub(shape, t);
-        if (sub[3] != n) //starting a new channel, reset map
+        if (sub[(sub.size()-1)] != n) //starting a new channel, reset map
         {
             n = sub[3];
-            if (shift != 0)
-            {
-                //write map
-                sparsityMapData.at(sparsityMapIdx++) = map;
-                // TODO : add padding to sparsityMap Channel
-                /*if (sparsityMapIdx % 16 != 0)
+                if (sparsityMapIdx % 16 != 0)
                 {
                     auto padding = 16 - (sparsityMapIdx%16);
                     sparsityMapIdx += padding;
-                }*/
-                map = 0;
-                shift = 0;
-            }
+                }
         }
         if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[3]])
         {
@@ -364,12 +356,12 @@ void mv::Tensor::setSparse()
     //Sparsity map
     //we choose layout as internal layout, no need to reorder
     mv::Shape mapShape({shape[0], shape[1], static_cast<std::size_t>(std::ceil(shape[2] / 8.0)), N});
-    /*if (isPopulated())
+    if (isPopulated())
     {
         //pad the shape
         auto paddedDim = mv::round_up(mapShape[0] * mapShape[1] * mapShape[2], 16);
         mapShape = {paddedDim, 1, 1, N};
-    }*/
+    }
     sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("UInt8"), Order("NCHW"));
     noneZeroElements_ = 0;
 
