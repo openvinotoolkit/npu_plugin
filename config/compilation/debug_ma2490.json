@@ -50,6 +50,7 @@
         "Singular": [
             "ExtendQuantizationParams",
             "ConvertOpsToTasks",
+            "KMBOrderConversion",
             "AlignTaskWeights",
             "GenerateSparsityMaps",
             "GenerateWeightsTables",
