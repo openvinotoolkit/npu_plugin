@@ -40,9 +40,7 @@ namespace mv
 
         struct NceDescriptor
         {
-
             std::size_t totalNumber;
-
         };
 
 
