@@ -13,10 +13,7 @@
 // and de-allocation tasks for the temporary CMX buffers.
 
 int main()
-{
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
-
-    
+{   
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
