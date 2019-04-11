@@ -67,6 +67,7 @@ namespace mv
     template <typename T_node, typename T_edge, typename EdgeItComparator>
     void transitiveReduction(graph<T_node, T_edge>& g, const std::set<typename graph<T_node, T_edge>::edge_list_iterator, EdgeItComparator>& filteredEdges = std::set<typename graph<T_node, T_edge>::edge_list_iterator, EdgeItComparator>())
     {
+        // Topological sort in this case also checks if the graph is dag. Hence, no explicit check for DAG is needed here.
         auto sortedNodes = topologicalSort(g);
 
         for(auto node : sortedNodes)
