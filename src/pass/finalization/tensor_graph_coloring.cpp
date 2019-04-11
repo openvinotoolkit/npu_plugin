@@ -274,6 +274,7 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
     std::list<std::string>& coloredNeighbors, mv::TensorInterferenceGraph& g)
 {
     auto currentNode = directedGraph.node_find((*ni).name);
+    auto edgeIdx = directedGraph.edge_size();
     for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
     {
         auto neighbor = g.node_find(*it);
@@ -281,12 +282,12 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
 
         if ((*ni).address < (*neighbor).address)
         {
-            directedGraph.edge_insert(dn, currentNode, 0);
+            directedGraph.edge_insert(dn, currentNode, edgeIdx++);
             //std::cout << "\tassignOrientation::adding edge from" << *dn << " -> " << *currentNode << std::endl;
         }
         else
         {
-            directedGraph.edge_insert(currentNode, dn, 0);
+            directedGraph.edge_insert(currentNode, dn, edgeIdx++);
             //std::cout << "\tassignOrientation::adding edge from" << *currentNode  << " -> "  << *dn << std::endl;
         }
 
@@ -294,7 +295,7 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
 
     //collect redundent edges of predecessors and successors of colored neighbors in DAG
     //POC removes edges when detecting one, and dont collect then remove, that might leave some edges (since it's order dependant)
-    std::vector<mv::graph<std::string, int>::edge_sibling_iterator> redundantEdges;
+    std::vector<int> redundantEdges;
     for (auto it = coloredNeighbors.begin(); it != coloredNeighbors.end(); it++)
     {
         mv::graph<std::string, int>::node_list_iterator dn = directedGraph.node_find(*it);
@@ -310,8 +311,7 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
                 auto edgeEntry = sinkMap.find(*childIt);
                 if (edgeEntry != sinkMap.end())
                 {
-                    redundantEdges.push_back(edgeEntry->second);
-                    //std::cout << "\tassignOrientation::removing edge from" << *parentIt  << " -> "  << edgeEntry->first << std::endl;
+                    redundantEdges.push_back(*edgeEntry->second);
                 }
             }
         }
@@ -320,7 +320,9 @@ void assignOrientation(mv::graph<std::string, int>& directedGraph, mv::TensorInt
     //remove those edges
     for (auto it = redundantEdges.begin(); it != redundantEdges.end(); it++)
     {
-        directedGraph.edge_erase((*it));
+        auto e = directedGraph.edge_find((*it));
+        if  (e != directedGraph.edge_end())
+            directedGraph.edge_erase(e);
     }
 }
 
