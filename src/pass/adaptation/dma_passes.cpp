@@ -199,6 +199,9 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             // to the operation that created it
             om.deallocate(inputTensor, deallocationName);
             auto deallocateInputOp = om.getOp(deallocationName);
+
+            // Attaching also through a ControlFlow
+            auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
             deallocateInputOp->set<unsigned>("opId", opId);
 
             // Control flows for the newly created operation must be attached now.
@@ -220,7 +223,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                 cm.defineFlow(*chosenOp, deallocateInputOp);
             for(auto son = chosenOp->leftmostChild(); son != om.opEnd(); ++son)
                 if(!cm.checkControlFlow(deallocateInputOp, son))
-                    cm.defineFlow(deallocateInputOp, son);
+                    if(son->getOpType() != "Deallocate")
+                        cm.defineFlow(deallocateInputOp, son);
 
         }
     }
