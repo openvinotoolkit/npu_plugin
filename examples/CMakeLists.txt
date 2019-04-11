@@ -110,7 +110,8 @@ else()
 	  target_link_libraries(dpu_task_example cm)
  
     add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
-	  target_link_libraries(dpu_conv_3_conv cm)
+    target_link_libraries(dpu_conv_3_conv cm)
+    
     add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
 	  target_link_libraries(dpu_conv_2_conv cm)
 
