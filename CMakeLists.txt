@@ -294,7 +294,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut_test.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_myriadX.cpp"

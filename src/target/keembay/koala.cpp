@@ -24,11 +24,17 @@ mv::koalaGraph& mv::KoalaClass::getGraph()
  */
 
 std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
-    
-    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
-        if((*iter)->info.sinkNode == sinknode) {
-            return iter;
+    try
+    {
+        for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
+            if((*iter)->info.sinkNode == sinknode) 
+                return iter; 
         }
+        throw RuntimeError(*this, "Could not find Koala graph sink node, exit");
+    }
+    catch (RuntimeError e)
+    {
+        log(Logger::MessageType::Error, e.what());
     }
     return koalaVertices.end();
 }
@@ -42,10 +48,17 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoala
 
 std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
     
-    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
-        if((*iter)->info.sourceNode == sourcenode) {
-            return iter;
+    try 
+    {
+        for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
+            if((*iter)->info.sourceNode == sourcenode) 
+                return iter;
         }
+        throw RuntimeError(*this, "Could not find Koala graph source node, exit");
+    }
+    catch (RuntimeError e)
+    {
+        log(Logger::MessageType::Error, e.what());
     }
     return koalaVertices.end();
 }
@@ -59,18 +72,24 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoala
 
 std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaClass::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
     
-    for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter) {
-        if((*iter)->info.name == edgeName) {
-            return iter;
+    try 
+    {
+        for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter) {
+            if((*iter)->info.name == edgeName) 
+                return iter;
         }
+        throw RuntimeError(*this, "Could not find edge by name in the Koala graph, exit");
+    }
+    catch (RuntimeError e)
+    {
+        log(Logger::MessageType::Error, e.what());
     }
     return koalaEdges.end();
 }
-
 /**
  * @brief Convert McM graph (control model view) to KOALA graph and store the data required to perform the max topoloigcal cut algorithm on the KOALA graph edges
  * @param pass  - pass object
- * @param model - MCM computation model
+ * @param model - McM computation model
  */
 void  mv::KoalaClass::convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
@@ -112,7 +131,7 @@ void  mv::KoalaClass::convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pas
                pass.log(mv::Logger::MessageType::Debug, "Adding vertex to KOALA graph: " + opIt->getName());
 
                this->vertices_.push_back(this->getGraph().addVert(nodeDescription(opIt->getName(),0, false,false)));
-                nodeAdded = true;
+               nodeAdded = true;
            }
        }
     }
@@ -184,17 +203,15 @@ void mv::KoalaClass::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationMo
         /*Find the McM iterator for the source node*/
         for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) {
             
-            if(opItSource->getName() == edgeSourceName) {
+            if(opItSource->getName() == edgeSourceName) 
                 mcmSourceNodeIterator = opItSource;
-            }
         }
 
         /*Find the McM iterator for the sink node*/
         for (auto opItSink = cm.getFirst(); opItSink != cm.opEnd(); ++opItSink) {
             
-            if(opItSink->getName() == edgeSinkName) {
+            if(opItSink->getName() == edgeSinkName) 
                 mcmSinkNodeIterator = opItSink;
-            }
         }
         
         /*Add the edge to graph*/
@@ -211,20 +228,15 @@ void mv::KoalaClass::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationMo
  * @param graphSink - Sink node of KOALA graph
  * @param vertices - Vector of KOALA vertices iterators
  * @param edges - Vector of KOALA edge iterators
- * @return - 0 success, -1 Failure
+ * @return - 0 success
  */
-int mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass, int cutValue, std::vector<koalaGraph::PEdge> cutEdges) {
+void mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges) {
     
     /* Partial serialisation works by getting the source and sink nodes of the cutEdges returned from max topoloigcal cut
      * It then creates a pool of all possible edges that it can add to the graph using these source and sink nodes.
      * Do not include the original cut edges in this pool as they are already in the graph.
      * The direction of the new edge is however in the opposite direction, sink --> source. Take care to ensure the correct direction. 
     */
-
-    auto graphSource = lookUpKoalaSourceNode(true, this->vertices_);
-
-    auto graphSink = lookUpKoalaSinkNode(true, this->vertices_);
-
 
     /*Sources and sinks of cut edges*/
     std::vector<koalaGraph::PVertex> sources;
@@ -285,7 +297,7 @@ int mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass,
 
     try
     {
-        for(int i = 0; i < possibleEdges.size(); i++) {
+        for(size_t i = 0; i < possibleEdges.size(); i++) {
 
         auto sourceName = possibleEdges[i].second->info.name;
         auto sinkName  = possibleEdges[i].first->info.name;
@@ -314,7 +326,7 @@ int mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass,
 
             /*keep track of the edges added as these edges will be added to mcmGraph*/
             partialSerialisationEdgesAdded_.push_back(newEdge);
-            return 0;
+            return;
         }
         else {
             pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );

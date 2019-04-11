@@ -44,6 +44,7 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
 /* It is not possible to do a direct comparison with the PoC compiler until the edges are inserted optimally*/
 TEST(MaxTopologicalCut, greaterThanCMXMemory)
 {
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 
     mv::CompilationUnit unit("testMaxTopologicalCut");
     mv::OpModel& om = unit.model();

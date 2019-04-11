@@ -71,11 +71,12 @@ namespace mv
         ~KoalaClass();
         koalaGraph& getGraph();
 
-        int performPartialSerialisation(const mv::pass::PassEntry& pass, int cutValue, std::vector<koalaGraph::PEdge> cutEdges);
-        std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+        void performPartialSerialisation(const mv::pass::PassEntry& pass, std::vector<koalaGraph::PEdge> cutEdges);
+        std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         int calculateFMax(mv::ComputationModel& model);
-        void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);  
+        void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);
+          
         std::string getLogID() const override;
 
     };
