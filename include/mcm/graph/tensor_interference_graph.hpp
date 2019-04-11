@@ -43,17 +43,17 @@ namespace mv
         private:
             std::string getTensorTopMaster_(const Data::TensorIterator& t, ComputationModel& model);
             std::set<std::string> getTaskTopTensors_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model,
-                const TensorIteratorFilter& tensorFilter);
+                const TensorIteratorFilter& tensorFilter, bool isDMA);
             bool checkNodesAreNeighbors_(TensorInterferenceGraph::node_list_iterator& n1, TensorInterferenceGraph::node_list_iterator& n2);
             bool checkNodeInterference_(ComputationModel& model, const std::string& tensor1, const std::string& tensor2);
             bool isTensorInTopNames_(const std::vector<Data::TensorIterator>& tensorList, ComputationModel& model, const std::string tensorName);
             bool isSinkNode_(Data::OpListIterator& opIterator);
-            void genIntereferenceGraph_(ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter);
-            std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter);
-            void cleanupDuplicateTensorNodes_(bool isDMA);
+            void genIntereferenceGraph_(ComputationModel& model , const TensorIteratorFilter& tensorFilter,const OpIteratorFilter& taskFilter, bool isDMA);
+            std::set<std::string> getTensorNames_(ComputationModel& model, const TensorIteratorFilter& tensorFilter, const OpIteratorFilter& taskFilter, bool isDMA);
             void addWeightsToInterferenceGraph_(ComputationModel& model, std::size_t alignment);
-            std::size_t  getNeighborsWeight_(ComputationModel& model, std::string& node, std::size_t alignment);
+            std::size_t  getNeighborsWeight_(std::string& node);
             void buildCompleteGraph_(std::set<std::string> tensorNames);
+            bool checkIsCMXTensor_(const Data::TensorIterator tensorIt);
 
         public:
             TensorInterferenceGraph() : graph<mv::TensorInterferenceGraphNode, int>() {}

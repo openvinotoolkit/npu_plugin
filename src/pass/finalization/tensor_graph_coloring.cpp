@@ -8,17 +8,17 @@
 #include <limits.h>
 
 
-static void graphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
 
     namespace pass
     {
-        MV_REGISTER_PASS(GraphColoring)
-        .setFunc(graphColoringFnc)
+        MV_REGISTER_PASS(TensorGraphColoring)
+        .setFunc(tensorGraphColoringFnc)
         .setDescription(
-            "graph coloring implmentation used in memory allocation algorithm"
+            "Tensor graph coloring implementation used in memory allocation algorithm"
         );
     }
 }
@@ -352,7 +352,7 @@ std::size_t maxHeight(mv::TensorInterferenceGraph::node_list_iterator& ni, mv::g
     return currMaxHeight;
 }
 
-std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceGraph::node_list_iterator& ni, size_t chromaticNumber,
+std::size_t tryInsertion(std::pair<size_t, size_t>& gap, mv::TensorInterferenceGraph::node_list_iterator& ni,
     std::list<std::string>& coloredNeighbors, mv::graph<std::string, int>& directedGraph, mv::TensorInterferenceGraph& g)
 {
     auto startAddress = gap.first;
@@ -426,7 +426,7 @@ std::size_t bestFitSelect(std::string& name, mv::TensorInterferenceGraph& g, lon
     size_t currChromaticNumber;
     for (auto itr = gaps.begin(); itr != lastgap; itr++)
     {
-        currChromaticNumber = tryInsertion(*itr, ni, chromaticNumber, coloredNeighbors, directedGraph, g);
+        currChromaticNumber = tryInsertion(*itr, ni, coloredNeighbors, directedGraph, g);
         if (currChromaticNumber < insertionChromaticNumbersMin)
         {
             insertionChromaticNumbersMin = currChromaticNumber;
@@ -493,12 +493,11 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string
 
 }
 
-void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
+void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Started");
 
     mv::OpModel om(model);
-    mv::DataModel dm(model);
 
     auto memDefs = target.memoryDefs();
 
@@ -515,7 +514,7 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
         std::cout << std::endl;
     }*/
     auto memsize = memDefs.find("VPU_DDR_BSS")->second.size;
-    auto alignment = memDefs.find("VPU_DDR_BSS")->second.alignment;
+    auto alignment = 16; //memDefs.find("VPU_DDR_BSS")->second.alignment; //TODO for now POC uses 16 for all memory
     mv::TensorInterferenceGraph ddr_bss_g(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
             {
@@ -526,13 +525,11 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 return (t->getOpType() == "DMATask");
             },
             true);
-    //ddr_bss_g.printGraph("DDR_BSS");
-    ddr_bss_g.drawGraph("ddr_bss");
     auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
-    printASOrder(agOrder, "DDR_BSS");
+    //printASOrder(agOrder, "DDR_BSS");
 
     bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
-    ddr_bss_g.drawGraph("ddr_bss_memory");
+    //ddr_bss_g.drawGraph("ddr_bss_memory");
 
     mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
             [](const mv::Data::TensorIterator& t) -> bool
@@ -544,24 +541,20 @@ void graphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
                 return (t->getOpType() == "DMATask");
             },
             false);
-    //ddr_heap_g.printGraph("DDR_HEAP");
-    ddr_heap_g.drawGraph("ddr_heap");
     memsize = memDefs.find("VPU_DDR_Heap")->second.size;
-    alignment = memDefs.find("VPU_DDR_Heap")->second.alignment;
+    alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
     agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
-    printASOrder(agOrder, "DDR_HEAP");
+    //printASOrder(agOrder, "DDR_HEAP");
     bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
-    ddr_heap_g.drawGraph("ddr_heap_memory");
+    //ddr_heap_g.drawGraph("ddr_heap_memory");
 
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
     memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
-    alignment = memDefs.find("VPU_CMX_NN")->second.alignment;
+    alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
-    //nncmx_g.printGraph("NNCMX");
-    nncmx_g.drawGraph("nncmx");
-    printASOrder(agOrder, "NNCMX");
+    //printASOrder(agOrder, "NNCMX");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
-    nncmx_g.drawGraph("nncmx_memory");
+    //nncmx_g.drawGraph("nncmx_memory");
 
     pass.log(mv::Logger::MessageType::Debug, "Graph Coloring Ended");
 }
