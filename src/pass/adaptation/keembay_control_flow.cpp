@@ -99,7 +99,7 @@ void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computatio
           DMA/DPU -> Dealloc
         */
         int memoryRequirement = 1;
-        auto dType = flowIt.source()->getInputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
+        auto dType = flowIt.source()->getOutputTensor()[0]->get<mv::DType>("dType").getSizeInBits();
              
         for (unsigned int i = 0; i < flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape").ndims(); i++) 
             memoryRequirement = flowIt.source()->getOutputTensor()[0]->get<mv::Shape>("shape")[i] * memoryRequirement;
