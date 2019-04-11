@@ -24,19 +24,12 @@ mv::koalaGraph& mv::KoalaClass::getGraph()
  */
 
 std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
-    try
-    {
-        for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
-            if((*iter)->info.sinkNode == sinknode) 
-                return iter; 
-        }
-        throw RuntimeError(*this, "Could not find Koala graph sink node, exit");
+ 
+    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
+        if((*iter)->info.sinkNode == sinknode) 
+            return iter; 
     }
-    catch (RuntimeError e)
-    {
-        log(Logger::MessageType::Error, e.what());
-    }
-    return koalaVertices.end();
+    throw std::runtime_error("Could not find Koala graph sink node, exit");
 }
 
 /**
@@ -48,19 +41,11 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoala
 
 std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
     
-    try 
-    {
-        for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
-            if((*iter)->info.sourceNode == sourcenode) 
-                return iter;
-        }
-        throw RuntimeError(*this, "Could not find Koala graph source node, exit");
+    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
+        if((*iter)->info.sourceNode == sourcenode) 
+            return iter;
     }
-    catch (RuntimeError e)
-    {
-        log(Logger::MessageType::Error, e.what());
-    }
-    return koalaVertices.end();
+    throw std::runtime_error("Could not find Koala graph source node, exit"); 
 }
 
 /**
@@ -72,19 +57,11 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoala
 
 std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaClass::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
     
-    try 
-    {
-        for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter) {
-            if((*iter)->info.name == edgeName) 
-                return iter;
-        }
-        throw RuntimeError(*this, "Could not find edge by name in the Koala graph, exit");
+    for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter) {
+        if((*iter)->info.name == edgeName) 
+            return iter;
     }
-    catch (RuntimeError e)
-    {
-        log(Logger::MessageType::Error, e.what());
-    }
-    return koalaEdges.end();
+    throw std::runtime_error("Could not find edge by name in the Koala graph, exit");
 }
 /**
  * @brief Convert McM graph (control model view) to KOALA graph and store the data required to perform the max topoloigcal cut algorithm on the KOALA graph edges
@@ -295,9 +272,8 @@ void mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass
     /* It is still a DAG then recalculate max topological cut*/
     /* Note in future here is where the optimal edge should be selected such that it minimises the increase in the critical path of the graph*/
 
-    try
-    {
-        for(size_t i = 0; i < possibleEdges.size(); i++) {
+  
+    for(size_t i = 0; i < possibleEdges.size(); i++) {
 
         auto sourceName = possibleEdges[i].second->info.name;
         auto sinkName  = possibleEdges[i].first->info.name;
@@ -310,13 +286,13 @@ void mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass
                                              Koala::Directed);
         /*get number of vertices*/
         int n = this->getGraph().getVertNo();
-		koalaGraph::PVertex LOCALARRAY(tabV, n);
+	    koalaGraph::PVertex LOCALARRAY(tabV, n);
 		
         /* Get topological order*/
-		Koala::DAGAlgs::topOrd(this->getGraph(), tabV); 
+	    Koala::DAGAlgs::topOrd(this->getGraph(), tabV); 
 		
         /*Check if it is a DAG*/
-		bool isDag = Koala::DAGAlgs::isDAG(this->getGraph(), tabV, tabV + n);
+	    bool isDag = Koala::DAGAlgs::isDAG(this->getGraph(), tabV, tabV + n);
 
         if(isDag) {
             pass.log(mv::Logger::MessageType::Debug, "The graph is still a DAG after adding partial serialisation edge, recalulating max topological cut value");
@@ -332,15 +308,8 @@ void mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass
             pass.log(mv::Logger::MessageType::Debug, "Removing partial serialisation edge as graph is no longer a DAG, from: " + sourceName + " --> " + sinkName );
             this->getGraph().delEdge(newEdge);
         }
-        
     }
-    
-    throw RuntimeError(*this, "Unable to find partial serialisation edge, exit");
-    }
-    catch (RuntimeError e)
-    {
-        log(Logger::MessageType::Error, e.what());
-    }
+    throw std::runtime_error("Unable to find partial serialisation edge, exit");
 }
 
 /*
@@ -405,7 +374,6 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
         shortestPathEdges.clear(); 
 
         /*Find the shortest path from the sink node of the edge to the sink node (DMA task CMX to DDR)*/
-
         Koala::DijkstraHeap::PathLengths <int> resSinkToOuput = Koala::DijkstraHeap::findPath(this->getGraph(), edgeMap, this->getGraph().getEdgeEnds(this->edges_[i]).second, (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from the sink node of the current edge to the ouput node is " + std::to_string(resSinkToOuput.edgeNo));
