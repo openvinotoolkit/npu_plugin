@@ -49,15 +49,9 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     auto cmxMemory = (availableNNCMX / numberOfVPUClusters) * cmxSafetyFactor;
 
     /*Repeat partial serialisation until max topological cut is less than CMX memory*/
-    while (maxTopologicalCut.first > cmxMemory) {
-        int res = flowGraph.performPartialSerialisation(pass, maxTopologicalCut.first, maxTopologicalCut.second);
-        if(!res)
-            maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
-        else
-            throw std::runtime_error("Unable to find partial serialisation edge, exit");
-       
-    }
-
+    while (maxTopologicalCut.first > cmxMemory)
+        flowGraph.performPartialSerialisation(pass, maxTopologicalCut.first, maxTopologicalCut.second);
+    
     /*Add the partial serialisaion edges to the mcmGraph*/
     flowGraph.insertpartialSerialisationEdgesInMcmGraph(model);
 }

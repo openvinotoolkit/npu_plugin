@@ -6,11 +6,13 @@
 #include <functional>
 #include "include/mcm/computation/model/model_element.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/logger/log_sender.hpp"
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 #include "../../../../contrib/koala/graph/graph.h"
 #include "../../../../contrib/koala/algorithm/conflow.h"
 #include "../../../../contrib/koala/algorithm/weights.h"
@@ -50,14 +52,13 @@ namespace mv
     /*KOALA graph node and edge type*/
     using koalaGraph = Koala::Graph <nodeDescription, edgeDescription>;
     
-    class KoalaClass
+    class KoalaClass : public LogSender
     {
         koalaGraph* graph_;
 
         /*KOALA vertices and edges iterators*/
         std::vector<koalaGraph::PVertex> vertices_;  
         std::vector<koalaGraph::PEdge> edges_;
-
         /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
         std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded_;
 
@@ -75,6 +76,7 @@ namespace mv
         void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         int calculateFMax(mv::ComputationModel& model);
         void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);  
+        std::string getLogID() const override;
 
     };
 }

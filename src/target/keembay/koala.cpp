@@ -21,7 +21,6 @@ mv::koalaGraph& mv::KoalaClass::getGraph()
  * @param sinkNode - attribute of the KOALA node indicating if it is the sink node (true) 
  * @param koalaVertices - vector of KOALA vertices iterators
  * @return An iterator to a KOALA vertex iterator 
- * 
  */
 
 std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
@@ -39,7 +38,6 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoala
  * @param sinkNode - attribute of the KOALA node indicating if it is the source node (true) 
  * @param koalaVertices - vector of KOALA vertices iterators
  * @return An iterator to a KOALA vertex iterator
- * 
  */
 
 std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
@@ -57,7 +55,6 @@ std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoala
  * @param edgeName - the name of the KOALA vertex you are searching for
  * @param koalaEdges - vector of KOALA edges iterators
  * @return An iterator to a KOALA vertex iterator
- * 
  */
 
 std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaClass::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
@@ -74,9 +71,6 @@ std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaClass::lookUpKoalaEd
  * @brief Convert McM graph (control model view) to KOALA graph and store the data required to perform the max topoloigcal cut algorithm on the KOALA graph edges
  * @param pass  - pass object
  * @param model - MCM computation model
- * @param flowGraph - An instance of KOALA graph
- * @param V - Vector to store iterators to KOALA vertices 
- * @param E - Vector to store iterators to KOALA edges
  */
 void  mv::KoalaClass::convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
@@ -288,7 +282,10 @@ int mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass,
     /* Attempt to add each edge to edge in the graph and check if it is still a DAG*/
     /* It is still a DAG then recalculate max topological cut*/
     /* Note in future here is where the optimal edge should be selected such that it minimises the increase in the critical path of the graph*/
-    for(int i = 0; i < possibleEdges.size(); i++) {
+
+    try
+    {
+        for(int i = 0; i < possibleEdges.size(); i++) {
 
         auto sourceName = possibleEdges[i].second->info.name;
         auto sinkName  = possibleEdges[i].first->info.name;
@@ -325,7 +322,13 @@ int mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass,
         }
         
     }
-    return -1;
+    
+    throw RuntimeError(*this, "Unable to find partial serialisation edge, exit");
+    }
+    catch (RuntimeError e)
+    {
+        log(Logger::MessageType::Error, e.what());
+    }
 }
 
 /*
@@ -439,6 +442,11 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
     pass.log(mv::Logger::MessageType::Debug, "The maximum peak memory of the graph is " + std::to_string(maxTopologicalCutValue) + " bytes");
 
     return std::make_pair(maxTopologicalCutValue, cutEdges);
+}
+
+std::string mv::KoalaClass::getLogID() const
+{
+    return "Koala";
 }
 
 
