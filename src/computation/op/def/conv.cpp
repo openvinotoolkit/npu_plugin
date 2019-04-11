@@ -84,7 +84,11 @@ namespace mv
             auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
             // TODO: un-hardcode assumption about "CHW" layout
             mv::Shape outputShape({W, H, C});
-            outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), quantParams));
+
+            if (quantParams.isEmpty() == true)
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), quantParams));
 
         };
 

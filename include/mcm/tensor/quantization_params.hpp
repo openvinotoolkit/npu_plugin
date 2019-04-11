@@ -18,10 +18,6 @@ namespace mv
         if (value.size() == 1)
             return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
 
-//        //for Operations with no quant Params
-//        if (value.size() == 0)
-//            return mv::utils::generateSequence<T>(size, static_cast<T>(1) , 0);
-
         if (value.size() == size)
             return value;
 
@@ -57,6 +53,7 @@ namespace mv
         unsigned getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;
         virtual std::string toString() const override;
+        virtual bool isEmpty() const;
     };
 
 }
