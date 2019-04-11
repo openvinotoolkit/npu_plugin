@@ -42,10 +42,10 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
-            outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder(), quantParams));
-
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+                outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", {inputs[0]->getShape()[0], inputs[1]->getShape()[1]}, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
         MV_REGISTER_OP(MatMul)

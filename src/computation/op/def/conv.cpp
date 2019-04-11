@@ -81,14 +81,13 @@ namespace mv
             auto H = (inputs[0]->getShape()[1] + padding[2] + padding[3] - inputs[1]->getShape()[1]) / stride[1] + 1;
             auto C =  inputs[1]->getShape()[3] * group;
 
-            auto quantParams = args.at("quantParams").get<mv::QuantizationParams>();
             // TODO: un-hardcode assumption about "CHW" layout
             mv::Shape outputShape({W, H, C});
 
-            if (quantParams.isEmpty() == true)
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), quantParams));
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
