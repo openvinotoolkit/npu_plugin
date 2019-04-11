@@ -64,6 +64,8 @@ namespace mv
 
         std::string getLogID() const override;
         std::string toString() const;
+
+        static void reset();
     };
 
 }

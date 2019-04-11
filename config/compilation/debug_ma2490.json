@@ -134,6 +134,8 @@
                 "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
             },
             "MaxTopologicalCut",
+            "RemoveDeallocationTasks",
+            "TransitiveReduction",
             {
                 "name":"InsertBarrierTasks",
                 "barrier_index_assignment": "Dynamic"
