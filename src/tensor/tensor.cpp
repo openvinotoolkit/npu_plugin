@@ -274,7 +274,7 @@ void mv::Tensor::populateSparsityMapTensor_()
         sub = getOrder().indToSub(shape, t);
         if (sub[(sub.size()-1)] != n) //starting a new channel, reset map
         {
-            n = sub[3];
+            n = sub[(sub.size()-1)];
                 if (sparsityMapIdx % 16 != 0)
                 {
                     auto padding = 16 - (sparsityMapIdx%16);
