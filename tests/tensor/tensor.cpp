@@ -1027,7 +1027,7 @@ TEST(tensor, sparsity)
     }
     t.populate(indata);
 
-    mv::QuantizationParams q({137}, {0.00282943}, {0},{0});
+    mv::QuantizationParams q({122}, {0.00282943}, {0},{0});
     t.set<mv::QuantizationParams>("quantizationParams",q);
     ASSERT_NO_THROW(t.setSparse());
     ASSERT_TRUE(t.isSparse());
@@ -1046,24 +1046,36 @@ TEST(tensor, sparsity)
     }
 
     ASSERT_TRUE(count == res.size());
-
+    //channelTracker is a counter used to scan through the channels
+    uint64_t channelTracker = 0;
+    //counter is used to track non-padding values
+    uint64_t counter = 0;
     for (unsigned i = 0; i < res.size(); ++i)
     {
-        //std::cout<< i << std::endl;
         ASSERT_EQ(res[i], refdata[i]);
         for (size_t k=0; k < 8; k++)
         {
-            if (data_res[i*8+k] == 137)
-                ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) == 0);
-            if (data_res[i*8+k] != 137)
-                ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) != 0);
+            if (channelTracker == t.getShape()[(t.getShape().ndims())-1])
+            {
+                channelTracker = 0;
+                i = i + i%16;
+            }
+            if (i < res.size())
+            {
+                channelTracker++;
+                if (data_res[counter*8+k] == 122)
+                    ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) == 0);
+                if (data_res[counter*8+k] != 122)
+                    ASSERT_TRUE((static_cast<uint8_t>(res[i]) & (1<<k)) != 0);
+            }
         }
+        counter++;
     }
-
+    
     mv::Shape seShape({1,1,1,64});
     ASSERT_TRUE(seShape == t.getStorageElement()->getShape());
 
-    mv::Shape sparsityMapShape({1,1,8,64});
+    mv::Shape sparsityMapShape({16,1,1,64});
     ASSERT_TRUE(sparsityMapShape == sparsityMap->getShape());
 }
 
