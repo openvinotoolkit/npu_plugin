@@ -5,20 +5,12 @@
 
 static void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
 
     namespace pass
     {
-
-        MV_REGISTER_PASS(DeallocationControlFlows)
-        .setFunc(deallocationControlFlowsFcn)
-        .setDescription(
-            ""
-        );
-
         MV_REGISTER_PASS(DmaControlFlows)
         .setFunc(dmaControlFlowsFcn)
         .setDescription(
@@ -51,47 +43,6 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
     auto lastDMAOp = outputOp.leftmostParent();
     if(!cm.checkControlFlow(lastDMAOp, outputOp))
         cm.defineFlow(lastDMAOp, outputOp);
-}
-
-// This pass adds Control flows relative to a DeallocateTask
-// A deallocate task must happen after the operation in which the data is involved. Basically all siblings in DataFlow Context (inflows)
-// A deallocate task must also happen after the operation that allocated the data. (inflows)
-
-// A deallocate task must also happen before the his nieces (outflow) in both DataFlow and ControlFlow contex.
-void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-
-    auto deallocateOps = om.getOps("Deallocate");
-    for(auto op : deallocateOps)
-    {
-        auto parentOp = op.leftmostParent();
-
-        if(!cm.checkControlFlow(parentOp, op))
-            cm.defineFlow(parentOp, op);
-
-        for(auto sibling = parentOp.leftmostChild(); sibling != om.opEnd(); ++sibling)
-        {
-            if(sibling->getOpType() == "Deallocate")
-                continue;
-
-            // In flows
-            if(!cm.checkControlFlow(sibling, op))
-                cm.defineFlow(sibling, op);
-
-            // Out flows
-            for(auto dataNiece = sibling.leftmostChild(); dataNiece != om.opEnd(); ++dataNiece)
-                if(dataNiece->getOpType() != "Deallocate")
-                    if(!cm.checkControlFlow(op, dataNiece))
-                        cm.defineFlow(op, dataNiece);
-
-            for(auto controlNiece = cm.switchContext(sibling).leftmostChild(); controlNiece != cm.opEnd(); ++controlNiece)
-                if(controlNiece->getOpType() != "Deallocate")
-                    if(!cm.checkControlFlow(cm.switchContext(op), controlNiece))
-                        cm.defineFlow(cm.switchContext(op), controlNiece);
-        }
-    }
 }
 
 // This pass adds control flows relative to a DMA Task.
