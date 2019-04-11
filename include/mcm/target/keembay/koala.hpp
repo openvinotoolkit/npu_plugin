@@ -47,10 +47,10 @@ namespace mv
         memoryRequirement(m), name(aname), flow(f), length(l) { }
     };
 
-    /*KOALA graph's node and edge type*/
+    /*KOALA graph node and edge type*/
     using koalaGraph = Koala::Graph <nodeDescription, edgeDescription>;
     
-    class KoalaClass //: public LogSender 
+    class KoalaClass
     {
         koalaGraph* graph_;
 
@@ -60,27 +60,22 @@ namespace mv
 
         /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
         std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded_;
-    
+
+        std::vector<koalaGraph::PEdge>::const_iterator lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges);
+        std::vector<mv::koalaGraph::PVertex>::const_iterator lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices);
+        std::vector<mv::koalaGraph::PVertex>::const_iterator lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices);
+           
     public:
         KoalaClass();
         ~KoalaClass();
         koalaGraph& getGraph();
 
-
-        koalaGraph::PVertex lookUpKoalaVertexbyName(const std::string& vertexName, const std::vector<koalaGraph::PVertex>& koalaVertices);
-        koalaGraph::PVertex lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices);
-        koalaGraph::PVertex lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices);
-        koalaGraph::PEdge lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges);
+        int performPartialSerialisation(const mv::pass::PassEntry& pass, int cutValue, std::vector<koalaGraph::PEdge> cutEdges);
+        std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         void convertMcMGraphToKoalaGraph(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
         int calculateFMax(mv::ComputationModel& model);
-        // void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model, std::vector<koalaGraph::PEdge>& partialSerialisationEdgesAdded);
-        // int performPartialSerialisation(const mv::pass::PassEntry& pass, int cutValue, std::vector<koalaGraph::PEdge> cutEdges, 
-        //                           koalaGraph::PVertex graphSource, koalaGraph::PVertex graphSink, std::vector<koalaGraph::PVertex>& vertices, 
-        //                           std::vector<koalaGraph::PEdge>& edges, std::vector<koalaGraph::PEdge>& partialSerialisationEdgesAdded);
-        
-        int performPartialSerialisation(const mv::pass::PassEntry& pass, int cutValue, std::vector<koalaGraph::PEdge> cutEdges);
-        
-        std::pair<int,std::vector<koalaGraph::PEdge>> calculateMaxTopologicalCut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+        void insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model);  
+
     };
 }
 

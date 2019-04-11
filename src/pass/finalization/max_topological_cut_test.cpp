@@ -30,17 +30,14 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     /*Convert to MCM graph to KOALA graph*/
     flowGraph.convertMcMGraphToKoalaGraph(pass, model);
 
-    // /*Calculate max topological cut and get the cut edges*/
+    /*Calculate max topological cut and get the cut edges*/
     auto maxTopologicalCut = flowGraph.calculateMaxTopologicalCut(pass, model);
    
-    // /*New edges added to the graph from partial serialisation, these will be added to the McM graph*/
-    // std::vector<koalaGraph::PEdge> partialSerialisationEdgesAdded;
-
     /*Get CMX memory*/
     auto memDefs = target.memoryDefs();
     auto availableNNCMX = memDefs.find("VPU_CMX_NN")->second.size;
 
-    // /*Get the number of clusters that the VPU supports*/
+    /*Get the number of clusters that the VPU supports*/
     auto nceDefs = target.nceDefs();
     auto numberOfVPUClusters = nceDefs.find("Clusters")->second.totalNumber;
 
@@ -61,6 +58,6 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
        
     }
 
-    // /*Add the partial serialisaion edges to the mcmGraph*/
-    // insertpartialSerialisationEdgesInMcmGraph(model, partialSerialisationEdgesAdded);
+    /*Add the partial serialisaion edges to the mcmGraph*/
+    flowGraph.insertpartialSerialisationEdgesInMcmGraph(model);
 }

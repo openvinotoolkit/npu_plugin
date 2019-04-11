@@ -17,67 +17,57 @@ mv::koalaGraph& mv::KoalaClass::getGraph()
 }
 
 /**
- * @brief Returns a KOALA vertex iterator corresonding to the name of the iterator 
- * @param vertexName - the name of the KOALA vertex you are searching for
- * @param koalaVertices - vector of KOALA vertices iterators
- * @return The KOALA vertex iterator 
- * 
- */
-mv::koalaGraph::PVertex mv::KoalaClass::lookUpKoalaVertexbyName(const std::string& vertexName, const std::vector<koalaGraph::PVertex>& koalaVertices) {
-
-    for (size_t i = 0; i < koalaVertices.size(); i++) {
-
-        if(koalaVertices[i]->info.name == vertexName) 
-            return koalaVertices[i];
-    }
-}
-
-/**
  * @brief Returns a KOALA vertex iterator corresonding to the sink node of the KOALA graph 
  * @param sinkNode - attribute of the KOALA node indicating if it is the sink node (true) 
  * @param koalaVertices - vector of KOALA vertices iterators
- * @return The KOALA vertex iterator 
+ * @return An iterator to a KOALA vertex iterator 
  * 
  */
-mv::koalaGraph::PVertex mv::KoalaClass::lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
 
-    for (size_t i = 0; i < koalaVertices.size(); i++) {
-
-        if(koalaVertices[i]->info.sinkNode == sinknode) 
-            return koalaVertices[i];
+std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSinkNode(bool sinknode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
+    
+    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
+        if((*iter)->info.sinkNode == sinknode) {
+            return iter;
+        }
     }
+    return koalaVertices.end();
 }
 
 /**
  * @brief Returns a KOALA vertex iterator corresonding to the source node of the KOALA graph 
  * @param sinkNode - attribute of the KOALA node indicating if it is the source node (true) 
  * @param koalaVertices - vector of KOALA vertices iterators
- * @return The KOALA vertex iterator 
+ * @return An iterator to a KOALA vertex iterator
  * 
  */
-mv::koalaGraph::PVertex mv::KoalaClass::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
 
-    for (size_t i = 0; i < koalaVertices.size(); i++) {
-
-        if(koalaVertices[i]->info.sourceNode == sourcenode) 
-            return koalaVertices[i];
+std::vector<mv::koalaGraph::PVertex>::const_iterator mv::KoalaClass::lookUpKoalaSourceNode(bool sourcenode, const std::vector<koalaGraph::PVertex>& koalaVertices) {
+    
+    for(auto iter = koalaVertices.begin(); iter != koalaVertices.end(); ++iter) {
+        if((*iter)->info.sourceNode == sourcenode) {
+            return iter;
+        }
     }
+    return koalaVertices.end();
 }
 
 /**
  * @brief Returns a KOALA edge iterator corresonding to the name of the iterator 
  * @param edgeName - the name of the KOALA vertex you are searching for
  * @param koalaEdges - vector of KOALA edges iterators
- * @return The KOALA edge iterator 
+ * @return An iterator to a KOALA vertex iterator
  * 
  */
-mv::koalaGraph::PEdge mv::KoalaClass::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
 
-    for (size_t i = 0; i < koalaEdges.size(); i++) {
-
-        if(koalaEdges[i]->info.name == edgeName) 
-            return koalaEdges[i];
+std::vector<mv::koalaGraph::PEdge>::const_iterator mv::KoalaClass::lookUpKoalaEdgebyName(std::string edgeName, const std::vector<koalaGraph::PEdge>& koalaEdges) {
+    
+    for(auto iter = koalaEdges.begin(); iter != koalaEdges.end(); ++iter) {
+        if((*iter)->info.name == edgeName) {
+            return iter;
+        }
     }
+    return koalaEdges.end();
 }
 
 /**
@@ -185,51 +175,50 @@ int mv::KoalaClass::calculateFMax(mv::ComputationModel& model) {
     return Fmax;
 }
 
-// void mv::KoalaClass::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model, std::vector<koalaGraph::PEdge>& partialSerialisationEdgesAdded) {
+void mv::KoalaClass::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
 
-//     for (const auto& edge : partialSerialisationEdgesAdded) {
+    for (const auto& edge : partialSerialisationEdgesAdded_) {
         
-//         std::string edgeSourceName = edge->getEnd1()->info.name;
-//         std::string edgeSinkName = edge->getEnd2()->info.name;
+        std::string edgeSourceName = edge->getEnd1()->info.name;
+        std::string edgeSinkName = edge->getEnd2()->info.name;
 
-//         mv::ControlModel cm(model);
+        mv::ControlModel cm(model);
 
-//         mv::Control::OpListIterator mcmSourceNodeIterator;
-//         mv::Control::OpListIterator mcmSinkNodeIterator;
+        mv::Control::OpListIterator mcmSourceNodeIterator;
+        mv::Control::OpListIterator mcmSinkNodeIterator;
 
-//         /*Find the McM iterator for the source node*/
-//         for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) {
+        /*Find the McM iterator for the source node*/
+        for (auto opItSource = cm.getFirst(); opItSource != cm.opEnd(); ++opItSource) {
             
-//             if(opItSource->getName() == edgeSourceName) {
-//                 mcmSourceNodeIterator = opItSource;
-//             }
-//         }
+            if(opItSource->getName() == edgeSourceName) {
+                mcmSourceNodeIterator = opItSource;
+            }
+        }
 
-//         /*Find the McM iterator for the sink node*/
-//         for (auto opItSink = cm.getFirst(); opItSink != cm.opEnd(); ++opItSink) {
+        /*Find the McM iterator for the sink node*/
+        for (auto opItSink = cm.getFirst(); opItSink != cm.opEnd(); ++opItSink) {
             
-//             if(opItSink->getName() == edgeSinkName) {
-//                 mcmSinkNodeIterator = opItSink;
-//             }
-//         }
+            if(opItSink->getName() == edgeSinkName) {
+                mcmSinkNodeIterator = opItSink;
+            }
+        }
         
-//         /*Add the edge to graph*/
-//         auto partialSerialisationEdge = cm.defineFlow( mcmSourceNodeIterator, mcmSinkNodeIterator);
-//         partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+        /*Add the edge to graph*/
+        auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+        partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+    }
+}
 
-//     }
-// }
-
-// /**
-//  * @brief Perform partial serilisation of KOALA graph to reduce maximum peak memory
-//  * @param cutValue  - Maximum peak memory of the graph
-//  * @param cutEdges - Vector of cut edges from the max topological cut
-//  * @param graphSource - Source node of KOALA graph
-//  * @param graphSink - Sink node of KOALA graph
-//  * @param vertices - Vector of KOALA vertices iterators
-//  * @param edges - Vector of KOALA edge iterators
-//  * @return - 0 success, -1 Failure
-//  */
+/**
+ * @brief Perform partial serilisation of KOALA graph to reduce maximum peak memory
+ * @param cutValue  - Maximum peak memory of the graph
+ * @param cutEdges - Vector of cut edges from the max topological cut
+ * @param graphSource - Source node of KOALA graph
+ * @param graphSink - Sink node of KOALA graph
+ * @param vertices - Vector of KOALA vertices iterators
+ * @param edges - Vector of KOALA edge iterators
+ * @return - 0 success, -1 Failure
+ */
 int mv::KoalaClass::performPartialSerialisation(const mv::pass::PassEntry& pass, int cutValue, std::vector<koalaGraph::PEdge> cutEdges) {
     
     /* Partial serialisation works by getting the source and sink nodes of the cutEdges returned from max topoloigcal cut
@@ -381,7 +370,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
         pass.log(mv::Logger::MessageType::Debug, "Sink Node " + this->getGraph().getEdgeEnds(this->edges_[i]).second->info.name);
 
         /*Find the shortest path from the input node to the source node of the edge*/
-        Koala::DijkstraHeap::PathLengths <int> resInputToSource = Koala::DijkstraHeap::findPath(this->getGraph(), edgeMap, lookUpKoalaSourceNode(true, this->vertices_),this->getGraph().getEdgeEnds(this->edges_[i]).first, Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
+        Koala::DijkstraHeap::PathLengths <int> resInputToSource = Koala::DijkstraHeap::findPath(this->getGraph(), edgeMap, (*lookUpKoalaSourceNode(true, this->vertices_)),this->getGraph().getEdgeEnds(this->edges_[i]).first, Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from Input to source node of the current edge is " + std::to_string(resInputToSource.edgeNo));
 
@@ -391,7 +380,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
 
             /*Add Fmax to the flow attribute of the edge*/
             auto edge = lookUpKoalaEdgebyName(shortestPathEdges[i]->info.name, this->edges_);
-            edge->info.flow +=Fmax;
+            (*edge)->info.flow +=Fmax;
 	    }
 
         /*The above calculation stops at source node of the edge so doesn't include the edge in question - add Fmax to this edge*/
@@ -402,7 +391,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
 
         /*Find the shortest path from the sink node of the edge to the sink node (DMA task CMX to DDR)*/
 
-        Koala::DijkstraHeap::PathLengths <int> resSinkToOuput = Koala::DijkstraHeap::findPath(this->getGraph(), edgeMap, this->getGraph().getEdgeEnds(this->edges_[i]).second, lookUpKoalaSinkNode(true, this->vertices_), Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
+        Koala::DijkstraHeap::PathLengths <int> resSinkToOuput = Koala::DijkstraHeap::findPath(this->getGraph(), edgeMap, this->getGraph().getEdgeEnds(this->edges_[i]).second, (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::DijkstraHeap::outPath(blackHole, back_inserter(shortestPathEdges)));
 
         pass.log(mv::Logger::MessageType::Debug, "Number of edges on the path from the sink node of the current edge to the ouput node is " + std::to_string(resSinkToOuput.edgeNo));
 
@@ -412,7 +401,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
 
             /*Add Fmax to the flow attribute of the edge*/
             auto edge = lookUpKoalaEdgebyName(shortestPathEdges[i]->info.name, this->edges_);
-            edge->info.flow +=Fmax;
+            (*edge)->info.flow +=Fmax;
 	    }
         /*Clear the container used to store the the edges on shorest paths*/
         shortestPathEdges.clear();
@@ -438,7 +427,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaClass::calculateMaxTo
     int maxTopologicalCutValue = 0;
 
     /*compute minimal cut*/
-    Koala::Flow::minEdgeCut(this->getGraph(), cap, lookUpKoalaSourceNode(true, this->vertices_), lookUpKoalaSinkNode(true, this->vertices_), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
+    Koala::Flow::minEdgeCut(this->getGraph(), cap, (*lookUpKoalaSourceNode(true, this->vertices_)), (*lookUpKoalaSinkNode(true, this->vertices_)), Koala::Flow::outCut(blackHole, std::back_inserter(cutEdges)));
     
     for (size_t i = 0; i < cutEdges.size(); i++)
         maxTopologicalCutValue += cutEdges[i]->info.memoryRequirement;
