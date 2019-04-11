@@ -65,7 +65,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if(opType == "Conv")
                 dpuConv = om.dPUTaskConv({input, kernel}, strides, padding, dilationFactor, group, quantParams, "DPU_" + name);
             else
-                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, "DPU_" + name);
+                dpuConv = om.dPUTaskDepthwiseConv({input, kernel}, strides, padding, dilationFactor, quantParams, "DPU_" + name);
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);

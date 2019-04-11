@@ -70,7 +70,10 @@ namespace mv
             mv::Shape outputShape({(inputs[0]->getShape()[0] + padding[0] + padding[1] - weights->getShape()[0]) / stride[0] + 1, (
                 inputs[0]->getShape()[1] + padding[2] + padding[3] - weights->getShape()[1]) / stride[1] + 1, inputs[0]->getShape()[2] * weights->getShape()[3]});
 
-            outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
     
@@ -80,6 +83,7 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setOptionalArg<unsigned>("dilationFactor", 1)
         .setArg<std::array<unsigned short, 4>>("padding")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
