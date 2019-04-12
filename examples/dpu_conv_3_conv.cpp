@@ -49,7 +49,6 @@ int main()
     system("dot -Tpng TransitiveReduction.dot -o TransitiveReduction.png");
     system("dot -Tpng deallocation_model_data.dot -o deallocation_model_data.png");
     system("dot -Tpng deallocation_model_control.dot -o deallocation_model_control.png");
-    system("dot -Tpng DeallocationControlFlows_model.dot -o DeallocationControlFlows_model.png");
     system("dot -Tpng DmaControlFlows_model.dot -o DmaControlFlows_model.png");
     system("dot -Tpng InputOutputControlFlows_model.dot -o InputOutputControlFlows_model.png");
 }

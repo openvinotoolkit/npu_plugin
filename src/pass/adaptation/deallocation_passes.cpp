@@ -28,19 +28,26 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    mv::ControlModel cm(model);
+
+    // Sorting ops in dataflow topological order. Will be needed later.
+    auto sortedOps = om.topologicalSort();
 
     for(auto dataFlowIt = dm.flowBegin(); dataFlowIt != dm.flowEnd(); ++dataFlowIt)
     {
         auto inputOp = dataFlowIt.source();
         auto outputOp = dataFlowIt.sink();
 
-        if (outputOp->getOpType() == "Output")
+        // Final tensor shall not be deallocated
+        if(outputOp->getOpType() == "Output")
             continue;
 
-        if (inputOp->getOpType() == "Input")
+        // Input tensor shall not be deallocated (will be DMAed, then that will be deallocated)
+        if(inputOp->getOpType() == "Input")
             continue;
 
-        if (inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement")
+        // Constant tensors shall not be deallocated (will be DMAed, then those will be deallocated)
+        if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement")
             continue;
 
         auto opId = inputOp->get<unsigned>("opId");
@@ -49,10 +56,49 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
         std::string deallocationName("Deallocate"+inputOpName);
 
-        if (!om.checkOp(deallocationName))
+        // Each tensor must be deallocated once
+        if(!om.checkOp(deallocationName))
+        {
+            // Flows names must be taken before the insertion of deallocation ops
+            // Otherwise deallocation will appear as well
+            auto flowsNames = inputTensor->get<std::set<std::string>>("flows");
+
+            // Creating deallocation operation for the tensor and attaching it through a dataflow
+            // to the operation that created it
             om.deallocate(inputTensor, deallocationName);
-        auto deallocateInputOp = om.getOp(deallocationName);
-        deallocateInputOp->set<unsigned>("opId", opId);
+            auto deallocateInputOp = om.getOp(deallocationName);
+
+            // Attaching also through a ControlFlow
+            auto flowIt = cm.defineFlow(inputOp, deallocateInputOp);
+            auto outputTensor = flowIt.source()->getOutputTensor(0);
+
+            flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
+            flowIt->set<bool>("PositiveMemory", true);
+            deallocateInputOp->set<unsigned>("opId", opId);
+
+            // Control flows for the newly created operation must be attached now.
+            // Checking all the ops that have this tensor as input
+
+            std::vector<mv::Data::OpListIterator> sinkOperations;
+            for(auto flowName : flowsNames)
+            {
+                auto df = dm.getDataFlow(flowName);
+                sinkOperations.push_back(df.sink());
+            }
+
+            auto chosenOp = sortedOps.rbegin();
+            for(; chosenOp != sortedOps.rend(); ++chosenOp)
+                if(std::find(sinkOperations.begin(), sinkOperations.end(), *chosenOp) != sinkOperations.end())
+                    break;
+
+            if(!cm.checkControlFlow(*chosenOp, deallocateInputOp))
+                cm.defineFlow(*chosenOp, deallocateInputOp);
+            for(auto son = chosenOp->leftmostChild(); son != om.opEnd(); ++son)
+                if(!cm.checkControlFlow(deallocateInputOp, son))
+                    if(son->getOpType() != "Deallocate")
+                        cm.defineFlow(deallocateInputOp, son);
+
+        }
     }
 }
 
