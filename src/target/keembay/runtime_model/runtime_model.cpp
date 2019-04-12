@@ -50,7 +50,7 @@ const std::unordered_map<std::string, MVCNN::DPULayerType> mv::RuntimeModel::dpu
     {"ChannelMajorConvolution",MVCNN::DPULayerType::DPULayerType_CMCONV}
 };
 
-const std::unordered_map<mv::PpeLayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
+const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClassHash> mv::RuntimeModel::ppeLayerTypeMapping_ =
 {
    {PPELayerType_STORE, MVCNN::PPELayerType::PPELayerType_STORE},
    {PPELayerType_LOAD, MVCNN::PPELayerType::PPELayerType_LOAD},
@@ -92,7 +92,7 @@ MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std
     return memoryLocationMapping_.at(allocatorName);
 }
 
-MVCNN::PPELayerType mv::RuntimeModel::convertPPELayerType(PpeLayerTypeEnum ppe)
+MVCNN::PPELayerType mv::RuntimeModel::convertPPELayerType(PPELayerTypeEnum ppe)
 {
     return ppeLayerTypeMapping_.at(ppe);
 }
@@ -163,21 +163,29 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(tensorBufferIt->getData()->getDType());
 
-    // UNSUPPORTED FOR NOW
-    // toBuild.quant_scale;//    std::vector<int8_t> quant_scale;
-    // toBuild.quant_zero; //    std::vector<int8_t> quant_zero;
-    // toBuild.quant_shift;//    std::vector<int8_t> quant_shift;
+    // could also be t->hasAttr("quantizationParameters")
+    // but in my opinion quantization for a tensor of floats makes very little sense
+    // leaving this comment here for future generations
+    if(t->isQuantized())
+    {
+        auto quantizationParams = t->get<mv::QuantizationParams>("quantizationParams");
+        auto quantZero = quantizationParams.getZeroPoint();
+        toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+    }
 
     return toBuild;
 }
 
 std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderMetaInformations(ComputationModel& cm, mv::Element& compilationDescriptor)
 {
+    mv::OpModel om(cm);
+
     std::unique_ptr<MVCNN::SummaryHeaderT> toBuild = std::unique_ptr<MVCNN::SummaryHeaderT>(new MVCNN::SummaryHeaderT());
 
     toBuild->version = buildVersionT(cm, compilationDescriptor);
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
     toBuild->original_structure = buildSourceStructureT(cm, compilationDescriptor);
+    toBuild->layer_count = om.opsCount();
 
     return toBuild;
 }
@@ -209,7 +217,12 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         return i;
     };
 
-    toBuild->layer_count = om.opsCount();
+    toBuild->options = std::vector<MVCNN::ExecutionFlag>();
+    //toBuild->options.push_back(MVCNN::ExecutionFlag_Compiled_For_VPU3);
+    if(compilationDescriptor.get<std::string>("barrier_index_assignment") == "Dynamic")
+        toBuild->options.push_back(MVCNN::ExecutionFlag_DynamicBarriers);
+
+    toBuild->layer_count = originalHeader->layer_count;
     toBuild->task_count = taskCount(om);
 
     return toBuild;
@@ -384,34 +397,28 @@ MVCNN::DPULayerType mv::RuntimeModel::convertTaskOp(const std::string& opName)
 }
 
 
-std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const mv::PPEFixedFunction& ppe)
+std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctionT(ComputationModel&, mv::Element&, const mv::PPEFixedFunction& ppeFixedFunction)
 {
     std::unique_ptr<MVCNN::PPEFixedFunctionT> toBuild = std::unique_ptr<MVCNN::PPEFixedFunctionT>(new MVCNN::PPEFixedFunctionT());
 
-    auto layers = ppe.getLayers();
+    auto layers = ppeFixedFunction.getLayers();
     unsigned n = layers.size();
     toBuild->Ops = std::vector<MVCNN::PPELayerType>(n);
     for(unsigned i = 0; i < n; ++i)
         toBuild->Ops[i] = convertPPELayerType(layers[i]);
-    toBuild->Clamp_Low = ppe.getLowClamp();
-    toBuild->Clamp_High = ppe.getHighClamp();
+    toBuild->Clamp_Low = ppeFixedFunction.getLowClamp();
+    toBuild->Clamp_High = ppeFixedFunction.getHighClamp();
 
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Control::OpListIterator opIt)
+std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, const mv::PPETask& ppeTask)
 {
     std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
 
-//    if(opIt->hasAttr("scale"))
-//    {
-//        Data::TensorIterator tensorIt = opIt->get<Data::TensorIterator>("scale");
-//        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, tensorIt);
-//    }
-
-//    // If this function has been called, this part must be built for sure
-//    auto fixed_functions = opIt->get<PPEFixedFunction>("PPETask");
-//    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, fixed_functions);
+    if(ppeTask.hasAttr("scaleData"))
+        toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, ppeTask.getScaleData());
+    toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, ppeTask.getFixedFunction());
 
     return toBuild;
 }
@@ -423,9 +430,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
     if(opIt->hasAttr("PPETask"))
-        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt);
+        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
     // TODO
     // std::vector<std::unique_ptr<NNTensorTaskT>> nnshv_task;
+    // mpe_frequent_mode: MPE_Mode;
+    // split_over_h: bool = false;
 
     if (opIt->hasAttr("kSize"))
     {
@@ -445,10 +454,18 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
     unsigned num_inputs = opIt->getInputTensor().size();
 
+    //OP inputs == n ->
+    // n - 2 activation window (when present)
+    // n - 1 weights table
     if(opIt->hasAttr("fakeSparsity"))
-        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 2));
+    {
+        auto activationWindowTensorIterator = opIt->getInputTensor(num_inputs - 2);
+        toBuild->activation_window = buildTensorReferenceT(cm, compilationDescriptor, activationWindowTensorIterator);
+        toBuild->activation_window_channel_length = activationWindowTensorIterator->get<int>("channelLength");
+    }
 
-    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(num_inputs - 1));
+    auto weightsTableTensorIterator = opIt->getInputTensor(num_inputs - 1);
+    toBuild->weights_table = buildTensorReferenceT(cm, compilationDescriptor, weightsTableTensorIterator);
 
     switch (toBuild->dpu_task_type)
     {
@@ -457,8 +474,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         case MVCNN::DPULayerType_CMCONV:
         case MVCNN::DPULayerType_FCL:
             toBuild->weights_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor(1));
-            // NOTE: Bias should be handled as well here.
-            // std::unique_ptr<TensorReferenceT> bias_data;
             break;
         default:
             break;

@@ -592,13 +592,13 @@ int main()
     std::cout << std::endl;
 
     // check if the graph is DAG
-    std::cout<<"Original graph is DAG: "<<(is_DAG(g) ? "True":"False")<<std::endl;
+    std::cout<<"Original graph is DAG: "<<(isDAG(g) ? "True":"False")<<std::endl;
     // add a loop in the graph and check if the graph is DAG. Below adding an edge from p to a nodes makes it a backedge to node a
     auto e26 = g.edge_insert(np, na, 26);
-    std::cout<<"Modified graph (with backedge from node p to node a) is DAG: "<<(is_DAG(g) ? "True":"False")<<std::endl;
+    std::cout<<"Modified graph (with backedge from node p to node a) is DAG: "<<(isDAG(g) ? "True":"False")<<std::endl;
     // erasing the backedge (loop) to node a from p should make it DAG again.
     g.edge_erase(e26);
-    std::cout<<"Original graph (After erasing the backedge to node a from node p) is DAG: "<<(is_DAG(g) ? "True":"False")<<std::endl;
+    std::cout<<"Original graph (After erasing the backedge to node a from node p) is DAG: "<<(isDAG(g) ? "True":"False")<<std::endl;
 
     /*
     digraph G {

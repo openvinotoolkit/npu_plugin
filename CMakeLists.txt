@@ -91,6 +91,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/double.cpp" 
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/dtype.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int.cpp"
+    "${PROJECT_SOURCE_DIR}/src/base/attribute_def/int64.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/mv_element.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/order.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/shape.cpp"
@@ -190,18 +191,22 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/dma_direction.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_fixed_function.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_layer_type.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/ppe_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/workloads.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_definition.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/barrier_deps.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/dma_direction.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/workloads.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_task.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/ppe_fixed_function.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/barrier_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/deallocate_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dma_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dpu_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
+
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/float8.cpp"
@@ -245,6 +250,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/utils/serializer/file_buffer.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/env_loader.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_math.cpp"
+
 )
 
 SET(model
@@ -311,6 +317,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/splits_over_h.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_field_storage.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     
@@ -323,6 +330,7 @@ SET(pass
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp" 
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp"

@@ -86,6 +86,7 @@ namespace mv
         Order getOrder() const;
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
+        void setAddress(int64_t address);
 
         void add(const Tensor& other);
         void add(double val);
@@ -96,6 +97,8 @@ namespace mv
         void divide(const Tensor& other);
         void divide(double val);
         void sqrt();
+
+        int computeMemoryRequirement() const;
 
         DataElement& at(const std::vector<std::size_t>& sub);
         const DataElement& at(const std::vector<std::size_t>& sub) const;
@@ -142,6 +145,10 @@ namespace mv
         inline unsigned subToInd(const std::vector<std::size_t>& sub) const
         {
             return subToInd_(getShape(), sub);
+        }
+        inline int64_t getAddress() const
+        {
+            return get<int64_t>("address");
         }
 
         std::shared_ptr<Tensor> getSparsityMap() const;

@@ -234,12 +234,18 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
-        if((dpuTask->getOpType() == "DPUTask") && ((dpuTask->get<std::string>("taskOp") == "Conv") || (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution")))
+        if(dpuTask->getOpType() == "DPUTask")
         {
-            std::string opName = dpuTask->getName();
+            if((dpuTask->get<std::string>("taskOp") == "Conv") ||
+               (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
+               (dpuTask->get<std::string>("taskOp") == "MaxPool") ||
+               (dpuTask->get<std::string>("taskOp") == "DepthwiseConv"))
+            {
+                std::string opName = dpuTask->getName();
 
-            std::string kernelWeightsTableName(opName + "WeightsTable");
-            addWeightsTable(model, om, dpuTask, kernelWeightsTableName);
+                std::string kernelWeightsTableName(opName + "WeightsTable");
+                addWeightsTable(model, om, dpuTask, kernelWeightsTableName);
+            }
         }
     }
 }
@@ -368,7 +374,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 std::string opName = dpuTask->getName();
 
                 std::string sparsityMapName(opName + "SparsityMap");
-                createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
+                auto fakeSparsityMap = createFakeSparsityMap(om, dpuTask, sparsityMapName, sparsityShape, sparsityTensor.getIntData());
+                fakeSparsityMap->set<int>("channelLength", perChannelSparsity.size());
 
                 dpuTask->set<bool>("fakeSparsity", true);
             }

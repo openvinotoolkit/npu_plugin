@@ -54,7 +54,7 @@ namespace mv
     {
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
-        if(!is_DAG(g))
+        if(!isDAG(g))
             throw "Trying to execute topologicalSort on a graph that is not a DAG";
 
         std::set<typename graph<T_node, T_edge>::node_list_iterator, OpItComparatorTemplate2<typename graph<T_node, T_edge>::node_list_iterator>> unmarkedNodes;

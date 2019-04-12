@@ -95,14 +95,6 @@
     },
     "control_flows":{
         "Singular" : [
-            "DeallocationControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "DeallocationControlFlows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             "DmaControlFlows",
             {
                 "name": "GenerateDot",

@@ -243,7 +243,7 @@ import_array();
     }
     mv::Data::TensorIterator concat(mv::CompositionalModel& o, std::vector<mv::Data::TensorIterator> * inputs){
         /// Add a Concat Layer to the OpModel and return the relevant iterator.
-        return o.concat((*inputs)[0], (*inputs)[1]);
+        return o.concat(*inputs);
     }
 
     mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,

@@ -186,11 +186,6 @@ void mv::tools::GraphComparator::compare_(const MVCNN::ControllerTaskT& lhs, con
                     diff, "BarrierConfigurationTask");
                 break;
             
-            case MVCNN::ControllerSubTask_MemoryTask:
-                compare_(*lhs.task.AsMemoryTask(), *rhs.task.AsMemoryTask(),
-                    diff, "MemoryTask");
-                break;
-            
             case MVCNN::ControllerSubTask_TimerTask:
                 compare_(*lhs.task.AsTimerTask(), *rhs.task.AsTimerTask(),
                     diff, "TimerTask");
@@ -319,15 +314,6 @@ void mv::tools::GraphComparator::compare_(const MVCNN::GraphNodeT& lhs, const MV
     
     if (lhs.thisID != rhs.thisID)
         diff.push_back(label + "::thisID");
-
-}
-
-void mv::tools::GraphComparator::compare_(const MVCNN::MemoryTaskT& lhs, const MVCNN::MemoryTaskT& rhs,
-    std::vector<std::string>& diff, const std::string& label)
-{
-
-    if (lhs.id != rhs.id)
-        diff.push_back(label + "::id");
 
 }
 

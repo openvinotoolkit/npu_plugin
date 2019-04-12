@@ -210,6 +210,11 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
     populate(data);
 }
 
+int mv::Tensor::computeMemoryRequirement() const
+{
+    return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
+}
+
 void mv::Tensor::unpopulate()
 {
     if (!isPopulated())
@@ -308,6 +313,19 @@ void mv::Tensor::populateSparsityMapTensor_()
         sparsityMapData.at(sparsityMapIdx++) = map;
     }
     sparsityMap_->populate(sparsityMapData);
+}
+
+void mv::Tensor::setAddress(int64_t address)
+{
+    set<int64_t>("address", address);
+    if (isSparse() && !isPopulated())
+    {
+        auto tensorSize = computeTotalSize();
+        auto sparsitySize = sparsityMap_->computeTotalSize();
+        storageElement_->set<int64_t>("address", address +
+            (tensorSize - storageElement_->computeTotalSize() - sparsitySize));
+        sparsityMap_->set<int64_t>("address", address +(tensorSize - sparsitySize));
+    }
 }
 
 void mv::Tensor::setSparse()
