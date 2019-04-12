@@ -286,11 +286,11 @@ void mv::Tensor::populateSparsityMapTensor_()
         if (sub[(sub.size()-1)] != n) //starting a new channel, reset map
         {
            if (shift != 0) //this is needed in the case when tensor dimensions are not multiple of 8
-            {	
-                //write map	
-                sparsityMapData.at(sparsityMapIdx++) = map;	
-                map = 0;	
-                shift = 0;	
+            {
+                //write map
+                sparsityMapData.at(sparsityMapIdx++) = map;
+                map = 0;
+                shift = 0;
             }
             n = sub[(sub.size()-1)];
             if (sparsityMapIdx % 16 != 0)
