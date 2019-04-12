@@ -17,14 +17,13 @@ TEST(quantization, case_conv)
     auto testShape = input->getShape();
     //EC: output defs are deduced from inputs
 
-    mv::QuantizationParams outputQuantParams({128}, {0.00784314}, {0}, {1});
     mv::QuantizationParams weightsQuantParams({120}, {0.0028294341}, {0}, {1});
     mv::QuantizationParams biasQuantParams({0}, {2.219164e-05}, {0}, {1});
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(64*64);
     auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
     weights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1);
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, inputQuantParams);
     auto convOp = om.getSourceOp(conv);
     std::vector<int64_t> biasesData = {
         13559,  17916,  18802,   2546,   2108,  -6720,  11957,   6745,   7859,   4116,
@@ -55,7 +54,6 @@ TEST(quantization, case_conv)
           // 1. defining quantization params when generating output tensor
           // 2. bias attribute should be passed from op to it's dputask
           auto conv_output = dpuTask->getOutputTensor(0);
-          conv_output->set<mv::QuantizationParams>("quantizationParams", outputQuantParams);
           om.addAttr(dpuTask, "bias", biasTensor->getName());
         }
     }

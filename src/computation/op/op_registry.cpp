@@ -319,9 +319,17 @@ void mv::op::OpRegistry::outputOptionalArgList(std::vector<std::pair<std::string
             {
                 auto attributeName = optionalArgsList[i];
                 auto argTypeName = attr::AttributeRegistry::getTypeName(opPtr->argType(optionalArgsList[i].first));
+                auto typeID = optionalArgsList[i].second.getTypeID();
                 optionalArgsDef += "const " + argTypeName + "& " + optionalArgsList[i].first;
                 if (defaultArgs)
-                    optionalArgsDef += " = " + optionalArgsList[i].second.toString();
+                {
+                    if (attr::AttributeRegistry::hasTypeTrait(typeID, "large") == true)
+                    {
+                        optionalArgsDef += " = " + optionalArgsList[i].second.toLongString();
+                    }
+                    else
+                        optionalArgsDef += " = " + optionalArgsList[i].second.toString();
+                }
             }
             else
                 optionalArgsDef += optionalArgsList[i].first;
@@ -707,6 +715,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& eol, const st
     incStream << "#define MV_COMPOSITIONAL_MODEL_HPP_" << eol << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/tensor.hpp\"" << eol << eol;
+    incStream << "#include \"include/mcm/tensor/quantization_params.hpp\"" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;

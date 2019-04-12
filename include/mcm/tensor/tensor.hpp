@@ -13,6 +13,7 @@
 #include "include/mcm/tensor/dtype/dtype.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace mv
 {
@@ -43,6 +44,7 @@ namespace mv
         std::vector<unsigned> getZeroPointsPerChannel();
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data);

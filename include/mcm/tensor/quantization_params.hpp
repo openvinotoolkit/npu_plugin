@@ -21,7 +21,7 @@ namespace mv
         if (value.size() == size)
             return value;
 
-        throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimentions doesn't match size of output_channels or 1",
+        throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimensions doesn't match size of output_channels or 1",
                     std::to_string(value.size()));
     }
     public:
@@ -53,6 +53,7 @@ namespace mv
         unsigned getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;
         virtual std::string toString() const override;
+        virtual bool isEmpty() const;
     };
 
 }

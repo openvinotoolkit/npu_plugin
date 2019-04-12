@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace mv
 {
@@ -83,10 +84,13 @@ namespace mv
             // TODO: un-hardcode assumption about "CHW" layout
             mv::Shape outputShape({W, H, C});
 
-            outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
-        
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
-    
+
         MV_REGISTER_OP(Conv)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})
@@ -94,6 +98,7 @@ namespace mv
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<unsigned>("dilationFactor", 1)
         .setOptionalArg<unsigned>("group", 1)
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
