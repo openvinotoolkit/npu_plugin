@@ -106,17 +106,17 @@ else()
     add_executable(dpu_conv_example dpu_conv_example.cpp)
     target_link_libraries(dpu_conv_example cm)
 
-	  add_executable(zconv_example zconv_example.cpp)
-	  target_link_libraries(zconv_example cm)
+    add_executable(zconv_example zconv_example.cpp)
+    target_link_libraries(zconv_example cm)
 
-	  add_executable(dpu_task_example dpu_task_example.cpp)
-	  target_link_libraries(dpu_task_example cm)
- 
+    add_executable(dpu_task_example dpu_task_example.cpp)
+    target_link_libraries(dpu_task_example cm)
+
     add_executable(dpu_conv_3_conv dpu_conv_3_conv.cpp)
     target_link_libraries(dpu_conv_3_conv cm)
     
     add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
-	  target_link_libraries(dpu_conv_2_conv cm)
+    target_link_libraries(dpu_conv_2_conv cm)
 
     add_executable(barrier_task_api barrier_task_api.cpp)
     target_link_libraries(barrier_task_api cm)
