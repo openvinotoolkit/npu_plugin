@@ -261,7 +261,7 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala.cpp"   
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"   
 )
 
 SET(logger

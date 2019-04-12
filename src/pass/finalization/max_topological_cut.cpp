@@ -2,7 +2,7 @@
 #include "meta/include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/target/keembay/koala.hpp"
+#include "include/mcm/target/keembay/koala_graph_scheduler.hpp"
 #include <iostream>
 
 static void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
@@ -25,7 +25,7 @@ namespace mv
 
 void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::json::Object&)
 {
-    mv::KoalaClass flowGraph;
+    mv::KoalaGraphScheduler flowGraph;
     
     /*Convert to MCM graph to KOALA graph*/
     flowGraph.convertMcMGraphToKoalaGraph(pass, model);
