@@ -129,6 +129,9 @@ int main()
 //    //auto softmax = cm.softmax(fc1000);
     cm.output(res2b);
 
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
