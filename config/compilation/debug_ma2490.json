@@ -69,8 +69,6 @@
     "dma": {
         "Singular" : [
             "AddDMATasks",
-            "AddDeallocationTasks",
-            "AddFinalDMATask",
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",
@@ -78,6 +76,8 @@
                 "content": "full",
                 "html": true
             },
+            "AddDeallocationTasks",
+            "AddFinalDMATask",
             {
                 "name": "GenerateDot",
                 "output": "deallocation_model_data.dot",
