@@ -216,6 +216,11 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
     populate(data);
 }
 
+int mv::Tensor::computeMemoryRequirement() const
+{
+    return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
+}
+
 void mv::Tensor::unpopulate()
 {
     if (!isPopulated())
@@ -281,11 +286,11 @@ void mv::Tensor::populateSparsityMapTensor_()
         if (sub[(sub.size()-1)] != n) //starting a new channel, reset map
         {
            if (shift != 0) //this is needed in the case when tensor dimensions are not multiple of 8
-            {	
-                //write map	
-                sparsityMapData.at(sparsityMapIdx++) = map;	
-                map = 0;	
-                shift = 0;	
+            {
+                //write map
+                sparsityMapData.at(sparsityMapIdx++) = map;
+                map = 0;
+                shift = 0;
             }
             n = sub[(sub.size()-1)];
             if (sparsityMapIdx % 16 != 0)

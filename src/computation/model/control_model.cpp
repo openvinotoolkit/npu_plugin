@@ -263,6 +263,11 @@ void mv::ControlModel::transitiveReduction(const std::string& edgeAttribute)
     mv::transitiveReduction<Op, ControlFlow, EdgeItComparator>(controlGraph_, toSave);
 }
 
+bool mv::ControlModel::isDag()
+{
+    mv::isDAG(controlGraph_);
+}
+
 void mv::ControlModel::undefineFlow(Control::FlowListIterator flow)
 {
 

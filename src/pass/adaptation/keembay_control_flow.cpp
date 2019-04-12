@@ -5,20 +5,12 @@
 
 static void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void dmaControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
 
     namespace pass
     {
-
-        MV_REGISTER_PASS(DeallocationControlFlows)
-        .setFunc(deallocationControlFlowsFcn)
-        .setDescription(
-            ""
-        );
-
         MV_REGISTER_PASS(DmaControlFlows)
         .setFunc(dmaControlFlowsFcn)
         .setDescription(
@@ -49,48 +41,23 @@ void inputOutputControlFlowsFcn(const mv::pass::PassEntry& pass, mv::Computation
 
     auto outputOp = om.getOutput();
     auto lastDMAOp = outputOp.leftmostParent();
+    auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
+
     if(!cm.checkControlFlow(lastDMAOp, outputOp))
         cm.defineFlow(lastDMAOp, outputOp);
-}
-
-// This pass adds Control flows relative to a DeallocateTask
-// A deallocate task must happen after the operation in which the data is involved. Basically all siblings in DataFlow Context (inflows)
-// A deallocate task must also happen after the operation that allocated the data. (inflows)
-
-// A deallocate task must also happen before the his nieces (outflow) in both DataFlow and ControlFlow contex.
-void deallocationControlFlowsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-    mv::ControlModel cm(model);
-
-    auto deallocateOps = om.getOps("Deallocate");
-    for(auto op : deallocateOps)
+    if(!cm.checkControlFlow(lastOpBeforeLastDma, lastDMAOp))
     {
-        auto parentOp = op.leftmostParent();
+        /*
+          Add the memory requirment of the DPU task -> DMA CMX2DDR direction (last DPU task) by adding a "MemoryRequirment" attribute to the flow in the MCM task graph.
+          The memory requirment is defined as the output tensor (N*W*H*C) * dataType.
+          This is required for the max topological cut pass.
+        */
+        auto flowIt = cm.defineFlow(lastOpBeforeLastDma, lastDMAOp);
+        auto outputTensor = flowIt.source()->getOutputTensor(0);
 
-        if(!cm.checkControlFlow(parentOp, op))
-            cm.defineFlow(parentOp, op);
+        flowIt->set<int>("MemoryRequirement", outputTensor->computeMemoryRequirement());
+        flowIt->set<bool>("PositiveMemory", true); 
 
-        for(auto sibling = parentOp.leftmostChild(); sibling != om.opEnd(); ++sibling)
-        {
-            if(sibling->getOpType() == "Deallocate")
-                continue;
-
-            // In flows
-            if(!cm.checkControlFlow(sibling, op))
-                cm.defineFlow(sibling, op);
-
-            // Out flows
-            for(auto dataNiece = sibling.leftmostChild(); dataNiece != om.opEnd(); ++dataNiece)
-                if(dataNiece->getOpType() != "Deallocate")
-                    if(!cm.checkControlFlow(op, dataNiece))
-                        cm.defineFlow(op, dataNiece);
-
-            for(auto controlNiece = cm.switchContext(sibling).leftmostChild(); controlNiece != cm.opEnd(); ++controlNiece)
-                if(controlNiece->getOpType() != "Deallocate")
-                    if(!cm.checkControlFlow(cm.switchContext(op), controlNiece))
-                        cm.defineFlow(cm.switchContext(op), controlNiece);
-        }
     }
 }
 

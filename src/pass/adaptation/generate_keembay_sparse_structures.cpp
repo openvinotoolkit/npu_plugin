@@ -234,12 +234,18 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
-        if((dpuTask->getOpType() == "DPUTask") && ((dpuTask->get<std::string>("taskOp") == "Conv") || (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution")))
+        if(dpuTask->getOpType() == "DPUTask")
         {
-            std::string opName = dpuTask->getName();
+            if((dpuTask->get<std::string>("taskOp") == "Conv") ||
+               (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
+               (dpuTask->get<std::string>("taskOp") == "MaxPool") ||
+               (dpuTask->get<std::string>("taskOp") == "DepthwiseConv"))
+            {
+                std::string opName = dpuTask->getName();
 
-            std::string kernelWeightsTableName(opName + "WeightsTable");
-            addWeightsTable(model, om, dpuTask, kernelWeightsTableName);
+                std::string kernelWeightsTableName(opName + "WeightsTable");
+                addWeightsTable(model, om, dpuTask, kernelWeightsTableName);
+            }
         }
     }
 }

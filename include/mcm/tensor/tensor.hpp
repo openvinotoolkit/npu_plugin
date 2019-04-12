@@ -98,6 +98,8 @@ namespace mv
         void divide(double val);
         void sqrt();
 
+        int computeMemoryRequirement() const;
+
         DataElement& at(const std::vector<std::size_t>& sub);
         const DataElement& at(const std::vector<std::size_t>& sub) const;
         DataElement& at(std::size_t idx);

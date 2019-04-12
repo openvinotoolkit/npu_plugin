@@ -38,6 +38,12 @@ namespace mv
 
         };
 
+        struct NceDescriptor
+        {
+            std::size_t totalNumber;
+        };
+
+
         static Target toTarget(const std::string& str);
         const static unsigned jsonParserBufferLenght_ = 128;
 
@@ -46,6 +52,7 @@ namespace mv
         std::set<std::string> ops_;
         std::set<std::string> postOps_;
         std::map<std::string, MemoryDescriptor> memoryDefs_;
+        std::map<std::string, NceDescriptor> nceDefs_;
         std::map<std::string, mv::Element> serialDescriptions_;
 
     public:
@@ -73,6 +80,7 @@ namespace mv
         mv::Element getSerialDefinition(std::string op_name, std::string platform_name) const;
 
         const std::map<std::string, MemoryDescriptor>& memoryDefs() const;
+        const std::map<std::string, NceDescriptor>& nceDefs() const;
 
         std::string getLogID() const override;
 

@@ -6,7 +6,7 @@
 namespace mv
 {
     /*  
-        is_DAG() checks if the graph is acyclic (no cycles).
+        isDAG() checks if the graph is acyclic (no cycles).
         Algorithm used is similar to the one in python networkX
         https://networkx.github.io/documentation/networkx-1.9/_modules/networkx/algorithms/dag.html#is_directed_acyclic_graph
         for each of the nodes of graph, using recursive DFS check for back edges
@@ -14,7 +14,7 @@ namespace mv
     */
 
     template <typename T_node, typename T_edge>
-    bool is_DAG(graph<T_node, T_edge>& g)
+    bool isDAG(graph<T_node, T_edge>& g)
     {
 
         // Stores if the node is explored

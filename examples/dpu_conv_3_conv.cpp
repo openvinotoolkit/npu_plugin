@@ -13,11 +13,11 @@
 // and de-allocation tasks for the temporary CMX buffers.
 
 int main()
-{
+{   
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({40, 40, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({40, 40, 3}, mv::DType("Float8"), mv::Order("CHW"));
 
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*90);
     auto weights = om.constant(weightsData, {7, 7, 3, 90}, mv::DType("Float8"), mv::Order("NCWH"));

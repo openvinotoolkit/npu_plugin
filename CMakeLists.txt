@@ -266,7 +266,8 @@ SET(model
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp"    
+    "${PROJECT_SOURCE_DIR}/src/target/myriadx/nce1_utils.cpp" 
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/koala_graph_scheduler.cpp"   
 )
 
 SET(logger
@@ -300,6 +301,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_myriadX.cpp"
@@ -310,13 +312,13 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_graph_coloring.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/manipulate_barrier_refs.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/mark_hardware_operations.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/myriad_x_paddings.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_convolutions.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/optimize_poolings.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/splits_over_h.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_field_storage.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     
@@ -331,7 +333,7 @@ SET(pass
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxml.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlerror.cpp" 
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinyxmlparser.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/koala/tinyxml/tinystr.cpp"
 )

@@ -4,7 +4,10 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "barrier_index_assignment" : "Dynamic"
+                "barrier_index_assignment" : "Dynamic",
+                "Number_of_DPUs" : 5,
+                "Number_of_Clusters" : 1,
+                "CMX_memory_overflow_safety_factor" : 0.9
             },
             "AssignUniqueOpId",
             {
@@ -92,14 +95,6 @@
     },
     "control_flows":{
         "Singular" : [
-            "DeallocationControlFlows",
-            {
-                "name": "GenerateDot",
-                "output": "DeallocationControlFlows_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             "DmaControlFlows",
             {
                 "name": "GenerateDot",
@@ -127,13 +122,20 @@
         ]
     },
     "finalize": {
-        "Singular": [
+        "Singular": [           
+            "MaxTopologicalCutAndPartialSerialisation",
+            {
+                "name": "GenerateDot",
+                "output": "MaxTopologicalCutAndPartialSerialisation.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "balanced",
                 "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
             },
-            "MaxTopologicalCut",
             "RemoveDeallocationTasks",
             "TransitiveReduction",
             {

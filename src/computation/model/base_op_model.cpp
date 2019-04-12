@@ -99,14 +99,22 @@ void mv::BaseOpModel::removeOp(Data::OpListIterator op)
     //There is no actual need to call undefineFlow, as the graph structure will be handled by dataGraph_.node_erase(op)
     //But undefineFlow also removes the flow information from the tensor, so it's better to use it
 
-    for (Data::FlowSiblingIterator sourceFlow(op.leftmostInput()); sourceFlow != flowEnd(); ++sourceFlow)
-        undefineFlow(sourceFlow);
-        //dataFlows_->erase(sourceFlow->getName());
-
-    for (Data::FlowSiblingIterator sinkFlow(op.leftmostOutput()); sinkFlow != flowEnd(); ++sinkFlow)
+    // Apparentely this iterator is missing an input flow sometimes
+    auto sourceFlow = op.leftmostInput();
+    while (sourceFlow != flowEnd())
     {
-        sinkFlow.sink()->set<bool>("invalid", true);
-        undefineFlow(sinkFlow);
+        auto backup = sourceFlow;
+        ++sourceFlow;
+        undefineFlow(backup);
+        //dataFlows_->erase(sourceFlow->getName());
+    }
+
+    auto sinkFlow = op.leftmostOutput();
+    while (sinkFlow != flowEnd())
+    {
+        auto backup = sinkFlow;
+        ++sinkFlow;
+        undefineFlow(backup);
     }
 
     //Removing output tensors from the model
