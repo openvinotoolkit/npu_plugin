@@ -84,6 +84,14 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
         storageElement_ = std::make_shared<Tensor>(*other.storageElement_);
         noneZeroElements_ = other.noneZeroElements_;
     }
+    if (other.subTensors_.size() > 0)
+    {
+        for (auto tIdx = 0; tIdx < other.subTensors_.size(); tIdx++)
+        {
+            subTensors_.push_back(std::make_shared<Tensor>(*other.subTensors_[tIdx]));
+            //TODO should master/slave be copied?
+        }
+    }
 }
 
 mv::Tensor::~Tensor()
@@ -257,6 +265,15 @@ void mv::Tensor::unpopulate()
 
     log(Logger::MessageType::Debug, "Unpopulated");
 }
+
+std::shared_ptr<mv::Tensor> mv::Tensor::getSubTensor(uint8_t cluster) const
+{
+    if (cluster >= subTensors_.size())
+        throw ArgumentError(*this, "getSubTensor", std::to_string(cluster) , " is larger than number of subtensors " + std::to_string(subTensors_.size()));
+
+    return subTensors_[cluster];
+}
+
 std::shared_ptr<mv::Tensor> mv::Tensor::getSparsityMap() const
 {
     if (!isSparse())
@@ -352,6 +369,8 @@ void mv::Tensor::setAddress(int64_t address)
             (tensorSize - storageElement_->computeTotalSize() - sparsitySize));
         sparsityMap_->set<int64_t>("address", address +(tensorSize - sparsitySize));
     }
+    for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+        subTensors_[tIdx]->setAddress(address);
 }
 
 void mv::Tensor::setSparse()
@@ -407,6 +426,9 @@ void mv::Tensor::setSparse()
     //populate sparsity map
     if (isPopulated())
         populateSparsityMapTensor_();
+
+    for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+        subTensors_[tIdx]->setSparse();
 }
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
@@ -451,6 +473,12 @@ void mv::Tensor::setOrder(Order order)
     log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
     return;
 
+}
+
+void mv::Tensor::setSubtensorsOrder(Order order)
+{
+    for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+        subTensors_[tIdx]->setOrder(order);
 }
 
 void mv::Tensor::setDType(DType dtype)
