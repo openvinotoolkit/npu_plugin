@@ -5,7 +5,6 @@
 
 static void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 static void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -20,11 +19,6 @@ namespace mv
             .setFunc(addFinalDMATaskFcn)
             .setDescription(
                "Add final DMA task for output");
-
-        MV_REGISTER_PASS(AddDeallocationTasks)
-            .setFunc(addDeallocationTasksFcn)
-            .setDescription(
-               "Add deallocation tasks where needed in the Task graph");
     }
 }
 

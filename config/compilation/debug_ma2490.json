@@ -136,6 +136,8 @@
                 "costfunction": "balanced",
                 "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
             },
+            "RemoveDeallocationTasks",
+            "TransitiveReduction",
             {
                 "name":"InsertBarrierTasks",
                 "barrier_index_assignment": "Dynamic"
@@ -145,10 +147,10 @@
             "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
             "TransitiveReduction",
-            "GraphColoring",
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
+            "TensorGraphColoring",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",

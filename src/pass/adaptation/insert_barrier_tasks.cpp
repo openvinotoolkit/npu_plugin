@@ -195,6 +195,7 @@ static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om
     // Case 1: 2 barriers share the same op in their producer and consumer list,
     // like so: b1->op->b2. i.e. op is in b1's consumer list and b2's producer list.
     // In this case b1 and b2 are concurrent, so an edge exists between b1 and b2.
+    
 
     for (auto& b1: barriers)
     {
@@ -202,11 +203,14 @@ static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om
         {
             for (auto& b2: barriers)
             {
+                auto b1It = big.node_find(b1);
+                auto b2It = big.node_find(b2);
                 auto concurrentBarrier = std::find(b2.getProducers().begin(), b2.getProducers().end(), c);
                 if (concurrentBarrier != b2.getProducers().end())
                 {
                     // b1's consumer is the same as b2's producer, so add an edge
-                    addEdge(b1, b2, big);
+                    if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
+                        addEdge(b1, b2, big);
                 }
             }
         }    
@@ -236,7 +240,7 @@ static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om
                         // this check needs to be performed both from c1 to c2, and c2 to c1.
                         if (!om.pathExists(om.getOp(c1), om.getOp(c2)) && !om.pathExists(om.getOp(c2), om.getOp(c1)))
                         {
-                            if (!mv::edgeExists(big, b1It, b2It))
+                            if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
                                 addEdge(b1, b2, big);
                         }
                     }
