@@ -30,6 +30,7 @@ namespace mv
         Order internalOrder_;
         std::shared_ptr<Tensor> sparsityMap_;
         std::shared_ptr<Tensor> storageElement_;
+        std::vector<std::shared_ptr<Tensor>> subTensors_;
         size_t noneZeroElements_;
 
         bool elementWiseChecks_(const Tensor& other);
@@ -85,6 +86,7 @@ namespace mv
         void setDType(DType dType);
         DType getDType() const;
         void setOrder(Order order);
+        void setSubtensorsOrder(Order order);
         Order getOrder() const;
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);
@@ -155,7 +157,7 @@ namespace mv
 
         std::shared_ptr<Tensor> getSparsityMap() const;
         std::shared_ptr<Tensor> getStorageElement() const;
-
+        std::shared_ptr<Tensor> getSubTensor(uint8_t cluster) const;
 
         Tensor& operator=(const Tensor& other);
 
