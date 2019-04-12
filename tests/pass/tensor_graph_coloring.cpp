@@ -34,7 +34,7 @@ TEST(graph_coloring, single_conv)
     refTensorSizeAddress["DMADPU_Conv_0SparsityMap:0"] = std::make_pair(4096, 1024);
     refTensorSizeAddress["DMADPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
     refTensorSizeAddress["DMAInput_0:0"] = std::make_pair(75264, 15360);
-    refTensorSizeAddress["DPU_Conv_0:0"] = std::make_pair(401408, 90624); // POC std::make_pair(476672, 90624);
+    refTensorSizeAddress["DPU_Conv_0:0"] = std::make_pair(476672, 90624);
 
     //BSS
     refTensorSizeAddress["AlignedConstantInt_0:0"  ] = std::make_pair(10240,  5120);
@@ -42,13 +42,13 @@ TEST(graph_coloring, single_conv)
     refTensorSizeAddress["DPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
 
     //TODO HEAP, not yet fully implemented on POC
-    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(401408, 75264);// POC std::make_pair(476672, 75264);
+    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(476672, 75264);
     refTensorSizeAddress["Input_0:0"    ] = std::make_pair(75264, 0);
 
 
     for (auto itr = refTensorSizeAddress.begin(); itr != refTensorSizeAddress.end(); itr++)
     {
-        std::cout << "checking " << itr->first << std::endl;
+        //std::cout << "checking " << itr->first << std::endl;
         auto tensor = om.getTensor(itr->first);
         ASSERT_TRUE(tensor->hasAttr("address"));
         ASSERT_TRUE(tensor->getAddress() == itr->second.second);
