@@ -27,6 +27,8 @@ void transitiveReductionFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     pass.log(mv::Logger::MessageType::Debug, "Starting transitive reduction pass");
     mv::ControlModel cm(model);
+
+    // NOTE: The filter string can vary. Should not be this hardcoded.
     cm.transitiveReduction("PositiveMemory");
     pass.log(mv::Logger::MessageType::Debug, "Ended transitive reduction pass");
 }
