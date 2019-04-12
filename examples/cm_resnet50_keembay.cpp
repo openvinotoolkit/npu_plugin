@@ -63,9 +63,8 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
     auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, inputShape[2]}, {1, 1}, {0, 0, 0, 0});
 
     auto res = model.add(input, branch2c);
-    return res;
     //return model.relu(res);
-
+    return res;
 }
 
 /**
@@ -90,14 +89,16 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
     auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, outputDepth}, {1, 1}, {0, 0, 0, 0});
 
     auto res = model.add(branch1, branch2c);
-    return res;
     //return model.relu(res);
+    return res;
 
 }
 
 int main()
 {
-    mv::CompilationUnit unit("testModel");
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+
+    mv::CompilationUnit unit("ResNet50");
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet50
@@ -107,26 +108,26 @@ int main()
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1});
     auto res2b = residualBlock(cm, res2a, 64);
-    auto res2c = residualBlock(cm, res2b, 64);
-    auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2});
-    auto res3b = residualBlock(cm, res3a, 128);
-    auto res3c = residualBlock(cm, res3b, 128);
-    auto res3d = residualBlock(cm, res3c, 128);
-    auto res4a = residualConvBlock(cm, res3d, 256, 1024, {2, 2});
-    auto res4b = residualBlock(cm, res4a, 256);
-    auto res4c = residualBlock(cm, res4b, 256);
-    auto res4d = residualBlock(cm, res4c, 256);
-    auto res4e = residualBlock(cm, res4d, 256);
-    auto res4f = residualBlock(cm, res4e, 256);
-    auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2});
-    auto res5b = residualBlock(cm, res5a, 512);
-    auto res5c = residualBlock(cm, res5b, 512);
-    auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DType("Float16"), mv::Order("HW"));
-    auto fc1000 = cm.fullyConnected(pool5, weights);
-    //auto softmax = cm.softmax(fc1000);
-    cm.output(fc1000);
+//    auto res2c = residualBlock(cm, res2b, 64);
+//    auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2});
+//    auto res3b = residualBlock(cm, res3a, 128);
+//    auto res3c = residualBlock(cm, res3b, 128);
+//    auto res3d = residualBlock(cm, res3c, 128);
+//    auto res4a = residualConvBlock(cm, res3d, 256, 1024, {2, 2});
+//    auto res4b = residualBlock(cm, res4a, 256);
+//    auto res4c = residualBlock(cm, res4b, 256);
+//    auto res4d = residualBlock(cm, res4c, 256);
+//    auto res4e = residualBlock(cm, res4d, 256);
+//    auto res4f = residualBlock(cm, res4e, 256);
+//    auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2});
+//    auto res5b = residualBlock(cm, res5a, 512);
+//    auto res5c = residualBlock(cm, res5b, 512);
+//    auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
+//    std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
+//    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DType("Float16"), mv::Order("HW"));
+//    auto fc1000 = cm.fullyConnected(pool5, weights);
+//    //auto softmax = cm.softmax(fc1000);
+    cm.output(res2b);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
