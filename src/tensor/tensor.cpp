@@ -17,6 +17,8 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<Order>("order", order);
     set<DType>("dType", dType);
     set<bool>("populated", false);
+    set<bool>("broadcasted", true);
+
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -39,6 +41,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<DType>("dType", dType);
     set<mv::QuantizationParams>("quantizationParams", quantParams);
     set<bool>("populated", false);
+    set<bool>("broadcasted", true);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -247,6 +250,7 @@ void mv::Tensor::populate(const std::vector<int64_t>& data, Order order)
 
 int mv::Tensor::computeMemoryRequirement() const
 {
+    //TODO I think this needs to be updated to use clusterSize
     return (shape_.totalSize() * get<DType>("dType").getSizeInBits() / 8);
 }
 
@@ -927,6 +931,22 @@ mv::BinaryData mv::Tensor::toBinary()
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
     return getOrder().computeStrides(getShape(), getDType().getSizeInBits() / 8);
+}
+
+std::size_t mv::Tensor::getClustersize() const
+{
+    std::size_t res = computeTotalSize();
+    if (get<bool>("broadcasted"))
+    {
+        res = 0;
+        for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+        {
+            auto size = subTensors_[tIdx]->computeTotalSize();
+            if (size > res)
+                res = size;
+        }
+    }
+    return res;
 }
 
 std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
