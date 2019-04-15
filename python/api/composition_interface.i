@@ -156,6 +156,12 @@ import_array();
         return weightsData;
     }
 
+    std::vector<int64_t> * getData(int64_t * d, std::size_t len){
+        /// Populate a Vector with a numpy array.
+        std::vector<int64_t> * weightsData = new std::vector<int64_t>(d, d + len);
+        return weightsData;
+    }
+
     int testConv(
         mv::Data::OpListIterator &target,
         unsigned exp_strideX,
@@ -349,6 +355,11 @@ import_array();
         return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
     }
 
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape){
+        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
+        return o.constantInt(data, shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+    }
+
     mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
         // Get source operation of a tensor
         return o.getSourceOp(tensor);
@@ -474,6 +485,7 @@ namespace mv
         };
     }
 }
+#define SWIGWORDSIZE64
 
 int testSWIG();
 mv::CompilationUnit* getCompilationUnit();
@@ -493,6 +505,8 @@ std::array<unsigned short, 4> * get4DVector(int w, int x, int y, int z);
 %include "stdint.i"
 %apply (double* INPLACE_ARRAY1, std::size_t DIM1) {(double* d, std::size_t len)}
 std::vector<double> * getData(double * d, std::size_t len);
+%apply (int64_t* INPLACE_ARRAY1, std::size_t DIM1) {(int64_t* d, std::size_t len)}
+std::vector<int64_t> * getData(int64_t * d, std::size_t len);
 
 
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape);
@@ -533,6 +547,7 @@ mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorItera
 mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
 mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
+mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape);
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
 mv::Data::TensorIterator dropOut(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 bool isValid(mv::CompositionalModel& o);
