@@ -364,7 +364,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
 	    for (int k = 0; k < resInputToSource.edgeNo; k++) {
 
-            pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[i]->info.name);
+            pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[k]->info.name);
 
             /*Add Fmax to the flow attribute of the edge*/
             auto edge = lookUpKoalaEdgebyName(shortestPathEdges[k]->info.name, this->edges_);
@@ -388,7 +388,7 @@ std::pair<int,std::vector<mv::koalaGraph::PEdge>> mv::KoalaGraphScheduler::calcu
 
 	    for (int j = 0; j < resSinkToOuput.edgeNo; j++) {
 		    
-            pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[i]->info.name);
+            pass.log(mv::Logger::MessageType::Debug, shortestPathEdges[j]->info.name);
 
             /*Add Fmax to the flow attribute of the edge*/
             auto edge = lookUpKoalaEdgebyName(shortestPathEdges[j]->info.name, this->edges_);
