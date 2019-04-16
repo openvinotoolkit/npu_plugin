@@ -3,7 +3,9 @@
 
 mv::op::OpEntry::OpEntry(const std::string& opType) :
 opType_(opType),
-checkInputs_(true)
+inputVectorTypes_(false),
+checkInputs_(true),
+allowsExtraInputs_(false)
 {
 
 }
