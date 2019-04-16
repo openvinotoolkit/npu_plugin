@@ -41,6 +41,18 @@ protected:
         return str;
     }
 
+    template<typename S>
+    std::string testToString(const std::vector<S>& mask)
+    {
+        assert(mask.size() > 0);
+        std::string str = std::to_string(mask[0]);
+        for (unsigned i=1; i < mask.size(); i++)
+        {
+            str += "x" + std::to_string(mask[i]);
+        }
+        return str;
+    }
+
     mv::CompilationDescriptor& testGetCompilationDescriptor(mv::CompilationUnit& unit,
                                                             const mv::Target& target)
     {

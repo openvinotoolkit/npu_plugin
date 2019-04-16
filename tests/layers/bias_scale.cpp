@@ -4,27 +4,34 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "layers.hpp"
 
+enum Func { Bias=0, Scale=1 };
+
+static const char *name[] = { "bias", "scale" };
+
 struct Form
 {
     mv::Shape shape;
     mv::Order order;
 };
 
-class layers_bias:
-    public LayersTest<std::tuple<Form, mv::DType, mv::Target>> {};
+class layers_bias_scale:
+    public LayersTest<std::tuple<Func, Form, mv::DType, mv::Target>> {};
 
-TEST_P(layers_bias, dump_blob)
+TEST_P(layers_bias_scale, dump_blob)
 {
     auto param = GetParam();
-    auto form   = std::get<0>(param);
-    auto dtype  = std::get<1>(param);
-    auto target = std::get<2>(param);
+    auto func   = std::get<0>(param);
+    auto form   = std::get<1>(param);
+    auto dtype  = std::get<2>(param);
+    auto target = std::get<3>(param);
 
     auto& shape = form.shape;
     auto& order = form.order;
 
-    std::string test_name = "layers_bias_"
-                          +       testToString(shape) + "_" + order.toString()
+    std::string func_name = name[func];
+
+    std::string test_name = "layers_" + func_name
+                          + "_" + testToString(shape) + "_" + order.toString()
                           + "_" + dtype.toString() + "_" + testToString(target);
     std::cout << "Test: " << test_name << std::endl;
 
@@ -81,7 +88,8 @@ using namespace testing;
 static Form form1({mv::Shape({56, 56, 24, 8}), mv::Order("NCHW")});
 static Form form2({mv::Shape({320, 200, 3})  , mv::Order("CHW") });
 
-INSTANTIATE_TEST_CASE_P(demo, layers_bias,
-                        Combine(Values(form1, form2),
+INSTANTIATE_TEST_CASE_P(demo, layers_bias_scale,
+                        Combine(Values(Bias, Scale),
+                                Values(form1, form2),
                                 Values(mv::DType("Float16")),
                                 Values(mv::Target::ma2490)));
