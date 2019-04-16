@@ -40,247 +40,6 @@ namespace mv
     }
 }
 
-/* METIS parameters*/
-struct MetisGraphStructure
-{
-    idx_t* xadj;                      /*Indexes of starting points in adjacent array*/
-    idx_t* adjncy;                    /*Adjacent vertices in consecutive index order*/
-    idx_t* vwgt;
-    idx_t* part; 
-    idx_t objval;
-    idx_t nWeights  = 1;              /*Each vertex stores 1 weight*/
-    idx_t options[METIS_NOPTIONS];
-
-    idx_t m_numberTensorVertices;
-    idx_t m_numberTensorEdges;
-    int m_xDim;
-    int m_yDim;
-
-    mv::Rectangle* node_coords;
-
-    MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode){
-
-        /*Shape of output tensor x-y*/
-        double tensorXDim = outputTensor[0]; 
-        double tensorYDim = outputTensor[1];
-
-        /*Number of vertices and edges in METIS lattic graph of tensor*/
-        m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);    
-        m_numberTensorEdges = (2 * ceil(tensorXDim / MPEMode.first) * ceil(tensorYDim / MPEMode.second)) - ceil(tensorXDim / MPEMode.first) - ceil(tensorYDim / MPEMode.second);
-        
-        /*X-Y dimension of METIS lattic graph*/
-        m_xDim = ceil((tensorXDim / MPEMode.first));
-        m_yDim = ceil((tensorYDim / MPEMode.second));
-
-        /*METIS parameters - description page 23 Metis manual*/
-        xadj = new idx_t[m_numberTensorVertices + 1]; 
-        adjncy = new idx_t[2*m_numberTensorEdges];
-        part = new idx_t[m_numberTensorVertices];
-        vwgt = new idx_t[m_numberTensorVertices* nWeights];
-
-        node_coords = new mv::Rectangle [ m_numberTensorVertices ];
-        
-        /* Weights of METIS vertices
-         * Description page 23 Metis manual
-         * 
-         * Required when tensor size is not a multiple of 4 for MPE mode (4,4) which is only supported for WW09
-         * When tensor size is not a multiple of 4 then not all DPUs will be fully utilised (i.e. < 256 multiplication operations)
-         * Therefore we assign nodes different weights when partitioning
-        */
-        int n_elem_y;
-        int n_elem_x;
-        int nodeIndex = 0;
-        for(int j=0; j < m_yDim; j++) {
-            
-            if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
-                    n_elem_y = MPEMode.first;                 
-                else 
-                    n_elem_y = (int)tensorYDim%MPEMode.first; 
-                            
-            for(int k=0; k < m_xDim; k++) {
-                
-                if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
-                    n_elem_x = MPEMode.second;
-                else 
-                    n_elem_x = (int)tensorXDim%MPEMode.second;
-            
-                vwgt[nodeIndex] = n_elem_x * n_elem_y;
-
-                int min_x = k * MPEMode.first;
-                int min_y = j * MPEMode.second;
-        
-                node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
-                nodeIndex++;
-            }
-            
-        }
-    }
-    
-    ~MetisGraphStructure() {
-        delete[] xadj;
-        delete[] adjncy;
-        delete[] part;
-        delete[] vwgt;
-        delete[] node_coords;
-    }
-};
- 
-/**
- * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual. 
- * @brief Representing the lattic structure of the tensor shape (in the X-Y corrdinate) 
- * @param metisGraph - a struct containing necessary parameters to pass to METIS
- * @return None
- * 
- */
-void generateMetisGraph(MetisGraphStructure& metisGraph) {
-
-    /*Nodes in the graph*/
-    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_numberTensorVertices);
-    int adjncyIndex = 0;
-    int xadjIndex = 0;
-    
-    /* A Sample Graph
-     * 0---1---2---3---4
-     * |   |   |   |   |
-     * 5---6---7---8---9
-     * |   |   |   |   |
-     * 10--11---12-13--14
-     */
-
-    for (auto it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) {
-
-        /*Top left node*/ 
-        if((*it%metisGraph.m_xDim == 0) && (*it == 0)) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
-            adjncyIndex++;
-        }
-  
-        /*Intermediate node left side*/ 
-        if((*it%metisGraph.m_xDim == 0) && ((*it + metisGraph.m_xDim) < ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - metisGraph.m_xDim;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
-            adjncyIndex++;
-        }
-
-        /*Bottom left node*/
-        if((*it%metisGraph.m_xDim == 0) && ((*it + metisGraph.m_xDim) > ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - metisGraph.m_xDim;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-        }
-
-        /*Top right node*/
-        if(((*it - (metisGraph.m_xDim-1)%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && ((*it-(metisGraph.m_xDim-1) == 0)))) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
-            adjncyIndex++;
-        }
-
-       /*Intermediate right side node*/
-        if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1)  && ((*it-(metisGraph.m_xDim-1) != 0))  && (*it %(nodeNumbers.size()-1) != 0)) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - metisGraph.m_xDim;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
-            adjncyIndex++;
-        }
-
-        /*Bottm right node*/
-        if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && (*it %(nodeNumbers.size()-1) == 0)) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - (metisGraph.m_xDim); 
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-        }
-        
-        /*Middle nodes top row*/
-        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < (metisGraph.m_xDim - 1))) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
-            adjncyIndex++;
-        }
-
-        /*Middle nodes bottom row*/
-        if(((*it)%metisGraph.m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - (metisGraph.m_xDim); 
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-        }
-
-        /*Middle nodes not on bottom or top rows or the side columns*/
-        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) > (metisGraph.m_xDim-1)) && ((*it+1)%metisGraph.m_xDim != 0)) {
-
-            metisGraph.xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - (metisGraph.m_xDim); 
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
-            adjncyIndex++;
-        }
-    }   
-} 
-
-/**
- * @brief Partition a tensor using the METIS library
- * @param metisGraph A struct containing necessary parameters to pass to METIS
- * @param nWorkloads The number of partitions (workloads) to partition the tensor into 
- * @return return code from METIS
- */
-
-int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads) 
-{
-    /*METIS call*/
-    int res = METIS_PartGraphRecursive(&metisGraph.m_numberTensorVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
-                    metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
-				    NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
-                    
-    return res;
-}
-
-
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object &)
 {
 
@@ -325,39 +84,39 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /*Get output tensor*/
             auto outputTensor = opIt->getOutputTensor();
 
-            /*Metis struct*/
-            MetisGraphStructure metisGraph(outputTensor[0]->getShape(), MPEMode);
+            /*Workload's instance, name and tensorShape, MPE mode*/
+            mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
+
+            /* Partition tensor into workloads  
+             * Calculate a pool of possible workloads select the best one based on the cost functions
+            */ 
             
+            /*Metis algorithm for workloads*/
+
+            /*Get Metis adjacency structure object*/
+            auto metisGraph = workloads.getMetisGraph();
+
             /* Populate Metis adjacency structure*/ 
-            generateMetisGraph(metisGraph); 
-            METIS_SetDefaultOptions(metisGraph.options);
+            workloads.generateMetisGraph(metisGraph); 
 
-            /*Partition tensor into workloads*/            
-            /*Should calculate a pool of workloads as per PoC compiler here and find the best one based on the cost functions*/ 
-            //workloadsList = getNWorkloads(outputTensor, nDPUxCluster);
+            /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
+            idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
         
-            /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number) for WW09 deliverbale*/
-            idx_t nWorkloads = round(nDPUxCluster/2)*2; 
-
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
             /*Partition tensor into workloads with METIS*/
-            auto res = partitionTensorMETIS(metisGraph,nWorkloads);
+            auto res = workloads.partitionTensorMETIS(metisGraph,nWorkloads);
             
-            if( res != 1 ) {
-                throw "Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!";
-            }
+            if( res != 1 ) 
+                std::runtime_error("Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!");
+            
 
-            pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized (should be same as PoC compiler) is:" + std::to_string(metisGraph.objval));
+            pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph.objval));
            
             /*Print node partition*/
-            for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) { 
-                
+            for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) 
                 pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph.part[part_i]));
-            }
-
-            /*Workloads class instance*/
-            mv::Workloads workloads(opIt->getName());
+            
 
             /*Populate each workload*/
             /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
@@ -421,9 +180,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             }
            
             /*Add workloads as Attribute*/
-            opIt->set<mv::Workloads>("Workloads", workloads);
+            //opIt->set<mv::Workloads>("Workloads", workloads);
 
-            std::vector<float> exeCycle = getExecutionCycles(outputTensor, workloads, nDPUxCluster, MPEMode, costFunction);
+            //std::vector<float> exeCycle = getExecutionCycles(outputTensor, workloads, nDPUxCluster, MPEMode, costFunction);
             // TODO: process the execution cycles
         }
     }

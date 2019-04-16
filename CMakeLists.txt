@@ -392,6 +392,8 @@ else()
     else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
         add_library(corebase SHARED ${base} ${logger})
+        target_link_libraries(cm metis)
+        target_link_libraries(corebase metis)
         add_library(model SHARED ${model})
         
 
@@ -413,7 +415,7 @@ endif(MSVC)
 
 IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(examples)
-    add_subdirectory(tools)
+    #add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
 ENDIF()

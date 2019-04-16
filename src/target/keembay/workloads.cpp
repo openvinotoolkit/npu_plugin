@@ -1,21 +1,21 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
-
-mv::Workloads::Workloads(const std::string& name):layerName(name)
+#include "include/mcm/utils/data_generator.hpp"
+#include <metis.h>
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
+layerName(name), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
     
 }
 
-void mv::Workloads::test()
+mv::Workloads::~Workloads()
 {
-    std::pair <int,int> MPEMode (4, 4);
-    MetisGraphStructure metisGraph(mv::Shape {7, 7, 3, 90}, MPEMode);
-    idx_t nWorkloads = 4;
-      /*METIS call*/
-    int res = METIS_PartGraphRecursive(&metisGraph.m_numberTensorVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
-                    metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
-				    NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
-                        
+    delete metisGraph_;
+}
+
+mv::MetisGraphStructure& mv::Workloads::getMetisGraph()
+{
+    return *metisGraph_;
 }
 
 mv::Workload& mv::Workloads::operator[](int nworkload)
@@ -125,4 +125,161 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
     minMax.push_back(maxY - minY + 1);    
     minMax.push_back(maxZ - minZ + 1);   
     return mv::Shape(minMax);
+}
+
+/**
+ * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual. 
+ * @brief Representing the lattic structure of the tensor shape (in the X-Y corrdinate) 
+ * @param metisGraph - a struct containing necessary parameters to pass to METIS
+ * @return None
+ * 
+ */
+void mv::Workloads::generateMetisGraph(MetisGraphStructure& metisGraph) {
+
+    /*Nodes in the graph*/
+    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph.m_numberTensorVertices);
+    int adjncyIndex = 0;
+    int xadjIndex = 0;
+    
+    /* A Sample Graph
+     * 0---1---2---3---4
+     * |   |   |   |   |
+     * 5---6---7---8---9
+     * |   |   |   |   |
+     * 10--11---12-13--14
+     */
+
+    for (auto it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) {
+
+        /*Top left node*/ 
+        if((*it%metisGraph.m_xDim == 0) && (*it == 0)) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
+            adjncyIndex++;
+        }
+  
+        /*Intermediate node left side*/ 
+        if((*it%metisGraph.m_xDim == 0) && ((*it + metisGraph.m_xDim) < ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - metisGraph.m_xDim;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
+            adjncyIndex++;
+        }
+
+        /*Bottom left node*/
+        if((*it%metisGraph.m_xDim == 0) && ((*it + metisGraph.m_xDim) > ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - metisGraph.m_xDim;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + 1;
+            adjncyIndex++;
+        }
+
+        /*Top right node*/
+        if(((*it - (metisGraph.m_xDim-1)%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && ((*it-(metisGraph.m_xDim-1) == 0)))) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
+            adjncyIndex++;
+        }
+
+       /*Intermediate right side node*/
+        if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1)  && ((*it-(metisGraph.m_xDim-1) != 0))  && (*it %(nodeNumbers.size()-1) != 0)) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - metisGraph.m_xDim;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
+            adjncyIndex++;
+        }
+
+        /*Bottm right node*/
+        if(((*it - (metisGraph.m_xDim-1))%metisGraph.m_xDim == 0) && ((*it - (*it -(metisGraph.m_xDim-1))) == metisGraph.m_xDim -1) && (*it %(nodeNumbers.size()-1) == 0)) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - (metisGraph.m_xDim); 
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+        }
+        
+        /*Middle nodes top row*/
+        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < (metisGraph.m_xDim - 1))) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
+            adjncyIndex++;
+        }
+
+        /*Middle nodes bottom row*/
+        if(((*it)%metisGraph.m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - (metisGraph.m_xDim); 
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + 1;
+            adjncyIndex++;
+        }
+
+        /*Middle nodes not on bottom or top rows or the side columns*/
+        if(((*it)%metisGraph.m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph.m_xDim) && ((*it) > (metisGraph.m_xDim-1)) && ((*it+1)%metisGraph.m_xDim != 0)) {
+
+            metisGraph.xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - (metisGraph.m_xDim); 
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + 1;
+            adjncyIndex++;
+            metisGraph.adjncy[adjncyIndex] = *it + (metisGraph.m_xDim); 
+            adjncyIndex++;
+        }
+    }   
+} 
+
+
+int mv::Workloads::partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads) 
+{
+    METIS_SetDefaultOptions(metisGraph.options);
+
+    /*METIS call*/
+    int res = METIS_PartGraphRecursive(&metisGraph.m_numberTensorVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
+                    metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
+				    NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
+                    
+    return res;
+}
+
+/*TODO update*/
+idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster){
+    
+    return round(nDPUxCluster/2)*2; 
 }

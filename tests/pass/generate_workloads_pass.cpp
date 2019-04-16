@@ -195,147 +195,147 @@ mv::Data::TensorIterator GetTestTensor_modelB()
     return resData;
 }
 
-/** Creates a Workloads instance*/
-mv::Workloads GenerateTestWorkloads_modelA()
-{
-    mv::Workloads workloads("test");
+// /** Creates a Workloads instance*/
+// mv::Workloads GenerateTestWorkloads_modelA()
+// {
+//     mv::Workloads workloads("test");
     
-    //0
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[0].workloadID = 0;
-    workloads.getWorkloads()[0].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[0].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[0].MinX = 0;
-    workloads.getWorkloads()[0].MinY = 0;
-    workloads.getWorkloads()[0].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[0].MaxX = 7;
-    workloads.getWorkloads()[0].MaxY = 7;
-    workloads.getWorkloads()[0].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
+//     //0
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[0].workloadID = 0;
+//     workloads.getWorkloads()[0].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[0].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[0].MinX = 0;
+//     workloads.getWorkloads()[0].MinY = 0;
+//     workloads.getWorkloads()[0].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[0].MaxX = 7;
+//     workloads.getWorkloads()[0].MaxY = 7;
+//     workloads.getWorkloads()[0].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
 
-    //1
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[1].workloadID = 1;
-    workloads.getWorkloads()[1].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[1].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[1].MinX = 8;
-    workloads.getWorkloads()[1].MinY = 0;
-    workloads.getWorkloads()[1].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[1].MaxX = 15;
-    workloads.getWorkloads()[1].MaxY = 7;
-    workloads.getWorkloads()[1].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
+//     //1
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[1].workloadID = 1;
+//     workloads.getWorkloads()[1].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[1].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[1].MinX = 8;
+//     workloads.getWorkloads()[1].MinY = 0;
+//     workloads.getWorkloads()[1].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[1].MaxX = 15;
+//     workloads.getWorkloads()[1].MaxY = 7;
+//     workloads.getWorkloads()[1].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
 
-    //2
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[2].workloadID = 2;
-    workloads.getWorkloads()[2].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[2].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[2].MinX = 8;
-    workloads.getWorkloads()[2].MinY = 8;
-    workloads.getWorkloads()[2].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[2].MaxX = 15;
-    workloads.getWorkloads()[2].MaxY = 15;
-    workloads.getWorkloads()[2].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
+//     //2
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[2].workloadID = 2;
+//     workloads.getWorkloads()[2].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[2].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[2].MinX = 8;
+//     workloads.getWorkloads()[2].MinY = 8;
+//     workloads.getWorkloads()[2].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[2].MaxX = 15;
+//     workloads.getWorkloads()[2].MaxY = 15;
+//     workloads.getWorkloads()[2].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
 
-    //3
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[3].workloadID = 3;
-    workloads.getWorkloads()[3].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[3].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[3].MinX = 0;
-    workloads.getWorkloads()[3].MinY = 8;
-    workloads.getWorkloads()[3].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[3].MaxX = 7;
-    workloads.getWorkloads()[3].MaxY = 15;
-    workloads.getWorkloads()[3].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
+//     //3
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[3].workloadID = 3;
+//     workloads.getWorkloads()[3].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[3].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[3].MinX = 0;
+//     workloads.getWorkloads()[3].MinY = 8;
+//     workloads.getWorkloads()[3].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[3].MaxX = 7;
+//     workloads.getWorkloads()[3].MaxY = 15;
+//     workloads.getWorkloads()[3].MaxZ = 15;               //WW09 deliverbale is less than 16 channels
 
-    return workloads;
-}
+//     return workloads;
+// }
 
-/** Creates a Workloads instance*/
-mv::Workloads GenerateTestWorkloads_modelB()
-{
-    mv::Workloads workloads("test");
+// /** Creates a Workloads instance*/
+// mv::Workloads GenerateTestWorkloads_modelB()
+// {
+//     mv::Workloads workloads("test");
     
-    //0
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[0].workloadID = 0;
-    workloads.getWorkloads()[0].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[0].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[0].MinX = 0;
-    workloads.getWorkloads()[0].MinY = 28;
-    workloads.getWorkloads()[0].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[0].MaxX = 28;
-    workloads.getWorkloads()[0].MaxY = 32;
-    workloads.getWorkloads()[0].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
+//     //0
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[0].workloadID = 0;
+//     workloads.getWorkloads()[0].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[0].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[0].MinX = 0;
+//     workloads.getWorkloads()[0].MinY = 28;
+//     workloads.getWorkloads()[0].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[0].MaxX = 28;
+//     workloads.getWorkloads()[0].MaxY = 32;
+//     workloads.getWorkloads()[0].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
 
-    //1
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[1].workloadID = 1;
-    workloads.getWorkloads()[1].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[1].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[1].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[1].MinX = 28;
-    workloads.getWorkloads()[1].MinY = 0;
-    workloads.getWorkloads()[1].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[1].MaxX = 56;
-    workloads.getWorkloads()[1].MaxY = 28;
-    workloads.getWorkloads()[1].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
+//     //1
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[1].workloadID = 1;
+//     workloads.getWorkloads()[1].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[1].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[1].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[1].MinX = 28;
+//     workloads.getWorkloads()[1].MinY = 0;
+//     workloads.getWorkloads()[1].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[1].MaxX = 56;
+//     workloads.getWorkloads()[1].MaxY = 28;
+//     workloads.getWorkloads()[1].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
 
-    //2
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[2].workloadID = 2;
-    workloads.getWorkloads()[2].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[2].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[2].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[2].MinX = 16;
-    workloads.getWorkloads()[2].MinY = 32;
-    workloads.getWorkloads()[2].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[2].MaxX = 28;
-    workloads.getWorkloads()[2].MaxY = 56;
-    workloads.getWorkloads()[2].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
+//     //2
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[2].workloadID = 2;
+//     workloads.getWorkloads()[2].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[2].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[2].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[2].MinX = 16;
+//     workloads.getWorkloads()[2].MinY = 32;
+//     workloads.getWorkloads()[2].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[2].MaxX = 28;
+//     workloads.getWorkloads()[2].MaxY = 56;
+//     workloads.getWorkloads()[2].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
 
-    //3
-    workloads.getWorkloads().push_back(mv::Workload()); 
-    workloads.getWorkloads()[3].workloadID = 3;
-    workloads.getWorkloads()[3].clusterID = 0;           //WW09 deliverbale is 1 cluster
-    workloads.getWorkloads()[3].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
-    workloads.getWorkloads()[3].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
-    workloads.getWorkloads()[3].MinX = 28;
-    workloads.getWorkloads()[3].MinY = 28;
-    workloads.getWorkloads()[3].MinZ = 0;                //WW09 deliverbale is less than 16 channels
-    workloads.getWorkloads()[3].MaxX = 56;
-    workloads.getWorkloads()[3].MaxY = 56;
-    workloads.getWorkloads()[3].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
+//     //3
+//     workloads.getWorkloads().push_back(mv::Workload()); 
+//     workloads.getWorkloads()[3].workloadID = 3;
+//     workloads.getWorkloads()[3].clusterID = 0;           //WW09 deliverbale is 1 cluster
+//     workloads.getWorkloads()[3].padTop = 0;              //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].padBottom = 0;           //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].padLeft = 0;             //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].padRight = 0;            //These are zero in PoC compiler - relevant after WW09
+//     workloads.getWorkloads()[3].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+//     workloads.getWorkloads()[3].MinX = 28;
+//     workloads.getWorkloads()[3].MinY = 28;
+//     workloads.getWorkloads()[3].MinZ = 0;                //WW09 deliverbale is less than 16 channels
+//     workloads.getWorkloads()[3].MaxX = 56;
+//     workloads.getWorkloads()[3].MaxY = 56;
+//     workloads.getWorkloads()[3].MaxZ = 64;               //WW09 deliverbale is less than 16 channels
 
-    return workloads;
-}
+//     return workloads;
+// }
 
