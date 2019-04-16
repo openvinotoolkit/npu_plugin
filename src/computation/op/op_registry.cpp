@@ -591,7 +591,7 @@ void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& 
 
     auto inputLabels = opPtr->getInputLabel();
     if(inputVectorTypes)
-        output += "inputs";
+        output += "inputs,";
     else if (inputLabels.size() > 0)
     {
         for (std::size_t i = 0; i < inputLabels.size() - 1; ++i)
@@ -600,8 +600,11 @@ void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& 
     }
     output += eol + tab + tab;
     if(!inputVectorTypes)
+    {
         output += + "}";
-    output += "," + eol + tab + tab;
+        output += "," + eol + tab + tab;
+    }
+
     output += "{";
 
     auto mandatoryArgsList = opPtr->getArgsList();
@@ -667,8 +670,7 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
     bool checkInputs = opPtr->doInputNeedToBeChecked();
 
     std::string signatures = getCompositionDeclSig_(opType, true, true, false, true, false);
-    std::string delimiter = ";";
-
+    std::string delimiter = ";\n";
     std::string output = "";
 
     bool isCopiedOpsEmpty = copiedOps.empty();
@@ -683,6 +685,7 @@ std::string mv::op::OpRegistry::getCompositionDef_(const std::string& opType, co
         OpEntry* const copiedPpPtr = instance().find(copiedOps[copiedOpsIndex++]);
         output += "mv::Data::TensorIterator mv::OpModel::";
         defineOpOutput(output, eol, opType, copiedPpPtr, token, inputVectorTypes, checkInputs, !isCopiedOpsEmpty, tab);
+        output += eol + eol;
 
         signatures.erase(0, pos + delimiter.length());
     }
