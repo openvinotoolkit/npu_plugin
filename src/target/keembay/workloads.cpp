@@ -6,6 +6,18 @@ mv::Workloads::Workloads(const std::string& name):layerName(name)
     
 }
 
+void mv::Workloads::test()
+{
+    std::pair <int,int> MPEMode (4, 4);
+    MetisGraphStructure metisGraph(mv::Shape {7, 7, 3, 90}, MPEMode);
+    idx_t nWorkloads = 4;
+      /*METIS call*/
+    int res = METIS_PartGraphRecursive(&metisGraph.m_numberTensorVertices,&metisGraph.nWeights, metisGraph.xadj, metisGraph.adjncy,
+                    metisGraph.vwgt, NULL, NULL, &nWorkloads, NULL,
+				    NULL, metisGraph.options, &metisGraph.objval, metisGraph.part);
+                        
+}
+
 mv::Workload& mv::Workloads::operator[](int nworkload)
 {
 

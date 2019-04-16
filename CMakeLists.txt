@@ -393,6 +393,7 @@ else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
         add_library(corebase SHARED ${base} ${logger})
         add_library(model SHARED ${model})
+        
 
         IF(CMAKE_CROSSCOMPILING)
             #Flatbuffers and Metis not x-compiled yet
