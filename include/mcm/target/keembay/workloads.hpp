@@ -36,10 +36,11 @@ namespace mv
     /* METIS parameters*/
     struct MetisGraphStructure
     {
-        idx_t* xadj;                      /*Indexes of starting points in adjacent array*/
-        idx_t* adjncy;                    /*Adjacent vertices in consecutive index order*/
-        idx_t* vwgt;
-        idx_t* part; 
+        std::unique_ptr<idx_t[]>  xadj;   /*Indexes of starting points in adjacent array*/
+        std::unique_ptr<idx_t[]>  adjncy; /*Adjacent vertices in consecutive index order*/
+        std::unique_ptr<idx_t[]>  part;
+        std::unique_ptr<idx_t[]>  vwgt;
+
         idx_t objval;
         idx_t nWeights  = 1;              /*Each vertex stores 1 weight*/
         idx_t options[METIS_NOPTIONS];
@@ -49,7 +50,8 @@ namespace mv
         int m_xDim;
         int m_yDim;
 
-        mv::Rectangle* node_coords;
+        //mv::Rectangle* node_coords;
+        std::unique_ptr<mv::Rectangle[]>  node_coords;
 
         MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode) {
 
@@ -66,12 +68,12 @@ namespace mv
             m_yDim = ceil((tensorYDim / MPEMode.second));
 
             /*METIS parameters - description page 23 Metis manual*/
-            xadj = new idx_t[m_numberTensorVertices + 1]; 
-            adjncy = new idx_t[2*m_numberTensorEdges];
-            part = new idx_t[m_numberTensorVertices];
-            vwgt = new idx_t[m_numberTensorVertices* nWeights];
+            xadj.reset(new idx_t[m_numberTensorVertices + 1]);
+            adjncy.reset(new idx_t[2*m_numberTensorEdges]);
+            part.reset(new idx_t[m_numberTensorVertices]);
+            vwgt.reset(new idx_t[m_numberTensorVertices* nWeights]);
 
-            node_coords = new mv::Rectangle [ m_numberTensorVertices ];
+            node_coords.reset(new mv::Rectangle [m_numberTensorVertices]);
         
             /* Weights of METIS vertices
              * Description page 23 Metis manual
@@ -106,15 +108,9 @@ namespace mv
                     nodeIndex++;
                 }
             }
-        }   
-    
+        }
+
         ~MetisGraphStructure() {
-            std::cout << "Calling struct destructor" << std::endl;
-            delete[] xadj;
-            delete[] adjncy;
-            delete[] part;
-            delete[] vwgt;
-            delete[] node_coords;
         }
     };
 
@@ -142,18 +138,18 @@ namespace mv
         std::vector<Workload> workloads_;
         std::string layerName_;
         mv::Shape tensorShape_;
-        MetisGraphStructure *metisGraph_;
+
+        std::shared_ptr<MetisGraphStructure> metisGraph_; 
      
     public:
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode);
         ~Workloads();
-
-        MetisGraphStructure& getMetisGraph(); 
-        void generateMetisGraph(MetisGraphStructure& metisGraph);
-        int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads);
+      
+        void generateMetisGraph(void);
+        int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
-        void populateWorkloadsFromPartitions(MetisGraphStructure& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
         std::size_t nWorkloads() const;
         std::vector<Workload>& getWorkloads(); 
 

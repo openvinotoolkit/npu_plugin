@@ -100,12 +100,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             */ 
             
             /*Metis algorithm for workloads*/
-
-            /*Get Metis adjacency structure object*/
-            auto metisGraph = workloads.getMetisGraph();
-
+            
             /* Populate Metis adjacency structure*/ 
-            workloads.generateMetisGraph(metisGraph); 
+            workloads.generateMetisGraph(); 
 
             /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
             idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
@@ -113,20 +110,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
             /*Partition tensor into workloads with METIS*/
-            auto res = workloads.partitionTensorMETIS(metisGraph, nWorkloads);
+            auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
             
             if( res != 1 ) 
                 std::runtime_error("Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!");
             
-            pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph.objval));
-           
-            /*Print node partition*/
-            for(int part_i = 0; part_i < metisGraph.m_numberTensorVertices; part_i++) 
-                pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph.part[part_i]));
-            
-
             /*Populate each workload*/
-            workloads.populateWorkloadsFromPartitions(metisGraph, nWorkloads, pass);
+            workloads.populateWorkloadsFromPartitions(nWorkloads, pass);
 
             /*Add workloads as Attribute*/
             opIt->set<mv::Workloads>("Workloads", workloads);
