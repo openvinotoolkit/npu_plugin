@@ -56,8 +56,8 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             auto kernel = kernelOp->getOutputTensor(0);
             auto kernelShape = kernel->getShape();
 
-            auto weightSetDimension = kernelShape[0]*kernelShape[1]*kernelShape[2];
-            mv::Shape newShape({kernelShape[3], 1, 1, mv::round_up(weightSetDimension, 16)});
+            auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
+            mv::Shape newShape({kernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1, 1, mv::round_up(weightSetDimension, 16)});
             auto oldData = kernel->getData();
             oldData.resize(newShape.totalSize(), 0);
             auto newData(std::move(oldData));
@@ -66,8 +66,8 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             om.removeOp(kernelOp);
             for(auto toUpdateIt = toUpdate.begin(); toUpdateIt != toUpdate.end(); ++toUpdateIt)
             {
-                (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[0], kernelShape[1]});
-                (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[2]);
+                (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[mv::KERNEL_WIDTH], kernelShape[mv::KERNEL_HEIGHT]});
+                (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[mv::KERNEL_INPUT_CHANNELS]);
                 (*toUpdateIt)->setInputTensor(newKernel, 1, false);
                 om.defineFlow(newKernel, (*toUpdateIt), 1);
             }

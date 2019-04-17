@@ -79,7 +79,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if(opType == "Conv")
             {
-                if(kernel->getShape()[2] < 16)
+                if(kernel->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                 {
                     dpuConvOp->erase("taskOp");
                     dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");

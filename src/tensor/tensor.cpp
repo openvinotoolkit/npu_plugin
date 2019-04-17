@@ -272,10 +272,11 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
     return storageElement_;
 }
 
+// NOTE: Read NOTE in header file
 std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel()
 {
     //default all zeropoints to zero
-    std::vector<unsigned> zeroPoint(getShape()[3]);
+    std::vector<unsigned> zeroPoint(getShape()[mv::KERNEL_OUTPUT_CHANNELS]);
     if (isQuantized())
     {
         auto quantParams = get<mv::QuantizationParams>("quantizationParams");
@@ -589,19 +590,19 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
     std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
     std::vector<DataElement> orderedDataPacked;
     double datai;
-    size_t outputChannelSize = shape.totalSize() / shape[3];
+    size_t outputChannelSize = shape.totalSize() / shape[mv::KERNEL_OUTPUT_CHANNELS];
     for (std::size_t i = 0; i < data_.size(); ++i)
     {
         sub = getOrder().indToSub(getShape(), i);
         datai = data_[internalOrder_.subToInd(getShape(), sub)];
-        if (!isSparse() || datai != zeroPoint[sub[3]]) //zero point per output channel
+        if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]]) //zero point per output channel
             orderedDataPacked.push_back(DataElement(isDoubleType(), datai));
         //Add padding if needed
         if (isSparse() && ((i+1) % outputChannelSize) == 0) //we reached the end of the outputchannel
         {
             auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
             auto padsize = mv::round_up(size, 16) - size;
-            int64_t zeroPointVal = zeroPoint[sub[3]];
+            int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
             for (std::size_t j = 0; j < padsize; ++j)
                 orderedDataPacked.push_back(DataElement(isDoubleType(), zeroPointVal));
         }

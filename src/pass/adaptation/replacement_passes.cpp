@@ -84,8 +84,8 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             auto weightsData = opIt->getInputTensor(1)->getData();
             auto inputShape = sourceTensor->getShape();
 
-            auto weights = om.constantDataElement(weightsData, {inputShape[0], inputShape[1], inputShape[2],
-                opIt->getOutputTensor(0)->getShape()[1]}, sourceTensor->getDType(),
+            auto weights = om.constantDataElement(weightsData, {inputShape[mv::IO_WIDTH_DIMENSION], inputShape[mv::IO_HEIGHT_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION],
+                opIt->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION]}, sourceTensor->getDType(),
                 Order(Order::getRowMajorID(4)), opIt->getName() + "_weights");
 
             auto conv2D = om.conv(sourceTensor, weights, {1, 1}, {0, 0, 0, 0}, 1);
@@ -179,13 +179,13 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
-            unsigned short total_shape = 1 * inputShape[2] * kSize[1] * kSize[0];
+            unsigned short total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
             double value = 1/double(kSize[0] * kSize[1]);
             std::vector<double> weightsData(total_shape, value);
 
             unsigned short channel_multiplier = 1;
 
-            auto weights = om.constant(weightsData, {kSize[0], kSize[1], inputShape[2], channel_multiplier},
+            auto weights = om.constant(weightsData, {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                             sourceTensor->getDType(), Order(Order::getRowMajorID(4)));
             auto weightsOp = om.getSourceOp(weights);
             //Check the last argument name!!!

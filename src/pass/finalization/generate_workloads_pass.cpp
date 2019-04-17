@@ -489,7 +489,7 @@ static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterato
             float height = itWL->MaxY - itWL->MinY + MPEMode.first;
             float width = itWL->MaxX - itWL->MinX + MPEMode.second;
 
-            float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / MPEMode.first) * ceil(width / MPEMode.second);
+            float sumExeCycles = ceil(outputTensor[0]->getShape()[mv::IO_CHANNEL_DIMENSION]/16.0) * ceil(height / MPEMode.first) * ceil(width / MPEMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
     }

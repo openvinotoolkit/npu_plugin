@@ -97,7 +97,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
 {
     auto output = dpuTaskOp->getOutputTensor(0);
     auto input = dpuTaskOp->getInputTensor(0);
-    auto outputChannels = output->getShape()[2];
+    auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
     std::vector<int> shift(outputChannels, 0);
     std::vector<int16_t> mScaled(outputChannels, 0);
 
@@ -313,8 +313,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 uint16_t kernelW, kernelH;
 
                 auto strides = dpuTask->get<std::array<unsigned short, 2>>("stride");
-                auto inputChannels = dpuTask->getInputTensor(0)->getShape()[2];
-                auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[2];
+                auto inputChannels = dpuTask->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
 
                 // Using the check in this way, instead of on the operation type
                 // makes this pass work on both aligned and unaligned convolutions.
@@ -327,8 +327,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 else
                 {
                     auto weightsShape = dpuTask->getInputTensor(1)->getShape();
-                    kernelW = weightsShape[0];
-                    kernelH = weightsShape[1];
+                    kernelW = weightsShape[mv::KERNEL_WIDTH];
+                    kernelH = weightsShape[mv::KERNEL_HEIGHT];
                 }
 
                 auto windowsSize = getWindowSize(kernelW, strides[0]);
