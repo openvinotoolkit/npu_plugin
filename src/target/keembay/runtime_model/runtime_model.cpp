@@ -130,6 +130,18 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     return toBuild;
 }
 
+template< class T >
+void reorder(std::vector<T> &v, std::vector<size_t> const &order )
+{
+    for (int s = 1, d; s < order.size(); ++ s)
+    {
+        for (d = order[s]; d < s; d = order[d] );
+        if (d == s)
+            while (d = order[d], d != s)
+                std::swap(v[s], v[d]);
+    }
+}
+
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
 {    
     mv::DataModel dm(cm);
@@ -139,9 +151,20 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
-    toBuild->dimensions = tensorBufferIt->getData()->getShape(); // Padded or not?
-    toBuild->strides = tensorBufferIt->getData()->computeNumericStrides(); //NOTE: Maybe directly bufferIt->computeStrides() in the future?
+    // TODO: Have to be rearranged according to the order
+    auto underlyingTensor = tensorBufferIt->getData();
+    auto reorderVector = underlyingTensor->getOrder().getContiguityVector();
 
+    std::vector<uint32_t> dimensions = underlyingTensor->getShape();
+    auto numericStrides = underlyingTensor->computeNumericStrides();
+
+    reorder(dimensions, reorderVector);
+    reorder(numericStrides, reorderVector);
+
+    toBuild->dimensions = underlyingTensor->getShape(); // NOTE: Padded or not?
+    toBuild->strides = underlyingTensor->computeNumericStrides(); // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+
+    // NOTE: not sure anymore about this
     auto strides = tensorBufferIt->getStrides();
     toBuild->leading_offset = strides[0];
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
