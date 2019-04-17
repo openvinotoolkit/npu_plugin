@@ -41,6 +41,7 @@ namespace mv
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
         void populateSparsityMapTensor_();
     public:
+        //NOTE: Is this method operating on I/O tensors, Weight tensors or both
         std::vector<unsigned> getZeroPointsPerChannel();
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);

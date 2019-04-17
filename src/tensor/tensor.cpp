@@ -272,7 +272,7 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
     return storageElement_;
 }
 
-// NOTE: Read NOTE in header file
+// NOTE: Read NOTE in header fileq
 std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel()
 {
     //default all zeropoints to zero
