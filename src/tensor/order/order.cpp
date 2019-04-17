@@ -1,4 +1,5 @@
 #include "include/mcm/tensor/order/order.hpp"
+#include <set>
 
 const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID_ =
 {
@@ -123,15 +124,30 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
-std::vector<unsigned> mv::Order::computeStrides(const Shape &s, unsigned dataSize) const
+std::vector<unsigned> mv::Order::computeWordStrides(const Shape &s) const
 {
     unsigned n = s.ndims();
-    std::vector<unsigned> toReturn(n);
+    std::vector<unsigned> toReturn(n + 1, 0);
+    std::set<unsigned> missingIndex(contVector_.begin(), contVector_.end());
+    missingIndex.insert(n);
+    missingIndex.erase(0);
 
-    toReturn[contVector_[0]] = dataSize;
+    toReturn[contVector_[0]] = 1;
     for(unsigned i = 1; i < n; ++i)
+    {
         toReturn[contVector_[i]] = s[contVector_[i-1]] * toReturn[contVector_[i-1]];
+        missingIndex.erase(contVector_[i]);
+    }
 
+    toReturn[*(missingIndex.begin())] = s[contVector_[n-1]] * toReturn[contVector_[n-1]];
+
+    return toReturn;
+}
+
+std::vector<unsigned> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const
+{
+    std::vector<unsigned> toReturn(computeWordStrides(s));
+    std::transform(toReturn.begin(), toReturn.end(), toReturn.begin(), [dataSize](unsigned n) -> unsigned {return n * dataSize;});
     return toReturn;
 }
 

@@ -898,7 +898,7 @@ mv::BinaryData mv::Tensor::toBinary()
 
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
-    return getOrder().computeStrides(getShape(), getDType().getSizeInBits() / 8);
+    return getOrder().computeByteStrides(getShape(), getDType().getSizeInBits() / 8);
 }
 
 std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
