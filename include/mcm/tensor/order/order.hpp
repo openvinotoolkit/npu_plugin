@@ -70,6 +70,8 @@ namespace mv
         std::size_t subToInd(const Shape &s, const std::vector<std::size_t>& sub) const;
         std::vector<std::size_t> indToSub(const Shape &s, std::size_t idx) const;
 
+        const std::vector<std::size_t>& getContiguityVector();
+
         // Strides computed in WORDS and bytes respectively
         std::vector<unsigned> computeWordStrides(const Shape &s) const;
         std::vector<unsigned> computeByteStrides(const Shape &s, unsigned dataSize) const;

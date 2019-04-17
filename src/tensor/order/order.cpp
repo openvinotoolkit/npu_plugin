@@ -66,6 +66,10 @@ mv::Order::Order(const std::vector<std::size_t>& contVectorParam, const std::str
 
 }
 
+const std::vector<std::size_t>& mv::Order::getContiguityVector()
+{
+    return contVector_;
+}
 
 std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& sub) const
 {
