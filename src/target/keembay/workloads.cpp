@@ -3,14 +3,15 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include <metis.h>
 mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
-layerName(name), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
+layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
     
 }
 
 mv::Workloads::~Workloads()
 {
-    delete metisGraph_;
+    std::cout << "calling class destructor" << std::endl;
+    //delete metisGraph_;
 }
 
 mv::MetisGraphStructure& mv::Workloads::getMetisGraph()
@@ -279,7 +280,72 @@ int mv::Workloads::partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t n
 }
 
 /*TODO update*/
-idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster){
+idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster) {
     
     return round(nDPUxCluster/2)*2; 
+}
+
+
+void mv::Workloads::populateWorkloadsFromPartitions(MetisGraphStructure& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass) {
+    
+    /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
+    /*This needs to be handled here for now assuming number of partitions is the number or workloads*/
+            
+    for(int workload = 0; workload < nWorkloads; workload++) { 
+        
+        getWorkloads().push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
+                
+        getWorkloads()[workload].workloadID = workload;
+        getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
+        getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
+        getWorkloads()[workload].MaxZ = tensorShape_[2] -1;  //output channels
+        getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
+        getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
+        getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
+        getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
+                
+        getWorkloads()[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
+                
+       /* Converting the paritions returned by METIS 
+        * into tensor coordinates and populating these fields of workload 
+        */
+
+        using xyz_type = decltype(mv::Workload::MinX);
+
+        // NB: references (just shorter aliases for WL coordinates)
+        xyz_type& wl_min_x = getWorkloads()[workload].MinX;
+        xyz_type& wl_min_y = getWorkloads()[workload].MinY;
+        xyz_type& wl_max_x = getWorkloads()[workload].MaxX;
+        xyz_type& wl_max_y = getWorkloads()[workload].MaxY;
+
+        wl_min_x = std::numeric_limits<xyz_type>::max();
+        wl_min_y = std::numeric_limits<xyz_type>::max();
+        wl_max_x = -1;
+        wl_max_y = -1;
+
+        for (int i=0; i < metisGraph.m_numberTensorVertices; i++) {
+            
+            if (metisGraph.part[i] == workload) {
+                
+                int min_x = metisGraph.node_coords[i].min_x();
+                int max_x = metisGraph.node_coords[i].max_x();
+                int min_y = metisGraph.node_coords[i].min_y();
+                int max_y = metisGraph.node_coords[i].max_y();
+
+                // NB: guard calling to std::min/max with parentheses,
+                //     as they may mess with same-named macro on Windows
+                wl_min_x = (std::min)(wl_min_x, static_cast<xyz_type>(min_x));
+                wl_max_x = (std::max)(wl_max_x, static_cast<xyz_type>(max_x));
+                wl_min_y = (std::min)(wl_min_y, static_cast<xyz_type>(min_y));
+                wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
+            }
+        }
+        pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
+        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(getWorkloads()[workload].MinX));
+        pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(getWorkloads()[workload].MaxX));
+        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(getWorkloads()[workload].MinY));
+        pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(getWorkloads()[workload].MaxY));
+        pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(getWorkloads()[workload].MinZ));
+        pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(getWorkloads()[workload].MaxZ));
+    }
 }

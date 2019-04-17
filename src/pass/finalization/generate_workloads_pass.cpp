@@ -25,6 +25,8 @@ enum class CostFunctions
 
 // method declarations
 static void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+//void splitTensorsOverClusterFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &);
+
 static bool validateWorkloads(std::vector<mv::Data::TensorIterator>& Tensor, mv::Workloads& workloads);
 static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction);
 float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
@@ -40,12 +42,17 @@ namespace mv
     }
 }
 
-void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object &)
+void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
 {
 
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
 
-    mv::OpModel om(model);
+    /*Get the number of clusters that the VPU supports*/
+    auto nceDefs = target.nceDefs();
+    //auto nClusters = nceDefs.find("Clusters")->second.totalNumber;
+
+    /*Get all tensors*/
+
 
     int nDPU = 4;                       /*Number of DPUs*/
     int nClusters = 1;                  /*Number of clusters*/
@@ -74,6 +81,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
 
 
+    mv::OpModel om(model);
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask")
@@ -105,12 +113,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
             /*Partition tensor into workloads with METIS*/
-            auto res = workloads.partitionTensorMETIS(metisGraph,nWorkloads);
+            auto res = workloads.partitionTensorMETIS(metisGraph, nWorkloads);
             
             if( res != 1 ) 
                 std::runtime_error("Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!");
             
-
             pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph.objval));
            
             /*Print node partition*/
@@ -119,68 +126,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             
 
             /*Populate each workload*/
-            /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
-            /*This needs to be handled here for now assuming number of partitions is the number or workloads*/
-            for(int workload = 0; workload < nWorkloads; workload++) { 
+            workloads.populateWorkloadsFromPartitions(metisGraph, nWorkloads, pass);
 
-                workloads.getWorkloads().push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
-                
-                workloads.getWorkloads()[workload].workloadID = workload;
-                workloads.getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
-                workloads.getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
-                workloads.getWorkloads()[workload].MaxZ = outputTensor[0]->getShape()[2] -1;  //output channels
-                workloads.getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
-                workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
-                workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
-                workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
-                
-                workloads.getWorkloads()[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
-                
-                /* Converting the paritions returned by METIS 
-                 * into tensor coordinates and populating these fields of workload 
-                */
-
-                using xyz_type = decltype(mv::Workload::MinX);
-
-                // NB: references (just shorter aliases for WL coordinates)
-                xyz_type& wl_min_x = workloads.getWorkloads()[workload].MinX;
-                xyz_type& wl_min_y = workloads.getWorkloads()[workload].MinY;
-                xyz_type& wl_max_x = workloads.getWorkloads()[workload].MaxX;
-                xyz_type& wl_max_y = workloads.getWorkloads()[workload].MaxY;
-
-                wl_min_x = std::numeric_limits<xyz_type>::max();
-                wl_min_y = std::numeric_limits<xyz_type>::max();
-                wl_max_x = -1;
-                wl_max_y = -1;
-
-                for (int i=0; i < metisGraph.m_numberTensorVertices; i++)
-                {
-                    if (metisGraph.part[i] == workload)
-                    {
-                        int min_x = metisGraph.node_coords[i].min_x();
-                        int max_x = metisGraph.node_coords[i].max_x();
-                        int min_y = metisGraph.node_coords[i].min_y();
-                        int max_y = metisGraph.node_coords[i].max_y();
-
-                        // NB: guard calling to std::min/max with parentheses,
-                        //     as they may mess with same-named macro on Windows
-                        wl_min_x = (std::min)(wl_min_x, static_cast<xyz_type>(min_x));
-                        wl_max_x = (std::max)(wl_max_x, static_cast<xyz_type>(max_x));
-                        wl_min_y = (std::min)(wl_min_y, static_cast<xyz_type>(min_y));
-                        wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
-                    }
-                }
-                pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
-                pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads.getWorkloads()[workload].MinX));
-                pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads.getWorkloads()[workload].MaxX));
-                pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads.getWorkloads()[workload].MinY));
-                pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads.getWorkloads()[workload].MaxY));
-                pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads.getWorkloads()[workload].MinZ));
-                pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads.getWorkloads()[workload].MaxZ));
-            }
-           
             /*Add workloads as Attribute*/
-            //opIt->set<mv::Workloads>("Workloads", workloads);
+            opIt->set<mv::Workloads>("Workloads", workloads);
+            
 
             //std::vector<float> exeCycle = getExecutionCycles(outputTensor, workloads, nDPUxCluster, MPEMode, costFunction);
             // TODO: process the execution cycles
@@ -324,3 +274,30 @@ float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts)
         exeCycles.pop();
     return exeCycles.top();
 }
+
+
+
+// void splitTensorsOverClusterFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
+// {
+
+//     pass.log(mv::Logger::MessageType::Debug, "Starting split tensors over clusters pass");
+
+//     /*Get the number of clusters that the VPU supports*/
+//     auto nceDefs = target.nceDefs();
+//     auto nClusters = nceDefs.find("Clusters")->second.totalNumber;
+
+//     /*Get all tensors*/
+//     mv::OpModel om(model);
+//     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+//     {
+//         /*number outputs for operation*/
+//         for(std::size_t i = 0; i < opIterator.outputsSize(); i++) {
+
+//         }
+        
+//     }
+
+
+    
+//     pass.log(mv::Logger::MessageType::Debug, "Exiting split tensors over clusters pass");
+// }

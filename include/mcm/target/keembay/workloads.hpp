@@ -5,6 +5,7 @@
 #include <array>
 #include <functional>
 #include "include/mcm/computation/model/model_element.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/base/exception/op_error.hpp"
 #include "include/mcm/base/exception/index_error.hpp"
 #include "include/mcm/tensor/shape.hpp"
@@ -108,6 +109,7 @@ namespace mv
         }   
     
         ~MetisGraphStructure() {
+            std::cout << "Calling struct destructor" << std::endl;
             delete[] xadj;
             delete[] adjncy;
             delete[] part;
@@ -138,26 +140,31 @@ namespace mv
     {
 
         std::vector<Workload> workloads_;
-        std::string layerName;
+        std::string layerName_;
+        mv::Shape tensorShape_;
         MetisGraphStructure *metisGraph_;
      
     public:
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode);
         ~Workloads();
+
         MetisGraphStructure& getMetisGraph(); 
         void generateMetisGraph(MetisGraphStructure& metisGraph);
         int partitionTensorMETIS(MetisGraphStructure& metisGraph, idx_t nWorkloads);
-        idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
 
+        idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
+        void populateWorkloadsFromPartitions(MetisGraphStructure& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass);
         std::size_t nWorkloads() const;
         std::vector<Workload>& getWorkloads(); 
+
+        double getAllWorkloadsVolume() const;
+        bool noOverlap() const;
+        mv::Shape getShapefromMinMax() const;
+
         Workload& operator[](int nworkload);
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         std::string toString() const;
-        double getAllWorkloadsVolume() const;
-        bool noOverlap() const;
-        mv::Shape getShapefromMinMax() const;
         
     };
 }
