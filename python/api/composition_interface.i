@@ -39,8 +39,7 @@ import_array();
         mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Starting MCM Composition Interface for Target Descriptor: " + target + " ...");
         auto unit = new mv::CompilationUnit("pySwigCU");
         if(target.compare("ma2480") == 0)
-        {
-            unit->loadTargetDescriptor(mv::Target::ma2480);
+        {            unit->loadTargetDescriptor(mv::Target::ma2480);
             unit->loadCompilationDescriptor(mv::Target::ma2480);
         }
         else if(target.compare("ma2490") == 0)
@@ -187,9 +186,16 @@ import_array();
         return ret_val;
     }
 
-    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape){
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type){
         /// Add an Input Layer to the OpModel and return the relevant iterator
-        return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+//        return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+          return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
+    }
+
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type){
+        /// Add an Input Layer to the OpModel and return the relevant iterator
+//        return o.input(shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+        return o.input(shape, mv::DType("Int8"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
@@ -352,12 +358,14 @@ import_array();
 
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
-        return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+//        return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+        return o.constant(data, shape, mv::DType("Float16"), mv::Order(("NCHW")));
     }
 
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape){
         /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
-        return o.constantInt(data, shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+//        return o.constantInt(data, shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+        return o.constantInt(data, shape, mv::DType("Int8"), mv::Order("NCHW"));
     }
 
     mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
@@ -508,8 +516,8 @@ std::vector<double> * getData(double * d, std::size_t len);
 %apply (int64_t* INPLACE_ARRAY1, std::size_t DIM1) {(int64_t* d, std::size_t len)}
 std::vector<int64_t> * getData(int64_t * d, std::size_t len);
 
-
-mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape);
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type);
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type);
 mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input);
 mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor);
