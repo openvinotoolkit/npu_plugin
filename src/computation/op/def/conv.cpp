@@ -82,7 +82,7 @@ namespace mv
             auto C =  inputs[1]->getShape()[KERNEL_OUTPUT_CHANNELS] * group;
             auto N = inputs[0]->getShape()[IO_BATCH_DIMENSION];
 
-            mv::Shape outputShape({N, W, H, C});
+            mv::Shape outputShape({W, H, C, N});
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));

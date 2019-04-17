@@ -18,7 +18,7 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({1, 112, 224, 3}, mv::DType("Float8"), mv::Order("NWHC"));
+    auto input = om.input({112, 224, 3, 1}, mv::DType("UInt8"), mv::Order("WHCN"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
     auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float8"), mv::Order("NWHC"));
     auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});

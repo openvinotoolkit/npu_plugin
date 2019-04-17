@@ -10,10 +10,10 @@
 namespace mv
 {
 
-    static const size_t IO_BATCH_DIMENSION = 0;
-    static const size_t IO_WIDTH_DIMENSION = 1;
-    static const size_t IO_HEIGHT_DIMENSION = 2;
-    static const size_t IO_CHANNEL_DIMENSION = 3;
+    static const size_t IO_WIDTH_DIMENSION = 0;
+    static const size_t IO_HEIGHT_DIMENSION = 1;
+    static const size_t IO_CHANNEL_DIMENSION = 2;
+    static const size_t IO_BATCH_DIMENSION = 3;
 
     static const size_t KERNEL_WIDTH = 0;
     static const size_t KERNEL_HEIGHT = 1;
