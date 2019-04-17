@@ -195,7 +195,7 @@ import_array();
     mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type){
         /// Add an Input Layer to the OpModel and return the relevant iterator
 //        return o.input(shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
-        return o.input(shape, mv::DType("Int8"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
+        return o.input(shape, mv::DType("UInt8"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
@@ -359,13 +359,13 @@ import_array();
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape){
         /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
 //        return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
-        return o.constant(data, shape, mv::DType("Float16"), mv::Order(("NCHW")));
+        return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
     }
 
     mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape){
         /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
 //        return o.constantInt(data, shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
-        return o.constantInt(data, shape, mv::DType("Int8"), mv::Order("NCHW"));
+        return o.constantInt(data, shape, mv::DType("UInt8"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
     }
 
     mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
