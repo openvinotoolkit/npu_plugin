@@ -130,9 +130,10 @@ std::vector<unsigned> mv::Order::computeWordStrides(const Shape &s) const
     std::vector<unsigned> toReturn(n + 1, 0);
     std::set<unsigned> missingIndex(contVector_.begin(), contVector_.end());
     missingIndex.insert(n);
-    missingIndex.erase(0);
 
     toReturn[contVector_[0]] = 1;
+    missingIndex.erase(contVector_[0]);
+
     for(unsigned i = 1; i < n; ++i)
     {
         toReturn[contVector_[i]] = s[contVector_[i-1]] * toReturn[contVector_[i-1]];
