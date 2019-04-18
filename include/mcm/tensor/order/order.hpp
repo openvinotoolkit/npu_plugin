@@ -73,7 +73,7 @@ namespace mv
         const std::vector<std::size_t>& getContiguityVector();
 
         // Strides computed in WORDS and bytes respectively
-        std::vector<unsigned> computeWordStrides(const Shape &s) const;
+        std::vector<unsigned> computeWordStrides(const Shape &shape) const;
         std::vector<unsigned> computeByteStrides(const Shape &s, unsigned dataSize) const;
         std::size_t operator[](std::size_t idx) const;
         std::size_t size() const;

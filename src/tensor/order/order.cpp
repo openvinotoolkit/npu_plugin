@@ -128,25 +128,17 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
-std::vector<unsigned> mv::Order::computeWordStrides(const Shape &s) const
+std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
 {
-    unsigned n = s.ndims();
-    std::vector<unsigned> toReturn(n + 1, 0);
-    std::set<unsigned> missingIndex(contVector_.begin(), contVector_.end());
-    missingIndex.insert(n);
+    unsigned n = shape.ndims();
+    std::vector<unsigned> strides(n, 1);
 
-    toReturn[contVector_[0]] = 1;
-    missingIndex.erase(contVector_[0]);
+    strides[contVector_[0]] = shape[contVector_[0]];
 
     for(unsigned i = 1; i < n; ++i)
-    {
-        toReturn[contVector_[i]] = s[contVector_[i-1]] * toReturn[contVector_[i-1]];
-        missingIndex.erase(contVector_[i]);
-    }
+        strides[contVector_[i]] = strides[contVector_[i-1]] * shape[contVector_[i]];
 
-    toReturn[*(missingIndex.begin())] = s[contVector_[n-1]] * toReturn[contVector_[n-1]];
-
-    return toReturn;
+    return strides;
 }
 
 std::vector<unsigned> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const

@@ -153,16 +153,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     // TODO: Have to be rearranged according to the order
     auto underlyingTensor = tensorBufferIt->getData();
-    auto reorderVector = underlyingTensor->getOrder().getContiguityVector();
 
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
     auto numericStrides = underlyingTensor->computeNumericStrides();
+    numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
 
-    reorder(dimensions, reorderVector);
-    reorder(numericStrides, reorderVector);
+    //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
+    std::reverse(dimensions.begin(), dimensions.end());
+    std::reverse(numericStrides.begin(), numericStrides.end());
 
-    toBuild->dimensions = underlyingTensor->getShape(); // NOTE: Padded or not?
-    toBuild->strides = underlyingTensor->computeNumericStrides(); // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+    toBuild->dimensions = dimensions;
+    toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
 
     // NOTE: not sure anymore about this
     auto strides = tensorBufferIt->getStrides();
