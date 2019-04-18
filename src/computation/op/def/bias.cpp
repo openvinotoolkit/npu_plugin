@@ -24,7 +24,7 @@ namespace mv
                 return {false, 1};
             }
 
-            if (inputShape[-1] != biasesShape[0])
+            if (inputShape[mv::IO_CHANNEL_DIMENSION] != biasesShape[0])
             {
                 errMsg = "Invalid shape of biases tensor (input 1) - the dimension has to equal to the last dimension"
                     " of the input tensor which is " + std::to_string(inputShape[-1]);
