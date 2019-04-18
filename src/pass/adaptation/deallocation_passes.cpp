@@ -124,24 +124,25 @@ void removeDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::Computation
     std::vector<std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator>> newEdges ;
 
     // build a list of all the control flow edges
-    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    for (auto ctlFlow = om.opBegin(); ctlFlow != om.opEnd(); ++ctlFlow)
     {
-        for ( auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+        for ( auto parentOp = ctlFlow.leftmostParent(); parentOp != om.opEnd(); ++parentOp)
         {
-            std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator> oldEdge(om.switchContext(parentOp), om.switchContext(ctlFlow));
+            std::pair<mv::Data::OpListIterator, mv::Data::OpListIterator> oldEdge(parentOp, ctlFlow);
             oldEdges.push_back(oldEdge);
         }
     }
 
     // build list of edges to add around deallocs
-    for (auto ctlFlow = cm.getFirst(); ctlFlow != cm.getLast(); ++ctlFlow)
+    for (auto ctlFlow = om.opBegin(); ctlFlow != om.opEnd(); ++ctlFlow)
     {
         auto ctlFlowOpType = ctlFlow->getOpType();
         if (ctlFlowOpType == "Deallocate")
         {
-            for ( auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
+            auto cmCtlFlow = cm.switchContext(ctlFlow);
+            for (auto parentOp = cmCtlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
             {
-                for ( auto childOp = ctlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
+                for (auto childOp = cmCtlFlow.leftmostChild(); childOp != cm.opEnd(); ++childOp)
                 {
                     auto childOpName = childOp->getName();
 
