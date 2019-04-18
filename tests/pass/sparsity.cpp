@@ -13,7 +13,7 @@ TEST(sparsity, case_cm)
 
     auto input = om.input({56, 56 , 3}, mv::DType("UInt8"), mv::Order("CWH"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(3*3*3*64);
-    auto weights = om.constantInt(weightsData, {3, 3, 3, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
+    auto weights = om.constantInt(weightsData, {3, 3, 3, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)),{{},{},{},{}}, "weights");
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
 
     mv::Element dummyCompDesc("dummyPassDesc");
@@ -63,7 +63,7 @@ TEST(sparsity, case_hwPooling)
 
     auto input = om.input({56, 56 , 2048}, mv::DType("UInt8"), mv::Order("CHW"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*1*2048);
-    auto weights = om.constantInt(weightsData, {1, 1, 2048, 1}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), "weights");
+    auto weights = om.constantInt(weightsData, {1, 1, 2048, 1}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)),{{},{},{},{}}, "weights");
     //auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1); //stride {1,1}
 
     auto pool = om.maxPool(input, {1,1}, {1, 1}, {0, 0, 0, 0}); //stride {1,1}

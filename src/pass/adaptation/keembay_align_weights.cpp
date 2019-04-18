@@ -61,7 +61,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
             auto oldData = kernel->getData();
             oldData.resize(newShape.totalSize(), 0);
             auto newData(std::move(oldData));
-            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), "Aligned"+kernelOp->getName());
+            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), {{},{},{},{}},"Aligned"+kernelOp->getName());
             om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
             for(auto toUpdateIt = toUpdate.begin(); toUpdateIt != toUpdate.end(); ++toUpdateIt)

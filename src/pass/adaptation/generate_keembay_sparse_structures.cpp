@@ -30,7 +30,7 @@ namespace mv
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), {{},{},{},{}},sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, newSize - 1);
@@ -219,7 +219,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         dpuTaskOp->erase("bias");
     }
 
-    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
+    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), {{},{},{},{}}, kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
     om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
@@ -399,7 +399,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                     //SparsityMap will be saved as attribute
                     auto smInternalTensor = weights->getSparsityMap();
                     auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                        smInternalTensor->getOrder(), smInternalTensor->getName());
+                                                      smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
                     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     unsigned newSize = dpuTask->addInputTensor(sparsityMap);
                     om.defineFlow(sparsityMap, dpuTask, newSize - 1);

@@ -36,8 +36,13 @@ namespace mv
             std::vector<Tensor>&)> outputDataElementDefFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                args.at("order").get<mv::Order>(), args.at("data").get<std::vector<mv::DataElement>>()));
+
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                                             args.at("order").get<mv::Order>(),  args.at("data").get<std::vector<mv::DataElement>>()));
+            else
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                    args.at("order").get<mv::Order>(),  args.at("data").get<std::vector<mv::DataElement>>(),args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
         MV_REGISTER_OP(Constant)
@@ -46,6 +51,8 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"exposed"});
@@ -56,6 +63,7 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputIntDefFcn)
         .setTypeTrait({"exposed"});
@@ -66,6 +74,7 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDataElementDefFcn);
     }

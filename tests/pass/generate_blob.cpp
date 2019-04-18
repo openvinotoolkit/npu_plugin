@@ -562,7 +562,7 @@ TEST (generate_blob, blob_convbias_convrelu)
     auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
 
     std::vector<double> biasesData = { 64444.0 };
-    auto biases = test_cm.constant(biasesData, {1}, mv::DType("Float16"), mv::Order("W"), "biases");
+    auto biases = test_cm.constant(biasesData, {1}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "biases");
     auto bias1 = test_cm.bias(convIt61, biases);
     // define first maxpool
     auto maxpoolIt61 = test_cm.maxPool(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
@@ -575,10 +575,10 @@ TEST (generate_blob, blob_convbias_convrelu)
     std::vector<double> varianceData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
     std::vector<double> offsetData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
     std::vector<double> scaleData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
-    auto bnmean = test_cm.constant(meanData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"), "mean");
-    auto bnvariance = test_cm.constant(varianceData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"), "variance");
-    auto bnoffset = test_cm.constant(offsetData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"), "offset");
-    auto bnscale = test_cm.constant(scaleData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"), "scale");
+    auto bnmean = test_cm.constant(meanData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"),{{},{},{},{}}, "mean");
+    auto bnvariance = test_cm.constant(varianceData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"),{{},{},{},{}}, "variance");
+    auto bnoffset = test_cm.constant(offsetData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"),{{},{},{},{}}, "offset");
+    auto bnscale = test_cm.constant(scaleData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"), {{},{},{},{}},"scale");
     auto batchnorm = test_cm.batchNormalization(convIt62, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
     auto reluIt62 = test_cm.relu(batchnorm);
     // define second maxpool
@@ -627,7 +627,7 @@ TEST (generate_blob, blob_scale)
     auto convIt61 = test_cm.conv(inIt6, weightsIt61, {2, 2}, {0, 0, 0, 0}, 1);
 
     std::vector<double> biasesData = { 64444.0 };
-    auto biases = test_cm.constant(biasesData, {1}, mv::DType("Float16"), mv::Order("W"), "biases");
+    auto biases = test_cm.constant(biasesData, {1}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "biases");
     auto bias1 = test_cm.bias(convIt61, biases);
     // define first maxpool
     auto maxpoolIt61 = test_cm.maxPool(bias1,{5,5}, {3, 3}, {1, 1, 1, 1});
@@ -638,7 +638,7 @@ TEST (generate_blob, blob_scale)
 
     // define scale
     std::vector<double> scalesData = { 6550.0 };
-    auto scales = test_cm.constant(scalesData, {1}, mv::DType("Float16"), mv::Order("W"), "scales");
+    auto scales = test_cm.constant(scalesData, {1}, mv::DType("Float16"), mv::Order("W"),{{},{},{},{}}, "scales");
     auto scaleIt62 = test_cm.scale(convIt62, scales);
     // define output
     auto outIt6 = test_cm.output(scaleIt62);
