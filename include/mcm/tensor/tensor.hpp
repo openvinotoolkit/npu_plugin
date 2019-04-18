@@ -49,6 +49,7 @@ namespace mv
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data, const mv::QuantizationParams& quantParams);
         Tensor(const Tensor& other);
         ~Tensor();
 

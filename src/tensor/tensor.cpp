@@ -63,6 +63,12 @@ Tensor(name, shape, dType, order)
     populate(data, order);
 }
 
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data, const mv::QuantizationParams &quantParams):
+Tensor(name, shape, dType, order, quantParams)
+{
+    populate(data, order);
+}
+
 mv::Tensor::Tensor(const Tensor &other) :
 Element(other),
 data_(other.data_.size(), other.isDoubleType()),
