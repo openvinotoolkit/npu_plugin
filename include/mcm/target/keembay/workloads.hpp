@@ -145,7 +145,7 @@ namespace mv
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode);
         ~Workloads();
       
-        void generateMetisGraph(void);
+        void generateMetisGraph(void) const;
         int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
@@ -170,3 +170,4 @@ namespace mv
 }
 
 #endif 
+

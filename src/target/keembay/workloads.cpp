@@ -128,7 +128,7 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
  * @return None
  * 
  */
-void mv::Workloads::generateMetisGraph(void) {
+void mv::Workloads::generateMetisGraph(void) const {
 
     /*Nodes in the graph*/
     std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph_->m_numberTensorVertices);
