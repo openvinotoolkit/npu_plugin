@@ -15,6 +15,7 @@ import_array();
 %include exception.i
 %{
     #include <include/mcm/compiler/compilation_unit.hpp>
+    #include "include/mcm/tensor/quantization_params.hpp"
     #include <math.h>
     #include <iostream>
 
@@ -149,9 +150,22 @@ import_array();
         return a;
     }
 
+
+    mv::QuantizationParams * getQuantParams(const std::vector<int64_t>& zero_data, const std::vector<double>& scale_data){
+        /// Create a c++ shape object from a passed in set of dimension sizes
+        mv::QuantizationParams * quant = new mv::QuantizationParams({},{},{},{});
+        return quant;
+    }
+
     std::vector<double> * getData(double * d, std::size_t len){
         /// Populate a Vector with a numpy array.
         std::vector<double> * weightsData = new std::vector<double>(d, d + len);
+        return weightsData;
+    }
+
+    std::vector<float> * getData(float * d, std::size_t len){
+        /// Populate a Vector with a numpy array.
+        std::vector<float> * weightsData = new std::vector<float>(d, d + len);
         return weightsData;
     }
 
@@ -159,6 +173,12 @@ import_array();
         /// Populate a Vector with a numpy array.
         std::vector<int64_t> * weightsData = new std::vector<int64_t>(d, d + len);
         return weightsData;
+    }
+
+    std::vector<uint64_t> * getData(uint64_t * d, std::size_t len){
+        /// Populate a Vector with a numpy array.
+        std::vector<uint64_t> * zeroData = new std::vector<uint64_t>(d, d + len);
+        return zeroData;
     }
 
     int testConv(
@@ -186,21 +206,34 @@ import_array();
         return ret_val;
     }
 
-    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type){
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const std::string& name,  const mv::QuantizationParams &quantParams){
         /// Add an Input Layer to the OpModel and return the relevant iterator
 //        return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
-          return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
+          return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getZMajorID(shape.ndims())), quantParams, name);
     }
 
-    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type){
+
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const std::string& name, const mv::QuantizationParams &quantParams){
         /// Add an Input Layer to the OpModel and return the relevant iterator
 //        return o.input(shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
-        return o.input(shape, mv::DType("UInt8"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
+        return o.input(shape, mv::DType("UInt8"), mv::Order(mv::Order::getZMajorID(shape.ndims())), quantParams, name);
     }
 
-    mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const std::string& name){
+        /// Add an Input Layer to the OpModel and return the relevant iterator
+//        return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+        return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getZMajorID(shape.ndims())), {{},{},{},{}}, name);
+    }
+
+    mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const std::string& name){
+        /// Add an Input Layer to the OpModel and return the relevant iterator
+//        return o.input(shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+          return o.input(shape, mv::DType("Uint8"), mv::Order(mv::Order::getZMajorID(shape.ndims())), {{},{},{},{}}, name);
+    }
+
+    mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& name){
         /// Add an Output Layer to the OpModel and return the relevant iterator
-        return o.output(input);
+        return o.output(input, name);
     }
 
     mv::Data::TensorIterator maxpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
@@ -259,9 +292,15 @@ import_array();
     }
 
     mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor){
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group){
         /// Add a Convolutional Layer to the OpModel and return the relevant iterator
         return o.conv(input, filters, {strideX, strideY}, {padX, padX, padY, padY}, dilationFactor);
+    }
+
+    mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+        short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group, const std::string &name, const mv::QuantizationParams &quantParams){
+        /// Add a Convolutional Layer to the OpModel and return the relevant iterator
+        return o.conv(input, filters, {strideX, strideY}, {padX, padX, padY, padY}, dilationFactor, group, quantParams, name);
     }
 
     mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
@@ -368,6 +407,19 @@ import_array();
         return o.constantInt(data, shape, mv::DType("UInt8"), mv::Order(mv::Order::getZMajorID(shape.ndims())));
     }
 
+
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<double>& data, const mv::Shape &shape, const std::string &name, const mv::QuantizationParams &quantParams){
+        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
+//        return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+        return o.constant(data, shape, mv::DType("Float16"), mv::Order(mv::Order::getZMajorID(shape.ndims())), quantParams, name);
+    }
+
+    mv::Data::TensorIterator constant(mv::CompositionalModel& o, const std::vector<int64_t> &data, const mv::Shape &shape, const std::string &name, const mv::QuantizationParams &quantParams){
+        /// Add a Constant Layer to the CompositionalModel and return the relevant iterator
+//        return o.constantInt(data, shape, mv::DType("Int8"), mv::Order(mv::Order::getRowMajorID(shape.ndims())));
+        return o.constantInt(data, shape, mv::DType("UInt8"), mv::Order(mv::Order::getZMajorID(shape.ndims())), quantParams, name);
+    }
+
     mv::Data::OpListIterator getSourceOp(mv::CompositionalModel& o, mv::Data::TensorIterator tensor){
         // Get source operation of a tensor
         return o.getSourceOp(tensor);
@@ -458,12 +510,14 @@ import_array();
     mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape){
         return o.reshape(input, shape);
     }
-    mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values){
-        return o.bias(input, bias_values);
+    mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values, const std::string &name){
+        return o.bias(input, bias_values, {{},{},{},{}}, name);
     }
-
+    mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values, const std::string &name, const mv::QuantizationParams  &quantParams){
+        return o.bias(input, bias_values, quantParams, name);
+    }
     bool isValid(mv::CompositionalModel& o){
-    	return o.isValid();
+        return o.isValid();
     }
 
  %}
@@ -513,14 +567,26 @@ std::array<unsigned short, 4> * get4DVector(int w, int x, int y, int z);
 %include "stdint.i"
 %apply (double* INPLACE_ARRAY1, std::size_t DIM1) {(double* d, std::size_t len)}
 std::vector<double> * getData(double * d, std::size_t len);
+%apply (float* INPLACE_ARRAY1, std::size_t DIM1) {(float* d, std::size_t len)}
+std::vector<float> * getData(float * d, std::size_t len);
 %apply (int64_t* INPLACE_ARRAY1, std::size_t DIM1) {(int64_t* d, std::size_t len)}
 std::vector<int64_t> * getData(int64_t * d, std::size_t len);
+%apply (uint64_t* INPLACE_ARRAY1, std::size_t DIM1) {(uint64_t* d, std::size_t len)}
+std::vector<uint64_t> * getData(uint64_t * d, std::size_t len);
 
-mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type);
-mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type);
-mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input);
+mv::QuantizationParams * getQuantParams(const std::vector<int64_t> &zero_data, const std::vector<double>& scale_data);
+
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const std::string& name , const mv::QuantizationParams &quantParams);
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const std::string& name, const mv::QuantizationParams &quantParams);
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const std::string& name);
+mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, uint64_t type, const std::string& name);
+
+mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& name);
 mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
-    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor);
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group);
+mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
+    short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor, short unsigned group,
+                                const std::string& name, const mv::QuantizationParams  &quantParams);
 mv::Data::TensorIterator conv2D_caffe(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, short unsigned dilationFactor);
 mv::Data::TensorIterator depthwiseConv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
@@ -552,10 +618,13 @@ mv::Data::TensorIterator subtract(mv::CompositionalModel& o,mv::Data::TensorIter
 mv::Data::TensorIterator multiply(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator reshape(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Shape& shape);
-mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values);
+mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values,  const std::string &name);
+mv::Data::TensorIterator bias(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator bias_values, const std::string &name, const mv::QuantizationParams  &quantParams);
 mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape);
 mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape);
+mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<int64_t>& data, const mv::Shape &shape, const std::string &name,  const mv::QuantizationParams  &quantParams);
+mv::Data::TensorIterator constant(mv::CompositionalModel&  o, const std::vector<double>& data, const mv::Shape &shape,  const std::string &name,  const mv::QuantizationParams  &quantParams);
 mv::Data::TensorIterator prelu(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator negative_slope);
 mv::Data::TensorIterator dropOut(mv::CompositionalModel& o,mv::Data::TensorIterator input);
 bool isValid(mv::CompositionalModel& o);
