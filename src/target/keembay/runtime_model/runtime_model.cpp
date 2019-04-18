@@ -645,7 +645,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     {
         auto allocators = tensorIt->get<std::set<std::string>>("allocators");
         if (allocators.count("GraphFile") != 0)
-            buildBinaryDataT(cm, compilationDescriptor, *tensorIt);
+            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
     }
 
 }
