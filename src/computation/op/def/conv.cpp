@@ -1,5 +1,4 @@
 #include "include/mcm/computation/op/op_registry.hpp"
-#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace mv
 {
