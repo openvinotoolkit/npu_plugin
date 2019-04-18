@@ -511,5 +511,9 @@ bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& in
     return true;
 }
 
-           
-           
+
+int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry& pass)
+{
+    pass.log(mv::Logger::MessageType::Error, "Not implemented - mv::Workloads::partitionTensorWithRectangleHeuristic");
+    return METIS_ERROR;
+}
