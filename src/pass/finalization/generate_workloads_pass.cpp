@@ -94,30 +94,3 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
 }
-
-
-
-// void splitTensorsOverClusterFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
-// {
-
-//     pass.log(mv::Logger::MessageType::Debug, "Starting split tensors over clusters pass");
-
-//     /*Get the number of clusters that the VPU supports*/
-//     auto nceDefs = target.nceDefs();
-//     auto nClusters = nceDefs.find("Clusters")->second.totalNumber;
-
-//     /*Get all tensors*/
-//     mv::OpModel om(model);
-//     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
-//     {
-//         /*number outputs for operation*/
-//         for(std::size_t i = 0; i < opIterator.outputsSize(); i++) {
-
-//         }
-        
-//     }
-
-
-    
-//     pass.log(mv::Logger::MessageType::Debug, "Exiting split tensors over clusters pass");
-// }
