@@ -308,8 +308,10 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 {
     mv::OpModel om(cm);
     mv::ControlModel controlModel(cm);
-    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
+    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(3);
     toBuild[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
+    toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
+    toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     auto topologicallySortedOps = controlModel.topologicalSort();
 
@@ -319,7 +321,14 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
         std::string opType = opIt->getOpType();
         //Only Tasks in TaskLists
         if(opType.find("Task") != std::string::npos)
-            toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+        {
+            if(opType.find("DPU") != std::string::npos)
+                toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+            if(opType.find("DMA") != std::string::npos)
+                toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+            if(opType.find("Controller") != std::string::npos)
+                toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+        }
     }
 
     return toBuild;
