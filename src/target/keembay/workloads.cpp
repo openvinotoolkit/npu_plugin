@@ -10,8 +10,6 @@ layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure
 
 mv::Workloads::~Workloads()
 {
-    std::cout << "calling class destructor" << std::endl;
-    //delete metisGraph_;
 }
 
 mv::Workload& mv::Workloads::operator[](int nworkload)
