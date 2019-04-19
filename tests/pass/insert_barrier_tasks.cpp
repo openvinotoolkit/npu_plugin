@@ -369,17 +369,22 @@ TEST(insert_barrier_tasks, static_index_assignment)
     // Expect reuse of barrier index numbers due to graph coloring + static index assignment
     for (auto b : barrierOps)
     {
-        //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
+//        std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getIndex() << std::endl;
         if (b->getName() == "BarrierTask_0")
         {
             EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
-        if (b->getName() == "BarrierTask_4")
+        if (b->getName() == "BarrierTask_2")
         {   EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
-        if (b->getName() == "BarrierTask_7")
+        if (b->getName() == "BarrierTask_6")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_8")
         {
             EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
@@ -389,59 +394,54 @@ TEST(insert_barrier_tasks, static_index_assignment)
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
-        if (b->getName() == "BarrierTask_5")
+        if (b->getName() == "BarrierTask_4")
         {
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
-        if (b->getName() == "BarrierTask_8")
+        if (b->getName() == "BarrierTask_7")
         {
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
-            numChecks++;
-        }
-        if (b->getName() == "BarrierTask_2")
-        {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
         if (b->getName() == "BarrierTask_9")
         {
-            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
         if (b->getName() == "BarrierTask_3")
         {
-            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
-        if (b->getName() == "BarrierTask_6")
+        if (b->getName() == "BarrierTask_5")
         {
-            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
         if (b->getName() == "BarrierTask_10")
         {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
         if (b->getName() == "BarrierTask_12")
         {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
         if (b->getName() == "BarrierTask_14")
         {
-            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
         if (b->getName() == "BarrierTask_16")
         {
-            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
         if (b->getName() == "BarrierTask_18")
         {
-            EXPECT_EQ(6, b->get<mv::Barrier>("Barrier").getIndex());
+            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
             numChecks++;
         }
     }
