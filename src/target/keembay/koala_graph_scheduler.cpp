@@ -310,7 +310,6 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
         }
     }
     throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");
-
 }
 
 /*
