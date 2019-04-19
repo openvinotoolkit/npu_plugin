@@ -515,8 +515,110 @@ bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& in
 }
 
 
-int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry& pass)
+//----------------------------------------------------------------------
+//
+//   Rectangle Heuristic
+//
+//----------------------------------------------------------------------
+
+
+namespace mv {
+
+    struct Shape2D
+    {
+        unsigned H; // height, aka X
+        unsigned W; // width,      Y
+    };
+
+    using WorkloadContext = Shape2D;
+    using WorkloadShape   = Shape2D;
+
+    struct PaddingVariant
+    {
+        double          efficiency;
+        WorkloadShape   original;
+        WorkloadShape   reduced;
+        WorkloadContext context;
+    };
+
+
+    // Elementary workload shapes
+    using  WorkloadContextList = std::vector<WorkloadContext>;
+    static WorkloadContextList context_list = {{4,  4}, {16, 1}}; // height x width
+
+
+    static unsigned divRoundUp(unsigned x, unsigned m) { return (x + m - 1) / m; }; // e.g. div(1, 2) = 0.5 -> 1
+    static unsigned padRoundUp(unsigned x, unsigned m) { return divRoundUp(x, m) * m; }; // pad(1, 2)       -> 2
+
+
+    static double estimateEfficiency(const WorkloadShape& original,
+                                     const WorkloadShape& padded)
+    {
+        double o_volume = original.H * original.W;
+        double p_volume =   padded.H *   padded.W;
+        return o_volume / p_volume;
+    }
+
+
+    static PaddingVariant selectPadding(const WorkloadShape      & original,
+                                        const WorkloadContextList& context_list)
+    {
+        double best_efficiency = 0;
+        PaddingVariant best_variant; // undefined
+
+        for (auto context : context_list)
+        {
+            WorkloadShape padded;
+            padded.H = padRoundUp(original.H, context.H);
+            padded.W = padRoundUp(original.W, context.W);
+
+            auto efficiency = estimateEfficiency(original, padded);
+
+            if (efficiency > best_efficiency)
+            {
+                efficiency = best_efficiency;
+
+                WorkloadShape reduced;
+                reduced.H = padded.H / context.H;
+                reduced.W = padded.W / context.W;
+                best_variant = {efficiency, original, reduced, context};
+            }
+        }
+
+        return best_variant;
+    }
+
+} // namespace mv
+
+
+int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry &pass)
 {
-    pass.log(mv::Logger::MessageType::Error, "Not implemented - mv::Workloads::partitionTensorWithRectangleHeuristic");
+    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: layer=" + layerName_);
+
+    // FIXME: we need to know tensor's order to find its width and height dimensions
+    // HACK: assume tensor's order is "...HW", so width=shape[0] and height=shape[1]
+    if (tensorShape_.ndims() < 2) {
+        pass.log(mv::Logger::MessageType::Error,
+                 "RectangleHeuristic: too few tensor ndims=" + std::to_string(tensorShape_.ndims()));
+        return METIS_ERROR;
+    }
+
+    WorkloadShape original_shape;
+    original_shape.W = tensorShape_[0]; // width, aka Y
+    original_shape.H = tensorShape_[1]; // height,    X
+    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: original_height=" + std::to_string(original_shape.H)
+                                                             + ", original_width="  + std::to_string(original_shape.W));
+
+    auto best_padding = selectPadding(original_shape, context_list);
+    auto& reduced_shape = best_padding.reduced;
+    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
+                                                             + ", reduced_width="  + std::to_string(reduced_shape.W));
+
+
+#if 1
+    pass.log(mv::Logger::MessageType::Error, "RectangleHeuristic: not implemented!");
     return METIS_ERROR;
+#else
+    return METIS_OK;
+#endif
 }
