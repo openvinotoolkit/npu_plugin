@@ -309,7 +309,8 @@ void mv::KoalaGraphScheduler::performPartialSerialisation(const mv::pass::PassEn
             this->getGraph().delEdge(newEdge);
         }
     }
-    throw std::runtime_error("Unable to find partial serialisation edge, exit");
+    throw std::runtime_error("The maximum peak memory requirment of the graph exceeds CMX and the partial serialisation algorithm is unable to reduce parallelism, exiting now, this is normal behaviour");
+
 }
 
 /*
