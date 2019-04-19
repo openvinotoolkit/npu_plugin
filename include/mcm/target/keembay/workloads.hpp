@@ -131,8 +131,8 @@ namespace mv
         int8_t workloadID = 0;
 
     };
-    
-    class Workloads : public LogSender 
+
+    class Workloads : public LogSender
     {
 
         std::vector<Workload> workloads_;
@@ -140,7 +140,7 @@ namespace mv
         mv::Shape tensorShape_;
 
         std::shared_ptr<MetisGraphStructure> metisGraph_; 
-     
+
     public:
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode);
         ~Workloads();
