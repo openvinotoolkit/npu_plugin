@@ -344,6 +344,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
 
     unit.compilationDescriptor().remove("serialize");
+    unit.compilationDescriptor().remove("MaxTopologicalCutAndPartialSerialisation");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
@@ -446,6 +447,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
 
     unit.compilationDescriptor().remove("serialize");
+    unit.compilationDescriptor().remove("MaxTopologicalCutAndPartialSerialisation");
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

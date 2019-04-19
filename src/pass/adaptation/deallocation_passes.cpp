@@ -100,6 +100,15 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
         }
     }
+
+    // Remove deallocation for last operation
+
+    auto outputOp = om.getOutput();
+    auto lastDMAOp = outputOp.leftmostParent();
+    auto lastOpBeforeLastDma = lastDMAOp.leftmostParent();
+
+    auto lastDeallocation = om.getOp("Deallocate"+lastOpBeforeLastDma->getName());
+    om.removeOp(lastDeallocation);
 }
 
 // Pass role: Remove deallocation tasks for each Tensor
