@@ -155,9 +155,9 @@ namespace mv
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
         std::size_t nWorkloads() const;
         std::vector<Workload>& getWorkloads();
-        std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction); 
-        float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
-        bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor, mv::Workloads& workloads);
+        std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction); 
+        static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
+        bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor); //, mv::Workloads& workloads);
         mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);
 
         double getAllWorkloadsVolume() const;

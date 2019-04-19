@@ -349,8 +349,8 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     }
 }
 
-mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass) {
-
+mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass) 
+{
     /*parse CostFunction from Comp Descriptor*/
     CostFunctions costFunction = CostFunctions::Balanced; //default
     std::string sCostFunction = std::string(); 
@@ -373,22 +373,25 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv
 
 }
 
-std::vector<float> mv::Workloads::getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, mv::Workloads& workloads, int nDPUxCluster, std::pair <int,int> MPEMode, CostFunctions costFunction) {
-
+std::vector<float> mv::Workloads::getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction)
+{
     // notes from POC compiler:  Execution time is bounded by
     //      sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
     if (nDPUxCluster < 1)
         throw mv::ArgumentError("Generate Workloads Pass", "nDPUxCluster", std::to_string(nDPUxCluster), "Invalid number of DPUs");
 
     std::vector<float> workloadsExecutionCycles;
-    if (validateWorkloads(outputTensor, workloads))
+    if (validateWorkloads(outputTensor))
     {   
-        for(std::vector<mv::Workload>::iterator itWL = workloads.getWorkloads().begin(); itWL != workloads.getWorkloads().end(); ++itWL) 
+        for(std::vector<mv::Workload>::iterator itWL = workloads_.begin(); itWL != workloads_.end(); ++itWL) 
         {
-            float height = itWL->MaxY - itWL->MinY + MPEMode.first;
-            float width = itWL->MaxX - itWL->MinX + MPEMode.second;
+            std::pair <int,int> mpeMode (4, 4);
+            if(itWL->MPEMode == mv::MPE_Mode::Matrix)
+                mpeMode = {1,16};
+            float height = itWL->MaxY - itWL->MinY + mpeMode.first;
+            float width = itWL->MaxX - itWL->MinX + mpeMode.second;
 
-            float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / MPEMode.first) * ceil(width / MPEMode.second);
+            float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
     }
@@ -467,7 +470,7 @@ float mv::Workloads::greedyTaskAssignment(int nProcessors, std::vector<float>& w
 }
 
 
-bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor, mv::Workloads& workloads)
+bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor)
 {
     //    Check if the generated workloads are valid
     //    Check 1: the union of the workload have to make the whole tensor
@@ -477,34 +480,34 @@ bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& in
 
     // Check 0: empty workloads are not valid
     // Using size_t variable (nWorkloads) below, you may see a warning. Casting to double or int is unnecessary
-    if ((workloads.nWorkloads()) == 0)
+    if (workloads_.size()  == 0)
     {
-        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of total number of the partitions <=0");
+        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of total number of the partitions <=0");
         return false;
     }
 
     // Check 1: Volume of the tensor = sum of volumes of the individual workloads
-    double vol = workloads.getAllWorkloadsVolume();
+    double vol = this->getAllWorkloadsVolume();
     std::size_t totalVol = inputTensor[0]->getShape().totalSize();
-    if (inputTensor[0]->getShape().totalSize() != workloads.getAllWorkloadsVolume())
+    if (inputTensor[0]->getShape().totalSize() != vol)
     {
-        workloads.log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
-                    std::to_string(inputTensor[0]->getShape().totalSize()) + " Partitioned Tensor: " + std::to_string(workloads.getAllWorkloadsVolume()));
+        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
+                    std::to_string(inputTensor[0]->getShape().totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
         return false;
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    if (workloads.getShapefromMinMax() != inputTensor[0]->getShape())
+    if (this->getShapefromMinMax() != inputTensor[0]->getShape())
     {
-        workloads.log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
-                                     inputTensor[0]->getShape().toString() + " and Partitioned Tensor " + workloads.getShapefromMinMax().toString());
+        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
+                                     inputTensor[0]->getShape().toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
         return false;
     }
 
     // Check 2: No intersection between workloads.
-    if (!workloads.noOverlap())
+    if (!this->noOverlap())
     {
-        workloads.log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
         return false;
     }
 

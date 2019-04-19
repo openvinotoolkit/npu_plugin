@@ -88,8 +88,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
             auto costFunction = workloads.getCostFunction(passDesc, pass);
 
-            std::vector<float> exeCycle = workloads.getExecutionCycles(outputTensor, workloads, nDPUxCluster, MPEMode, costFunction);
+            std::vector<float> exeCycle = workloads.getExecutionCycles(outputTensor, nDPUxCluster, costFunction);
             // TODO: process the execution cycles
+
+
+
+
+
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
