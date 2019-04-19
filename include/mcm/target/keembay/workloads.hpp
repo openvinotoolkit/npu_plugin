@@ -157,7 +157,7 @@ namespace mv
         std::vector<Workload>& getWorkloads();
         std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction); 
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
-        bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor); //, mv::Workloads& workloads);
+        bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
         mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);
 
         double getAllWorkloadsVolume() const;
