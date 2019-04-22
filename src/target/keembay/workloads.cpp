@@ -869,6 +869,43 @@ namespace mv {
         return slice_list_variant;
     }
 
+    using  WorkloadList = std::vector<Workload>;
+    static WorkloadList generateWorkloadsFromSlices(const SplitSliceList& slice_list,
+                                                    const PaddingVariant& padding,
+                                                    unsigned Z=0)
+    {
+        WorkloadList workload_list;
+
+        // FIXME: probably map W, H to Y, X (POC maps to X, Y)
+        unsigned x_coef = std::ceil(static_cast<double>(padding.original.W) / padding.reduced.W);
+        unsigned y_coef = std::ceil(static_cast<double>(padding.original.H) / padding.reduced.H);
+
+        for (auto slice : slice_list)
+        {
+            unsigned x_min = slice.x0 * x_coef;
+            unsigned y_min = slice.y0 * y_coef;
+            unsigned x_max = slice.x1 * x_coef;
+            unsigned y_max = slice.y1 * y_coef;
+
+            Workload workload;
+
+            workload.MinX = x_min;
+            workload.MinY = y_min;
+            workload.MaxX = (std::min)(x_max - 1, padding.original.W - 1);
+            workload.MaxY = (std::min)(y_max - 1, padding.original.H - 1);
+
+            // TODO: implement partitioning by Z
+            workload.MinZ = 0;
+            workload.MaxZ = Z;
+
+            // FIXME: setup workload id
+            // FIXME: adjust workloads padding
+            workload_list.push_back(workload);
+        }
+
+        return workload_list;
+    }
+
 } // namespace mv
 
 
@@ -909,13 +946,10 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
 
     //
-    // TODO: generate workloads from slices!
+    // FIXME: see details inside code of generateWorkloadsFromSlices()
     //
+    workloads_ = generateWorkloadsFromSlices(slice_list, best_padding);
+    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
 
-#if 1
-    pass.log(mv::Logger::MessageType::Error, "RectangleHeuristic: not implemented!");
-    return METIS_ERROR;
-#else
     return METIS_OK;
-#endif
 }
