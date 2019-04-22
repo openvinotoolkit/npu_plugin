@@ -553,8 +553,8 @@ namespace mv {
     static WorkloadContextList context_list = {{4,  4}, {16, 1}}; // height x width
 
 
-    static unsigned divRoundUp(unsigned x, unsigned m) { return (x + m - 1) / m; }; // e.g. div(1, 2) = 0.5 -> 1
-    static unsigned padRoundUp(unsigned x, unsigned m) { return divRoundUp(x, m) * m; }; // pad(1, 2)       -> 2
+    static unsigned divRoundUp(unsigned x, unsigned m) { return (x + m - 1) / m; } // e.g. div(1, 2) = 0.5 -> 1
+    static unsigned padRoundUp(unsigned x, unsigned m) { return divRoundUp(x, m) * m; } // pad(1, 2)       -> 2
 
 
     static double estimateEfficiency(const WorkloadShape& original,
@@ -691,19 +691,18 @@ namespace mv {
         unsigned X = std::get<0>(factors);
         unsigned Y = std::get<1>(factors);
 
-        SplitSliceList list; // empty
-        SplitSliceVariant variant;
-        variant.slice_list = list;
-        variant.cost_estimate = cost_estimate;
+        SplitSliceVariant slice_list_variant;
+        slice_list_variant.cost_estimate = cost_estimate;
 
         if (std::isinf(cost_estimate))
-            return variant; // no slicing in fact
+            return slice_list_variant; // empty slice list
 
         //FIXME: POC associates W, H with X, Y (I guss must associate with Y, X)
 
-        unsigned dx = std::ceil(W / X);
-        unsigned dy = std::ceil(H / Y);
+        unsigned dx = std::ceil(static_cast<double>(W) / X);
+        unsigned dy = std::ceil(static_cast<double>(H) / Y);
 
+        SplitSliceList slice_list; // empty
         for (unsigned x=0; x < X; x++)
         for (unsigned y=0; y < X; y++)
         {
@@ -712,17 +711,163 @@ namespace mv {
             slice.y0 = y * dy;
             slice.x1 = (std::min)((x + 1)*dx, W);
             slice.y1 = (std::min)((y + 1)*dy, H);
-            list.push_back(slice);
+            slice_list.push_back(slice);
         }
 
-        return variant;
+        slice_list_variant.slice_list = slice_list;
+        return slice_list_variant;
+    }
+
+    struct SplitVariantNonSymmetric : public SplitVariant
+    {
+        unsigned xss, yss;
+        char mode;
+    };
+
+    static SplitVariantNonSymmetric getBestSplitNonSymmetric(unsigned W, unsigned H, unsigned N)
+    {
+        SplitVariantNonSymmetric best_variant;
+        best_variant.cost_estimate = INFINITY; // worst
+
+        SplitFactorsList factors = getSplitFactors(N - 1);
+        for (auto f : factors)
+        {
+            auto K = std::get<0>(f);
+            auto P = std::get<1>(f);
+            if (K > P)
+                std::swap(K, P); // ensure X <= Y
+
+            if (K == 1)
+                continue;
+
+            unsigned a1 = std::ceil((std::max)(H, W) * static_cast<double>(K + 1) / N);
+            unsigned a2 = std::ceil((std::min)(H, W) / static_cast<double>(K + 1));
+
+            unsigned a3 = std::floor((std::min)(H, W) * static_cast<double>(K + 1) / N);
+            unsigned a4 =  std::ceil((std::max)(H, W) / static_cast<double>(K + 1));
+
+            if (H >= W)
+            {
+                double cost0 = estimateSplitBalance(    a3, H,   1, K+1)
+                               + estimateSplitBalance(W - a3, H, P-1, K);
+                if (best_variant.cost_estimate > cost0)
+                {
+                    best_variant.cost_estimate = cost0;
+                    best_variant.factors = std::make_pair(P, K);
+                    best_variant.xss = a3;
+                    best_variant.yss = a4;
+                    best_variant.mode = 'H';
+                }
+
+                double cost1 = estimateSplitBalance(W,     a1, K+1, 1)
+                               + estimateSplitBalance(W, H - a1, K  , P-1);
+                if (best_variant.cost_estimate > cost1)
+                {
+                    best_variant.cost_estimate = cost1;
+                    best_variant.factors = std::make_pair(K, P);
+                    best_variant.xss = a2;
+                    best_variant.yss = a1;
+                    best_variant.mode = 'W';
+                }
+            }
+            else // if H < W
+            {
+                double cost2 = estimateSplitBalance(    a1, H,   1, K+1)
+                               + estimateSplitBalance(W - a1, H, P-1, K);
+                if (best_variant.cost_estimate > cost2)
+                {
+                    best_variant.cost_estimate = cost2;
+                    best_variant.factors = std::make_pair(P, K);
+                    best_variant.xss = a1;
+                    best_variant.yss = a2;
+                    best_variant.mode = 'H';
+                }
+
+                double cost3 = estimateSplitBalance(W,     a3, K+1, 1)
+                               + estimateSplitBalance(W, H - a3, K  , P-1);
+                if (best_variant.cost_estimate > cost3)
+                {
+                    best_variant.cost_estimate = cost3;
+                    best_variant.factors = std::make_pair(K, P);
+                    best_variant.xss = a4;
+                    best_variant.yss = a3;
+                    best_variant.mode = 'W';
+                }
+            }
+        }
+
+        return best_variant;
     }
 
     static SplitSliceVariant splitSliceNonSymmetric(unsigned W, unsigned H, unsigned N)
     {
-        throw "Not implemented!"; // never call this function
-    }
+        SplitVariantNonSymmetric best_split = getBestSplitNonSymmetric(W, H, N);
+        double& cost_estimate = best_split.cost_estimate;
+        SplitFactors& factors = best_split.factors;
+        unsigned X = std::get<0>(factors);
+        unsigned Y = std::get<1>(factors);
+        unsigned xss = best_split.xss;
+        unsigned yss = best_split.yss;
+        char mode = best_split.mode;
 
+        SplitSliceVariant slice_list_variant;
+        slice_list_variant.cost_estimate = cost_estimate;
+
+        if (std::isinf(cost_estimate))
+            return slice_list_variant; // no slicing in fact
+
+        //FIXME: POC associates W, H with X, Y (I guss must associate with Y, X)
+
+        unsigned x_start = 0;
+        unsigned y_start = 0;
+        SplitSliceList slice_list; // empty
+
+        if (mode == 'H')
+        {
+            for (unsigned y=0; y < Y+1; y++)
+            {
+                SplitSlice slice;
+                slice.x0 = 0;
+                slice.x1 = xss;
+                slice.y0 = y * yss;
+                slice.y1 = (std::min)((y + 1)*yss, H);
+                slice_list.push_back(slice);
+            }
+            x_start = xss;
+            Y -= 1;
+        }
+        else // if mode == 'W'
+        {
+            for (unsigned x=0; x < X+1; x++)
+            {
+                SplitSlice slice;
+                slice.x0 = x * xss;
+                slice.x1 = (std::min)((x + 1)*xss, W);
+                slice.y0 = 0;
+                slice.y1 = yss;
+                slice_list.push_back(slice);
+            }
+            y_start = yss;
+            X -= 1;
+        }
+
+        unsigned x_size = std::ceil(static_cast<double>(W - x_start) / X);
+        unsigned y_size = std::ceil(static_cast<double>(H - y_start) / Y);
+
+        for (unsigned x=0; x < X; x++)
+            for (unsigned y=0; y < Y; y++)
+            {
+                SplitSlice slice;
+                slice.x0 = x*x_size + x_start;
+                slice.y0 = y*y_size + y_start;
+                slice.x1 = (std::min)((x+1)*x_size + x_start, W);
+                slice.y1 = (std::min)((y+1)*y_size + y_start, H);
+                slice_list.push_back(slice);
+            }
+
+        slice_list_variant.slice_list = slice_list; // maybe std::move()
+        return slice_list_variant;
+    }
 
 } // namespace mv
 
@@ -756,13 +901,9 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     SplitSliceVariant slicing_variant = splitSliceSymmetric(original_shape.W, original_shape.H, nWorkloads);
     if (!split_symmetric)
     {
-    #if 1
-        pass.log(mv::Logger::MessageType::Error, "RectangleHeuristic: non-symmetric slicing not implemented!");
-    #else
         SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(original_shape.W, original_shape.H, nWorkloads);
         if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
             slicing_variant = slicing_variant_2;
-    #endif
     }
     SplitSliceList& slice_list = slicing_variant.slice_list;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
