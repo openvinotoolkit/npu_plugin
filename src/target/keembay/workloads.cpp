@@ -2,6 +2,12 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/data_generator.hpp"
 #include <metis.h>
+
+#include <cmath>
+#include <algorithm>
+#include <utility>
+#include <vector>
+
 mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
 layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
@@ -588,6 +594,136 @@ namespace mv {
         return best_variant;
     }
 
+    static bool split_over_h = true;
+    static bool split_over_w = true;
+
+    static bool split_symmetric = false;
+
+    using SplitFactors = std::pair<unsigned, unsigned>;
+    using SplitFactorsList = std::vector<SplitFactors>;
+
+    // enlist factors of N (who evenly divides value N)
+    static SplitFactorsList getSplitFactors(unsigned N)
+    {
+        SplitFactorsList factors;
+        unsigned i_max = std::ceil(std::sqrt(N));
+        for (unsigned i=1; i <= i_max; i++)
+        {
+            if (N % i == 0)
+            {
+                unsigned j = N / i;
+                SplitFactors f = std::make_pair(i, j);
+                factors.push_back(f);
+            }
+        }
+        return factors;
+    }
+
+    // lower estimate is better
+    // w, h -- tensor shape
+    // x, y -- split factors
+    static double estimateSplitBalance(unsigned W, unsigned H, unsigned X, unsigned Y)
+    {
+        // FIXME: POC maps W, H to X, Y (I guess it must map W, H to Y, X)
+        if (!split_over_h && Y > 1)
+            return INFINITY;
+        if (!split_over_w && X > 1)
+            return INFINITY;
+        if (H < Y || W < X)
+            return INFINITY;
+        return (W/X)*H + (H/Y)*W;
+    }
+
+    struct SplitVariant
+    {
+        SplitFactors factors;
+        double cost_estimate;
+    };
+
+    static SplitVariant getBestSplitSymmetric(unsigned W, unsigned H, unsigned N)
+    {
+        SplitVariant best_variant;
+        best_variant.cost_estimate = INFINITY;
+
+        SplitFactorsList factors = getSplitFactors(N);
+        for (auto f: factors)
+        {
+            auto X = std::get<0>(f);
+            auto Y = std::get<1>(f);
+
+            double cost0 = estimateSplitBalance(W, H, X, Y);
+            if (best_variant.cost_estimate > cost0)
+            {
+                best_variant.cost_estimate = cost0;
+                best_variant.factors = std::make_pair(X, Y);
+            }
+
+            double cost1 = estimateSplitBalance(W, H, Y, X);
+            if (best_variant.cost_estimate > cost1)
+            {
+                best_variant.cost_estimate = cost1;
+                best_variant.factors = std::make_pair(Y, X);
+            }
+        }
+
+        return best_variant;
+    }
+
+    struct SplitSlice
+    {
+        unsigned x0, x1;
+        unsigned y0, y1;
+    };
+
+    using SplitSliceList = std::vector<SplitSlice>;
+
+    struct SplitSliceVariant
+    {
+        SplitSliceList slice_list;
+        double      cost_estimate;
+    };
+
+    static SplitSliceVariant splitSliceSymmetric(unsigned W, unsigned H, unsigned N)
+    {
+        SplitVariant best_variant = getBestSplitSymmetric(W, H, N);
+        double& cost_estimate = best_variant.cost_estimate;
+        SplitFactors& factors = best_variant.factors;
+        unsigned X = std::get<0>(factors);
+        unsigned Y = std::get<1>(factors);
+
+        SplitSliceList list; // empty
+        SplitSliceVariant variant;
+        variant.slice_list = list;
+        variant.cost_estimate = cost_estimate;
+
+        if (std::isinf(cost_estimate))
+            return variant; // no slicing in fact
+
+        //FIXME: POC associates W, H with X, Y (I guss must associate with Y, X)
+
+        unsigned dx = std::ceil(W / X);
+        unsigned dy = std::ceil(H / Y);
+
+        for (unsigned x=0; x < X; x++)
+        for (unsigned y=0; y < X; y++)
+        {
+            SplitSlice slice;
+            slice.x0 = x * dx;
+            slice.y0 = y * dy;
+            slice.x1 = (std::min)((x + 1)*dx, W);
+            slice.y1 = (std::min)((y + 1)*dy, H);
+            list.push_back(slice);
+        }
+
+        return variant;
+    }
+
+    static SplitSliceVariant splitSliceNonSymmetric(unsigned W, unsigned H, unsigned N)
+    {
+        throw "Not implemented!"; // never call this function
+    }
+
+
 } // namespace mv
 
 
@@ -603,9 +739,12 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
         return METIS_ERROR;
     }
 
+    //
+    // FIXME: POC compiler associates W, H with X, Y (I guess must be Y, X instead of X, Y)
+    //
     WorkloadShape original_shape;
-    original_shape.W = tensorShape_[0]; // width, aka Y
-    original_shape.H = tensorShape_[1]; // height,    X
+    original_shape.W = tensorShape_[0]; // width, aka X
+    original_shape.H = tensorShape_[1]; // height,    Y
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: original_height=" + std::to_string(original_shape.H)
                                                              + ", original_width="  + std::to_string(original_shape.W));
 
@@ -614,6 +753,23 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
+    SplitSliceVariant slicing_variant = splitSliceSymmetric(original_shape.W, original_shape.H, nWorkloads);
+    if (!split_symmetric)
+    {
+    #if 1
+        pass.log(mv::Logger::MessageType::Error, "RectangleHeuristic: non-symmetric slicing not implemented!");
+    #else
+        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(original_shape.W, original_shape.H, nWorkloads);
+        if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
+            slicing_variant = slicing_variant_2;
+    #endif
+    }
+    SplitSliceList& slice_list = slicing_variant.slice_list;
+    pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
+
+    //
+    // TODO: generate workloads from slices!
+    //
 
 #if 1
     pass.log(mv::Logger::MessageType::Error, "RectangleHeuristic: not implemented!");
