@@ -62,8 +62,8 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
             auto kSize = args.at("kSize").get<std::array<unsigned short, 2>>();
 
-            Shape outputShape({inputShape[mv::IO_BATCH_DIMENSION], (inputShape[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kSize[0]) / stride[0] + 1,
-                (inputShape[mv::IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kSize[1]) / stride[1] + 1, inputShape[mv::IO_CHANNEL_DIMENSION]});
+            Shape outputShape({(inputShape[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kSize[0]) / stride[0] + 1,
+                (inputShape[mv::IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kSize[1]) / stride[1] + 1, inputShape[mv::IO_CHANNEL_DIMENSION], inputShape[mv::IO_BATCH_DIMENSION]});
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));

@@ -28,11 +28,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
     mv::ControlModel cm(model);
 
-    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskAdd(vec,s);};
-    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskSubtract(vec,s);};
-    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskMultiply(vec,s);};
+    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
+    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
+    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec,quantParams,s);};
 
-    auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const std::string&)>>
+    auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
                                                {{"Add", addFcn},
                                                {"Subtract", subFcn},
                                                {"Multiply", multFcn}};
@@ -73,8 +73,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             if (opIt->hasAttr("bias"))
             {
                 auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
-                auto name = biasTensor->getName();
-                om.addAttr(dpuConvOp, "bias", name);
+                auto name_b = biasTensor->getName();
+                om.addAttr(dpuConvOp, "bias", name_b);
             }
 
             if(opType == "Conv")
@@ -100,9 +100,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto auto_pad = opIt->get<std::string>("auto_pad");
             auto rounding_type = opIt->get<std::string>("rounding_type");
             auto name = opIt->getName();
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
-                               exclude_pad, auto_pad, rounding_type, "DPU_" + name);
+                               exclude_pad, auto_pad, rounding_type, quantParams, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
 
@@ -116,11 +117,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             inputs.push_back(input1);
             inputs.push_back(input2);
             auto name = opIt->getName();
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             auto opId = opIt->get<unsigned>("opId");
 
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            auto dpuElementWise = dpuElementWiseFunctor(inputs, "DPU_"+name);
+            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, "DPU_"+name);
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
 
