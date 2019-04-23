@@ -622,3 +622,16 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     return METIS_OK;
 #endif
 }
+
+int mv::Workloads::partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::PassEntry &pass)
+{
+    pass.log(mv::Logger::MessageType::Debug, "Zsplit: layer=" + layerName_);
+    // FIXME: we need to know tensor's order to find its width and height dimensions
+    // HACK: assume tensor's order is "...HW", so width=shape[0] and height=shape[1]
+    if (tensorShape_.ndims() < 2) {
+        pass.log(mv::Logger::MessageType::Error,
+                 "Zsplit: too few tensor ndims=" + std::to_string(tensorShape_.ndims()));
+        return METIS_ERROR;
+    }
+
+}

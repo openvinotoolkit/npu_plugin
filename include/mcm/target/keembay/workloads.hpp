@@ -150,6 +150,7 @@ namespace mv
 
         // returns: METIS_OK(=1), or METIS_ERROR
         int partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        int partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
