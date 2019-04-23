@@ -320,6 +320,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_field_storage.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/finalization/apply_tensor_split_strategy.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     
