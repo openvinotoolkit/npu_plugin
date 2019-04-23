@@ -301,10 +301,13 @@ void mv::Tensor::populateSparsityMapTensor_()
     std::size_t sparsityMapIdx = 0;
     size_t n = 0;
     int shift = 0;
+    int channelIndex = 3;
+    if (order == mv::Order("HWCN") || order == mv::Order("HWC"))
+        channelIndex = 2;
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
         sub = getOrder().indToSub(shape, t);
-        if (sub[(sub.size()-1)] != n) //starting a new channel, reset map
+        if (sub[channelIndex] != n) //starting a new channel, reset map
         {
            if (shift != 0) //this is needed in the case when tensor dimensions are not multiple of 8
             {
@@ -313,14 +316,14 @@ void mv::Tensor::populateSparsityMapTensor_()
                 map = 0;
                 shift = 0;
             }
-            n = sub[(sub.size()-1)];
+            n = sub[channelIndex];
             if (sparsityMapIdx % 16 != 0)
             {
                 auto padding = 16 - (sparsityMapIdx%16);
                 sparsityMapIdx += padding;
             }
         }
-        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[(sub.size()-1)]])
+        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[channelIndex]])
         {
             map += 1 << shift;
             noneZeroElements_++;
