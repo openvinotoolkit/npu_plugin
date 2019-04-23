@@ -26,7 +26,17 @@ class workloads_rect :
     public TestWithParam<std::tuple<NWorkloads, Form, mv::DType, mv::Target>>
 {};
 
-TEST_P(workloads_rect, sample)
+static std::string toString(const mv::Workload& workload)
+{
+    std::stringstream s;
+    s << "{"
+      <<   "x: " << workload.MinX << " - " <<  workload.MaxX
+      << ", y: " << workload.MinY << " - " <<  workload.MaxY
+      << "}";
+    return s.str();
+}
+
+TEST_P(workloads_rect, forms)
 {
     auto param = GetParam();
     auto n_wls  = std::get<0>(param);
@@ -49,13 +59,29 @@ TEST_P(workloads_rect, sample)
 
     mv::pass::PassEntry pass("dummy");
     ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(n_wls, pass));
+
+    int n_workloads = 0;
+    EXPECT_EQ(n_wls, n_workloads = workloads.nWorkloads());
+
+    bool valid = false;
+    EXPECT_TRUE(valid = workloads.validateWorkloads(shape));
+
+    if (n_workloads != n_wls || !valid)
+    {
+        std::cout << "nWorkloads: " << n_workloads << std::endl;
+        for (int i=0; i < n_workloads; i++)
+        {
+            std::cout << i << ": " << toString(workloads[i]) << std::endl;
+        }
+    }
 }
 
-static Form form3d({mv::Shape({112, 112, 3}), mv::Order("CHW")});
-static Form form2d({mv::Shape({320, 200}),     mv::Order("HW")});
+static Form form4d({mv::Shape({112, 112, 3, 8}), mv::Order("NCHW")});
+static Form form3d({mv::Shape({ 73,  37, 3}),     mv::Order("CHW")});
+static Form form2d({mv::Shape({320, 200}),         mv::Order("HW")});
 
 INSTANTIATE_TEST_CASE_P(combi, workloads_rect,
-                        Combine(Values(4, 10), // number of workloads
-                                Values(form2d, form3d),
+                        Combine(Values(4, 7, 128), // number of workloads
+                                Values(form2d, form3d, form4d),
                                 Values(mv::DType("Float16")),
                                 Values(mv::Target::ma2490)));

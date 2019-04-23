@@ -78,14 +78,16 @@ double mv::Workloads::getAllWorkloadsVolume() const
 {
     double volume = 0;
     for (std::size_t i = 0; i < this->nWorkloads(); ++i) {
-        volume += (this->workloads_[i].MaxX - this->workloads_[i].MinX + 1) * (this->workloads_[i].MaxY - this->workloads_[i].MinY + 1) * (this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1);
+        volume += (this->workloads_[i].MaxX - this->workloads_[i].MinX + 1) *
+                  (this->workloads_[i].MaxY - this->workloads_[i].MinY + 1) *
+                  (this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1);
     }
     return volume;
 }
 
 bool mv::Workloads::noOverlap() const
 {
-    bool noIntersect = false;
+    bool noIntersect = true;
     for(std::size_t i=0; i< this->nWorkloads(); i++)
         {
             for(std::size_t j=0;j<this->nWorkloads();j++){
@@ -95,9 +97,10 @@ bool mv::Workloads::noOverlap() const
                 }
         // applying De Morgan's law ((A U B)' == A' ): Two rectangles donot overlap if one rectangle's minimum in a dimension is greater than the other rectangle's maximum in that dimension
         // check to be done for both the X and Y dimension.
-                noIntersect = noIntersect || this->workloads_[i].MinX > this->workloads_[j].MaxX ||
-                        this->workloads_[j].MinX > this->workloads_[i].MaxX ||
-                        this->workloads_[i].MinY > this->workloads_[j].MaxY ||
+                noIntersect = noIntersect &&
+                        this->workloads_[i].MinX > this->workloads_[j].MaxX &&
+                        this->workloads_[j].MinX > this->workloads_[i].MaxX &&
+                        this->workloads_[i].MinY > this->workloads_[j].MaxY &&
                         this->workloads_[j].MinY > this->workloads_[i].MaxY ;
             
             }
@@ -476,7 +479,12 @@ float mv::Workloads::greedyTaskAssignment(int nProcessors, std::vector<float>& w
 }
 
 
-bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor)
+bool mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor)
+{
+    return validateWorkloads(inputTensor[0]->getShape());
+}
+
+bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
 {
     //    Check if the generated workloads are valid
     //    Check 1: the union of the workload have to make the whole tensor
@@ -494,19 +502,19 @@ bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& in
 
     // Check 1: Volume of the tensor = sum of volumes of the individual workloads
     double vol = this->getAllWorkloadsVolume();
-    std::size_t totalVol = inputTensor[0]->getShape().totalSize();
-    if (inputTensor[0]->getShape().totalSize() != vol)
+    std::size_t totalVol = shape.totalSize();
+    if (shape.totalSize() != vol)
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
-                    std::to_string(inputTensor[0]->getShape().totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
+                    std::to_string(shape.totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
         return false;
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    if (this->getShapefromMinMax() != inputTensor[0]->getShape())
+    if (this->getShapefromMinMax() != shape)
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
-                                     inputTensor[0]->getShape().toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
+                                     shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
         return false;
     }
 
@@ -749,7 +757,7 @@ namespace mv {
             if (H >= W)
             {
                 double cost0 = estimateSplitBalance(    a3, H,   1, K+1)
-                               + estimateSplitBalance(W - a3, H, P-1, K);
+                             + estimateSplitBalance(W - a3, H, P-1, K);
                 if (best_variant.cost_estimate > cost0)
                 {
                     best_variant.cost_estimate = cost0;
@@ -760,7 +768,7 @@ namespace mv {
                 }
 
                 double cost1 = estimateSplitBalance(W,     a1, K+1, 1)
-                               + estimateSplitBalance(W, H - a1, K  , P-1);
+                             + estimateSplitBalance(W, H - a1, K  , P-1);
                 if (best_variant.cost_estimate > cost1)
                 {
                     best_variant.cost_estimate = cost1;
@@ -773,7 +781,7 @@ namespace mv {
             else // if H < W
             {
                 double cost2 = estimateSplitBalance(    a1, H,   1, K+1)
-                               + estimateSplitBalance(W - a1, H, P-1, K);
+                             + estimateSplitBalance(W - a1, H, P-1, K);
                 if (best_variant.cost_estimate > cost2)
                 {
                     best_variant.cost_estimate = cost2;
@@ -784,7 +792,7 @@ namespace mv {
                 }
 
                 double cost3 = estimateSplitBalance(W,     a3, K+1, 1)
-                               + estimateSplitBalance(W, H - a3, K  , P-1);
+                             + estimateSplitBalance(W, H - a3, K  , P-1);
                 if (best_variant.cost_estimate > cost3)
                 {
                     best_variant.cost_estimate = cost3;
@@ -938,10 +946,10 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
-    SplitSliceVariant slicing_variant = splitSliceSymmetric(original_shape.W, original_shape.H, nWorkloads);
+    SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
     if (!split_symmetric)
     {
-        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(original_shape.W, original_shape.H, nWorkloads);
+        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
         if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
             slicing_variant = slicing_variant_2;
     }
