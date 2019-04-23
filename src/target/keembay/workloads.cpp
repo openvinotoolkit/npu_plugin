@@ -913,23 +913,26 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
 {
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: layer=" + layerName_);
 
-    // FIXME: we need to know tensor's order to find its width and height dimensions
-    // HACK: assume tensor's order is "...HW", so width=shape[0] and height=shape[1]
+    // FIXME: need to know tensor order to find its dimensions: width, height,...
+    // HACK: assume tensor order is "NCHW", so width=shape[0] and height=shape[1]
+    unsigned C, H, W;
     if (tensorShape_.ndims() < 2) {
         pass.log(mv::Logger::MessageType::Error,
                  "RectangleHeuristic: too few tensor ndims=" + std::to_string(tensorShape_.ndims()));
         return METIS_ERROR;
     }
+    W = tensorShape_[0];
+    H = tensorShape_[1];
+    C = tensorShape_.ndims() >= 3 ? tensorShape_[2] : 0;
 
     //
     // FIXME: POC compiler associates W, H with X, Y (I guess must be Y, X instead of X, Y)
     //
     WorkloadShape original_shape;
-    original_shape.W = tensorShape_[0]; // width, aka X
-    original_shape.H = tensorShape_[1]; // height,    Y
+    original_shape.W = W; // width, aka X
+    original_shape.H = H; // height,    Y
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: original_height=" + std::to_string(original_shape.H)
                                                              + ", original_width="  + std::to_string(original_shape.W));
-
     auto best_padding = selectPadding(original_shape, context_list);
     auto& reduced_shape = best_padding.reduced;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
@@ -948,7 +951,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     //
     // FIXME: see details inside code of generateWorkloadsFromSlices()
     //
-    workloads_ = generateWorkloadsFromSlices(slice_list, best_padding);
+    workloads_ = generateWorkloadsFromSlices(slice_list, best_padding, C);
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: done");
 
     return METIS_OK;
