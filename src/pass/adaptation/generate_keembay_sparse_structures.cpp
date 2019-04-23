@@ -219,7 +219,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         dpuTaskOp->erase("bias");
     }
 
-    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), {{},{},{},{}}, kernelWeightsTableName);
+    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("Int32"), mv::Order("WHCN"), {{},{},{},{}}, kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
     om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
