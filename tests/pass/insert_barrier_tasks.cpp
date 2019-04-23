@@ -19,9 +19,9 @@ TEST(insert_barrier_tasks, serial_path)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.initialize();
     unit.run();
-    mv::Barrier::reset();
 
     auto barrierOps = om.getOps("BarrierTask");
 
@@ -52,11 +52,11 @@ TEST(insert_barrier_tasks, parallel_paths)
 
     unit.compilationDescriptor().remove("keembay_adapt", "GenerateSparsityMaps");
     unit.compilationDescriptor().remove("keembay_adapt", "GenerateWeightsTables");
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
-    mv::Barrier::reset();
 
 //    system("dot -Tpng final_model.dot -o parallel_paths_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
@@ -126,11 +126,11 @@ TEST(insert_barrier_tasks, single_control_edge)
     unit.compilationDescriptor().remove("dma");
     unit.compilationDescriptor().remove("control_flows");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 
     // run passes after partial serilization, including insert barriers pass
     unit.initialize();
     unit.run();
-    mv::Barrier::reset();
 
 //    system("dot -Tpng final_model.dot -o single_control_edge_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
@@ -202,10 +202,10 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     unit.compilationDescriptor().remove("control_flows");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
 
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     // run passes after partial serilization, including insert barriers pass
     unit.initialize();
     unit.run();
-    mv::Barrier::reset();
 
 //    system("dot -Tpng final_model.dot -o multiple_control_edges_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
@@ -275,11 +275,11 @@ TEST(insert_barrier_tasks, dealloc_edge)
     unit.compilationDescriptor().remove("dma");
     unit.compilationDescriptor().remove("control_flows");
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 
     // run passes after partial serilization, including insert barriers pass
     unit.initialize();
     unit.run();
-    mv::Barrier::reset();
 
 //    system("dot -Tpng final_model.dot -o dealloc_edge_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
@@ -352,10 +352,10 @@ TEST(insert_barrier_tasks, static_index_assignment)
     auto& compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
 
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
-    mv::Barrier::reset();
 
 //    system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
 
@@ -489,11 +489,11 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
     unit.compilationDescriptor().remove("serialize");
+    unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
-    mv::Barrier::reset();
 
 //    system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
 
