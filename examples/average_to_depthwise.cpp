@@ -14,7 +14,7 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({1, 10, 10, 3}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({10, 10, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto pool = om.averagePool(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     om.output(pool);
 
