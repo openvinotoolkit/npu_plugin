@@ -82,6 +82,13 @@ const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClas
    {PPELayerType_FLEXARB, MVCNN::PPELayerType::PPELayerType_FLEXARB}
 };
 
+template <typename T1, typename T2>
+void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std::string& key)
+{
+    if(compilationDescriptor.hasAttr(key))
+        fieldToFill = compilationDescriptor.get<T2>(key);
+}
+
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
@@ -124,22 +131,12 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
-    for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
-        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
+
+    auto ops = opModel.topologicalSort();
+    for(auto opIt = ops.begin(); opIt != ops.end(); ++opIt)
+        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, *opIt);
 
     return toBuild;
-}
-
-template< class T >
-void reorder(std::vector<T> &v, std::vector<size_t> const &order )
-{
-    for (int s = 1, d; s < order.size(); ++ s)
-    {
-        for (d = order[s]; d < s; d = order[d] );
-        if (d == s)
-            while (d = order[d], d != s)
-                std::swap(v[s], v[d]);
-    }
 }
 
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
@@ -187,6 +184,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // toBuild->sparsity_index
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
+
+    // NOTE: Will probably change in the future
+    toBuild->locale_index = std::vector<unsigned int>(1,0);
+
     toBuild->data_dtype = convertDtype(tensorBufferIt->getData()->getDType());
 
     // could also be t->hasAttr("quantizationParameters")
@@ -258,10 +259,10 @@ std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationMode
 {
     std::unique_ptr<MVCNN::VersionT> toBuild = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
 
-    toBuild->majorV = compilationDescriptor.get<int>("VersionMajor");
-    toBuild->minorV = compilationDescriptor.get<int>("VersionMinor");
-    toBuild->patchV = compilationDescriptor.get<int>("VersionPatch");
-    toBuild->hash = compilationDescriptor.get<std::string>("VersionHash");
+    setIfPresent<uint32_t, int>(toBuild->majorV, compilationDescriptor, "VersionMajor");
+    setIfPresent<uint32_t, int>(toBuild->minorV, compilationDescriptor, "VersionMinor");
+    setIfPresent<uint32_t, int>(toBuild->patchV, compilationDescriptor, "VersionPatch");
+    setIfPresent<std::string, std::string>(toBuild->hash, compilationDescriptor, "VersionHash");
 
     return toBuild;
 }
@@ -270,13 +271,13 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
 
-    toBuild->upa_shaves = compilationDescriptor.get<int>("ResourcesUpaShaves");
-    toBuild->nce1_blocks = compilationDescriptor.get<int>("ResourcesNCE1Mask");
-    toBuild->nce2_blocks = compilationDescriptor.get<int>("ResourcesNCE2Mask");
-    toBuild->upa_shared_cmx = compilationDescriptor.get<int>("ResourcesUPASharedCMX");
-    toBuild->nn_cmx_per_slice = compilationDescriptor.get<int>("ResourcesNNCMXPerSlice");
-    toBuild->nn_cmx_slice_amount = compilationDescriptor.get<int>("ResourcesNNCMXSliceAmount");
-    toBuild->ddr_scratch = compilationDescriptor.get<int>("ResourcesDDRScratch");
+    setIfPresent<uint32_t, int>(toBuild->upa_shaves, compilationDescriptor , "ResourcesUpaShaves");
+    setIfPresent<int8_t, int>(toBuild->nce1_blocks, compilationDescriptor, "ResourcesNCE1Mask");
+    setIfPresent<uint32_t, int>(toBuild->nce2_blocks, compilationDescriptor, "ResourcesNCE2Mask");
+    setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, compilationDescriptor, "ResourcesUPASharedCMX");
+    setIfPresent<uint32_t, int>(toBuild->nn_cmx_per_slice, compilationDescriptor, "ResourcesNNCMXPerSlice");
+    setIfPresent<uint32_t, int>(toBuild->nn_cmx_slice_amount, compilationDescriptor, "ResourcesNNCMXSliceAmount");
+    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, compilationDescriptor, "ResourcesDDRScratch");
 
     return toBuild;
 }
