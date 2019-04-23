@@ -894,9 +894,9 @@ namespace mv {
             workload.MaxX = (std::min)(x_max - 1, padding.original.W - 1);
             workload.MaxY = (std::min)(y_max - 1, padding.original.H - 1);
 
-            // TODO: implement partitioning by Z
+            // TODO: implement partitioning by Z (aka C=channels)
             workload.MinZ = 0;
-            workload.MaxZ = Z;
+            workload.MaxZ = Z ? Z - 1: 0;
 
             // FIXME: setup workload id
             // FIXME: adjust workloads padding
