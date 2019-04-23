@@ -15,7 +15,7 @@ namespace mv
             auto weights = inputs[1];
             if (opInput->getShape().ndims() != 4)
             {
-                errMsg = "Weight shape ndims is not equal to 4";
+                errMsg = "Input shape ndims is not equal to 4";
                 return {false, 0};
             }
 
