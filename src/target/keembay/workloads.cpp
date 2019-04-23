@@ -98,10 +98,12 @@ bool mv::Workloads::noOverlap() const
         // applying De Morgan's law ((A U B)' == A' ): Two rectangles donot overlap if one rectangle's minimum in a dimension is greater than the other rectangle's maximum in that dimension
         // check to be done for both the X and Y dimension.
                 noIntersect = noIntersect &&
-                        this->workloads_[i].MinX > this->workloads_[j].MaxX &&
-                        this->workloads_[j].MinX > this->workloads_[i].MaxX &&
-                        this->workloads_[i].MinY > this->workloads_[j].MaxY &&
-                        this->workloads_[j].MinY > this->workloads_[i].MaxY ;
+                             (this->workloads_[i].MinX > this->workloads_[j].MaxX ||
+                              this->workloads_[j].MinX > this->workloads_[i].MaxX ||
+                              this->workloads_[i].MinY > this->workloads_[j].MaxY ||
+                              this->workloads_[j].MinY > this->workloads_[i].MaxY ||
+                              this->workloads_[i].MinZ > this->workloads_[j].MaxZ ||
+                              this->workloads_[j].MinZ > this->workloads_[i].MaxZ);
             
             }
 

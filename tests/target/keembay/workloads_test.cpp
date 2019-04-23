@@ -66,7 +66,7 @@ TEST_P(workloads_rect, forms)
     bool valid = false;
     EXPECT_TRUE(valid = workloads.validateWorkloads(shape));
 
-    if (n_workloads != n_wls || !valid)
+    if (!valid)
     {
         std::cout << "nWorkloads: " << n_workloads << std::endl;
         for (int i=0; i < n_workloads; i++)
