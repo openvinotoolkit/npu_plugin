@@ -41,6 +41,18 @@ protected:
         return str;
     }
 
+    template<typename S>
+    std::string testToString(const std::vector<S>& mask)
+    {
+        assert(mask.size() > 0);
+        std::string str = std::to_string(mask[0]);
+        for (unsigned i=1; i < mask.size(); i++)
+        {
+            str += "x" + std::to_string(mask[i]);
+        }
+        return str;
+    }
+
     mv::CompilationDescriptor& testGetCompilationDescriptor(mv::CompilationUnit& unit,
                                                             const mv::Target& target)
     {
@@ -95,14 +107,21 @@ protected:
         }
     }
 
-    void testDumpJson(const mv::json::Object& result)
+    std::string testDumpJson(const mv::json::Object& result)
     {
         std::fstream file_out("layers_" + testGetName() + ".json", std::fstream::out);
         file_out << result.stringifyPretty() << std::endl;
         file_out.close();
+        return "OK";
     }
 
-    void testDumpDot()
+    // TODO: implement dumping of blob file (e.g. renaming if necessary)
+    std::string testDumpBlob()
+    {
+        return "OK";
+    }
+
+    std::string testDumpDot()
     {
         auto name = testGetName();
 
@@ -114,5 +133,7 @@ protected:
         system(("dot -Tpng " + name + "_original.dot -o " + name + "_original.png").c_str());
         system(("dot -Tpng " + name +    "_adapt.dot -o " + name +    "_adapt.png").c_str());
         system(("dot -Tpng " + name +          ".dot -o " + name +          ".png").c_str());
+
+        return "OK";
     }
 };

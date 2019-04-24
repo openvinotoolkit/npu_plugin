@@ -1,6 +1,7 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include <algorithm> 
 #include <metis.h>
 
 #include <cmath>
@@ -77,10 +78,13 @@ std::string mv::Workloads::getLogID() const
 double mv::Workloads::getAllWorkloadsVolume() const
 {
     double volume = 0;
-    for (std::size_t i = 0; i < this->nWorkloads(); ++i) {
-        volume += (this->workloads_[i].MaxX - this->workloads_[i].MinX + 1) *
-                  (this->workloads_[i].MaxY - this->workloads_[i].MinY + 1) *
-                  (this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1);
+    for (std::size_t i = 0; i < this->nWorkloads(); ++i)
+    {
+        std::int16_t volX = this->workloads_[i].MaxX - this->workloads_[i].MinX;
+        std::int16_t volY = this->workloads_[i].MaxY - this->workloads_[i].MinY;
+        std::int16_t volZ = this->workloads_[i].MaxZ - this->workloads_[i].MinZ;
+        //volume += (this->workloads_[i].MaxX - this->workloads_[i].MinX + 1) * (this->workloads_[i].MaxY - this->workloads_[i].MinY + 1) * (this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1);
+        volume += std::max(volX, static_cast<std::int16_t>(1)) * std::max(volY, static_cast<std::int16_t>(1)) * std::max(volZ, static_cast<std::int16_t>(1));
     }
     return volume;
 }
@@ -126,9 +130,9 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
     }
 
     std::vector<std::size_t> minMax;
-    minMax.push_back(maxX - minX + 1);    
-    minMax.push_back(maxY - minY + 1);    
-    minMax.push_back(maxZ - minZ + 1);   
+    minMax.push_back(maxX - minX);
+    minMax.push_back(maxY - minY);
+    minMax.push_back(maxZ - minZ);
     return mv::Shape(minMax);
 }
 
@@ -397,10 +401,10 @@ std::vector<float> mv::Workloads::getExecutionCycles(std::vector<mv::Data::Tenso
         for(std::vector<mv::Workload>::iterator itWL = workloads_.begin(); itWL != workloads_.end(); ++itWL) 
         {
             std::pair <int,int> mpeMode (4, 4);
-            if(itWL->MPEMode == mv::MPE_Mode::Matrix)
+            if(itWL->MPEMode != mv::Matrix)
                 mpeMode = {1,16};
-            float height = itWL->MaxY - itWL->MinY + mpeMode.first;
-            float width = itWL->MaxX - itWL->MinX + mpeMode.second;
+            float height = itWL->MaxY - itWL->MinY; // + mpeMode.first;
+            float width = itWL->MaxX - itWL->MinX; // + mpeMode.second;
 
             float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
@@ -564,11 +568,11 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check 2: No intersection between workloads.
-    if (!this->noOverlap())
-    {
-        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
-        return false;
-    }
+    // if (!this->noOverlap())
+    // {
+    //     this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+    //     return false;
+    // }
 
     return true;
 }

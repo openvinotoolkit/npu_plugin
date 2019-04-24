@@ -42,6 +42,9 @@ TEST_P(layers_reorg_yolo, dump_blob)
     auto  reorg = om.reorgYolo(input, stride);
     auto output = om.output(reorg);
 
+    ASSERT_TRUE(om.isValid(reorg));
+    ASSERT_TRUE(om.isValid(om.getSourceOp(reorg)));
+
     auto compDesc = testGetCompilationDescriptor(unit, target);
 
     EXPECT_EQ("OK", testSetGenBlob(compDesc));
@@ -50,10 +53,12 @@ TEST_P(layers_reorg_yolo, dump_blob)
     ASSERT_TRUE(unit.loadTargetDescriptor(target));
     ASSERT_TRUE(unit.initialize());
 
+    // C++ exception if fails
     auto result = unit.run();
 
-    testDumpJson(result);
-    testDumpDot();
+    EXPECT_EQ("OK", testDumpJson(result));
+    EXPECT_EQ("OK", testDumpBlob());
+    EXPECT_EQ("OK", testDumpDot());
 }
 
 using namespace testing;
