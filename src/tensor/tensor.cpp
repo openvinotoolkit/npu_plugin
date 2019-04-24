@@ -934,15 +934,15 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
     return getOrder().computeStrides(getShape(), getDType().getSizeInBits() / 8);
 }
 
-std::size_t mv::Tensor::getClustersize() const
+std::size_t mv::Tensor::getClusterSize(bool isBase) const
 {
-    std::size_t res = computeTotalSize();
+    std::size_t res = computeTotalSize(isBase);
     if (get<bool>("broadcasted"))
     {
         res = 0;
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
-            auto size = subTensors_[tIdx]->computeTotalSize();
+            auto size = subTensors_[tIdx]->computeTotalSize(isBase);
             if (size > res)
                 res = size;
         }
@@ -950,14 +950,14 @@ std::size_t mv::Tensor::getClustersize() const
     return res;
 }
 
-std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const
+std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) const
 {
     std::size_t res;
 
     auto shape = getShape();
 
     //use shape of master
-    if (hasAttr("master"))
+    if (!isBase && hasAttr("master"))
     {
         if (hasAttr("leftPadding"))
         {
