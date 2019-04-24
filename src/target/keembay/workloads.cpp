@@ -486,6 +486,41 @@ bool mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inp
     return validateWorkloads(inputTensor[0]->getShape());
 }
 
+// Consider shapes equal if all dimensions equal but maybe 'N'
+// E.g. compare "NCWH" versus "CHW" by comparing 'C', 'H', 'W'
+// FIXME: need to know tensor orders to identify 'C', 'H', 'W'
+//       (yet assume orders same: either "NCHW", "CHW" or "HW")
+static bool equalShapes(const mv::Shape& a, const mv::Shape& b)
+{
+    auto m = (std::min)(a.ndims(), b.ndims());
+    auto M = (std::max)(a.ndims(), b.ndims());
+
+    if (m < 2 || m > 4 || M > 4)
+        return false; // unsupported orders
+
+    // ignore 4th dimension which must be 'N'
+    for (unsigned i=0; i < m && i < 3; i++)
+        if (a[i] != b[i])
+            return false;
+
+    return true;
+}
+
+// Compute shape's volume without 'N' (batch) dimension
+static size_t getTensorSize(const  mv::Shape & shape,
+                            const std::string& order = "")
+{
+    // FIXME: analyze tensor's order to find which is 'N'
+    //    (now assume order is "NCHW", or "CHW", or "HW")
+    assert(order == "NCHW" || order == "CHW" || order == "HW" || order == "");
+
+    size_t size = 1;
+    for (unsigned i=0; i < shape.ndims() && i < 3; i++)
+        size *= shape[i];
+
+    return size;
+}
+
 bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
 {
     //    Check if the generated workloads are valid
@@ -504,8 +539,8 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
 
     // Check 1: Volume of the tensor = sum of volumes of the individual workloads
     double vol = this->getAllWorkloadsVolume();
-    std::size_t totalVol = shape.totalSize();
-    if (shape.totalSize() != vol)
+    std::size_t totalVol = getTensorSize(shape); // shape.totalSize() is wrong here as it counts 'N' (batch) dimension
+    if (vol != totalVol)
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
                     std::to_string(shape.totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
@@ -513,7 +548,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    if (this->getShapefromMinMax() != shape)
+    if (!equalShapes(this->getShapefromMinMax(), shape))
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
                                      shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
