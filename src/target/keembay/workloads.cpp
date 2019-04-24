@@ -486,8 +486,9 @@ bool mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inp
     return validateWorkloads(inputTensor[0]->getShape());
 }
 
-// Consider shapes equal if all dimensions equal but maybe 'N'
-// E.g. compare "NCWH" versus "CHW" by comparing 'C', 'H', 'W'
+// Consider shapes equal if all dimensions equal but maybe 'N',
+// e.g.: compare "NCWH" versus "CHW" by comparing 'C', 'H', 'W'
+// Consider "CHW" and "HW" shapes equal is channels number = 1
 // FIXME: need to know tensor orders to identify 'C', 'H', 'W'
 //       (yet assume orders same: either "NCHW", "CHW" or "HW")
 static bool equalShapes(const mv::Shape& a, const mv::Shape& b)
@@ -498,12 +499,16 @@ static bool equalShapes(const mv::Shape& a, const mv::Shape& b)
     if (m < 2 || m > 4 || M > 4)
         return false; // unsupported orders
 
-    if (M <= 3 && m != M)
-        return false; // main dims differ, e.g. "CHW" vs "HW"
-
     // ignore 4th dimension which must be 'N'
     for (unsigned i=0; i < m && i < 3; i++)
         if (a[i] != b[i])
+            return false;
+
+    auto& c = a.ndims() > b.ndims() ? a : b;
+
+    // test channels (if compare CHW vs HW)
+    for (unsigned i=m; i < M && i < 3; i++)
+        if (c[i] != 1)
             return false;
 
     return true;
