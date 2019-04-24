@@ -970,12 +970,52 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
 int mv::Workloads::partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::PassEntry &pass)
 {
     pass.log(mv::Logger::MessageType::Debug, "Zsplit: layer=" + layerName_);
-    // FIXME: we need to know tensor's order to find its width and height dimensions
-    // HACK: assume tensor's order is "...HW", so width=shape[0] and height=shape[1]
+    unsigned C, H, W;
     if (tensorShape_.ndims() < 2) {
         pass.log(mv::Logger::MessageType::Error,
                  "Zsplit: too few tensor ndims=" + std::to_string(tensorShape_.ndims()));
         return METIS_ERROR;
     }
 
+    W = tensorShape_[0];
+    H = tensorShape_[1];
+    C = tensorShape_.ndims() >= 3 ? tensorShape_[2] : 0;
+
+    //max Z calculation
+    unsigned max_channels_per_WL = divRoundUp(C,nWorkloads);
+    if (max_channels_per_WL < 16)
+        return 0;
+
+    // workload list 
+    std::vector<Workload> workload_list;
+
+    WorkloadShape original_shape;
+    original_shape.W = W; // width, aka X
+    original_shape.H = H; // height,    Y
+    pass.log(mv::Logger::MessageType::Debug, "Zsplit: original_height=" + std::to_string(original_shape.H)
+                                                             + ", original_width="  + std::to_string(original_shape.W));
+    auto best_padding = selectPadding(original_shape, context_list);
+    // split the output channels into per workload
+    int16_t output_channels = 0;
+    int16_t minX = 0, minY = 0, maxX = divRoundUp(original_shape.W, best_padding.context.W) -1, maxY = divRoundUp(original_shape.H, best_padding.context.H) -1, maxZ = 0;
+    for (size_t idx = 0; idx < nWorkloads; idx++)
+    {
+        Workload workload;
+        output_channels = std::min<size_t>(max_channels_per_WL, C - idx*max_channels_per_WL);
+
+        workload.MinX = minX;
+        workload.MinY = minY;
+        workload.MaxX = maxX; 
+        workload.MaxY = maxY; 
+        workload.MinZ = idx*max_channels_per_WL;
+        workload.MaxZ = workload.MinZ + output_channels -1;
+
+        workload_list.push_back(workload);
+
+    }
+
+    pass.log(mv::Logger::MessageType::Debug, "Number of workloads with Zsplit =" + std::to_string(workload_list.size()));
+    pass.log(mv::Logger::MessageType::Debug, "Zsplit: done");
+
+    return METIS_OK;
 }
