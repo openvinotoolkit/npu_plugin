@@ -633,9 +633,9 @@ namespace mv {
 
             auto efficiency = estimateEfficiency(original, padded);
 
-            if (efficiency > best_efficiency)
+            if (best_efficiency < efficiency)
             {
-                efficiency = best_efficiency;
+                best_efficiency = efficiency;
 
                 WorkloadShape reduced;
                 reduced.H = padded.H / context.H;
