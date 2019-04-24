@@ -89,7 +89,7 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
     }
     if (other.subTensors_.size() > 0)
     {
-        for (auto tIdx = 0; tIdx < other.subTensors_.size(); tIdx++)
+        for (size_t tIdx = 0; tIdx < other.subTensors_.size(); tIdx++)
         {
             subTensors_.push_back(std::make_shared<Tensor>(*other.subTensors_[tIdx]));
         }
@@ -372,7 +372,7 @@ void mv::Tensor::setAddress(int64_t address)
             (tensorSize - storageElement_->computeTotalSize() - sparsitySize));
         sparsityMap_->set<int64_t>("address", address +(tensorSize - sparsitySize));
     }
-    for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+    for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setAddress(address);
 }
 
@@ -430,7 +430,7 @@ void mv::Tensor::setSparse()
     if (isPopulated())
         populateSparsityMapTensor_();
 
-    for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+    for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setSparse();
 }
 
@@ -482,7 +482,7 @@ void mv::Tensor::setOrder(Order order, bool updateSubtensors)
 
 void mv::Tensor::setSubtensorsOrder_(Order order)
 {
-    for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+    for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setOrder(order);
 }
 
@@ -940,7 +940,7 @@ std::size_t mv::Tensor::getClustersize() const
     if (get<bool>("broadcasted"))
     {
         res = 0;
-        for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+        for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         {
             auto size = subTensors_[tIdx]->computeTotalSize();
             if (size > res)
