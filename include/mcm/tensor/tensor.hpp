@@ -41,6 +41,8 @@ namespace mv
         std::vector<std::size_t> indToSub_(const Shape& s, unsigned index) const;
         unsigned subToInd_(const Shape& s, const std::vector<std::size_t>& sub) const;
         void populateSparsityMapTensor_();
+        void setSubtensorsOrder_(Order order);
+
     public:
         std::vector<unsigned> getZeroPointsPerChannel();
 
@@ -85,8 +87,7 @@ namespace mv
         std::vector<int64_t> getIntData();
         void setDType(DType dType);
         DType getDType() const;
-        void setOrder(Order order);
-        void setSubtensorsOrder(Order order);
+        void setOrder(Order order, bool updateSubtensors = false);
         Order getOrder() const;
         const Order& getInternalOrder() const;
         void setShape(const Shape& shape);

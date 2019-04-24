@@ -92,7 +92,6 @@ internalOrder_(Order(Order::getRowMajorID(other.shape_.ndims())))
         for (auto tIdx = 0; tIdx < other.subTensors_.size(); tIdx++)
         {
             subTensors_.push_back(std::make_shared<Tensor>(*other.subTensors_[tIdx]));
-            //TODO should master/slave be copied?
         }
     }
 }
@@ -470,16 +469,18 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
 
 }
 
-void mv::Tensor::setOrder(Order order)
+void mv::Tensor::setOrder(Order order, bool updateSubtensors)
 {
-
+    //TODO need to call this with True from DPUTask for weights
     set<Order>("order", order);
     log(Logger::MessageType::Debug, "Reorderd to " + order.toString());
+    if (updateSubtensors)
+        setSubtensorsOrder_(order);
     return;
 
 }
 
-void mv::Tensor::setSubtensorsOrder(Order order)
+void mv::Tensor::setSubtensorsOrder_(Order order)
 {
     for (auto tIdx = 0; tIdx < subTensors_.size(); tIdx++)
         subTensors_[tIdx]->setOrder(order);
