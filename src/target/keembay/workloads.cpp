@@ -756,8 +756,8 @@ namespace mv {
         unsigned dy = std::ceil(static_cast<double>(H) / Y);
 
         SplitSliceList slice_list; // empty
-        for (unsigned x=0; x < X; x++)
-        for (unsigned y=0; y < X; y++)
+        for (unsigned x=0; x * dx < W; x++)
+        for (unsigned y=0; y * dy < H; y++)
         {
             SplitSlice slice;
             slice.x0 = x * dx;
@@ -997,6 +997,11 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
         SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
         if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
             slicing_variant = slicing_variant_2;
+    }
+    if (std::isinf(slicing_variant.cost_estimate))
+    {
+        pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: cannot slice!");
+        return METIS_ERROR;
     }
     SplitSliceList& slice_list = slicing_variant.slice_list;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
