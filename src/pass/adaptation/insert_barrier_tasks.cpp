@@ -184,6 +184,7 @@ static void drawBigK(const BIGKoala& bigK)
 static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om, std::vector<mv::Barrier>& barriers)
 {
     BarrierInterferenceGraph big;
+    mv::ControlModel cm(om);
 
     // Insert all barriers into interference graph
     for (auto& b: barriers)
@@ -237,9 +238,11 @@ static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om
                         // BIG is an undirected graph, so nodes in the opModel are considered to be
                         // disconnected only if c2 is neither an ancestor, nor a descendent of c1.
                         // pathExists checks only from source to sink on a directed graph, hence
-                        // this check needs to be performed both from c1 to c2, and c2 to c1.
-                        if (!om.pathExists(om.getOp(c1), om.getOp(c2)) && !om.pathExists(om.getOp(c2), om.getOp(c1)))
+                        // this check needs to be performed both from c1 to c2, and c2 to c1.i
+                        if (!cm.pathExists(cm.switchContext(om.getOp(c1)), cm.switchContext(om.getOp(c2))) 
+                         && !cm.pathExists(cm.switchContext(om.getOp(c2)), cm.switchContext(om.getOp(c1))) )
                         {
+                            //std::cout << "ADDING BIG EDGE: No path from " << om.getOp(c1)->getName()  << " to " << om.getOp(c2)->getName()  << std::endl;
                             if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
                                 addEdge(b1, b2, big);
                         }
@@ -387,7 +390,7 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
     drawBigK(bigK);
 
     AssocArray<BIGKoala::PVertex, int> colors;
-    int numColors = colorKoalaGraph(bigK, koalaVertices, colors);
+    int numColors = colorKoalaGraph(bigK, koalaVertices, colors) + 1;
     if (numColors > MAX_AVAILABLE_BARRIERS)
         throw mv::RuntimeError(om,
                 "Cannot execute graph with " +
