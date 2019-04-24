@@ -385,6 +385,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
 
         }
+
+        // CAUTION NOTE for sparsity: I/O tensors have to be ZMajor, but Weights tensors have to be RowMajor
         if (!fakeSparsity && false) /*Switching off 'real sparisty' - to be configured in compilation descriptor*/ 
         {
             if (dpuTask->getOpType() == "DPUTask" &&
