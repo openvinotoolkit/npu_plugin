@@ -498,6 +498,9 @@ static bool equalShapes(const mv::Shape& a, const mv::Shape& b)
     if (m < 2 || m > 4 || M > 4)
         return false; // unsupported orders
 
+    if (M <= 3 && m != M)
+        return false; // main dims differ, e.g. "CHW" vs "HW"
+
     // ignore 4th dimension which must be 'N'
     for (unsigned i=0; i < m && i < 3; i++)
         if (a[i] != b[i])
