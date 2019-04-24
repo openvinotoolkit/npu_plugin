@@ -111,7 +111,6 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     auto cmxSize = 3760128; //4MB in bytes.
     cmxSize /= numCluster;
     cmxSize *= safetyFactor;
-//    unsigned long _dma_dependency = 2;
     unsigned long _dma_dependency = passDesc.get<int>("weights_prefetch");
     int dma_dependency;
 
