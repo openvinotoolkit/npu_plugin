@@ -78,7 +78,7 @@ std::string mv::Workloads::getLogID() const
 double mv::Workloads::getAllWorkloadsVolume() const
 {
     double volume = 0;
-    for (std::size_t i = 0; i < this->nWorkloads(); ++i) 
+    for (std::size_t i = 0; i < this->nWorkloads(); ++i)
     {
         std::int16_t volX = this->workloads_[i].MaxX - this->workloads_[i].MinX;
         std::int16_t volY = this->workloads_[i].MaxY - this->workloads_[i].MinY;
@@ -91,7 +91,7 @@ double mv::Workloads::getAllWorkloadsVolume() const
 
 bool mv::Workloads::noOverlap() const
 {
-    bool noIntersect = false;
+    bool noIntersect = true;
     for(std::size_t i=0; i< this->nWorkloads(); i++)
         {
             for(std::size_t j=0;j<this->nWorkloads();j++){
@@ -101,10 +101,13 @@ bool mv::Workloads::noOverlap() const
                 }
         // applying De Morgan's law ((A U B)' == A' ): Two rectangles donot overlap if one rectangle's minimum in a dimension is greater than the other rectangle's maximum in that dimension
         // check to be done for both the X and Y dimension.
-                noIntersect = noIntersect || this->workloads_[i].MinX > this->workloads_[j].MaxX ||
-                        this->workloads_[j].MinX > this->workloads_[i].MaxX ||
-                        this->workloads_[i].MinY > this->workloads_[j].MaxY ||
-                        this->workloads_[j].MinY > this->workloads_[i].MaxY ;
+                noIntersect = noIntersect &&
+                             (this->workloads_[i].MinX > this->workloads_[j].MaxX ||
+                              this->workloads_[j].MinX > this->workloads_[i].MaxX ||
+                              this->workloads_[i].MinY > this->workloads_[j].MaxY ||
+                              this->workloads_[j].MinY > this->workloads_[i].MaxY ||
+                              this->workloads_[i].MinZ > this->workloads_[j].MaxZ ||
+                              this->workloads_[j].MinZ > this->workloads_[i].MaxZ);
             
             }
 
@@ -482,7 +485,55 @@ float mv::Workloads::greedyTaskAssignment(int nProcessors, std::vector<float>& w
 }
 
 
-bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor)
+bool mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor)
+{
+    return validateWorkloads(inputTensor[0]->getShape());
+}
+
+// Consider shapes equal if all dimensions equal but maybe 'N',
+// e.g.: compare "NCWH" versus "CHW" by comparing 'C', 'H', 'W'
+// Consider "CHW" and "HW" shapes equal is channels number = 1
+// FIXME: need to know tensor orders to identify 'C', 'H', 'W'
+//       (yet assume orders same: either "NCHW", "CHW" or "HW")
+static bool equalShapes(const mv::Shape& a, const mv::Shape& b)
+{
+    auto m = (std::min)(a.ndims(), b.ndims());
+    auto M = (std::max)(a.ndims(), b.ndims());
+
+    if (m < 2 || m > 4 || M > 4)
+        return false; // unsupported orders
+
+    // ignore 4th dimension which must be 'N'
+    for (unsigned i=0; i < m && i < 3; i++)
+        if (a[i] != b[i])
+            return false;
+
+    auto& c = a.ndims() > b.ndims() ? a : b;
+
+    // test channels (if compare CHW vs HW)
+    for (unsigned i=m; i < M && i < 3; i++)
+        if (c[i] != 1)
+            return false;
+
+    return true;
+}
+
+// Compute shape's volume without 'N' (batch) dimension
+static size_t getTensorSize(const  mv::Shape & shape,
+                            const std::string& order = "")
+{
+    // FIXME: analyze tensor's order to find which is 'N'
+    //    (now assume order is "NCHW", or "CHW", or "HW")
+    assert(order == "NCHW" || order == "CHW" || order == "HW" || order == "");
+
+    size_t size = 1;
+    for (unsigned i=0; i < shape.ndims() && i < 3; i++)
+        size *= shape[i];
+
+    return size;
+}
+
+bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
 {
     //    Check if the generated workloads are valid
     //    Check 1: the union of the workload have to make the whole tensor
@@ -500,19 +551,19 @@ bool  mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& in
 
     // Check 1: Volume of the tensor = sum of volumes of the individual workloads
     double vol = this->getAllWorkloadsVolume();
-    std::size_t totalVol = inputTensor[0]->getShape().totalSize();
-    if (totalVol != vol)
+    std::size_t totalVol = getTensorSize(shape); // shape.totalSize() is wrong here as it counts 'N' (batch) dimension
+    if (vol != totalVol)
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
-                    std::to_string(inputTensor[0]->getShape().totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
+                    std::to_string(shape.totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
         return false;
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    if (this->getShapefromMinMax() != inputTensor[0]->getShape())
+    if (!equalShapes(this->getShapefromMinMax(), shape))
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
-                                     inputTensor[0]->getShape().toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
+                                     shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
         return false;
     }
 
@@ -586,9 +637,9 @@ namespace mv {
 
             auto efficiency = estimateEfficiency(original, padded);
 
-            if (efficiency > best_efficiency)
+            if (best_efficiency < efficiency)
             {
-                efficiency = best_efficiency;
+                best_efficiency = efficiency;
 
                 WorkloadShape reduced;
                 reduced.H = padded.H / context.H;
@@ -709,8 +760,8 @@ namespace mv {
         unsigned dy = std::ceil(static_cast<double>(H) / Y);
 
         SplitSliceList slice_list; // empty
-        for (unsigned x=0; x < X; x++)
-        for (unsigned y=0; y < X; y++)
+        for (unsigned x=0; x * dx < W; x++)
+        for (unsigned y=0; y * dy < H; y++)
         {
             SplitSlice slice;
             slice.x0 = x * dx;
@@ -755,7 +806,7 @@ namespace mv {
             if (H >= W)
             {
                 double cost0 = estimateSplitBalance(    a3, H,   1, K+1)
-                               + estimateSplitBalance(W - a3, H, P-1, K);
+                             + estimateSplitBalance(W - a3, H, P-1, K);
                 if (best_variant.cost_estimate > cost0)
                 {
                     best_variant.cost_estimate = cost0;
@@ -766,7 +817,7 @@ namespace mv {
                 }
 
                 double cost1 = estimateSplitBalance(W,     a1, K+1, 1)
-                               + estimateSplitBalance(W, H - a1, K  , P-1);
+                             + estimateSplitBalance(W, H - a1, K  , P-1);
                 if (best_variant.cost_estimate > cost1)
                 {
                     best_variant.cost_estimate = cost1;
@@ -779,7 +830,7 @@ namespace mv {
             else // if H < W
             {
                 double cost2 = estimateSplitBalance(    a1, H,   1, K+1)
-                               + estimateSplitBalance(W - a1, H, P-1, K);
+                             + estimateSplitBalance(W - a1, H, P-1, K);
                 if (best_variant.cost_estimate > cost2)
                 {
                     best_variant.cost_estimate = cost2;
@@ -790,7 +841,7 @@ namespace mv {
                 }
 
                 double cost3 = estimateSplitBalance(W,     a3, K+1, 1)
-                               + estimateSplitBalance(W, H - a3, K  , P-1);
+                             + estimateSplitBalance(W, H - a3, K  , P-1);
                 if (best_variant.cost_estimate > cost3)
                 {
                     best_variant.cost_estimate = cost3;
@@ -944,12 +995,17 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
-    SplitSliceVariant slicing_variant = splitSliceSymmetric(original_shape.W, original_shape.H, nWorkloads);
+    SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
     if (!split_symmetric)
     {
-        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(original_shape.W, original_shape.H, nWorkloads);
+        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
         if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
             slicing_variant = slicing_variant_2;
+    }
+    if (std::isinf(slicing_variant.cost_estimate))
+    {
+        pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: cannot slice!");
+        return METIS_ERROR;
     }
     SplitSliceList& slice_list = slicing_variant.slice_list;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));
