@@ -26,6 +26,8 @@ TEST(global_params_reset, barrierCounter)
     // 2 barriers created
     int expected_num_barriers = 2;
     barrierOps = om.getOps("BarrierTask");
+    std::sort(barrierOps.begin(), barrierOps.end(), [](mv::Data::OpListIterator a, mv::Data::OpListIterator b)
+       {return (a->get<mv::Barrier>("Barrier").getID() < b->get<mv::Barrier>("Barrier").getID());});
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     int barrierID = 0;
     for (auto b : barrierOps)
@@ -54,6 +56,8 @@ TEST(global_params_reset, barrierCounter)
     unit2.initialize();
     unit2.run();
     barrierOps = om2.getOps("BarrierTask");
+    std::sort(barrierOps.begin(), barrierOps.end(), [](mv::Data::OpListIterator a, mv::Data::OpListIterator b)
+       {return (a->get<mv::Barrier>("Barrier").getID() < b->get<mv::Barrier>("Barrier").getID());});
     // expected 2 barriers
     expected_num_barriers = 2;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
@@ -79,6 +83,8 @@ TEST(global_params_reset, barrierCounter)
     unit3.initialize();
     unit3.run();
     barrierOps = om3.getOps("BarrierTask");
+    std::sort(barrierOps.begin(), barrierOps.end(), [](mv::Data::OpListIterator a, mv::Data::OpListIterator b)
+       {return (a->get<mv::Barrier>("Barrier").getID() < b->get<mv::Barrier>("Barrier").getID());});
     expected_num_barriers = 2;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     barrierStartID = 0;
