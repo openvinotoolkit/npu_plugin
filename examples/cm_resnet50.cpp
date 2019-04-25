@@ -31,17 +31,23 @@
  * @param padding Padding of conv2D
  * @return mv::Data::TensorIterator Iterator referencing the created batchnorm output 
  */
-mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
+mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model,
+                                            mv::Data::TensorIterator input,
+                                            mv::Shape kernelShape,
+                                            std::array<unsigned short, 2> stride,
+                                            std::array<unsigned short, 4> padding,
+                                            const std::string& name)
 {
     
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
 
-    auto weights = model.constant(weightsData, kernelShape, mv::DType("Float16"), mv::Order("HWCN"));
-    auto conv = model.conv(input, weights, stride, padding, 1);
+    auto weights = model.constant(weightsData, kernelShape, mv::DType("Float16"), mv::Order("HWCN"), "weights_" + name);
+    auto conv = model.conv(input, weights, stride, padding, 1, 1, {{}, {}, {}, {}}, "conv_" + name);
     
     std::vector<double> biasData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    return model.bias(conv, biasParam);
+    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"), "biasParam_" + name);
+
+    return model.bias(conv, biasParam, "bias_" + name);
 
 }
 
@@ -52,15 +58,16 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
  * @param intermediateDepth Number of output channels for the first convolution of the branch 2
  * @return mv::Data::TensorIterator Iterator referencing the created residual block output
  */
-mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned intermediateDepth)
+mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,
+                                unsigned intermediateDepth, const std::string& name)
 {
 
     auto inputShape = input->getShape();
-    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, {1, 1}, {0, 0, 0, 0});
-    branch2a = model.relu(branch2a);
-    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
-    branch2b = model.relu(branch2b);
-    auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, inputShape[2]}, {1, 1}, {0, 0, 0, 0});
+    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, {1, 1}, {0, 0, 0, 0}, name + "_branch2a");
+    branch2a = model.relu(branch2a, name + "_branch2a");
+    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1}, name + "_branch2b");
+    branch2b = model.relu(branch2b, name + "_branch2b");
+    auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, inputShape[2]}, {1, 1}, {0, 0, 0, 0}, name + "_branch2c");
 
     auto res = model.add(input, branch2c);
     return model.relu(res);
@@ -77,18 +84,21 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
  * @return mv::Data::TensorIterator Iterator referencing the created residual block output
  */
 mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned intermediateDepth,
-    unsigned outputDepth, std::array<unsigned short, 2> stride)
+    unsigned outputDepth, std::array<unsigned short, 2> stride, const std::string& name)
 {
 
     auto inputShape = input->getShape();
-    auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0});
-    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, stride, {0, 0, 0, 0});
-    branch2a = model.relu(branch2a);
-    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
-    branch2b = model.relu(branch2b);
-    auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, outputDepth}, {1, 1}, {0, 0, 0, 0});
+    auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0}, name + "_branch1");
+    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, stride, {0, 0, 0, 0}, name + "_branch2a");
+    auto relu_branch2a = model.relu(branch2a, "branch2a");
 
+    auto branch2b = convBatchNormBlock(model,relu_branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1}, name + "_branch2b");
+    auto relu_branch2b = model.relu(branch2b);
+    relu_branch2b = model.relu(branch2b, name + "_branch2b");
+
+    auto branch2c = convBatchNormBlock(model, relu_branch2b, {1, 1, intermediateDepth, outputDepth}, {1, 1}, {0, 0, 0, 0}, name + "_branch2c");
     auto res = model.add(branch1, branch2c);
+
     return model.relu(res);
 
 }
@@ -113,11 +123,11 @@ int main()
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet50
-    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("HWC"));
-    auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
-    conv1 = cm.relu(conv1);
-    auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1});
+    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("HWC"), "input");
+    auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3}, "conv1");
+    auto relu1 = cm.relu(conv1, "conv1");
+    auto pool1 = cm.maxPool(relu1, {3, 3}, {2, 2}, {1, 1, 1, 1}, true, "", "floor", "pool1");
+    auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1}, "res2a");
     /*auto res2b = residualBlock(cm, res2a, 64);
     auto res2c = residualBlock(cm, res2b, 64);
     auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2});

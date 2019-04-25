@@ -6,48 +6,48 @@
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
-                "Number_of_Clusters" : 1,
+                "Number_of_Clusters" : 4,
                 "CMX_memory_overflow_safety_factor" : 0.9,
                 "split_strategy" :
                 [
                     {
-                        "name filter" : ".*",
-                        "cluster filter" : 0,
+                        "name_filter" : ".*",
+                        "cluster_filter" : 0,
                         "strategy" : "SplitOverK"
                     },
                     {
-                        "name filter" : ".*",
-                        "cluster filter" : 1,
+                        "name_filter" : ".*",
+                        "cluster_filter" : 1,
                         "strategy" : "Clustering"
                     },
                     {
-                        "name filter" : ".*input.*",
-                        "cluster filter" : 0,
+                        "name_filter" : ".*input.*",
+                        "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     },
                     {
-                        "name filter" : ".*res2a.*",
-                        "cluster filter" : 0,
+                        "name_filter" : ".*res2a.*",
+                        "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     },
                     {
-                        "name filter" : ".*conv1.*",
-                        "cluster filter" : 0,
+                        "name_filter" : ".*conv1.*",
+                        "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     },
                     {
-                        "name filter" : ".*pool1.*",
-                        "cluster filter" : 0,
+                        "name_filter" : ".*pool1.*",
+                        "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     },
                     {
-                        "name filter" : ".*res2.*",
-                        "cluster filter" : 0,
+                        "name_filter" : ".*res2.*",
+                        "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     },
                     {
-                        "name filter" : ".*res3.*",
-                        "cluster filter" : 0,
+                        "name_filter" : ".*res3.*",
+                        "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     }
                 ]
