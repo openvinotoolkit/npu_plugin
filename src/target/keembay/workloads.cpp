@@ -3,12 +3,7 @@
 #include "include/mcm/utils/data_generator.hpp"
 #include <algorithm> 
 #include <metis.h>
-
-#include <cmath>
-#include <algorithm>
-#include <utility>
-#include <vector>
-
+#include <sstream>
 mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
 layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
@@ -300,7 +295,8 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
 }
 
 
-void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass) {
+void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass) 
+{
     
     /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
     /*This needs to be handled here for now assuming number of partitions is the number or workloads*/
@@ -364,28 +360,51 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     }
 }
 
-mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass) 
+mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass)
 {
     /*parse CostFunction from Comp Descriptor*/
-    CostFunctions costFunction = CostFunctions::Balanced; //default
-    std::string sCostFunction = std::string(); 
+    mv::CostFunctions costFunction = mv::CostFunctions::Balanced; //default
     if (passDesc.hasAttr("costfunction")) 
     {
-        sCostFunction = passDesc.get<std::string>("costfunction");
+        std::string sCostFunction = passDesc.get<std::string>("costfunction");
         if (sCostFunction == "balanced")
-            costFunction = CostFunctions::Balanced;
+            costFunction = mv::CostFunctions::Balanced;
         else if (sCostFunction == "criticalpath")
-            costFunction = CostFunctions::CriticalPath;
+            costFunction = mv::CostFunctions::CriticalPath;
         else if (sCostFunction == "minmax")
-            costFunction = CostFunctions::MinMaxWorkloads;
+            costFunction = mv::CostFunctions::MinMaxWorkloads;
         else if (sCostFunction == "greedy")
-            costFunction = CostFunctions::Greedy;
+            costFunction = mv::CostFunctions::Greedy;
         else 
             pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
     }
-    else
+    else 
         pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
+    return costFunction;
+}
 
+std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass) 
+{
+    /*parse TensorSplitAlgorithms from Compilation Descriptor*/
+    std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
+    if (passDesc.hasAttr("TensorSplitAlgorithms")) 
+    {
+        algorithms.clear();
+        std::string sAlgorithms = passDesc.get<std::string>("TensorSplitAlgorithms");
+        std::stringstream ss(sAlgorithms);
+        while( ss.good() )
+        {
+            std::string tempStr;
+            std::getline(ss, tempStr, ',');
+            if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
+                algorithms.push_back(tempStr);
+            else
+                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
+        }
+    }
+    else 
+        pass.log(mv::Logger::MessageType::Info, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
+    return algorithms;
 }
 
 std::vector<float> mv::Workloads::getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction)
