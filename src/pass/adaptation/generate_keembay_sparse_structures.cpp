@@ -409,12 +409,13 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             unsigned n = dpuTask->getInputTensor().size();
             for (unsigned i = 0; i < n; ++i)
                 if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
-                    !dpuTask->getInputTensor(i)->isPopulated()) //only weights are popualted, and we dont want to cover them here
+                    !(i == 1 && dpuTask->getInputTensor(i)->isPopulated())) //only weights are popualted, and we dont want to cover them here
                         dpuTask->getInputTensor(i)->setSparse();
 
             n = dpuTask->getOutputTensor().size();
             for (unsigned i = 0; i < n; ++i)
-                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor() ||
+                    (dpuTask->getOutputTensor(i)->isPopulated() && dpuTask->getOutputTensor(i)->getOrder().isZMajorWeights()))
                     dpuTask->getOutputTensor(i)->setSparse();
         }
     }

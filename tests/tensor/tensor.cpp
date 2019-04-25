@@ -1130,8 +1130,8 @@ TEST(tensor, sparsity_res3a_branch2c)
     mv::Shape seShape({1,1,1,512});
     ASSERT_TRUE(seShape == t.getStorageElement()->getShape());
 
-    mv::Shape sparsityMapShape({1,1,16,512});
-    ASSERT_TRUE(sparsityMapShape == sparsityMap->getShape());
+    mv::Shape sparsityMapShape({16,1,1,512});
+    ASSERT_EQ(sparsityMapShape.toString(), sparsityMap->getShape().toString());
 
     std::vector<mv::DataElement> denseData = t.getDataPacked();
     count = 0;

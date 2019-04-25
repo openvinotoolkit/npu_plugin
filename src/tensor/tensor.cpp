@@ -302,8 +302,10 @@ void mv::Tensor::populateSparsityMapTensor_()
     size_t n = 0;
     int shift = 0;
     int channelIndex = 3;
-    if (order == mv::Order("HWCN") || order == mv::Order("HWC"))
+    auto order = getOrder();
+    if (order == mv::Order("HWCN"))
         channelIndex = 2;
+
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
         sub = getOrder().indToSub(shape, t);
@@ -360,7 +362,7 @@ void mv::Tensor::setAddress(int64_t address)
 void mv::Tensor::setSparse()
 {
     mv::Order order =  getOrder();
-    if (!order.isZMajor())
+    if (!order.isZMajor() && !order.isZMajorWeights())
         throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
 
     if (order.size() < 3)
