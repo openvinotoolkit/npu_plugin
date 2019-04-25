@@ -269,12 +269,18 @@ void mv::Tensor::unpopulate()
     log(Logger::MessageType::Debug, "Unpopulated");
 }
 
-std::shared_ptr<mv::Tensor> mv::Tensor::getSubTensor(uint8_t cluster) const
+const mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
 {
-    if (cluster >= subTensors_.size())
-        throw ArgumentError(*this, "getSubTensor", std::to_string(cluster) , " is larger than number of subtensors " + std::to_string(subTensors_.size()));
+    if (cluster < subTensors_.size() && !get<bool>("broadcasted"))
+        return *subTensors_[cluster];
+    return *this;
+}
 
-    return subTensors_[cluster];
+const mv::Tensor& mv::Tensor::broadcastSubtensor(uint8_t cluster)
+{
+    if (cluster < subTensors_.size())
+        return *subTensors_[cluster];
+    return *this;
 }
 
 std::shared_ptr<mv::Tensor> mv::Tensor::getSparsityMap() const
