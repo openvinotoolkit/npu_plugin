@@ -74,7 +74,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
             /*Partition tensor into workloads with METIS*/
-            auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
+            //auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
+            auto res = workloads.partitionTensorWithZsplit(nWorkloads, pass);
             
             if( res != 1 ) 
                 std::runtime_error("Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!");

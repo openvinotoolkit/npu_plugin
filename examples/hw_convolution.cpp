@@ -18,7 +18,7 @@ int main()
     auto conv1 = test_cm.conv(input1, weights1, {2, 2}, {0, 0, 0, 0}, 1);
     auto output = test_cm.output(conv1);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2480.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
 
@@ -39,9 +39,10 @@ int main()
     // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string(outputName + ".caffemodel"));
 
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
+    unit.run();
 
-    auto returnValue = mv::HWTest(unit, outputName, true);
-    printReport(returnValue, std::cout);
+    //auto returnValue = mv::HWTest(unit, outputName, true);
+    //printReport(returnValue, std::cout);
 }
