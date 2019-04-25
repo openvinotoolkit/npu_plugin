@@ -12,6 +12,17 @@
 #include <string>
 #include <unordered_set>
 
+//======================================================================
+//
+//  Simple test on Rectangle Heuristic algorithm of Workloads generation
+//
+//  Check if algorithm behaves predictably in typical and corner cases:
+//  - does not crash or terminates silently in reasonable test cases
+//  - resulting workloads pass validation: cover exactly whole input
+//    tensor and do not intersect each other
+//
+//======================================================================
+
 using namespace testing;
 
 struct Form
@@ -22,8 +33,8 @@ struct Form
 
 using NWorkloads = idx_t;
 
-class workloads_rect :
-    public TestWithParam<std::tuple<NWorkloads, Form, mv::DType, mv::Target>>
+class workloads_rect_simple :
+    public TestWithParam<std::tuple<NWorkloads, Form>>
 {};
 
 static std::string toString(const mv::Workload& workload)
@@ -36,23 +47,22 @@ static std::string toString(const mv::Workload& workload)
     return s.str();
 }
 
-TEST_P(workloads_rect, forms)
+TEST_P(workloads_rect_simple, forms)
 {
     auto param = GetParam();
     auto n_wls  = std::get<0>(param);
     auto form   = std::get<1>(param);
-    auto dtype  = std::get<2>(param);
-    auto target = std::get<3>(param);
 
     auto& shape = form.shape;
     auto& order = form.order;
 
     std::stringstream test_name;
-    test_name << "workloads_rect_" << n_wls
-              << "_" << testToString(shape) << "_" << order.toString()
-              << "_" << dtype.toString() << "_" + testToString(target);
+    test_name << "workloads_rect_simple_" << n_wls
+              << "_" << testToString(shape) << "_" << order.toString();
     std::cout << "Test: " << test_name.str() << std::endl;
 
+    // TODO: make mpe_mode optional argument for workloads constructor
+    //   (as setting mpe_mode is relevant only for METIS partitioning)
     std::pair<int, int> mpe_mode(4,4);
     std::string layer_name = "test";
     mv::Workloads workloads(layer_name, shape, mpe_mode);
@@ -81,8 +91,6 @@ static Form form4d({mv::Shape({112, 112, 3, 8}), mv::Order("NCHW")});
 static Form form3d({mv::Shape({ 73,  37, 3}),     mv::Order("CHW")});
 static Form form2d({mv::Shape({320, 200}),         mv::Order("HW")});
 
-INSTANTIATE_TEST_CASE_P(combi, workloads_rect,
+INSTANTIATE_TEST_CASE_P(combi, workloads_rect_simple,
                         Combine(Values(4, 7, 128), // number of workloads
-                                Values(form2d, form3d, form4d),
-                                Values(mv::DType("Float16")),
-                                Values(mv::Target::ma2490)));
+                                Values(form2d, form3d, form4d)));
