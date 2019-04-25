@@ -29,7 +29,8 @@ TEST(generate_workloads_pass, costfunction_criticalpathA1)
     mv::Workloads workloads = GenerateTestWorkloads_modelA1(resData, mv::MPE_Mode::Matrix);
     
     mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
-    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    std::vector<float> results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 784.0);
     ASSERT_EQ(results[1], 784.0);
 }
@@ -51,11 +52,13 @@ TEST(generate_workloads_pass, costfunction_criticalpathA2)
     mv::Workloads workloads = GenerateTestWorkloads_modelA2(resData, mv::MPE_Mode::Matrix);
     mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
 
-    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    std::vector<float> results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 784.0); //?
     ASSERT_EQ(results[1], 784.0); //?
 
-    results = workloads.getExecutionCycles(vectorTensors, 2, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 2, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 784.0);
     ASSERT_EQ(results[1], 784.0);
 }
@@ -77,17 +80,20 @@ TEST(generate_workloads_pass, execycles_workloadB1)
     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
     
     mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
-    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    std::vector<float> results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 224.0);
     ASSERT_EQ(results[1], 224.0);
 
     costFunction = mv::CostFunctions::Balanced;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], -1.0);
     ASSERT_EQ(results[1], -1.0);
 
     costFunction = mv::CostFunctions::MinMaxWorkloads;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 224.0);
     ASSERT_EQ(results[1], 448.0);
 }
@@ -109,17 +115,20 @@ TEST(generate_workloads_pass, execycles_workloadB2)
     mv::Workloads workloads = GenerateTestWorkloads_modelB2(resData, mv::MPE_Mode::Matrix);
     
     mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
-    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    std::vector<float> results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 224.0);
     ASSERT_EQ(results[1], 224.0);
 
     costFunction = mv::CostFunctions::Balanced;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], -1.0);
     ASSERT_EQ(results[1], -1.0);
 
     costFunction = mv::CostFunctions::MinMaxWorkloads;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 224.0);
     ASSERT_EQ(results[1], 336.0);
 }
@@ -141,17 +150,20 @@ TEST(generate_workloads_pass, execycles_workloadB4)
     mv::Workloads workloads = GenerateTestWorkloads_modelB4(resData, mv::MPE_Mode::Matrix);
     
     mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
-    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    std::vector<float> results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], INFINITY);
     ASSERT_EQ(results[1], INFINITY);
 
     costFunction = mv::CostFunctions::Balanced;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 0.0);
     ASSERT_EQ(results[1], 0.0);
 
     costFunction = mv::CostFunctions::MinMaxWorkloads;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], INFINITY);
     ASSERT_EQ(results[1], INFINITY);
 }
@@ -173,17 +185,20 @@ TEST(generate_workloads_pass, execycles_workloadB1_vector)
     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Vector);
     
     mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
-    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    std::vector<float> results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 224.0);
     ASSERT_EQ(results[1], 224.0);
 
     costFunction = mv::CostFunctions::Balanced;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], -1.0);
     ASSERT_EQ(results[1], -1.0);
 
     costFunction = mv::CostFunctions::MinMaxWorkloads;
-    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    workloads.generateExecutionCycles(vectorTensors, 1, costFunction);
+    results = workloads.getExecutionCycles();
     ASSERT_EQ(results[0], 224.0);
     ASSERT_EQ(results[1], 448.0);
 }

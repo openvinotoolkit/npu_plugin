@@ -138,6 +138,7 @@ namespace mv
         std::vector<Workload> workloads_;
         std::string layerName_;
         mv::Shape tensorShape_;
+        std::vector<float> executionCycles_;
 
         std::shared_ptr<MetisGraphStructure> metisGraph_; 
 
@@ -155,7 +156,8 @@ namespace mv
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
         std::size_t nWorkloads() const;
         std::vector<Workload>& getWorkloads();
-        std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction); 
+        void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
+        std::vector<float> getExecutionCycles();
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 
         bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);

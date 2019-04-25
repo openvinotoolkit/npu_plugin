@@ -407,7 +407,12 @@ std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& pa
     return algorithms;
 }
 
-std::vector<float> mv::Workloads::getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction)
+std::vector<float> mv::Workloads::getExecutionCycles()
+{
+    return executionCycles_;
+}
+
+void mv::Workloads::generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction)
 {
     // notes from POC compiler:  Execution time is bounded by
     //      sum(WL)/DPU <= T <= max(WL_max)*(P-1)/P
@@ -450,30 +455,29 @@ std::vector<float> mv::Workloads::getExecutionCycles(std::vector<mv::Data::Tenso
         if (!std::isinf(wl_sum))
             balancing = wl_sum/(ceil(wl_sum/nDPUxCluster) * nDPUxCluster);
 
-        return {-balancing, -balancing};
+        executionCycles_ = {-balancing, -balancing};
     }
     else if(costFunction == CostFunctions::MinMaxWorkloads)
-         return {min_range, max_range};
+        executionCycles_ = {min_range, max_range};
 
     else if(costFunction == CostFunctions::CriticalPath)
     {
         if (nDPUxCluster == 1)
-            return {min_range, min_range};
+            executionCycles_ = {min_range, min_range};
         else
-            return {max_range, max_range};
+            executionCycles_ = {max_range, max_range};
     }
 
     else if(costFunction == CostFunctions::Greedy)
     {
         if (std::isinf(wl_sum))
-            return {INFINITY, INFINITY};
+            executionCycles_ = {INFINITY, INFINITY};
         else
         {
             float greedy = greedyTaskAssignment(nDPUxCluster, workloadsExecutionCycles);
-            return {greedy, greedy};
+            executionCycles_ = {greedy, greedy};
         }
     }
-
     else
         throw mv::ArgumentError("Generate Workloads Pass", "costFunction", "unknown", "Unsupported cost function");
 }

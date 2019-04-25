@@ -60,47 +60,50 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
             std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc, pass);
 
+            /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
+            idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
+            pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
+
             // Partition tensor into workloads
             for (std::string algorithm : algorithms)
             {
                 if (algorithm == "Metis")
                 {
-                    /* Populate Metis adjacency structure*/ 
+                    // Populate Metis adjacency structure and partition tensor
                     workloads.generateMetisGraph(); 
-
-                    /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
-                    idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
-                    pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
-
-                    /*Partition tensor into workloads with METIS*/
                     auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
-                    if( res != 1 ) 
-                        std::runtime_error("Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!");
-                    /*Populate each workload*/
-                    workloads.populateWorkloadsFromPartitions(nWorkloads, pass);
-                    solutions.push_back(workloads);
+                    if( res==1)
+                        workloads.populateWorkloadsFromPartitions(nWorkloads, pass);
+                    else
+                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS, ensure number of workloads is even!");
                 }
                 else if (algorithm == "Rectangle")
                 {
-
+                    //Partition tensor into workloads with Rectangle
+                    auto res = workloads.partitionTensorWithRectangleHeuristic(nWorkloads, pass);
+                    if(res==1)
+                        workloads.populateWorkloadsFromPartitions(nWorkloads, pass);
+                    else
+                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle!");
                 }
                 else if (algorithm == "Z-Tiling")
                 {
+                    //Partition tensor into workloads with Rectangle
 
                 }
+                
+                // Calculate execution cycles for these workloads
+                auto costFunction = workloads.getCostFunction(passDesc, pass);
+                workloads.generateExecutionCycles(outputTensor, nDPUxCluster, costFunction);
+                solutions.push_back(workloads);
             }
-            /*Add workloads as Attribute*/
-            opIt->set<mv::Workloads>("Workloads", workloads);
-            /* Calculate a pool of possible workloads select the best one based on the cost functions */ 
-            auto costFunction = workloads.getCostFunction(passDesc, pass);
-
-            std::vector<float> exeCycle = workloads.getExecutionCycles(outputTensor, nDPUxCluster, costFunction);
-            // TODO: process the execution cycles
+            
+            // TODO: return workload with lowest mean execution time
+            //mv::Workloads optimal_workload = min(solutions, key= lambda x: (np.mean(x[0]), len(x[1])))
 
 
 
-
-
+             opIt->set<mv::Workloads>("Workloads", workloads);
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
