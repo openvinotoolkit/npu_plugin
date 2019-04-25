@@ -10,10 +10,10 @@ TEST(quantization, case_conv)
 {
     //Test based on res2a_branch2a/quantized_model.tflite modeil in POC
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("UInt8"), mv::Order("WHC"));
-
     mv::QuantizationParams inputQuantParams({128}, {0.00784314}, {0}, {1});
-    input->set<mv::QuantizationParams>("quantizationParams", inputQuantParams);
+    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order("NWHC"), inputQuantParams);
+
+//    input->set<mv::QuantizationParams>("quantParams", inputQuantParams);
     auto testShape = input->getShape();
     //EC: output defs are deduced from inputs
 
@@ -21,8 +21,8 @@ TEST(quantization, case_conv)
     mv::QuantizationParams biasQuantParams({0}, {2.219164e-05}, {0}, {1});
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(64*64);
-    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)),{{},{},{},{}}, "weights");
-    weights->set<mv::QuantizationParams>("quantizationParams", weightsQuantParams);
+    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order(mv::Order::getColMajorID(4)), weightsQuantParams, "weights");
+//    weights->set<mv::QuantizationParams>("quantParams", weightsQuantParams);
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, inputQuantParams);
     auto convOp = om.getSourceOp(conv);
     std::vector<int64_t> biasesData = {
@@ -36,7 +36,7 @@ TEST(quantization, case_conv)
     };
     mv::DataModel dm(om);
     auto biasTensor = dm.defineTensor("biasdata", {64}, mv::DType("Int32"), mv::Order(mv::Order::getColMajorID(1)), biasesData);
-    biasTensor->set<mv::QuantizationParams>("quantizationParams", biasQuantParams);
+    biasTensor->set<mv::QuantizationParams>("quantParams", biasQuantParams);
 
     mv::Element dummyPassDesc("dummyPassDesc");
     mv::json::Object compOutput;

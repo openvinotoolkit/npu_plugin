@@ -103,7 +103,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
 
     mv::DataModel dm(model);
 
-    if (output->hasAttr("quantizationParams") && input->hasAttr("quantizationParams") &&
+    if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
         output->isQuantized() && input->isQuantized())
     {
         // Quantization for Gemmlowp output
@@ -114,11 +114,11 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         // zeroPointScaled = output zero point scaled to MAC output precision
         // biasScaled = bias scaled to MAC output precision
 
-        auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
+        auto inputQuantization = input->get<mv::QuantizationParams>("quantParams");
         auto scale = inputQuantization.getScale();
         std::vector<float> S2(scale.begin(), scale.end());
 
-        auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
+        auto outputQuantization = output->get<mv::QuantizationParams>("quantParams");
         scale = outputQuantization.getScale();
         std::vector<float> S3(scale.begin(), scale.end());
 
@@ -139,7 +139,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         if (dpuTaskOp->inputSlots() > 1)
         {
             auto weights = dpuTaskOp->getInputTensor(1);
-            auto weightsQuantization = weights->get<mv::QuantizationParams>("quantizationParams");
+            auto weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
             scale = weightsQuantization.getScale();
             std::vector<float> S1(scale.begin(), scale.end());
             //S1*S2
@@ -170,7 +170,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         {
             auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
             auto data = bias->getData();
-            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
+            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
             //auto Z_bias = biasQuantization.getZeroPoint();
             //auto S_bias = biasQuantization.getScale();
             std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());

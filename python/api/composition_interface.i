@@ -151,9 +151,9 @@ import_array();
     }
 
 
-    mv::QuantizationParams * getQuantParams(const std::vector<int64_t>& zero_data, const std::vector<double>& scale_data){
+    mv::QuantizationParams * getQuantParams(const std::vector<int64_t>& zero_data, const std::vector<double>& scale_data,  const std::vector<double>& min,  const std::vector<double>& max){
         /// Create a c++ shape object from a passed in set of dimension sizes
-        mv::QuantizationParams * quant = new mv::QuantizationParams({},{},{},{});
+        mv::QuantizationParams * quant = new mv::QuantizationParams(zero_data, scale_data, min, max);
         return quant;
     }
 
@@ -169,22 +169,10 @@ import_array();
         return weightsData;
     }
 
-    std::vector<float> * getData(float * d, std::size_t len){
-        /// Populate a Vector with a numpy array.
-        std::vector<float> * weightsData = new std::vector<float>(d, d + len);
-        return weightsData;
-    }
-
     std::vector<int64_t> * getData(int64_t * d, std::size_t len){
         /// Populate a Vector with a numpy array.
         std::vector<int64_t> * weightsData = new std::vector<int64_t>(d, d + len);
         return weightsData;
-    }
-
-    std::vector<uint64_t> * getData(uint64_t * d, std::size_t len){
-        /// Populate a Vector with a numpy array.
-        std::vector<uint64_t> * zeroData = new std::vector<uint64_t>(d, d + len);
-        return zeroData;
     }
 
     int testConv(
@@ -229,7 +217,7 @@ import_array();
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& name){
         /// Add an Output Layer to the OpModel and return the relevant iterator
-        return o.output(input, name);
+        return o.output(input, {{},{},{},{}}, name);
     }
 
     mv::Data::TensorIterator output(mv::CompositionalModel& o, mv::Data::TensorIterator input){
@@ -692,14 +680,10 @@ std::array<unsigned short, 4> * get4DVector(int w, int x, int y, int z);
 %include "stdint.i"
 %apply (double* INPLACE_ARRAY1, std::size_t DIM1) {(double* d, std::size_t len)}
 std::vector<double> * getData(double * d, std::size_t len);
-%apply (float* INPLACE_ARRAY1, std::size_t DIM1) {(float* d, std::size_t len)}
-std::vector<float> * getData(float * d, std::size_t len);
 %apply (int64_t* INPLACE_ARRAY1, std::size_t DIM1) {(int64_t* d, std::size_t len)}
 std::vector<int64_t> * getData(int64_t * d, std::size_t len);
-%apply (uint64_t* INPLACE_ARRAY1, std::size_t DIM1) {(uint64_t* d, std::size_t len)}
-std::vector<uint64_t> * getData(uint64_t * d, std::size_t len);
 
-mv::QuantizationParams * getQuantParams(const std::vector<int64_t> &zero_data, const std::vector<double>& scale_data);
+mv::QuantizationParams * getQuantParams(const std::vector<int64_t> &zero_data, const std::vector<double>& scale_data, const std::vector<double>& min,  const std::vector<double>& max);
 mv::Order * getOrder(const std::string& framework_layout);
 
 mv::Data::TensorIterator input(mv::CompositionalModel& o, const mv::Shape &shape, double type, const mv::Order& order, const mv::QuantizationParams &quantParams, const std::string& name);

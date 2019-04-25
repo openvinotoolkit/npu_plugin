@@ -22,7 +22,7 @@ namespace mv
 // Another assumption is that if a tensor of weights is involved in more than one OP
 // Then either all these ops are DPUTasks or neither of them.
 
-void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -55,13 +55,14 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         {
             auto kernel = kernelOp->getOutputTensor(0);
             auto kernelShape = kernel->getShape();
-
+            auto quantParams = kernel->get<mv::QuantizationParams>("quantParams");
             auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
             mv::Shape newShape({kernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1, 1, mv::round_up(weightSetDimension, 16)});
             auto oldData = kernel->getData();
             oldData.resize(newShape.totalSize(), 0);
             auto newData(std::move(oldData));
-            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), {{},{},{},{}},"Aligned"+kernelOp->getName());
+            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), quantParams,"Aligned"+kernelOp->getName());
+
             om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
             for(auto toUpdateIt = toUpdate.begin(); toUpdateIt != toUpdate.end(); ++toUpdateIt)
@@ -69,6 +70,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
                 (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[mv::KERNEL_WIDTH], kernelShape[mv::KERNEL_HEIGHT]});
                 (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[mv::KERNEL_INPUT_CHANNELS]);
                 (*toUpdateIt)->setInputTensor(newKernel, 1, false);
+                (*toUpdateIt)->set<mv::QuantizationParams>("quantParams", quantParams);
                 om.defineFlow(newKernel, (*toUpdateIt), 1);
             }
         }

@@ -179,7 +179,7 @@ template< class T > void List< T >::move_after( iterator pos, iterator elem )
 {
 	_unlink( elem.ptr );
 	_link_after( pos.ptr,elem.ptr );
-};
+}
 
 template< class T >
 	void List< T >::copy( const List &lst )

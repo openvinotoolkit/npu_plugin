@@ -30,25 +30,25 @@ void extendQuantizationParams(const mv::pass::PassEntry&, mv::ComputationModel& 
         if (opIt->getOutputTensor().size() > 0)
         {
             auto output = opIt->getOutputTensor(0);
-            if (output->hasAttr("quantizationParams"))
+            if (output->hasAttr("quantParams"))
             {
                 outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-                auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
+                auto outputQuantization = output->get<mv::QuantizationParams>("quantParams");
                 outputQuantization.extendParamsToOutputChannelSize(outputChannels);
-                output->set<mv::QuantizationParams>("quantizationParams", outputQuantization);
+                output->set<mv::QuantizationParams>("quantParams", outputQuantization);
             }
 
         }
         if (opIt->getInputTensor().size() > 0)
         {
             auto input = opIt->getInputTensor(0);
-            if (input->hasAttr("quantizationParams"))
+            if (input->hasAttr("quantParams"))
             {
                 if (opIt->getOutputTensor().size() == 0 || outputChannels == 0)
                     outputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
-                auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
+                auto inputQuantization = input->get<mv::QuantizationParams>("quantParams");
                 inputQuantization.extendParamsToOutputChannelSize(outputChannels);
-                input->set<mv::QuantizationParams>("quantizationParams", inputQuantization);
+                input->set<mv::QuantizationParams>("quantParams", inputQuantization);
             }
         }
 

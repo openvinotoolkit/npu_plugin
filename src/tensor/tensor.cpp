@@ -37,8 +37,30 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<Shape>("shape", shape_);
     set<Order>("order", order);
     set<DType>("dType", dType);
-    set<mv::QuantizationParams>("quantizationParams", quantParams);
+    set<mv::QuantizationParams>("quantParams", quantParams);
     set<bool>("populated", false);
+
+    data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
+    for (std::size_t i = 0; i < blocks_.size(); ++i)
+        blocks_[i] = data_.begin() + i * blockSize_;
+}
+
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const mv::QuantizationParams &quantParams, bool flag):
+Element(name),
+blockSize_(shape[-1]),
+blocks_(shape.totalSize() / blockSize_),
+shape_(shape),
+internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
+{
+
+    log(Logger::MessageType::Debug, "Initialized");
+    if(order.size() != shape.ndims())
+        throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
+    set<Shape>("shape", shape_);
+    set<Order>("order", order);
+    set<DType>("dType", dType);
+    set<mv::QuantizationParams>("quantParams", quantParams);
+    set<bool>("populated", flag);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -51,8 +73,20 @@ Tensor(name, shape, dType, order)
     populate(data, order);
 }
 
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data, const mv::QuantizationParams &quantParams) :
+Tensor(name, shape, dType, order, quantParams, true)
+{
+    populate(data, order);
+}
+
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data) :
 Tensor(name, shape, dType, order)
+{
+    populate(data, order);
+}
+
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data, const mv::QuantizationParams &quantParams) :
+Tensor(name, shape, dType, order, quantParams, true)
 {
     populate(data, order);
 }
@@ -64,7 +98,7 @@ Tensor(name, shape, dType, order)
 }
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data, const mv::QuantizationParams &quantParams):
-Tensor(name, shape, dType, order, quantParams)
+Tensor(name, shape, dType, order, quantParams, true)
 {
     populate(data, order);
 }
@@ -279,13 +313,13 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
 }
 
 // NOTE: Read NOTE in header fileq
-std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel()
+std::vector<int64_t> mv::Tensor::getZeroPointsPerChannel()
 {
     //default all zeropoints to zero
-    std::vector<unsigned> zeroPoint(getShape()[mv::KERNEL_OUTPUT_CHANNELS]);
+    std::vector<int64_t> zeroPoint(getShape()[mv::KERNEL_OUTPUT_CHANNELS]);
     if (isQuantized())
     {
-        auto quantParams = get<mv::QuantizationParams>("quantizationParams");
+        auto quantParams = get<mv::QuantizationParams>("quantParams");
         for (size_t t=0; t < zeroPoint.size(); t++)
             zeroPoint[t] = quantParams.getZeroPoint(t);
     }
@@ -301,7 +335,7 @@ void mv::Tensor::populateSparsityMapTensor_()
 {
     auto shape = getShape();
 
-    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
     std::vector<int64_t> sparsityMapData(sparsityMap_->getShape().totalSize());
     std::vector<size_t> sub(shape.ndims());
     uint8_t map = 0;
@@ -593,7 +627,7 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
 
     auto shape = getShape();
     std::vector<std::size_t> sub(shape.ndims());
-    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
     std::vector<DataElement> orderedDataPacked;
     double datai;
     size_t outputChannelSize = shape.totalSize() / shape[mv::KERNEL_OUTPUT_CHANNELS];
