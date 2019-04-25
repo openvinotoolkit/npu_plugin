@@ -17,8 +17,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<Order>("order", order);
     set<DType>("dType", dType);
     set<bool>("populated", false);
-    set<bool>("broadcasted", true);
-
+    //set<bool>("broadcasted", true);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -41,7 +40,7 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<DType>("dType", dType);
     set<mv::QuantizationParams>("quantizationParams", quantParams);
     set<bool>("populated", false);
-    set<bool>("broadcasted", true);
+    //set<bool>("broadcasted", true);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -271,7 +270,7 @@ void mv::Tensor::unpopulate()
 
 const mv::Tensor& mv::Tensor::getSubTensor(uint8_t cluster)
 {
-    if (cluster < subTensors_.size() && !get<bool>("broadcasted"))
+    if (cluster < subTensors_.size() && !isBroadcasted())
         return *subTensors_[cluster];
     return *this;
 }
@@ -944,7 +943,7 @@ std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 std::size_t mv::Tensor::getClusterSize(bool isBase) const
 {
     std::size_t res = computeTotalSize(isBase);
-    if (get<bool>("broadcasted"))
+    if (isBroadcasted())
     {
         res = 0;
         for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)

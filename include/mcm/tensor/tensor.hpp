@@ -132,6 +132,12 @@ namespace mv
             return false;
         }
 
+        inline bool isBroadcasted() const
+        {
+            if (hasAttr("broadcasted"))
+                return get<bool>("broadcasted");
+            return true; //by default is true
+        }
         inline Shape& getShape()
         {
             return shape_;
