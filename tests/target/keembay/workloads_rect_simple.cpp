@@ -72,6 +72,7 @@ TEST_P(workloads_rect_simple, forms)
 
     int n_workloads = 0;
     EXPECT_GE(n_wls, n_workloads = workloads.nWorkloads());
+    EXPECT_GT(n_workloads, 0);
 
     bool valid = false;
     EXPECT_TRUE(valid = workloads.validateWorkloads(shape));
