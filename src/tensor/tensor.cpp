@@ -442,10 +442,6 @@ void mv::Tensor::setSparse()
 
 void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t> &rightPadding)
 {
-
-    if (!other.isPopulated())
-        throw ArgumentError(*this, "InputTensor::populated", "false", "Unable to bind data from an unpopulated tensor " + other.getName());
-
     if (leftPadding.size() != other.getShape().ndims() && !leftPadding.empty())
         throw ArgumentError(*this, "leftPadding::size", std::to_string(leftPadding.size()), "Invalid dimension of the left padding vector,"
             " must be equal to the dimensionality of the master tensor, which is " + std::to_string(other.getShape().ndims()));
@@ -454,9 +450,12 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
         throw ArgumentError(*this, "rightPadding::size", std::to_string(rightPadding.size()), "Invalid dimension of the right padding vector,"
             " must be equal to the dimensionality of the master tensor, which is " + std::to_string(getShape().ndims()));
 
-    data_ = other.data_;
+    if (other.isPopulated())
+    {
+        data_ = other.data_;
+        set<bool>("populated", true);
+    }
 
-    set<bool>("populated", true);
     if (!leftPadding.empty())
         set<std::vector<std::size_t>>("leftPadding", leftPadding);
     if (!rightPadding.empty())
@@ -471,8 +470,10 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
     set<Order>("order", other.getOrder());
     set<DType>("dType", other.getDType());
     set<std::string>("master", other.getName());
-    other.set<std::string>("slave", getName());
-
+    if (!other.hasAttr("slave"))
+        other.set<std::vector<std::string>>("slave", { getName() });
+    else
+        other.get<std::vector<std::string>>("slave").push_back(getName());
 }
 
 void mv::Tensor::setOrder(Order order, bool updateSubtensors)
