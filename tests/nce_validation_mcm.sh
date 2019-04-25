@@ -15,7 +15,7 @@ MDK_ROOT=~/mdk
 TFLITE_GEN_DIR=~/git/migNetworkZoo/test/kmb_test_generation
 TFLITE_MODEL_DIR=~/git/migNetworkZoo/internal/unit_tests/CompilerTestsKeembay/layers
 FATHOM_DIR="$MDK_ROOT/projects/Fathom/src2"
-MV_TOOLS_VERSION="Latest_194704"
+MV_TOOLS_VERSION="Latest_195458"
 MV_TOOLS_DIR="$MDK_ROOT/tools"
 
 #stub directories
@@ -55,7 +55,7 @@ if [[ "$pipe_start" == "tflite" ]] || [[ $proc -ne 0 ]]  ; then
         SIMPLIFY="--simplify"
     fi
 
-    #python3 run_testfile.py ${SIMPLIFY}
+    python3 run_testfile.py ${SIMPLIFY}
     popd || exit
 fi
 
