@@ -50,6 +50,11 @@ std::vector<mv::Workload>& mv::Workloads::getWorkloads()
     return workloads_;
 }
 
+std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
+{
+    return const_cast<std::vector<Workload>&>(workloads_);
+}
+
 std::string mv::Workloads::toString() const
 {
     std::string output = "{";
