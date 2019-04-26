@@ -164,37 +164,59 @@ TEST_P(workloads_rect_resnet50, forms)
 }
 
 
-static Etalon etalon01 = {{224, 224, 3, 1}, mv::Order("NCHW"), {{1, 1}}, 4,
+static const mv::DPUModeList dpu_mode_1x1 = {{1, 1}};
+static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}}; // {height, width}
+
+//
+// Tests with DPU Mode = 1x1
+//
+
+static Etalon etalon01 = {{224, 224, 3, 1}, mv::Order("NCHW"), dpu_mode_1x1, 4,
                           {{0, 224, 0, 56}, {0, 224, 56, 112}, {0, 224, 112, 168}, {0, 224, 168, 224}}};
 
-/*
-static Etalon etalon02 = {{112, 112, 64, 1}, mv::Order("NCHW"), {{1, 1}}, 4,
-                          {{0, 112, 0, 28}, {0, 112, 28, 56}, {0, 112, 56, 84}, {0, 112, 84, 112}}};
-
-static Etalon etalon03 = {{56, 56, 64, 1}, mv::Order("NCHW"), {{1, 1}}, 4,
-                          {{0, 56, 0, 14}, {0, 56, 14, 28}, {0, 56, 28, 42}, {0, 56, 42, 56}}};
-
-static Etalon etalon04 = {{28, 28, 128, 1}, mv::Order("NCHW"), {{1, 1}}, 4,
+static Etalon etalon02 = {{28, 28, 128, 1}, mv::Order("NCHW"), dpu_mode_1x1, 4,
                           {{0, 28, 0, 7}, {0, 28, 7, 14}, {0, 28, 14, 21}, {0, 28, 21, 28}}};
 
-static Etalon etalon05 = {{256, 1, 14, 14}, mv::Order("NCHW"), {{1, 1}}, 4,
-                          {{0, 64, 0, 1}, {64, 128, 0, 1}, {128, 192, 0, 1}, {192, 256, 0, 1}}}; // FIXME: POC bug?
+// FIXME: POC seems to mess tensor layout - shape must be {14, 14, 256, 1}
+static Etalon etalon03 = {{256, 1, 14, 14}, mv::Order("NCHW"), dpu_mode_1x1, 4,
+                          {{0, 64, 0, 1}, {64, 128, 0, 1}, {128, 192, 0, 1}, {192, 256, 0, 1}}};
 
-static Etalon etalon06 = {{1024, 1, 14, 14}, mv::Order("NCHW"), 4,
-                          {{0, 256, 0, 1}, {256, 512, 0, 1}, {512, 768, 0, 1}, {768, 1024, 0, 1}}}; // FIXME: POC bug?
+// FIXME: POC seems to mess tensor layout - shape must be {1, 1, 1000, 1}
+static Etalon etalon04 = {{1000, 1, 1, 1}, mv::Order("NCHW"), dpu_mode_1x1, 4,
+                          {{0, 250, 0, 1}, {250, 500, 0, 1}, {500, 750, 0, 1}, {750, 1000, 0, 1}}};
 
-static Etalon etalon07 = {{512, 1, 7, 7}, mv::Order("NCHW"), 4,
-                          {{0, 128, 0, 1}, {128, 256, 0, 1}, {256, 384, 0, 1}, {384, 512, 0, 1}}}; // FIXME: POC bug?
+// FIXME: POC seems to mess tensor layout - shape must be {147, 1, 64, 1} ???
+static Etalon etalon05 = {{147, 1, 1, 64}, mv::Order("NCHW"), dpu_mode_1x1, NumWls(1),
+                          {{0, 147, 0, 1}}};
 
-static Etalon etalon08 = {{2048, 1, 7, 7}, mv::Order("NCHW"), 4,
-                          {{0, 512, 0, 1}, {512, 1024, 0, 1}, {1024, 1536, 0, 1}, {1536, 2048, 0, 1}}}; // FIXME: POC bug?
+//
+// Tests with DPU Mode = 4x4 (according to POC results)
+//
 
-static Etalon etalon09 = {{1000, 1, 1, 1}, mv::Order("NCHW"), 4,
-                          {{0, 250, 0, 1}, {250, 500, 0, 1}, {500, 750, 0, 1}, {750, 1000, 0, 1}}}; // FIXME: POC bug?
+static Etalon etalon06 = {{112, 28, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 2,
+                          {{0, 56, 0, 28}, {56, 112, 0, 28}}};
 
-static Etalon etalon10 = {{147, 1, 1, 64}, mv::Order("NCHW"), 1, {{0, 147, 0, 1}}}; // FIXME: POC bug?
-*/
+static Etalon etalon07 = {{112, 28, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 4,
+                          {{0, 28, 0, 28}, {28, 56, 0, 28}, {56, 84, 0, 28}, {84, 112, 0, 28}}};
+
+static Etalon etalon08 = {{112, 28, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 5,
+                          {{0, 40, 0, 16}, {40, 80, 0, 16}, {80, 112, 0, 16}, {0, 56, 16, 28}, {56, 112, 16, 28}}};
+
+//
+// Tests with DPU Mode = 16x1 (according to POC results)
+//
+
+static Etalon etalon09 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 2,
+                          {{0, 56, 0, 7}, {0, 56, 7, 14}}};
+
+static Etalon etalon10 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 4,
+                          {{0, 16, 0, 14}, {16, 32, 0, 14}, {32, 48, 0, 14}, {48, 56, 0, 14}}};
+
+static Etalon etalon11 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 5,
+                          {{0, 32, 0, 5}, {0, 32, 5, 10}, {0, 32, 10, 14}, {32, 56, 0, 7}, {32, 56, 7, 14}}};
 
 
 INSTANTIATE_TEST_CASE_P(combi, workloads_rect_resnet50,
-    Values(etalon01 /*, etalon02, etalon03, etalon04, etalon05, etalon06, etalon07, etalon08, etalon09, etalon10*/));
+                        Values(etalon01, etalon02, etalon03, etalon04, etalon05,
+                               etalon06, etalon07, etalon08,
+                               etalon09, etalon10, etalon11));
