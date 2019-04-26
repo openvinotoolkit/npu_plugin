@@ -76,7 +76,7 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
-    
+
         MV_REGISTER_OP(DepthwiseConv)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})

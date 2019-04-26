@@ -71,7 +71,6 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"exposed"});

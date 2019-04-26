@@ -24,7 +24,7 @@ namespace mv
                 return {false, 1};
             }
 
-            if (inputShape[-1] != scalesShape[0])
+            if (inputShape[IO_CHANNEL_DIMENSION] != scalesShape[0])
             {
                 errMsg = "Invalid shape of scales tensor (input 1) - the dimension has to equal to the last dimension"
                     " of the input tensor which is " + std::to_string(inputShape[-1]);

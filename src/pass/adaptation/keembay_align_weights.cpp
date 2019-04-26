@@ -55,7 +55,9 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         {
             auto kernel = kernelOp->getOutputTensor(0);
             auto kernelShape = kernel->getShape();
-            auto quantParams = kernel->get<mv::QuantizationParams>("quantParams");
+            mv::QuantizationParams quantParams = {{},{},{},{}};
+            if(kernel->hasAttr("quantParams"))
+                quantParams = kernel->get<mv::QuantizationParams>("quantParams");
             auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
             mv::Shape newShape({kernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1, 1, mv::round_up(weightSetDimension, 16)});
             auto oldData = kernel->getData();

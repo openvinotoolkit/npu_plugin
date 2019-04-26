@@ -121,6 +121,7 @@ namespace mv
         .setInputs({"data", "mean", "variance", "offset", "scale"})
         .setOutputs({"output"})
         .setArg<double>("eps")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
