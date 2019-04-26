@@ -982,7 +982,7 @@ int mv::Workloads::partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::P
     C = tensorShape_.ndims() >= 3 ? tensorShape_[2] : 0;
 
     //max Z calculation
-    unsigned max_channels_per_WL = divRoundUp(C,nWorkloads);
+    idx_t max_channels_per_WL = divRoundUp(C,nWorkloads);
     if (max_channels_per_WL < 16)
         return 0;
 
@@ -996,19 +996,19 @@ int mv::Workloads::partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::P
                                                              + ", original_width="  + std::to_string(original_shape.W));
     auto best_padding = selectPadding(original_shape, context_list);
     // split the output channels into per workload
-    int16_t output_channels = 0;
-    int16_t minX = 0, minY = 0, maxX = divRoundUp(original_shape.W, best_padding.context.W) -1, maxY = divRoundUp(original_shape.H, best_padding.context.H) -1, maxZ = 0;
-    for (size_t idx = 0; idx < nWorkloads; idx++)
+    idx_t output_channels = 0;
+    idx_t minX = 0, minY = 0, maxX = padRoundUp(original_shape.W, best_padding.context.W) -best_padding.context.W, maxY = padRoundUp(original_shape.H, best_padding.context.H) -best_padding.context.H;
+    for (idx_t idx = 0; idx < nWorkloads; idx++)
     {
         Workload workload;
-        output_channels = std::min<size_t>(max_channels_per_WL, C - idx*max_channels_per_WL);
+        output_channels = std::min<idx_t>(max_channels_per_WL, C - idx*max_channels_per_WL);
 
         workload.MinX = minX;
         workload.MinY = minY;
         workload.MaxX = maxX; 
         workload.MaxY = maxY; 
         workload.MinZ = idx*max_channels_per_WL;
-        workload.MaxZ = workload.MinZ + output_channels -1;
+        workload.MaxZ = workload.MinZ + output_channels;
 
         workload_list.push_back(workload);
 
