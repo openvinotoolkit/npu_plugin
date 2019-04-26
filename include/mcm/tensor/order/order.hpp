@@ -53,8 +53,6 @@ namespace mv
         bool isColMajorPlanar();
         bool isRowInterleaved();
         bool isZMajor();
-        bool isZMajorWeights();
-
 
         Order(const std::string& value);
         Order(const Order& other);

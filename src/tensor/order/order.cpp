@@ -216,20 +216,8 @@ bool mv::Order::isZMajor()
 {
     if(contVectorStr_ == "NHWC")
         return true;
-    if(contVectorStr_ == "HWCN")
-        return true;
     return false;
 }
-
-bool mv::Order::isZMajorWeights()
-{
-    if(contVectorStr_ == "NHWC")
-        return true;
-    if(contVectorStr_ == "HWCN")
-        return true;
-    return false;
-}
-
 
 bool mv::Order::isColMajorPlanar()
 {

@@ -414,8 +414,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
             n = dpuTask->getOutputTensor().size();
             for (unsigned i = 0; i < n; ++i)
-                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor() ||
-                    (dpuTask->getOutputTensor(i)->isPopulated() && dpuTask->getOutputTensor(i)->getOrder().isZMajorWeights()))
+                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
                     dpuTask->getOutputTensor(i)->setSparse();
         }
     }

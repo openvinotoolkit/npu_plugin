@@ -303,8 +303,6 @@ void mv::Tensor::populateSparsityMapTensor_()
     int shift = 0;
     int channelIndex = 3;
     auto order = getOrder();
-    if (order == mv::Order("HWCN"))
-        channelIndex = 2;
 
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
@@ -362,7 +360,7 @@ void mv::Tensor::setAddress(int64_t address)
 void mv::Tensor::setSparse()
 {
     mv::Order order =  getOrder();
-    if (!order.isZMajor() && !order.isZMajorWeights())
+    if (!order.isZMajor())
         throw ArgumentError(*this, "Order", order.toString() , " Sparsity requires ZMajor layout (NHWC)");
 
     if (order.size() < 3)
@@ -381,17 +379,8 @@ void mv::Tensor::setSparse()
     //Storage Element Tensor
     //se are filled by the DPU @ runtime
     //We just create an unpopulated tensor at this stage.
-    size_t N;
     auto shape = getShape();
-    if (order.size() == 3)
-    {
-        order = "N" + order.toString();
-        N = 1;
-    }
-    else
-    {
-        N = shape[-1];
-    }
+    size_t N = shape[-1];;
 
     storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
 
