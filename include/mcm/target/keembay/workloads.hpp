@@ -132,6 +132,9 @@ namespace mv
 
     };
 
+    struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
+    using  DPUModeList = std::vector<mv::DPUMode>;
+
     class Workloads : public LogSender
     {
 
@@ -149,13 +152,17 @@ namespace mv
         int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         // returns: METIS_OK(=1), or METIS_ERROR
-        int partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry& pass);
         int partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        int partitionTensorWithRectangleHeuristic(const DPUModeList& modes, idx_t nWorkloads,
+                                                  const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
         std::size_t nWorkloads() const;
+
         std::vector<Workload>& getWorkloads();
+        std::vector<Workload>& getWorkloads() const;
+
         std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction); 
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 
