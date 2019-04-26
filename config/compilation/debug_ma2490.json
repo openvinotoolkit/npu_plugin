@@ -65,7 +65,10 @@
     },
     "dma": {
         "Singular" : [
-            "AddDMATasks",
+            {
+                "name":"AddDMATasks",
+                "weights_prefetch": 2
+            },
             "AddFinalDMATask",
             {
                 "name": "GenerateDot",
