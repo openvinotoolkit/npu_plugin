@@ -39,11 +39,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     /*Get all tensors*/
 
 
-    int nDPU = 4;                       /*Number of DPUs*/
-    int nClusters = 5;                  /*Number of clusters*/
+    int nDPU = 20;                       /*Number of DPUs*/
+    int nClusters = 4;                  /*Number of clusters*/
     int nDPUxCluster = nDPU/nClusters;  /*Number of DPUs per cluster*/
     std::set<int> workloadsList;
     std::pair <int,int> MPEMode (4, 4); /*MPE mode*/
+   // std::vector<mv::DPUMode> mode_list;
+    mv::DPUModeList mode_list = {{4, 4}, {1, 16}, {16, 1}}; // {H, W}
 
     mv::OpModel om(model);
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
@@ -75,13 +77,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
             /*Partition tensor into workloads with METIS*/
             //auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
-            auto res = workloads.partitionTensorWithZsplit(nWorkloads, pass);
+            auto res = workloads.partitionTensorWithZsplit(mode_list, nWorkloads, pass);
             
             if( res != 1 ) 
                 std::runtime_error("Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!");
             
             /*Populate each workload*/
-            workloads.populateWorkloadsFromPartitions(nWorkloads, pass);
+            //workloads.populateWorkloadsFromPartitions(nWorkloads, pass);
 
             /*Add workloads as Attribute*/
             opIt->set<mv::Workloads>("Workloads", workloads);

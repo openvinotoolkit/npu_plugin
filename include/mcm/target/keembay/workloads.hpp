@@ -152,7 +152,7 @@ namespace mv
         int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         // returns: METIS_OK(=1), or METIS_ERROR
-        int partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        int partitionTensorWithZsplit(const mv::DPUModeList& modes, idx_t nWorkloads, const mv::pass::PassEntry& pass);
         int partitionTensorWithRectangleHeuristic(const DPUModeList& modes, idx_t nWorkloads,
                                                   const mv::pass::PassEntry& pass);
 

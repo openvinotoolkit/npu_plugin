@@ -1019,7 +1019,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     return METIS_OK;
 }
 
-int mv::Workloads::partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::PassEntry &pass)
+int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, idx_t nWorkloads, const mv::pass::PassEntry &pass)
 {
     pass.log(mv::Logger::MessageType::Debug, "Zsplit: layer=" + layerName_);
     unsigned C, H, W;
@@ -1046,10 +1046,10 @@ int mv::Workloads::partitionTensorWithZsplit(idx_t nWorkloads, const mv::pass::P
     original_shape.H = H; // height,    Y
     pass.log(mv::Logger::MessageType::Debug, "Zsplit: original_height=" + std::to_string(original_shape.H)
                                                              + ", original_width="  + std::to_string(original_shape.W));
-    auto best_padding = selectPadding(original_shape, context_list);
+    auto best_padding = selectPadding(original_shape, mode_list);
     // split the output channels into per workload
     idx_t output_channels = 0;
-    idx_t minX = 0, minY = 0, maxX = padRoundUp(original_shape.W, best_padding.context.W) -best_padding.context.W, maxY = padRoundUp(original_shape.H, best_padding.context.H) -best_padding.context.H;
+    idx_t minX = 0, minY = 0, maxX = padRoundUp(original_shape.W, best_padding.mode.W) -best_padding.mode.W, maxY = padRoundUp(original_shape.H, best_padding.mode.H) -best_padding.mode.H;
     for (idx_t idx = 0; idx < nWorkloads; idx++)
     {
         Workload workload;
