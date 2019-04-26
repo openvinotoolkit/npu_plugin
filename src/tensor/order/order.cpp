@@ -39,11 +39,7 @@ const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID_ 
 
 const std::unordered_map<std::size_t, std::string> mv::Order::ZMajorID_ =
 {
-    {1, "W"},
-    {2, "WC"},
-    {3, "HWC"},
-    {4, "NHWC"},
-    {5, "TNHWC"}
+    {4, "NHWC"}
 };
 
 mv::Order::Order(const std::string& value)
