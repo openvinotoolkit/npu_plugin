@@ -61,14 +61,15 @@ TEST_P(workloads_rect, forms)
     ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(n_wls, pass));
 
     int n_workloads = 0;
-    EXPECT_EQ(n_wls, n_workloads = workloads.nWorkloads());
+    EXPECT_GE(n_wls, n_workloads = workloads.nWorkloads());
 
     bool valid = false;
     EXPECT_TRUE(valid = workloads.validateWorkloads(shape));
 
-    if (!valid)
+    if (!valid || n_workloads > n_wls)
     {
-        std::cout << "nWorkloads: " << n_workloads << std::endl;
+        std::cout << "workloads number: " << n_workloads << std::endl;
+        std::cout << "workloads volume: " << workloads.getAllWorkloadsVolume() << std::endl;
         for (int i=0; i < n_workloads; i++)
         {
             std::cout << i << ": " << toString(workloads[i]) << std::endl;

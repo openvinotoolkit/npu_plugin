@@ -1,6 +1,7 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include <algorithm> 
 #include <metis.h>
 
 #include <cmath>
@@ -77,10 +78,12 @@ std::string mv::Workloads::getLogID() const
 double mv::Workloads::getAllWorkloadsVolume() const
 {
     double volume = 0;
-    for (std::size_t i = 0; i < this->nWorkloads(); ++i) {
-        volume += (this->workloads_[i].MaxX - this->workloads_[i].MinX + 1) *
-                  (this->workloads_[i].MaxY - this->workloads_[i].MinY + 1) *
-                  (this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1);
+    for (std::size_t i = 0; i < this->nWorkloads(); ++i)
+    {
+        auto volX = this->workloads_[i].MaxX - this->workloads_[i].MinX + 1;
+        auto volY = this->workloads_[i].MaxY - this->workloads_[i].MinY + 1;
+        auto volZ = this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1;
+        volume += volX * volY * volZ;
     }
     return volume;
 }
@@ -126,9 +129,9 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
     }
 
     std::vector<std::size_t> minMax;
-    minMax.push_back(maxX - minX + 1);    
-    minMax.push_back(maxY - minY + 1);    
-    minMax.push_back(maxZ - minZ + 1);   
+    minMax.push_back(maxX - minX + 1);
+    minMax.push_back(maxY - minY + 1);
+    minMax.push_back(maxZ - minZ + 1);
     return mv::Shape(minMax);
 }
 
@@ -397,10 +400,10 @@ std::vector<float> mv::Workloads::getExecutionCycles(std::vector<mv::Data::Tenso
         for(std::vector<mv::Workload>::iterator itWL = workloads_.begin(); itWL != workloads_.end(); ++itWL) 
         {
             std::pair <int,int> mpeMode (4, 4);
-            if(itWL->MPEMode == mv::MPE_Mode::Matrix)
+            if(itWL->MPEMode != mv::Matrix)
                 mpeMode = {1,16};
-            float height = itWL->MaxY - itWL->MinY + mpeMode.first;
-            float width = itWL->MaxX - itWL->MinX + mpeMode.second;
+            float height = itWL->MaxY - itWL->MinY; // + mpeMode.first;
+            float width = itWL->MaxX - itWL->MinX; // + mpeMode.second;
 
             float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / mpeMode.first) * ceil(width / mpeMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
@@ -486,6 +489,49 @@ bool mv::Workloads::validateWorkloads(std::vector<mv::Data::TensorIterator>& inp
     return validateWorkloads(inputTensor[0]->getShape());
 }
 
+// Consider shapes equal if all dimensions equal but maybe 'N',
+// e.g.: compare "NCWH" versus "CHW" by comparing 'C', 'H', 'W'
+// Consider "CHW" and "HW" shapes equal is channels number = 1
+// FIXME: need to know tensor orders to identify 'C', 'H', 'W'
+//       (yet assume orders same: either "NCHW", "CHW" or "HW")
+static bool equalShapes(const mv::Shape& a, const mv::Shape& b)
+{
+    auto m = (std::min)(a.ndims(), b.ndims());
+    auto M = (std::max)(a.ndims(), b.ndims());
+
+    if (m < 2 || m > 4 || M > 4)
+        return false; // unsupported orders
+
+    // ignore 4th dimension which must be 'N'
+    for (unsigned i=0; i < m && i < 3; i++)
+        if (a[i] != b[i])
+            return false;
+
+    auto& c = a.ndims() > b.ndims() ? a : b;
+
+    // test channels (if compare CHW vs HW)
+    for (unsigned i=m; i < M && i < 3; i++)
+        if (c[i] != 1)
+            return false;
+
+    return true;
+}
+
+// Compute shape's volume without 'N' (batch) dimension
+static size_t getTensorSize(const  mv::Shape & shape,
+                            const std::string& order = "")
+{
+    // FIXME: analyze tensor's order to find which is 'N'
+    //    (now assume order is "NCHW", or "CHW", or "HW")
+    assert(order == "NCHW" || order == "CHW" || order == "HW" || order == "");
+
+    size_t size = 1;
+    for (unsigned i=0; i < shape.ndims() && i < 3; i++)
+        size *= shape[i];
+
+    return size;
+}
+
 bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
 {
     //    Check if the generated workloads are valid
@@ -504,8 +550,8 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
 
     // Check 1: Volume of the tensor = sum of volumes of the individual workloads
     double vol = this->getAllWorkloadsVolume();
-    std::size_t totalVol = shape.totalSize();
-    if (shape.totalSize() != vol)
+    std::size_t totalVol = getTensorSize(shape); // shape.totalSize() is wrong here as it counts 'N' (batch) dimension
+    if (vol != totalVol)
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because of volume differences. Original Tensor: " + 
                     std::to_string(shape.totalSize()) + " Partitioned Tensor: " + std::to_string(this->getAllWorkloadsVolume()));
@@ -513,7 +559,7 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    if (this->getShapefromMinMax() != shape)
+    if (!equalShapes(this->getShapefromMinMax(), shape))
     {
         this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
                                      shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
@@ -521,11 +567,11 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check 2: No intersection between workloads.
-    if (!this->noOverlap())
-    {
-        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
-        return false;
-    }
+    // if (!this->noOverlap())
+    // {
+    //     this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+    //     return false;
+    // }
 
     return true;
 }
@@ -590,9 +636,9 @@ namespace mv {
 
             auto efficiency = estimateEfficiency(original, padded);
 
-            if (efficiency > best_efficiency)
+            if (best_efficiency < efficiency)
             {
-                efficiency = best_efficiency;
+                best_efficiency = efficiency;
 
                 WorkloadShape reduced;
                 reduced.H = padded.H / context.H;
@@ -713,8 +759,8 @@ namespace mv {
         unsigned dy = std::ceil(static_cast<double>(H) / Y);
 
         SplitSliceList slice_list; // empty
-        for (unsigned x=0; x < X; x++)
-        for (unsigned y=0; y < X; y++)
+        for (unsigned x=0; x * dx < W; x++)
+        for (unsigned y=0; y * dy < H; y++)
         {
             SplitSlice slice;
             slice.x0 = x * dx;
@@ -954,6 +1000,11 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
         SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
         if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
             slicing_variant = slicing_variant_2;
+    }
+    if (std::isinf(slicing_variant.cost_estimate))
+    {
+        pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: cannot slice!");
+        return METIS_ERROR;
     }
     SplitSliceList& slice_list = slicing_variant.slice_list;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: slices=" + std::to_string(slice_list.size()));

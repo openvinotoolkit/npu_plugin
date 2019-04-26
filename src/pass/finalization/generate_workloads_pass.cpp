@@ -40,7 +40,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
 
     int nDPU = 4;                       /*Number of DPUs*/
-    int nClusters = 1;                  /*Number of clusters*/
+    int nClusters = 5;                  /*Number of clusters*/
     int nDPUxCluster = nDPU/nClusters;  /*Number of DPUs per cluster*/
     std::set<int> workloadsList;
     std::pair <int,int> MPEMode (4, 4); /*MPE mode*/
