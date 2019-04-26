@@ -96,5 +96,5 @@ static Form form3d({mv::Shape({ 73,  37, 3}),     mv::Order("CHW")});
 static Form form2d({mv::Shape({320, 200}),         mv::Order("HW")});
 
 INSTANTIATE_TEST_CASE_P(combi, workloads_rect_simple,
-                        Combine(Values(/*4, 7,*/ 37 /*, 128*/), // number of workloads
-                                Values(/*form2d,*/ form3d /*, form4d*/)));
+                        Combine(Values(4, 7, 37, 128), // number of workloads
+                                Values(form2d, form3d, form4d)));
