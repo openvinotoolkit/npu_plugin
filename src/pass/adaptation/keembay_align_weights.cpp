@@ -60,19 +60,14 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             if(kernel->hasAttr("quantParams"))
                 quantParams = kernel->get<mv::QuantizationParams>("quantParams");
             auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
-            mv::Shape newShape({kernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1, 1, mv::round_up(weightSetDimension, 16)});
+            mv::Shape newShape({mv::round_up(weightSetDimension, 16), 1, 1, kernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
 
-            //NOTE: The validity of this part is still up to debate. Don't know where 0s have to be filled effectively
+            //NOTE: This three lines have to be corrected
             auto oldData = kernel->getData();
             oldData.resize(newShape.totalSize(), 0);
             auto newData(std::move(oldData));
 
-            // It doesn't matter what order is choosen here among RowMajor and ColumnMajor (the only two order that make sense considering the 1s in the middle)
-            // Weights are in the correct order thanks to the KeembayOrderConversion pass combined with getData above.
-            // However, the above statement is valid only for memory dumping purpose. For correct stride computation is necessary to
-            // set the order to RowMajor.
-            // NOTE: This order SHALL NOT be changed after for any reason!!!
-            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), mv::Order(mv::Order::getRowMajorID(newShape.ndims())), quantParams,"Aligned"+kernelOp->getName());
+            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), quantParams,"Aligned"+kernelOp->getName());
 
             om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
