@@ -6,7 +6,7 @@
 TEST(ops, batchnorm)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> bnInputData = mv::utils::generateSequence<double>(input->getShape()[-1]);
     std::vector<double> meanData = mv::utils::generateSequence<double>(input->getShape()[-1]);
     std::vector<double> varData = mv::utils::generateSequence<double>(input->getShape()[-1]);
@@ -23,10 +23,10 @@ TEST(ops, batchnorm)
     auto bnOp = om.getSourceOp(batchnorm);
     auto output = om.output(batchnorm);
 
-    ASSERT_EQ(batchnorm->getShape(), mv::Shape({224, 224, 3}));
+    ASSERT_EQ(batchnorm->getShape(), mv::Shape({224, 224, 3, 1}));
     ASSERT_EQ(bnOp->getOpType(), "BatchNormalization");
     ASSERT_EQ(batchnorm->attrsCount(), 6);
-    ASSERT_EQ(bnOp->attrsCount(), 3);
+    ASSERT_EQ(bnOp->attrsCount(), 4);
     ASSERT_EQ(bnOp->inputSlots(), 5);
     ASSERT_EQ(bnOp->outputSlots(), 1);
     ASSERT_TRUE(bnOp->hasTypeTrait("executable"));

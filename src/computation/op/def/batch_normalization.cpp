@@ -15,9 +15,9 @@ namespace mv
             auto input = inputs[0];
             auto inputShape = input->getShape(); 
 
-            if (inputShape.ndims() != 3)
+            if (inputShape.ndims() != 4)
             {
-                errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
+                errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 4, "
                     " has " + std::to_string(inputShape.ndims());
                 return {false, 0};
             }
@@ -106,16 +106,17 @@ namespace mv
             return {true, 0};
 
         };
-                
+
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
-
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
-    
+
         MV_REGISTER_OP(BatchNormalization)
         .setInputs({"data", "mean", "variance", "offset", "scale"})
         .setOutputs({"output"})

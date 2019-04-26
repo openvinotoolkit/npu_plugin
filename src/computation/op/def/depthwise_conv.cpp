@@ -67,10 +67,10 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
 
             // Make sure that the result of subtract will not be negative
-            mv::Shape outputShape({inputs[0]->getShape()[0], (inputs[0]->getShape()[1] + padding[0] + padding[1] - weights->getShape()[0]) / stride[0] + 1, (
-                inputs[0]->getShape()[2] + padding[2] + padding[3] - weights->getShape()[1]) / stride[1] + 1, inputs[0]->getShape()[3] * weights->getShape()[3]});
+            mv::Shape outputShape({(inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - weights->getShape()[IO_WIDTH_DIMENSION]) / stride[0] + 1, (
+                inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - weights->getShape()[IO_HEIGHT_DIMENSION]) / stride[1] + 1, inputs[0]->getShape()[KERNEL_OUTPUT_CHANNELS],inputs[0]->getShape()[IO_BATCH_DIMENSION]});
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
             else
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
