@@ -163,11 +163,14 @@ namespace mv
         bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
         bool validateWorkloads(const mv::Shape& shape);
 
-        mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);
+        /** 
+         * @brief Returns the cost function to use for execution cycles
+         */
+        mv::CostFunctions getCostFunction(mv::Element& passDesc);
         /** 
          * @brief Returns the supported Tensor Split Algorithms to be used
          */
-        std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass);
+        std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc);
 
         double getAllWorkloadsVolume() const;
         bool noOverlap() const;

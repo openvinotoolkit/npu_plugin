@@ -360,7 +360,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     }
 }
 
-mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass)
+mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc)
 {
     /*parse CostFunction from Comp Descriptor*/
     mv::CostFunctions costFunction = mv::CostFunctions::Balanced; //default
@@ -376,14 +376,14 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc, const mv
         else if (sCostFunction == "greedy")
             costFunction = mv::CostFunctions::Greedy;
         else 
-            pass.log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
+            this->log(mv::Logger::MessageType::Warning, "Could not parse the Cost Function type (only \"balanced | criticalpath | minmax | greedy\" currently supported). Using \"Balanced\"...");
     }
     else 
-        pass.log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
+        this->log(mv::Logger::MessageType::Info, "No Cost Function specified in descriptor, using \"Balanced\"...");
     return costFunction;
 }
 
-std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass) 
+std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc) 
 {
     /*parse TensorSplitAlgorithms from Compilation Descriptor*/
     std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
@@ -399,11 +399,11 @@ std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& pa
             if (tempStr=="Metis" || tempStr=="Rectangle" || tempStr=="Z-Tiling")
                 algorithms.push_back(tempStr);
             else
-                pass.log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
+                this->log(mv::Logger::MessageType::Warning, "Could not parse the TensorSplitAlgorithms type (only \"Metis, Rectangle, Z-Tiling\" currently supported).");
         }
     }
     else 
-        pass.log(mv::Logger::MessageType::Info, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
+        this->log(mv::Logger::MessageType::Info, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
     return algorithms;
 }
 

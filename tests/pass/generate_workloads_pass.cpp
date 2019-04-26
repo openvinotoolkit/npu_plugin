@@ -287,8 +287,7 @@ TEST(generate_workloads_pass, ReadTensorSplitAlgorithms)
     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    mv::pass::PassEntry* pass = mv::pass::PassRegistry::instance().find("GenerateWorkloads");
-    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc, *pass);
+    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
     
     ASSERT_EQ(actual_results[0], "Metis");
     ASSERT_EQ(actual_results[1], "Rectangle");
@@ -319,8 +318,7 @@ TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsDefault)
     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    mv::pass::PassEntry* pass = mv::pass::PassRegistry::instance().find("GenerateWorkloads");
-    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc, *pass);
+    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
     
     ASSERT_EQ(actual_results[0], "Metis");
     ASSERT_EQ(actual_results[1], "Rectangle");
@@ -351,8 +349,7 @@ TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsOne)
     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    mv::pass::PassEntry* pass = mv::pass::PassRegistry::instance().find("GenerateWorkloads");
-    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc, *pass);
+    std::vector<std::string>actual_results = workloads.getTensorSplitAlgorithms(testPassDesc);
     
     ASSERT_EQ(actual_results.size(), 1);
     ASSERT_EQ(actual_results[0], "Rectangle");
@@ -382,8 +379,7 @@ TEST(generate_workloads_pass, ReadCostFunctions)
     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    mv::pass::PassEntry* pass = mv::pass::PassRegistry::instance().find("GenerateWorkloads");
-    mv::CostFunctions actual_result = workloads.getCostFunction(testPassDesc, *pass);
+    mv::CostFunctions actual_result = workloads.getCostFunction(testPassDesc);
     
     ASSERT_EQ(actual_result, mv::CostFunctions::CriticalPath);
 }
@@ -412,8 +408,7 @@ TEST(generate_workloads_pass, ReadCostFunctionParse)
     std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
     mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
 
-    mv::pass::PassEntry* pass = mv::pass::PassRegistry::instance().find("GenerateWorkloads");
-    mv::CostFunctions actual_result = workloads.getCostFunction(testPassDesc, *pass);
+    mv::CostFunctions actual_result = workloads.getCostFunction(testPassDesc);
     
     // Not recognised should return default value of "Balanced"
     ASSERT_EQ(actual_result, mv::CostFunctions::Balanced);

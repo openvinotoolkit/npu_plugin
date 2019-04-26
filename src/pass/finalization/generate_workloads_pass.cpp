@@ -58,7 +58,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /*Workload's instance, name and tensorShape, MPE mode*/
             std::pair <int,int> MPEMode (4, 4); /*MPE mode*/
             mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
-            std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc, pass);
+            std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
 
             /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
             idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
@@ -93,7 +93,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
                 
                 // Calculate execution cycles for these workloads
-                auto costFunction = workloads.getCostFunction(passDesc, pass);
+                auto costFunction = workloads.getCostFunction(passDesc);
                 workloads.generateExecutionCycles(outputTensor, nDPUxCluster, costFunction);
                 solutions.push_back(workloads);
             }
