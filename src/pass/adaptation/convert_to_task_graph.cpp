@@ -21,6 +21,12 @@ namespace mv
     }
 }
 
+void storeSplitStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
+{
+    if (opIt->hasAttr("splitStrategy"))
+        om.addAttr(dxxOp, "splitStrategy", opIt->get<std::string>("splitStrategy"));
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -86,6 +92,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 }
             }
 
+            storeSplitStrategy(om, opIt, dpuConvOp);
+
             adaptOutputDataFlow(om, opIt, dpuConv);
         }
         else if (opType == "MaxPool")
@@ -105,6 +113,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                exclude_pad, auto_pad, rounding_type, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
+
+            storeSplitStrategy(om, opIt, dpuPoolOp);
 
             adaptOutputDataFlow(om, opIt, dpuPool);
         }
@@ -129,6 +139,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             ppeFixedFunction.addLayer(ppeLayerType);
             auto ppeTask = mv::PPETask(ppeFixedFunction);
             dpuElementWiseOp->set<mv::PPETask>("PPETask", ppeTask);
+
+            storeSplitStrategy(om, opIt, dpuElementWiseOp);
+
             adaptOutputDataFlow(om, opIt, dpuElementWise);
         }
         else

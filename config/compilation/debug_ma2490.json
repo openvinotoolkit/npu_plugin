@@ -95,6 +95,7 @@
     "keembay_adapt": {
         "Singular": [
             "ExtendQuantizationParams",
+            "StoreLayerSplitStrategy",
             "ConvertOpsToTasks",
             "KMBOrderConversion",
             "AlignTaskWeights",
@@ -167,7 +168,6 @@
     },
     "finalize": {
         "Singular": [
-            "ApplyTensorSplitStrategy",         
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
