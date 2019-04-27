@@ -14,6 +14,7 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include "include/mcm/base/exception/value_error.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/target/keembay/workloads.hpp"
 
 namespace mv
 {
@@ -176,6 +177,7 @@ namespace mv
         std::vector<unsigned> computeNumericStrides() const;
         std::size_t computeTotalSize(unsigned int alignment = 16, bool base = false) const;
         std::size_t getClusterSize(bool base = false) const;
+        void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
 
     };
 

@@ -30,9 +30,23 @@ namespace mv
         int16_t padRight = 0;
         int16_t padTop = 0;
         int16_t padBottom = 0;
+
+        int16_t bottomLeftX = 0;
+        int16_t bottomRightX = 0;
+        int16_t bottomLeftY = 0;
+        int16_t bottomRightY = 0;
+        int16_t topLeftX = 0;
+        int16_t topRightX = 0;
+        int16_t topLeftY = 0;
+        int16_t topRightY = 0;
+
+        int16_t height = 0;
+        int16_t width = 0;
         int32_t clusterID = 0;
         int8_t workloadID = 0;
 
+        //height =(topLeftY - bottomLeftY); //scale_factor[0])
+        //width = (topRightX - topLeftX); //scale_factor[1])
     };
     
     class Workloads : public LogSender 

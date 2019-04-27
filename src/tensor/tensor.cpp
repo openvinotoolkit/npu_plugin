@@ -473,6 +473,9 @@ void mv::Tensor::bindData(Tensor& other, const std::vector<std::size_t>& leftPad
         other.set<std::vector<std::string>>("slave", { getName() });
     else
         other.get<std::vector<std::string>>("slave").push_back(getName());
+
+    if (other.hasAttr("quantizationParams"))
+        set<mv::QuantizationParams>("quantizationParams", other.get<mv::QuantizationParams>("quantizationParams"));
 }
 
 void mv::Tensor::setOrder(Order order, bool updateSubtensors)
@@ -1002,4 +1005,85 @@ std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase) co
     //Round up to align to (alignment) 16 bytes
     res = mv::round_up(res, alignment);
     return res;
+}
+
+void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
+{
+    if (isPopulated())
+    {
+        auto shape = getShape();
+        for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+        {
+            size_t idx = wlItr - workloads.begin();
+            if (splitOverH)
+            {
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+                    getShape(), getDType(), getOrder(), getData()));
+            }
+            else
+            {
+                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(wlItr->width), static_cast<size_t>(wlItr->height)};
+                auto order = getOrder();
+                std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
+                size_t nOffset = static_cast<size_t>(wlItr->bottomLeftY);
+                size_t cOffset = static_cast<size_t>(wlItr->bottomLeftX);
+                for (size_t n = 0; n < newShape[3]; n++)
+                    for (size_t c = 0; c < newShape[2]; c++)
+                        for (size_t h = 0; h < newShape[1]; h++)
+                            for (size_t w = 0; w < newShape[0]; w++)
+                            {
+                                //copy only the relevant channels/kernels
+                                splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
+                            }
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
+                    newShape, getDType(), order, splittedData));
+            }
+            std::vector<std::size_t> offset = {0 , 0,
+                static_cast<size_t>(wlItr->bottomLeftX), static_cast<size_t>(wlItr->bottomLeftY)};
+            subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+
+            if (hasAttr("quantizationParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (isSparse())
+                subTensors_[idx]->setSparse();
+        }
+        set<bool>("broadcasted", (splitOverH == true));
+    }
+    else
+    {
+        auto shape = getShape();
+        for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+        {
+            size_t idx = wlItr - workloads.begin();
+            if (splitOverH)
+            {
+                mv::Shape newShape = { static_cast<size_t>(wlItr->width), static_cast<size_t>(wlItr->height) ,shape[2], shape[3]};
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+                std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->bottomLeftX), static_cast<size_t>(wlItr->bottomLeftY), 0 , 0};
+                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+            }
+            else
+            {
+                mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(wlItr->width), static_cast<size_t>(wlItr->height)};
+                subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+                std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->bottomLeftX), static_cast<size_t>(wlItr->bottomLeftY)};
+                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+            }
+            if (hasAttr("quantizationParams"))
+                subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
+            if (isSparse())
+                subTensors_[idx]->setSparse();
+
+            if (!splitOverH || multicast)
+            {
+                std::vector<std::size_t> leftPadding = subTensors_[idx]->get<std::vector<std::size_t>>("offset");
+                std::vector<std::size_t> rightPadding(shape.ndims());
+                for (size_t i = 0; i < rightPadding.size(); i++)
+                    rightPadding[i] = shape[i] - leftPadding[i] - subTensors_[idx]->getShape()[i];
+                subTensors_[idx]->bindData(*this, leftPadding, rightPadding);
+            }
+        }
+
+        set<bool>("broadcasted", (!splitOverH || multicast));
+    }
 }
