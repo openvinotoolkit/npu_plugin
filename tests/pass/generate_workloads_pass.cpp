@@ -1,0 +1,559 @@
+#include "gtest/gtest.h"
+#include "include/mcm/compiler/compilation_unit.hpp"
+#include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/target/keembay/workloads.hpp"
+
+/** Creates a Workloads instance*/
+mv::Workloads GenerateTestWorkloads_modelA1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
+mv::Workloads GenerateTestWorkloads_modelA2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
+
+mv::Workloads GenerateTestWorkloads_modelB1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
+mv::Workloads GenerateTestWorkloads_modelB2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
+mv::Workloads GenerateTestWorkloads_modelB4(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
+
+
+TEST(generate_workloads_pass, costfunction_criticalpathA1)
+{
+    // Tests critical path, 1 workload (A)
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelA1(resData, mv::MPE_Mode::Matrix);
+    
+    mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
+    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 784.0);
+    ASSERT_EQ(results[1], 784.0);
+}
+
+TEST(generate_workloads_pass, costfunction_criticalpathA2)
+{
+    // Tests critical path, 2 workloads
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelA2(resData, mv::MPE_Mode::Matrix);
+    mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
+
+    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 784.0); //?
+    ASSERT_EQ(results[1], 784.0); //?
+
+    results = workloads.getExecutionCycles(vectorTensors, 2, costFunction);
+    ASSERT_EQ(results[0], 784.0);
+    ASSERT_EQ(results[1], 784.0);
+}
+
+TEST(generate_workloads_pass, execycles_workloadB1)
+{
+    // Tests 1 workload (B)
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
+    
+    mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
+    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 224.0);
+    ASSERT_EQ(results[1], 224.0);
+
+    costFunction = mv::CostFunctions::Balanced;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], -1.0);
+    ASSERT_EQ(results[1], -1.0);
+
+    costFunction = mv::CostFunctions::MinMaxWorkloads;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 224.0);
+    ASSERT_EQ(results[1], 448.0);
+}
+
+TEST(generate_workloads_pass, execycles_workloadB2)
+{
+    // Tests 2 workloads (B)
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelB2(resData, mv::MPE_Mode::Matrix);
+    
+    mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
+    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 224.0);
+    ASSERT_EQ(results[1], 224.0);
+
+    costFunction = mv::CostFunctions::Balanced;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], -1.0);
+    ASSERT_EQ(results[1], -1.0);
+
+    costFunction = mv::CostFunctions::MinMaxWorkloads;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 224.0);
+    ASSERT_EQ(results[1], 336.0);
+}
+
+TEST(generate_workloads_pass, execycles_workloadB4)
+{
+    // Tests 2 workloads (B)
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelB4(resData, mv::MPE_Mode::Matrix);
+    
+    mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
+    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], INFINITY);
+    ASSERT_EQ(results[1], INFINITY);
+
+    costFunction = mv::CostFunctions::Balanced;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 0.0);
+    ASSERT_EQ(results[1], 0.0);
+
+    costFunction = mv::CostFunctions::MinMaxWorkloads;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], INFINITY);
+    ASSERT_EQ(results[1], INFINITY);
+}
+
+TEST(generate_workloads_pass, execycles_workloadB1_vector)
+{
+    // Tests 1 workload (B)
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Vector);
+    
+    mv::CostFunctions costFunction = mv::CostFunctions::CriticalPath;
+    std::vector<float> results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 224.0);
+    ASSERT_EQ(results[1], 224.0);
+
+    costFunction = mv::CostFunctions::Balanced;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], -1.0);
+    ASSERT_EQ(results[1], -1.0);
+
+    costFunction = mv::CostFunctions::MinMaxWorkloads;
+    results = workloads.getExecutionCycles(vectorTensors, 1, costFunction);
+    ASSERT_EQ(results[0], 224.0);
+    ASSERT_EQ(results[1], 448.0);
+}
+
+
+
+TEST(generate_workloads_pass, costfunction_greedyA)
+{
+    int nDPUxCluster = 4;
+    std::vector<float> workloadCosts {112.0, 112.0, 112.0, 56.0, 112.0, 112.0, 112.0, 56.0};
+    float result = mv::Workloads::greedyTaskAssignment(nDPUxCluster, workloadCosts);
+
+    ASSERT_EQ(result, 224);
+}
+
+TEST(generate_workloads_pass, costfunction_greedyB)
+{
+    int nDPUxCluster = 4;
+    std::vector<float> workloadCosts {196.0, 196.0, 196.0, 196.0};
+    float result = mv::Workloads::greedyTaskAssignment(nDPUxCluster, workloadCosts);
+
+    ASSERT_EQ(result, 196);
+}
+
+TEST(generate_workloads_pass, validate_methodB1)
+{
+    // Validates 1 workload (B)
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelB1(resData, mv::MPE_Mode::Matrix);
+
+    bool result = workloads.validateWorkloads(vectorTensors);
+    ASSERT_TRUE(result);
+}
+
+TEST(generate_workloads_pass, validateB2)
+{
+    // Validates 2 workloads (B)
+    mv::OpModel om("testModel");
+    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    om.output(conv);
+
+    mv::DataModel dm(om);
+    auto resData = dm.getTensor("Conv_0:0");
+
+    std::vector<mv::Data::TensorIterator> vectorTensors = {resData};
+    mv::Workloads workloads = GenerateTestWorkloads_modelB2(resData, mv::MPE_Mode::Matrix);
+
+    bool result = workloads.validateWorkloads(vectorTensors);
+    ASSERT_TRUE(result);
+}
+
+/* >>>>>>>>>>>>>>>>>>>> helper functions to create workloads <<<<<<<<<<<<<<<<<<<<<<<< */
+
+/** Creates a 1 x Workloads instance*/
+mv::Workloads GenerateTestWorkloads_modelA1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
+{
+    std::pair <int,int> MPEMode (4, 4);
+    if (mode == mv::Vector)
+    {
+        MPEMode.first = 1; 
+        MPEMode.second = 16; 
+    }
+    mv::Workloads workloads("ModelA", inputTensor->getShape() , MPEMode);
+    
+    //0
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 0;
+    workloads.getWorkloads()[0].clusterID = 0; 
+    workloads.getWorkloads()[0].padTop = 0;    
+    workloads.getWorkloads()[0].padBottom = 0; 
+    workloads.getWorkloads()[0].padLeft = 0;   
+    workloads.getWorkloads()[0].padRight = 0;  
+    workloads.getWorkloads()[0].MPEMode = mode;
+    workloads.getWorkloads()[0].MinX = 0;
+    workloads.getWorkloads()[0].MinY = 0;
+    workloads.getWorkloads()[0].MinZ = 0;      
+    workloads.getWorkloads()[0].MaxX = 56;
+    workloads.getWorkloads()[0].MaxY = 56;
+    workloads.getWorkloads()[0].MaxZ = 64;     
+
+    return workloads;
+}
+
+/** Creates a 2 x Workloads instance*/
+mv::Workloads GenerateTestWorkloads_modelA2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
+{
+    std::pair <int,int> MPEMode (4, 4);
+    if (mode == mv::Vector)
+    {
+        MPEMode.first = 1; 
+        MPEMode.second = 16; 
+    }
+    mv::Workloads workloads("ModelA", inputTensor->getShape(), MPEMode);
+    
+    //0
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 0;
+    workloads.getWorkloads()[0].clusterID = 0; 
+    workloads.getWorkloads()[0].padTop = 0;    
+    workloads.getWorkloads()[0].padBottom = 0; 
+    workloads.getWorkloads()[0].padLeft = 0;   
+    workloads.getWorkloads()[0].padRight = 0;  
+    workloads.getWorkloads()[0].MPEMode = mode;
+    workloads.getWorkloads()[0].MinX = 0;
+    workloads.getWorkloads()[0].MinY = 0;
+    workloads.getWorkloads()[0].MinZ = 0;      
+    workloads.getWorkloads()[0].MaxX = 28;
+    workloads.getWorkloads()[0].MaxY = 56;
+    workloads.getWorkloads()[0].MaxZ = 64;     
+
+    //1
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[1].workloadID = 1;
+    workloads.getWorkloads()[1].clusterID = 0; 
+    workloads.getWorkloads()[1].padTop = 0;    
+    workloads.getWorkloads()[1].padBottom = 0; 
+    workloads.getWorkloads()[1].padLeft = 0;   
+    workloads.getWorkloads()[1].padRight = 0;  
+    workloads.getWorkloads()[1].MPEMode = mode;
+    workloads.getWorkloads()[1].MinX = 28;
+    workloads.getWorkloads()[1].MinY = 0;
+    workloads.getWorkloads()[1].MinZ = 0;      
+    workloads.getWorkloads()[1].MaxX = 56;
+    workloads.getWorkloads()[1].MaxY = 56;
+    workloads.getWorkloads()[1].MaxZ = 64;     
+
+    return workloads;
+}
+
+/** Creates a 4 x Workloads instance*/
+mv::Workloads GenerateTestWorkloads_modelA4(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
+{
+    std::pair <int,int> MPEMode (4, 4);
+    if (mode == mv::Vector)
+    {
+        MPEMode.first = 1; 
+        MPEMode.second = 16; 
+    }
+    mv::Workloads workloads("ModelA", inputTensor->getShape() , MPEMode);
+    
+    //0
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 0;
+    workloads.getWorkloads()[0].clusterID = 0; 
+    workloads.getWorkloads()[0].padTop = 0;    
+    workloads.getWorkloads()[0].padBottom = 0; 
+    workloads.getWorkloads()[0].padLeft = 0;   
+    workloads.getWorkloads()[0].padRight = 0;  
+    workloads.getWorkloads()[0].MPEMode = mode;
+    workloads.getWorkloads()[0].MinX = 0;
+    workloads.getWorkloads()[0].MinY = 28;
+    workloads.getWorkloads()[0].MinZ = 0;      
+    workloads.getWorkloads()[0].MaxX = 28;
+    workloads.getWorkloads()[0].MaxY = 32;
+    workloads.getWorkloads()[0].MaxZ = 64;     
+
+    //1
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[1].workloadID = 1;
+    workloads.getWorkloads()[1].clusterID = 0; 
+    workloads.getWorkloads()[1].padTop = 0;    
+    workloads.getWorkloads()[1].padBottom = 0; 
+    workloads.getWorkloads()[1].padLeft = 0;   
+    workloads.getWorkloads()[1].padRight = 0;  
+    workloads.getWorkloads()[1].MPEMode = mode;
+    workloads.getWorkloads()[1].MinX = 28;
+    workloads.getWorkloads()[1].MinY = 0;
+    workloads.getWorkloads()[1].MinZ = 0;      
+    workloads.getWorkloads()[1].MaxX = 56;
+    workloads.getWorkloads()[1].MaxY = 28;
+    workloads.getWorkloads()[1].MaxZ = 64;     
+
+    //2
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[2].workloadID = 2;
+    workloads.getWorkloads()[2].clusterID = 0; 
+    workloads.getWorkloads()[2].padTop = 0;    
+    workloads.getWorkloads()[2].padBottom = 0; 
+    workloads.getWorkloads()[2].padLeft = 0;   
+    workloads.getWorkloads()[2].padRight = 0;  
+    workloads.getWorkloads()[2].MPEMode = mode;
+    workloads.getWorkloads()[2].MinX = 16;
+    workloads.getWorkloads()[2].MinY = 32;
+    workloads.getWorkloads()[2].MinZ = 0;      
+    workloads.getWorkloads()[2].MaxX = 28;
+    workloads.getWorkloads()[2].MaxY = 56;
+    workloads.getWorkloads()[2].MaxZ = 64;     
+
+    //3
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[3].workloadID = 3;
+    workloads.getWorkloads()[3].clusterID = 0; 
+    workloads.getWorkloads()[3].padTop = 0;    
+    workloads.getWorkloads()[3].padBottom = 0; 
+    workloads.getWorkloads()[3].padLeft = 0;   
+    workloads.getWorkloads()[3].padRight = 0;  
+    workloads.getWorkloads()[3].MPEMode = mode;
+    workloads.getWorkloads()[3].MinX = 28;
+    workloads.getWorkloads()[3].MinY = 28;
+    workloads.getWorkloads()[3].MinZ = 0;      
+    workloads.getWorkloads()[3].MaxX = 56;
+    workloads.getWorkloads()[3].MaxY = 56;
+    workloads.getWorkloads()[3].MaxZ = 64;     
+
+    return workloads;
+}
+
+/** Creates a 1 Workloads instance (model B)*/
+mv::Workloads GenerateTestWorkloads_modelB1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
+{
+    std::pair <int,int> MPEMode (4, 4);
+    if (mode == mv::Vector)
+    {
+        MPEMode.first = 1; 
+        MPEMode.second = 16; 
+    }
+    mv::Workloads workloads("ModelB", inputTensor->getShape() , MPEMode);
+    
+    //0
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 0;
+    workloads.getWorkloads()[0].clusterID = 0;           
+    workloads.getWorkloads()[0].padTop = 0;              
+    workloads.getWorkloads()[0].padBottom = 0;           
+    workloads.getWorkloads()[0].padLeft = 0;             
+    workloads.getWorkloads()[0].padRight = 0;            
+    workloads.getWorkloads()[0].MPEMode = mode;
+    workloads.getWorkloads()[0].MinX = 0;
+    workloads.getWorkloads()[0].MinY = 0;
+    workloads.getWorkloads()[0].MinZ = 0; 
+    workloads.getWorkloads()[0].MaxX = 56;
+    workloads.getWorkloads()[0].MaxY = 14;
+    workloads.getWorkloads()[0].MaxZ = 64; 
+    
+    return workloads;
+}
+
+/** Creates a 2 Workloads instance (model B)*/
+mv::Workloads GenerateTestWorkloads_modelB2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
+{
+    std::pair <int,int> MPEMode (4, 4);
+    if (mode == mv::Vector)
+    {
+        MPEMode.first = 1; 
+        MPEMode.second = 16; 
+    }
+    mv::Workloads workloads("ModelB", inputTensor->getShape() , MPEMode);
+    
+    //0
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 0;
+    workloads.getWorkloads()[0].clusterID = 0;           
+    workloads.getWorkloads()[0].padTop = 0;              
+    workloads.getWorkloads()[0].padBottom = 0;           
+    workloads.getWorkloads()[0].padLeft = 0;             
+    workloads.getWorkloads()[0].padRight = 0;            
+    workloads.getWorkloads()[0].MPEMode = mode;
+    workloads.getWorkloads()[0].MinX = 0;
+    workloads.getWorkloads()[0].MinY = 0;
+    workloads.getWorkloads()[0].MinZ = 0; 
+    workloads.getWorkloads()[0].MaxX = 28;
+    workloads.getWorkloads()[0].MaxY = 14;
+    workloads.getWorkloads()[0].MaxZ = 64; 
+    
+    //1
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 1;
+    workloads.getWorkloads()[0].clusterID = 0;           
+    workloads.getWorkloads()[0].padTop = 0;              
+    workloads.getWorkloads()[0].padBottom = 0;           
+    workloads.getWorkloads()[0].padLeft = 0;             
+    workloads.getWorkloads()[0].padRight = 0;            
+    workloads.getWorkloads()[0].MPEMode = mode;
+    workloads.getWorkloads()[0].MinX = 28;
+    workloads.getWorkloads()[0].MinY = 0;
+    workloads.getWorkloads()[0].MinZ = 0; 
+    workloads.getWorkloads()[0].MaxX = 56;
+    workloads.getWorkloads()[0].MaxY = 14;
+    workloads.getWorkloads()[0].MaxZ = 64; 
+    
+    return workloads;
+}
+
+/** Creates a 4 Workloads instance (model B)*/
+mv::Workloads GenerateTestWorkloads_modelB4(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode)
+{
+    std::pair <int,int> MPEMode (4, 4);
+    if (mode == mv::Vector)
+    {
+        MPEMode.first = 1; 
+        MPEMode.second = 16; 
+    }
+    mv::Workloads workloads("ModelB", inputTensor->getShape() , MPEMode);
+    
+    //0
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 0;
+    workloads.getWorkloads()[0].clusterID = 0;           
+    workloads.getWorkloads()[0].padTop = 0;              
+    workloads.getWorkloads()[0].padBottom = 0;           
+    workloads.getWorkloads()[0].padLeft = 0;             
+    workloads.getWorkloads()[0].padRight = 0;            
+    workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+    workloads.getWorkloads()[0].MinX = 0;
+    workloads.getWorkloads()[0].MinY = 8;
+    workloads.getWorkloads()[0].MinZ = 0; 
+    workloads.getWorkloads()[0].MaxX = 16;
+    workloads.getWorkloads()[0].MaxY = 14;
+    workloads.getWorkloads()[0].MaxZ = 64; 
+    
+    //1
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 1;
+    workloads.getWorkloads()[0].clusterID = 0;           
+    workloads.getWorkloads()[0].padTop = 0;              
+    workloads.getWorkloads()[0].padBottom = 0;           
+    workloads.getWorkloads()[0].padLeft = 0;             
+    workloads.getWorkloads()[0].padRight = 0;            
+    workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+    workloads.getWorkloads()[0].MinX = 16;
+    workloads.getWorkloads()[0].MinY = 12;
+    workloads.getWorkloads()[0].MinZ = 0; 
+    workloads.getWorkloads()[0].MaxX = 28;
+    workloads.getWorkloads()[0].MaxY = 14;
+    workloads.getWorkloads()[0].MaxZ = 64; 
+
+    //2
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 2;
+    workloads.getWorkloads()[0].clusterID = 0;           
+    workloads.getWorkloads()[0].padTop = 0;              
+    workloads.getWorkloads()[0].padBottom = 0;           
+    workloads.getWorkloads()[0].padLeft = 0;             
+    workloads.getWorkloads()[0].padRight = 0;            
+    workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+    workloads.getWorkloads()[0].MinX = 28;
+    workloads.getWorkloads()[0].MinY = 8;
+    workloads.getWorkloads()[0].MinZ = 0; 
+    workloads.getWorkloads()[0].MaxX = 44;
+    workloads.getWorkloads()[0].MaxY = 14;
+    workloads.getWorkloads()[0].MaxZ = 64; 
+    
+    //3
+    workloads.getWorkloads().push_back(mv::Workload()); 
+    workloads.getWorkloads()[0].workloadID = 3;
+    workloads.getWorkloads()[0].clusterID = 0;           
+    workloads.getWorkloads()[0].padTop = 0;              
+    workloads.getWorkloads()[0].padBottom = 0;           
+    workloads.getWorkloads()[0].padLeft = 0;             
+    workloads.getWorkloads()[0].padRight = 0;            
+    workloads.getWorkloads()[0].MPEMode = mv::Matrix;    //Matrix is MPE Mode (4,4)
+    workloads.getWorkloads()[0].MinX = 44;
+    workloads.getWorkloads()[0].MinY = 12;
+    workloads.getWorkloads()[0].MinZ = 0; 
+    workloads.getWorkloads()[0].MaxX = 56;
+    workloads.getWorkloads()[0].MaxY = 14;
+    workloads.getWorkloads()[0].MaxZ = 64; 
+    
+    return workloads;
+}

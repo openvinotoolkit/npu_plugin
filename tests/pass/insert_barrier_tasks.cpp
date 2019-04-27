@@ -8,8 +8,8 @@ TEST(insert_barrier_tasks, serial_path)
     mv::OpModel& om = unit.model();
 
     auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*64);
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 64}, mv::DType("Float16"), mv::Order("NCWH"));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
+    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
 
     om.output(conv1); // one barrier for DMA out from CMX to DDR
@@ -17,7 +17,6 @@ TEST(insert_barrier_tasks, serial_path)
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
-    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
     unit.initialize();
     unit.run();
     mv::Barrier::reset();
