@@ -14,6 +14,9 @@
 
 using namespace testing;
 
+//function declarations
+std::vector<mv::Workloads> GenerateTestSolutions();
+
 struct Form
 {
     mv::Shape shape;
@@ -35,6 +38,22 @@ static std::string toString(const mv::Workload& workload)
       << "}";
     return s.str();
 }
+
+TEST_P(workloads_rect, SortFunction)
+{
+    std::vector<mv::Workloads> solutions = GenerateTestSolutions();
+
+    //auto min_cycles = std::min_element(solutions.begin(), solutions.end(), mv::Workloads::compareWorkloads); 
+    auto min_cycles = std::min_element(solutions.begin(), solutions.end(), [] (mv::Workloads& lhs, mv::Workloads& rhs)
+        { return lhs < rhs;}
+    ); 
+    mv::Workloads optimal = *min_cycles;
+
+    ASSERT_EQ(optimal.getExecutionCycles()[0], 10);
+    ASSERT_EQ(optimal.getExecutionCycles()[1], 20);
+    ASSERT_EQ(optimal.getWorkloads().size(), 2);
+}
+
 
 TEST_P(workloads_rect, forms)
 {
@@ -86,3 +105,58 @@ INSTANTIATE_TEST_CASE_P(combi, workloads_rect,
                                 Values(form2d, form3d, form4d),
                                 Values(mv::DType("Float16")),
                                 Values(mv::Target::ma2490)));
+
+
+/** Creates a 4 Workloads instance*/
+std::vector<mv::Workloads> GenerateTestSolutions()
+{
+    std::vector<mv::Workloads> solutions;
+
+    std::pair <int,int> MPEMode (4, 4);
+    mv::Shape t_shape({64,64,56});
+    
+    //>>>> workloads A - execylces 15, 4 workloads (2nd) <<<<
+    mv::Workloads workloadsA("Model", t_shape, MPEMode);
+    workloadsA.setExecutionCycles({10,20}) ; //avg: 15
+    //0
+    mv::Workload workloadA0;
+    workloadA0.workloadID = 0;
+    workloadsA.addWorkload(workloadA0);
+    //1
+    mv::Workload workloadA1;
+    workloadA1.workloadID = 1;
+    workloadsA.addWorkload(workloadA1);
+    //2
+    mv::Workload workloadA2;
+    workloadA2.workloadID = 2;
+    workloadsA.addWorkload(workloadA2);
+    //3
+    mv::Workload workloadA3;
+    workloadA3.workloadID = 3;
+    workloadsA.addWorkload(workloadA3);
+    solutions.push_back(workloadsA);
+
+    //>>>> workloads B - execylces 15, 2 workloads (1st)<<<<
+    mv::Workloads workloadsB("Model", t_shape, MPEMode);
+    workloadsB.setExecutionCycles({10,20}) ; //avg: 15
+    //0
+    mv::Workload workloadB0;
+    workloadB0.workloadID = 0;
+    workloadsB.addWorkload(workloadB0);
+    //1
+    mv::Workload workloadB1;
+    workloadB1.workloadID = 1;
+    workloadsB.addWorkload(workloadB1);
+    solutions.push_back(workloadsB);
+
+    //>>>> workloads C - execylces 20 - (3rd) <<<<
+    mv::Workloads workloadsC("Model", t_shape, MPEMode);
+    workloadsC.setExecutionCycles({20,20}) ; //avg: 20
+    //0
+    mv::Workload workloadC0;
+    workloadC0.workloadID = 0;
+    workloadsC.addWorkload(workloadC0);
+    solutions.push_back(workloadsC);
+
+    return solutions;
+}

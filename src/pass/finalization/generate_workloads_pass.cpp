@@ -98,12 +98,13 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 solutions.push_back(workloads);
             }
             
-            // TODO: return workload with lowest mean execution time
-            //mv::Workloads optimal_workload = min(solutions, key= lambda x: (np.mean(x[0]), len(x[1])))
-
-
-
-             opIt->set<mv::Workloads>("Workloads", workloads);
+            //optimal_workload = min(solutions, key= lambda x: (np.mean(x[0]), len(x[1])))
+            auto min_cycles = std::min_element(solutions.begin(), solutions.end(), [] (mv::Workloads& lhs, mv::Workloads& rhs)
+                { return lhs < rhs;}
+            ); 
+            mv::Workloads optimal = *min_cycles;
+            
+            opIt->set<mv::Workloads>("Workloads", optimal);
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");

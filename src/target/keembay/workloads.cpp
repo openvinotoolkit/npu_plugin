@@ -16,10 +16,23 @@ mv::Workloads::~Workloads()
 
 mv::Workload& mv::Workloads::operator[](int nworkload)
 {
-
     return const_cast<Workload&>(static_cast<const Workloads*>(this)->operator[](nworkload));
-
 }
+
+bool mv::Workloads::operator < (const mv::Workloads& other) const
+{
+    /* Sort the workloads based on mean Execution cycles then workloads count */
+    
+    //mean of higher/lower execution cycles
+    float lhs_avg = (executionCycles_[0] + executionCycles_[1]) / 2;
+    float rhs_avg = (other.getExecutionCycles()[0] + other.getExecutionCycles()[1]) / 2;
+
+    if (lhs_avg == rhs_avg)
+        return executionCycles_.size() < other.getWorkloads().size();
+    else
+        return lhs_avg < rhs_avg;
+}
+
 
 const mv::Workload& mv::Workloads::operator[](int nworkload) const
 {
@@ -40,7 +53,7 @@ std::size_t mv::Workloads::nWorkloads() const
     return workloads_.size();
 }
 
-std::vector<mv::Workload>& mv::Workloads::getWorkloads()
+const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 {
     return workloads_;
 }
@@ -303,18 +316,18 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
             
     for(int workload = 0; workload < nWorkloads; workload++) { 
         
-        getWorkloads().push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
+        workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
-        getWorkloads()[workload].workloadID = workload;
-        getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
-        getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
-        getWorkloads()[workload].MaxZ = tensorShape_[2] -1;  //output channels
-        getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
-        getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
-        getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
-        getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
+        workloads_[workload].workloadID = workload;
+        workloads_[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
+        workloads_[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
+        workloads_[workload].MaxZ = tensorShape_[2] -1;  //output channels
+        workloads_[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
+        workloads_[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
+        workloads_[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
+        workloads_[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
                 
-        getWorkloads()[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
+        workloads_[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
                 
        /* Converting the paritions returned by METIS 
         * into tensor coordinates and populating these fields of workload 
@@ -323,10 +336,10 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         using xyz_type = decltype(mv::Workload::MinX);
 
         // NB: references (just shorter aliases for WL coordinates)
-        xyz_type& wl_min_x = getWorkloads()[workload].MinX;
-        xyz_type& wl_min_y = getWorkloads()[workload].MinY;
-        xyz_type& wl_max_x = getWorkloads()[workload].MaxX;
-        xyz_type& wl_max_y = getWorkloads()[workload].MaxY;
+        xyz_type& wl_min_x = workloads_[workload].MinX;
+        xyz_type& wl_min_y = workloads_[workload].MinY;
+        xyz_type& wl_max_x = workloads_[workload].MaxX;
+        xyz_type& wl_max_y = workloads_[workload].MaxY;
 
         wl_min_x = std::numeric_limits<xyz_type>::max();
         wl_min_y = std::numeric_limits<xyz_type>::max();
@@ -351,16 +364,16 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
             }
         }
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
-        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(getWorkloads()[workload].MinX));
-        pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(getWorkloads()[workload].MaxX));
-        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(getWorkloads()[workload].MinY));
-        pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(getWorkloads()[workload].MaxY));
-        pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(getWorkloads()[workload].MinZ));
-        pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(getWorkloads()[workload].MaxZ));
+        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
+        pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
+        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
+        pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads_[workload].MaxY));
+        pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
+        pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
     }
 }
 
-mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc)
+mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
 {
     /*parse CostFunction from Comp Descriptor*/
     mv::CostFunctions costFunction = mv::CostFunctions::Balanced; //default
@@ -383,7 +396,7 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc)
     return costFunction;
 }
 
-std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc) 
+std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc) const
 {
     /*parse TensorSplitAlgorithms from Compilation Descriptor*/
     std::vector<std::string> algorithms = {"Metis", "Rectangle", "Z-Tiling"}; //default
@@ -404,12 +417,21 @@ std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& pa
     }
     else 
         this->log(mv::Logger::MessageType::Info, "No TensorSplitAlgorithms specified in descriptor, using  \"Metis, Rectangle, Z-Tiling\"...");
+    
+    //if parsing problem, return all 3
+    if (algorithms.size() == 0)
+        algorithms = {"Metis", "Rectangle", "Z-Tiling"};
     return algorithms;
 }
 
-std::vector<float> mv::Workloads::getExecutionCycles()
+std::vector<float> mv::Workloads::getExecutionCycles() const
 {
     return executionCycles_;
+}
+
+void mv::Workloads::setExecutionCycles(std::vector<float> val)
+{
+    executionCycles_ = val;
 }
 
 void mv::Workloads::generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction)
@@ -600,6 +622,10 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     return true;
 }
 
+void mv::Workloads::addWorkload(mv::Workload workload)
+{
+    this->workloads_.push_back(workload);
+}
 
 //----------------------------------------------------------------------
 //
