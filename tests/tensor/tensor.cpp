@@ -1028,7 +1028,7 @@ TEST(tensor, sparsity)
     t.populate(indata);
 
     mv::QuantizationParams q({122}, {0.00282943}, {0},{0});
-    t.set<mv::QuantizationParams>("quantizationParams",q);
+    t.set<mv::QuantizationParams>("quantParams",q);
     ASSERT_NO_THROW(t.setSparse());
     ASSERT_TRUE(t.isSparse());
     std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();
@@ -1096,7 +1096,7 @@ TEST(tensor, sparsity_res3a_branch2c)
     t.populate(indata);
 
     mv::QuantizationParams q({137}, {0.00361593}, {0},{0});
-    t.set<mv::QuantizationParams>("quantizationParams",q);
+    t.set<mv::QuantizationParams>("quantParams",q);
     ASSERT_NO_THROW(t.setSparse());
     ASSERT_TRUE(t.isSparse());
     std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();

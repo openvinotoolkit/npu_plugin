@@ -25,6 +25,7 @@ namespace mv
     
         MV_REGISTER_OP(Output)
         .setInputs({"data"})
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"exposed"});

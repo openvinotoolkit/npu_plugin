@@ -10,6 +10,7 @@
 #include "include/mcm/base/exception/master_error.hpp"
 #include "include/mcm/logger/log_sender.hpp"
 #include "include/mcm/utils/env_loader.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 namespace mv
 {

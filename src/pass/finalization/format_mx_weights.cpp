@@ -68,6 +68,7 @@ void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &m
                         new_shape,
                         backup_tensor.getDType(),
                         backup_tensor.getOrder(),
+                        {{},{},{},{}},
                         oldWeights->getName() + "_MxWeights"
                     );
                 }
@@ -87,6 +88,7 @@ void formatMXWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel &m
                         new_shape,
                         backup_tensor.getDType(),
                         backup_tensor.getOrder(),
+                        {{},{},{},{}},
                         oldWeights->getName() + "_MxWeights"
                     );
 

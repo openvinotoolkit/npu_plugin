@@ -26,11 +26,11 @@ namespace mv
     }
     public:
         QuantizationParams(const json::Value& content);
-        QuantizationParams(std::vector<unsigned> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
+        QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
 
-        inline std::vector<unsigned> getZeroPoint() const
+        inline std::vector<int64_t> getZeroPoint() const
         {
-            return get<std::vector<unsigned>>("zeroPoint");
+            return get<std::vector<int64_t>>("zeroPoint");
         }
 
         inline std::vector<double> getScale() const
@@ -50,7 +50,7 @@ namespace mv
 
         void extendParamsToOutputChannelSize(const size_t outputChannelSize);
 
-        unsigned getZeroPoint(const size_t channel) const;
+        int64_t getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;
         virtual std::string toString() const override;
         virtual bool isEmpty() const;

@@ -16,7 +16,7 @@ int main()
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(4u * 4u * 16u * 32u);
 
     // Compose model - use Composition API to create ops and obtain tensors
-    auto input = om.input({128, 128, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({128, 128, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto weights1 = om.constant(weights1Data, {3, 3, 3, 8}, mv::DType("Float16"), mv::Order("NCHW"));
     auto conv1 = om.conv(input, weights1, {2, 2}, {1, 1, 1, 1}, 1);
     auto pool1 = om.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});

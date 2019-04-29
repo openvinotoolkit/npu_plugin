@@ -45,7 +45,7 @@ void setModel(mv::CompilationUnit& unit)
     mv::Logger::instance().setVerboseLevel(mv::VerboseLevel::Info);
 
     // Compose model - use Composition API to create ops and obtain tensors
-    auto input = om.input({128, 128, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({128, 128, 3,1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto weights1 = om.constant(weights1Data, {3, 3, 3, 8}, mv::DType("Float16"), mv::Order("NCHW"));
     auto conv1 = om.conv(input, weights1, {2, 2}, {1, 1, 1, 1}, 1);
     auto pool1 = om.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -124,11 +124,11 @@ void setModel(mv::CompilationUnit& unit)
 
 TEST(jsonable, tensor)
 {
-    mv::Shape s({3, 3, 64});
-    mv::Tensor t("test_tensor", s, mv::DType("Float16"), mv::Order("CHW"));
+    mv::Shape s({3, 3, 64,1});
+    mv::Tensor t("test_tensor", s, mv::DType("Float16"), mv::Order("NCHW"));
     mv::json::Value v = t.toJSON();
     std::string result(v.stringify());
-    std::string groundtruth = "{\"attrs\":{\"dType\":{\"attrType\":\"DType\",\"content\":\"Float16\"},\"order\":{\"attrType\":\"Order\",\"content\":\"CHW\"},\"populated\":{\"attrType\":\"bool\",\"content\":false},\"shape\":{\"attrType\":\"Shape\",\"content\":[3,3,64]}},\"name\":\"test_tensor\"}";
+    std::string groundtruth = "{\"attrs\":{\"dType\":{\"attrType\":\"DType\",\"content\":\"Float16\"},\"order\":{\"attrType\":\"Order\",\"content\":\"NCHW\"},\"populated\":{\"attrType\":\"bool\",\"content\":false},\"shape\":{\"attrType\":\"Shape\",\"content\":[3,3,64,1]}},\"name\":\"test_tensor\"}";
     ASSERT_EQ(result, groundtruth);
 }
 
