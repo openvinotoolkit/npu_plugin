@@ -69,11 +69,11 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
 {
 
     auto inputShape = input->getShape();
-    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, {1, 1}, {0, 0, 0, 0});
+    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], intermediateDepth}, {1, 1}, {0, 0, 0, 0});
     branch2a = model.relu(branch2a);
     auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
     branch2b = model.relu(branch2b);
-    auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, inputShape[2]}, {1, 1}, {0, 0, 0, 0});
+    auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, inputShape[mv::IO_CHANNEL_DIMENSION]}, {1, 1}, {0, 0, 0, 0});
 
     auto res = model.add(input, branch2c);
     return model.relu(res);
@@ -94,8 +94,8 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 {
 
     auto inputShape = input->getShape();
-    auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0});
-    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, stride, {0, 0, 0, 0});
+    auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], outputDepth}, stride, {0, 0, 0, 0});
+    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], intermediateDepth}, stride, {0, 0, 0, 0});
     branch2a = model.relu(branch2a);
     auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
     branch2b = model.relu(branch2b);
@@ -124,7 +124,7 @@ int main()
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet50
-    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("HWC"));
+    auto input = cm.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NHWC"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});

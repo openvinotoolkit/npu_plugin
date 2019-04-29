@@ -24,8 +24,17 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     {
         if((dpuTask->getOpType() == "DPUTask") && (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution"))
         {
-            //For HWConv wiht C < 16 set output shape to ZMajor
-            dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getRowMajorPlanarID(dpuTask->getOutputTensor(0)->getShape().ndims())));
+            // For HWConv wiht C < 16 set output shape to ZMajor
+            dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(dpuTask->getInputTensor(1)->getShape().ndims())));
+            // We also need to set weights shape to ColMajorPlanar (see document Order.ods)
+            dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorPlanarID(dpuTask->getInputTensor(1)->getShape().ndims())));
+            // NOTE: Anything to do about input tensor?
+        }
+        if((dpuTask->getOpType() == "DPUTask") && (dpuTask->get<std::string>("taskOp") == "Conv"))
+        {
+            // For Normal convolution, weights have to be in ColMajor order
+            dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorID(dpuTask->getInputTensor(1)->getShape().ndims())));
+            // Anything TODO for I/O?
         }
         //Else TODO? what other cases
     }

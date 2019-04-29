@@ -18,7 +18,7 @@ TEST(ops, drop_out)
     ASSERT_EQ(dropout->getShape(), mv::Shape({32, 32}));
     ASSERT_EQ(dropoutOp->getOpType(), "Dropout");
     ASSERT_EQ(dropout->attrsCount(), 6);
-    ASSERT_EQ(dropoutOp->attrsCount(), 2);
+    ASSERT_EQ(dropoutOp->attrsCount(), 3);
     ASSERT_EQ(dropoutOp->inputSlots(), 1);
     ASSERT_EQ(dropoutOp->outputSlots(), 1);
     ASSERT_TRUE(dropoutOp->hasTypeTrait("exposed"));

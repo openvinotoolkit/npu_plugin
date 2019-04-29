@@ -19,6 +19,7 @@ namespace mv
         static const std::unordered_map<std::size_t, std::string> rowMajorPlanarID_;
         static const std::unordered_map<std::size_t, std::string> colMajorID_;
         static const std::unordered_map<std::size_t, std::string> colMajorPlanarID_;
+        static const std::unordered_map<std::size_t, std::string> ZMajorID_;
 
         std::vector<std::size_t> contVector_;
         std::string contVectorStr_;
@@ -47,6 +48,11 @@ namespace mv
             return rowMajorPlanarID_.at(dimension);
         }
 
+        inline static std::string getZMajorID(std::size_t dimension)
+        {
+            return ZMajorID_.at(dimension);
+        }
+
         bool isRowMajor();
         bool isColMajor();
         bool isRowMajorPlanar();
@@ -64,7 +70,11 @@ namespace mv
         std::size_t subToInd(const Shape &s, const std::vector<std::size_t>& sub) const;
         std::vector<std::size_t> indToSub(const Shape &s, std::size_t idx) const;
 
-        std::vector<unsigned> computeStrides(const Shape &s, unsigned dataSize) const;
+        const std::vector<std::size_t>& getContiguityVector();
+
+        // Strides computed in WORDS and bytes respectively
+        std::vector<unsigned> computeWordStrides(const Shape &shape) const;
+        std::vector<unsigned> computeByteStrides(const Shape &s, unsigned dataSize) const;
         std::size_t operator[](std::size_t idx) const;
         std::size_t size() const;
         std::string toString() const;

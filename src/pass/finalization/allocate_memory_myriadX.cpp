@@ -230,7 +230,7 @@ void allocateUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationMo
             // TODO: Request this from the order - What element is axis at.
             // Currently only working for channels.
             // auto inOrder = opIterator->getInputTensor(0)->getOrder();
-            channel_index = 2;
+            channel_index = mv::IO_CHANNEL_DIMENSION;
 
             std::vector<unsigned> running_concat_offset_LHS;
             auto prev_offset = 0;

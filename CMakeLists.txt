@@ -326,6 +326,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_keembay.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/serialization/global_params_reset.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"

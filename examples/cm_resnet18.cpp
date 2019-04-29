@@ -54,9 +54,9 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
 {
 
 	auto inputShape = input->getShape();
-	auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[2], inputShape[2]}, {1, 1}, {1, 1, 1, 1});
+    auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[mv::IO_CHANNEL_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION]}, {1, 1}, {1, 1, 1, 1});
 	branch2a = model.relu(branch2a);
-	auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, inputShape[2], inputShape[2]}, {1, 1}, {1, 1, 1, 1});
+    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, inputShape[mv::IO_CHANNEL_DIMENSION], inputShape[mv::IO_CHANNEL_DIMENSION]}, {1, 1}, {1, 1, 1, 1});
 
 	auto res = model.add(input, branch2b);
 	return model.relu(res);
@@ -73,8 +73,8 @@ mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Da
 {
 
 	auto inputShape = input->getShape();
-	auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0});
-	auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[2], outputDepth}, {1, 1}, {1, 1, 1, 1});
+    auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], outputDepth}, stride, {0, 0, 0, 0});
+    auto branch2a = convBatchNormBlock(model, input, {3, 3, inputShape[mv::IO_CHANNEL_DIMENSION], outputDepth}, {1, 1}, {1, 1, 1, 1});
 	branch2a = model.relu(branch2a);
 	auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, outputDepth, outputDepth}, stride, {1, 1, 1, 1});
 
@@ -96,7 +96,7 @@ int main()
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet18
-    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = cm.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -116,9 +116,9 @@ int main()
     cm.output(softmax);
 
     // Load target descriptor for the selected target to the compilation unit
-    if (!unit.loadTargetDescriptor(mv::Target::ma2480)){
+    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
         exit(1);
-    }
+
     
     unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
