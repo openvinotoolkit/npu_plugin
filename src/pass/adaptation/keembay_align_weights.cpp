@@ -69,13 +69,13 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
 
             std::vector<mv::DataElement> newData(newShape.totalSize(), 0);
             unsigned i = 0, j = 0;
-            for(unsigned oc = 0; oc < kernel[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
+            for(unsigned oc = 0; oc < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
             {
                 for(unsigned ws = 0; ws < weightSetDimension; ++ws)
                     newData[j++] = oldData[i++];
 
                 for(unsigned ws = 0; ws < paddingDifference; ++ws)
-                    newData[j++] = 0;
+                    ++j;
             }
 
             auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), quantParams,"Aligned"+kernelOp->getName());
