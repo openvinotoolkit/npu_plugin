@@ -234,10 +234,6 @@ bool mv::Order::isZMajor()
 {
     if(contVectorStr_ == "NHWC")
         return true;
-    if(contVectorStr_ == "HWCN")
-        return true;
-    if(contVectorStr_ == "HWC")
-        return true;
     return false;
 }
 

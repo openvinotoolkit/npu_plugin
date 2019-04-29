@@ -385,9 +385,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
 
         }
-
-        // CAUTION NOTE for sparsity: I/O tensors have to be ZMajor, but Weights tensors have to be RowMajor
-        if (!fakeSparsity && false) /*Switching off 'real sparisty' - to be configured in compilation descriptor*/ 
+        if (!fakeSparsity)
         {
             if (dpuTask->getOpType() == "DPUTask" &&
                 dpuTask->inputSlots() > 1 &&
@@ -411,7 +409,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             unsigned n = dpuTask->getInputTensor().size();
             for (unsigned i = 0; i < n; ++i)
                 if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
-                    !dpuTask->getInputTensor(i)->isPopulated()) //only weights are popualted, and we dont want to cover them here
+                    !(i == 1 && dpuTask->getInputTensor(i)->isPopulated())) //only weights are popualted, and we dont want to cover them here
                         dpuTask->getInputTensor(i)->setSparse();
 
             n = dpuTask->getOutputTensor().size();

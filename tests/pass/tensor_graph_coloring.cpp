@@ -51,8 +51,8 @@ TEST(graph_coloring, single_conv)
         //std::cout << "checking " << itr->first << std::endl;
         auto tensor = om.getTensor(itr->first);
         ASSERT_TRUE(tensor->hasAttr("address"));
-        ASSERT_TRUE(tensor->getAddress() == itr->second.second);
-        ASSERT_TRUE(tensor->computeTotalSize() == itr->second.first);
+        ASSERT_EQ(tensor->getAddress() , itr->second.second);
+        ASSERT_EQ(tensor->computeTotalSize() , itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");
@@ -132,8 +132,8 @@ TEST(graph_coloring, three_conv)
     {
         auto tensor = om.getTensor(itr->first);
         ASSERT_TRUE(tensor->hasAttr("address"));
-        ASSERT_TRUE(tensor->getAddress() == itr->second.second);
-        ASSERT_TRUE(tensor->computeTotalSize() == itr->second.first);
+        ASSERT_EQ(tensor->getAddress(), itr->second.second);
+        ASSERT_EQ(tensor->computeTotalSize(), itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");

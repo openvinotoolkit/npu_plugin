@@ -342,10 +342,13 @@ void mv::Tensor::populateSparsityMapTensor_()
     std::size_t sparsityMapIdx = 0;
     size_t n = 0;
     int shift = 0;
+    int channelIndex = 3;
+    auto order = getOrder();
+
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
         sub = getOrder().indToSub(shape, t);
-        if (sub[(sub.size()-1)] != n) //starting a new channel, reset map
+        if (sub[channelIndex] != n) //starting a new channel, reset map
         {
            if (shift != 0) //this is needed in the case when tensor dimensions are not multiple of 8
             {
@@ -354,14 +357,14 @@ void mv::Tensor::populateSparsityMapTensor_()
                 map = 0;
                 shift = 0;
             }
-            n = sub[(sub.size()-1)];
+            n = sub[channelIndex];
             if (sparsityMapIdx % 16 != 0)
             {
                 auto padding = 16 - (sparsityMapIdx%16);
                 sparsityMapIdx += padding;
             }
         }
-        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[(sub.size()-1)]])
+        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[channelIndex]])
         {
             map += 1 << shift;
             noneZeroElements_++;
@@ -417,17 +420,8 @@ void mv::Tensor::setSparse()
     //Storage Element Tensor
     //se are filled by the DPU @ runtime
     //We just create an unpopulated tensor at this stage.
-    size_t N;
     auto shape = getShape();
-    if (order.size() == 3)
-    {
-        order = "N" + order.toString();
-        N = 1;
-    }
-    else
-    {
-        N = shape[-1];
-    }
+    size_t N = shape[-1];;
 
     storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
 
