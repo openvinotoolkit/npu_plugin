@@ -7,9 +7,9 @@ TEST(store_split_strategy, parse_strategy)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"), "input");
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"), {{}, {}, {}, {}}, "input");
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
-    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"), "weights1");
+    auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"), {{}, {}, {}, {}}, "weights1");
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1, {{}, {}, {}, {}}, "conv1"); // one barrier
 
     om.output(conv1); // one barrier for DMA out from CMX to DDR
