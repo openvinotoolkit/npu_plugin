@@ -22,11 +22,13 @@ namespace mv
 
     class Shape : public Printable, public LogSender
     {
-
+    private:
+        static const std::unordered_map<std::string, std::size_t> axis_;
         std::vector<std::size_t> dims_;
 
     public:
 
+        static std::size_t getAxis(const std::string& axis);
         Shape(std::initializer_list<std::size_t> dims);
         Shape(std::vector<std::size_t> dims);
         Shape(std::size_t ndims);
