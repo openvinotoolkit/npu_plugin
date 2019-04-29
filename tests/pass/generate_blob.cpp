@@ -64,7 +64,7 @@ TEST (mv_num_convert, fp64_to_fp16)
 }
 
 // test 01 : 1 2d convolution
-TEST (generate_blob, blob_output_conv_01)
+TEST (generate_blob, DISABLED_blob_output_conv_01)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -104,7 +104,7 @@ TEST (generate_blob, blob_output_conv_01)
 }
 
 // test 02 : 1 2d convolution, add input z dimension (c=3)
-TEST (generate_blob, blob_output_conv_02)
+TEST (generate_blob, DISABLED_blob_output_conv_02)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -146,7 +146,7 @@ TEST (generate_blob, blob_output_conv_02)
 }
 
 // test 03 : 1 2d convolution, change input=256x256  stride=2
-TEST (generate_blob, blob_output_conv_03)
+TEST (generate_blob, DISABLED_blob_output_conv_03)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -189,7 +189,7 @@ TEST (generate_blob, blob_output_conv_03)
 }
 
 // test 04 : 1 2d convolution, change kernel to 5x5
-TEST (generate_blob, blob_output_conv_04)
+TEST (generate_blob, DISABLED_blob_output_conv_04)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -231,7 +231,7 @@ TEST (generate_blob, blob_output_conv_04)
 }
 
 // test 05 : 2 successive 3x3 convolutions (blur->edge filters)
-TEST (generate_blob, blob_blur_edge_05)
+TEST (generate_blob, DISABLED_blob_blur_edge_05)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -276,7 +276,7 @@ TEST (generate_blob, blob_blur_edge_05)
 }
 
 // test 06 : conv1->maxpool1->conv2->maxpool2
-TEST (generate_blob, blob_4_ops)
+TEST (generate_blob, DISABLED_blob_4_ops)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -332,7 +332,7 @@ TEST (generate_blob, blob_4_ops)
                   input-<                                    >-elementwise_add->output
                          \-conva->avgpoola->convb->avgpoolb-/
 */
-TEST (generate_blob, blob_eltwise_add)
+TEST (generate_blob, DISABLED_blob_eltwise_add)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -406,7 +406,7 @@ TEST (generate_blob, blob_eltwise_add)
                   input-<                                    >-elementwise_multiply->output
                          \-conva->avgpoola->convb->avgpoolb-/
 */
-TEST (generate_blob, blob_eltwise_multiply)
+TEST (generate_blob, DISABLED_blob_eltwise_multiply)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -479,7 +479,7 @@ TEST (generate_blob, blob_eltwise_multiply)
                   input-<                                    >-elementwise_add->softmax->output
                          \-conva->avgpoola->convb->avgpoolb-/
 */
-TEST (generate_blob, blob_softmax)
+TEST (generate_blob, DISABLED_blob_softmax)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -548,7 +548,7 @@ TEST (generate_blob, blob_softmax)
 }
 
 // test 10 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2
-TEST (generate_blob, blob_convbias_convrelu)
+TEST (generate_blob, DISABLED_blob_convbias_convrelu)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -613,7 +613,7 @@ TEST (generate_blob, blob_convbias_convrelu)
 }
 
 // test 09 : conv1(+bias)->maxpool1->conv2(+relu)->maxpool2->scale
-TEST (generate_blob, blob_scale)
+TEST (generate_blob, DISABLED_blob_scale)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -912,7 +912,7 @@ TEST (generate_blob_WDDM, blob_conv1)
 }
 
 // test 10 : conv->leakyRel
-TEST (generate_blob_WDDM, blob_leakyRelu)
+TEST (generate_blob_WDDM, DISABLED_blob_leakyRelu)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -950,7 +950,7 @@ TEST (generate_blob_WDDM, blob_leakyRelu)
 }
 
 // test 10 : conv->elu
-TEST (generate_blob_WDDM, blob_elu)
+TEST (generate_blob_WDDM, DISABLED_blob_elu)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -987,7 +987,7 @@ TEST (generate_blob_WDDM, blob_elu)
     EXPECT_EQ (700LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 
-TEST (generate_blob_WDDM, blob_sigmoid)
+TEST (generate_blob_WDDM, DISABLED_blob_sigmoid)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -1024,7 +1024,7 @@ TEST (generate_blob_WDDM, blob_sigmoid)
     EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 
-TEST (generate_blob_WDDM, blob_tanh)
+TEST (generate_blob_WDDM, DISABLED_blob_tanh)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -1061,7 +1061,7 @@ TEST (generate_blob_WDDM, blob_tanh)
     EXPECT_EQ (684LL, compOutput["passes"].last()["blobSize"].get<long long>()) << "ERROR: wrong blob size";
 }
 
-TEST (generate_blob_WDDM, blob_lrn)
+TEST (generate_blob_WDDM, DISABLED_blob_lrn)
 {
 
     mv::CompilationUnit unit("testModel");
@@ -1099,7 +1099,7 @@ TEST (generate_blob_WDDM, blob_lrn)
 }
 
 // Create both RAM and file blobs
-TEST (generate_blob, runtime_binary_RAM_FILE)
+TEST (generate_blob, DISABLED_runtime_binary_RAM_FILE)
 {
 
     // Define the primary compilation unit
@@ -1169,7 +1169,7 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
 }
 
 // Create RAM blob but not file blob
-TEST (generate_blob, runtime_binary_RAM)
+TEST (generate_blob, DISABLED_runtime_binary_RAM)
 {
 
     // Define the primary compilation unit
@@ -1229,7 +1229,7 @@ TEST (generate_blob, runtime_binary_RAM)
 }
 
 // Create file blob but not RAM blob
-TEST (generate_blob, runtime_binary_FILE)
+TEST (generate_blob, DISABLED_runtime_binary_FILE)
 {
 
     // Define the primary compilation unit
