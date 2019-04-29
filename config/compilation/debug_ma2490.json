@@ -63,16 +63,13 @@
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 2,
-                "VersionPatch": 1,
-                "VersionHash": "MarcoHash",
-                "ResourcesUpaShaves": 8,
-                "ResourcesNCE1Mask": 1,
-                "ResourcesNCE2Mask": 2,
-                "ResourcesUPASharedCMX": 2,
-                "ResourcesNNCMXPerSlice": 2,
-                "ResourcesNNCMXSliceAmount": 2,
-                "ResourcesDDRScratch": 2
+                "VersionMinor": 10,
+                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf",
+                "ResourcesUpaShaves": 1,
+                "ResourcesNCE2Mask": 1,
+                "ResourcesNNCMXPerSlice": 4096,
+                "ResourcesNNCMXSliceAmount": 1,
+                "ResourcesDDRScratch": 4096
             }
         ]
     },
@@ -112,7 +109,10 @@
     },
     "dma": {
         "Singular" : [
-            "AddDMATasks",
+            {
+                "name":"AddDMATasks",
+                "weights_prefetch": 2
+            },
             "AddFinalDMATask",
             {
                 "name": "GenerateDot",

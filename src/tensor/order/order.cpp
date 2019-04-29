@@ -1,4 +1,5 @@
 #include "include/mcm/tensor/order/order.hpp"
+#include <set>
 
 const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID_ =
 {
@@ -36,6 +37,11 @@ const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID_ 
     {5, "HWCNT"}
 };
 
+const std::unordered_map<std::size_t, std::string> mv::Order::ZMajorID_ =
+{
+    {4, "NHWC"}
+};
+
 mv::Order::Order(const std::string& value)
    :Order([this, value]()->Order
     {
@@ -56,6 +62,10 @@ mv::Order::Order(const std::vector<std::size_t>& contVectorParam, const std::str
 
 }
 
+const std::vector<std::size_t>& mv::Order::getContiguityVector()
+{
+    return contVector_;
+}
 
 std::size_t mv::Order::subToInd(const Shape &s, const std::vector<std::size_t>& sub) const
 {
@@ -114,15 +124,23 @@ std::vector<std::size_t> mv::Order::indToSub(const Shape &s, std::size_t idx) co
 
 }
 
-std::vector<unsigned> mv::Order::computeStrides(const Shape &s, unsigned dataSize) const
+std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
 {
-    unsigned n = s.ndims();
-    std::vector<unsigned> toReturn(n);
+    unsigned n = shape.ndims();
+    std::vector<unsigned> strides(n, 1);
 
-    toReturn[contVector_[0]] = dataSize;
+    strides[contVector_[0]] = shape[contVector_[0]];
+
     for(unsigned i = 1; i < n; ++i)
-        toReturn[contVector_[i]] = s[contVector_[i-1]] * toReturn[contVector_[i-1]];
+        strides[contVector_[i]] = strides[contVector_[i-1]] * shape[contVector_[i]];
 
+    return strides;
+}
+
+std::vector<unsigned> mv::Order::computeByteStrides(const Shape &s, unsigned dataSize) const
+{
+    std::vector<unsigned> toReturn(computeWordStrides(s));
+    std::transform(toReturn.begin(), toReturn.end(), toReturn.begin(), [dataSize](unsigned n) -> unsigned {return n * dataSize;});
     return toReturn;
 }
 
@@ -215,10 +233,6 @@ bool mv::Order::isRowMajorPlanar()
 bool mv::Order::isZMajor()
 {
     if(contVectorStr_ == "NHWC")
-        return true;
-    if(contVectorStr_ == "HWCN")
-        return true;
-    if(contVectorStr_ == "HWC")
         return true;
     return false;
 }

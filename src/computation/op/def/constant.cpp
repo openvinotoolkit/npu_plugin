@@ -20,25 +20,49 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                args.at("order").get<mv::Order>(), args.at("data").get<std::vector<double>>()));
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+            {
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<double>>()));
+            }
+            else
+            {
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<double>>(), args.at("quantParams").get<mv::QuantizationParams>()));
+            }
         };
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputIntDefFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>()));
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+            {
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>()));
+            }
+            else
+            {
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                    args.at("order").get<mv::Order>(), args.at("data").get<std::vector<int64_t>>(), args.at("quantParams").get<mv::QuantizationParams>()));
+            }
         };
 
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
             std::vector<Tensor>&)> outputDataElementDefFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
-                args.at("order").get<mv::Order>(), args.at("data").get<std::vector<mv::DataElement>>()));
-        };
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+            {
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                                             args.at("order").get<mv::Order>(),  args.at("data").get<std::vector<mv::DataElement>>()));
+            }
+            else
+            {
+                outputs.push_back(mv::Tensor(":0", args.at("shape").get<mv::Shape>(), args.at("dType").get<mv::DType>(),
+                    args.at("order").get<mv::Order>(),  args.at("data").get<std::vector<mv::DataElement>>(),args.at("quantParams").get<mv::QuantizationParams>()));
+            }
+     };
 
         MV_REGISTER_OP(Constant)
         .setOutputs({"output"})
@@ -46,6 +70,7 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"exposed"});
@@ -56,6 +81,7 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputIntDefFcn)
         .setTypeTrait({"exposed"});
@@ -66,6 +92,7 @@ namespace mv
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDataElementDefFcn);
     }

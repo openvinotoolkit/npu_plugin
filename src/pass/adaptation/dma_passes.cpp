@@ -3,7 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
-static void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&);
 static void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
@@ -47,26 +47,29 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
 }
 
 // Pass role: Add final DMA Task CMX2DDR (if needed)
-void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
     auto opIt = om.getOutput();
+    auto inIt = om.getInput();
     auto input = opIt->getInputTensor(0);
     auto inputOp = om.getSourceOp(input);
 
     auto opId = opIt->get<unsigned>("opId");
     std::string oldOutputName(opIt->getName());
-
+    mv::QuantizationParams quantParams = {{},{},{},{}};
+    if(opIt->hasAttr("quantParams"))
+        quantParams = inIt->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
     {
-        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, "DMA"+inputOp->getName());
+        auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, "DMA"+inputOp->getName());
         auto newInputOp = om.getSourceOp(newInput);
         newInputOp->set<unsigned>("opId", opId);
         auto backup = opIt;
         om.removeOp(backup);
-        om.output(newInput, oldOutputName);
+        om.output(newInput, quantParams, oldOutputName);
         auto newOutputOp = om.getOp(oldOutputName);
         newOutputOp->set<unsigned>("opId", opId);
     }
@@ -74,7 +77,8 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
 
 // Pass role: Add DMA Task DDR2CMX where needed for each tensor input of Tasks.
 // NOTE: This is the only DMA Pass that adds control flows (DMA dependencies)
-void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+
+void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -94,7 +98,16 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     //    cmxSize = 4194304;
     //    4194304 / 4 (cluster) = 1048576;
     //    0.9 (safety_factor) * 1048576 = 943718.4
+    //
     //dma_dependency = std::min(std::max(1, self.nn_cmx_memory/param.cluster_size), dma_dependency);
+    //    This is the weights prefetch number. It specifies how early to start the inbound DMA for weights.
+    //    The units are number of ops preceeding current conv in the topographically sorted ops list.
+    //    If the weights tensor is very large (eg > 1/2 of CMX) then the specified prefetch parameter (eg 2)
+    //    would be reduced. This assumes that the only fit partial serialization would find for such a
+    //    big weights tensor would be to start the DMA right before it is needed. For smaller tensors, the
+    //    user-specified prefetch number will be used. The prefetch edge added is for partial serialization.
+    //
+
     //cluster size (memory of the tensor) = tensor dims multiplied * (data type /8)
 
     auto numCluster = 4;
@@ -102,7 +115,7 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     auto cmxSize = 3760128; //4MB in bytes.
     cmxSize /= numCluster;
     cmxSize *= safetyFactor;
-    unsigned long _dma_dependency = 2;
+    unsigned long _dma_dependency = passDesc.get<int>("weights_prefetch");
     int dma_dependency;
 
     // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks
@@ -117,12 +130,15 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
             for(unsigned i = 0; i < n; ++i)
             {
                 auto inputTensor = opIt->getInputTensor(i);
+                mv::QuantizationParams quantParams = {{},{},{},{}};
+                if(opIt->hasAttr("quantParams"))
+                    quantParams = opIt->get<mv::QuantizationParams>("quantParams");
                 auto inputOp = om.getSourceOp(inputTensor);
                 if(!isTensorInCMX(inputTensor, om))
                 {
                     auto flows = inputTensor->get<std::set<std::string>>("flows");
 
-                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX, "DMA"+inputOp->getName());
+                    auto inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2CMX,quantParams, "DMA"+inputOp->getName());
                     auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                     inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -137,7 +153,18 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                     }
 
                     auto inputTensorDmaDimension = inputTensorDma->getShape().totalSize() * (inputTensorDma->getDType().getSizeInBits()/8);
-                    dma_dependency = std::min(std::max((unsigned long)1, cmxSize/inputTensorDmaDimension), _dma_dependency + 1);
+
+                    int partsPerCMX = std::max((unsigned long)1, cmxSize/inputTensorDmaDimension);
+                    if (partsPerCMX < (_dma_dependency + 1))
+                    {
+                        dma_dependency = partsPerCMX;
+                        pass.log(mv::Logger::MessageType::Warning, "Overriding weights prefetch parameter due to large tensor DMA"+inputOp->getName()+" : using " + std::to_string(partsPerCMX) + " vs " + std::to_string(_dma_dependency+1));
+                    }
+                    else
+                    {
+                        dma_dependency =  _dma_dependency + 1 ;
+                    }
+
                     auto index = std::distance(sortedOps.begin(), std::find(sortedOps.begin(), sortedOps.end(), opIt));
                     if(index <= dma_dependency) {
                         cm.defineFlow(om.getInput(), inputTensorDmaOp);

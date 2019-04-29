@@ -14,7 +14,7 @@ TEST(ops, constant)
     ASSERT_EQ(constant->getShape(), mv::Shape({32, 32}));
     ASSERT_EQ(constantOp->getOpType(), "Constant");
     ASSERT_EQ(constant->attrsCount(), 5);
-    ASSERT_EQ(constantOp->attrsCount(), 6);
+    ASSERT_EQ(constantOp->attrsCount(), 7);
     ASSERT_EQ(constantOp->inputSlots(), 0);
     ASSERT_EQ(constantOp->outputSlots(), 1);
 

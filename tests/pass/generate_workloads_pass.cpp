@@ -17,7 +17,7 @@ TEST(generate_workloads_pass, generateWorkloadsFcn_Greedy)
     mv::OpModel& om = unit.model();
 
     /*Working*/
-    auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({16, 16, 15, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
     auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
