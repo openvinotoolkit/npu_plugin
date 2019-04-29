@@ -30,7 +30,7 @@ namespace mv
         {
             union Tmp
             {
-                int n;
+                int64_t n;
                 uint8_t bytes[sizeof(int64_t)];
             };
             Tmp tmp = {a.get<int64_t>()};

@@ -149,11 +149,11 @@ TEST(order, strides_computation)
     mv::Order order1("WHC");
     mv::Order order2("CHW");
 
-    auto result = order1.computeStrides(s, 1);
+    auto result = order1.computeWordStrides(s);
     for(auto x : result)
         std::cout << x << std::endl;
 
-    result = order2.computeStrides(s, 1);
+    result = order2.computeWordStrides(s);
     for(auto x : result)
         std::cout << x << std::endl;
 }

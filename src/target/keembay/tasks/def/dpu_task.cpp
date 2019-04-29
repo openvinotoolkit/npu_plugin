@@ -33,6 +33,7 @@ namespace mv
         MV_REGISTER_OP(DPUTask)
         .setInputs({"inputs"})
         .setOutputs({"output"})
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setInputCheck(false)
         .setOutputDef(outputDefFcn)

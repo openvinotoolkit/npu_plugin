@@ -30,7 +30,7 @@ namespace mv
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), {{},{},{},{}},sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, newSize - 1);
@@ -97,13 +97,13 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
 {
     auto output = dpuTaskOp->getOutputTensor(0);
     auto input = dpuTaskOp->getInputTensor(0);
-    auto outputChannels = output->getShape()[2];
+    auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
     std::vector<int> shift(outputChannels, 0);
     std::vector<int16_t> mScaled(outputChannels, 0);
 
     mv::DataModel dm(model);
 
-    if (output->hasAttr("quantizationParams") && input->hasAttr("quantizationParams") &&
+    if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
         output->isQuantized() && input->isQuantized())
     {
         // Quantization for Gemmlowp output
@@ -114,11 +114,11 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         // zeroPointScaled = output zero point scaled to MAC output precision
         // biasScaled = bias scaled to MAC output precision
 
-        auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
+        auto inputQuantization = input->get<mv::QuantizationParams>("quantParams");
         auto scale = inputQuantization.getScale();
         std::vector<float> S2(scale.begin(), scale.end());
 
-        auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
+        auto outputQuantization = output->get<mv::QuantizationParams>("quantParams");
         scale = outputQuantization.getScale();
         std::vector<float> S3(scale.begin(), scale.end());
 
@@ -139,7 +139,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         if (dpuTaskOp->inputSlots() > 1)
         {
             auto weights = dpuTaskOp->getInputTensor(1);
-            auto weightsQuantization = weights->get<mv::QuantizationParams>("quantizationParams");
+            auto weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
             scale = weightsQuantization.getScale();
             std::vector<float> S1(scale.begin(), scale.end());
             //S1*S2
@@ -170,7 +170,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         {
             auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
             auto data = bias->getData();
-            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
+            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
             //auto Z_bias = biasQuantization.getZeroPoint();
             //auto S_bias = biasQuantization.getScale();
             std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
@@ -219,7 +219,7 @@ void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpLi
         dpuTaskOp->erase("bias");
     }
 
-    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
+    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("Int32"), mv::Order("WHCN"), {{},{},{},{}}, kernelWeightsTableName);
     om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
     om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
@@ -313,8 +313,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 uint16_t kernelW, kernelH;
 
                 auto strides = dpuTask->get<std::array<unsigned short, 2>>("stride");
-                auto inputChannels = dpuTask->getInputTensor(0)->getShape()[2];
-                auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[2];
+                auto inputChannels = dpuTask->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
 
                 // Using the check in this way, instead of on the operation type
                 // makes this pass work on both aligned and unaligned convolutions.
@@ -327,8 +327,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 else
                 {
                     auto weightsShape = dpuTask->getInputTensor(1)->getShape();
-                    kernelW = weightsShape[0];
-                    kernelH = weightsShape[1];
+                    kernelW = weightsShape[mv::KERNEL_WIDTH];
+                    kernelH = weightsShape[mv::KERNEL_HEIGHT];
                 }
 
                 auto windowsSize = getWindowSize(kernelW, strides[0]);
@@ -385,7 +385,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
 
         }
-        if (!fakeSparsity && false) /*Switching off 'real sparisty' - to be configured in compilation descriptor*/ 
+        if (!fakeSparsity)
         {
             if (dpuTask->getOpType() == "DPUTask" &&
                 dpuTask->inputSlots() > 1 &&
@@ -399,7 +399,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                     //SparsityMap will be saved as attribute
                     auto smInternalTensor = weights->getSparsityMap();
                     auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                        smInternalTensor->getOrder(), smInternalTensor->getName());
+                                                      smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
                     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     unsigned newSize = dpuTask->addInputTensor(sparsityMap);
                     om.defineFlow(sparsityMap, dpuTask, newSize - 1);
@@ -409,7 +409,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             unsigned n = dpuTask->getInputTensor().size();
             for (unsigned i = 0; i < n; ++i)
                 if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
-                    !dpuTask->getInputTensor(i)->isPopulated()) //only weights are popualted, and we dont want to cover them here
+                    !(i == 1 && dpuTask->getInputTensor(i)->isPopulated())) //only weights are popualted, and we dont want to cover them here
                         dpuTask->getInputTensor(i)->setSparse();
 
             n = dpuTask->getOutputTensor().size();

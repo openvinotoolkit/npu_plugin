@@ -19,7 +19,7 @@ TEST(ops, multiply)
     ASSERT_EQ(multiply->getShape(), mv::Shape({256, 512}));
     ASSERT_EQ(multiplyOp->getOpType(), "Multiply");
     ASSERT_EQ(multiply->attrsCount(), 6);
-    ASSERT_EQ(multiplyOp->attrsCount(), 2);
+    ASSERT_EQ(multiplyOp->attrsCount(), 3);
     ASSERT_EQ(multiplyOp->inputSlots(), 2);
     ASSERT_EQ(multiplyOp->outputSlots(), 1);
     ASSERT_TRUE(multiplyOp->hasTypeTrait("executable"));

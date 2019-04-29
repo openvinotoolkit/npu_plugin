@@ -45,13 +45,18 @@ namespace mv
         void setSubtensorsOrder_(Order order);
 
     public:
-        std::vector<unsigned> getZeroPointsPerChannel();
+        //NOTE: Is this method operating on I/O tensors, Weight tensors or both
+        std::vector<int64_t> getZeroPointsPerChannel();
 
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const mv::QuantizationParams& quantParams, bool flag);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<double>& data, const mv::QuantizationParams& quantParams);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<int64_t>& data, const mv::QuantizationParams& quantParams);
         Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data);
+        Tensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data, const mv::QuantizationParams& quantParams);
         Tensor(const Tensor& other);
         ~Tensor();
 
@@ -117,7 +122,7 @@ namespace mv
 
         inline bool isQuantized() const
         {
-            return hasAttr("quantizationParams") &&
+            return hasAttr("quantParams") &&
                 !(getDType() == DType("Float16") || getDType() == DType("Float32") || getDType() == DType("Float64"));
         }
 

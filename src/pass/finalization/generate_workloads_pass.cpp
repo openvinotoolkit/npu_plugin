@@ -61,8 +61,8 @@ struct MetisGraphStructure
     MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode){
 
         /*Shape of output tensor x-y*/
-        double tensorXDim = outputTensor[0]; 
-        double tensorYDim = outputTensor[1];
+        double tensorXDim = outputTensor[mv::IO_WIDTH_DIMENSION];
+        double tensorYDim = outputTensor[mv::IO_HEIGHT_DIMENSION];
 
         /*Number of vertices and edges in METIS lattic graph of tensor*/
         m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);    
@@ -489,7 +489,7 @@ static std::vector<float> getExecutionCycles(std::vector<mv::Data::TensorIterato
             float height = itWL->MaxY - itWL->MinY + MPEMode.first;
             float width = itWL->MaxX - itWL->MinX + MPEMode.second;
 
-            float sumExeCycles = ceil(outputTensor[0]->getShape()[2]/16.0) * ceil(height / MPEMode.first) * ceil(width / MPEMode.second);
+            float sumExeCycles = ceil(outputTensor[0]->getShape()[mv::IO_CHANNEL_DIMENSION]/16.0) * ceil(height / MPEMode.first) * ceil(width / MPEMode.second);
             workloadsExecutionCycles.push_back(sumExeCycles);
         }
     }

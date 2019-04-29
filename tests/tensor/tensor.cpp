@@ -1028,7 +1028,7 @@ TEST(tensor, sparsity)
     t.populate(indata);
 
     mv::QuantizationParams q({122}, {0.00282943}, {0},{0});
-    t.set<mv::QuantizationParams>("quantizationParams",q);
+    t.set<mv::QuantizationParams>("quantParams",q);
     ASSERT_NO_THROW(t.setSparse());
     ASSERT_TRUE(t.isSparse());
     std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();
@@ -1096,7 +1096,7 @@ TEST(tensor, sparsity_res3a_branch2c)
     t.populate(indata);
 
     mv::QuantizationParams q({137}, {0.00361593}, {0},{0});
-    t.set<mv::QuantizationParams>("quantizationParams",q);
+    t.set<mv::QuantizationParams>("quantParams",q);
     ASSERT_NO_THROW(t.setSparse());
     ASSERT_TRUE(t.isSparse());
     std::shared_ptr<mv::Tensor> sparsityMap = t.getSparsityMap();
@@ -1130,8 +1130,8 @@ TEST(tensor, sparsity_res3a_branch2c)
     mv::Shape seShape({1,1,1,512});
     ASSERT_TRUE(seShape == t.getStorageElement()->getShape());
 
-    mv::Shape sparsityMapShape({1,1,16,512});
-    ASSERT_TRUE(sparsityMapShape == sparsityMap->getShape());
+    mv::Shape sparsityMapShape({16,1,1,512});
+    ASSERT_EQ(sparsityMapShape.toString(), sparsityMap->getShape().toString());
 
     std::vector<mv::DataElement> denseData = t.getDataPacked();
     count = 0;

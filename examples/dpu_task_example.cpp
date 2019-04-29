@@ -13,7 +13,7 @@ int main()
     mv::OpModel& test_cm = unit.model();
     mv::ControlModel cm(test_cm);
 
-    auto input1 = test_cm.input({16, 16, 16}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input1 = test_cm.input({16, 16, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto input1dmaIN = test_cm.dMATask(input1, mv::DmaDirectionEnum::DDR2CMX);
     test_cm.deallocate(input1dmaIN);
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(1*1*16*16);

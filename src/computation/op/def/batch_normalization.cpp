@@ -15,9 +15,9 @@ namespace mv
             auto input = inputs[0];
             auto inputShape = input->getShape(); 
 
-            if (inputShape.ndims() != 3)
+            if (inputShape.ndims() != 4)
             {
-                errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
+                errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 4, "
                     " has " + std::to_string(inputShape.ndims());
                 return {false, 0};
             }
@@ -52,7 +52,7 @@ namespace mv
                     return {false, 1};
                 }
                 
-                if (meanShape[0] != inputShape[-1])
+                if (meanShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the mean tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
@@ -66,7 +66,7 @@ namespace mv
                     return {false, 2};
                 }
                 
-                if (varianceShape[0] != inputShape[-1])
+                if (varianceShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the variance tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
@@ -80,7 +80,7 @@ namespace mv
                     return {false, 3};
                 }
                 
-                if (offsetShape[0] != inputShape[-1])
+                if (offsetShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the offset tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
@@ -94,7 +94,7 @@ namespace mv
                     return {false, 4};
                 }
                 
-                if (scaleShape[0] != inputShape[-1])
+                if (scaleShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg =  "Invalid shape of the scale tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
@@ -106,20 +106,22 @@ namespace mv
             return {true, 0};
 
         };
-                
+
         static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, 
             std::vector<Tensor>&)> outputDefFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&, std::vector<Tensor>& outputs)
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
-
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
-    
+
         MV_REGISTER_OP(BatchNormalization)
         .setInputs({"data", "mean", "variance", "offset", "scale"})
         .setOutputs({"output"})
         .setArg<double>("eps")
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
