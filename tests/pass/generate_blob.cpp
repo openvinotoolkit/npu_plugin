@@ -16,14 +16,14 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
     auto conv = model.conv(input, weights, stride, padding, 1);
 
     // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
-    std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnmean = model.constant(meanData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto bnvariance = model.constant(varianceData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto bnoffset = model.constant(offsetData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto bnscale = model.constant(scaleData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
+    std::vector<double> meanData = mv::utils::generateSequence<double>(conv->getShape()[mv::KERNEL_INPUT_CHANNELS]);
+    std::vector<double> varianceData = mv::utils::generateSequence<double>(conv->getShape()[mv::KERNEL_INPUT_CHANNELS]);
+    std::vector<double> offsetData = mv::utils::generateSequence<double>(conv->getShape()[mv::KERNEL_INPUT_CHANNELS]);
+    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[mv::KERNEL_INPUT_CHANNELS]);
+    auto bnmean = model.constant(meanData, {conv->getShape()[mv::KERNEL_INPUT_CHANNELS]}, mv::DType("Float16"), mv::Order("W"));
+    auto bnvariance = model.constant(varianceData, {conv->getShape()[mv::KERNEL_INPUT_CHANNELS]}, mv::DType("Float16"), mv::Order("W"));
+    auto bnoffset = model.constant(offsetData, {conv->getShape()[mv::KERNEL_INPUT_CHANNELS]}, mv::DType("Float16"), mv::Order("W"));
+    auto bnscale = model.constant(scaleData, {conv->getShape()[mv::KERNEL_INPUT_CHANNELS]}, mv::DType("Float16"), mv::Order("W"));
     return model.batchNormalization(conv, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
 }
 
@@ -575,10 +575,10 @@ TEST (generate_blob, blob_convbias_convrelu)
     std::vector<double> varianceData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
     std::vector<double> offsetData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
     std::vector<double> scaleData = mv::utils::generateSequence<double>(convIt62->getShape().totalSize());
-    auto bnmean = test_cm.constant(meanData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"),{{},{},{},{}}, "mean");
-    auto bnvariance = test_cm.constant(varianceData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"),{{},{},{},{}}, "variance");
-    auto bnoffset = test_cm.constant(offsetData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"),{{},{},{},{}}, "offset");
-    auto bnscale = test_cm.constant(scaleData, convIt62->getShape(), mv::DType("Float16"), mv::Order("CHW"), {{},{},{},{}},"scale");
+    auto bnmean = test_cm.constant(meanData, convIt62->getShape(), mv::DType("Float16"), mv::Order("NCHW"),{{},{},{},{}}, "mean");
+    auto bnvariance = test_cm.constant(varianceData, convIt62->getShape(), mv::DType("Float16"), mv::Order("NCHW"),{{},{},{},{}}, "variance");
+    auto bnoffset = test_cm.constant(offsetData, convIt62->getShape(), mv::DType("Float16"), mv::Order("NCHW"),{{},{},{},{}}, "offset");
+    auto bnscale = test_cm.constant(scaleData, convIt62->getShape(), mv::DType("Float16"), mv::Order("NCHW"), {{},{},{},{}},"scale");
     auto batchnorm = test_cm.batchNormalization(convIt62, bnmean, bnvariance, bnoffset, bnscale, 1e-6);
     auto reluIt62 = test_cm.relu(batchnorm);
     // define second maxpool
