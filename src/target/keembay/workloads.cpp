@@ -131,51 +131,181 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
     return mv::Shape(minMax);
 }
 
-/**
+/*
+ * @brief Generates a vector of node numbers to be used to create the METIS adjacency structure.
+ *        The sequence of nodes is per graph below. Note the order of the first 2 two rows. 
+ * @return A vector of node numbers 
+ */
+
+/* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
+   * Example for tensor size 16x16
+   * 
+   *   0----2-----4----6------8
+   *   |    |     |    |      |
+   *   1----3-----5----7------9
+   *   |    |     |    |      |
+   *   10---11----12---13----14
+   *   |    |     |    |      |
+   *   15---16----17---18----19
+   */
+std::vector<int> mv::Workloads::generateMetisGraphNodeNumbers(void) {
+
+    /*Generate sequence of node numberes for the lattic structure of the tensor shape*/
+    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph_->m_numberTensorVertices);
+
+    for(int i = 1; i < metisGraph_->m_xDim; i++) {
+        nodeNumbers[i] = nodeNumbers[i-1] + 2; 
+    }
+
+    nodeNumbers[metisGraph_->m_xDim] = 1;
+    for(int k = metisGraph_->m_xDim + 1; k < (metisGraph_->m_xDim * 2); k++) {
+        nodeNumbers[k] = nodeNumbers[k-1] + 2; 
+    }
+
+    return nodeNumbers;
+}
+
+/*
  * @brief Creates a METIS adjacency structure of a graph as per 23/45 METIS manual. 
  * @brief Representing the lattic structure of the tensor shape (in the X-Y corrdinate) 
  * @param metisGraph - a struct containing necessary parameters to pass to METIS
  * @return None
  * 
  */
-void mv::Workloads::generateMetisGraph(void) const {
 
-    /*Nodes in the graph*/
-    std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph_->m_numberTensorVertices);
-    int adjncyIndex = 0;
-    int xadjIndex = 0;
-    
-    /* A Sample Graph
-     * 0---1---2---3---4
-     * |   |   |   |   |
-     * 5---6---7---8---9
-     * |   |   |   |   |
-     * 10--11---12-13--14
+ /* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
+    McM compiler impliments the same numbering approach to ensure correctness
+   * Example for tensor size 16x16
+   * 
+     * 0----2-----4----6-----8
+     * |    |     |    |     |
+     * 1----3-----5----7-----9
+     * |    |     |    |     |
+     * 10---11----12---13---14
+     * |    |     |    |     |
+     * 15---16----17---18---19
      */
 
-    for (auto it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) {
+void mv::Workloads::generateMetisGraph(void) {
 
-        /*Top left node*/ 
+    /*Generate sequence of node numberes for the lattic structure of the tensor shape*/
+    auto nodeNumbers  = this->generateMetisGraphNodeNumbers();
+
+    int adjncyIndex = 0;
+    int xadjIndex = 0;
+    int increment = 1;
+
+    /* The first two rows of the lattic structure have a different order to the remaining rows (see graph).
+     * There we need to populate the adjancy structures for the first two rows first seperately.
+    */
+    for (std::vector<int>::iterator it = nodeNumbers.begin(); it != (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); std::advance(it,increment)) {
+
+        /*Top left node, i.e. 0*/ 
         if((*it%metisGraph_->m_xDim == 0) && (*it == 0)) {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
             adjncyIndex++;
         }
-  
+   
+        /*Top right node, i.e 8 in the example graph*/
+        if(*it == ((metisGraph_->m_xDim * 2) - 2)) {
+
+            metisGraph_->xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it - 2;
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it + 1; 
+            adjncyIndex++;
+        }
+
+        /*Middle nodes of the top row*/
+        if((*it != 0) && (*it < ((metisGraph_->m_xDim * 2)-2)) && (*it%2 == 0)) {
+
+            metisGraph_->xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it - 2;
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it + 1;
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it + 2; 
+            adjncyIndex++;
+        }
+
+        /*Middle nodes of the second row*/
+        if((*it != 0) && (*it != 1) && (*it < (metisGraph_->m_xDim * 2)) && (*it%2 != 0) && (*it != (metisGraph_->m_xDim * 2)-1)) {
+
+            metisGraph_->xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it - 2; 
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[std::distance(nodeNumbers.begin(), it) + metisGraph_->m_xDim];
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it + 2; 
+            adjncyIndex++;
+        }
+        
+        /*second row first node i.e. 1*/
+        if((*it == 1)) {
+
+            metisGraph_->xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[(metisGraph_->m_xDim * 2)];
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it + 2; 
+            adjncyIndex++;
+        }
+
+        /*second row last node on right side*/
+        if((*it == (metisGraph_->m_xDim * 2)-1)) {
+
+            metisGraph_->xadj[xadjIndex] = adjncyIndex;
+            xadjIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it - 2;
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = *it - 1;
+            adjncyIndex++;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[std::distance(nodeNumbers.begin(), it) + metisGraph_->m_xDim];
+            adjncyIndex++;
+        }
+
+        /*Depending whether we are on the first or second row then we increment by a different amount*/
+        /*First row*/
+        if(*it%2 == 0) {
+            increment = metisGraph_->m_xDim;
+        }
+        /*Second row*/
+        else {
+            increment = metisGraph_->m_xDim-1;
+            increment = -increment;
+        }
+        /*If on the last node of the second row then we done, break*/ 
+        if(*it == (metisGraph_->m_xDim * 2)-1)
+            break;
+    }
+
+    /* The 3rd and ramining rows of the lattic structure have a different order to the first two rows (see graph).
+     * There we need to populate the adjancy structures for these rows first seperately.
+    */
+    for (std::vector<int>::iterator it = (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); it != nodeNumbers.end(); it++) {
+
         /*Intermediate node left side*/ 
         if((*it%metisGraph_->m_xDim == 0) && ((*it + metisGraph_->m_xDim) < ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - metisGraph_->m_xDim;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
             adjncyIndex++;
         }
 
@@ -184,20 +314,9 @@ void mv::Workloads::generateMetisGraph(void) const {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - metisGraph_->m_xDim;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-        }
-
-        /*Top right node*/
-        if(((*it - (metisGraph_->m_xDim-1)%metisGraph_->m_xDim == 0) && ((*it - (*it -(metisGraph_->m_xDim-1))) == metisGraph_->m_xDim -1) && ((*it-(metisGraph_->m_xDim-1) == 0)))) {
-
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
             adjncyIndex++;
         }
 
@@ -206,11 +325,11 @@ void mv::Workloads::generateMetisGraph(void) const {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - metisGraph_->m_xDim;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
             adjncyIndex++;
         }
 
@@ -219,36 +338,23 @@ void mv::Workloads::generateMetisGraph(void) const {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
             adjncyIndex++;
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
         }
         
-        /*Middle nodes top row*/
-        if(((*it)%metisGraph_->m_xDim != 0) && ((*it) < (metisGraph_->m_xDim - 1))) {
-
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - 1;
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 1;
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + (metisGraph_->m_xDim); 
-            adjncyIndex++;
-        }
-
         /*Middle nodes bottom row*/
         if(((*it)%metisGraph_->m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph_->m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
             adjncyIndex++;
         }
 
@@ -257,18 +363,17 @@ void mv::Workloads::generateMetisGraph(void) const {
 
             metisGraph_->xadj[xadjIndex] = adjncyIndex;
             xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it - 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + 1;
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = *it + (metisGraph_->m_xDim); 
+            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
             adjncyIndex++;
         }
-    }   
+    }
 } 
-
 
 int mv::Workloads::partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass) 
 {
@@ -306,9 +411,9 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         getWorkloads().push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
         getWorkloads()[workload].workloadID = workload;
-        getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
-        getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
-        getWorkloads()[workload].MaxZ = tensorShape_[2] -1;  //output channels
+        getWorkloads()[workload].clusterID = 0;           
+        getWorkloads()[workload].MinZ = 0;                
+        getWorkloads()[workload].MaxZ = tensorShape_[2];  //output channels
         getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
         getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
         getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
@@ -334,6 +439,10 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         wl_max_y = -1;
 
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
+
+            std::cout << "node number is " << i << std::endl;
+
+            std::cout << "node number " << i << " is in partition " << std::to_string(metisGraph_->part[i]) << std::endl;
             
             if (metisGraph_->part[i] == workload) {
                 
@@ -355,8 +464,10 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(getWorkloads()[workload].MaxX));
         pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(getWorkloads()[workload].MinY));
         pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(getWorkloads()[workload].MaxY));
-        pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(getWorkloads()[workload].MinZ));
-        pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(getWorkloads()[workload].MaxZ));
+        //pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(getWorkloads()[workload].MaxZ));
+        
+        //
+        //pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(getWorkloads()[workload].MinZ));
     }
 }
 

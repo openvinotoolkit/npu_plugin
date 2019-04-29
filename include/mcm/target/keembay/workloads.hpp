@@ -85,7 +85,51 @@ namespace mv
             int n_elem_y;
             int n_elem_x;
             int nodeIndex = 0;
-            for(int j=0; j < m_yDim; j++) {
+            for(int j=0; j < 1; j++) { //first 2 rows
+            
+                if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
+                    n_elem_y = MPEMode.first;                 
+                else 
+                    n_elem_y = (int)tensorYDim%MPEMode.first; 
+                            
+                for(int k=0; k < (m_xDim*2); k++) {
+
+                    int min_x;
+                    int min_y;
+                
+                    if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
+                        n_elem_x = MPEMode.second;
+                    else 
+                        n_elem_x = (int)tensorXDim%MPEMode.second;
+            
+                    vwgt[nodeIndex] = n_elem_x * n_elem_y; //METIS weight
+
+                    if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  { //Node number is odd i.e. 1,3,5...
+                        min_x = (k/2) * MPEMode.first;
+                        min_y = j * MPEMode.second;
+                        node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
+                        goto done;
+                        
+                    }
+                    if ((nodeIndex%2 != 0) && (nodeIndex <= ((m_xDim*2)-1))) { //Node number is even i.e. 2,4,6...
+                        min_x = min_x;
+                        min_y = min_y + n_elem_y;
+                        node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
+                        goto done;
+                    }
+                    else {
+                        min_x = k * MPEMode.first;
+                        min_y = j * MPEMode.second;
+                        node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
+                        goto done;
+                    }
+                    done:
+        
+                    nodeIndex++;
+                }
+            }
+
+            for(int j=2; j < m_yDim; j++) { // remaining rows after first 2 rows
             
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
                     n_elem_y = MPEMode.first;                 
@@ -93,24 +137,24 @@ namespace mv
                     n_elem_y = (int)tensorYDim%MPEMode.first; 
                             
                 for(int k=0; k < m_xDim; k++) {
-                
+
                     if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
                         n_elem_x = MPEMode.second;
                     else 
                         n_elem_x = (int)tensorXDim%MPEMode.second;
             
-                    vwgt[nodeIndex] = n_elem_x * n_elem_y;
+                    vwgt[nodeIndex] = n_elem_x * n_elem_y; //METIS weight
 
                     int min_x = k * MPEMode.first;
                     int min_y = j * MPEMode.second;
-        
+
                     node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
+                 
                     nodeIndex++;
                 }
             }
-        }
 
-        ~MetisGraphStructure() {
+
         }
     };
 
@@ -139,14 +183,15 @@ namespace mv
         std::string layerName_;
         mv::Shape tensorShape_;
         std::vector<float> executionCycles_;
+        std::shared_ptr<MetisGraphStructure> metisGraph_;
 
-        std::shared_ptr<MetisGraphStructure> metisGraph_; 
+        std::vector<int> generateMetisGraphNodeNumbers(void);
 
     public:
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode);
         ~Workloads();
       
-        void generateMetisGraph(void) const;
+        void generateMetisGraph(void);
         int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         // returns: METIS_OK(=1), or METIS_ERROR
