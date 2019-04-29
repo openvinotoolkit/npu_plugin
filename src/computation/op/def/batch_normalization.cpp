@@ -52,7 +52,7 @@ namespace mv
                     return {false, 1};
                 }
                 
-                if (meanShape[0] != inputShape[-1])
+                if (meanShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the mean tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
@@ -66,7 +66,7 @@ namespace mv
                     return {false, 2};
                 }
                 
-                if (varianceShape[0] != inputShape[-1])
+                if (varianceShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the variance tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
@@ -80,7 +80,7 @@ namespace mv
                     return {false, 3};
                 }
                 
-                if (offsetShape[0] != inputShape[-1])
+                if (offsetShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg = "Invalid shape of the offset tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);
@@ -94,7 +94,7 @@ namespace mv
                     return {false, 4};
                 }
                 
-                if (scaleShape[0] != inputShape[-1])
+                if (scaleShape[0] != inputShape[mv::IO_CHANNEL_DIMENSION])
                 {
                     errMsg =  "Invalid shape of the scale tensor (input 1) - if it has 1 dimension, it must be equal"
                         " to the last dimension of the input tensor (tensor 0) which is " + std::to_string(inputShape[-1]);

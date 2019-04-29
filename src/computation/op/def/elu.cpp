@@ -11,7 +11,7 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            if (inputs[0]->getShape().ndims() != 3)
+            if (inputs[0]->getShape().ndims() != 4)
             {
                 errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
                     " has " + std::to_string(inputs[0]->getShape().ndims());
