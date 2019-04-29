@@ -9,7 +9,7 @@ TEST(fuse_relu, case_conv)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({64, 64, 16}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({64, 64, 16, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3 * 3 * 16 * 32);
     auto weights = om.constant(weightsData, {3, 3, 16, 32}, mv::DType("Float16"), mv::Order("NCHW"),{{},{},{},{}}, "weights");
     auto conv = om.conv(input, weights, {1, 1}, {1, 1, 1, 1}, 1);

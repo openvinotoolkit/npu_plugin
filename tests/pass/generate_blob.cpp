@@ -71,7 +71,7 @@ TEST (generate_blob, blob_output_conv_01)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto input1 = test_cm.input({32, 32, 1}, mv::DType("Float16"), mv::Order("WHC"));
+    auto input1 = test_cm.input({32, 32, 1, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     std::vector<double> weights1Data({ 0.1111, 0.1121, 0.1131, 0.1141, 0.1151, 0.1161, 0.1171, 0.1181, 0.1191});
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto conv1 = test_cm.conv(input1, weights1, {4, 4}, {0, 0, 0, 0}, 1);
@@ -111,7 +111,7 @@ TEST (generate_blob, blob_output_conv_02)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto input2 = test_cm.input({32, 32, 3}, mv::DType("Float16"), mv::Order("WHC"));   //N WH C
+    auto input2 = test_cm.input({32, 32, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));   //N WH C
     std::vector<double> weightsData2 = mv::utils::generateSequence<double>(3u * 3u * 3u * 3u, 0.101, 0.001);
 
     auto weights2 = test_cm.constant(weightsData2, {3, 3, 3, 3}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, kN, C
@@ -153,7 +153,7 @@ TEST (generate_blob, blob_output_conv_03)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto input3 = test_cm.input({256, 256, 3}, mv::DType("Float16"), mv::Order("WHC"));   //N WH C
+    auto input3 = test_cm.input({256, 256, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));   //N WH C
 
     std::vector<double> weightsData3 = mv::utils::generateSequence(3u * 3u * 3u * 3u, 0.101, 0.001);
 
@@ -196,7 +196,7 @@ TEST (generate_blob, blob_output_conv_04)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Compose minimal functional computation model - one computation operation of type conv2D
-    auto input4 = test_cm.input({256, 256, 3}, mv::DType("Float16"), mv::Order("WHC"));   //N WH C
+    auto input4 = test_cm.input({256, 256, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));   //N WH C
     std::vector<double> weightsData4 = mv::utils::generateSequence(5u * 5u * 3u * 3u, 0.101, 0.001);
 
     auto weights4 = test_cm.constant(weightsData4, {5, 5, 3, 3}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, kN, C
@@ -238,7 +238,7 @@ TEST (generate_blob, blob_blur_edge_05)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 greyscale 256x256 image
-    auto input5 = test_cm.input({256, 256, 1}, mv::DType("Float16"), mv::Order("WHC"));
+    auto input5 = test_cm.input({256, 256, 1, 1}, mv::DType("Float16"), mv::Order("NWHC"));
 
     std::vector<double> blurKData({ 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2 });
     std::vector<double> edgeKData({ 65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0,65504.0 });
@@ -283,7 +283,7 @@ TEST (generate_blob, blob_4_ops)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
@@ -339,7 +339,7 @@ TEST (generate_blob, blob_eltwise_add)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt7 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt7 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     auto maxpoolIt11= test_cm.maxPool(inIt7,{1,1}, {1, 1}, {0,0,0,0});
     // define first convolution
     std::vector<double> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100, 0.010);
@@ -413,7 +413,7 @@ TEST (generate_blob, blob_eltwise_multiply)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt7 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt7 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     auto maxpoolIt11= test_cm.maxPool(inIt7,{1,1}, {1, 1}, {0,0,0,0});
     // define first convolution
     std::vector<double> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100, 0.010);
@@ -486,7 +486,7 @@ TEST (generate_blob, blob_softmax)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt7 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt7 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution
     std::vector<double> weightsData71 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.100, 0.010);
     auto weightsIt71 = test_cm.constant(weightsData71, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
@@ -555,7 +555,7 @@ TEST (generate_blob, blob_convbias_convrelu)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));   // kh, kw, ins, outs
@@ -620,7 +620,7 @@ TEST (generate_blob, blob_scale)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
@@ -676,7 +676,7 @@ TEST (generate_blob_WDDM, blob_maxpool1)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input 
-    auto inIt = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
 
     // define first maxpool
     auto maxpoolIt = test_cm.maxPool(inIt,{5,5}, {3, 3}, {2, 2, 2, 2});
@@ -710,7 +710,7 @@ TEST (generate_blob_WDDM, blob_maxpool2)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input 
-    auto inIt = test_cm.input({65, 65, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto inIt = test_cm.input({65, 65, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
 
     // define first maxpool
     auto maxpoolIt = test_cm.maxPool(inIt,{5,5}, {3, 3}, {0, 0, 0, 0});
@@ -745,7 +745,7 @@ TEST (generate_blob_WDDM, blob_maxpool3)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input 
-    auto inIt = test_cm.input({65, 65, 3}, mv::DType("Float16"), mv::Order("CHW"));  // {w,h,c}
+    auto inIt = test_cm.input({65, 65, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
     auto maxpoolIt = test_cm.maxPool(inIt, {7,5}, {2, 2}, {1, 1, 2, 2});   // w,w,h,h
@@ -780,7 +780,7 @@ TEST (generate_blob_WDDM, blob_maxpool4)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input 
-    auto inIt = test_cm.input({1920, 1080, 4}, mv::DType("Float16"), mv::Order("CHW"));  // {w,h,c}
+    auto inIt = test_cm.input({1920, 1080, 4, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
     auto maxpoolIt = test_cm.maxPool(inIt, {8,8}, {8, 8}, {0, 0, 0, 0});   // w,w,h,h
@@ -815,7 +815,7 @@ TEST (generate_blob_WDDM, blob_avgpool1)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input 
-    auto inIt = test_cm.input({256, 100, 3}, mv::DType("Float16"), mv::Order("CHW"));  // {w,h,c}
+    auto inIt = test_cm.input({256, 100, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
     auto avgpoolIt = test_cm.averagePool(inIt, {4,4}, {4, 4}, {0,0,0,0});   // w,w,h,h
@@ -850,7 +850,7 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input 
-    auto inIt = test_cm.input({255, 99, 3}, mv::DType("Float16"), mv::Order("CHW"));  // {w,h,c}
+    auto inIt = test_cm.input({255, 99, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));  // {w,h,c}
 
     // define first maxpool
     auto avgpoolIt = test_cm.averagePool(inIt, {4,2}, {3, 3}, {2, 2, 1, 1});   // w,w,h,h
@@ -884,7 +884,7 @@ TEST (generate_blob_WDDM, blob_conv1)
     mv::CompilationUnit unit("testModel");
     mv::CompositionalModel& test_cm = unit.model();
 
-    auto input1 = test_cm.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input1 = test_cm.input({225, 225, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
 //    auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));
@@ -919,7 +919,7 @@ TEST (generate_blob_WDDM, blob_leakyRelu)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
@@ -957,7 +957,7 @@ TEST (generate_blob_WDDM, blob_elu)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
@@ -994,7 +994,7 @@ TEST (generate_blob_WDDM, blob_sigmoid)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
@@ -1031,7 +1031,7 @@ TEST (generate_blob_WDDM, blob_tanh)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     std::vector<double> weightsData61 = mv::utils::generateSequence(5u * 5u * 3u * 1u, 0.000, 0.010);
     auto weightsIt61 = test_cm.constant(weightsData61, {5, 5, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));   // kh, kw, ins, outs
@@ -1068,7 +1068,7 @@ TEST (generate_blob_WDDM, blob_lrn)
     mv::CompositionalModel& test_cm = unit.model();
 
     // Define input as 1 64x64x3 image
-    auto inIt6 = test_cm.input({64, 64, 3}, mv::DType("Float16"), mv::Order("WHC"));
+    auto inIt6 = test_cm.input({64, 64, 3, 1}, mv::DType("Float16"), mv::Order("NWHC"));
     // define first convolution  3D conv
     mv::Shape kernelShape = {5, 5, 3, 1};
     std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
@@ -1109,7 +1109,7 @@ TEST (generate_blob, runtime_binary_RAM_FILE)
     mv::OpModel& cm = unit.model();
 
     // Compose the model for ResNet18
-    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = cm.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -1179,7 +1179,7 @@ TEST (generate_blob, runtime_binary_RAM)
     mv::OpModel& cm = unit.model();
 
     // Compose the model for ResNet18
-    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = cm.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
@@ -1239,7 +1239,7 @@ TEST (generate_blob, runtime_binary_FILE)
     mv::OpModel& cm = unit.model();
 
     // Compose the model for ResNet18
-    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = cm.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
     conv1 = cm.relu(conv1);
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});

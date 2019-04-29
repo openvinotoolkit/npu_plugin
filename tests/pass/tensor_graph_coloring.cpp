@@ -13,7 +13,7 @@ TEST(graph_coloring, single_conv)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({112, 224, 3}, mv::DType("UInt8"), mv::Order("CHW"));
+    auto input = om.input({112, 224, 3, 1}, mv::DType("UInt8"), mv::Order("NCHW"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(7*7*3*64);
     auto weights = om.constantInt(weightsData, {7, 7, 3, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
@@ -65,7 +65,7 @@ TEST(graph_coloring, three_conv)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({56, 56, 16}, mv::DType("UInt8"), mv::Order("HWC"));
+    auto input = om.input({56, 56, 16, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*16*64);
     auto weights = om.constantInt(weightsData, {1, 1, 16, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
