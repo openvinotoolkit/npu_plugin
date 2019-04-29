@@ -60,12 +60,23 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             if(kernel->hasAttr("quantParams"))
                 quantParams = kernel->get<mv::QuantizationParams>("quantParams");
             auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
-            mv::Shape newShape({mv::round_up(weightSetDimension, 16), 1, 1, kernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
+            auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
+            auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
+            mv::Shape newShape({weightSetDimensionPadded, 1, 1, kernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
 
             //NOTE: This three lines have to be corrected
             auto oldData = kernel->getData();
-            oldData.resize(newShape.totalSize(), 0);
-            auto newData(std::move(oldData));
+
+            std::vector<mv::DataElement> newData(newShape.totalSize(), 0);
+            unsigned i = 0, j = 0;
+            for(unsigned oc = 0; oc < kernel[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
+            {
+                for(unsigned ws = 0; ws < weightSetDimension; ++ws)
+                    newData[j++] = oldData[i++];
+
+                for(unsigned ws = 0; ws < paddingDifference; ++ws)
+                    newData[j++] = 0;
+            }
 
             auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), quantParams,"Aligned"+kernelOp->getName());
 
