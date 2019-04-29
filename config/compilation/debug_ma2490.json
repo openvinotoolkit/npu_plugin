@@ -7,7 +7,50 @@
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
-                "CMX_memory_overflow_safety_factor" : 0.9
+                "CMX_memory_overflow_safety_factor" : 0.9,
+                "split_strategy" :
+                [
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverK"
+                    },
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 1,
+                        "strategy" : "Clustering"
+                    },
+                    {
+                        "name_filter" : ".*input.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2a.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*conv1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*pool1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    }
+                ]
             },
             "AssignUniqueOpId",
             {
@@ -49,6 +92,7 @@
     "keembay_adapt": {
         "Singular": [
             "ExtendQuantizationParams",
+            "StoreLayerSplitStrategy",
             "ConvertOpsToTasks",
             "KMBOrderConversion",
             "AlignTaskWeights",
@@ -123,7 +167,7 @@
         ]
     },
     "finalize": {
-        "Singular": [           
+        "Singular": [
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
