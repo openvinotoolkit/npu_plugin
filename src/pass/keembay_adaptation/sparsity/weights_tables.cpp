@@ -71,105 +71,95 @@ void populateWeightsTablesSparsityPointers(std::vector<int64_t>& weightsTableDat
 
 static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
-    auto output = dpuTaskOp->getOutputTensor(0);
-    auto input = dpuTaskOp->getInputTensor(0);
-    auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-    std::vector<int> shift(outputChannels, 0);
-    std::vector<int16_t> mScaled(outputChannels, 0);
-
-    mv::DataModel dm(model);
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
-    if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
-        output->isQuantized() && input->isQuantized())
+     std::string opType = dpuTaskOp->get<std::string>("taskOp");
+
+     auto output = dpuTaskOp->getOutputTensor(0);
+     auto input = dpuTaskOp->getInputTensor(0);
+     size_t outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+     std::vector<int32_t> outputZeroPoint, inputZeroPoint, resultZeroPoint;
+     std::vector<double> macScale, division, mantissa_v, mScaled, zeroPointScaled;
+     std::vector<int> exponent_v, bits(outputChannels, 15), shift;
+     double mantissa;
+     int exponent;
+     //Output without input impossible
+    if (output->hasAttr("quantParams"))
     {
-        // Quantization for Gemmlowp output
-        // S1 = weight scale
-        // S2 = input activation scale
-        // S3 = output activation scale
-        // m  = (S1 * S2)/S3, scale for MAC output
-        // zeroPointScaled = output zero point scaled to MAC output precision
-        // biasScaled = bias scaled to MAC output precision
-
-        auto inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-        auto scale = inputQuantization.getScale();
-        std::vector<float> S2(scale.begin(), scale.end());
-
         auto outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-        scale = outputQuantization.getScale();
-        std::vector<float> S3(scale.begin(), scale.end());
-
-        auto zeroPointU =  outputQuantization.getZeroPoint();
-        std::vector<int32_t> zeroPoint(zeroPointU.begin(), zeroPointU.end());
-
-        std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
-        bool isPooling = taskOp == "MaxPool" || taskOp == "AvgPool";
-        //Workaround for HW bug #227
-        if (isPooling)
+        outputQuantization.extendParamsToOutputChannelSize(outputChannels);
+        outputZeroPoint = std::vector<int32_t>(outputQuantization.getZeroPoint().begin(), outputQuantization.getZeroPoint().end());
+//                output->set<mv::QuantizationParams>("quantParams", outputQuantization);
+        auto inputQuantization = input->get<mv::QuantizationParams>("quantParams");
+        inputQuantization.extendParamsPartialToOutputChannelSize(outputChannels);
+        if (opType == "MaxPool")
         {
-            auto inZP = inputQuantization.getZeroPoint();
-            std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
-            std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
+            inputQuantization.extendParamsToOutputChannelSize(outputChannels);
+            inputZeroPoint = std::vector<int32_t>(inputQuantization.getZeroPoint().begin(), inputQuantization.getZeroPoint().end());
+            std::transform(outputZeroPoint.begin(), outputZeroPoint.end(), inputZeroPoint.begin(), std::back_inserter(outputZeroPoint)
+                           , std::minus<int32_t>());
         }
-
-        auto m = S2;
-        if (dpuTaskOp->inputSlots() > 1)
+//                input->set<mv::QuantizationParams>("quantParams", inputQuantization);
+        //WEIGHTS
+        std::vector<double> weightTensorScale(outputChannels, 1);
+        if (dpuTaskOp->getInputTensor().size() > 1)
         {
             auto weights = dpuTaskOp->getInputTensor(1);
-            auto weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-            scale = weightsQuantization.getScale();
-            std::vector<float> S1(scale.begin(), scale.end());
-            //S1*S2
-            std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
+            if (weights->hasAttr("quantParams"))
+            {
+                auto weightQuantization = weights->get<mv::QuantizationParams>("quantParams");
+                weightQuantization.extendParamsPartialToOutputChannelSize(outputChannels);
+                //S1
+                weightTensorScale = weightQuantization.getScale();
+//                        weights->set<mv::QuantizationParams>("quantParams", weightQuantization);
+            }
         }
+        std::transform(weightTensorScale.begin(), weightTensorScale.end(), inputQuantization.getScale().begin(), std::back_inserter(macScale),
+                                                          std::multiplies<double>());
+        std::transform(macScale.begin(), macScale.end(), outputQuantization.getScale().begin(), std::back_inserter(division), std::divides<double>());
 
-        // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
-
-        // m / S3
-        std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
-
-        //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
-        auto bits = 15;
-        auto mSize = m.size();
-        int exponent;
-        double mantissa;
-
-        for (size_t i = 0; i < mSize; i++)
+        for (auto it = division.begin(); it != division.end(); ++it)
         {
-            mantissa = std::frexp(m[i], &exponent);
-            shift[i] = bits - exponent;
-            mScaled[i] = (mantissa * pow(2, bits));
+            mantissa = std::frexp(*it, &exponent);
+            mantissa_v.push_back(mantissa);
+            exponent_v.push_back(exponent);
         }
-        std::vector<int32_t> zeroPointScaled(m.size());
-        std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
+
+        std::transform(bits.begin(), bits.end(), exponent_v.begin(), std::back_inserter(shift), std::minus<int>());
+        std::vector<double> power_v(outputChannels, pow(2.0, bits[0]));
+        std::transform(mantissa_v.begin(), mantissa_v.end(), power_v.begin(), std::back_inserter(mScaled),
+                                                          std::multiplies<double>());
+        std::vector<uint16_t> mScaled_conv = std::vector<uint16_t>(mScaled.begin(), mScaled.end());
+        std::transform(outputZeroPoint.begin(), outputZeroPoint.end(), division.begin(), std::back_inserter(zeroPointScaled), std::divides<double>());
+        std::vector<int32_t> zeroPointScaled_conv = std::vector<int32_t>(zeroPointScaled.begin(), zeroPointScaled.end());
+        std::vector <uint8_t> ser_shift = std::vector<uint8_t>(shift.begin(), shift.end());
+        std::vector <uint16_t> ser_scale = std::vector<uint16_t>(mScaled_conv.begin(), mScaled_conv.end());
+        outputQuantization.quantize(ser_shift, ser_scale);
 
         if (dpuTaskOp->hasAttr("bias"))
         {
-            auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
-            auto data = bias->getData();
-            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
-            //auto Z_bias = biasQuantization.getZeroPoint();
-            //auto S_bias = biasQuantization.getScale();
-            std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
-            bias->setDType(mv::DType("Int32"));
-            bias->populate(data);
-
+            auto biasTensor = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
+            auto data = biasTensor->getIntData();
+            std::transform(data.begin(), data.end(), zeroPointScaled_conv.begin(), data.begin(), std::plus<int32_t>());
+            biasTensor->setDType(mv::DType("Int32"));
+            biasTensor->populate(data);
         }
         else
         {
             mv::Order order(mv::Order::getColMajorID(1));
             const std::string biasTensorName = dpuTaskOp->getName() + "_bias";
             mv::Shape shape({outputChannels});
-            std::vector<int64_t> zeroPointScaled64(zeroPointScaled.begin(), zeroPointScaled.end());
-
-            auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, zeroPointScaled64);
+            std::vector<int64_t> calling_tensor = std::vector<int64_t>(zeroPointScaled_conv.begin(), zeroPointScaled_conv.end());
+            auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, calling_tensor);
             om.addAttr(dpuTaskOp, "bias", biasTensor->getName());
         }
     }
-    std::vector<mv::DataElement> biasData;
-    bool hasBias = dpuTaskOp->hasAttr("bias");
-    mv::Data::TensorIterator bias;
-    if (hasBias)
+
+     std::vector<mv::DataElement> biasData;
+     mv::Data::TensorIterator bias;
+
+    if (dpuTaskOp->hasAttr("bias"))
     {
         bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
         biasData = bias->getData(); //Bias has the type Int32 in both cases above
@@ -184,11 +174,11 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
     for (size_t i = 0; i < weightsTableData.size(); i+=4)
     {
         weightsTableData[i+2] = ((int32_t)mScaled[i/4] << 16) | ((int32_t)shift[i/4]) << 8;
-        if (hasBias)
+        if (dpuTaskOp->hasAttr("bias"))
             weightsTableData[i+3] = biasData[i/4];
     }
 
-    if (hasBias)
+    if (dpuTaskOp->hasAttr("bias"))
     {
         dm.undefineTensor(bias);
         dpuTaskOp->erase("bias");
