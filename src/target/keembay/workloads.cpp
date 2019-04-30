@@ -432,25 +432,14 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
-<<<<<<< HEAD
-        getWorkloads()[workload].workloadID = workload;
-        getWorkloads()[workload].clusterID = 0;           
-        getWorkloads()[workload].MinZ = 0;                
-        getWorkloads()[workload].MaxZ = tensorShape_[2];  //output channels
-        getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
-        getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
-        getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
-        getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
-=======
         workloads_[workload].workloadID = workload;
         workloads_[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
         workloads_[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
-        workloads_[workload].MaxZ = tensorShape_[2] -1;  //output channels
+        workloads_[workload].MaxZ = tensorShape_[2];  //output channels
         workloads_[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
         workloads_[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
         workloads_[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
-        workloads_[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
->>>>>>> b3d610c7ae0784ecf56c9a15cfbe5c3671f719f9
+        workloads_[workload].padRight = 0; /*These are zero in PoC compiler - relevant after WW09*/
                 
         workloads_[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
                 
@@ -493,23 +482,12 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
             }
         }
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
-<<<<<<< HEAD
-        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(getWorkloads()[workload].MinX));
-        pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(getWorkloads()[workload].MaxX));
-        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(getWorkloads()[workload].MinY));
-        pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(getWorkloads()[workload].MaxY));
-        //pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(getWorkloads()[workload].MaxZ));
-        
-        //
-        //pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(getWorkloads()[workload].MinZ));
-=======
         pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
         pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
         pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads_[workload].MaxY));
         pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
         pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
->>>>>>> b3d610c7ae0784ecf56c9a15cfbe5c3671f719f9
     }
 }
 
