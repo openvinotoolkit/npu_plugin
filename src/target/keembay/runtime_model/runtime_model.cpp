@@ -82,6 +82,13 @@ const std::unordered_map<mv::PPELayerTypeEnum, MVCNN::PPELayerType, mv::EnumClas
    {PPELayerType_FLEXARB, MVCNN::PPELayerType::PPELayerType_FLEXARB}
 };
 
+template <typename T1, typename T2>
+void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std::string& key)
+{
+    if(compilationDescriptor.hasAttr(key))
+        fieldToFill = compilationDescriptor.get<T2>(key);
+}
+
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
@@ -124,8 +131,10 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     toBuild->first_ID.push_back(inputOp->get<unsigned>("opId"));
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
-    for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
-        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
+
+    auto ops = opModel.topologicalSort();
+    for(auto opIt = ops.begin(); opIt != ops.end(); ++opIt)
+        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, *opIt);
 
     return toBuild;
 }
@@ -135,13 +144,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     mv::DataModel dm(cm);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
+    toBuild->name = t->getName();
+
     auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
-    toBuild->dimensions = tensorBufferIt->getData()->getShape(); // Padded or not?
-    toBuild->strides = tensorBufferIt->getData()->computeNumericStrides(); //NOTE: Maybe directly bufferIt->computeStrides() in the future?
+    // TODO: Have to be rearranged according to the order
+    auto underlyingTensor = tensorBufferIt->getData();
 
+    std::vector<uint32_t> dimensions = underlyingTensor->getShape();
+    auto numericStrides = underlyingTensor->computeNumericStrides();
+    numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
+
+    //Because according to graphfile order is given as NCHW, which is exactly the reverse of our shape assumption WHCN
+    std::reverse(dimensions.begin(), dimensions.end());
+    std::reverse(numericStrides.begin(), numericStrides.end());
+
+    toBuild->dimensions = dimensions;
+    toBuild->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future?
+
+    // NOTE: not sure anymore about this
     auto strides = tensorBufferIt->getStrides();
     toBuild->leading_offset = strides[0];
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
@@ -161,6 +184,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // toBuild->sparsity_index
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
+
+    // NOTE: Will probably change in the future
+    toBuild->locale_index = std::vector<unsigned int>(1,0);
+
     toBuild->data_dtype = convertDtype(tensorBufferIt->getData()->getDType());
 
     // could also be t->hasAttr("quantizationParameters")
@@ -168,9 +195,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     // leaving this comment here for future generations
     if(t->isQuantized())
     {
-        auto quantizationParams = t->get<mv::QuantizationParams>("quantizationParams");
+        auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+        auto quantScale = quantizationParams.getScale();
+        toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
     }
 
     return toBuild;
@@ -232,10 +261,10 @@ std::unique_ptr<MVCNN::VersionT> mv::RuntimeModel::buildVersionT(ComputationMode
 {
     std::unique_ptr<MVCNN::VersionT> toBuild = std::unique_ptr<MVCNN::VersionT>(new MVCNN::VersionT());
 
-    toBuild->majorV = compilationDescriptor.get<int>("VersionMajor");
-    toBuild->minorV = compilationDescriptor.get<int>("VersionMinor");
-    toBuild->patchV = compilationDescriptor.get<int>("VersionPatch");
-    toBuild->hash = compilationDescriptor.get<std::string>("VersionHash");
+    setIfPresent<uint32_t, int>(toBuild->majorV, compilationDescriptor, "VersionMajor");
+    setIfPresent<uint32_t, int>(toBuild->minorV, compilationDescriptor, "VersionMinor");
+    setIfPresent<uint32_t, int>(toBuild->patchV, compilationDescriptor, "VersionPatch");
+    setIfPresent<std::string, std::string>(toBuild->hash, compilationDescriptor, "VersionHash");
 
     return toBuild;
 }
@@ -244,13 +273,13 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
 {
     std::unique_ptr<MVCNN::ResourcesT> toBuild = std::unique_ptr<MVCNN::ResourcesT>(new MVCNN::ResourcesT());
 
-    toBuild->upa_shaves = compilationDescriptor.get<int>("ResourcesUpaShaves");
-    toBuild->nce1_blocks = compilationDescriptor.get<int>("ResourcesNCE1Mask");
-    toBuild->nce2_blocks = compilationDescriptor.get<int>("ResourcesNCE2Mask");
-    toBuild->upa_shared_cmx = compilationDescriptor.get<int>("ResourcesUPASharedCMX");
-    toBuild->nn_cmx_per_slice = compilationDescriptor.get<int>("ResourcesNNCMXPerSlice");
-    toBuild->nn_cmx_slice_amount = compilationDescriptor.get<int>("ResourcesNNCMXSliceAmount");
-    toBuild->ddr_scratch = compilationDescriptor.get<int>("ResourcesDDRScratch");
+    setIfPresent<uint32_t, int>(toBuild->upa_shaves, compilationDescriptor , "ResourcesUpaShaves");
+    setIfPresent<int8_t, int>(toBuild->nce1_blocks, compilationDescriptor, "ResourcesNCE1Mask");
+    setIfPresent<uint32_t, int>(toBuild->nce2_blocks, compilationDescriptor, "ResourcesNCE2Mask");
+    setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, compilationDescriptor, "ResourcesUPASharedCMX");
+    setIfPresent<uint32_t, int>(toBuild->nn_cmx_per_slice, compilationDescriptor, "ResourcesNNCMXPerSlice");
+    setIfPresent<uint32_t, int>(toBuild->nn_cmx_slice_amount, compilationDescriptor, "ResourcesNNCMXSliceAmount");
+    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, compilationDescriptor, "ResourcesDDRScratch");
 
     return toBuild;
 }
@@ -284,8 +313,10 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 {
     mv::OpModel om(cm);
     mv::ControlModel controlModel(cm);
-    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(1);
+    std::vector<std::unique_ptr<MVCNN::TaskListT>> toBuild = std::vector<std::unique_ptr<MVCNN::TaskListT>>(3);
     toBuild[0] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
+    toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
+    toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     auto topologicallySortedOps = controlModel.topologicalSort();
 
@@ -295,7 +326,14 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
         std::string opType = opIt->getOpType();
         //Only Tasks in TaskLists
         if(opType.find("Task") != std::string::npos)
-            toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+        {
+            if(opType.find("DPU") != std::string::npos)
+                toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+            if(opType.find("DMA") != std::string::npos)
+                toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+            if(opType.find("Controller") != std::string::npos)
+                toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
+        }
     }
 
     return toBuild;
@@ -621,7 +659,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     {
         auto allocators = tensorIt->get<std::set<std::string>>("allocators");
         if (allocators.count("GraphFile") != 0)
-            buildBinaryDataT(cm, compilationDescriptor, *tensorIt);
+            graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
     }
 
 }

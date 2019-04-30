@@ -7,7 +7,50 @@
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
-                "CMX_memory_overflow_safety_factor" : 0.9
+                "CMX_memory_overflow_safety_factor" : 0.9,
+                "split_strategy" :
+                [
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverK"
+                    },
+                    {
+                        "name_filter" : ".*",
+                        "cluster_filter" : 1,
+                        "strategy" : "Clustering"
+                    },
+                    {
+                        "name_filter" : ".*input.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2a.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*conv1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*pool1.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res2.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : ".*res3.*",
+                        "cluster_filter" : 0,
+                        "strategy" : "SplitOverH"
+                    }
+                ]
             },
             "AssignUniqueOpId",
             {
@@ -20,16 +63,13 @@
             {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
-                "VersionMinor": 2,
-                "VersionPatch": 1,
-                "VersionHash": "MarcoHash",
-                "ResourcesUpaShaves": 8,
-                "ResourcesNCE1Mask": 1,
-                "ResourcesNCE2Mask": 2,
-                "ResourcesUPASharedCMX": 2,
-                "ResourcesNNCMXPerSlice": 2,
-                "ResourcesNNCMXSliceAmount": 2,
-                "ResourcesDDRScratch": 2
+                "VersionMinor": 10,
+                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf",
+                "ResourcesUpaShaves": 1,
+                "ResourcesNCE2Mask": 1,
+                "ResourcesNNCMXPerSlice": 4096,
+                "ResourcesNNCMXSliceAmount": 1,
+                "ResourcesDDRScratch": 4096
             }
         ]
     },
@@ -52,6 +92,7 @@
     "keembay_adapt": {
         "Singular": [
             "ExtendQuantizationParams",
+            "StoreLayerSplitStrategy",
             "ConvertOpsToTasks",
             "KMBOrderConversion",
             "AlignTaskWeights",
@@ -68,7 +109,10 @@
     },
     "dma": {
         "Singular" : [
-            "AddDMATasks",
+            {
+                "name":"AddDMATasks",
+                "weights_prefetch": 2
+            },
             "AddFinalDMATask",
             {
                 "name": "GenerateDot",
@@ -123,7 +167,7 @@
         ]
     },
     "finalize": {
-        "Singular": [           
+        "Singular": [
             "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
@@ -135,7 +179,7 @@
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "criticalpath",
-                "TensorSplitAlgorithms": "Metis, Rectangle, Z-Tiling",
+                "TensorSplitAlgorithms": "Metis,Rectangle,Z-Tiling",
                 "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "RemoveDeallocationTasks",

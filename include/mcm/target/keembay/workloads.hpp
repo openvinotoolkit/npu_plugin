@@ -223,29 +223,35 @@ namespace mv
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
         std::size_t nWorkloads() const;
-        std::vector<Workload>& getWorkloads();
+        void addWorkload(mv::Workload workload);
+        const std::vector<mv::Workload>& getWorkloads() const;
         void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
-        std::vector<float> getExecutionCycles();
+        std::vector<float> getExecutionCycles() const;
+        void setExecutionCycles(std::vector<float> val);
         static float greedyTaskAssignment(int nProcessors, std::vector<float>& workloadCosts);
 
         bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
         bool validateWorkloads(const mv::Shape& shape);
 
-        mv::CostFunctions getCostFunction(mv::Element& passDesc, const mv::pass::PassEntry& pass);
+        /** 
+         * @brief Returns the cost function to use for execution cycles
+         */
+        mv::CostFunctions getCostFunction(mv::Element& passDesc) const;
         /** 
          * @brief Returns the supported Tensor Split Algorithms to be used
          */
-        std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc, const mv::pass::PassEntry& pass);
+        std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc) const;
 
         double getAllWorkloadsVolume() const;
         bool noOverlap() const;
         mv::Shape getShapefromMinMax() const;
 
         Workload& operator[](int nworkload);
+        bool operator < (const mv::Workloads& other) const;
+        
         const Workload& operator[](int nworkload) const;
         std::string getLogID() const override;
         std::string toString() const;
-        
     };
 }
 

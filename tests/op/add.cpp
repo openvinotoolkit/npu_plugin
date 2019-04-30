@@ -19,7 +19,7 @@ TEST(ops, add)
     ASSERT_EQ(add->getShape(), mv::Shape({256, 512}));
     ASSERT_EQ(addOp->getOpType(), "Add");
     ASSERT_EQ(add->attrsCount(), 6);
-    ASSERT_EQ(addOp->attrsCount(), 2);
+    ASSERT_EQ(addOp->attrsCount(), 3);
     ASSERT_EQ(addOp->inputSlots(), 2);
     ASSERT_EQ(addOp->outputSlots(), 1);
     ASSERT_TRUE(addOp->hasTypeTrait("executable"));

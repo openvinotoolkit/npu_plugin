@@ -14,13 +14,12 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({10, 10, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({10, 10, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto pool = om.averagePool(input, {3, 3}, {2, 2}, {1, 1, 1, 1});
     om.output(pool);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

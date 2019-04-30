@@ -58,7 +58,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /*Workload's instance, name and tensorShape, MPE mode*/
             std::pair <int,int> MPEMode (1, 16); /*MPE mode*/
             mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
-            std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc, pass);
+            std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
 
             /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
             idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
@@ -93,17 +93,18 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
                 
                 // Calculate execution cycles for these workloads
-                auto costFunction = workloads.getCostFunction(passDesc, pass);
+                auto costFunction = workloads.getCostFunction(passDesc);
                 workloads.generateExecutionCycles(outputTensor, nDPUxCluster, costFunction);
                 solutions.push_back(workloads);
             }
             
-            // TODO: return workload with lowest mean execution time
-            //mv::Workloads optimal_workload = min(solutions, key= lambda x: (np.mean(x[0]), len(x[1])))
-
-
-
-             opIt->set<mv::Workloads>("Workloads", workloads);
+            //optimal_workload = min(solutions, key= lambda x: (np.mean(x[0]), len(x[1])))
+            auto min_cycles = std::min_element(solutions.begin(), solutions.end(), [] (mv::Workloads& lhs, mv::Workloads& rhs)
+                { return lhs < rhs;}
+            ); 
+            mv::Workloads optimal = *min_cycles;
+            
+            opIt->set<mv::Workloads>("Workloads", optimal);
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");
