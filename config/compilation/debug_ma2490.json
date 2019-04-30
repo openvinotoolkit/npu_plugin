@@ -97,10 +97,17 @@
             "KMBOrderConversion",
             "AlignTaskWeights",
             "GenerateSparsityMaps",
-            "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
                 "output": "keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true

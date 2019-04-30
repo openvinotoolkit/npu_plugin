@@ -18,12 +18,17 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({112, 224, 3, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
-    auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float8"), mv::Order::getZMajorID(4));
-    auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
+    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
+    auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float8"), mv::Order::getZMajorID(4));
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
 
-    om.output(conv);
+    std::vector<double> biasWeightsData = mv::utils::generateSequence<double>(64);
+    auto biasWeights = om.constant(biasWeightsData, {64}, mv::DType("Float8"), mv::Order::getColMajorID(1));
+
+    auto bias = om.bias(conv, biasWeights);
+
+    om.output(bias);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
