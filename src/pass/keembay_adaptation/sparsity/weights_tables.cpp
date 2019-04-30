@@ -28,22 +28,30 @@ void populateWeightsTablesDataPointers(std::vector<int64_t>& weightsTableData, m
 {
     mv::OpModel om(model);
 
-    auto output = dpuTaskOp->getOutputTensor(0);
-    auto input = dpuTaskOp->getInputTensor(0);
-
     if(dpuTaskOp->get<std::string>("taskOp") == "Conv")
     {
-        // TODO
-        // for (size_t i = 0; i < size; i+=4)
-        //      weightsTableData[i] = ...;
+        auto weights = dpuTaskOp->getInputTensor(1);
+        if(weights->isSparse())
+        {
+            // TODO: Not handling at the moment
+        }
+        else
+        {
+            unsigned offset = 0; // NOTE: Implementation defined
+            unsigned increment = weights->getShape()[0];
+            for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+                  weightsTableData[i] = offset;
+        }
     }
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
     {
-        // TODO
-        // for (size_t i = 0; i < size; i+=4)
-        //      weightsTableData[i] = ...;
+        auto weights = dpuTaskOp->getInputTensor(1);
+        unsigned offset = 0; // NOTE: Implementation defined
+        unsigned increment = weights->getShape()[0]; //WS dimension
+        for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+              weightsTableData[i] = offset;
     }
-    // Max pooling does not need DataPointer
+    // Max pooling does not need DataPointer, neither does element wise
 
 }
 
@@ -53,19 +61,30 @@ void populateWeightsTablesSparsityPointers(std::vector<int64_t>& weightsTableDat
 
     auto output = dpuTaskOp->getOutputTensor(0);
     auto input = dpuTaskOp->getInputTensor(0);
+    unsigned outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 
     if(dpuTaskOp->get<std::string>("taskOp") == "Conv")
     {
-        // TODO
-        // for (size_t i = 0; i < size; i+=4)
-        //      weightsTableData[i+1] = ...;
+        auto weights = dpuTaskOp->getInputTensor(1);
+        if(weights->isSparse())
+        {
+            // TODO: Not handling at the moment
+        }
+        // Nothing to do here if is a dense ZMajor convolution
     }
-    else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
+    else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"  || dpuTaskOp->get<std::string>("taskOp") == "MaxPool")
     {
-        // TODO
-        // for (size_t i = 0; i < size; i+=4)
-        //      weightsTableData[i+1] = ...;
+        // We have fake sparsity here! Yuppi!
+        auto activationWindow = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots() - 1);
+        auto activationWindowSizeInWords = activationWindow->getShape().totalSize();
+        auto activationWindowSizeInBytes = activationWindowSizeInWords * activationWindow->getDType().getSizeInBits() / 8;
+        auto activationWindowBytesPerOutputChannel = activationWindowSizeInBytes / outputChannels;
+        unsigned offset = 0; // NOTE: Implementation defined
+        unsigned increment = activationWindowBytesPerOutputChannel;
+        for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
+              weightsTableData[i+1] = offset;
     }
+    //Nothing to do for element wise
 
 }
 
