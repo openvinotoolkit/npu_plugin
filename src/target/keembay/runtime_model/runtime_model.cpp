@@ -140,7 +140,7 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
 }
 
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
-{    
+{
     mv::DataModel dm(cm);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -198,8 +198,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        auto quantScale = quantizationParams.getScale();
+        auto quantScale = quantizationParams.getMult();
         toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        auto quantShift = quantizationParams.getShift();
+        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+
     }
 
     return toBuild;

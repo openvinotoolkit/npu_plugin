@@ -27,6 +27,7 @@ namespace mv
     public:
         QuantizationParams(const json::Value& content);
         QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
+        QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max, std::vector <uint8_t> shift, std::vector<uint16_t> mult);
 
         inline std::vector<int64_t> getZeroPoint() const
         {
@@ -48,7 +49,19 @@ namespace mv
             return get<std::vector<double>>("max");
         }
 
+        inline std::vector<uint8_t> getShift() const
+        {
+            return get<std::vector<uint8_t>>("shift");
+        }
+
+        inline std::vector<uint16_t> getMult() const
+        {
+            return get<std::vector<uint16_t>>("mult");
+        }
+
+        void quantize(std::vector<uint8_t> shift, std::vector<uint16_t> mult);
         void extendParamsToOutputChannelSize(const size_t outputChannelSize);
+        void extendParamsPartialToOutputChannelSize(const size_t outputChannelSize);
 
         int64_t getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;

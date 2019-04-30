@@ -91,7 +91,7 @@
     },
     "keembay_adapt": {
         "Singular": [
-            "ExtendQuantizationParams",
+            "QuantizeLayers",
             "StoreLayerSplitStrategy",
             "ConvertOpsToTasks",
             "KMBOrderConversion",
