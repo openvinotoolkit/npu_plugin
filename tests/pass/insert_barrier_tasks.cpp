@@ -7,7 +7,7 @@ TEST(insert_barrier_tasks, serial_path)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
@@ -35,7 +35,7 @@ TEST(insert_barrier_tasks, parallel_paths)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
     auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto weight2 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
@@ -87,7 +87,7 @@ TEST(insert_barrier_tasks, single_control_edge)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
     auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto weight1 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
@@ -161,7 +161,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
     auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto weight1 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
@@ -236,7 +236,7 @@ TEST(insert_barrier_tasks, dealloc_edge)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({64, 64, 1}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({64, 64, 1, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*1*1);
     auto weight0 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
     auto weight1 = om.constant(weightsData, {1, 1, 1, 1}, mv::DType("Float16"), mv::Order("NCWH"));
@@ -310,7 +310,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights0 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv0 = om.conv(input, weights0, {1, 1}, {1, 1, 1, 1});  // barrier
@@ -453,7 +453,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
@@ -593,7 +593,7 @@ TEST(insert_barrier_tasks, weights_prefetch)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});

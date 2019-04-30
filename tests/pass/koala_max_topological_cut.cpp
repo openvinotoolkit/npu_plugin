@@ -12,8 +12,8 @@ TEST(MaxTopologicalCut, lessThanCMXMemory)
 
     mv::CompilationUnit unit("testMaxTopologicalCut");
     mv::OpModel& om = unit.model();
-    
-    auto input = om.input({112, 224, 3}, mv::DType("Float8"), mv::Order("CHW"));
+
+    auto input = om.input({112, 224, 3, 1}, mv::DType("Float8"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*64);
     auto weights = om.constant(weightsData, {7, 7, 3, 64}, mv::DType("Float8"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
@@ -47,8 +47,8 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
 
     mv::CompilationUnit unit("testMaxTopologicalCut");
     mv::OpModel& om = unit.model();
-    
-    auto input = om.input({40, 40, 3}, mv::DType("Float8"), mv::Order("CHW"));
+
+    auto input = om.input({40, 40, 3, 1}, mv::DType("Float8"), mv::Order("NCHW"));
 
     std::vector<double> weightsData = mv::utils::generateSequence<double>(7*7*3*90);
     auto weights = om.constant(weightsData, {7, 7, 3, 90}, mv::DType("Float8"), mv::Order("NCWH"));
