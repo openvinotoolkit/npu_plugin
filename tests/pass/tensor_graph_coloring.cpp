@@ -13,7 +13,7 @@ TEST(graph_coloring, single_conv)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({112, 224, 3}, mv::DType("UInt8"), mv::Order("CHW"));
+    auto input = om.input({112, 224, 3, 1}, mv::DType("UInt8"), mv::Order("NCHW"));
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(7*7*3*64);
     auto weights = om.constantInt(weightsData, {7, 7, 3, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {2, 2}, {3, 3, 3, 3});
@@ -51,8 +51,8 @@ TEST(graph_coloring, single_conv)
         //std::cout << "checking " << itr->first << std::endl;
         auto tensor = om.getTensor(itr->first);
         ASSERT_TRUE(tensor->hasAttr("address"));
-        ASSERT_TRUE(tensor->getAddress() == itr->second.second);
-        ASSERT_TRUE(tensor->computeTotalSize() == itr->second.first);
+        ASSERT_EQ(tensor->getAddress() , itr->second.second);
+        ASSERT_EQ(tensor->computeTotalSize() , itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");
@@ -65,14 +65,14 @@ TEST(graph_coloring, three_conv)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({56, 56, 16}, mv::DType("UInt8"), mv::Order("HWC"));
+    auto input = om.input({56, 56, 16, 1}, mv::DType("UInt8"), mv::Order("NHWC"));
 
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*16*64);
     auto weights = om.constantInt(weightsData, {1, 1, 16, 64}, mv::DType("UInt8"), mv::Order("NCHW"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
 
     std::vector<int64_t> biasesData =  mv::utils::generateSequence<int64_t>(conv->getShape()[-1]);
-    auto biases = om.constantInt(biasesData, {conv->getShape()[-1]}, mv::DType("Int32"), mv::Order("W"), "biases");
+    auto biases = om.constantInt(biasesData, {conv->getShape()[-1]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases");
     auto bias = om.bias(conv, biases);
 
     std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t>(3*3*64*64);
@@ -80,14 +80,14 @@ TEST(graph_coloring, three_conv)
     auto conv1 = om.conv(conv, weights1, {1, 1}, {1, 1, 1, 1});
 
     std::vector<int64_t> biasesData1 =  mv::utils::generateSequence<int64_t>(conv1->getShape()[-1]);
-    auto biases1 = om.constantInt(biasesData1, {conv->getShape()[-1]},mv::DType("Int32"), mv::Order("W"), "biases1");
+    auto biases1 = om.constantInt(biasesData1, {conv->getShape()[-1]},mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases1");
     auto bias1 = om.bias(conv1, biases1);
 
     std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t>(64*64*1*1);
     auto weights2 = om.constantInt(weightsData2, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCWH"));
     auto conv2 = om.conv(conv1, weights2, {1, 1}, {0, 0, 0, 0});
     std::vector<int64_t> biasesData2 =  mv::utils::generateSequence<int64_t>(conv2->getShape()[-1]);
-    auto biases2 = om.constantInt(biasesData2, {conv->getShape()[-1]}, mv::DType("Int32"), mv::Order("W"), "biases2");
+    auto biases2 = om.constantInt(biasesData2, {conv->getShape()[-1]}, mv::DType("Int32"), mv::Order("W"),{{},{},{},{}}, "biases2");
     auto bias2 = om.bias(conv2, biases2);
 
     om.output(conv2);
@@ -132,8 +132,8 @@ TEST(graph_coloring, three_conv)
     {
         auto tensor = om.getTensor(itr->first);
         ASSERT_TRUE(tensor->hasAttr("address"));
-        ASSERT_TRUE(tensor->getAddress() == itr->second.second);
-        ASSERT_TRUE(tensor->computeTotalSize() == itr->second.first);
+        ASSERT_EQ(tensor->getAddress(), itr->second.second);
+        ASSERT_EQ(tensor->computeTotalSize(), itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");

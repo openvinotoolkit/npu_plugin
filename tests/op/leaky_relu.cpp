@@ -6,7 +6,7 @@ TEST(ops, leaky_relu_default)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"),  mv::Order("HWC"));
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"),  mv::Order("NHWC"));
 
     // Omit default parameter alpha when instantiating the LeakyRelu object.
     auto leakyRelu = om.leakyRelu(input);
@@ -23,7 +23,7 @@ TEST(ops, leaky_relu_custom)
 {
 
     mv::OpModel om("testModel");
-    auto input = om.input({224, 224, 3}, mv::DType("Float16"),  mv::Order("HWC"));
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"),  mv::Order("NHWC"));
 
     auto leakyRelu = om.leakyRelu(input, 0.1);
     auto leakyReluOp = om.getSourceOp(leakyRelu);

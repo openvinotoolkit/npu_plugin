@@ -11,7 +11,7 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            auto    auto_pad = args.at("auto_pad").get<std::string>();
+            auto auto_pad = args.at("auto_pad").get<std::string>();
             auto rounding_type = args.at("rounding_type").get<std::string>();
 
             if (auto_pad != "" && auto_pad != "same_upper" && auto_pad != "same_lower" && auto_pad != "valid")
@@ -26,9 +26,9 @@ namespace mv
                 return {false, 0};
             }
 
-            if (inputs[0]->getShape().ndims() != 3)
+            if (inputs[0]->getShape().ndims() != 4)
             {
-                errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 3, "
+                errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 4, "
                     " has " + std::to_string(inputs[0]->getShape().ndims());
                 return {false, 0};
             }
@@ -36,17 +36,17 @@ namespace mv
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
             auto kSize = args.at("kSize").get<std::array<unsigned short, 2>>();
             
-            if (inputs[0]->getShape()[0] + padding[0] + padding[1] < kSize[0])
+            if (inputs[0]->getShape()[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1] < kSize[0])
             {
                 errMsg = "Filter kernel width (" + std::to_string(kSize[0]) + ") exceeds the padded input width ("
-                    + std::to_string(inputs[0]->getShape()[0] + padding[0] + padding[1]) + ")";
+                    + std::to_string(inputs[0]->getShape()[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1]) + ")";
                 return {false, 0};
             }
 
-            if (inputs[0]->getShape()[1] + padding[2] + padding[3] < kSize[1])
+            if (inputs[0]->getShape()[mv::IO_HEIGHT_DIMENSION] + padding[2] + padding[3] < kSize[1])
             {
                 errMsg = "Filter kernel height (" + std::to_string(kSize[1]) + ") exceeds the padded input height ("
-                    + std::to_string(inputs[0]->getShape()[1] + padding[2] + padding[3]) + ")";
+                    + std::to_string(inputs[0]->getShape()[mv::IO_HEIGHT_DIMENSION] + padding[2] + padding[3]) + ")";
                 return {false, 0};
             }
 
@@ -62,10 +62,13 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
             auto kSize = args.at("kSize").get<std::array<unsigned short, 2>>();
 
-            Shape outputShape({(inputShape[0] + padding[0] + padding[1] - kSize[0]) / stride[0] + 1,
-                (inputShape[1] + padding[2] + padding[3] - kSize[1]) / stride[1] + 1, inputShape[2]});
+            Shape outputShape({(inputShape[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kSize[KERNEL_WIDTH]) / stride[0] + 1,
+                (inputShape[mv::IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kSize[KERNEL_HEIGHT]) / stride[1] + 1, inputShape[mv::IO_CHANNEL_DIMENSION], inputShape[mv::IO_BATCH_DIMENSION]});
 
-            outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
 
@@ -83,6 +86,7 @@ namespace mv
         .setOptionalArg<bool>("exclude_pad", true)
         .setOptionalArg<std::string>("auto_pad",      default_auto_pad)      // default: ""
         .setOptionalArg<std::string>("rounding_type", default_rounding_type) // default: "floor"
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});

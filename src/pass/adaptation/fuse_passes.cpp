@@ -230,7 +230,7 @@ void fuseBatchNormFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mod
             auto scaleParam = math::divide(bnScale, math::sqrt(math::add(bnVar, bnEps)));
             auto offsetParam = math::subtract(bnOffset, math::multiply(bnMean, scaleParam));
             auto offset = om.constantDataElement(offsetParam.getData(), offsetParam.getShape(), offsetParam.getDType(),
-                offsetParam.getOrder(), batchNormName + "_offset");
+                offsetParam.getOrder(),{{},{},{},{}}, batchNormName + "_offset");
 
             Data::TensorIterator sourceTensor;
 

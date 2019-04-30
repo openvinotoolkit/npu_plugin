@@ -39,7 +39,7 @@ TEST(generate_workloads_pass, costfunction_criticalpathA2)
 {
     // Tests critical path, 2 workloads
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -67,7 +67,7 @@ TEST(generate_workloads_pass, execycles_workloadB1)
 {
     // Tests 1 workload (B)
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -102,7 +102,7 @@ TEST(generate_workloads_pass, execycles_workloadB2)
 {
     // Tests 2 workloads (B)
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -137,7 +137,7 @@ TEST(generate_workloads_pass, execycles_workloadB4)
 {
     // Tests 2 workloads (B)
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -172,7 +172,7 @@ TEST(generate_workloads_pass, execycles_workloadB1_vector)
 {
     // Tests 1 workload (B)
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -227,7 +227,7 @@ TEST(generate_workloads_pass, validate_methodB1)
 {
     // Validates 1 workload (B)
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -247,7 +247,7 @@ TEST(generate_workloads_pass, validateB2)
 {
     // Validates 2 workloads (B)
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -275,7 +275,7 @@ TEST(generate_workloads_pass, ReadTensorSplitAlgorithms)
 
     //Setup Workloads object
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -306,7 +306,7 @@ TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsDefault)
 
     //Setup Workloads object
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -337,7 +337,7 @@ TEST(generate_workloads_pass, ReadTensorSplitAlgorithmsOne)
 
     //Setup Workloads object
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -367,7 +367,7 @@ TEST(generate_workloads_pass, ReadCostFunctions)
 
     //Setup Workloads object
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
@@ -396,7 +396,7 @@ TEST(generate_workloads_pass, ReadCostFunctionParse)
 
     //Setup Workloads object
     mv::OpModel om("testModel");
-    auto input = om.input({56, 56, 64}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*64*64);
     auto weights = om.constant(weightsData, {1, 1, 64, 64}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
