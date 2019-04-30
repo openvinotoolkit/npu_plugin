@@ -33,6 +33,21 @@ namespace mv
         MinMaxWorkloads
     };
 
+    /* The POC compiler generates a lattic structure of the tensor shape with the nodes numbered in this order
+     * Example for tensor size 16x16
+     * 
+     *         axis numbering
+     *     
+     *         0    4     8    12     
+     *        
+     *    0    0----2-----4----6 //Even numbers
+     *         |    |     |    | //Odd numbers
+     *    4    1----3-----5----7
+     *         |    |     |    | 
+     *    8    10---11----12---13
+     *         |    |     |    | 
+     *    12   15---16----17---18
+
     /* METIS parameters*/
     struct MetisGraphStructure
     {
@@ -50,7 +65,6 @@ namespace mv
         int m_xDim;
         int m_yDim;
 
-        //mv::Rectangle* node_coords;
         std::unique_ptr<mv::Rectangle[]>  node_coords;
 
         MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode) {
@@ -64,8 +78,12 @@ namespace mv
             m_numberTensorEdges = (2 * ceil(tensorXDim / MPEMode.first) * ceil(tensorYDim / MPEMode.second)) - ceil(tensorXDim / MPEMode.first) - ceil(tensorYDim / MPEMode.second);
         
             /*X-Y dimension of METIS lattic graph*/
-            m_xDim = ceil((tensorXDim / MPEMode.first));
-            m_yDim = ceil((tensorYDim / MPEMode.second));
+            //MPE 4,4
+            //m_xDim = ceil((tensorXDim / MPEMode.first));
+            //m_yDim = ceil((tensorYDim / MPEMode.second));
+
+            m_xDim = ceil((tensorXDim / MPEMode.second));
+            m_yDim = ceil((tensorYDim / MPEMode.first));
 
             /*METIS parameters - description page 23 Metis manual*/
             xadj.reset(new idx_t[m_numberTensorVertices + 1]);
@@ -75,23 +93,29 @@ namespace mv
 
             node_coords.reset(new mv::Rectangle [m_numberTensorVertices]);
         
-            /* Weights of METIS vertices
+            /* (1) This section gnerates weights for the METIS vertices
              * Description page 23 Metis manual
              * 
-             * Required when tensor size is not a multiple of 4 for MPE mode (4,4) which is only supported for WW09
+             * This is required when the tensor size is not a multiple of 4 for MPE mode (4,4)
              * When tensor size is not a multiple of 4 then not all DPUs will be fully utilised (i.e. < 256 multiplication operations)
              * Therefore we assign nodes different weights when partitioning
+             * 
+             * (2) We populate (x,y) coordinates for the individual lattic nodes here with the rectangle class. 
+             * 
             */
             int n_elem_y;
             int n_elem_x;
-            int nodeIndex = 0;
-            for(int j=0; j < 1; j++) { //first 2 rows
+            int nodeIndex = 0; /* This corresponds to the numbering format in the lattic structure*/
+
+            /* We need to handle the first two rows of the lattic first*/
+            for(int j=0; j < 1; j++) {
             
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
                     n_elem_y = MPEMode.first;                 
                 else 
                     n_elem_y = (int)tensorYDim%MPEMode.first; 
-                            
+                
+            
                 for(int k=0; k < (m_xDim*2); k++) {
 
                     int min_x;
@@ -102,34 +126,35 @@ namespace mv
                     else 
                         n_elem_x = (int)tensorXDim%MPEMode.second;
             
-                    vwgt[nodeIndex] = n_elem_x * n_elem_y; //METIS weight
-
-                    if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  { //Node number is odd i.e. 1,3,5...
+                    /*First row where node number is even i.e. 2,4,6... */
+                    if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  { 
                         min_x = (k/2) * MPEMode.first;
                         min_y = j * MPEMode.second;
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
-                        goto done;
+                        std::cout << "node number is " << nodeIndex << std::endl;
+                        std::cout << "n_elem_y is " << n_elem_y << std::endl;
+                        std::cout << "n_elem_x is " << n_elem_x << std::endl;  
+                        std::cout << "n_elem_x * n_elem_y = " << n_elem_x *  n_elem_y  << std::endl;  
                         
+                        vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
                     }
-                    if ((nodeIndex%2 != 0) && (nodeIndex <= ((m_xDim*2)-1))) { //Node number is even i.e. 2,4,6...
+                    /*Second row where node number is odd i.e. 1,3,5... */
+                    if ((nodeIndex%2 != 0) && (nodeIndex <= ((m_xDim*2)-1))) {
                         min_x = min_x;
                         min_y = min_y + n_elem_y;
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
-                        goto done;
-                    }
-                    else {
-                        min_x = k * MPEMode.first;
-                        min_y = j * MPEMode.second;
-                        node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
-                        goto done;
-                    }
-                    done:
-        
+                        std::cout << "node number is " << nodeIndex << std::endl;
+                        std::cout << "n_elem_y is " << n_elem_y << std::endl;
+                        std::cout << "n_elem_x is " << n_elem_x << std::endl;  
+                        std::cout << "n_elem_x * n_elem_y = " << n_elem_x *  n_elem_y  << std::endl;  
+                        vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
+                    }        
                     nodeIndex++;
                 }
             }
 
-            for(int j=2; j < m_yDim; j++) { // remaining rows after first 2 rows
+            /*Now deal with the remaining rows after the first 2 rows*/
+            for(int j=2; j < m_yDim; j++) { 
             
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
                     n_elem_y = MPEMode.first;                 
@@ -143,7 +168,7 @@ namespace mv
                     else 
                         n_elem_x = (int)tensorXDim%MPEMode.second;
             
-                    vwgt[nodeIndex] = n_elem_x * n_elem_y; //METIS weight
+                    vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
 
                     int min_x = k * MPEMode.first;
                     int min_y = j * MPEMode.second;
@@ -153,8 +178,6 @@ namespace mv
                     nodeIndex++;
                 }
             }
-
-
         }
     };
 

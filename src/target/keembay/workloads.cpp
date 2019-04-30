@@ -379,6 +379,15 @@ int mv::Workloads::partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::Pa
 {
     METIS_SetDefaultOptions(metisGraph_->options);
 
+    for(int i =0; i < 2*metisGraph_->m_numberTensorEdges; i++)
+        std::cout <<  metisGraph_->adjncy[i] << std::endl;
+    
+    for(int i =0; i < (metisGraph_->m_numberTensorVertices + 1); i++)
+        std::cout <<  metisGraph_->xadj[i] << std::endl;
+    
+    for(int i =0; i < (metisGraph_->m_numberTensorVertices); i++)
+        std::cout <<  metisGraph_->vwgt[i] << std::endl;
+
     /*METIS call*/
     int res = METIS_PartGraphRecursive(&metisGraph_->m_numberTensorVertices,&metisGraph_->nWeights, metisGraph_->xadj.get(), metisGraph_->adjncy.get(),
                     metisGraph_->vwgt.get(), NULL, NULL, &nWorkloads, NULL,
