@@ -179,7 +179,7 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
-            unsigned short total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
+            unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
             double value = 1/double(kSize[0] * kSize[1]);
             std::vector<double> weightsData(total_shape, value);
 
