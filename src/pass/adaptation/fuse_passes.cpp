@@ -75,7 +75,7 @@ mv::Data::OpListIterator linkNewOperationsFuse(mv::Data::OpListIterator parentOp
 
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j]);
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
 
