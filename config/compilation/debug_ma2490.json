@@ -48,7 +48,7 @@
     },
     "keembay_adapt": {
         "Singular": [
-            "ExtendQuantizationParams",
+            "QuantizeLayers",
             "ConvertOpsToTasks",
             "KMBOrderConversion",
             "AlignTaskWeights",
