@@ -139,6 +139,24 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     return toBuild;
 }
 
+std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned> inVec)
+{
+    if (inVec.size() > 1)
+    {
+        auto firstVal = inVec[0];
+        auto onlyOneValue = true;
+        for (size_t i = 1; i < inVec.size(); i++)
+            if (firstVal != inVec[i])
+                onlyOneValue = false;
+        if (onlyOneValue)
+        {
+            inVec.clear();
+            inVec.push_back(firstVal);
+        }
+    }
+    return inVec;
+}
+
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
 {
     mv::DataModel dm(cm);
@@ -204,10 +222,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         std::vector<unsigned> quantScale = {};
         if (quantizationParams.hasAttr("mult"))
             quantScale = quantizationParams.getMult();
+
+        quantScale = reduceQuantVector_(quantScale);
         toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
         std::vector<unsigned> quantShift;
         if (quantizationParams.hasAttr("shift"))
             quantShift = quantizationParams.getShift();
+        quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
 
     }
