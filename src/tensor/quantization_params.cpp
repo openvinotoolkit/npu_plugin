@@ -25,7 +25,7 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
 }
 
 mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale,
-    std::vector<double> min, std::vector<double> max, std::vector<uint8_t> shift, std::vector<uint16_t> mult): Element("quantParams")
+    std::vector<double> min, std::vector<double> max, std::vector<unsigned> shift, std::vector<unsigned> mult): Element("quantParams")
 {
     size_t size = zp.size();
     if (size != scale.size() || size != min.size() || size != max.size())
@@ -41,14 +41,14 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
     set<std::vector<double>>("max", max);
-    set<std::vector<uint8_t>>("shift", shift);
-    set<std::vector<uint16_t>>("mult", mult);
+    set<std::vector<unsigned>>("shift", shift);
+    set<std::vector<unsigned>>("mult", mult);
 }
 
-void mv::QuantizationParams::quantize(std::vector<uint8_t> shift, std::vector<uint16_t> mult)
+void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<unsigned> mult)
 {
-    set<std::vector<uint8_t>>("shift", shift);
-    set<std::vector<uint16_t>>("mult", mult);
+    set<std::vector<unsigned>>("shift", shift);
+    set<std::vector<unsigned>>("mult", mult);
 }
 
 int64_t mv::QuantizationParams::getZeroPoint(const size_t channel) const

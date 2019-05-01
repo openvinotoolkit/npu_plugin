@@ -13,7 +13,7 @@ namespace mv
     public:
         QuantizationParams(const json::Value& content);
         QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
-        QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max, std::vector <uint8_t> shift, std::vector<uint16_t> mult);
+        QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max, std::vector <unsigned> shift, std::vector<unsigned> mult);
 
         inline std::vector<int64_t> getZeroPoint() const
         {
@@ -35,17 +35,17 @@ namespace mv
             return get<std::vector<double>>("max");
         }
 
-        inline std::vector<uint8_t> getShift() const
+        inline std::vector<unsigned> getShift() const
         {
-            return get<std::vector<uint8_t>>("shift");
+            return get<std::vector<unsigned>>("shift");
         }
 
-        inline std::vector<uint16_t> getMult() const
+        inline std::vector<unsigned> getMult() const
         {
-            return get<std::vector<uint16_t>>("mult");
+            return get<std::vector<unsigned>>("mult");
         }
 
-        void quantize(std::vector<uint8_t> shift, std::vector<uint16_t> mult);
+        void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult);
 
         int64_t getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;

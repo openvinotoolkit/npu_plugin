@@ -157,9 +157,9 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         std::vector<int32_t> zeroPointScaled(m.size());
         std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
 
-        std::vector <uint8_t> ser_shift = std::vector<uint8_t>(shift.begin(), shift.end());
-        std::vector <uint16_t> ser_scale = std::vector<uint16_t>(mScaled.begin(), mScaled.end());
-        //outputQuantization.quantize(ser_shift, ser_scale);
+        std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
+        std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
+        outputQuantization.quantize(ser_shift, ser_scale);
 
         if (dpuTaskOp->hasAttr("bias"))
         {
