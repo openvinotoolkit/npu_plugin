@@ -22,6 +22,15 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
     set<std::vector<double>>("max", max);
+
+    if (scale.size())
+    {
+        std::vector<unsigned> shiftDefaut(scale.size(), 0);
+        std::vector<unsigned> multDefaut(scale.size(), 1);
+        set<std::vector<unsigned>>("shift", shiftDefaut);
+        set<std::vector<unsigned>>("mult", multDefaut);
+    }
+
 }
 
 mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale,
