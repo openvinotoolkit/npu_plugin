@@ -201,19 +201,21 @@ std::vector<int> mv::Workloads::generateMetisGraphNodeNumbers(void) {
 
 void mv::Workloads::generateMetisGraph(void) {
 
+
+    /*If the lattice structure has more than 1 column the node numbering will be like this the lattic graph above (first row even, second row odd)*/
+
     if((metisGraph_->m_xDim > 1) && (metisGraph_->m_yDim > 1)) {
-    /*Generate sequence of node numberes for the lattic structure of the tensor shape*/
-    auto nodeNumbers  = this->generateMetisGraphNodeNumbers();
-
-    int adjncyIndex = 0;
-    int xadjIndex = 0;
-    int increment = 1;
-
-    /* The first two rows of the lattic structure have a different order to the remaining rows (see graph).
-     * There we need to populate the adjancy structures for the first two rows first seperately.
-    */
-
     
+        /*Generate sequence of node numberes for the lattic structure of the tensor shape*/
+        auto nodeNumbers  = this->generateMetisGraphNodeNumbers();
+
+        int adjncyIndex = 0;
+        int xadjIndex = 0;
+        int increment = 1;
+
+        /* The first two rows of the lattic structure have a different order to the remaining rows (see graph).
+        * There we need to populate the adjancy structures for the first two rows first seperately.
+        */
 
         for (std::vector<int>::iterator it = nodeNumbers.begin(); it != (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); std::advance(it,increment)) {
 
@@ -306,92 +308,101 @@ void mv::Workloads::generateMetisGraph(void) {
         /*If on the last node of the second row then we done, break*/ 
         if(*it == (metisGraph_->m_xDim * 2)-1)
             break;
-    }
-
-    /* The 3rd and ramining rows of the lattic structure have a different order to the first two rows (see graph).
-     * There we need to populate the adjancy structures for these rows first seperately.
-    */
-    for (std::vector<int>::iterator it = (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); it != nodeNumbers.end(); it++) {
-
-        /*Intermediate node left side*/ 
-        if((*it%metisGraph_->m_xDim == 0) && ((*it + metisGraph_->m_xDim) < ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
-
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
-            adjncyIndex++;
         }
 
-        /*Bottom left node*/
-        if((*it%metisGraph_->m_xDim == 0) && ((*it + metisGraph_->m_xDim) > ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
+        /* The 3rd and ramining rows of the lattic structure have a different order to the first two rows (see graph).
+        * There we need to populate the adjancy structures for these rows first seperately.
+        */
+        for (std::vector<int>::iterator it = (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); it != nodeNumbers.end(); it++) {
 
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
-            adjncyIndex++;
-        }
+            /*Intermediate node left side*/ 
+            if((*it%metisGraph_->m_xDim == 0) && ((*it + metisGraph_->m_xDim) < ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
 
-       /*Intermediate right side node*/
-        if(((*it - (metisGraph_->m_xDim-1))%metisGraph_->m_xDim == 0) && ((*it - (*it -(metisGraph_->m_xDim-1))) == metisGraph_->m_xDim -1)  && ((*it-(metisGraph_->m_xDim-1) != 0))  && (*it %(nodeNumbers.size()-1) != 0)) {
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
+                adjncyIndex++;
+            }
 
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
-            adjncyIndex++;
-        }
+            /*Bottom left node*/
+            if((*it%metisGraph_->m_xDim == 0) && ((*it + metisGraph_->m_xDim) > ((int)nodeNumbers.size() -1)) && ((*it) != 0)) {
 
-        /*Bottm right node*/
-        if(((*it - (metisGraph_->m_xDim-1))%metisGraph_->m_xDim == 0) && ((*it - (*it -(metisGraph_->m_xDim-1))) == metisGraph_->m_xDim -1) && (*it %(nodeNumbers.size()-1) == 0)) {
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
+                adjncyIndex++;
+            }
 
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
-            adjncyIndex++;
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-        }
+            /*Intermediate right side node*/
+            if(((*it - (metisGraph_->m_xDim-1))%metisGraph_->m_xDim == 0) && ((*it - (*it -(metisGraph_->m_xDim-1))) == metisGraph_->m_xDim -1)  && ((*it-(metisGraph_->m_xDim-1) != 0))  && (*it %(nodeNumbers.size()-1) != 0)) {
+
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim];
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                adjncyIndex++;
+            }
+
+            /*Bottm right node*/
+            if(((*it - (metisGraph_->m_xDim-1))%metisGraph_->m_xDim == 0) && ((*it - (*it -(metisGraph_->m_xDim-1))) == metisGraph_->m_xDim -1) && (*it %(nodeNumbers.size()-1) == 0)) {
+
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
+                adjncyIndex++;
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+            }
         
-        /*Middle nodes bottom row*/
-        if(((*it)%metisGraph_->m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph_->m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
+            /*Middle nodes bottom row*/
+            if(((*it)%metisGraph_->m_xDim != 0) && ((*it) > ((int)nodeNumbers.size()-1) - metisGraph_->m_xDim) && ((*it) != ((int)nodeNumbers.size()-1))) {
 
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
-            adjncyIndex++;
-        }
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
+                adjncyIndex++;
+            }
 
-        /*Middle nodes not on bottom or top rows or the side columns*/
-        if(((*it)%metisGraph_->m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph_->m_xDim) && ((*it) > (metisGraph_->m_xDim-1)) && ((*it+1)%metisGraph_->m_xDim != 0)) {
+            /*Middle nodes not on bottom or top rows or the side columns*/
+            if(((*it)%metisGraph_->m_xDim != 0) && ((*it) < ((int)nodeNumbers.size()-1) - metisGraph_->m_xDim) && ((*it) > (metisGraph_->m_xDim-1)) && ((*it+1)%metisGraph_->m_xDim != 0)) {
 
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
-            adjncyIndex++;
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - metisGraph_->m_xDim]; 
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it - 1];
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
+                adjncyIndex++;
+            }
         }
     }
-    }
-    /*Only one column*/
+    /*There is only one column in the lattic and node are numbered in order like this*/
+    /*
+     * 0
+     * | 
+     * 1
+     * |    
+     * 2
+     * |   
+     * 3
+     */
     else {
         
         /*Nodes in the graph*/
@@ -425,7 +436,7 @@ void mv::Workloads::generateMetisGraph(void) {
             
             }
 
-    }
+        }
     }
 } 
 
@@ -433,15 +444,18 @@ int mv::Workloads::partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::Pa
 {
     METIS_SetDefaultOptions(metisGraph_->options);
 
-    for(int i =0; i < 2*metisGraph_->m_numberTensorEdges; i++)
-        std::cout <<  metisGraph_->adjncy[i] << std::endl;
+    pass.log(mv::Logger::MessageType::Debug, "The adjancy data for METIS is ");
+    for(int i =0; i < 2*metisGraph_->m_numberTensorEdges; i++) 
+        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->adjncy[i]));
     
-    for(int i =0; i < (metisGraph_->m_numberTensorVertices + 1); i++)
-        std::cout <<  metisGraph_->xadj[i] << std::endl;
+    pass.log(mv::Logger::MessageType::Debug, "The xadj data for METIS is ");
+    for(int i =0; i < (metisGraph_->m_numberTensorVertices + 1); i++) 
+        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->xadj[i]));
     
-    for(int i =0; i < (metisGraph_->m_numberTensorVertices); i++)
-        std::cout <<  metisGraph_->vwgt[i] << std::endl;
-
+    pass.log(mv::Logger::MessageType::Debug, "The vwgt data for METIS is ");
+    for(int i =0; i < (metisGraph_->m_numberTensorVertices); i++) 
+        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->vwgt[i]));
+    
     /*METIS call*/
     int res = METIS_PartGraphRecursive(&metisGraph_->m_numberTensorVertices,&metisGraph_->nWeights, metisGraph_->xadj.get(), metisGraph_->adjncy.get(),
                     metisGraph_->vwgt.get(), NULL, NULL, &nWorkloads, NULL,
