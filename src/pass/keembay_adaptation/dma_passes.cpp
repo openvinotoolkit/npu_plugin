@@ -63,7 +63,7 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model
     auto opId = opIt->get<unsigned>("opId");
     std::string oldOutputName(opIt->getName());
     mv::QuantizationParams quantParams = {{},{},{},{}};
-    if(opIt->hasAttr("quantParams"))
+    if(input->hasAttr("quantParams"))
         quantParams = input->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
     {
@@ -134,8 +134,8 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
             {
                 auto inputTensor = opIt->getInputTensor(i);
                 mv::QuantizationParams quantParams = {{},{},{},{}};
-                if(opIt->hasAttr("quantParams"))
-                    quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+                if(inputTensor->hasAttr("quantParams"))
+                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                 auto inputOp = om.getSourceOp(inputTensor);
                 if(!isTensorInCMX(inputTensor, om))
                 {
