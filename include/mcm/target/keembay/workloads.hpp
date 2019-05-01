@@ -78,10 +78,6 @@ namespace mv
             m_numberTensorEdges = (2 * ceil(tensorXDim / MPEMode.first) * ceil(tensorYDim / MPEMode.second)) - ceil(tensorXDim / MPEMode.first) - ceil(tensorYDim / MPEMode.second);
         
             /*X-Y dimension of METIS lattic graph*/
-            //MPE 4,4
-            //m_xDim = ceil((tensorXDim / MPEMode.first));
-            //m_yDim = ceil((tensorYDim / MPEMode.second));
-
             m_xDim = ceil((tensorXDim / MPEMode.second));
             m_yDim = ceil((tensorYDim / MPEMode.first));
 
@@ -120,12 +116,12 @@ namespace mv
 
                     int min_x;
                     int min_y;
-                
-                    if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
+                    
+                    if (k < (m_xDim*2)-2) //|| (!fmod(tensorXDim,MPEMode.second)))
                         n_elem_x = MPEMode.second;
                     else 
                         n_elem_x = (int)tensorXDim%MPEMode.second;
-            
+                    
                     /*First row where node number is even i.e. 2,4,6... */
                     if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  { 
                         min_x = (k/2) * MPEMode.first;

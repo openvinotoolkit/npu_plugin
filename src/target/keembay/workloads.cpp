@@ -201,6 +201,7 @@ std::vector<int> mv::Workloads::generateMetisGraphNodeNumbers(void) {
 
 void mv::Workloads::generateMetisGraph(void) {
 
+    if((metisGraph_->m_xDim > 1) && (metisGraph_->m_yDim > 1)) {
     /*Generate sequence of node numberes for the lattic structure of the tensor shape*/
     auto nodeNumbers  = this->generateMetisGraphNodeNumbers();
 
@@ -211,17 +212,20 @@ void mv::Workloads::generateMetisGraph(void) {
     /* The first two rows of the lattic structure have a different order to the remaining rows (see graph).
      * There we need to populate the adjancy structures for the first two rows first seperately.
     */
-    for (std::vector<int>::iterator it = nodeNumbers.begin(); it != (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); std::advance(it,increment)) {
 
-        /*Top left node, i.e. 0*/ 
-        if((*it%metisGraph_->m_xDim == 0) && (*it == 0)) {
+    
 
-            metisGraph_->xadj[xadjIndex] = adjncyIndex;
-            xadjIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
-            adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
-            adjncyIndex++;
+        for (std::vector<int>::iterator it = nodeNumbers.begin(); it != (nodeNumbers.begin()+(metisGraph_->m_xDim * 2)); std::advance(it,increment)) {
+
+            /*Top left node, i.e. 0*/ 
+            if((*it%metisGraph_->m_xDim == 0) && (*it == 0)) {
+
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + metisGraph_->m_xDim]; 
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
+                adjncyIndex++;
         }
    
         /*Top right node, i.e 8 in the example graph*/
@@ -385,6 +389,43 @@ void mv::Workloads::generateMetisGraph(void) {
             metisGraph_->adjncy[adjncyIndex] = nodeNumbers[*it + 1];
             adjncyIndex++;
         }
+    }
+    }
+    /*Only one column*/
+    else {
+        
+        /*Nodes in the graph*/
+        std::vector<int> nodeNumbers  = mv::utils::generateSequence<int>(metisGraph_->m_numberTensorVertices);
+        int adjncyIndex = 0;
+        int xadjIndex = 0;
+
+        for (std::vector<int>::iterator it = nodeNumbers.begin(); it != nodeNumbers.end(); it++) {
+
+            if((*it) == 0) {
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = 1;
+                adjncyIndex++;
+            }
+            if((*it) == metisGraph_->m_yDim-1) {
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = metisGraph_->m_yDim-2; 
+                adjncyIndex++;
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+            }
+            if(((*it) > 0) && ((*it) < metisGraph_->m_yDim-1)) {
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
+                xadjIndex++;
+                metisGraph_->adjncy[adjncyIndex] = *it -1; 
+                adjncyIndex++;
+                metisGraph_->adjncy[adjncyIndex] = *it + 1; 
+                adjncyIndex++;
+
+            
+            }
+
+    }
     }
 } 
 
