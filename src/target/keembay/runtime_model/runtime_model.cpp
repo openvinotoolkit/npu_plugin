@@ -114,10 +114,10 @@ std::unique_ptr<MVCNN::GraphNodeT> mv::RuntimeModel::buildGraphNodeT(mv::Computa
     toBuild->thisID = op->get<unsigned>("opId");
 
     for (auto nextChildOp = op.leftmostChild(); nextChildOp != opModel.opEnd(); ++nextChildOp)
-        toBuild->sourceID.push_back(nextChildOp->get<unsigned>("opId"));
+        toBuild->sinkID.push_back(nextChildOp->get<unsigned>("opId"));
 
     for (auto nextParentOp = op.leftmostParent(); nextParentOp != opModel.opEnd(); ++nextParentOp)
-        toBuild->sinkID.push_back(nextParentOp->get<unsigned>("opId"));
+        toBuild->sourceID.push_back(nextParentOp->get<unsigned>("opId"));
 
     return toBuild;
 }
@@ -336,9 +336,9 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
         {
             if(opType.find("DPU") != std::string::npos)
                 toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            if(opType.find("DMA") != std::string::npos)
+            else if(opType.find("DMA") != std::string::npos)
                 toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            if(opType.find("Controller") != std::string::npos)
+            else if(opType.find("Controller") != std::string::npos)
                 toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
         }
     }
