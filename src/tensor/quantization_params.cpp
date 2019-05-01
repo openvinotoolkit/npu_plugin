@@ -40,7 +40,7 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
     set<std::vector<int64_t>>("zeroPoint", zp);
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
-    set<std::vector<double>>("min", min);
+    set<std::vector<double>>("max", max);
     set<std::vector<uint8_t>>("shift", shift);
     set<std::vector<uint16_t>>("mult", mult);
 }
