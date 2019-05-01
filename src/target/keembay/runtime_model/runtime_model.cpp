@@ -170,18 +170,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
-    auto allocators = t->get<std::set<std::string>>("allocators");
-    if (allocators.count("GraphFile") != 0)
+    if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
         // UNSUPPORTED FOR NOW
         // toBuild->sparsity_index
     }
-    else
+    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
         // UNSUPPORTED FOR NOW
         // toBuild->sparsity_index
+    }
+    else
+    {
+        toBuild->data->data_index = t->getAddress();
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
