@@ -57,7 +57,6 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model
     mv::ControlModel cm(model);
 
     auto opIt = om.getOutput();
-    auto inIt = om.getInput();
     auto input = opIt->getInputTensor(0);
     auto inputOp = om.getSourceOp(input);
 
@@ -65,7 +64,7 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model
     std::string oldOutputName(opIt->getName());
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(opIt->hasAttr("quantParams"))
-        quantParams = inIt->get<mv::QuantizationParams>("quantParams");
+        quantParams = input->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
     {
         auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, "DMA"+inputOp->getName());
