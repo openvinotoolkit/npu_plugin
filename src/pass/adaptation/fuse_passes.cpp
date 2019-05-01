@@ -118,7 +118,7 @@ void fuseBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, m
                     std::string biasTensorName = parentOpIt->getName() + "_bias";
                     mv::Data::TensorIterator biasTensor;
 
-                    if (bias.hasAttr("quantizationParams"))
+                    if (bias.hasAttr("quantParams"))
                         biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData(), bias.get<mv::QuantizationParams>("quantParams")) );
                     else
                         biasTensor = dm.defineTensor(mv::Tensor(biasTensorName, bias.getShape(), bias.getDType(), bias.getOrder(), bias.getData()) );
