@@ -386,7 +386,7 @@
 				"name": "VPU_CMX_NN",
 				"alignment": 64,
 				"dataTypeSize": 2,
-				"size": 3760128
+				"size": 3604480
 			},
 
 			{
