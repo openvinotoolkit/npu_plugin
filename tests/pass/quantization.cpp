@@ -46,17 +46,7 @@ TEST(quantization, case_conv)
 
     mv::pass::PassRegistry::instance().find("AssignUniqueOpId")->run(om, desc, dummyPassDesc, compOutput);
     mv::pass::PassRegistry::instance().find("ConvertOpsToTasks")->run(om, desc, dummyPassDesc, compOutput);
-    for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
-    {
-        if(dpuTask->getOpType() == "DPUTask")
-        {
-          //these two workarounds should be handled internally:
-          // 1. defining quantization params when generating output tensor
-          // 2. bias attribute should be passed from op to it's dputask
-          auto conv_output = dpuTask->getOutputTensor(0);
-          om.addAttr(dpuTask, "bias", biasTensor->getName());
-        }
-    }
+    mv::pass::PassRegistry::instance().find("ComputeTensorsQuantParams")->run(om, desc, dummyPassDesc, compOutput);
     mv::pass::PassRegistry::instance().find("GenerateWeightsTables")->run(om, desc, dummyPassDesc, compOutput);
 
     //ref data is based on result on POC test res2a_branch2a/quantized_model.tflite

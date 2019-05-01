@@ -93,6 +93,7 @@
         "Singular": [
             "StoreLayerSplitStrategy",
             "ConvertOpsToTasks",
+            "ComputeTensorsQuantParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
             "GenerateSparsityMaps",

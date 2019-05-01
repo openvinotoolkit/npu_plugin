@@ -87,122 +87,17 @@ void populateWeightsTablesSparsityPointers(std::vector<int64_t>& weightsTableDat
     //Nothing to do for element wise
 
 }
-template <class T>
-std::vector<T> extendToK(size_t size, std::vector<T> value)
-{
-    if (value.size() == 1)
-        return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
-
-    if (value.size() == size)
-        return value;
-
-    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimensions doesn't match size of output_channels or 1",
-                std::to_string(value.size()));
-}
 
 static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
-    auto output = dpuTaskOp->getOutputTensor(0);
-    auto input = dpuTaskOp->getInputTensor(0);
-    auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-    std::vector<int> shift(outputChannels, 0);
-    std::vector<int16_t> mScaled(outputChannels, 0);
-
-    mv::DataModel dm(model);
     mv::OpModel om(model);
+    mv::DataModel dm(model);
+    std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
+    bool isElementWise = (taskOp == "Add" || taskOp == "Subtract" || taskOp == "Multiply");
 
-    if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
-        output->isQuantized() && input->isQuantized())
-    {
-        // Quantization for Gemmlowp output
-        // S1 = weight scale
-        // S2 = input activation scale
-        // S3 = output activation scale
-        // m  = (S1 * S2)/S3, scale for MAC output
-        // zeroPointScaled = output zero point scaled to MAC output precision
-        // biasScaled = bias scaled to MAC output precision
+    if (isElementWise)
+        return;
 
-        auto inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-        //inputQuantization.extendParamsToOutputChannelSize(outputChannels);
-
-        auto scale = extendToK(outputChannels, inputQuantization.getScale());
-        std::vector<float> S2(scale.begin(), scale.end());
-
-        auto outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-        scale = extendToK(outputChannels, outputQuantization.getScale());
-        std::vector<float> S3(scale.begin(), scale.end());
-
-        auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint());
-        std::vector<int32_t> zeroPoint(zeroPointU.begin(), zeroPointU.end());
-
-        std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
-        bool isPooling = taskOp == "MaxPool" || taskOp == "AvgPool";
-        //Workaround for HW bug #227
-        if (isPooling)
-        {
-            auto inZP = extendToK(outputChannels, inputQuantization.getZeroPoint());
-            std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
-            std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
-        }
-
-        auto m = S2;
-        if (dpuTaskOp->inputSlots() > 1)
-        {
-            auto weights = dpuTaskOp->getInputTensor(1);
-            auto weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-            scale = extendToK(outputChannels, weightsQuantization.getScale());
-            std::vector<float> S1(scale.begin(), scale.end());
-            //S1*S2
-            std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
-        }
-
-        // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
-
-        // m / S3
-        std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
-
-        //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
-        auto bits = 15;
-        auto mSize = m.size();
-        int exponent;
-        double mantissa;
-
-        for (size_t i = 0; i < mSize; i++)
-        {
-            mantissa = std::frexp(m[i], &exponent);
-            shift[i] = bits - exponent;
-            mScaled[i] = (mantissa * pow(2, bits));
-        }
-        std::vector<int32_t> zeroPointScaled(m.size());
-        std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
-
-        std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
-        std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
-        outputQuantization.quantize(ser_shift, ser_scale);
-
-        if (dpuTaskOp->hasAttr("bias"))
-        {
-            auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
-            auto data = bias->getData();
-            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantParams");
-            //auto Z_bias = biasQuantization.getZeroPoint();
-            //auto S_bias = biasQuantization.getScale();
-            std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
-            bias->setDType(mv::DType("Int32"));
-            bias->populate(data);
-
-        }
-        else
-        {
-            mv::Order order(mv::Order::getColMajorID(1));
-            const std::string biasTensorName = dpuTaskOp->getName() + "_bias";
-            mv::Shape shape({outputChannels});
-            std::vector<int64_t> zeroPointScaled64(zeroPointScaled.begin(), zeroPointScaled.end());
-
-            auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, zeroPointScaled64);
-            om.addAttr(dpuTaskOp, "bias", biasTensor->getName());
-        }
-    }
     std::vector<mv::DataElement> biasData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
     mv::Data::TensorIterator bias;
@@ -212,27 +107,40 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         biasData = bias->getData(); //Bias has the type Int32 in both cases above
     }
 
-    // per channel layout:
-    // 3 -> bias
-    // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
-    // 1 -> SP_PTR
-    // 0 -> DATA_PTR
-    // TODO mult & prelu are currently not implemented
-    for (size_t i = 0; i < weightsTableData.size(); i+=4)
+    mv::QuantizationParams quantParams = {{},{},{},{}};
+    if(dpuTaskOp->getOutputTensor(0)->hasAttr("quantParams"))
     {
-        weightsTableData[i+2] = ((int32_t)mScaled[i/4] << 16) | ((int32_t)shift[i/4]) << 8;
-        if (hasBias)
-            weightsTableData[i+3] = biasData[i/4];
+        quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        if (quantParams.isEmpty() == false){
+            auto mult = quantParams.getMult();
+            auto shift = quantParams.getShift();
+            std::vector<int32_t> mScaled(mult.begin(), mult.end());
+            std::vector<int32_t> mShift(shift.begin(), shift.end());
+            // per channel layout:
+            // 3 -> bias
+            // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
+            // 1 -> SP_PTR
+            // 0 -> DATA_PTR
+            // TODO mult & prelu are currently not implemented
+            for (size_t i = 0; i < weightsTableData.size(); i+=4)
+            {
+                weightsTableData[i+2] = (mScaled[i/4] << 16) | (mShift[i/4]) << 8;
+
+                if (hasBias)
+                    weightsTableData[i+3] = biasData[i/4];
+            }
+
+            if (hasBias)
+            {
+                dm.undefineTensor(bias);
+                dpuTaskOp->erase("bias");
+            }
+        }
     }
 
-    if (hasBias)
-    {
-        dm.undefineTensor(bias);
-        dpuTaskOp->erase("bias");
-    }
 }
 
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -264,8 +172,9 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::Comput
                 populateWeightsTablesDataPointers(weightsTableData, dpuTaskOp, om);
                 populateWeightsTablesSparsityPointers(weightsTableData, dpuTaskOp, om);
                 populateWeightsTablesActivationAndBias(weightsTableData, dpuTaskOp, om);
+                mv::QuantizationParams quantParams = {{},{},{},{}};
 
-                auto weightTable = om.weightsTable(weightsTableData, shape, mv::DType("Int32"), mv::Order("WHCN"), {{},{},{},{}}, kernelWeightsTableName);
+                auto weightTable = om.weightsTable(weightsTableData, shape, mv::DType("Int32"), mv::Order("WHCN"), quantParams, kernelWeightsTableName);
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);

@@ -25,22 +25,8 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
 }
 
 mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale,
-    std::vector<double> min, std::vector<double> max, std::vector<unsigned> shift, std::vector<unsigned> mult): Element("quantParams")
+    std::vector<double> min, std::vector<double> max, std::vector<unsigned> shift, std::vector<unsigned> mult): QuantizationParams(zp, scale, min, max)
 {
-    size_t size = zp.size();
-    if (size != scale.size() || size != min.size() || size != max.size())
-        throw ArgumentError("quantParams", "Quantization params size", "",
-            "Sizes of the different params don't match");
-
-    for (size_t i = 0; i < size; i++)
-        if (max[i] < min[i])
-            throw ArgumentError("quantParams", "Quantization min max params", "max",
-                " Smaller than min " + std::to_string(min[i]));
-
-    set<std::vector<int64_t>>("zeroPoint", zp);
-    set<std::vector<double>>("scale", scale);
-    set<std::vector<double>>("min", min);
-    set<std::vector<double>>("max", max);
     set<std::vector<unsigned>>("shift", shift);
     set<std::vector<unsigned>>("mult", mult);
 }
