@@ -46,6 +46,17 @@ TEST(quantization, case_conv)
 
     mv::pass::PassRegistry::instance().find("AssignUniqueOpId")->run(om, desc, dummyPassDesc, compOutput);
     mv::pass::PassRegistry::instance().find("ConvertOpsToTasks")->run(om, desc, dummyPassDesc, compOutput);
+    for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
+    {
+        if(dpuTask->getOpType() == "DPUTask")
+        {
+          //these two workarounds should be handled internally:
+          // 1. defining quantization params when generating output tensor
+          // 2. bias attribute should be passed from op to it's dputask
+          om.addAttr(dpuTask, "bias", biasTensor->getName());
+        }
+    }
+
     mv::pass::PassRegistry::instance().find("ComputeTensorsQuantParams")->run(om, desc, dummyPassDesc, compOutput);
     mv::pass::PassRegistry::instance().find("GenerateWeightsTables")->run(om, desc, dummyPassDesc, compOutput);
 
@@ -128,9 +139,15 @@ TEST(quantization, case_conv)
             //if (itr-> dpuTask->getName()+"WeightsTable"
             if ((*itr)->getName() == weightTableName)
             {
+
               auto resData = (*itr)->getIntData();
-              for (unsigned i = 0; i < resData.size(); ++i)
-                ASSERT_FLOAT_EQ(resData[i], refData[i]);
+              for (unsigned i = 0; i < resData.size(); i+=4)
+              {
+                //this test only checks what is filled in populateWeightsTablesActivationAndBias function
+                //data_ptr and sparsity_ptr are not set in reference received from POC compiler
+                ASSERT_FLOAT_EQ(resData[i+2], refData[i+2]);
+                ASSERT_FLOAT_EQ(resData[i+3], refData[i+3]);
+              }
             }
           }
 
