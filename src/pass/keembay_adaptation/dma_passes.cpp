@@ -40,6 +40,10 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
     }
     else if(opType.find("Constant") != std::string::npos)
         return false;
+    else if(opType.find("WeightsTable") != std::string::npos)
+        return false;
+    else if(opType.find("SparsityMap") != std::string::npos)
+        return false;
     else if(opType.find("Input") != std::string::npos)
         return false;
     else
