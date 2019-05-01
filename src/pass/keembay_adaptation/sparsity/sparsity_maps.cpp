@@ -125,11 +125,15 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
+    bool enableRealSparsity = false;
+    if (passDesc.hasAttr("enableRealSparsity"))
+        if (passDesc.get<bool>("enableRealSparsity"))
+            enableRealSparsity = true;
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -222,7 +226,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
 
         }
-        if (!fakeSparsity && false)
+        if (!fakeSparsity && enableRealSparsity)
         {
             if (dpuTask->getOpType() == "DPUTask" &&
                 dpuTask->inputSlots() > 1 &&
