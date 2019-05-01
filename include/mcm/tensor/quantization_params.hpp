@@ -10,23 +10,10 @@ namespace mv
 
     class QuantizationParams: public Element
     {
-    private:
-
-    template <class T>
-    std::vector<T> extendToK_(size_t size, std::vector<T> value)
-    {
-        if (value.size() == 1)
-            return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
-
-        if (value.size() == size)
-            return value;
-
-        throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimensions doesn't match size of output_channels or 1",
-                    std::to_string(value.size()));
-    }
     public:
         QuantizationParams(const json::Value& content);
         QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max);
+        QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale, std::vector<double> min, std::vector<double> max, std::vector <unsigned> shift, std::vector<unsigned> mult);
 
         inline std::vector<int64_t> getZeroPoint() const
         {
@@ -48,7 +35,17 @@ namespace mv
             return get<std::vector<double>>("max");
         }
 
-        void extendParamsToOutputChannelSize(const size_t outputChannelSize);
+        inline std::vector<unsigned> getShift() const
+        {
+            return get<std::vector<unsigned>>("shift");
+        }
+
+        inline std::vector<unsigned> getMult() const
+        {
+            return get<std::vector<unsigned>>("mult");
+        }
+
+        void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult);
 
         int64_t getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;

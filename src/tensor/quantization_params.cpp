@@ -24,20 +24,31 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
     set<std::vector<double>>("max", max);
 }
 
-void mv::QuantizationParams::extendParamsToOutputChannelSize(const size_t outputChannelsSize)
+mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale,
+    std::vector<double> min, std::vector<double> max, std::vector<unsigned> shift, std::vector<unsigned> mult): Element("quantParams")
 {
-    auto zeroPoint = get<std::vector<int64_t>>("zeroPoint");
-    if (zeroPoint.size() != outputChannelsSize)
-        set<std::vector<int64_t>>("zeroPoint", extendToK_<int64_t>(outputChannelsSize, zeroPoint));
-    auto scale = get<std::vector<double>>("scale");
-    if (scale.size() != outputChannelsSize)
-        set<std::vector<double>>("scale", extendToK_<double>(outputChannelsSize, scale));
-    auto min = get<std::vector<double>>("min");
-    if (min.size() != outputChannelsSize)
-        set<std::vector<double>>("min", extendToK_<double>(outputChannelsSize, min));
-    auto max = get<std::vector<double>>("max");
-    if (max.size() != outputChannelsSize)
-        set<std::vector<double>>("max", extendToK_<double>(outputChannelsSize, max));
+    size_t size = zp.size();
+    if (size != scale.size() || size != min.size() || size != max.size())
+        throw ArgumentError("quantParams", "Quantization params size", "",
+            "Sizes of the different params don't match");
+
+    for (size_t i = 0; i < size; i++)
+        if (max[i] < min[i])
+            throw ArgumentError("quantParams", "Quantization min max params", "max",
+                " Smaller than min " + std::to_string(min[i]));
+
+    set<std::vector<int64_t>>("zeroPoint", zp);
+    set<std::vector<double>>("scale", scale);
+    set<std::vector<double>>("min", min);
+    set<std::vector<double>>("max", max);
+    set<std::vector<unsigned>>("shift", shift);
+    set<std::vector<unsigned>>("mult", mult);
+}
+
+void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<unsigned> mult)
+{
+    set<std::vector<unsigned>>("shift", shift);
+    set<std::vector<unsigned>>("mult", mult);
 }
 
 int64_t mv::QuantizationParams::getZeroPoint(const size_t channel) const

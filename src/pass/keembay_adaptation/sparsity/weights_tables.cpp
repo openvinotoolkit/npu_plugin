@@ -87,6 +87,18 @@ void populateWeightsTablesSparsityPointers(std::vector<int64_t>& weightsTableDat
     //Nothing to do for element wise
 
 }
+template <class T>
+std::vector<T> extendToK(size_t size, std::vector<T> value)
+{
+    if (value.size() == 1)
+        return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
+
+    if (value.size() == size)
+        return value;
+
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters dimensions doesn't match size of output_channels or 1",
+                std::to_string(value.size()));
+}
 
 static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weightsTableData, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
@@ -111,14 +123,16 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         // biasScaled = bias scaled to MAC output precision
 
         auto inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-        auto scale = inputQuantization.getScale();
+        //inputQuantization.extendParamsToOutputChannelSize(outputChannels);
+
+        auto scale = extendToK(outputChannels, inputQuantization.getScale());
         std::vector<float> S2(scale.begin(), scale.end());
 
         auto outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-        scale = outputQuantization.getScale();
+        scale = extendToK(outputChannels, outputQuantization.getScale());
         std::vector<float> S3(scale.begin(), scale.end());
 
-        auto zeroPointU =  outputQuantization.getZeroPoint();
+        auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint());
         std::vector<int32_t> zeroPoint(zeroPointU.begin(), zeroPointU.end());
 
         std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
@@ -126,7 +140,7 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         //Workaround for HW bug #227
         if (isPooling)
         {
-            auto inZP = inputQuantization.getZeroPoint();
+            auto inZP = extendToK(outputChannels, inputQuantization.getZeroPoint());
             std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
             std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
         }
@@ -136,7 +150,7 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         {
             auto weights = dpuTaskOp->getInputTensor(1);
             auto weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-            scale = weightsQuantization.getScale();
+            scale = extendToK(outputChannels, weightsQuantization.getScale());
             std::vector<float> S1(scale.begin(), scale.end());
             //S1*S2
             std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
@@ -161,6 +175,10 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         }
         std::vector<int32_t> zeroPointScaled(m.size());
         std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
+
+        std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
+        std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
+        outputQuantization.quantize(ser_shift, ser_scale);
 
         if (dpuTaskOp->hasAttr("bias"))
         {

@@ -109,9 +109,9 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_size_t.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_string.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_unsigned.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned_short.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
     
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
@@ -293,13 +293,13 @@ SET(pass
     
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_control_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/convert_to_task_graph.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/extend_quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_order_conversion.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/insert_barrier_tasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dma_passes.cpp"
