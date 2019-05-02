@@ -58,6 +58,7 @@ namespace mv
         //T max_y() const { return _min_y + _n_elem_y - 1; }
         T max_x() const { return _min_x + _n_elem_x; }
         T max_y() const { return _min_y + _n_elem_y; }
+        T area() const { return _n_elem_x*_n_elem_y; }
     };
 
     using Rectangle = typename mv::Rectangle_<int>;

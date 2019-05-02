@@ -514,15 +514,19 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         wl_min_y = std::numeric_limits<xyz_type>::max();
         wl_max_x = -1;
         wl_max_y = -1;
+        int workload_points = 0;
 
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
 
             std::cout << "node number is " << i << std::endl;
+            std::cout << "total number of nodes  is " << metisGraph_->m_numberTensorVertices << ' '<< metisGraph_->m_numberTensorEdges <<std::endl;
 
             std::cout << "node number " << i << " is in partition " << std::to_string(metisGraph_->part[i]) << std::endl;
+            std::cout<< "some values: " <<metisGraph_->node_coords[i].area() <<' '<< metisGraph_->m_xDim <<' '<<metisGraph_->m_yDim << std::endl;
             
             if (metisGraph_->part[i] == workload) {
-                
+                workload_points++;
+
                 int min_x = metisGraph_->node_coords[i].min_x();
                 int max_x = metisGraph_->node_coords[i].max_x();
                 int min_y = metisGraph_->node_coords[i].min_y();
@@ -535,6 +539,31 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
                 wl_min_y = (std::min)(wl_min_y, static_cast<xyz_type>(min_y));
                 wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
             }
+        }
+        /*------------------------------------------------------------------------------------------------------------
+        1. check if the area of the rectangle and number of elements match, if matches, then the polygon is a rectangle
+        2. If isn't equal, missing part of the rectangle could be at the vertex or/and along the edges
+        3. get the list of 'interesting points' - these points are the ones that are 1) closest to the missing vertices or/and 2) the inner points
+        on the (cut) edge. Below is a possible metis partition with AD edge of the rectangle ABCD that has A1A2 cut out and A3D cut out. The interesting points are at the corners
+        which are A1, A2, A3, and C1
+        5. 
+
+        A* * * * * * *A1       A2* * * *A3      D
+         *           *           *     *
+         *           * * * * * * *     * * * * *C1
+         *                                     *
+        B* * * * * * * * * * * * * * * * * * * *C
+        ------------------------------------------------------------------------------------------------------------
+        */
+        { 
+            // check if the area is equal to the number of points            if (workloads_[workload].area == metisGraph_->part
+        std::cout<<" number of points in the workload: "<<workload_points<<" "<<workload<<std::endl;
+        std::cout<< "area: " <<workloads_[workload].area()<<std::endl;
+        if (workload_points != workloads_[workload].area())
+        {
+            // find interesting points
+
+        }
         }
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
         pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
