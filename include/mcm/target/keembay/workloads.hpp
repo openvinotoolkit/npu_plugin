@@ -129,8 +129,8 @@ namespace mv
                     /*First row where node number is even i.e. 2,4,6... */
                     if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  { 
 
-                        min_x = (k/2) * MPEMode.first;
-                        min_y = j * MPEMode.second;
+                        min_x = (k/2) * MPEMode.second;
+                        min_y = j * MPEMode.first;
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
                                                 
                         vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
@@ -165,8 +165,8 @@ namespace mv
             
                     vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
 
-                    int min_x = k * MPEMode.first;
-                    int min_y = j * MPEMode.second;
+                    int min_x = k * MPEMode.second;
+                    int min_y = j * MPEMode.first;
 
                     node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
                  
