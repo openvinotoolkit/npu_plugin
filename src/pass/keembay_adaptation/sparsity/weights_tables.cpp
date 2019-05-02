@@ -98,6 +98,22 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
     if (isElementWise)
         return;
 
+    mv::QuantizationParams quantParams = {{},{},{},{}};
+    auto output = dpuTaskOp->getOutputTensor(0);
+    auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+    std::vector<int32_t> mScaled(outputChannels, 0);
+    std::vector<int32_t> mShift(outputChannels, 0);
+    if(output->hasAttr("quantParams"))
+    {
+        quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        if (quantParams.isEmpty() == false){
+            auto mult = quantParams.getMult();
+            auto shift = quantParams.getShift();
+            std::transform(mScaled.begin(), mScaled.end(), mult.begin(), mScaled.begin(), std::plus<int32_t>());
+            std::transform(mShift.begin(), mShift.end(), shift.begin(), mShift.begin(), std::plus<int32_t>());
+        }
+    }
+
     std::vector<mv::DataElement> biasData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
     mv::Data::TensorIterator bias;
@@ -107,37 +123,25 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         biasData = bias->getData(); //Bias has the type Int32 in both cases above
     }
 
-    mv::QuantizationParams quantParams = {{},{},{},{}};
-    if(dpuTaskOp->getOutputTensor(0)->hasAttr("quantParams"))
+    // per channel layout:
+    // 3 -> bias
+    // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
+    // 1 -> SP_PTR
+    // 0 -> DATA_PTR
+    // TODO mult & prelu are currently not implemented
+    for (size_t i = 0; i < weightsTableData.size(); i+=4)
     {
-        quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
-        if (quantParams.isEmpty() == false){
-            auto mult = quantParams.getMult();
-            auto shift = quantParams.getShift();
-            std::vector<int32_t> mScaled(mult.begin(), mult.end());
-            std::vector<int32_t> mShift(shift.begin(), shift.end());
-            // per channel layout:
-            // 3 -> bias
-            // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
-            // 1 -> SP_PTR
-            // 0 -> DATA_PTR
-            // TODO mult & prelu are currently not implemented
-            for (size_t i = 0; i < weightsTableData.size(); i+=4)
-            {
-                weightsTableData[i+2] = (mScaled[i/4] << 16) | (mShift[i/4]) << 8;
+        weightsTableData[i+2] = (mScaled[i/4] << 16) | (mShift[i/4]) << 8;
 
-                if (hasBias)
-                    weightsTableData[i+3] = biasData[i/4];
-            }
-
-            if (hasBias)
-            {
-                dm.undefineTensor(bias);
-                dpuTaskOp->erase("bias");
-            }
-        }
+        if (hasBias)
+            weightsTableData[i+3] = biasData[i/4];
     }
 
+    if (hasBias)
+    {
+        dm.undefineTensor(bias);
+        dpuTaskOp->erase("bias");
+    }
 }
 
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
