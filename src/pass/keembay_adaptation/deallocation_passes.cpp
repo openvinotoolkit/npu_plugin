@@ -48,7 +48,8 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             continue;
 
         // Constant tensors shall not be deallocated (will be DMAed, then those will be deallocated)
-        if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement")
+        if(inputOp->getOpType() == "Constant" || inputOp->getOpType() == "ConstantInt" || inputOp->getOpType() == "ConstantDataElement" ||
+            inputOp->getOpType() == "WeightsTable" || inputOp->getOpType() == "SparsityMap")
             continue;
 
         auto opId = inputOp->get<unsigned>("opId");
