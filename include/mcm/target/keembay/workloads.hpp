@@ -41,10 +41,10 @@ namespace mv
      *         0    4     8    12     
      *        
      *    0    0----2-----4----6 //Even numbers
-     *         |    |     |    | //Odd numbers
-     *    4    1----3-----5----7
      *         |    |     |    | 
-     *    8    10---11----12---13
+     *    4    1----3-----5----7 //Odd numbers
+     *         |    |     |    | 
+     *    8    10---11----12---13 // Incrementing numbers
      *         |    |     |    | 
      *    12   15---16----17---18
 
@@ -64,14 +64,18 @@ namespace mv
         idx_t m_numberTensorEdges;
         int m_xDim;
         int m_yDim;
+        int n_elem_y;
+        int n_elem_x;
+        double tensorXDim;
+        double tensorYDim;
 
         std::unique_ptr<mv::Rectangle[]>  node_coords;
 
         MetisGraphStructure(mv::Shape outputTensor, std::pair <int,int> MPEMode) {
 
             /*Shape of output tensor x-y*/
-            double tensorXDim = outputTensor[0]; 
-            double tensorYDim = outputTensor[1];
+            tensorXDim = outputTensor[0]; 
+            tensorYDim = outputTensor[1];
 
             /*Number of vertices and edges in METIS lattic graph of tensor*/
             m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);    
@@ -99,8 +103,8 @@ namespace mv
              * (2) We populate (x,y) coordinates for the individual lattic nodes here with the rectangle class. 
              * 
             */
-            int n_elem_y;
-            int n_elem_x;
+            //int n_elem_y;
+            //int n_elem_x;
             int nodeIndex = 0; /* This corresponds to the numbering format in the lattic structure*/
 
             /* We need to handle the first two rows of the lattic first, see node numbering in the lattic example above*/
