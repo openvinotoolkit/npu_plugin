@@ -63,7 +63,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
             idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
-
+            nWorkloads = 3;
             // Partition tensor into workloads
             for (std::string algorithm : algorithms)
             {

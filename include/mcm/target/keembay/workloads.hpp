@@ -117,7 +117,7 @@ namespace mv
                     int min_x;
                     int min_y;
                     
-                    if (k < (m_xDim*2)-2) //|| (!fmod(tensorXDim,MPEMode.second)))
+                    if ((k < (m_xDim*2)-2) || (!fmod(tensorXDim,MPEMode.second)))
                         n_elem_x = MPEMode.second;
                     else 
                         n_elem_x = (int)tensorXDim%MPEMode.second;
