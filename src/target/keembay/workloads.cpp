@@ -508,9 +508,9 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         xyz_type& wl_min_x = workloads_[workload].MinX;
         xyz_type& wl_min_y = workloads_[workload].MinY;
         xyz_type& wl_max_x = workloads_[workload].MaxX;
-        xyz_type& wl_max_y = workloads_[workload].MaxY;
+        xyz_type& wl_max_y = workloads_[workload].MaxY; // all zeros
 
-        wl_min_x = std::numeric_limits<xyz_type>::max();
+        wl_min_x = std::numeric_limits<xyz_type>::max(); // set wl_min x to 32767
         wl_min_y = std::numeric_limits<xyz_type>::max();
         wl_max_x = -1;
         wl_max_y = -1;
@@ -518,11 +518,11 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
 
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
 
-            std::cout << "node number is " << i << std::endl;
-            std::cout << "total number of nodes  is " << metisGraph_->m_numberTensorVertices << ' '<< metisGraph_->m_numberTensorEdges <<std::endl;
+//            std::cout << "node number is " << i << std::endl;
+//            std::cout << "total number of nodes  is " << metisGraph_->m_numberTensorVertices << ' '<< metisGraph_->m_numberTensorEdges <<std::endl;
 
-            std::cout << "node number " << i << " is in partition " << std::to_string(metisGraph_->part[i]) << std::endl;
-            std::cout<< "some values: " <<metisGraph_->node_coords[i].area() <<' '<< metisGraph_->m_xDim <<' '<<metisGraph_->m_yDim << std::endl;
+//            std::cout << "node number " << i << " is in partition " << std::to_string(metisGraph_->part[i]) << std::endl;
+//            std::cout<< "some values: " <<metisGraph_->node_coords[i].area() <<' '<< metisGraph_->m_xDim <<' '<<metisGraph_->m_yDim << std::endl;
             
             if (metisGraph_->part[i] == workload) {
                 workload_points++;
@@ -540,6 +540,26 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
                 wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
             }
         }
+
+            wl_max_x = wl_max_x - 1;
+            wl_max_y = wl_max_y - 1;
+        //    wl_max_x = wl_max_x - 1;
+        //    wl_max_x = wl_max_x - 1;
+        /* Need to detect if we are at the edge of tensor, if we are then subtract one as pixels start at 0*/
+        //if(wl_max_x == metisGraph_->tensorXDim) 
+        //    wl_max_x = wl_max_x - 1;
+        
+        //if(wl_max_y == metisGraph_->tensorYDim)
+        //    wl_max_y = wl_max_y - 1;
+        
+        /*Need to detect if the workload border is in the middle of tensor, if so then subtract n_elem_x or n_elem_y */
+     //   if((wl_max_x < metisGraph_->tensorXDim) && (wl_max_x <  (metisGraph_->tensorXDim-1)))
+     //       wl_max_x = wl_max_x - metisGraph_->n_elem_x;
+        
+     //   if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)))
+     //       wl_max_y = wl_max_y - metisGraph_->n_elem_y;
+
+
         /*------------------------------------------------------------------------------------------------------------
         1. check if the area of the rectangle and number of elements match, if matches, then the polygon is a rectangle
         2. If isn't equal, missing part of the rectangle could be at the vertex or/and along the edges
@@ -565,6 +585,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
 
         }
         }
+
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
         pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));

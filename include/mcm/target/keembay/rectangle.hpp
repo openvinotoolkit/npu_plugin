@@ -54,8 +54,6 @@ namespace mv
         T min_y() const { return _min_y; }
         T n_elem_x() const { return _n_elem_x; }
         T n_elem_y() const { return _n_elem_y; }
-        //T max_x() const { return _min_x + _n_elem_x - 1; }
-        //T max_y() const { return _min_y + _n_elem_y - 1; }
         T max_x() const { return _min_x + _n_elem_x; }
         T max_y() const { return _min_y + _n_elem_y; }
         T area() const { return _n_elem_x*_n_elem_y; }
