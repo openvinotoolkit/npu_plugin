@@ -479,18 +479,15 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
 
 void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass) 
 {
-    
-    /*In some cases METIS might return a number or partitions (workloads) less than you specified (i.e. small tensor and large number of partitions*/
-    /*This needs to be handled here for now assuming number of partitions is the number or workloads*/
-            
+                
     for(int workload = 0; workload < nWorkloads; workload++) { 
         
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
         workloads_[workload].workloadID = workload;
-        workloads_[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
-        workloads_[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
-        workloads_[workload].MaxZ = tensorShape_[2];  //output channels
+        workloads_[workload].clusterID = 0;           /*Deliverbale is 1 cluster*/
+        workloads_[workload].MinZ = 0;                
+        workloads_[workload].MaxZ = tensorShape_[2]-1;  //output channels
         workloads_[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
         workloads_[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
         workloads_[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
@@ -534,24 +531,37 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         }
 
         /* Need to detect if we are at the edge of tensor, if we are then subtract one as pixels start at 0*/
+
+        /*At the edge of the x dimension*/
         if(wl_max_x == metisGraph_->tensorXDim) 
             wl_max_x = wl_max_x - 1;
         
+        /*At the edge of the y dimension*/
         if(wl_max_y == metisGraph_->tensorYDim)
             wl_max_y = wl_max_y - 1;
         
-        /*Need to detect if the workload border is in the middle of tensor, if so then subtract n_elem_x or n_elem_y */
+        /*Now Need to detect if the workload border is in the middle of tensor, if so then subtract n_elem_x or n_elem_y */
+
+        /*Workload border in the middle of the tensor therefore subtract 1 from x dimension*/
         if((wl_max_x < metisGraph_->tensorXDim) && (wl_max_x <  (metisGraph_->tensorXDim-1)))
-            wl_max_x = wl_max_x - metisGraph_->n_elem_x;
+            wl_max_x = wl_max_x - 1;
         
-        if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)))
-            wl_max_y = wl_max_y - metisGraph_->n_elem_y;
+        /*Workload border in the middle of the tensor therefore subtract 1 from max_y and add 1 to min_y (think bottom left)*/
+        if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y !=  0)) { 
+             wl_max_y = wl_max_y - 1;
+             //wl_min_y = wl_min_y + 1;
+        }
+
+        /*Workload border in the middle of the tensor therefore subtract 1 from max_y and no need to change min_y as it is already 0 (think top left)*/
+        if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) { 
+             wl_max_y = wl_max_y - 1;
+        }
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
-        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
-        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
+        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
         pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads_[workload].MaxY));
+        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
         pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
         pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
     }
