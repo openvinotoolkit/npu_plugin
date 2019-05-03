@@ -315,21 +315,28 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     return toBuild;
 }
 
+template <typename T>
+std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::DType dtype)
+{
+    unsigned dataSize = origData.size();
+    unsigned origDataSize = dtype.getSizeInBits();
+    unsigned nElementToPack = 64 / origDataSize;
+    unsigned finalLength = dataSize / nElementToPack;
+
+    std::vector<long unsigned int> toReturn(finalLength, 0);
+
+    for(unsigned i = 0; i < finalLength; ++i)
+        for(unsigned j = 0; j < nElementToPack; ++j)
+            toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
+
+    return toReturn;
+}
+
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
-    // NEW approach
-    if (t.isDoubleType())
-    {
-        auto tensorData = t.getDoubleData();
-        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
-    }
-    else
-    {
-        auto tensorData = t.getIntData();
-        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
-    }
+    toBuild->data = packToInt64(t.getData(), t.getDType());
     toBuild->length = t.getShape().totalSize();
     toBuild->underlying_type = convertDtype(t.getDType());
 
