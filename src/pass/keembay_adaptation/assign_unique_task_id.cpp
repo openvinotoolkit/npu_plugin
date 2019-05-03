@@ -25,11 +25,9 @@ void assignUniqueTaskIdFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
     unsigned currentId = 1;
 
-    auto ops = om.topologicalSort();
-
-    for(auto operationIt = ops.begin(); operationIt != ops.end(); ++operationIt)
+    for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
     {
-        if((*operationIt)->getOpType().find("Task") != std::string::npos)
-            (*operationIt)->set<unsigned>("taskId", currentId++);
+        if((operationIt)->getOpType().find("Task") != std::string::npos)
+            (operationIt)->set<unsigned>("taskId", currentId++);
     }
 }

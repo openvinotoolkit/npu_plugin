@@ -132,9 +132,9 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
 
-    auto ops = opModel.topologicalSort();
-    for(auto opIt = ops.begin(); opIt != ops.end(); ++opIt)
-        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, *opIt);
+    //auto ops = opModel.topologicalSort();
+    for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
+        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
 
     return toBuild;
 }
