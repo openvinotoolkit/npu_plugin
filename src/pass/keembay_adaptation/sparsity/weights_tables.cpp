@@ -34,7 +34,7 @@ void populateWeightsTablesDataPointers(std::vector<int64_t>& weightsTableData, m
         }
         else
         {
-            unsigned offset = 0; // NOTE: Implementation defined
+            unsigned offset = 1024; // NOTE: Implementation defined
             unsigned increment = weights->getShape()[0];
             for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
                   weightsTableData[i] = offset;
@@ -43,7 +43,7 @@ void populateWeightsTablesDataPointers(std::vector<int64_t>& weightsTableData, m
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv")
     {
         auto weights = dpuTaskOp->getInputTensor(1);
-        unsigned offset = 0; // NOTE: Implementation defined
+        unsigned offset = 1024; // NOTE: Implementation defined
         unsigned increment = weights->getShape()[0]; //WS dimension
         for (size_t i = 0; i < weightsTableData.size(); i+=4, offset +=increment)
               weightsTableData[i] = offset;
@@ -68,6 +68,12 @@ void populateWeightsTablesSparsityPointers(std::vector<int64_t>& weightsTableDat
             // TODO: Not handling at the moment
         }
         // Nothing to do here if is a dense ZMajor convolution
+        else
+        {
+            unsigned offset = 16777215; // NOTE: Implementation defined
+            for (size_t i = 0; i < weightsTableData.size(); i+=4)
+                  weightsTableData[i+1] = offset;
+        }
     }
     else if(dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution" || dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"  || dpuTaskOp->get<std::string>("taskOp") == "MaxPool")
     {
