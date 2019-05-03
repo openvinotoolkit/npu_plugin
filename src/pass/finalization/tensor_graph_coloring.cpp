@@ -487,10 +487,16 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string
     }
     //printGraph("BestFitDirectedGraphFinal", directedGraph);
 
+    mv::DataModel dm(model);
     //set address in tensors
     for (mv::TensorInterferenceGraph::node_dfs_iterator it = g.node_begin(); it != g.node_end(); ++it)
     {
-        model.getTensor((*it).name)->setAddress((*it).address);
+        model.getTensor((*it).name)->setAddress((*it).address); //still needed to set sparsityMap and storageElement addresses
+        auto t = model.getTensor((*it).name);
+        auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
+        tensorBufferIt->setOffset((*it).address);
     }
 
 }
