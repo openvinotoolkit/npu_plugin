@@ -362,7 +362,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
                 toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
             else if(opType.find("DMA") != std::string::npos)
                 toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            else if(opType.find("Controller") != std::string::npos)
+            else if(opType.find("BarrierTask") != std::string::npos)
                 toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
         }
     }
