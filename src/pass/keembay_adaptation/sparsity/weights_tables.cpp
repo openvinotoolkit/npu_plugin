@@ -7,9 +7,6 @@
 #include <math.h>
 
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void populateWeightsTablesDataPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void populateWeightsTablesSparsityPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void populateWeightsTablesActivationBiasFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -169,7 +166,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
                 // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
                 // 1 -> SP_PTR
                 // 0 -> DATA_PTR
-                mv::Shape shape({outputChannels, 1, 1, 4});
+                mv::Shape shape({4, 1, 1, outputChannels});
 
                 std::vector<int64_t> weightsTableData(shape.totalSize(), 0);
 
@@ -178,7 +175,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
                 populateWeightsTablesActivationAndBias(weightsTableData, dpuTaskOp, om);
                 mv::QuantizationParams quantParams = {{},{},{},{}};
 
-                auto weightTable = om.weightsTable(weightsTableData, shape, mv::DType("Int32"), mv::Order("WHCN"), quantParams, kernelWeightsTableName);
+                auto weightTable = om.weightsTable(weightsTableData, shape, mv::DType("Int32"), mv::Order("NCHW"), quantParams, kernelWeightsTableName);
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
