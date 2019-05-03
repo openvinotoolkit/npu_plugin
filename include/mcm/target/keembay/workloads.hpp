@@ -199,11 +199,33 @@ namespace mv
         int8_t workloadID = 0;
         int16_t area()
         {
-          return (MaxX - MinX) * (MaxY - MinY);
+          return (MaxX - MinX + 1) * (MaxY - MinY + 1);
         }
         std::vector<mv::Rectangle> rect_list;        
         std::vector<std::pair<int16_t, int16_t>> points;        
+        int16_t pointsTotal()
+        {
+         return points.size();
+        }
         std::vector<std::pair<int16_t, int16_t>> vertices;        
+        void setMinMaxAndVertices()
+        {
+            MinX = INT16_MAX;
+            MaxX = 0;
+            MinY = INT16_MAX;
+            MaxY = 0;
+            for(auto it = points.begin(); it != points.end(); it++)
+            {
+                MinX = std::min(MinX,it->first);
+                MaxX = std::max(MaxX, it->first);
+                MinY = std::min(MinY,it->second);
+                MaxY = std::max(MaxY, it->second);
+            }
+            vertices.push_back(std::make_pair(MinX,MinY));
+            vertices.push_back(std::make_pair(MinX,MaxY));
+            vertices.push_back(std::make_pair(MaxX,MinY));
+            vertices.push_back(std::make_pair(MaxX,MaxY));
+        }
     };
 
     class Workloads : public LogSender
@@ -229,6 +251,8 @@ namespace mv
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        void polygonWorkloadSplit(mv::Workload& workload);
+        void workloadSplitHelper(mv::Workload& workload,std::pair<std::pair<int16_t, int16_t>,idx_t>& interesting_point);
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;

@@ -511,7 +511,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         wl_min_y = std::numeric_limits<xyz_type>::max();
         wl_max_x = -1;
         wl_max_y = -1;
-        int16_t workload_points = 0;
+//        int16_t workload_points = 0;
         int16_t point_counter = 0;
 
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
@@ -530,21 +530,16 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
                 int max_y = metisGraph_->node_coords[i].max_y();
                 //std::cout<<"The minx, max x, miny, maxy, node: "<<min_x<<' '<<min_y<<' '<<max_x<<' '<<max_y<<std::endl;
                 workloads_[workload].points.push_back(std::make_pair(min_x,min_y));
-                workloads_[workload].points.push_back(std::make_pair(min_x,max_y));
-                workloads_[workload].points.push_back(std::make_pair(max_x,min_y));
-                workloads_[workload].points.push_back(std::make_pair(max_x,max_y));
-                if(min_x == 0 && max_y == 32)
-                {
-                    std::cout<<"I am inside"<<std::endl;
-                }
+                workloads_[workload].points.push_back(std::make_pair(min_x,max_y-1));
+                workloads_[workload].points.push_back(std::make_pair(max_x-1,min_y));
+                workloads_[workload].points.push_back(std::make_pair(max_x-1,max_y-1));
                 // NB: guard calling to std::min/max with parentheses,
                 //     as they may mess with same-named macro on Windows
                 wl_min_x = (std::min)(wl_min_x, static_cast<xyz_type>(min_x));
                 wl_max_x = (std::max)(wl_max_x, static_cast<xyz_type>(max_x));
                 wl_min_y = (std::min)(wl_min_y, static_cast<xyz_type>(min_y));
                 wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
-
-                workload_points++;
+//                workloads_[workload].pointsTotal++;
                 point_counter = point_counter + 2;
             }
         }
@@ -573,17 +568,34 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) { 
              wl_max_y = wl_max_y - 1;
         }
-            wl_max_x = 28;
-            wl_max_y = 32;
-            wl_min_x = 0;
-            wl_min_y = 0;
+//            wl_max_x = 27;
+//            wl_max_y = 31;
+//            wl_min_x = 0;
+//            wl_min_y = 0;
         
 
         workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_min_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_max_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_min_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_max_y));
-        /*------------------------------------------------------------------------------------------------------------
+
+        mv::Workloads::polygonWorkloadSplit(workloads_[workload]);
+
+
+        pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
+        pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
+        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
+        pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads_[workload].MaxY));
+        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
+        pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
+        pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
+    }
+}
+
+void mv::Workloads::polygonWorkloadSplit(mv::Workload& workload)
+{
+
+    /*------------------------------------------------------------------------------------------------------------
         1. check if the area of the rectangle and number of elements match, if matches, then the polygon is a rectangle
         2. If isn't equal, missing part of the rectangle could be at the vertex or/and along the edges
         3. get the list of 'interesting points' - these points are the ones that are 1) closest to the missing vertices or/and 2) the inner points
@@ -598,67 +610,109 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         B* * * * * * * * * * * * * * * * * * * *C
         ------------------------------------------------------------------------------------------------------------
         */
-            // check if the area is equal to the number of points            if (workloads_[workload].area == metisGraph_->part
-        std::cout<<" number of points in the workload: "<<workload_points<<" "<<workload<<std::endl;
-        std::cout<< "area: " <<workloads_[workload].area()<<std::endl;
-        std::vector<std::pair<int16_t, int16_t>> points_not_in_wl;
-        std::vector<std::pair<int16_t, int16_t>> interesting_points;
-        int area = workloads_[workload].area();
-        if (16*workload_points != workloads_[workload].area())
+    // check if the area is equal to the number of points            if (workloads_[workload].area == metisGraph_->part
+    std::cout << " number of points in the workload: " << 4*workload.pointsTotal() << " " <<std::endl;
+    std::cout << "area: " << workload.area() << std::endl;
+    std::vector<std::pair<int16_t, int16_t>> points_not_in_wl;
+    //std::vector<std::pair<int16_t, int16_t>> interesting_points;
+    std::vector<std::pair<std::pair<int16_t, int16_t>,idx_t>> interesting_points;
+    //int area = workload.area();
+    if (4*workload.pointsTotal() != workload.area())
+    {
+        // find interesting points
+        for (auto it = begin(workload.vertices); it != end(workload.vertices); ++it)
         {
-            // find interesting points
-            for (auto it = begin (workloads_[workload].vertices); it != end (workloads_[workload].vertices); ++it)
+            if (std::find(workload.points.begin(), workload.points.end(), *it) == workload.points.end())
+            // for (auto all_points_it = begin (workloads_[workload].points); it != end (workloads_[workload].points); ++all_points_it)
             {
-                if(std::find(workloads_[workload].points.begin(), workloads_[workload].points.end(), *it ) == workloads_[workload].points.end()) 
-               // for (auto all_points_it = begin (workloads_[workload].points); it != end (workloads_[workload].points); ++all_points_it)
+                //if (*it != *all_points_it)
                 {
-                    //if (*it != *all_points_it)
-                    {
-                        points_not_in_wl.push_back(*it);
-                    }
+                    points_not_in_wl.push_back(*it);
                 }
             }
         }
-        
-        // have to add the else case of area = no. of points
-        // interesting points calculation
-        int16_t diff1, diff2;
-        std::pair<int16_t, int16_t> save1, save2;
-        for (auto it = points_not_in_wl.begin(); it != points_not_in_wl.end(); it++)
-        {
-            diff1 = INT16_MAX;
-            diff2 = INT16_MAX;
-            for (auto all_it = workloads_[workload].points.begin(); all_it != workloads_[workload].points.end(); all_it++)
-            {
-                if(it->first == all_it->first)
-                {
-                    if (diff1 > abs(it->second - all_it->second))
-                    {
-                        diff1 = abs(it->second - all_it->second);
-                        save1 = *all_it;
-                    }
-                    
-                } 
-                else if (it->second == all_it->second) {
-                    if (diff2 > abs(it->first - all_it->first))
-                    {
-                        diff2 = abs(it->first - all_it->first);
-                        save2 = *all_it;
-                    }
-                }
-            }
-            interesting_points.push_back(save1);
-            interesting_points.push_back(save2);
-        }
-
-        pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
-        pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
-        pass.log(mv::Logger::MessageType::Debug, " min_x: " + std::to_string(workloads_[workload].MinX));
-        pass.log(mv::Logger::MessageType::Debug, " max_y: " + std::to_string(workloads_[workload].MaxY));
-        pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
-        pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
-        pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
     }
+    std::cout<<" to see the points_not_in_wl"<<std::endl;
+
+    // have to add the else case of area = no. of points
+    // interesting points calculation
+    int16_t diff1, diff2;
+    std::pair<int16_t, int16_t> save1, save2;
+    for (auto it = points_not_in_wl.begin(); it != points_not_in_wl.end(); it++)
+    {
+        diff1 = INT16_MAX;
+        diff2 = INT16_MAX;
+        for (auto all_it = workload.points.begin(); all_it != workload.points.end(); all_it++)
+        {
+            if (it->first == all_it->first)
+            {
+                if (diff1 > abs(it->second - all_it->second))
+                {
+                    diff1 = abs(it->second - all_it->second);
+                    save1 = *all_it;
+                }
+            }
+            else if (it->second == all_it->second)
+            {
+                if (diff2 > abs(it->first - all_it->first))
+                {
+                    diff2 = abs(it->first - all_it->first);
+                    save2 = *all_it;
+                }
+            }
+        }
+        interesting_points.push_back(std::make_pair(save1,0));
+        interesting_points.push_back(std::make_pair(save2,0));
+        std::cout<<" Check point"<<std::endl;
+    }
+    for (auto int_it = interesting_points.begin(); int_it != interesting_points.end(); int_it++)
+    {
+        mv::Workloads::workloadSplitHelper(workload, *int_it);
+    }
+}
+
+void mv::Workloads::workloadSplitHelper(mv::Workload& workload, std::pair<std::pair<int16_t, int16_t>,idx_t>& interesting_point)
+{
+    interesting_point.second++;
+    mv::Workload workload_partition_1, workload_partition_2;
+    // compared to POC, a change is made here to include the comparison of workload min and max values. 
+    // two possible scenarios: split along X or Y (== comparison along Y and X)
+    // split along X is needed, if the interesting point is on the workload Ymin or Ymax
+    // split along Y is needed, if the interesting point is on the workload Xmin or Xmax
+    //*************************
+    // how is POC working when the interesting point is at Ymax, which requires splitting along X and that doesn't make sense
+    //*********************
+    if(workload.MinX == interesting_point.first.first or workload.MaxX == interesting_point.first.first)
+    {
+        for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+        {
+            if (it_all->second > ((float)interesting_point.first.second - 0.5))
+                 workload_partition_1.points.push_back(*it_all);
+        else 
+                 workload_partition_2.points.push_back(*it_all);
+        }
+    }
+    else
+    {
+        for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+        {
+            if (it_all->first > ((float)interesting_point.first.first - 0.5))
+                 workload_partition_1.points.push_back(*it_all);
+        else 
+                 workload_partition_2.points.push_back(*it_all);
+        }
+    }
+
+    workload_partition_1.setMinMaxAndVertices();
+    workload_partition_2.setMinMaxAndVertices();
+
+    // add what happens if the partitions are empty --- same as POC. This can be tricky as the size of hte vector in points total
+    // may be the max number of elements allowed for that vector type
+    if ( workload_partition_1.pointsTotal() == 0 || workload_partition_2.pointsTotal() == 0 )
+        return ;
+    mv::Workloads::polygonWorkloadSplit(workload_partition_1);
+    mv::Workloads::polygonWorkloadSplit(workload_partition_2);
+    
 }
 
 mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
