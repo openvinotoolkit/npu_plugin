@@ -176,6 +176,12 @@ namespace mv
         }
     };
 
+    struct point
+    {
+        int16_t x = 0;
+        int16_t y = 0;
+    };
+
     struct Workload
     {
         MPE_Mode MPEMode;
@@ -196,6 +202,8 @@ namespace mv
           return (MaxX - MinX) * (MaxY - MinY);
         }
         std::vector<mv::Rectangle> rect_list;        
+        std::vector<std::pair<int16_t, int16_t>> points;        
+        std::vector<std::pair<int16_t, int16_t>> vertices;        
     };
 
     class Workloads : public LogSender

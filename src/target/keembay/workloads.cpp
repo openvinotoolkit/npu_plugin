@@ -514,7 +514,8 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         wl_min_y = std::numeric_limits<xyz_type>::max();
         wl_max_x = -1;
         wl_max_y = -1;
-        int workload_points = 0;
+        int16_t workload_points = 0;
+        int16_t point_counter = 0;
 
         for (int i=0; i < metisGraph_->m_numberTensorVertices; i++) {
 
@@ -525,24 +526,41 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
 //            std::cout<< "some values: " <<metisGraph_->node_coords[i].area() <<' '<< metisGraph_->m_xDim <<' '<<metisGraph_->m_yDim << std::endl;
             
             if (metisGraph_->part[i] == workload) {
-                workload_points++;
 
                 int min_x = metisGraph_->node_coords[i].min_x();
                 int max_x = metisGraph_->node_coords[i].max_x();
                 int min_y = metisGraph_->node_coords[i].min_y();
                 int max_y = metisGraph_->node_coords[i].max_y();
-
+                //std::cout<<"The minx, max x, miny, maxy, node: "<<min_x<<' '<<min_y<<' '<<max_x<<' '<<max_y<<std::endl;
+                workloads_[workload].points.push_back(std::make_pair(min_x,min_y));
+                workloads_[workload].points.push_back(std::make_pair(min_x,max_y));
+                workloads_[workload].points.push_back(std::make_pair(max_x,min_y));
+                workloads_[workload].points.push_back(std::make_pair(max_x,max_y));
+                if(min_x == 0 && max_y == 32)
+                {
+                    std::cout<<"I am inside"<<std::endl;
+                }
                 // NB: guard calling to std::min/max with parentheses,
                 //     as they may mess with same-named macro on Windows
                 wl_min_x = (std::min)(wl_min_x, static_cast<xyz_type>(min_x));
                 wl_max_x = (std::max)(wl_max_x, static_cast<xyz_type>(max_x));
                 wl_min_y = (std::min)(wl_min_y, static_cast<xyz_type>(min_y));
                 wl_max_y = (std::max)(wl_max_y, static_cast<xyz_type>(max_y));
+
+                workload_points++;
+                point_counter = point_counter + 2;
             }
         }
 
-            wl_max_x = wl_max_x - 1;
-            wl_max_y = wl_max_y - 1;
+            //wl_max_x = wl_max_x;
+            //wl_max_y = wl_max_y;
+            wl_max_x = 28;
+            wl_max_y = 32;
+            wl_min_x = 0;
+            wl_min_y = 0;
+        
+        // check if the vertices are part of the partition
+
         //    wl_max_x = wl_max_x - 1;
         //    wl_max_x = wl_max_x - 1;
         /* Need to detect if we are at the edge of tensor, if we are then subtract one as pixels start at 0*/
@@ -560,6 +578,10 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
      //       wl_max_y = wl_max_y - metisGraph_->n_elem_y;
 
 
+        workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_min_y));
+        workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_max_y));
+        workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_min_y));
+        workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_max_y));
         /*------------------------------------------------------------------------------------------------------------
         1. check if the area of the rectangle and number of elements match, if matches, then the polygon is a rectangle
         2. If isn't equal, missing part of the rectangle could be at the vertex or/and along the edges
@@ -575,15 +597,57 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         B* * * * * * * * * * * * * * * * * * * *C
         ------------------------------------------------------------------------------------------------------------
         */
-        { 
             // check if the area is equal to the number of points            if (workloads_[workload].area == metisGraph_->part
         std::cout<<" number of points in the workload: "<<workload_points<<" "<<workload<<std::endl;
         std::cout<< "area: " <<workloads_[workload].area()<<std::endl;
-        if (workload_points != workloads_[workload].area())
+        std::vector<std::pair<int16_t, int16_t>> points_not_in_wl;
+        std::vector<std::pair<int16_t, int16_t>> interesting_points;
+        int area = workloads_[workload].area();
+        if (16*workload_points != workloads_[workload].area())
         {
             // find interesting points
-
+            for (auto it = begin (workloads_[workload].vertices); it != end (workloads_[workload].vertices); ++it)
+            {
+                if(std::find(workloads_[workload].points.begin(), workloads_[workload].points.end(), *it ) == workloads_[workload].points.end()) 
+               // for (auto all_points_it = begin (workloads_[workload].points); it != end (workloads_[workload].points); ++all_points_it)
+                {
+                    //if (*it != *all_points_it)
+                    {
+                        points_not_in_wl.push_back(*it);
+                    }
+                }
+            }
         }
+        
+        // have to add the else case of area = no. of points
+        // interesting points calculation
+        int16_t diff1, diff2;
+        std::pair<int16_t, int16_t> save1, save2;
+        for (auto it = points_not_in_wl.begin(); it != points_not_in_wl.end(); it++)
+        {
+            diff1 = INT16_MAX;
+            diff2 = INT16_MAX;
+            for (auto all_it = workloads_[workload].points.begin(); all_it != workloads_[workload].points.end(); all_it++)
+            {
+                if(it->first == all_it->first)
+                {
+                    if (diff1 > abs(it->second - all_it->second))
+                    {
+                        diff1 = abs(it->second - all_it->second);
+                        save1 = *all_it;
+                    }
+                    
+                } 
+                else if (it->second == all_it->second) {
+                    if (diff2 > abs(it->first - all_it->first))
+                    {
+                        diff2 = abs(it->first - all_it->first);
+                        save2 = *all_it;
+                    }
+                }
+            }
+            interesting_points.push_back(save1);
+            interesting_points.push_back(save2);
         }
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
