@@ -128,11 +128,17 @@ std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
 {
     unsigned n = shape.ndims();
     std::vector<unsigned> strides(n, 1);
+    std::vector<unsigned> realStrides(n, 1);
 
-    strides[contVector_[0]] = shape[contVector_[0]];
+    realStrides[contVector_[0]] = shape[contVector_[0]];
+    strides[contVector_[0]] = realStrides[contVector_[0]];
 
     for(unsigned i = 1; i < n; ++i)
-        strides[contVector_[i]] = strides[contVector_[i-1]] * shape[contVector_[i]];
+    {
+        realStrides[contVector_[i]] = realStrides[contVector_[i-1]] * shape[contVector_[i]];
+        if(shape[contVector_[i]] != 1)
+            strides[contVector_[i]] = realStrides[i];
+    }
 
     return strides;
 }
