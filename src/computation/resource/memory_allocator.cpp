@@ -307,12 +307,12 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
         entries_.emplace(stageIdx, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>());
 
     if (!tensor->hasAttr("allocators")) {
-
+        
         Shape shape(tensor->getShape());
         MemoryBuffer newBuffer;
         newBuffer.id = currentID_++;
         newBuffer.offset = 0;
-        newBuffer.size = tensor->computeTotalSize();
+        newBuffer.size = shape.totalSize() * dataTypeSize_;
         newBuffer.blockSize = shape[tensor->getOrder()[0]] * dataTypeSize_;
         newBuffer.blockNum = newBuffer.size / newBuffer.blockSize;
         newBuffer.postAlign= 0;
