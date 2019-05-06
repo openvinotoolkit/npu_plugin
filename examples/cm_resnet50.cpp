@@ -176,7 +176,7 @@ residualConvBlock(mv::CompositionalModel& model,
 int main()
 {
 
-    //mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
 
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet50");
@@ -209,11 +209,11 @@ int main()
     auto res4d = residualBlock(cm, res4c, 256, emptyQuantParams, "res4d");
     auto res4e = residualBlock(cm, res4d, 256, emptyQuantParams, "res4e");
     auto res4f = residualBlock(cm, res4e, 256, emptyQuantParams, "res4f");
-    auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2}, emptyQuantParams, "res5a");
-    auto res5b = residualBlock(cm, res5a, 512, emptyQuantParams, "res5b");
-    auto res5c = residualBlock(cm, res5b, 512, emptyQuantParams, "res5c");
-    auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
-    cm.output(pool5);
+    // auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2}, emptyQuantParams, "res5a");
+    // auto res5b = residualBlock(cm, res5a, 512, emptyQuantParams, "res5b");
+    // auto res5c = residualBlock(cm, res5b, 512, emptyQuantParams, "res5c");
+    // auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
+    cm.output(res4f);
 
     // Load target descriptor for the selected target to the compilation unit
     if (!unit.loadTargetDescriptor(mv::Target::ma2490))
