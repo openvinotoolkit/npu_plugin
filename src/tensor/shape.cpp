@@ -10,7 +10,7 @@ const std::unordered_map<std::string, std::size_t> mv::Shape::axis_ =
     {"K", 3}
 };
 
-static std::size_t mv::Shape::getAxis(const std::string& axis)
+std::size_t mv::Shape::getAxis(const std::string& axis)
 {
     return axis_.at(axis);
 }
