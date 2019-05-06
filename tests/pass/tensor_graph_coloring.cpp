@@ -55,7 +55,7 @@ TEST(graph_coloring, single_conv)
         auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, tensor); // 0 is the only stage for now, but this will probably change in the future
         ASSERT_EQ(tensorBufferIt->getOffset(), itr->second.second);
-        ASSERT_EQ(tensorBufferIt->getSize(), itr->second.first);
+        ASSERT_EQ(tensor->computeTotalSize(), itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");
@@ -140,7 +140,7 @@ TEST(graph_coloring, three_conv)
         auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
         mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, tensor); // 0 is the only stage for now, but this will probably change in the future
         ASSERT_EQ(tensorBufferIt->getOffset(), itr->second.second);
-        ASSERT_EQ(tensorBufferIt->getSize(), itr->second.first);
+        ASSERT_EQ(tensor->computeTotalSize(), itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");
