@@ -38,7 +38,7 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         else
             return false;
     }
-    else if(opType == "CostantInt" || opType == "Costant" || opType == "CostantDataElement")
+    else if(opType == "ConstantInt" || opType == "Constant" || opType == "ConstantDataElement")
         return false;
     else if(opType == "WeightsTable")
         return false;
