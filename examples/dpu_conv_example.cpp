@@ -18,10 +18,10 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
+    auto input = om.input({56, 56, 64, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*64*64);
-    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order::getZMajorID(4));
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0});
+    auto weights = om.constantInt(weightsData, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "res2a_branch2a_weights");
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res2a_branch2a#4");
 
     std::vector<int64_t> biasWeightsData = mv::utils::generateSequence<int64_t>(64);
     auto biasWeights = om.constantInt(biasWeightsData, {64}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
