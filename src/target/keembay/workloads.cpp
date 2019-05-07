@@ -4,7 +4,7 @@
 #include <algorithm> 
 #include <metis.h>
 #include <sstream>
-mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <idx_t,idx_t>& mpeMode):
 layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
     
@@ -477,7 +477,7 @@ idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluste
 }
 
 
-void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass) 
+void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode) 
 {
                 
     for(int workload = 0; workload < nWorkloads; workload++) { 
@@ -578,8 +578,10 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_max_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_min_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_max_y));
-
-        mv::Workloads::polygonWorkloadSplit(workloads_[workload]);
+        mv::WorkloadTree workloadTree;
+        mv::graph<mv::Workload, idx_t> workloadGraph;
+        std::vector<mv::Workload> polyCutRect;
+        polyCutRect = mv::Workloads::polygonWorkloadSplit(workloads_[workload], workloads_, mpeMode);
 
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
@@ -592,7 +594,8 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     }
 }
 
-void mv::Workloads::polygonWorkloadSplit(mv::Workload& workload)
+ //mv::graph<mv::Workload, idx_t>::node_list_iterator mv::Workloads::polygonWorkloadSplit(mv::graph<mv::Workload, idx_t>& workloadGraph, mv::Workload& workload, std::vector<mv::Workload>& workloads_, std::pair <idx_t,idx_t>& mpeMode)
+ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(mv::Workload& workload, std::vector<mv::Workload>& workloads_, std::pair <idx_t,idx_t>& mpeMode)
 {
 
     /*------------------------------------------------------------------------------------------------------------
@@ -611,18 +614,31 @@ void mv::Workloads::polygonWorkloadSplit(mv::Workload& workload)
         ------------------------------------------------------------------------------------------------------------
         */
     // check if the area is equal to the number of points            if (workloads_[workload].area == metisGraph_->part
+        static int counter = 0;
+    std::vector<mv::Workload> templist1, templist2;
+        
+    std::cout<<"The workload # is :"<<counter++<<std::endl;
     std::cout << " number of points in the workload: " << 4*workload.pointsTotal() << " " <<std::endl;
     std::cout << "area: " << workload.area() << std::endl;
     std::vector<std::pair<int16_t, int16_t>> points_not_in_wl;
     //std::vector<std::pair<int16_t, int16_t>> interesting_points;
-    std::vector<std::pair<std::pair<int16_t, int16_t>,idx_t>> interesting_points;
+    std::vector<std::pair<std::pair<int16_t, int16_t>,bool>> interesting_points;
     //int area = workload.area();
-    if (4*workload.pointsTotal() != workload.area())
+    if (4*workload.pointsTotal() == workload.area())
+    {
+//        auto a1 = workloadGraph.node_insert(workload);
+        templist1.push_back(workload);
+        return templist1;
+
+    }
+    else if (4*workload.pointsTotal() != workload.area())
     {
         // find interesting points
         for (auto it = begin(workload.vertices); it != end(workload.vertices); ++it)
         {
-            if (std::find(workload.points.begin(), workload.points.end(), *it) == workload.points.end())
+            //idx_t secondIndex = (it->second - mpeMode.second) > 0 ? ;
+            //if (std::find(workload.points.begin(), workload.points.end(), std::make_pair(it->first, ((it->second) - mpeMode.second) )== workload.points.end())
+            if (std::find(workload.points.begin(), workload.points.end(), std::make_pair(it->first, it->second))== workload.points.end())
             // for (auto all_points_it = begin (workloads_[workload].points); it != end (workloads_[workload].points); ++all_points_it)
             {
                 //if (*it != *all_points_it)
@@ -633,48 +649,124 @@ void mv::Workloads::polygonWorkloadSplit(mv::Workload& workload)
         }
     }
     std::cout<<" to see the points_not_in_wl"<<std::endl;
+    std::cout<<"-------------------------------------"<<std::endl;
+    for (auto it1 = points_not_in_wl.begin(); it1!= points_not_in_wl.end(); it1++)
+    {
+        std::cout<<" "<<it1->first<<" "<<it1->second << "; ";
+    }
+    std::cout<<"-"<<std::endl;
+    std::cout<<"-------------------------------------"<<std::endl;
+    std::cout<<workload.MPEMode<<std::endl;
+    std::cout<<" *****to see the points_in_wl"<<std::endl;
+    std::cout<<"-------------------------------------"<<std::endl;
+    for (auto it1 = workload.points.begin(); it1!= workload.points.end(); it1++)
+    {
+        std::cout<<" "<<it1->first<<" "<<it1->second << " ; ";
+    }
+    std::cout<<"-"<<std::endl;
+    std::cout<<"-------------------------------------"<<std::endl;
 
-    // have to add the else case of area = no. of points
+    std::cout<<" Min Max values of the workload"<<std::endl;
+    std::cout<<workload.MinX<<std::endl;
+    std::cout<<workload.MinY<<std::endl;
+    std::cout<<workload.MaxX<<std::endl;
+    std::cout<<workload.MaxY<<std::endl;
+
+    std::cout<<"-------------------------------------"<<std::endl;
     // interesting points calculation
     int16_t diff1, diff2;
     std::pair<int16_t, int16_t> save1, save2;
+    bool intPoint1isAtstart, intPoint2isAtstart;
     for (auto it = points_not_in_wl.begin(); it != points_not_in_wl.end(); it++)
     {
+        intPoint1isAtstart = false;
+        intPoint2isAtstart = false;
         diff1 = INT16_MAX;
         diff2 = INT16_MAX;
         for (auto all_it = workload.points.begin(); all_it != workload.points.end(); all_it++)
         {
+            // check the points that are on the perimeter. Check all the workload points that have same 'x'
             if (it->first == all_it->first)
             {
+                // find the closest point (of the workload) to the 'points not in wl'
                 if (diff1 > abs(it->second - all_it->second))
                 {
                     diff1 = abs(it->second - all_it->second);
                     save1 = *all_it;
+                    if (it->second < all_it->second)
+                        intPoint1isAtstart = true;
                 }
             }
+            // check the points that are on the perimeter. Check all the workload points that have same 'y'
             else if (it->second == all_it->second)
             {
+                // find the closest point (of the workload) to the 'points not in wl'
                 if (diff2 > abs(it->first - all_it->first))
                 {
                     diff2 = abs(it->first - all_it->first);
                     save2 = *all_it;
+                    if (it->first < all_it->first)
+                        intPoint2isAtstart = true;
                 }
             }
         }
-        interesting_points.push_back(std::make_pair(save1,0));
-        interesting_points.push_back(std::make_pair(save2,0));
-        std::cout<<" Check point"<<std::endl;
+        interesting_points.push_back(std::make_pair(save1,intPoint1isAtstart));
+        interesting_points.push_back(std::make_pair(save2,intPoint2isAtstart));
+//        std::cout<<" Check point"<<std::endl;
     }
+    /*
+    for (auto pit = points_not_in_wl.begin(); pit!= points_not_in_wl.end(); pit++)
+    {
+       for (auto intit = interesting_points.begin(); intit != interesting_points.end(); intit++) 
+       {
+           if((pit->first == intit->first.first) && (pit->second > intit->first.second))
+           {
+               intit->second = false;
+           }
+           if((pit->first == intit->first.first) && (pit->second < intit->first.second))
+           {
+               intit->second = true;
+           }
+           if((pit->second == intit->first.second) && (pit->first > intit->first.first))
+           {
+               intit->second = false;
+           }
+           if((pit->second == intit->first.second) && (pit->first < intit->first.first))
+           {
+               intit->second = true;
+           }
+       }
+    }
+    */
+        std::cout<<" this is the list of interesting points"<<std::endl;
     for (auto int_it = interesting_points.begin(); int_it != interesting_points.end(); int_it++)
     {
-        mv::Workloads::workloadSplitHelper(workload, *int_it);
+        std::cout<<int_it->first.first<<" "<<int_it->first.second<<std::endl;
     }
+    std::cout<<"_________________________________________________"<<std::endl;
+    //std::vector<mv::Workload> templist1, templist2;
+    idx_t templistSize = INT16_MAX;
+    for (auto int_it = interesting_points.begin(); int_it != interesting_points.end(); int_it++)
+    {
+       templist1 = mv::Workloads::workloadSplitHelper(workload, workloads_, *int_it, mpeMode);
+       if (templistSize > templist1.size())
+       {
+       templist2 = templist1;
+       templistSize = templist1.size();
+       }
+       
+    }
+    return templist2;
 }
 
-void mv::Workloads::workloadSplitHelper(mv::Workload& workload, std::pair<std::pair<int16_t, int16_t>,idx_t>& interesting_point)
+//void mv::Workloads::workloadSplitHelper(mv::graph<mv::Workload, idx_t>& workloadGraph, mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair<std::pair<int16_t, int16_t>,idx_t>& interesting_point, std::pair <idx_t,idx_t>& mpeMode)
+std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, std::pair <idx_t,idx_t>& mpeMode)
 {
-    interesting_point.second++;
+//    interesting_point.second++;
+    std::cout<<"This is the interesting point used for the split: "<<interesting_point.first.first<<" "<<interesting_point.first.second<<std::endl;
     mv::Workload workload_partition_1, workload_partition_2;
+    workload_partition_1.points.clear();
+    workload_partition_2.points.clear();
     // compared to POC, a change is made here to include the comparison of workload min and max values. 
     // two possible scenarios: split along X or Y (== comparison along Y and X)
     // split along X is needed, if the interesting point is on the workload Ymin or Ymax
@@ -682,37 +774,82 @@ void mv::Workloads::workloadSplitHelper(mv::Workload& workload, std::pair<std::p
     //*************************
     // how is POC working when the interesting point is at Ymax, which requires splitting along X and that doesn't make sense
     //*********************
-    if(workload.MinX == interesting_point.first.first or workload.MaxX == interesting_point.first.first)
+    if (workload.MinX == interesting_point.first.first || workload.MaxX == interesting_point.first.first)
     {
-        for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+        if (interesting_point.second)
         {
-            if (it_all->second > ((float)interesting_point.first.second - 0.5))
-                 workload_partition_1.points.push_back(*it_all);
-        else 
-                 workload_partition_2.points.push_back(*it_all);
+            for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+            {
+                if (it_all->second >= (interesting_point.first.second))
+                    workload_partition_1.points.push_back(*it_all);
+                else
+                    workload_partition_2.points.push_back(*it_all);
+            }
+        }
+        else if (not interesting_point.second)
+        {
+            for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+            {
+                if (it_all->second > (interesting_point.first.second))
+                    workload_partition_1.points.push_back(*it_all);
+                else
+                    workload_partition_2.points.push_back(*it_all);
+            }
         }
     }
-    else
+    else if (workload.MaxY > 0)
     {
-        for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+        if (interesting_point.second)
         {
-            if (it_all->first > ((float)interesting_point.first.first - 0.5))
-                 workload_partition_1.points.push_back(*it_all);
-        else 
-                 workload_partition_2.points.push_back(*it_all);
+            for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+            {
+                if (it_all->first >= (interesting_point.first.first))
+                    workload_partition_1.points.push_back(*it_all);
+                else
+                    workload_partition_2.points.push_back(*it_all);
+            }
+        }
+        else if (not interesting_point.second)
+        {
+            for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
+            {
+                if (it_all->first > (interesting_point.first.first))
+                    workload_partition_1.points.push_back(*it_all);
+                else
+                    workload_partition_2.points.push_back(*it_all);
+            }
         }
     }
 
     workload_partition_1.setMinMaxAndVertices();
     workload_partition_2.setMinMaxAndVertices();
+    std::vector<mv::Workload> final1;
+    std::vector<mv::Workload> final2;
+    std::vector<mv::Workload> finalWorkloadList;
+    std::cout<<final1.size()<<std::endl;
+    std::cout<<final2.size()<<std::endl;
+    std::cout<<finalWorkloadList.size()<<std::endl;
 
+//    workloadGraph.node_insert(workload);
     // add what happens if the partitions are empty --- same as POC. This can be tricky as the size of hte vector in points total
     // may be the max number of elements allowed for that vector type
+    std::cout<<" partition sizes"<<std::endl;
+    std::cout<<"part 1: "<<workload_partition_1.pointsTotal()<<std::endl;
+    std::cout<<"part 2: "<<workload_partition_2.pointsTotal()<<std::endl;
+
     if ( workload_partition_1.pointsTotal() == 0 || workload_partition_2.pointsTotal() == 0 )
         return ;
-    mv::Workloads::polygonWorkloadSplit(workload_partition_1);
-    mv::Workloads::polygonWorkloadSplit(workload_partition_2);
-    
+//    final1.push_back(mv::Workloads::polygonWorkloadSplit(workload_partition_1, workloads_, mpeMode));
+    final2 = mv::Workloads::polygonWorkloadSplit(workload_partition_2, workloads_, mpeMode);
+    finalWorkloadList = mv::Workloads::polygonWorkloadSplit(workload_partition_1, workloads_, mpeMode);
+//    std::cout<<final1.size()<<std::endl;
+//    std::cout<<final2.size()<<std::endl;
+//    std::cout<<finalWorkloadList.size()<<std::endl;
+    //finalWorkloadList.reserve( final1.size() + final2.size() ); // preallocate memory
+    //finalWorkloadList.insert( finalWorkloadList.end(), final1.begin(), final2.end() );
+    finalWorkloadList.insert( finalWorkloadList.end(), final2.begin(), final2.end() );
+
+    return finalWorkloadList;    
 }
 
 mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const

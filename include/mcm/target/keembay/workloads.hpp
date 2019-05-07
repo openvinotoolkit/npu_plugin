@@ -228,6 +228,12 @@ namespace mv
         }
     };
 
+    struct WorkloadTree
+    {
+        std::vector<WorkloadTree> childTree;
+        Workload workloadNode;
+    };
+
     class Workloads : public LogSender
     {
 
@@ -240,7 +246,7 @@ namespace mv
         std::vector<int> generateMetisGraphNodeNumbers(void);
 
     public:
-        Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode);
+        Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <idx_t,idx_t>& mpeMode);
         ~Workloads();
       
         void generateMetisGraph(void);
@@ -250,9 +256,11 @@ namespace mv
         int partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
-        void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
-        void polygonWorkloadSplit(mv::Workload& workload);
-        void workloadSplitHelper(mv::Workload& workload,std::pair<std::pair<int16_t, int16_t>,idx_t>& interesting_point);
+        void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode);
+        //mv::graph<mv::Workload, idx_t>::node_list_iterator polygonWorkloadSplit(mv::graph<mv::Workload, idx_t>& workloadGraph, mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair <idx_t,idx_t>& mpeMode);
+        std::vector<mv::Workload> polygonWorkloadSplit(mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair <idx_t,idx_t>& mpeMode);
+        //void workloadSplitHelper(mv::graph<mv::Workload, idx_t>& workloadGraph, mv::Workload& workload,std::vector<mv::Workload>& workloads, std::pair<std::pair<int16_t, int16_t>,idx_t>& interesting_point, std::pair <idx_t,idx_t>& mpeMode);
+        std::vector<mv::Workload> workloadSplitHelper(mv::Workload& workload,std::vector<mv::Workload>& workloads, std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, std::pair <idx_t,idx_t>& mpeMode);
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
