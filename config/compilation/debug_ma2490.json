@@ -195,6 +195,7 @@
                 "barrier_index_assignment": "Static"
             },
             "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts",
             "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
             "TransitiveReduction",
