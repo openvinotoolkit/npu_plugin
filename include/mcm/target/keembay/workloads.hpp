@@ -201,7 +201,6 @@ namespace mv
         {
           return (MaxX - MinX + 1) * (MaxY - MinY + 1);
         }
-        std::vector<mv::Rectangle> rect_list;        
         std::vector<std::pair<int16_t, int16_t>> points;        
         int16_t pointsTotal()
         {
@@ -257,10 +256,8 @@ namespace mv
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode);
-        //mv::graph<mv::Workload, idx_t>::node_list_iterator polygonWorkloadSplit(mv::graph<mv::Workload, idx_t>& workloadGraph, mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair <idx_t,idx_t>& mpeMode);
-        std::vector<mv::Workload> polygonWorkloadSplit(mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair <idx_t,idx_t>& mpeMode);
-        //void workloadSplitHelper(mv::graph<mv::Workload, idx_t>& workloadGraph, mv::Workload& workload,std::vector<mv::Workload>& workloads, std::pair<std::pair<int16_t, int16_t>,idx_t>& interesting_point, std::pair <idx_t,idx_t>& mpeMode);
-        std::vector<mv::Workload> workloadSplitHelper(mv::Workload& workload,std::vector<mv::Workload>& workloads, std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, std::pair <idx_t,idx_t>& mpeMode);
+        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass, mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair <idx_t,idx_t>& mpeMode);
+        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass, mv::Workload& workload, std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, std::pair <idx_t,idx_t>& mpeMode);
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
