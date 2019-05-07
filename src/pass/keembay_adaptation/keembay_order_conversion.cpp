@@ -28,8 +28,8 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             // NOTE: Keeping this structure while waiting confirmation from architecture team
             if (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution")
             {
-                // For HWConv wiht C < 16 set output shape to ZMajor
-                dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                // For HWConv wiht C < 16 set output shape to ZMajor and Input shape to ColumnMajor
+                dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
                 dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
 
                 // We also need to set weights shape to ColMajorPlanar (see document Order.ods)
