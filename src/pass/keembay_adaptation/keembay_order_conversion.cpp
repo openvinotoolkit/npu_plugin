@@ -20,23 +20,36 @@ namespace mv
 void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
-        if((dpuTask->getOpType() == "DPUTask") && (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution"))
+        if(dpuTask->getOpType() == "DPUTask")
         {
-            // For HWConv wiht C < 16 set output shape to ZMajor
-            dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(dpuTask->getInputTensor(1)->getShape().ndims())));
-            // We also need to set weights shape to ColMajorPlanar (see document Order.ods)
-            dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorPlanarID(dpuTask->getInputTensor(1)->getShape().ndims())));
-            // NOTE: Anything to do about input tensor?
+            // NOTE: Keeping this structure while waiting confirmation from architecture team
+            if (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution")
+            {
+                // For HWConv wiht C < 16 set output shape to ZMajor
+                dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+
+                // We also need to set weights shape to ColMajorPlanar (see document Order.ods)
+                dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorPlanarID(4)));
+            }
+            else if(dpuTask->get<std::string>("taskOp") == "Conv")
+            {
+                // For HWConv wiht C < 16 set output shape to ZMajor
+                dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+
+                // For Normal convolution, weights have to be in ColMajor order (see document Order.ods)
+                dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+            }
+            else
+            {
+                dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+                dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+            }
         }
-        if((dpuTask->getOpType() == "DPUTask") && (dpuTask->get<std::string>("taskOp") == "Conv"))
-        {
-            // For Normal convolution, weights have to be in ColMajor order
-            dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorID(dpuTask->getInputTensor(1)->getShape().ndims())));
-            // Anything TODO for I/O?
-        }
-        //Else TODO? what other cases
     }
 
 }
