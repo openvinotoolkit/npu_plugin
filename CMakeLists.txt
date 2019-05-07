@@ -54,7 +54,7 @@ if (MSVC)
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>")
     SET(VALIDATION false)
 else()
-    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-fpermissive" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
+    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>")
     SET(VALIDATION false CACHE BOOL "Flag to include additional external libaries for validation testing")
 endif()
 
