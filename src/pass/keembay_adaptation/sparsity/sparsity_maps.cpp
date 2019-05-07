@@ -24,7 +24,7 @@ namespace mv
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.sparsityMap(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), {{},{},{},{}},sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), {{},{},{},{}},sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, newSize - 1);
@@ -42,7 +42,7 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
 //    tensorName.pop_back(); tensorName.pop_back(); //Necessary for .dot files
 
 //    std::string sparsityMapName(tensorName+"SparsityMap");
-//    auto sparsityMap = om.sparsityMap(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
+//    auto sparsityMap = om.constantInt(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
 //    tensor->set<bool>("sparse", true);
 
 //    if(tensor->isPopulated())

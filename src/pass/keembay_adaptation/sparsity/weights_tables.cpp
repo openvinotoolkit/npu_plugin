@@ -181,7 +181,7 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
                 populateWeightsTablesActivationAndBias(weightsTableData, dpuTaskOp, om);
                 mv::QuantizationParams quantParams = {{},{},{},{}};
 
-                auto weightTable = om.weightsTable(weightsTableData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, kernelWeightsTableName);
+                auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, kernelWeightsTableName);
                 om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
                 unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
                 om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
