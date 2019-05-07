@@ -50,15 +50,15 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model,
         biasParamName = "biasParam_" + name;
     }
     
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(kernelShape.totalSize());
 
-    auto weights = model.constant(weightsData, kernelShape, mv::DType("Float16"), mv::Order("HWCN"), quantParams, weightsName);
+    auto weights = model.constantInt(weightsData, kernelShape, mv::DType("Int8"), mv::Order("HWCN"), quantParams, weightsName);
     auto conv = model.conv(input, weights, stride, padding, 1, 1, quantParams, "conv_" + name);
     
-    std::vector<double> biasData = mv::utils::generateSequence<double>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
-    auto biasParam = model.constant(biasData,
+    std::vector<int64_t> biasData = mv::utils::generateSequence<int64_t>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
+    auto biasParam = model.constantInt(biasData,
                                     {conv->getShape()[mv::IO_CHANNEL_DIMENSION]},
-                                    mv::DType("Float16"),
+                                    mv::DType("Int8"),
                                     mv::Order("W"),
                                     quantParams,
                                     biasParamName);
@@ -176,7 +176,7 @@ residualConvBlock(mv::CompositionalModel& model,
 int main()
 {
 
-    //mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
 
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet50");
@@ -192,7 +192,7 @@ int main()
     // Define/import quantization params from somewhere
     mv::QuantizationParams emptyQuantParams({}, {}, {}, {});
 
-    auto input = cm.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NHWC"), emptyQuantParams, "input");
+    auto input = cm.input({224, 224, 3, 1}, mv::DType("Int8"), mv::Order("NHWC"), emptyQuantParams, "input");
     auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3}, emptyQuantParams, "conv1");
     conv1 = cm.relu(conv1, emptyQuantParams, "relu1");
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
