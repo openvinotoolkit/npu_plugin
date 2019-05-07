@@ -385,7 +385,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
 
         }
-        if (!fakeSparsity)
+        if (!fakeSparsity && false)
         {
             if (dpuTask->getOpType() == "DPUTask" &&
                 dpuTask->inputSlots() > 1 &&
