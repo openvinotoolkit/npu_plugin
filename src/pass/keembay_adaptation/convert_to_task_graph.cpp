@@ -93,6 +93,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                 }
             }
 
+            auto ppeFixedFunction = mv::PPEFixedFunction();
+            auto ppeTask = mv::PPETask(ppeFixedFunction);
+            dpuConvOp->set<mv::PPETask>("PPETask", ppeTask);
+
             storeSplitStrategy(om, opIt, dpuConvOp);
 
             adaptOutputDataFlow(om, opIt, dpuConv);
@@ -116,6 +120,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
             dpuPoolOp->set<bool>("hasWeights", false);
+
+            auto ppeFixedFunction = mv::PPEFixedFunction();
+            auto ppeTask = mv::PPETask(ppeFixedFunction);
+            dpuPoolOp->set<mv::PPETask>("PPETask", ppeTask);
 
             storeSplitStrategy(om, opIt, dpuPoolOp);
 
