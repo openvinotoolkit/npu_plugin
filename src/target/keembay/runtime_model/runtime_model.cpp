@@ -390,13 +390,14 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildBarrierTaskT(C
 
     toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     toReturn[0]->task.type = MVCNN::SpecificTask_ControllerTask;
-    auto controllerTask = new MVCNN::ControllerTaskT(); //this goes in toReturn[0]->task.value
+
+    auto controllerTask = new MVCNN::ControllerTaskT();
     controllerTask->task.type = MVCNN::ControllerSubTask_BarrierConfigurationTask;
 
     auto barrierConfigurationTask = new MVCNN::BarrierConfigurationTaskT();
     barrierConfigurationTask->target = buildBarrierT(cm, compilationDescriptor, opIt);
-    controllerTask->task.value = barrierConfigurationTask;
 
+    controllerTask->task.value = barrierConfigurationTask;
     toReturn[0]->task.value = controllerTask;
 
    return toReturn;

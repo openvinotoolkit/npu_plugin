@@ -52,6 +52,7 @@
                     }
                 ]
             },
+            "AssignUniqueOpId",
             {
                 "name": "GenerateDot",
                 "output": "original_model.dot",
@@ -195,7 +196,6 @@
             },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
-            "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
             "TransitiveReduction",
             "AllocateInputOutputTensorsKeemBay",
