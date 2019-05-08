@@ -260,7 +260,7 @@ void mv::ControlModel::transitiveReduction(const std::string& edgeAttribute)
         for(auto edgeIt = flowBegin(); edgeIt != flowEnd(); ++edgeIt)
             if(edgeIt->hasAttr(edgeAttribute))
                 toSave.insert(edgeIt);
-    mv::transitiveReduction<Op, ControlFlow, EdgeItComparator>(controlGraph_, toSave);
+    mv::transitiveReduction<Op, ControlFlow, EdgeItComparator, OpItComparator>(controlGraph_, toSave);
 }
 
 bool mv::ControlModel::isDag()
