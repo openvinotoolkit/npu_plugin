@@ -52,7 +52,6 @@
                     }
                 ]
             },
-            "AssignUniqueOpId",
             {
                 "name": "GenerateDot",
                 "output": "original_model.dot",

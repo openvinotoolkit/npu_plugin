@@ -358,7 +358,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 
     auto topologicallySortedOps = controlModel.topologicalSort();
 
-    int initialId = 0;
+    int initialId = 1;
 
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
