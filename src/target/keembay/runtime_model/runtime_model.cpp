@@ -196,7 +196,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
-        toBuild->data->data_index = tensorBufferIt->getOffset();
+        //toBuild->data->data_index = tensorBufferIt->getOffset();
+
+        //HOTFIX until we know what to do with graph coloring
+        toBuild->data->data_index = 0;
         // UNSUPPORTED FOR NOW
         // toBuild->sparsity_index
     }
