@@ -196,7 +196,6 @@
             },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
-            "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
             "TransitiveReduction",
             "AllocateInputOutputTensorsKeemBay",
