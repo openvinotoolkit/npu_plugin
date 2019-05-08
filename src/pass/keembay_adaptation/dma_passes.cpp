@@ -38,9 +38,13 @@ bool isTensorInCMX(mv::Data::TensorIterator tensor, mv::BaseOpModel& opModel)
         else
             return false;
     }
-    else if(opType.find("Constant") != std::string::npos)
+    else if(opType == "ConstantInt" || opType == "Constant" || opType == "ConstantDataElement")
         return false;
-    else if(opType.find("Input") != std::string::npos)
+    else if(opType == "WeightsTable")
+        return false;
+    else if(opType == "SparsityMap")
+        return false;
+    else if(opType == "Input")
         return false;
     else
         return true;
@@ -53,15 +57,14 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model
     mv::ControlModel cm(model);
 
     auto opIt = om.getOutput();
-    auto inIt = om.getInput();
     auto input = opIt->getInputTensor(0);
     auto inputOp = om.getSourceOp(input);
 
     auto opId = opIt->get<unsigned>("opId");
     std::string oldOutputName(opIt->getName());
     mv::QuantizationParams quantParams = {{},{},{},{}};
-    if(opIt->hasAttr("quantParams"))
-        quantParams = inIt->get<mv::QuantizationParams>("quantParams");
+    if(input->hasAttr("quantParams"))
+        quantParams = input->get<mv::QuantizationParams>("quantParams");
     if(isTensorInCMX(input, om))
     {
         auto newInput = om.dMATask(input, mv::DmaDirectionEnum::CMX2DDR, quantParams, "DMA"+inputOp->getName());
@@ -131,8 +134,8 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
             {
                 auto inputTensor = opIt->getInputTensor(i);
                 mv::QuantizationParams quantParams = {{},{},{},{}};
-                if(opIt->hasAttr("quantParams"))
-                    quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+                if(inputTensor->hasAttr("quantParams"))
+                    quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
                 auto inputOp = om.getSourceOp(inputTensor);
                 if(!isTensorInCMX(inputTensor, om))
                 {

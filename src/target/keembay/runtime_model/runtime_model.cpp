@@ -114,10 +114,10 @@ std::unique_ptr<MVCNN::GraphNodeT> mv::RuntimeModel::buildGraphNodeT(mv::Computa
     toBuild->thisID = op->get<unsigned>("opId");
 
     for (auto nextChildOp = op.leftmostChild(); nextChildOp != opModel.opEnd(); ++nextChildOp)
-        toBuild->sourceID.push_back(nextChildOp->get<unsigned>("opId"));
+        toBuild->sinkID.push_back(nextChildOp->get<unsigned>("opId"));
 
     for (auto nextParentOp = op.leftmostParent(); nextParentOp != opModel.opEnd(); ++nextParentOp)
-        toBuild->sinkID.push_back(nextParentOp->get<unsigned>("opId"));
+        toBuild->sourceID.push_back(nextParentOp->get<unsigned>("opId"));
 
     return toBuild;
 }
@@ -132,15 +132,33 @@ std::unique_ptr<MVCNN::SourceStructureT> mv::RuntimeModel::buildSourceStructureT
     toBuild->nodes = std::vector<std::unique_ptr<MVCNN::GraphNodeT>>(opModel.opsCount());
     unsigned i = 0;
 
-    auto ops = opModel.topologicalSort();
-    for(auto opIt = ops.begin(); opIt != ops.end(); ++opIt)
-        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, *opIt);
+    //auto ops = opModel.topologicalSort();
+    for(auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
+        toBuild->nodes[i++] = buildGraphNodeT(cm, compilationDescriptor, opIt);
 
     return toBuild;
 }
 
+std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned> inVec)
+{
+    if (inVec.size() > 1)
+    {
+        auto firstVal = inVec[0];
+        auto onlyOneValue = true;
+        for (size_t i = 1; i < inVec.size(); i++)
+            if (firstVal != inVec[i])
+                onlyOneValue = false;
+        if (onlyOneValue)
+        {
+            inVec.clear();
+            inVec.push_back(firstVal);
+        }
+    }
+    return inVec;
+}
+
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t)
-{    
+{
     mv::DataModel dm(cm);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -170,18 +188,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     toBuild->trailing_offset = strides[strides.size()-1] + tensorBufferIt->getPostAlign();
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
-    auto allocators = t->get<std::set<std::string>>("allocators");
-    if (allocators.count("GraphFile") != 0)
+    if (*tensorAllocatorName == "GraphFile")
     {
         toBuild->data->data_index = t->get<unsigned>("graphFileIndex");
         // UNSUPPORTED FOR NOW
         // toBuild->sparsity_index
     }
-    else
+    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = tensorBufferIt->getOffset();
         // UNSUPPORTED FOR NOW
         // toBuild->sparsity_index
+    }
+    else
+    {
+        toBuild->data->data_index = t->getAddress();
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 
@@ -198,8 +219,18 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto quantizationParams = t->get<mv::QuantizationParams>("quantParams");
         auto quantZero = quantizationParams.getZeroPoint();
         toBuild->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
-        auto quantScale = quantizationParams.getScale();
+        std::vector<unsigned> quantScale = {};
+        if (quantizationParams.hasAttr("mult"))
+            quantScale = quantizationParams.getMult();
+
+        quantScale = reduceQuantVector_(quantScale);
         toBuild->quant_scale = std::vector<unsigned short int>(quantScale.begin(), quantScale.end());
+        std::vector<unsigned> quantShift;
+        if (quantizationParams.hasAttr("shift"))
+            quantShift = quantizationParams.getShift();
+        quantShift = reduceQuantVector_(quantShift);
+        toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+
     }
 
     return toBuild;
@@ -284,21 +315,28 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     return toBuild;
 }
 
+template <typename T>
+std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::DType dtype)
+{
+    unsigned dataSize = origData.size();
+    unsigned origDataSize = dtype.getSizeInBits();
+    unsigned nElementToPack = 64 / origDataSize;
+    unsigned finalLength = dataSize / nElementToPack;
+
+    std::vector<long unsigned int> toReturn(finalLength, 0);
+
+    for(unsigned i = 0; i < finalLength; ++i)
+        for(unsigned j = 0; j < nElementToPack; ++j)
+            toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
+
+    return toReturn;
+}
+
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
-    // NEW approach
-    if (t.isDoubleType())
-    {
-        auto tensorData = t.getDoubleData();
-        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
-    }
-    else
-    {
-        auto tensorData = t.getIntData();
-        toBuild->data = std::vector<long unsigned int>(tensorData.begin(), tensorData.end());
-    }
+    toBuild->data = packToInt64(t.getData(), t.getDType());
     toBuild->length = t.getShape().totalSize();
     toBuild->underlying_type = convertDtype(t.getDType());
 
@@ -329,9 +367,9 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
         {
             if(opType.find("DPU") != std::string::npos)
                 toBuild[0]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            if(opType.find("DMA") != std::string::npos)
+            else if(opType.find("DMA") != std::string::npos)
                 toBuild[1]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
-            if(opType.find("Controller") != std::string::npos)
+            else if(opType.find("BarrierTask") != std::string::npos)
                 toBuild[2]->content.push_back(buildTaskT(cm, compilationDescriptor, opIt));
         }
     }
@@ -659,7 +697,10 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     {
         auto allocators = tensorIt->get<std::set<std::string>>("allocators");
         if (allocators.count("GraphFile") != 0)
+        {
+            std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
             graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tensorIt));
+        }
     }
 
 }

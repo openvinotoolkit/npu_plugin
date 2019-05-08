@@ -35,6 +35,8 @@ namespace mv
             static const std::unordered_map<std::string, MVCNN::DPULayerType> dpuLayerMapping_;
             static const std::unordered_map<PPELayerTypeEnum, MVCNN::PPELayerType, EnumClassHash> ppeLayerTypeMapping_;
 
+            static std::vector<unsigned> reduceQuantVector_(std::vector<unsigned> inVec);
+
         public:
             static RuntimeModel& getInstance()
             {

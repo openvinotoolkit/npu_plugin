@@ -75,6 +75,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
+            dpuConvOp->set<bool>("hasWeights", true);
 
             if (opIt->hasAttr("bias"))
             {
@@ -91,6 +92,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
                 }
             }
+
+            auto ppeFixedFunction = mv::PPEFixedFunction();
+            auto ppeTask = mv::PPETask(ppeFixedFunction);
+            dpuConvOp->set<mv::PPETask>("PPETask", ppeTask);
 
             storeSplitStrategy(om, opIt, dpuConvOp);
 
@@ -114,6 +119,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                                exclude_pad, auto_pad, rounding_type, quantParams, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
+            dpuPoolOp->set<bool>("hasWeights", false);
+
+            auto ppeFixedFunction = mv::PPEFixedFunction();
+            auto ppeTask = mv::PPETask(ppeFixedFunction);
+            dpuPoolOp->set<mv::PPETask>("PPETask", ppeTask);
 
             storeSplitStrategy(om, opIt, dpuPoolOp);
 
@@ -135,6 +145,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, "DPU_"+name);
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
+            dpuElementWiseOp->set<bool>("hasWeights", false);
 
             auto ppeLayerType = mv::PPELayerType(opType);
             auto ppeFixedFunction = mv::PPEFixedFunction();

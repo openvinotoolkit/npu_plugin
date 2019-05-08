@@ -22,22 +22,28 @@ mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
     set<std::vector<double>>("max", max);
+
+    if (scale.size())
+    {
+        std::vector<unsigned> shiftDefaut(scale.size(), 0);
+        std::vector<unsigned> multDefaut(scale.size(), 1);
+        set<std::vector<unsigned>>("shift", shiftDefaut);
+        set<std::vector<unsigned>>("mult", multDefaut);
+    }
+
 }
 
-void mv::QuantizationParams::extendParamsToOutputChannelSize(const size_t outputChannelsSize)
+mv::QuantizationParams::QuantizationParams(std::vector<int64_t> zp, std::vector<double> scale,
+    std::vector<double> min, std::vector<double> max, std::vector<unsigned> shift, std::vector<unsigned> mult): QuantizationParams(zp, scale, min, max)
 {
-    auto zeroPoint = get<std::vector<int64_t>>("zeroPoint");
-    if (zeroPoint.size() != outputChannelsSize)
-        set<std::vector<int64_t>>("zeroPoint", extendToK_<int64_t>(outputChannelsSize, zeroPoint));
-    auto scale = get<std::vector<double>>("scale");
-    if (scale.size() != outputChannelsSize)
-        set<std::vector<double>>("scale", extendToK_<double>(outputChannelsSize, scale));
-    auto min = get<std::vector<double>>("min");
-    if (min.size() != outputChannelsSize)
-        set<std::vector<double>>("min", extendToK_<double>(outputChannelsSize, min));
-    auto max = get<std::vector<double>>("max");
-    if (max.size() != outputChannelsSize)
-        set<std::vector<double>>("max", extendToK_<double>(outputChannelsSize, max));
+    set<std::vector<unsigned>>("shift", shift);
+    set<std::vector<unsigned>>("mult", mult);
+}
+
+void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<unsigned> mult)
+{
+    set<std::vector<unsigned>>("shift", shift);
+    set<std::vector<unsigned>>("mult", mult);
 }
 
 int64_t mv::QuantizationParams::getZeroPoint(const size_t channel) const

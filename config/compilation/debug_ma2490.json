@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "barrier_index_assignment" : "Dynamic",
+                "barrier_index_assignment" : "Static",
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "CMX_memory_overflow_safety_factor" : 0.9,
@@ -91,16 +91,23 @@
     },
     "keembay_adapt": {
         "Singular": [
-            "ExtendQuantizationParams",
             "StoreLayerSplitStrategy",
             "ConvertOpsToTasks",
+            "ComputeTensorsQuantParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
             "GenerateSparsityMaps",
-            "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
                 "output": "keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
@@ -185,7 +192,7 @@
             "TransitiveReduction",
             {
                 "name":"InsertBarrierTasks",
-                "barrier_index_assignment": "Dynamic"
+                "barrier_index_assignment": "Static"
             },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
@@ -215,7 +222,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "barrier_index_assignment": "Dynamic"
+                "barrier_index_assignment": "Static"
             }
         ]
     },

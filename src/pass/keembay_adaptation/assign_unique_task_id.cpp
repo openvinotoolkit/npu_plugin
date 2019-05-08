@@ -26,5 +26,8 @@ void assignUniqueTaskIdFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     unsigned currentId = 1;
 
     for(auto operationIt = om.opBegin(); operationIt != om.opEnd(); ++operationIt)
-        operationIt->set<unsigned>("taskId", currentId++);
+    {
+        if((operationIt)->getOpType().find("Task") != std::string::npos)
+            (operationIt)->set<unsigned>("taskId", currentId++);
+    }
 }

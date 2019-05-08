@@ -98,7 +98,7 @@ void allocatePopulatedTensorsFcnKeemBay(const mv::pass::PassEntry& pass, mv::Com
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement")
+        if (opType == "Constant" || opType == "ConstantInt" || opType == "ConstantDataElement" || opType == "WeightsTable" || opType == "SparsityMap")
         {
             auto tIt = opIterator->getOutputTensor(0);
             dm.allocateTensor("GraphFile", stageIt, tIt);
