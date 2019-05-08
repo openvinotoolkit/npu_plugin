@@ -120,7 +120,7 @@ const std::unordered_map<mv::OrderingStrategy,
 bool isNodeSimplificable(mv::TensorInterferenceGraph::node_list_iterator& ni, long long memorySize)
 {
     //std::cout << " name " << (*ni).name << " weight " << (*ni).weight << " ne_Weight " << (*ni).neighborsWeight << std::endl;
-    return ((*ni).weight <= (memorySize - (*ni).neighborsWeight));
+    return ((*ni).weight <= (memorySize - (*ni).neighborsWeight - (*ni).weight) );
 }
 
 std::string maxWeightedNeighbors(mv::TensorInterferenceGraph& g)
