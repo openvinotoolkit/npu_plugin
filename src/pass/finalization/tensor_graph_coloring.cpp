@@ -539,22 +539,22 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
     //ddr_bss_g.drawGraph("ddr_bss_memory");
 
-//    mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
-//            [](const mv::Data::TensorIterator& t) -> bool
-//            {
-//                return (!t->isPopulated());
-//            },
-//            [](const mv::Data::OpListIterator& t) -> bool
-//            {
-//                return (t->getOpType() == "DMATask");
-//            },
-//            false);
-//    memsize = memDefs.find("VPU_DDR_Heap")->second.size;
-//    alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
-//    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
-//    //printASOrder(agOrder, "DDR_HEAP");
-//    bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
-//    //ddr_heap_g.drawGraph("ddr_heap_memory");
+    mv::TensorInterferenceGraph ddr_heap_g(model, alignment,
+            [](const mv::Data::TensorIterator& t) -> bool
+            {
+                return (!t->isPopulated());
+            },
+            [](const mv::Data::OpListIterator& t) -> bool
+            {
+                return (t->getOpType() == "DMATask");
+            },
+            false);
+    memsize = memDefs.find("VPU_DDR_Heap")->second.size;
+    alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
+    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    //printASOrder(agOrder, "DDR_HEAP");
+    bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
+    //ddr_heap_g.drawGraph("ddr_heap_memory");
 
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
     memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
