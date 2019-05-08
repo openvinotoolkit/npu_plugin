@@ -276,8 +276,10 @@ void mv::Workloads::generateMetisGraph(void) {
             xadjIndex++;
             metisGraph_->adjncy[adjncyIndex] = *it - 1;
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[(metisGraph_->m_xDim * 2)];
-            adjncyIndex++;
+            if(metisGraph_->m_yDim > 2 ) { /*if number lattic has more than 2 rows. Only a 7x7 tensor will have only 2 rows*/ 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[(metisGraph_->m_xDim * 2)];
+                adjncyIndex++;
+            }
             metisGraph_->adjncy[adjncyIndex] = *it + 2; 
             adjncyIndex++;
         }
@@ -291,8 +293,12 @@ void mv::Workloads::generateMetisGraph(void) {
             adjncyIndex++;
             metisGraph_->adjncy[adjncyIndex] = *it - 1;
             adjncyIndex++;
-            metisGraph_->adjncy[adjncyIndex] = nodeNumbers[std::distance(nodeNumbers.begin(), it) + metisGraph_->m_xDim];
-            adjncyIndex++;
+            if(metisGraph_->m_yDim > 2 ) { /*if number lattic has more than 2 rows. Only a 7x7 tensor will have only 2 rows*/ 
+                metisGraph_->adjncy[adjncyIndex] = nodeNumbers[std::distance(nodeNumbers.begin(), it) + metisGraph_->m_xDim];
+                adjncyIndex++;
+            }
+            else
+                metisGraph_->xadj[xadjIndex] = adjncyIndex;
         }
 
         /*Depending whether we are on the first or second row then we increment by a different amount*/
@@ -305,7 +311,7 @@ void mv::Workloads::generateMetisGraph(void) {
             increment = metisGraph_->m_xDim-1;
             increment = -increment;
         }
-        /*If on the last node of the second row then we done, break*/ 
+        /*If on the last node of the second row then we're done, break*/ 
         if(*it == (metisGraph_->m_xDim * 2)-1)
             break;
         }
@@ -431,9 +437,7 @@ void mv::Workloads::generateMetisGraph(void) {
                 metisGraph_->adjncy[adjncyIndex] = *it -1; 
                 adjncyIndex++;
                 metisGraph_->adjncy[adjncyIndex] = *it + 1; 
-                adjncyIndex++;
-
-            
+                adjncyIndex++;            
             }
 
         }
