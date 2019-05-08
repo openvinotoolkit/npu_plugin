@@ -613,8 +613,17 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
     toReturn[0] = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     toReturn[0]->task.type = MVCNN::SpecificTask_NCE2Task;
     auto toBuild = new MVCNN::NCE2TaskT();
-    toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
     toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
+    toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
+    std::unordered_map<MVCNN::MPE_Mode, unsigned> frequencyCounter;
+    for(auto& variantField : toBuild->variant)
+        ++frequencyCounter[variantField->mpe_mode];
+
+    unsigned maxFrequency = 0;
+    for(auto& frequencyCouple : frequencyCounter)
+        if(frequencyCouple.second > maxFrequency)
+            toBuild->invariant->mpe_frequent_mode = frequencyCouple.first;
+
     toReturn[0]->task.value = toBuild;
     return toReturn;
 }
