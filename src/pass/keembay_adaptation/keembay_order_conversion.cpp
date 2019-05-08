@@ -25,29 +25,24 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     {
         if(dpuTask->getOpType() == "DPUTask")
         {
+            auto taskOp = dpuTask->get<std::string>("taskOp");
             // NOTE: Keeping this structure while waiting confirmation from architecture team
-            if (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution")
+            if (taskOp == "ChannelMajorConvolution")
             {
-                // For HWConv wiht C < 16 set output shape to ZMajor and Input shape to ColumnMajor
+                // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
-                dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
 
                 // We also need to set weights shape to ColMajorPlanar (see document Order.ods)
                 dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorPlanarID(4)));
             }
-            else if(dpuTask->get<std::string>("taskOp") == "Conv")
-            {
-                // For HWConv wiht C < 16 set output shape to ZMajor
-                dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
-                dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
-
-                // For Normal convolution, weights have to be in ColMajor order (see document Order.ods)
-                dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
-            }
             else
             {
+                // All DPU tasks except ChannelMajor convolution (handled above) act with input tensor in ZMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
-                dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+
+                // For Normal convolution, weights have to be in ColMajor order (see document Order.ods)
+                if(taskOp == "Conv")
+                    dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
             }
         }
     }
