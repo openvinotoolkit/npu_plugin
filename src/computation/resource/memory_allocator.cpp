@@ -52,6 +52,11 @@ mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(
     return *this;
 }
 
+void mv::MemoryAllocator::MemoryBuffer::setOffset(std::size_t offset_)
+{
+    offset = offset_;
+}
+
 std::size_t mv::MemoryAllocator::MemoryBuffer::getOffset() const
 {
     return offset;

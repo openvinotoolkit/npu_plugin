@@ -21,7 +21,10 @@ TEST(graph_coloring, single_conv)
     om.output(conv);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+
     unit.loadCompilationDescriptor(compDescPath);
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
@@ -45,14 +48,17 @@ TEST(graph_coloring, single_conv)
     refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(476672, 75264);
     refTensorSizeAddress["Input_0:0"    ] = std::make_pair(75264, 0);
 
-
+    mv::DataModel dm(om);
     for (auto itr = refTensorSizeAddress.begin(); itr != refTensorSizeAddress.end(); itr++)
     {
-        //std::cout << "checking " << itr->first << std::endl;
         auto tensor = om.getTensor(itr->first);
-        ASSERT_TRUE(tensor->hasAttr("address"));
-        ASSERT_EQ(tensor->getAddress() , itr->second.second);
-        ASSERT_EQ(tensor->computeTotalSize() , itr->second.first);
+
+        //std::cout << "checking " << itr->first << std::endl;
+        auto tensorAllocatorName = tensor->get<std::set<std::string>>("allocators").begin();
+        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, tensor); // 0 is the only stage for now, but this will probably change in the future
+        ASSERT_EQ(tensorBufferIt->getOffset(), itr->second.second);
+        ASSERT_EQ(tensor->computeTotalSize(), itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");
     //system("dot -Tpng adapt_model.dot -o adapt_model.png");
@@ -94,8 +100,8 @@ TEST(graph_coloring, three_conv)
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    //mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
-    //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
+    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
+    compDesc.setPassArg("GenerateSparsityMaps", "enableRealSparsity", true);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
@@ -128,11 +134,15 @@ TEST(graph_coloring, three_conv)
 	refTensorSizeAddress["DPU_Conv_2WeightsTable:0"] = std::make_pair( 1024, 0);
     //TODO HEAP, not yet fully implemented on POC
 
+    mv::DataModel dm(om);
     for (auto itr = refTensorSizeAddress.begin(); itr != refTensorSizeAddress.end(); itr++)
     {
         auto tensor = om.getTensor(itr->first);
-        ASSERT_TRUE(tensor->hasAttr("address"));
-        ASSERT_EQ(tensor->getAddress(), itr->second.second);
+//        ASSERT_TRUE(tensor->hasAttr("address"));
+        auto tensorAllocatorName = tensor->get<std::set<std::string>>("allocators").begin();
+        auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+        mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, tensor); // 0 is the only stage for now, but this will probably change in the future
+        ASSERT_EQ(tensorBufferIt->getOffset(), itr->second.second);
         ASSERT_EQ(tensor->computeTotalSize(), itr->second.first);
     }
     //system("dot -Tpng original_model.dot -o original_model.png");

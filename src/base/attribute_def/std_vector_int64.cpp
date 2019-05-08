@@ -44,6 +44,12 @@ namespace mv
 
         static std::string toLongString(const Attribute& a)
         {
+            std::string output = "(" + std::to_string(a.get<std::vector<int64_t>>().size()) + ")";
+            return output;
+        }
+
+        static std::string toLongString(const Attribute& a)
+        {
             std::string output = "{";
             auto vec = a.get<std::vector<int64_t>>();
             if (vec.size() > 0)
