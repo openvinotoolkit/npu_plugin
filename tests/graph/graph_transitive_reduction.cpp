@@ -15,6 +15,13 @@ struct EdgeItComparator
     }
 };
 
+struct NodeItComparator
+{
+    bool operator()(graph_string_string::node_list_iterator lhs, graph_string_string::node_list_iterator rhs) const {
+        return (*lhs) < (*rhs);
+    }
+};
+
 TEST (graph_transitive_reduction, test1)
 {
     // Define graph
@@ -35,7 +42,7 @@ TEST (graph_transitive_reduction, test1)
     g.edge_insert(nc, ne, "nc_ne");
     g.edge_insert(nd, ne, "nd_ne");
 
-    mv::transitiveReduction<std::string, std::string, EdgeItComparator>(g);
+    mv::transitiveReduction<std::string, std::string, EdgeItComparator, NodeItComparator>(g);
 
     // After transitive reduction, the edges removed should be
     // na_nd, na_ne, nc_ne
