@@ -50,6 +50,69 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     }
+                ],
+                "workload_strategy" :
+                [
+                    {
+                        "name_filter" : "res1",
+                        "nWorkloads" : 45,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res2a_branch2a",
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res2a_branch2b",
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res2a_branch2c",
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res3a_branch2c",
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res4a_branch2a",
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "(1,16,16)"
+                    },
+                    {
+                        "name_filter" : "res4a_branch2b",
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "(1,16,16)"
+                    },
+                    {
+                        "name_filter" : "res4a_branch2b_alt",
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "(1,16,16)"
+                    },
+                    {
+                        "name_filter" : "res5a_branch2a",
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res5c_branch2a",
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res5c_branch2b",
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res5c_branch2c",
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    }
                 ]
             },
             "AssignUniqueOpId",
