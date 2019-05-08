@@ -317,7 +317,7 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
     std::ofstream ostream;
 
     ostream.open(outputFileName + ".dot", std::ios::trunc | std::ios::out);
-    ostream << "digraph G {\n\tgraph [splines=spline]\n";
+    ostream << "graph G {\n\tgraph [splines=spline]\n";
 
     for (auto it = this->node_begin(); it != this->node_end(); ++it)
     {
@@ -329,11 +329,22 @@ void mv::TensorInterferenceGraph::drawGraph(std::string outputFileName)
         nodeDef += "</TABLE>>";
         ostream << nodeDef << "];\n";
     }
-
+    typedef std::pair<std::string, std::string> DotEdge;
+    std::set<DotEdge> existingEdges;
     for (auto it = this->edge_begin(); it != this->edge_end(); ++it)
     {
-        std::string edgeDef = "\t\"" + (*it->source()).name + "\" -> \"" +  (*it->sink()).name + "\"";
-        ostream << edgeDef << "\n";
+        DotEdge e1;
+        e1.first = (*it->sink()).name;
+        e1.second = (*it->source()).name;
+        auto ret = existingEdges.insert(e1);
+        e1.second = (*it->sink()).name;
+        e1.first = (*it->source()).name;
+        auto ret2 = existingEdges.insert(e1);
+        if (ret.second == true && ret2.second == true)
+        {
+            std::string edgeDef = "\t\"" + (*it->source()).name + "\" -- \"" +  (*it->sink()).name + "\"";
+            ostream << edgeDef << "\n";
+        }
     }
     ostream << "}\n";
     ostream.close();
