@@ -153,6 +153,7 @@ namespace mv
             bool operator==(const MemoryBuffer& other) const;
             MemoryBuffer& operator=(const MemoryBuffer& other);
             std::string toString(bool printValues = false) const;
+            void setOffset(std::size_t off);
 
         };
 
