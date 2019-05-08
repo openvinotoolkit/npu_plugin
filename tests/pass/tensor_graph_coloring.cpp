@@ -28,13 +28,15 @@ TEST(graph_coloring, single_conv)
     unit.run();
 
     std::map<std::string, std::pair<uint64_t, int64_t>> refTensorSizeAddress;
+    //since neighbor weights has changed to include node weight, in this simple network
+    // where everything is connected, the order will not matter (all have the same neighbors weight)
+    // so the addresses here are not matching with POC.
     //CMX
-    refTensorSizeAddress["DMAAlignedConstantInt_0:0"] = std::make_pair(10240, 5120);
-    refTensorSizeAddress["DMAAlignedConstantInt_0:0"] = std::make_pair(10240, 5120);
-    refTensorSizeAddress["DMADPU_Conv_0SparsityMap:0"] = std::make_pair(4096, 1024);
-    refTensorSizeAddress["DMADPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
-    refTensorSizeAddress["DMAInput_0:0"] = std::make_pair(75264, 15360);
-    refTensorSizeAddress["DPU_Conv_0:0"] = std::make_pair(476672, 90624);
+    refTensorSizeAddress["DMAAlignedConstantInt_0:0"] = std::make_pair(10240, 557056);
+    refTensorSizeAddress["DMADPU_Conv_0SparsityMap:0"] = std::make_pair(4096, 552960);
+    refTensorSizeAddress["DMADPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 551936);
+    refTensorSizeAddress["DMAInput_0:0"] = std::make_pair(75264, 476672);
+    refTensorSizeAddress["DPU_Conv_0:0"] = std::make_pair(476672, 0);
 
     //BSS
     refTensorSizeAddress["AlignedConstantInt_0:0"  ] = std::make_pair(10240,  5120);
@@ -42,8 +44,8 @@ TEST(graph_coloring, single_conv)
     refTensorSizeAddress["DPU_Conv_0WeightsTable:0"] = std::make_pair(1024, 0);
 
     //TODO HEAP, not yet fully implemented on POC
-    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(476672, 75264);
-    refTensorSizeAddress["Input_0:0"    ] = std::make_pair(75264, 0);
+    refTensorSizeAddress["DMADPU_Conv_0:0" ] = std::make_pair(476672, 0);
+    refTensorSizeAddress["Input_0:0"    ] = std::make_pair(75264, 476672);
 
 
     for (auto itr = refTensorSizeAddress.begin(); itr != refTensorSizeAddress.end(); itr++)
