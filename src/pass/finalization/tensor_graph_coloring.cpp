@@ -158,51 +158,43 @@ void removeNodeAndUpdateWeights(mv::TensorInterferenceGraph& g, mv::TensorInterf
     g.node_erase(ni);
 }
 
-std::stack<std::string> aggressiveSimplify(mv::TensorInterferenceGraph& g, long long memorySize, mv::OrderingStrategy orderStrategy)
+std::queue<std::string> aggressiveSimplify(mv::TensorInterferenceGraph& g, long long memorySize, mv::OrderingStrategy orderStrategy)
 {
     //create a copy of g since we are going to delete nodes from it
     mv::TensorInterferenceGraph gCopy(g);
-    std::stack<std::string> agNodeOrder;
+    std::queue<std::string> agNodeOrder;
     std::vector<mv::TensorInterferenceGraphNode> orderedNodes;
     auto orderingFunc = interferenceGraphNodeSorters_.at(orderStrategy);
 
-    bool continueSimplify = true;
-
-    while (continueSimplify)
+    while(gCopy.node_size() > 0)
     {
-        continueSimplify = false;
         orderedNodes = orderingFunc(gCopy);
 
-        for (auto itr = orderedNodes.begin(); itr != orderedNodes.end(); itr++)
+        for (auto tt = orderedNodes.begin(); tt != orderedNodes.end(); tt++)
         {
-            //std::cout << "checking " << *itr << std::endl;
-            auto ni = gCopy.node_find(*itr);
-            if (isNodeSimplificable(ni, memorySize))
-            {
-                agNodeOrder.push((*itr).name);
-                removeNodeAndUpdateWeights(gCopy, ni);
-                continueSimplify = true;
-            }
-
-            if (gCopy.node_size() > 0 && !continueSimplify)
-            {
-                auto node = maxWeightedNeighbors(gCopy);
-                agNodeOrder.push(node);
-                auto nj = gCopy.node_find(node);
-                removeNodeAndUpdateWeights(gCopy, nj);
-                continueSimplify = true;
-            }
+            auto tti = gCopy.node_find(*tt);
         }
+        auto itr = orderedNodes.begin();
+        auto ni = gCopy.node_find(*itr);
+        if (orderStrategy != mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST && !isNodeSimplificable(ni, memorySize))
+        {
+            auto potentialSpillOrderingFunc = interferenceGraphNodeSorters_.at(mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
+            orderedNodes = potentialSpillOrderingFunc(gCopy);
+            ni = gCopy.node_find(*orderedNodes.begin());
+        }
+
+        agNodeOrder.push((*orderedNodes.begin()).name);
+        removeNodeAndUpdateWeights(gCopy, ni);
     }
     return agNodeOrder;
 }
 
-void printASOrder(std::stack<std::string> order, std::string name)
+void printASOrder(std::queue<std::string> order, std::string name)
 {
     std::cout << " printing aggressive simplify for " << name << ":" << std::endl;
     while (!order.empty())
     {
-        std::string node = order.top();
+        std::string node = order.front();
         order.pop();
         std::cout << node << std::endl;
     }
@@ -467,7 +459,7 @@ void printGraph(std::string name, mv::graph<std::string, int>& g)
 
 }
 
-void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
+void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
 {
     size_t chromaticNumber = 0;
     //build orientation assignment dag
@@ -479,7 +471,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string
 
     while (!order.empty())
     {
-        std::string node = order.top();
+        std::string node = order.front();
         order.pop();
         chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph);
         //printGraph("BestFitDirectedGraph", directedGraph);
@@ -527,7 +519,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
                 return (t->getOpType() == "DMATask");
             },
             true);
-    auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_BSS");
 
     bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
@@ -545,7 +537,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
             false);
     memsize = memDefs.find("VPU_DDR_Heap")->second.size;
     alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
-    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_HEAP");
     bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
     //ddr_heap_g.drawGraph("ddr_heap_memory");
@@ -553,7 +545,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
     memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
     alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
-    agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
     //nncmx_g.drawGraph("nncmx_memory");

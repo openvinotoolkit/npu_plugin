@@ -163,7 +163,7 @@ void  mv::TensorInterferenceGraph::addWeightsToInterferenceGraph_(mv::Computatio
     }
     for (mv::TensorInterferenceGraph::node_dfs_iterator it = this->node_begin(); it != this->node_end(); ++it)
     {
-        (*it).neighborsWeight = getNeighborsWeight_((*it).name);
+        (*it).neighborsWeight = getNeighborsWeight_((*it).name) + (*it).weight;
     }
 }
 
