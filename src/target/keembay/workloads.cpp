@@ -616,7 +616,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
         B* * * * * * * * * * * * * * * * * * * *C
         ------------------------------------------------------------------------------------------------------------
         */
-
+    using xyz_type = decltype(mv::Workload::MinX);
     std::vector<mv::Workload> workloadFromAreaCheck, finalWorkloadList;
     std::vector<std::pair<int16_t, int16_t>> points_not_in_wl;
     //NB: Interesting points has a boolen value. This value indicates whether the point is at the end of a partition or at the beginning. If starting,
@@ -625,6 +625,14 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     // check if the area is equal to the number of points
     if (4 * workload.pointsTotal() == workload.area())
     {
+        //scale and clip code
+        /*
+        workload.MinX = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[0]));
+        workload.MaxX = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[0]) - static_cast<xyz_type>(mpeMode.first)));
+        workload.MinY = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[1]));
+        workload.MaxY = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[1]) - static_cast<xyz_type>(mpeMode.second)));
+        workload.setVertices();
+        */
         workloadFromAreaCheck.push_back(workload);
         return workloadFromAreaCheck;
     }
@@ -661,7 +669,9 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
                 {
                     diff1 = abs(it->second - all_it->second);
                     save1 = *all_it;
-                    if (it->second < all_it->second)
+                    //to match POC, if the interesting point's X matches xmax of the workload, the split has to happen parellel to y. So updating the interesting 
+                    // point (no matter if it is closer to Ymin or Ymax), to have boolean as 'true' so that the point always is included in the right partition
+                    if ((it->second < all_it->second) || (it->first == workload.MaxX))
                         intPoint1isAtstart = true;
                 }
             }
@@ -705,7 +715,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     // split along X is needed, if the interesting point is on the workload Ymin or Ymax
     // split along Y is needed, if the interesting point is on the workload Xmin or Xmax
 
-    if (workload.MinX == interesting_point.first.first || workload.MaxX == interesting_point.first.first)
+    if (workload.MinX == interesting_point.first.first)
     {
         if (interesting_point.second)
         {
@@ -734,10 +744,20 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
         {
             for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
             {
+                if (interesting_point.first.first == workload.MaxX)
+                {
+                if (it_all->first > (interesting_point.first.first) - mpeMode.first)
+                    workload_partition_1.points.push_back(*it_all);
+                else
+                    workload_partition_2.points.push_back(*it_all);
+                }
+                else
+                {                
                 if (it_all->first >= (interesting_point.first.first))
                     workload_partition_1.points.push_back(*it_all);
                 else
                     workload_partition_2.points.push_back(*it_all);
+                }
             }
         }
         else if (not interesting_point.second)
@@ -760,7 +780,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     // may be the max number of elements allowed for that vector type
     // Add a 'throw exception' condition below
     if (workload_partition_1.pointsTotal() == 0 || workload_partition_2.pointsTotal() == 0)
-        throw mv::RuntimeError(pass, "Inside workload splitter into rectangles. workload parition with non zero points can't exist");
+        throw mv::RuntimeError(pass, "Inside workload splitter into rectangles. workload parition with zero points can't exist");
     final1 = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_2, workloads_, mpeMode);
     finalWorkloadList = mv::Workloads::polygonWorkloadSplit(pass, workload_partition_1, workloads_, mpeMode);
     finalWorkloadList.insert(finalWorkloadList.end(), final1.begin(), final1.end());

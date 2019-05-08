@@ -207,6 +207,14 @@ namespace mv
          return points.size();
         }
         std::vector<std::pair<int16_t, int16_t>> vertices;        
+
+        void setVertices()
+        {
+            vertices.push_back(std::make_pair(MinX,MinY));
+            vertices.push_back(std::make_pair(MinX,MaxY));
+            vertices.push_back(std::make_pair(MaxX,MinY));
+            vertices.push_back(std::make_pair(MaxX,MaxY));
+        }
         void setMinMaxAndVertices()
         {
             MinX = INT16_MAX;
@@ -220,10 +228,7 @@ namespace mv
                 MinY = std::min(MinY,it->second);
                 MaxY = std::max(MaxY, it->second);
             }
-            vertices.push_back(std::make_pair(MinX,MinY));
-            vertices.push_back(std::make_pair(MinX,MaxY));
-            vertices.push_back(std::make_pair(MaxX,MinY));
-            vertices.push_back(std::make_pair(MaxX,MaxY));
+            setVertices();
         }
     };
 
