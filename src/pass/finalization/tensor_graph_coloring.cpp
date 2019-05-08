@@ -37,19 +37,10 @@ bool sortbyWeightAsc(const mv::TensorInterferenceGraphNode &a, const mv::TensorI
 {
     return (a.weight < b.weight);
 }
-bool sortbyWeightDesc(const mv::TensorInterferenceGraphNode &a, const mv::TensorInterferenceGraphNode &b)
-{
-    return (a.weight >= b.weight);
-}
 
 bool sortbyNeighborWeightAsc(const mv::TensorInterferenceGraphNode &a, const mv::TensorInterferenceGraphNode &b)
 {
     return (a.neighborsWeight < b.neighborsWeight);
-}
-
-bool sortbyNeighborWeightDesc(const mv::TensorInterferenceGraphNode &a, const mv::TensorInterferenceGraphNode &b)
-{
-    return (a.neighborsWeight >= b.neighborsWeight);
 }
 
 const std::unordered_map<mv::OrderingStrategy,
@@ -75,7 +66,8 @@ const std::unordered_map<mv::OrderingStrategy,
             {
                 nodeWeights.push_back(*itr);
             }
-            sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightDesc);
+            sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightAsc);
+            std::reverse(nodeWeights.begin(),nodeWeights.end());
             return nodeWeights;
         }
     },
@@ -98,8 +90,10 @@ const std::unordered_map<mv::OrderingStrategy,
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
                 nodeWeights.push_back(*itr);
+                //(*itr).print();
             }
-            sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightDesc);
+            sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightAsc);
+            std::reverse(nodeWeights.begin(),nodeWeights.end());
             return nodeWeights;
         }
     },
@@ -169,21 +163,17 @@ std::queue<std::string> aggressiveSimplify(mv::TensorInterferenceGraph& g, long 
     while(gCopy.node_size() > 0)
     {
         orderedNodes = orderingFunc(gCopy);
-
-        for (auto tt = orderedNodes.begin(); tt != orderedNodes.end(); tt++)
-        {
-            auto tti = gCopy.node_find(*tt);
-        }
         auto itr = orderedNodes.begin();
         auto ni = gCopy.node_find(*itr);
         if (orderStrategy != mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST && !isNodeSimplificable(ni, memorySize))
         {
+            //std::cout << "potentialSpill" <<std::endl;
             auto potentialSpillOrderingFunc = interferenceGraphNodeSorters_.at(mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
             orderedNodes = potentialSpillOrderingFunc(gCopy);
             ni = gCopy.node_find(*orderedNodes.begin());
         }
 
-        agNodeOrder.push((*orderedNodes.begin()).name);
+        agNodeOrder.push((*ni).name);
         removeNodeAndUpdateWeights(gCopy, ni);
     }
     return agNodeOrder;
