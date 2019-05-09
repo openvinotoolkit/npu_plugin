@@ -615,7 +615,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
     auto toBuild = new MVCNN::NCE2TaskT();
     toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt);
     toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
-    std::unordered_map<MVCNN::MPE_Mode, unsigned> frequencyCounter;
+
+    auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
+    auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
+
+    std::unordered_map<MVCNN::MPE_Mode, unsigned, decltype(hash), decltype(comp)> frequencyCounter(4, hash, comp);
     for(auto& variantField : toBuild->variant)
         ++frequencyCounter[variantField->mpe_mode];
 
