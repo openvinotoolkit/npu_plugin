@@ -212,6 +212,7 @@ namespace mv
         mv::Shape tensorShape_;
         std::vector<float> executionCycles_;
         std::shared_ptr<MetisGraphStructure> metisGraph_;
+        std::pair <int,int> mpeMode_;
 
         std::vector<int> generateMetisGraphNodeNumbers(void);
 

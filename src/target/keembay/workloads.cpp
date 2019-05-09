@@ -5,7 +5,7 @@
 #include <metis.h>
 #include <sstream>
 mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
-layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
+layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode)), mpeMode_(mpeMode)
 {
     
 }
@@ -489,15 +489,19 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
         workloads_[workload].workloadID = workload;
-        workloads_[workload].clusterID = 0;           /*Deliverbale is 1 cluster*/
+        workloads_[workload].clusterID = 0;           
         workloads_[workload].MinZ = 0;                
         workloads_[workload].MaxZ = tensorShape_[2]-1;  //output channels
-        workloads_[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
-        workloads_[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
-        workloads_[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
-        workloads_[workload].padRight = 0; /*These are zero in PoC compiler - relevant after WW09*/
-                
-        workloads_[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
+        workloads_[workload].padTop = 0;              
+        workloads_[workload].padBottom = 0;          
+        workloads_[workload].padLeft = 0;             
+        workloads_[workload].padRight = 0; 
+        
+        if (mpeMode_.first == 4)
+            workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;  
+        else
+            workloads_[workload].MPEMode = mv::MPE_Mode::Vector; 
+       
                 
        /* Converting the paritions returned by METIS 
         * into tensor coordinates and populating these fields of workload 
