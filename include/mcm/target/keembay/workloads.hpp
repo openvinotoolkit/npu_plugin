@@ -103,28 +103,18 @@ namespace mv
              * (2) We populate (x,y) coordinates for the individual lattic nodes here with the rectangle class. 
              * 
             */
-            //int n_elem_y;
-            //int n_elem_x;
+           
             int nodeIndex = 0; /* This corresponds to the numbering format in the lattic structure*/
 
             /* We need to handle the first two rows of the lattic first, see node numbering in the lattic example above*/
+            /* Here we populate the the coordiantes of the nodes in the lattic*/
             for(int j=0; j < 1; j++) {
             
-                if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
-                    n_elem_y = MPEMode.first;                 
-                else 
-                    n_elem_y = (int)tensorYDim%MPEMode.first; 
-                
                 /*This loops over the the first two rows 1,2,3,4 .... etc*/
                 for(int k=0; k < (m_xDim*2); k++) {
 
                     int min_x;
                     int min_y;
-                    
-                    if ((k < (m_xDim*2)-2) || (!fmod(tensorXDim,MPEMode.second)))
-                        n_elem_x = MPEMode.second;
-                    else 
-                        n_elem_x = (int)tensorXDim%MPEMode.second;
                     
                     /*First row where node number is even i.e. 2,4,6... */
                     if ((nodeIndex%2 == 0) && (nodeIndex <= ((m_xDim*2)-2)))  { 
@@ -133,7 +123,6 @@ namespace mv
                         min_y = j * MPEMode.first;
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
                                                 
-                        vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
                     }
                     /*Second row where node number is odd i.e. 1,3,5... */
                     if ((nodeIndex%2 != 0) && (nodeIndex <= ((m_xDim*2)-1))) {
@@ -142,13 +131,47 @@ namespace mv
                         min_y = min_y + n_elem_y;
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
                         
-                        vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
                     }        
                     nodeIndex++;
                 }
             }
 
-            /*Now deal with the remaining rows after the first 2 rows*/
+            /*Here we calculate the weights of the nodes for the first two rows*/
+            int nodeIndexWeights = 0;
+            for(int j=0; j < 2; j++) {
+            
+                if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
+                    n_elem_y = MPEMode.first;                 
+                else 
+                    n_elem_y = (int)tensorYDim%MPEMode.first; 
+                
+                /*This loops over the the first two rows 1,2,3,4 .... etc*/
+                for(int k=0; k < m_xDim; k++) {
+
+                    int min_x;
+                    int min_y;
+                    
+                    if ((k+1 < m_xDim) || (!fmod(tensorXDim,MPEMode.second)))
+                        n_elem_x = MPEMode.second;
+                    else 
+                        n_elem_x = (int)tensorXDim%MPEMode.second;
+                    
+                    /*First row where node number is even i.e. 2,4,6... */
+                    if ((nodeIndexWeights%2 == 0) && (nodeIndexWeights <= ((m_xDim*2)-2)))  { 
+                 
+                        vwgt[nodeIndexWeights] = n_elem_x * n_elem_y; /* Populate METIS weight*/
+                    }
+                    /*Second row where node number is odd i.e. 1,3,5... */
+                    if ((nodeIndexWeights%2 != 0) && (nodeIndexWeights <= ((m_xDim*2)-1))) {
+                        
+                        vwgt[nodeIndexWeights] = n_elem_x * n_elem_y; /* Populate METIS weight*/
+                    }        
+                    nodeIndexWeights++;
+                }
+            }
+
+            /* Now deal with the remaining rows after the first 2 rows*/
+            /* For these rows, due to the linear numbers of the nodes numbers, we can calculate the node coordinates and weights together*/
             for(int j=2; j < m_yDim; j++) { 
             
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
