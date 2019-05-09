@@ -179,14 +179,31 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
-            unsigned short total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
+            unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
             double value = 1/double(kSize[0] * kSize[1]);
-            std::vector<double> weightsData(total_shape, value);
 
             unsigned short channel_multiplier = 1;
 
-            auto weights = om.constant(weightsData, {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                            sourceTensor->getDType(), Order(Order::getRowMajorID(4)));
+            mv::Data::TensorIterator weights;
+            if (sourceTensor->isDoubleType())
+            {
+                std::vector<double> weightsData(total_shape, value);
+                weights = om.constant(weightsData,
+                                    {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                    sourceTensor->getDType(),
+                                    Order(Order::getRowMajorID(4)));
+
+            }
+            else
+            {
+                // TODO: populate correct value for the weights param. Is quantization needed here?
+                std::vector<int64_t> weightsData(total_shape, value);
+                weights = om.constantInt(weightsData,
+                                    {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                    sourceTensor->getDType(),
+                                    Order(Order::getRowMajorID(4)));
+            }
+
             auto weightsOp = om.getSourceOp(weights);
             //Check the last argument name!!!
             auto depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding);
