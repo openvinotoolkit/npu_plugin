@@ -560,6 +560,11 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) { 
              wl_max_y = wl_max_y - 1;
         }
+    }
+
+    std::sort(workloads_.begin(), workloads_.end());
+
+    for(int workload = 0; workload < nWorkloads; workload++) { 
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
@@ -568,7 +573,9 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
         pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
         pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
+
     }
+    
 }
 
 mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
