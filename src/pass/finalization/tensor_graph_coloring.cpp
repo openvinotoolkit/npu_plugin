@@ -37,19 +37,10 @@ bool sortbyWeightAsc(const mv::TensorInterferenceGraphNode &a, const mv::TensorI
 {
     return (a.weight < b.weight);
 }
-bool sortbyWeightDesc(const mv::TensorInterferenceGraphNode &a, const mv::TensorInterferenceGraphNode &b)
-{
-    return (a.weight >= b.weight);
-}
 
 bool sortbyNeighborWeightAsc(const mv::TensorInterferenceGraphNode &a, const mv::TensorInterferenceGraphNode &b)
 {
     return (a.neighborsWeight < b.neighborsWeight);
-}
-
-bool sortbyNeighborWeightDesc(const mv::TensorInterferenceGraphNode &a, const mv::TensorInterferenceGraphNode &b)
-{
-    return (a.neighborsWeight >= b.neighborsWeight);
 }
 
 const std::unordered_map<mv::OrderingStrategy,
@@ -75,7 +66,8 @@ const std::unordered_map<mv::OrderingStrategy,
             {
                 nodeWeights.push_back(*itr);
             }
-            sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightDesc);
+            sort(nodeWeights.begin(), nodeWeights.end(), sortbyWeightAsc);
+            std::reverse(nodeWeights.begin(),nodeWeights.end());
             return nodeWeights;
         }
     },
@@ -98,8 +90,10 @@ const std::unordered_map<mv::OrderingStrategy,
             for(auto itr = g.node_begin(); itr != g.node_end(); ++itr)
             {
                 nodeWeights.push_back(*itr);
+                //(*itr).print();
             }
-            sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightDesc);
+            sort(nodeWeights.begin(), nodeWeights.end(), sortbyNeighborWeightAsc);
+            std::reverse(nodeWeights.begin(),nodeWeights.end());
             return nodeWeights;
         }
     },
@@ -120,7 +114,7 @@ const std::unordered_map<mv::OrderingStrategy,
 bool isNodeSimplificable(mv::TensorInterferenceGraph::node_list_iterator& ni, long long memorySize)
 {
     //std::cout << " name " << (*ni).name << " weight " << (*ni).weight << " ne_Weight " << (*ni).neighborsWeight << std::endl;
-    return ((*ni).weight <= (memorySize - (*ni).neighborsWeight));
+    return ((*ni).weight <= (memorySize - (*ni).neighborsWeight - (*ni).weight) );
 }
 
 std::string maxWeightedNeighbors(mv::TensorInterferenceGraph& g)
@@ -158,51 +152,39 @@ void removeNodeAndUpdateWeights(mv::TensorInterferenceGraph& g, mv::TensorInterf
     g.node_erase(ni);
 }
 
-std::stack<std::string> aggressiveSimplify(mv::TensorInterferenceGraph& g, long long memorySize, mv::OrderingStrategy orderStrategy)
+std::queue<std::string> aggressiveSimplify(mv::TensorInterferenceGraph& g, long long memorySize, mv::OrderingStrategy orderStrategy)
 {
     //create a copy of g since we are going to delete nodes from it
     mv::TensorInterferenceGraph gCopy(g);
-    std::stack<std::string> agNodeOrder;
+    std::queue<std::string> agNodeOrder;
     std::vector<mv::TensorInterferenceGraphNode> orderedNodes;
     auto orderingFunc = interferenceGraphNodeSorters_.at(orderStrategy);
 
-    bool continueSimplify = true;
-
-    while (continueSimplify)
+    while(gCopy.node_size() > 0)
     {
-        continueSimplify = false;
         orderedNodes = orderingFunc(gCopy);
-
-        for (auto itr = orderedNodes.begin(); itr != orderedNodes.end(); itr++)
+        auto itr = orderedNodes.begin();
+        auto ni = gCopy.node_find(*itr);
+        if (orderStrategy != mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST && !isNodeSimplificable(ni, memorySize))
         {
-            //std::cout << "checking " << *itr << std::endl;
-            auto ni = gCopy.node_find(*itr);
-            if (isNodeSimplificable(ni, memorySize))
-            {
-                agNodeOrder.push((*itr).name);
-                removeNodeAndUpdateWeights(gCopy, ni);
-                continueSimplify = true;
-            }
-
-            if (gCopy.node_size() > 0 && !continueSimplify)
-            {
-                auto node = maxWeightedNeighbors(gCopy);
-                agNodeOrder.push(node);
-                auto nj = gCopy.node_find(node);
-                removeNodeAndUpdateWeights(gCopy, nj);
-                continueSimplify = true;
-            }
+            //std::cout << "potentialSpill" <<std::endl;
+            auto potentialSpillOrderingFunc = interferenceGraphNodeSorters_.at(mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
+            orderedNodes = potentialSpillOrderingFunc(gCopy);
+            ni = gCopy.node_find(*orderedNodes.begin());
         }
+
+        agNodeOrder.push((*ni).name);
+        removeNodeAndUpdateWeights(gCopy, ni);
     }
     return agNodeOrder;
 }
 
-void printASOrder(std::stack<std::string> order, std::string name)
+void printASOrder(std::queue<std::string> order, std::string name)
 {
     std::cout << " printing aggressive simplify for " << name << ":" << std::endl;
     while (!order.empty())
     {
-        std::string node = order.top();
+        std::string node = order.front();
         order.pop();
         std::cout << node << std::endl;
     }
@@ -467,7 +449,7 @@ void printGraph(std::string name, mv::graph<std::string, int>& g)
 
 }
 
-void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
+void bestFitMemoryAllocation(mv::ComputationModel& model, std::queue<std::string>& order, mv::TensorInterferenceGraph& g, long long memorySize)
 {
     size_t chromaticNumber = 0;
     //build orientation assignment dag
@@ -479,7 +461,7 @@ void bestFitMemoryAllocation(mv::ComputationModel& model, std::stack<std::string
 
     while (!order.empty())
     {
-        std::string node = order.top();
+        std::string node = order.front();
         order.pop();
         chromaticNumber = bestFitSelect(node, g, memorySize, chromaticNumber, directedGraph);
         //printGraph("BestFitDirectedGraph", directedGraph);
@@ -533,7 +515,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
                 return (t->getOpType() == "DMATask");
             },
             true);
-    auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    auto agOrder = aggressiveSimplify(ddr_bss_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_BSS");
 
     bestFitMemoryAllocation(model, agOrder, ddr_bss_g, memsize);
@@ -551,7 +533,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
             false);
     memsize = memDefs.find("VPU_DDR_Heap")->second.size;
     alignment = 16; //memDefs.find("VPU_DDR_Heap")->second.alignment;//TODO for now POC uses 16 for all memory
-    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    agOrder = aggressiveSimplify(ddr_heap_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "DDR_HEAP");
     bestFitMemoryAllocation(model, agOrder, ddr_heap_g, memsize);
     //ddr_heap_g.drawGraph("ddr_heap_memory");
@@ -559,7 +541,7 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
     memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
     alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
-    agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_SMALLEST_NEIGHBORS_FIRST);
+    agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");
     bestFitMemoryAllocation(model, agOrder, nncmx_g, memsize);
     //nncmx_g.drawGraph("nncmx_memory");
