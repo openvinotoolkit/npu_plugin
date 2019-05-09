@@ -66,11 +66,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             auto outputTensor = opIt->getOutputTensor();
             std::vector<mv::Workloads> solutions;
 
-
             mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
             std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
-
-            //idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
 
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
