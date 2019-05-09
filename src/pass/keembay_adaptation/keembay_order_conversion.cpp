@@ -34,6 +34,8 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
 
                 // We also need to set weights shape to ColMajorPlanar (see document Order.ods)
                 dpuTask->getInputTensor(1)->setOrder(mv::Order(mv::Order::getColMajorPlanarID(4)));
+                dpuTask->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getZMajorID(4)));
+
             }
             else
             {

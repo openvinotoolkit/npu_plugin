@@ -255,7 +255,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
 
             n = dpuTask->getOutputTensor().size();
             for (unsigned i = 0; i < n; ++i)
-                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor() &&
+                    !(dpuTask->getInputTensor().size() == 0 && dpuTask->getOutputTensor(i)->isPopulated()))//not a weight constant, for weights they will be spare only for HW Ops
                     dpuTask->getOutputTensor(i)->setSparse();
         }
     }
