@@ -12,6 +12,17 @@
 #include <string>
 #include <unordered_set>
 
+//======================================================================
+//
+//  Simple test on Rectangle Heuristic algorithm of Workloads generation
+//
+//  Check if algorithm behaves predictably in typical and corner cases:
+//  - does not crash or terminates silently in reasonable test cases
+//  - resulting workloads pass validation: cover exactly whole input
+//    tensor and do not intersect each other
+//
+//======================================================================
+
 using namespace testing;
 
 //function declarations
@@ -25,16 +36,16 @@ struct Form
 
 using NWorkloads = idx_t;
 
-class workloads_rect :
-    public TestWithParam<std::tuple<NWorkloads, Form, mv::DType, mv::Target>>
+class workloads_rect_simple :
+    public TestWithParam<std::tuple<NWorkloads, Form>>
 {};
 
 static std::string toString(const mv::Workload& workload)
 {
     std::stringstream s;
     s << "{"
-      <<   "x: " << workload.MinX << " - " <<  workload.MaxX
-      << ", y: " << workload.MinY << " - " <<  workload.MaxY
+      <<   "x: " << workload.MinX << " - " <<  workload.MaxX+1
+      << ", y: " << workload.MinY << " - " <<  workload.MaxY+1
       << "}";
     return s.str();
 }
@@ -60,27 +71,27 @@ TEST_P(workloads_rect, forms)
     auto param = GetParam();
     auto n_wls  = std::get<0>(param);
     auto form   = std::get<1>(param);
-    auto dtype  = std::get<2>(param);
-    auto target = std::get<3>(param);
 
     auto& shape = form.shape;
     auto& order = form.order;
 
     std::stringstream test_name;
-    test_name << "workloads_rect_" << n_wls
-              << "_" << testToString(shape) << "_" << order.toString()
-              << "_" << dtype.toString() << "_" + testToString(target);
+    test_name << "workloads_rect_simple_" << n_wls
+              << "_" << testToString(shape) << "_" << order.toString();
     std::cout << "Test: " << test_name.str() << std::endl;
 
+    // TODO: make mpe_mode optional argument for workloads constructor
+    //   (as setting mpe_mode is relevant only for METIS partitioning)
     std::pair<int, int> mpe_mode(4,4);
     std::string layer_name = "test";
     mv::Workloads workloads(layer_name, shape, mpe_mode);
 
     mv::pass::PassEntry pass("dummy");
-    ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(n_wls, pass));
+    ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(mode_list, n_wls, pass));
 
     int n_workloads = 0;
     EXPECT_GE(n_wls, n_workloads = workloads.nWorkloads());
+    EXPECT_GT(n_workloads, 0);
 
     bool valid = false;
     EXPECT_TRUE(valid = workloads.validateWorkloads(shape));

@@ -58,6 +58,11 @@ const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
     return workloads_;
 }
 
+std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
+{
+    return const_cast<std::vector<Workload>&>(workloads_);
+}
+
 std::string mv::Workloads::toString() const
 {
     std::string output = "{";
@@ -88,11 +93,10 @@ double mv::Workloads::getAllWorkloadsVolume() const
     double volume = 0;
     for (std::size_t i = 0; i < this->nWorkloads(); ++i)
     {
-        std::int16_t volX = this->workloads_[i].MaxX - this->workloads_[i].MinX;
-        std::int16_t volY = this->workloads_[i].MaxY - this->workloads_[i].MinY;
-        std::int16_t volZ = this->workloads_[i].MaxZ - this->workloads_[i].MinZ;
-        //volume += (this->workloads_[i].MaxX - this->workloads_[i].MinX + 1) * (this->workloads_[i].MaxY - this->workloads_[i].MinY + 1) * (this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1);
-        volume += std::max(volX, static_cast<std::int16_t>(1)) * std::max(volY, static_cast<std::int16_t>(1)) * std::max(volZ, static_cast<std::int16_t>(1));
+        auto volX = this->workloads_[i].MaxX - this->workloads_[i].MinX + 1;
+        auto volY = this->workloads_[i].MaxY - this->workloads_[i].MinY + 1;
+        auto volZ = this->workloads_[i].MaxZ - this->workloads_[i].MinZ + 1;
+        volume += volX * volY * volZ;
     }
     return volume;
 }
@@ -138,9 +142,9 @@ mv::Shape mv::Workloads::getShapefromMinMax() const
     }
 
     std::vector<std::size_t> minMax;
-    minMax.push_back(maxX - minX);
-    minMax.push_back(maxY - minY);
-    minMax.push_back(maxZ - minZ);
+    minMax.push_back(maxX - minX + 1);
+    minMax.push_back(maxY - minY + 1);
+    minMax.push_back(maxZ - minZ + 1);
     return mv::Shape(minMax);
 }
 
@@ -845,16 +849,11 @@ namespace mv {
 
     struct PaddingVariant
     {
-        double          efficiency;
-        WorkloadShape   original;
-        WorkloadShape   reduced;
-        WorkloadContext context;
+        double         efficiency;
+        WorkloadShape  original;
+        WorkloadShape  reduced;
+        mv::DPUMode    mode;
     };
-
-
-    // Elementary workload shapes
-    using  WorkloadContextList = std::vector<WorkloadContext>;
-    static WorkloadContextList context_list = {{4,  4}, {16, 1}}; // height x width
 
 
     static unsigned divRoundUp(unsigned x, unsigned m) { return (x + m - 1) / m; } // e.g. div(1, 2) = 0.5 -> 1
@@ -870,17 +869,17 @@ namespace mv {
     }
 
 
-    static PaddingVariant selectPadding(const WorkloadShape      & original,
-                                        const WorkloadContextList& context_list)
+    static PaddingVariant selectPadding(const WorkloadShape  & original,
+                                        const mv::DPUModeList& mode_list)
     {
         double best_efficiency = 0;
         PaddingVariant best_variant; // undefined
 
-        for (auto context : context_list)
+        for (auto mode : mode_list)
         {
             WorkloadShape padded;
-            padded.H = padRoundUp(original.H, context.H);
-            padded.W = padRoundUp(original.W, context.W);
+            padded.H = padRoundUp(original.H, mode.H);
+            padded.W = padRoundUp(original.W, mode.W);
 
             auto efficiency = estimateEfficiency(original, padded);
 
@@ -889,9 +888,9 @@ namespace mv {
                 best_efficiency = efficiency;
 
                 WorkloadShape reduced;
-                reduced.H = padded.H / context.H;
-                reduced.W = padded.W / context.W;
-                best_variant = {efficiency, original, reduced, context};
+                reduced.H = padded.H / mode.H;
+                reduced.W = padded.W / mode.W;
+                best_variant = {efficiency, original, reduced, mode};
             }
         }
 
@@ -1128,7 +1127,7 @@ namespace mv {
 
         if (mode == 'H')
         {
-            for (unsigned y=0; y < Y+1; y++)
+            for (unsigned y=0; y * yss < H; y++)
             {
                 SplitSlice slice;
                 slice.x0 = 0;
@@ -1142,7 +1141,7 @@ namespace mv {
         }
         else // if mode == 'W'
         {
-            for (unsigned x=0; x < X+1; x++)
+            for (unsigned x=0; x * xss < W; x++)
             {
                 SplitSlice slice;
                 slice.x0 = x * xss;
@@ -1158,8 +1157,8 @@ namespace mv {
         unsigned x_size = std::ceil(static_cast<double>(W - x_start) / X);
         unsigned y_size = std::ceil(static_cast<double>(H - y_start) / Y);
 
-        for (unsigned x=0; x < X; x++)
-            for (unsigned y=0; y < Y; y++)
+        for (unsigned x=0; x*x_size + x_start < W; x++)
+            for (unsigned y=0; y*y_size + y_start < H; y++)
             {
                 SplitSlice slice;
                 slice.x0 = x*x_size + x_start;
@@ -1213,7 +1212,8 @@ namespace mv {
 } // namespace mv
 
 
-int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry &pass)
+int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& mode_list,
+                                        idx_t nWorkloads, const mv::pass::PassEntry &pass)
 {
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: layer=" + layerName_);
 
@@ -1237,7 +1237,7 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const
     original_shape.H = H; // height,    Y
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: original_height=" + std::to_string(original_shape.H)
                                                              + ", original_width="  + std::to_string(original_shape.W));
-    auto best_padding = selectPadding(original_shape, context_list);
+    auto best_padding = selectPadding(original_shape, mode_list);
     auto& reduced_shape = best_padding.reduced;
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
