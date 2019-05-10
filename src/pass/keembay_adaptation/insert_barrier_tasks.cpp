@@ -252,6 +252,10 @@ static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om
         }
     }
 
+    // Add more interference here to allow firmware to allow other barrier indices before
+    // reusing any specific one again (hardware switching timing related, presumably).
+    // use sliding window algorithm --> use 5 as the width of the window.
+
     return big;
 }
 
@@ -473,7 +477,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
     addControlFlowBarriers(cm, barriers);
 
+    // --> list of barriers in sorted order.
     combineRedundantBarriers(barriers);
+    // --> still list of barriers in sorted order.
+
+    // Add more interference to barriers list using sliding window algorithm
 
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
