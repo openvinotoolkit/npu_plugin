@@ -4,13 +4,8 @@
 #include <algorithm> 
 #include <metis.h>
 #include <sstream>
-<<<<<<< HEAD
 mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
 layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode)), mpeMode_(mpeMode)
-=======
-mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <idx_t,idx_t>& mpeMode):
-layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
->>>>>>> VPUNND-1019_polygon_shape_metis
 {
     
 }
@@ -578,16 +573,21 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) { 
              wl_max_y = wl_max_y - 1;
         }
-<<<<<<< HEAD
-    }
 
-    std::sort(workloads_.begin(), workloads_.end());
+        /*Before going to polygon logic*/
+        pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
+        pass.log(mv::Logger::MessageType::Debug, "Before polgon max_x: " + std::to_string(workloads_[workload].MaxX));
+        pass.log(mv::Logger::MessageType::Debug, "Before polgon min_x: " + std::to_string(workloads_[workload].MinX));
+        pass.log(mv::Logger::MessageType::Debug, "Before polgon max_y: " + std::to_string(workloads_[workload].MaxY));
+        pass.log(mv::Logger::MessageType::Debug, "Before polgon min_y: " + std::to_string(workloads_[workload].MinY));
+        pass.log(mv::Logger::MessageType::Debug, "Before polgon min_z: " + std::to_string(workloads_[workload].MinZ));
+        pass.log(mv::Logger::MessageType::Debug, "Before polgon max_z: " + std::to_string(workloads_[workload].MaxZ));
 
-    for(int workload = 0; workload < nWorkloads; workload++) { 
-=======
         // the workload vertices are nothing but min max values of the workload. if the workload is a rectangle
         //the minmax values are true vertices. If not, the vertices may not really exist in the workload
         // as the vertices are created using the MinX, MinY, MaxX, MaxY of all the coordinates of entire workload
+
+        /*Starting polygon logic*/
         workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_min_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_max_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_min_y));
@@ -595,7 +595,25 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
 
         //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function       
         listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpeMode));
->>>>>>> VPUNND-1019_polygon_shape_metis
+
+    }
+
+    //clearing the workloads as they may have shaped like polygons (not rectangles)
+    workloads_.clear();
+
+    //adding the rectangle workloads into workloads_ list
+    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
+    {
+        for (auto it = listIt->begin(); it != listIt->end(); it++)
+        {
+            workloads_.push_back(*it);
+        }
+    }
+    
+    /*Sorting by y value and printing after polygon logic*/
+    std::sort(workloads_.begin(), workloads_.end());
+
+    for(int workload = 0; workload < workloads_.size(); workload++) { 
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
@@ -605,19 +623,6 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
         pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
 
-    }
-<<<<<<< HEAD
-    
-=======
-    //clearing the workloads as they may have shaped like polygons (not rectangles)
-    workloads_.clear();
-    //adding the rectangle workloads into workloads_ list
-    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
-    {
-        for (auto it = listIt->begin(); it != listIt->end(); it++)
-        {
-            workloads_.push_back(*it);
-        }
     }
 }
 
@@ -811,7 +816,6 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     finalWorkloadList.insert(finalWorkloadList.end(), final1.begin(), final1.end());
 
     return finalWorkloadList;
->>>>>>> VPUNND-1019_polygon_shape_metis
 }
 
 mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const

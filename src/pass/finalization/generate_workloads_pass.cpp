@@ -66,11 +66,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             auto outputTensor = opIt->getOutputTensor();
             std::vector<mv::Workloads> solutions;
 
-<<<<<<< HEAD
-=======
-            /*Workload's instance, name and tensorShape, MPE mode*/
-            std::pair <idx_t,idx_t> MPEMode (4, 4); /*MPE mode*/
->>>>>>> VPUNND-1019_polygon_shape_metis
             mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
             std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
 
