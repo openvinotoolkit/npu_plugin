@@ -16,10 +16,10 @@ add_executable(graph_comparator
 add_library(gcomparator SHARED
     "src/graph_comparator.cpp"
     ${base} 
-    ${logger}
+    ${logger
 )
 
-target_link_libraries(graph_comparator pthread gtest)
+target_link_libraries(graph_comparator pthread gtest metis)
 add_dependencies(graph_comparator generate-graphfile-headers)
 add_dependencies(gcomparator generate-graphfile-headers)
 
