@@ -76,6 +76,9 @@ namespace mv
         // make it shaped as 8x3x200x320, but tensor order
         // would still remain "NCHW".
 
+        // NOTE: Is this type of operation really necessary in our compiler
+        // given our shape/order assumption?
+
         MV_REGISTER_OP(Permute)
         .setInputs({"data"})
         .setOutputs({"output"})

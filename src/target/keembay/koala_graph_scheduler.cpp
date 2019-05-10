@@ -79,12 +79,13 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
     */
     for (auto opIt = cm.getFirst(); opIt != cm.opEnd(); ++opIt)
     {
-       
+
        /* We do not require MCM constant operations and MCM ouput operation in the KOALA graph. The sink node in the KOALA graph is the DMATask CMX2DDR.
         * For all other tasks in the ControlModel view of the MCM graph create a corresponding node in the KOALA graph.
        */
-       if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt") {
-           
+       if (opIt->getOpType() != "ConstantDataElement" && opIt->getOpType() != "Output" && opIt->getOpType() != "ConstantInt" &&
+            opIt->getOpType() != "WeightsTable" && opIt->getOpType() != "SparsityMap") {
+
            bool nodeAdded = false;
            /*Add node to KOALA graph*/
            /*Check if the node is a DMA task CMX to DDR (this is the sink node in KOALA graph and we need to keep track of it)*/
@@ -120,9 +121,10 @@ void  mv::KoalaGraphScheduler::convertMcMGraphToKoalaGraph(const mv::pass::PassE
         
         /* 1. Don't add the edge going to Ouput in the MCM graph to the KOALA graph
          * 2. Don't add edge coming from a ConstantInt operation (Sparsity Map and Weights Table)
-        */ 
-       
-        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt") { 
+        */
+
+        if (flowIt.sink()->getOpType() != "Output" && flowIt.source()->getOpType() != "ConstantInt" &&
+            flowIt.source()->getOpType() != "WeightsTable" && flowIt.source()->getOpType() != "SparsityMap") {
 
             auto sourceName = flowIt.source()->getName();
             auto sinkName  = flowIt.sink()->getName();

@@ -42,7 +42,7 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::DmaDirection>("direction")
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable"});
