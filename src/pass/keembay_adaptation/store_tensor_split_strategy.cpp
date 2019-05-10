@@ -21,9 +21,9 @@ namespace mv
         );
 
         MV_REGISTER_PASS(StoreWorkloadStrategy)
-        .setFunc(storeLayerSplitStrategyFcn)
+        .setFunc(storeWorkloadStrategyFcn)
         .setDescription(
-            "This pass applies  workload strategies."
+            "This pass applies workload strategies."
         );
     }
 }
@@ -39,6 +39,24 @@ void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv
         {
             if (cluster_filter == 0 || cluster_filter == numClusters)
                 it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
+        }
+    }
+}
+
+void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv::Element>& strategyList)
+{
+    for (auto s: strategyList)
+    {
+        std::string& name_filter = s.get<std::string>("name_filter");
+        int cluster_filter = s.get("cluster_filter");
+        std::regex exp(name_filter);
+        std::cout << it->getName() << std::endl;
+        if (std::regex_match(it->getName(), exp))
+        {
+            if (cluster_filter == 0 || cluster_filter == numClusters) {
+                it->set<int>("WorkloadStrategy_nWorkloads", s.get<int>("nWorkloads"));
+                it->set<std::string>("WorkloadStrategy_MPE_mode", s.get<std::string>("mpe_mode"));
+            }
         }
     }
 }
@@ -96,7 +114,7 @@ void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
     {
         auto opType = opIt->getOpType();
         if (!(opType == "Input" || opType == "Output"))
-            storeStrategy(opIt, numClusters, strategyList);
+            storeWorkloadStrategy(opIt, numClusters, strategyList);
     }
 
     pass.log(mv::Logger::MessageType::Warning, "----workload strategies for individual layers----");
