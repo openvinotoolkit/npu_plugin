@@ -5,7 +5,7 @@
 #include <metis.h>
 #include <sstream>
 mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
-layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
+layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode)), mpeMode_(mpeMode)
 {
     
 }
@@ -495,15 +495,19 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
         workloads_[workload].workloadID = workload;
-        workloads_[workload].clusterID = 0;           /*Deliverbale is 1 cluster*/
+        workloads_[workload].clusterID = 0;           
         workloads_[workload].MinZ = 0;                
         workloads_[workload].MaxZ = tensorShape_[2]-1;  //output channels
-        workloads_[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
-        workloads_[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
-        workloads_[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
-        workloads_[workload].padRight = 0; /*These are zero in PoC compiler - relevant after WW09*/
-                
-        workloads_[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
+        workloads_[workload].padTop = 0;              
+        workloads_[workload].padBottom = 0;          
+        workloads_[workload].padLeft = 0;             
+        workloads_[workload].padRight = 0; 
+        
+        if (mpeMode_.first == 4)
+            workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;  
+        else
+            workloads_[workload].MPEMode = mv::MPE_Mode::Vector; 
+       
                 
        /* Converting the paritions returned by METIS 
         * into tensor coordinates and populating these fields of workload 
@@ -566,6 +570,11 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) { 
              wl_max_y = wl_max_y - 1;
         }
+    }
+
+    std::sort(workloads_.begin(), workloads_.end());
+
+    for(int workload = 0; workload < nWorkloads; workload++) { 
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
         pass.log(mv::Logger::MessageType::Debug, " max_x: " + std::to_string(workloads_[workload].MaxX));
@@ -574,7 +583,9 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         pass.log(mv::Logger::MessageType::Debug, " min_y: " + std::to_string(workloads_[workload].MinY));
         pass.log(mv::Logger::MessageType::Debug, " min_z: " + std::to_string(workloads_[workload].MinZ));
         pass.log(mv::Logger::MessageType::Debug, " max_z: " + std::to_string(workloads_[workload].MaxZ));
+
     }
+    
 }
 
 mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const

@@ -104,10 +104,11 @@ namespace mv
              * (2) We populate (x,y) coordinates for the individual lattic nodes here with the rectangle class. 
              * 
             */
-            //int n_elem_y;
-            //int n_elem_x;
+
             int nodeIndex = 0; /* This corresponds to the numbering format in the lattic structure*/
 
+            /* We need to handle the first two rows of the lattic first, see node numbering in the lattic example above*/
+            /* Here we populate the the coordiantes of the nodes in the lattic*/
             /* We need to handle the first two rows of the lattic first, see node numbering in the lattic example above*/
             for(int j=0; j < 1; j++) {
             
@@ -121,6 +122,11 @@ namespace mv
 
                     int min_x;
                     int min_y;
+                    
+                    if((k%2 != 0) && (m_yDim <= 2)) 
+                        n_elem_y = (int)tensorYDim%MPEMode.first;
+                    else
+                        n_elem_y = MPEMode.first; 
                     
                     if ((k < (m_xDim*2)-2) || (!fmod(tensorXDim,MPEMode.second)))
                         n_elem_x = MPEMode.second;
@@ -147,9 +153,9 @@ namespace mv
                     }        
                     nodeIndex++;
                 }
-            }
-
-            /*Now deal with the remaining rows after the first 2 rows*/
+}
+            /* Now deal with the remaining rows after the first 2 rows*/
+            /* For these rows, due to the linear numbers of the nodes numbers, we can calculate the node coordinates and weights together*/
             for(int j=2; j < m_yDim; j++) { 
             
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
@@ -193,6 +199,10 @@ namespace mv
         int32_t clusterID = 0;
         int8_t workloadID = 0;
 
+        bool operator < (const Workload& rhs) const {
+        return MinY < rhs.MinY;
+    }
+
     };
 
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
@@ -206,6 +216,7 @@ namespace mv
         mv::Shape tensorShape_;
         std::vector<float> executionCycles_;
         std::shared_ptr<MetisGraphStructure> metisGraph_;
+        std::pair <int,int> mpeMode_;
 
         std::vector<int> generateMetisGraphNodeNumbers(void);
 
