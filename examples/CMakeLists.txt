@@ -56,6 +56,9 @@ if (MSVC)
 else()
     add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
     target_link_libraries(dpu_conv_2_conv cm)
+
+    add_executable(dpu_conv_example dpu_conv_example.cpp)
+    target_link_libraries(dpu_conv_example cm)
     
     #[[
     add_executable(average_to_depthwise average_to_depthwise.cpp)
@@ -105,9 +108,6 @@ else()
 
     add_executable(hw_convolution hw_convolution.cpp)
     target_link_libraries(hw_convolution cm)
-
-    add_executable(dpu_conv_example dpu_conv_example.cpp)
-    target_link_libraries(dpu_conv_example cm)
 
     add_executable(zconv_example zconv_example.cpp)
     target_link_libraries(zconv_example cm)

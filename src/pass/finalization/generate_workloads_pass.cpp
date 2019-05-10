@@ -38,11 +38,21 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     if (globalParams->hasAttr("Number_of_Clusters")) 
         int nClusters = globalParams->get<int>("Number_of_Clusters");
     
-    /*Get nWorkloads and mpe_mode from compilation descriptor*/
-    int nWorkloads = globalParams->get<int>("nWorkloads");
-
+    
+    int nWorkloads;
     std::pair <int,int> MPEMode;
-    std::string mpeMode  = globalParams->get<std::string>("MPE_mode");
+    std::string mpeMode;
+
+    /*Get nWorkloads and mpe_mode from compilation descriptor*/
+    if (globalParams->hasAttr("nWorkloads")) 
+        nWorkloads = globalParams->get<int>("nWorkloads");
+    else
+        std::runtime_error("Exiting, set the number of workloads and MPE mode in the compilation descriptor");
+
+    if (globalParams->hasAttr("MPE_mode")) 
+        mpeMode  = globalParams->get<std::string>("MPE_mode");
+    else
+        std::runtime_error("Exiting, set the MPE mode in the compilation descriptor");
     
     /*MPE mode*/
     if(mpeMode == "Matrix") { 

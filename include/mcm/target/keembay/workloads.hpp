@@ -202,7 +202,7 @@ namespace mv
         int16_t padTop = 0;
         int16_t padBottom = 0;
         int32_t clusterID = 0;
-        int8_t workloadID = 0;
+        int8_t workloadID = 0;  
         int16_t area()
         {
           return (MaxX - MinX + 1) * (MaxY - MinY + 1);

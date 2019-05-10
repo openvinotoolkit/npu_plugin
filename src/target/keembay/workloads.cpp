@@ -489,19 +489,19 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
                 
-        workloads_[workload].workloadID = workload;
-        workloads_[workload].clusterID = 0;           
-        workloads_[workload].MinZ = 0;                
-        workloads_[workload].MaxZ = tensorShape_[2]-1;  //output channels
-        workloads_[workload].padTop = 0;              
-        workloads_[workload].padBottom = 0;          
-        workloads_[workload].padLeft = 0;             
-        workloads_[workload].padRight = 0; 
+        // workloads_[workload].workloadID = workload;
+        // workloads_[workload].clusterID = 0;           
+        // workloads_[workload].MinZ = 0;                
+        // workloads_[workload].MaxZ = tensorShape_[2]-1;  //output channels
+        // workloads_[workload].padTop = 0;              
+        // workloads_[workload].padBottom = 0;          
+        // workloads_[workload].padLeft = 0;             
+        // workloads_[workload].padRight = 0; 
         
-        if (mpeMode_.first == 4)
-            workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;  
-        else
-            workloads_[workload].MPEMode = mv::MPE_Mode::Vector; 
+        // if (mpeMode_.first == 4)
+        //     workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;  
+        // else
+        //     workloads_[workload].MPEMode = mv::MPE_Mode::Vector; 
        
                 
        /* Converting the paritions returned by METIS 
@@ -566,22 +566,12 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         /*Workload border in the middle of the tensor therefore subtract 1 from max_y and add 1 to min_y (think bottom left)*/
         if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y !=  0)) { 
              wl_max_y = wl_max_y - 1;
-             //wl_min_y = wl_min_y + 1;
         }
 
         /*Workload border in the middle of the tensor therefore subtract 1 from max_y and no need to change min_y as it is already 0 (think top left)*/
         if((wl_max_y < metisGraph_->tensorYDim) && (wl_max_y <  (metisGraph_->tensorYDim-1)) && (wl_max_y !=  (metisGraph_->tensorYDim-1)) && (wl_min_y ==  0)) { 
              wl_max_y = wl_max_y - 1;
         }
-
-        /*Before going to polygon logic*/
-        pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
-        pass.log(mv::Logger::MessageType::Debug, "Before polgon max_x: " + std::to_string(workloads_[workload].MaxX));
-        pass.log(mv::Logger::MessageType::Debug, "Before polgon min_x: " + std::to_string(workloads_[workload].MinX));
-        pass.log(mv::Logger::MessageType::Debug, "Before polgon max_y: " + std::to_string(workloads_[workload].MaxY));
-        pass.log(mv::Logger::MessageType::Debug, "Before polgon min_y: " + std::to_string(workloads_[workload].MinY));
-        pass.log(mv::Logger::MessageType::Debug, "Before polgon min_z: " + std::to_string(workloads_[workload].MinZ));
-        pass.log(mv::Logger::MessageType::Debug, "Before polgon max_z: " + std::to_string(workloads_[workload].MaxZ));
 
         // the workload vertices are nothing but min max values of the workload. if the workload is a rectangle
         //the minmax values are true vertices. If not, the vertices may not really exist in the workload
@@ -606,6 +596,14 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     {
         for (auto it = listIt->begin(); it != listIt->end(); it++)
         {
+            /*populate new worklaods*/
+            if (mpeMode_.first == 4)
+                it->MPEMode = mv::MPE_Mode::Matrix;
+            else
+                it->MPEMode = mv::MPE_Mode::Vector;
+
+            it->MaxZ = tensorShape_[2]-1;
+            
             workloads_.push_back(*it);
         }
     }
