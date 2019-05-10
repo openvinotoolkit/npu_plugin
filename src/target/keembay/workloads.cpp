@@ -53,12 +53,14 @@ std::size_t mv::Workloads::nWorkloads() const
     return workloads_.size();
 }
 
+/*
 const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 {
     return workloads_;
 }
+*/
 
-std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
+const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 {
     return const_cast<std::vector<Workload>&>(workloads_);
 }
