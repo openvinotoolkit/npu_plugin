@@ -220,7 +220,7 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "blob.bin",
+                "output": "output/vpu2.blob",
                 "barrier_index_assignment": "Static"
             }
         ]
