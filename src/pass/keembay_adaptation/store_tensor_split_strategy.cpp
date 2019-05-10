@@ -6,6 +6,7 @@
 #include <regex>
 
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -17,6 +18,12 @@ namespace mv
         .setFunc(storeLayerSplitStrategyFcn)
         .setDescription(
             "This pass applies tensor splitting strategies."
+        );
+
+        MV_REGISTER_PASS(StoreWorkloadStrategy)
+        .setFunc(storeLayerSplitStrategyFcn)
+        .setDescription(
+            "This pass applies  workload strategies."
         );
     }
 }
@@ -65,6 +72,40 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
         {
             pass.log(mv::Logger::MessageType::Warning, "op: " + opIt->getName() +
                         " | strategy = " + opIt->get<std::string>("splitStrategy"));
+        }
+    }
+}
+
+
+void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    auto globalParams = model.getGlobalConfigParams();
+
+    if (!globalParams->hasAttr("workload_strategy"))
+    {
+        pass.log(mv::Logger::MessageType::Info, "No custom workload strategy provided, exiting...");
+        return;
+    }
+
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("workload_strategy");
+    auto numClusters = globalParams->get("Number_of_Clusters");
+
+    mv::OpModel om(model);
+
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        auto opType = opIt->getOpType();
+        if (!(opType == "Input" || opType == "Output"))
+            storeStrategy(opIt, numClusters, strategyList);
+    }
+
+    pass.log(mv::Logger::MessageType::Warning, "----workload strategies for individual layers----");
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        if (opIt->hasAttr("workloadStrategy"))
+        {
+            pass.log(mv::Logger::MessageType::Warning, "op: " + opIt->getName() +
+                        " | workload strategy = " + opIt->get<std::string>("workloadStrategy"));
         }
     }
 }
