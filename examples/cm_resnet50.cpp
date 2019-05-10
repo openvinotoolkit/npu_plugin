@@ -197,23 +197,23 @@ int main()
     conv1 = cm.relu(conv1, emptyQuantParams, "relu1");
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
     auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1}, emptyQuantParams, "res2a");
-    // auto res2b = residualBlock(cm, res2a, 64, emptyQuantParams, "res2b");
-    // auto res2c = residualBlock(cm, res2b, 64, emptyQuantParams, "res2c");
-    // auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2}, emptyQuantParams, "res3a");
-    // auto res3b = residualBlock(cm, res3a, 128, emptyQuantParams, "res3b");
-    // auto res3c = residualBlock(cm, res3b, 128, emptyQuantParams, "res3c");
-    // auto res3d = residualBlock(cm, res3c, 128, emptyQuantParams, "res3d");
-    // auto res4a = residualConvBlock(cm, res3d, 256, 1024, {2, 2}, emptyQuantParams, "res4a");
-    // auto res4b = residualBlock(cm, res4a, 256, emptyQuantParams, "res4b");
-    // auto res4c = residualBlock(cm, res4b, 256, emptyQuantParams, "res4c");
-    // auto res4d = residualBlock(cm, res4c, 256, emptyQuantParams, "res4d");
-    // auto res4e = residualBlock(cm, res4d, 256, emptyQuantParams, "res4e");
-    // auto res4f = residualBlock(cm, res4e, 256, emptyQuantParams, "res4f");
+    auto res2b = residualBlock(cm, res2a, 64, emptyQuantParams, "res2b");
+    auto res2c = residualBlock(cm, res2b, 64, emptyQuantParams, "res2c");
+    auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2}, emptyQuantParams, "res3a");
+    auto res3b = residualBlock(cm, res3a, 128, emptyQuantParams, "res3b");
+    auto res3c = residualBlock(cm, res3b, 128, emptyQuantParams, "res3c");
+    auto res3d = residualBlock(cm, res3c, 128, emptyQuantParams, "res3d");
+    auto res4a = residualConvBlock(cm, res3d, 256, 1024, {2, 2}, emptyQuantParams, "res4a");
+    auto res4b = residualBlock(cm, res4a, 256, emptyQuantParams, "res4b");
+    auto res4c = residualBlock(cm, res4b, 256, emptyQuantParams, "res4c");
+    auto res4d = residualBlock(cm, res4c, 256, emptyQuantParams, "res4d");
+    auto res4e = residualBlock(cm, res4d, 256, emptyQuantParams, "res4e");
+    auto res4f = residualBlock(cm, res4e, 256, emptyQuantParams, "res4f");
     // auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2}, emptyQuantParams, "res5a");
     // auto res5b = residualBlock(cm, res5a, 512, emptyQuantParams, "res5b");
     // auto res5c = residualBlock(cm, res5b, 512, emptyQuantParams, "res5c");
     // auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
-    cm.output(res2a);
+    cm.output(res4f);
 
     // Load target descriptor for the selected target to the compilation unit
     if (!unit.loadTargetDescriptor(mv::Target::ma2490))
