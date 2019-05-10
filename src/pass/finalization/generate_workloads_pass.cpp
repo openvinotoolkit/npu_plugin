@@ -72,11 +72,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         {
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
  
-            /*Get output tensor*/
-            auto outputTensor = opIt->getOutputTensor();
-            std::vector<mv::Workloads> solutions;
+            /*Create workload*/
+            mv::Workloads workloads(opIt->getName(),opIt->getOutputTensor()[0]->getShape(), MPEMode);
 
-            mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
             std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
 
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));

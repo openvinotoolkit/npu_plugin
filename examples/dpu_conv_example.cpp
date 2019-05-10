@@ -21,7 +21,7 @@ int main()
     auto input = om.input({28, 28, 128, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
     std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(1*1*128*512);
     auto weights = om.constantInt(weightsData, {1, 1, 128, 512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{}, {}, {}, {}}, "res3a_branch2c_weights");
-    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res3a_branch2c#4");
+    auto conv = om.conv(input, weights, {1, 1}, {0, 0, 0, 0}, 1, 1, {{},{},{},{}}, "res3a_branch2c");
 
     std::vector<int64_t> biasWeightsData = mv::utils::generateSequence<int64_t>(512);
     auto biasWeights = om.constantInt(biasWeightsData, {512}, mv::DType("UInt8"), mv::Order::getColMajorID(1));
