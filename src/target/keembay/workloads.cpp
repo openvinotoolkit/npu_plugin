@@ -488,22 +488,7 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     for(int workload = 0; workload < nWorkloads; workload++) { 
         
         workloads_.push_back(mv::Workload()); /*Add each workload (struct) to vector of workloads*/
-                
-        // workloads_[workload].workloadID = workload;
-        // workloads_[workload].clusterID = 0;           
-        // workloads_[workload].MinZ = 0;                
-        // workloads_[workload].MaxZ = tensorShape_[2]-1;  //output channels
-        // workloads_[workload].padTop = 0;              
-        // workloads_[workload].padBottom = 0;          
-        // workloads_[workload].padLeft = 0;             
-        // workloads_[workload].padRight = 0; 
-        
-        // if (mpeMode_.first == 4)
-        //     workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;  
-        // else
-        //     workloads_[workload].MPEMode = mv::MPE_Mode::Vector; 
-       
-                
+                                
        /* Converting the paritions returned by METIS 
         * into tensor coordinates and populating these fields of workload 
         */
@@ -596,14 +581,15 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
     {
         for (auto it = listIt->begin(); it != listIt->end(); it++)
         {
-            /*populate new worklaods*/
+            /*These should be set in the polygon logic*/
             if (mpeMode_.first == 4)
                 it->MPEMode = mv::MPE_Mode::Matrix;
             else
                 it->MPEMode = mv::MPE_Mode::Vector;
 
+            it->MinZ = 0;
             it->MaxZ = tensorShape_[2]-1;
-            
+
             workloads_.push_back(*it);
         }
     }
