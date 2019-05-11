@@ -73,11 +73,11 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     mv::ControlModel cm(om);
 
     auto output = cm.getOutput();
-    int maxTopologicalCutValue;
+    uint64_t maxTopologicalCutValue;
     
     /*Get the max topological cut value*/
     if(output->hasAttr("MaxTopologicalCutValue"))
-        maxTopologicalCutValue = output->get<int>("MaxTopologicalCutValue");
+        maxTopologicalCutValue = output->get<uint64_t>("MaxTopologicalCutValue");
 
     ASSERT_EQ(maxTopologicalCutValue, 688320);
 
