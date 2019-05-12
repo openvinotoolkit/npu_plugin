@@ -38,39 +38,18 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     if (globalParams->hasAttr("Number_of_Clusters")) 
         int nClusters = globalParams->get<int>("Number_of_Clusters");
     
-    
     int nWorkloads;
     std::pair <int,int> MPEMode;
     std::string mpeMode;
-
-    /*Get nWorkloads and mpe_mode from compilation descriptor*/
-    if (globalParams->hasAttr("nWorkloads")) 
-        nWorkloads = globalParams->get<int>("nWorkloads");
-    else
-        std::runtime_error("Exiting, set the number of workloads and MPE mode in the compilation descriptor");
-
-    if (globalParams->hasAttr("MPE_mode")) 
-        mpeMode  = globalParams->get<std::string>("MPE_mode");
-    else
-        std::runtime_error("Exiting, set the MPE mode in the compilation descriptor");
-    
-    /*MPE mode*/
-    if(mpeMode == "Matrix") { 
-        MPEMode.first = 4;
-        MPEMode.second = 4; 
-    }
-    else if (mpeMode == "Vector")
-    {
-        MPEMode.first = 1;
-        MPEMode.second = 16; 
-    }
-    
     mv::OpModel om(model);
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask")
         {
             pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
+            MPEMode.first = std::stoi(std::string(1,opIt->get<std::string>("WorkloadStrategy_MPE_mode")[1]));
+            MPEMode.second = std::stoi(std::string(1,opIt->get<std::string>("WorkloadStrategy_MPE_mode")[3]));
+            nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
  
             /*Create workload*/
             mv::Workloads workloads(opIt->getName(),opIt->getOutputTensor()[0]->getShape(), MPEMode);
