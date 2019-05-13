@@ -42,17 +42,43 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     std::pair <int,int> MPEMode;
     std::string mpeMode;
     mv::OpModel om(model);
+// the global mpe mode and number of clusters is needed for unit tests that don't have layer names matching resnet50 layer names
+     /*Get nWorkloads and mpe_mode from compilation descriptor*/	
+    if (globalParams->hasAttr("nWorkloads")) 	
+        nWorkloads = globalParams->get<int>("nWorkloads");	
+    else	
+        std::runtime_error("Exiting, set the number of workloads and MPE mode in the compilation descriptor");	
+
+     if (globalParams->hasAttr("MPE_mode")) 	
+        mpeMode  = globalParams->get<std::string>("MPE_mode");	
+    else	
+        std::runtime_error("Exiting, set the MPE mode in the compilation descriptor");	
+
+     /*MPE mode*/	
+    if(mpeMode == "Matrix") { 	
+        MPEMode.first = 4;	
+        MPEMode.second = 4; 	
+    }	
+    else if (mpeMode == "Vector")	
+    {	
+        MPEMode.first = 1;	
+        MPEMode.second = 16; 	
+    }	
+
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask")
         {
-            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
-            MPEMode.first = std::stoi(std::string(1,opIt->get<std::string>("WorkloadStrategy_MPE_mode")[1]));
-            MPEMode.second = std::stoi(std::string(1,opIt->get<std::string>("WorkloadStrategy_MPE_mode")[3]));
-            nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
- 
+            if (opIt->hasAttr("WorkloadStrategy_MPE_mode"))
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
+                MPEMode.first = std::stoi(std::string(1, opIt->get<std::string>("WorkloadStrategy_MPE_mode")[1]));
+                MPEMode.second = std::stoi(std::string(1, opIt->get<std::string>("WorkloadStrategy_MPE_mode")[3]));
+                nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
+            }
+
             /*Create workload*/
-            mv::Workloads workloads(opIt->getName(),opIt->getOutputTensor()[0]->getShape(), MPEMode);
+            mv::Workloads workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode);
 
             std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
 
@@ -64,9 +90,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 if (algorithm == "Metis")
                 {
                     /*Populate Metis adjacency structure and partition tensor*/
-                    workloads.generateMetisGraph(); 
+                    workloads.generateMetisGraph();
                     auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
-                    if( res==1)
+                    if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
                         pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS, ensure number of workloads is even!");
@@ -75,7 +101,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 {
                     /*Partition tensor into workloads with Rectangle*/
                     auto res = workloads.partitionTensorWithRectangleHeuristic(nWorkloads, pass);
-                    if(res==1)
+                    if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
                         pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle!");
@@ -83,11 +109,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 else if (algorithm == "Z-Tiling")
                 {
                     //Partition tensor into workloads with Rectangle
-
                 }
-                
             }
-            
+
             opIt->set<mv::Workloads>("Workloads", workloads);
         }
     }

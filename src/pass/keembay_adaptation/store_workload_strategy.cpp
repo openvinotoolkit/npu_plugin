@@ -28,7 +28,6 @@ void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::v
         std::string& name_filter = s.get<std::string>("name_filter");
         int cluster_filter = s.get("cluster_filter");
         std::regex exp(name_filter);
-        std::cout << it->getName() << std::endl;
         if (std::regex_match(it->getName(), exp))
         {
             if (cluster_filter == 0 || cluster_filter == numClusters) {
