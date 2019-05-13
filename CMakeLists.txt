@@ -307,6 +307,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_tensor_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
 
@@ -400,7 +401,10 @@ else()
     else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
         add_library(corebase SHARED ${base} ${logger})
+        target_link_libraries(cm metis)
+        target_link_libraries(corebase metis)
         add_library(model SHARED ${model})
+        
 
         IF(CMAKE_CROSSCOMPILING)
             #Flatbuffers and Metis not x-compiled yet

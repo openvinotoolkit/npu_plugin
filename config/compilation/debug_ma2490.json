@@ -50,6 +50,81 @@
                         "cluster_filter" : 0,
                         "strategy" : "SplitOverH"
                     }
+                ],
+                "workload_strategy" :
+                [
+                    {
+                        "name_filter" : "res1",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 45,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res2a_branch2a",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res2a_branch2b",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res2a_branch2c",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res3a_branch2c",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 49,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res4a_branch2a",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "(1,16,16)"
+                    },
+                    {
+                        "name_filter" : "res4a_branch2b",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "(1,16,16)"
+                    },
+                    {
+                        "name_filter" : "res4a_branch2b_alt",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 8,
+                        "mpe_mode" : "(1,16,16)"
+                    },
+                    {
+                        "name_filter" : "res5a_branch2a",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res5c_branch2a",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res5c_branch2b",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    },
+                    {
+                        "name_filter" : "res5c_branch2c",
+                        "cluster_filter" : 0,
+                        "nWorkloads" : 4,
+                        "mpe_mode" : "(4,4,16)"
+                    }
                 ]
             },
             "AssignUniqueOpId",
@@ -92,6 +167,7 @@
     "keembay_adapt": {
         "Singular": [
             "StoreLayerSplitStrategy",
+            "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
             "ComputeTensorsQuantParams",
             "KMBOrderConversion",
@@ -185,8 +261,9 @@
             },
             {
                 "name": "GenerateWorkloads",
-                "costfunction": "balanced",
-                "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
+                "costfunction": "criticalpath",
+                "TensorSplitAlgorithms": "Metis",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Metis, Rectangle, Z-Tiling"
             },
             "RemoveDeallocationTasks",
             "TransitiveReduction",
