@@ -54,13 +54,10 @@ if (MSVC)
     add_executable(barrier_dependency_example barrier_dependency_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
-    add_executable(dpu_conv_2_conv dpu_conv_2_conv.cpp)
-    target_link_libraries(dpu_conv_2_conv cm)
-
+   
     add_executable(dpu_conv_example dpu_conv_example.cpp)
     target_link_libraries(dpu_conv_example cm)
     
-    #[[
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
@@ -147,7 +144,6 @@ else()
 
     add_executable(runtime_model runtime_model.cpp)
     target_link_libraries(runtime_model cm)
-    ]]
 
     if(VALIDATION)
     add_executable(caffe_files_generator caffe_files_generator.cpp)
