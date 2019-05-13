@@ -307,6 +307,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_tensor_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
 
@@ -414,8 +415,8 @@ else()
             add_dependencies(model generate-comp-api)
             add_dependencies(cm generate-graphfile-headers)
             add_subdirectory(python/api)
- #           add_subdirectory(tests)
-#            add_subdirectory(contrib/googletest)
+            add_subdirectory(tests)
+            add_subdirectory(contrib/googletest)
         ENDIF(CMAKE_CROSSCOMPILING)
        
     endif(VALIDATION)

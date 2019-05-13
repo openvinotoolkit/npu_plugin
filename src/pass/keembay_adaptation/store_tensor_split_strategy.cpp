@@ -6,7 +6,6 @@
 #include <regex>
 
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -18,12 +17,6 @@ namespace mv
         .setFunc(storeLayerSplitStrategyFcn)
         .setDescription(
             "This pass applies tensor splitting strategies."
-        );
-
-        MV_REGISTER_PASS(StoreWorkloadStrategy)
-        .setFunc(storeWorkloadStrategyFcn)
-        .setDescription(
-            "This pass applies workload strategies."
         );
     }
 }
@@ -39,24 +32,6 @@ void storeStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv
         {
             if (cluster_filter == 0 || cluster_filter == numClusters)
                 it->set<std::string>("splitStrategy", s.get<std::string>("strategy"));
-        }
-    }
-}
-
-void storeWorkloadStrategy(mv::Data::OpListIterator& it, int numClusters, std::vector<mv::Element>& strategyList)
-{
-    for (auto s: strategyList)
-    {
-        std::string& name_filter = s.get<std::string>("name_filter");
-        int cluster_filter = s.get("cluster_filter");
-        std::regex exp(name_filter);
-        std::cout << it->getName() << std::endl;
-        if (std::regex_match(it->getName(), exp))
-        {
-            if (cluster_filter == 0 || cluster_filter == numClusters) {
-                it->set<int>("WorkloadStrategy_nWorkloads", s.get<int>("nWorkloads"));
-                it->set<std::string>("WorkloadStrategy_MPE_mode", s.get<std::string>("mpe_mode"));
-            }
         }
     }
 }
@@ -90,40 +65,6 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
         {
             pass.log(mv::Logger::MessageType::Warning, "op: " + opIt->getName() +
                         " | strategy = " + opIt->get<std::string>("splitStrategy"));
-        }
-    }
-}
-
-
-void storeWorkloadStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    auto globalParams = model.getGlobalConfigParams();
-
-    if (!globalParams->hasAttr("workload_strategy"))
-    {
-        pass.log(mv::Logger::MessageType::Info, "No custom workload strategy provided, exiting...");
-        return;
-    }
-
-    auto strategyList = globalParams->get<std::vector<mv::Element>>("workload_strategy");
-    auto numClusters = globalParams->get("Number_of_Clusters");
-
-    mv::OpModel om(model);
-
-    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-    {
-        auto opType = opIt->getOpType();
-        if (!(opType == "Input" || opType == "Output"))
-            storeWorkloadStrategy(opIt, numClusters, strategyList);
-    }
-
-    pass.log(mv::Logger::MessageType::Warning, "----workload strategies for individual layers----");
-    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-    {
-        if (opIt->hasAttr("workloadStrategy"))
-        {
-            pass.log(mv::Logger::MessageType::Warning, "op: " + opIt->getName() +
-                        " | workload strategy = " + opIt->get<std::string>("workloadStrategy"));
         }
     }
 }
