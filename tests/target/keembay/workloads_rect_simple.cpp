@@ -37,7 +37,7 @@ struct Form
 using NWorkloads = idx_t;
 
 class workloads_rect_simple :
-    public TestWithParam<std::tuple<NWorkloads, Form>>
+    public TestWithParam<std::tuple<NWorkloads, Form, mv::DPUModeList>>
 {};
 
 static std::string toString(const mv::Workload& workload)
@@ -50,7 +50,7 @@ static std::string toString(const mv::Workload& workload)
     return s.str();
 }
 
-TEST_P(workloads_rect, SortFunction)
+TEST_P(workloads_rect_simple, SortFunction)
 {
     std::vector<mv::Workloads> solutions = GenerateTestSolutions();
 
@@ -66,11 +66,12 @@ TEST_P(workloads_rect, SortFunction)
 }
 
 
-TEST_P(workloads_rect, forms)
+TEST_P(workloads_rect_simple, forms)
 {
     auto param = GetParam();
     auto n_wls  = std::get<0>(param);
     auto form   = std::get<1>(param);
+    auto modes  = std::get<2>(param);
 
     auto& shape = form.shape;
     auto& order = form.order;
@@ -87,7 +88,7 @@ TEST_P(workloads_rect, forms)
     mv::Workloads workloads(layer_name, shape, mpe_mode);
 
     mv::pass::PassEntry pass("dummy");
-    ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(mode_list, n_wls, pass));
+    ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(modes, n_wls, pass));
 
     int n_workloads = 0;
     EXPECT_GE(n_wls, n_workloads = workloads.nWorkloads());
@@ -107,15 +108,17 @@ TEST_P(workloads_rect, forms)
     }
 }
 
+static const mv::DPUModeList dpu_mode_1x1 = {{1, 1}};
+static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}}; // {height, width}
+
 static Form form4d({mv::Shape({112, 112, 3, 8}), mv::Order("NCHW")});
 static Form form3d({mv::Shape({ 73,  37, 3}),     mv::Order("CHW")});
 static Form form2d({mv::Shape({320, 200}),         mv::Order("HW")});
 
-INSTANTIATE_TEST_CASE_P(combi, workloads_rect,
+INSTANTIATE_TEST_CASE_P(combi, workloads_rect_simple,
                         Combine(Values(4, 7, 128), // number of workloads
                                 Values(form2d, form3d, form4d),
-                                Values(mv::DType("Float16")),
-                                Values(mv::Target::ma2490)));
+                                Values(dpu_mode_poc)));
 
 
 /** Creates a 4 Workloads instance*/
