@@ -370,10 +370,23 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 workloads.getWorkloads()[workload].clusterID = 0;           /*WW09 deliverbale is 1 cluster*/
                 workloads.getWorkloads()[workload].MinZ = 0;                /*WW09 deliverbale is less than 16 channels*/
                 workloads.getWorkloads()[workload].MaxZ = outputTensor[0]->getShape()[2] -1;  //output channels
-                workloads.getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
-                workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
-                workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
-                workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
+
+                // TODO: padding relative to the subtensor should be taken.
+                if(opIt->hasAttr("padding"))
+                {
+                    auto paddings = opIt->get<std::array<unsigned short, 4>>("padding");
+                    workloads.getWorkloads()[workload].padTop = paddings[2];
+                    workloads.getWorkloads()[workload].padBottom = paddings[3];
+                    workloads.getWorkloads()[workload].padLeft = paddings[0];
+                    workloads.getWorkloads()[workload].padRight = paddings[1];
+                }
+                else
+                {
+                    workloads.getWorkloads()[workload].padTop = 0;              /*These are zero in PoC compiler - relevant after WW09*/
+                    workloads.getWorkloads()[workload].padBottom = 0;           /*These are zero in PoC compiler - relevant after WW09*/
+                    workloads.getWorkloads()[workload].padLeft = 0;             /*These are zero in PoC compiler - relevant after WW09*/
+                    workloads.getWorkloads()[workload].padRight = 0;            /*These are zero in PoC compiler - relevant after WW09*/
+                }
                 
                 workloads.getWorkloads()[workload].MPEMode = mv::Matrix;        /*Matrix is MPE Mode (4,4)*/
                 
