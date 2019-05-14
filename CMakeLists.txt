@@ -207,6 +207,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
@@ -309,6 +310,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_tensor_split_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/eltwise_ops.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
