@@ -4,15 +4,15 @@
 #include "include/mcm/target/keembay/workloads.hpp"
 
 /** Creates a Workloads instance*/
-mv::Workloads GenerateTestWorkloads_modelA1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
+ mv::Workloads GenerateTestWorkloads_modelA1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
 mv::Workloads GenerateTestWorkloads_modelA2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
 
 mv::Workloads GenerateTestWorkloads_modelB1(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
 mv::Workloads GenerateTestWorkloads_modelB2(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
-mv::Workloads GenerateTestWorkloads_modelB4(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode);
+mv::Workloads GenerateTestWorkloads_modelB4(mv::Data::TensorIterator& inputTensor, mv::MPE_Mode mode); 
 
 
-TEST(generate_workloads_pass, costfunction_criticalpathA1)
+/* TEST(generate_workloads_pass, costfunction_criticalpathA1)
 {
     // Tests critical path, 1 workload (A)
     mv::OpModel om("testModel");
@@ -202,10 +202,10 @@ TEST(generate_workloads_pass, execycles_workloadB1_vector)
     ASSERT_EQ(results[0], 224.0);
     ASSERT_EQ(results[1], 448.0);
 }
+ */
 
 
-
-TEST(generate_workloads_pass, costfunction_greedyA)
+/* TEST(generate_workloads_pass, costfunction_greedyA)
 {
     int nDPUxCluster = 4;
     std::vector<float> workloadCosts {112.0, 112.0, 112.0, 56.0, 112.0, 112.0, 112.0, 56.0};
@@ -221,9 +221,9 @@ TEST(generate_workloads_pass, costfunction_greedyB)
     float result = mv::Workloads::greedyTaskAssignment(nDPUxCluster, workloadCosts);
 
     ASSERT_EQ(result, 196);
-}
+} */
 
-TEST(generate_workloads_pass, validate_methodB1)
+/* TEST(generate_workloads_pass, validate_methodB1)
 {
     // Validates 1 workload (B)
     mv::OpModel om("testModel");
@@ -261,7 +261,7 @@ TEST(generate_workloads_pass, validateB2)
 
     bool result = workloads.validateWorkloads(vectorTensors);
     ASSERT_TRUE(result);
-}
+} */
 
 TEST(generate_workloads_pass, ReadTensorSplitAlgorithms)
 {
