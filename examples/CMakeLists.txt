@@ -39,6 +39,8 @@ if (MSVC)
 
     add_executable(dpu_conv_example dpu_conv_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
+    add_executable(streaming_manual_example streaming_manual_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
+
     add_executable(dpu_task_example dpu_task_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
     add_executable(barrier_task_api barrier_task_api.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
@@ -105,6 +107,9 @@ else()
 
     add_executable(dpu_conv_example dpu_conv_example.cpp)
     target_link_libraries(dpu_conv_example cm)
+
+    add_executable(streaming_manual_example streaming_manual_example.cpp)
+    target_link_libraries(streaming_manual_example cm)
 
     add_executable(zconv_example zconv_example.cpp)
     target_link_libraries(zconv_example cm)
