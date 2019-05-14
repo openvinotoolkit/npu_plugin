@@ -121,6 +121,7 @@ INSTANTIATE_TEST_CASE_P(combi, workloads_rect_simple,
                                 Values(dpu_mode_poc)));
 
 
+
 /** Creates a 4 Workloads instance*/
 std::vector<mv::Workloads> GenerateTestSolutions()
 {
@@ -128,7 +129,7 @@ std::vector<mv::Workloads> GenerateTestSolutions()
 
     std::pair <int,int> MPEMode (4, 4);
     mv::Shape t_shape({64,64,56});
-    
+
     //>>>> workloads A - execylces 15, 4 workloads (2nd) <<<<
     mv::Workloads workloadsA("Model", t_shape, MPEMode);
     workloadsA.setExecutionCycles({10,20}) ; //avg: 15
