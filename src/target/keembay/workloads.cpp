@@ -14,6 +14,11 @@ mv::Workloads::~Workloads()
 {
 }
 
+std::shared_ptr<mv::MetisGraphStructure> mv::Workloads::getMetisGraph()
+{
+    return  metisGraph_;
+}
+
 mv::Workload& mv::Workloads::operator[](int nworkload)
 {
     return const_cast<Workload&>(static_cast<const Workloads*>(this)->operator[](nworkload));
