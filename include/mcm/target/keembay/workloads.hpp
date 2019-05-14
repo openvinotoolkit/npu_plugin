@@ -243,14 +243,6 @@ namespace mv
     }
     };
 
-        
-
-    struct WorkloadTree
-    {
-        std::vector<WorkloadTree> childTree;
-        Workload workloadNode;
-    };
-
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
     using  DPUModeList = std::vector<mv::DPUMode>;
 
