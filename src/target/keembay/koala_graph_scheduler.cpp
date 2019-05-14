@@ -169,6 +169,7 @@ uint64_t mv::KoalaGraphScheduler::calculateFMax(mv::ComputationModel& model) {
 
 void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::ComputationModel& model) {
 
+    std::set<std::pair<std::string, std::string>> addedEdges;
     for (const auto& edge : partialSerialisationEdgesAdded_) {
         
         std::string edgeSourceName = edge->getEnd1()->info.name;
@@ -192,10 +193,13 @@ void mv::KoalaGraphScheduler::insertpartialSerialisationEdgesInMcmGraph(mv::Comp
             if(opItSink->getName() == edgeSinkName) 
                 mcmSinkNodeIterator = opItSink;
         }
-        
-        /*Add the edge to graph*/
-        auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
-        partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+        auto inserted = addedEdges.insert(std::make_pair(edgeSourceName, edgeSinkName));
+        if (inserted.second)
+        {
+            /*Add the edge to graph*/
+            auto partialSerialisationEdge = cm.defineFlow(mcmSourceNodeIterator, mcmSinkNodeIterator);
+            partialSerialisationEdge->set<bool>("PartialSerialisationEdge", true);
+        }
     }
 }
 
