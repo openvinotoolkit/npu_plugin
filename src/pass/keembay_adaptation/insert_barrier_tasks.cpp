@@ -81,13 +81,25 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     std::ofstream ostream;
 
     ostream.open(outputFile, std::ios::trunc | std::ios::out);
-    ostream << "digraph G {\n\tgraph [splines=spline]\n";
+    ostream << "strict graph G {\n\tgraph [splines=spline]\n";
 
     for (auto it = g.node_begin(); it != g.node_end(); ++it)
     {
         std::string vIdx = std::to_string((*it).getID());
+        std::unordered_set<std::string> consumers = (*it).getConsumers();
+        std::string consumerStr = "";
+        for (auto s: consumers)
+        {
+            consumerStr = consumerStr + "\n" + s;
+        }
+        std::string disp = vIdx + " " + consumerStr;
+
         std::string nodeDef = "\t\"" + vIdx + "\" [shape=box,";
-        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + vIdx + "</B></FONT></TD></TR>";
+        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
+                    CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
+                    COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" \
+                    + disp + \
+                    "</B></FONT></TD></TR>";
         nodeDef += "</TABLE>>";
         ostream << nodeDef << "];\n";
     }
@@ -96,7 +108,7 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     {
         std::string vIdxSrc = std::to_string((*(it->source())).getID());
         std::string vIdxSnk = std::to_string((*(it->sink())).getID());
-        std::string edgeDef = "\t\"" + vIdxSrc + "\" -> \"" +  vIdxSnk + "\"";
+        std::string edgeDef = "\t\"" + vIdxSrc + "\" -- \"" +  vIdxSnk + "\"";
         ostream << edgeDef << "\n";
     }
     ostream << "}\n";
