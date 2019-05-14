@@ -47,6 +47,7 @@ namespace mv
      *    8    10---11----12---13 // Incrementing numbers
      *         |    |     |    | 
      *    12   15---16----17---18
+     */
 
     /* METIS parameters*/
     struct MetisGraphStructure
@@ -250,6 +251,9 @@ namespace mv
         Workload workloadNode;
     };
 
+    struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
+    using  DPUModeList = std::vector<mv::DPUMode>;
+
     class Workloads : public LogSender
     {
 
@@ -270,7 +274,8 @@ namespace mv
         int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         // returns: METIS_OK(=1), or METIS_ERROR
-        int partitionTensorWithRectangleHeuristic(idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        int partitionTensorWithRectangleHeuristic(const DPUModeList& modes, idx_t nWorkloads,
+                                                  const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
         void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode);

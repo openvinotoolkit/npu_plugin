@@ -32,6 +32,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
 
+    //Get number of Clusters and DPU's
+    int nDPU = 20;                      //Default number of DPUs
+    int nClusters = 4;                  //Default number of Clusters
+    static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}};
+
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("Number_of_DPUs")) 
         int nDPU = globalParams->get<int>("Number_of_DPUs");
@@ -100,7 +105,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 else if (algorithm == "Rectangle")
                 {
                     /*Partition tensor into workloads with Rectangle*/
-                    auto res = workloads.partitionTensorWithRectangleHeuristic(nWorkloads, pass);
+                    auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads, pass);
                     if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
