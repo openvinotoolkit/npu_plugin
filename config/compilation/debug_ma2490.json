@@ -111,7 +111,7 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
-            }
+            },
             "GenerateEltWiseConstants",
             {
                 "name": "GenerateDot",
