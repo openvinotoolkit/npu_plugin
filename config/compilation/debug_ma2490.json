@@ -4,12 +4,12 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "barrier_index_assignment" : "Dynamic",
+                "barrier_index_assignment" : "Static",
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
-                "CMX_memory_overflow_safety_factor" : 0.9,
-                "nWorkloads" : 4,
-                "MPE_mode" : "Vector",
+                "CMX_memory_overflow_safety_factor" : 0.925,
+                "nWorkloads" : 5,
+                "MPE_mode" : "Matrix",
                 "split_strategy" :
                 [
                     {
@@ -57,61 +57,73 @@
                 [
                     {
                         "name_filter" : "res1",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 45,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res2a_branch2a",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 49,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res2a_branch2b",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 49,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res2a_branch2c",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 49,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res3a_branch2c",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 49,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res4a_branch2a",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 8,
                         "mpe_mode" : "(1,16,16)"
                     },
                     {
                         "name_filter" : "res4a_branch2b",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 8,
                         "mpe_mode" : "(1,16,16)"
                     },
                     {
                         "name_filter" : "res4a_branch2b_alt",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 8,
                         "mpe_mode" : "(1,16,16)"
                     },
                     {
                         "name_filter" : "res5a_branch2a",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 4,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res5c_branch2a",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 4,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res5c_branch2b",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 4,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
                         "name_filter" : "res5c_branch2c",
+                        "cluster_filter" : 0,
                         "nWorkloads" : 4,
                         "mpe_mode" : "(4,4,16)"
                     }
@@ -156,16 +168,24 @@
     },
     "keembay_adapt": {
         "Singular": [
-            "ExtendQuantizationParams",
             "StoreLayerSplitStrategy",
+            "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "ComputeTensorsQuantParams",
             "KMBOrderConversion",
             "AlignTaskWeights",
             "GenerateSparsityMaps",
-            "GenerateWeightsTables",
             {
                 "name": "GenerateDot",
                 "output": "keembay_adapt_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "GenerateWeightsTables",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
@@ -233,7 +253,7 @@
     },
     "finalize": {
         "Singular": [
-
+            "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
                 "output": "MaxTopologicalCutAndPartialSerialisation.dot",
@@ -251,11 +271,10 @@
             "TransitiveReduction",
             {
                 "name":"InsertBarrierTasks",
-                "barrier_index_assignment": "Dynamic"
+                "barrier_index_assignment": "Static"
             },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
-            "AssignUniqueTaskId",
             "ArrangeKeembayExecution",
             "TransitiveReduction",
             "AllocateInputOutputTensorsKeemBay",
@@ -281,7 +300,7 @@
             {
                 "name": "GenerateBlobKeembay",
                 "output": "blob.bin",
-                "barrier_index_assignment": "Dynamic"
+                "barrier_index_assignment": "Static"
             }
         ]
     },

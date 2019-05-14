@@ -168,7 +168,6 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
     {
         if (opIt->getOpType() == "AveragePool")
         {
-            std::cout << "Found AveragePool op " << std::endl;
             pass.log(Logger::MessageType::Debug, "Found AveragePool op " + opIt->getName());
 
             auto sourceTensor = opIt->getInputTensor(0);
@@ -179,18 +178,63 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             std::array<unsigned short, 4> padding = opIt->get<std::array<unsigned short, 4>>("padding");
 
-            unsigned short total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
+            unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * kSize[1] * kSize[0];
             double value = 1/double(kSize[0] * kSize[1]);
-            std::vector<double> weightsData(total_shape, value);
 
             unsigned short channel_multiplier = 1;
 
-            auto weights = om.constant(weightsData, {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                            sourceTensor->getDType(), Order(Order::getRowMajorID(4)));
-            auto weightsOp = om.getSourceOp(weights);
+            auto name = opIt->getName();
+            mv::Data::TensorIterator weights;
+            if (sourceTensor->isDoubleType())
+            {
+                pass.log(Logger::MessageType::Debug, "Input tensor not quantized, generating non-quantized weights");
+                std::vector<double> weightsData(total_shape, value);
+                weights = om.constant(weightsData,
+                                    {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                    sourceTensor->getDType(),
+                                    Order(Order::getRowMajorID(4)));
+            }
+            else
+            {
+                pass.log(Logger::MessageType::Debug, "Input tensor quantized, generating quantized weights");
+                // If the input model is quantized, then the replacement pass needs to create
+                // quantization params for the weights parameter of the depthwise convolution.
+                int64_t weightsVal = 1;
+                std::vector<int64_t> weightsData(total_shape, weightsVal);
+
+                std::vector<int64_t> zp = { 0 };
+                std::vector<double> scale(1, value);
+                std::vector<double> min = { 1 };
+                std::vector<double> max = { 1 };
+                mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+
+                weights = om.constantInt(weightsData,
+                                    {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                    sourceTensor->getDType(),
+                                    Order(Order::getRowMajorID(4)),
+                                    weightsQuantParams);
+            }
+
             //Check the last argument name!!!
-            auto depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding);
+            mv::Data::TensorIterator depthwise_conv;
+            if (sourceTensor->isQuantized())
+            {
+                pass.log(Logger::MessageType::Debug, "Passing quantization params from input to output");
+                auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+                // use default dilation factor
+                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, quantParams, name + "_DepthwiseConv");
+            }
+            else
+            {
+                pass.log(Logger::MessageType::Debug, "No need for quantization params, since input is of a floating point type");
+                mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
+                depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, emptyQuantParams, name + "_DepthwiseConv");
+            }
+
             auto depthwise_conv_op = om.getSourceOp(depthwise_conv);
+            auto weightsOp = om.getSourceOp(weights);
+            auto weights_tensor = depthwise_conv_op->getInputTensor(1);
+
             if(opIt->hasAttr("opId"))
             {
                 unsigned currentOpId = opIt->get<unsigned>("opId");
@@ -202,6 +246,5 @@ void averageAsDepthWise(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             opIt = linkNewOperationsReplacement(parentOpIt, depthwise_conv, om, opIt);
 
         }
-
     }
 }

@@ -622,7 +622,11 @@ TEST(insert_barrier_tasks, weights_prefetch)
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
+
+    std::string optString = "Dynamic";
+    mv::Attribute option = optString;
     auto& compDesc = unit.compilationDescriptor();
+    compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
 
     int dma_dependency = compDesc.getPassArg("dma","Singular","AddDMATasks","weights_prefetch");
     EXPECT_EQ(2, dma_dependency);     // default prefetch is 2

@@ -36,13 +36,13 @@ namespace mv
             return output;
         }
 
-//        static std::string toString(const Attribute& a)
-//        {
-//            std::string output = "(" + std::to_string(a.get<std::vector<int64_t>>().size()) + ")";
-//            return output;
-//        }
+       static std::string toString(const Attribute& a)
+       {
+           std::string output = "(" + std::to_string(a.get<std::vector<int64_t>>().size()) + ")";
+           return output;
+       }
 
-        static std::string toString(const Attribute& a)
+        static std::string toLongString(const Attribute& a)
         {
             std::string output = "{";
             auto vec = a.get<std::vector<int64_t>>();
@@ -79,6 +79,7 @@ namespace mv
             .setToJSONFunc(toJSON)
             .setFromJSONFunc(fromJSON)
             .setToStringFunc(toString)
+            .setToLongStringFunc(toLongString)
             .setToBinaryFunc(toBinary);
 
     }

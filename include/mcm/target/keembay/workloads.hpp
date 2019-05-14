@@ -183,6 +183,12 @@ namespace mv
         }
     };
 
+    struct point
+    {
+        int16_t x = 0;
+        int16_t y = 0;
+    };
+
     struct Workload
     {
         MPE_Mode MPEMode;
@@ -197,12 +203,52 @@ namespace mv
         int16_t padTop = 0;
         int16_t padBottom = 0;
         int32_t clusterID = 0;
-        int8_t workloadID = 0;
+        int8_t workloadID = 0;  
+        int16_t area()
+        {
+          return (MaxX - MinX + 1) * (MaxY - MinY + 1);
+        }
+        std::vector<std::pair<int16_t, int16_t>> points;        
+        int16_t pointsTotal()
+        {
+         return points.size();
+        }
+        std::vector<std::pair<int16_t, int16_t>> vertices;        
+
+        void setVertices()
+        {
+            vertices.push_back(std::make_pair(MinX,MinY));
+            vertices.push_back(std::make_pair(MinX,MaxY));
+            vertices.push_back(std::make_pair(MaxX,MinY));
+            vertices.push_back(std::make_pair(MaxX,MaxY));
+        }
+        void setMinMaxAndVertices()
+        {
+            MinX = INT16_MAX;
+            MaxX = 0;
+            MinY = INT16_MAX;
+            MaxY = 0;
+            for(auto it = points.begin(); it != points.end(); it++)
+            {
+                MinX = std::min(MinX,it->first);
+                MaxX = std::max(MaxX, it->first);
+                MinY = std::min(MinY,it->second);
+                MaxY = std::max(MaxY, it->second);
+            }
+            setVertices();
+        }
 
         bool operator < (const Workload& rhs) const {
         return MinY < rhs.MinY;
     }
+    };
 
+        
+
+    struct WorkloadTree
+    {
+        std::vector<WorkloadTree> childTree;
+        Workload workloadNode;
     };
 
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
@@ -221,7 +267,7 @@ namespace mv
         std::vector<int> generateMetisGraphNodeNumbers(void);
 
     public:
-        Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode);
+        Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <idx_t,idx_t>& mpeMode);
         ~Workloads();
       
         void generateMetisGraph(void);
@@ -232,7 +278,9 @@ namespace mv
                                                   const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
-        void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass);
+        void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode);
+        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass, mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair <idx_t,idx_t>& mpeMode);
+        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass, mv::Workload& workload, std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, std::pair <idx_t,idx_t>& mpeMode);
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;

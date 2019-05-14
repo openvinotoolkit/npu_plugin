@@ -14,7 +14,7 @@ SET(PROJECT_VERSION_PATCH 0)
 
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
     if (NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
+        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
     endif()
 endif()
 
@@ -109,9 +109,9 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_size_t.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_std_string.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/std_vector_unsigned.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned_short.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/attribute_def/unsigned.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/attribute_def/quantization_params.cpp"
     
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
     "${PROJECT_SOURCE_DIR}/src/base/exception/attribute_error.cpp"
@@ -206,6 +206,7 @@ SET(base
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/dpu_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/placeholder_task.cpp"
     "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/sparsity_map.cpp"
+    "${PROJECT_SOURCE_DIR}/src/target/keembay/tasks/def/weights_table.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/tensor/dtype/dtype_def/bin.cpp"
@@ -285,24 +286,32 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_entry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_manager.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
+
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/assign_unique_op_id.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/dma_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_align_weights.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_control_flow.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/convert_to_task_graph.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/create_source_structure.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/extend_quantization_params.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/keembay_order_conversion.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/generate_keembay_sparse_structures.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/insert_barrier_tasks.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/store_tensor_split_strategy.cpp"
+
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_align_weights.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_control_flow.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/compute_tensors_quant.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/convert_to_task_graph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/keembay_order_conversion.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/insert_barrier_tasks.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/dma_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/deallocation_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/assign_unique_task_id.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_tensor_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
+
+
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/align_data_order.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_keem_bay.cpp"
@@ -322,8 +331,6 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/transitive_reduction.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/is_dag.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
-    
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_keembay.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"

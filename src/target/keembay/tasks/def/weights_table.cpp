@@ -33,13 +33,13 @@ namespace mv
         };
 
 
-        MV_REGISTER_OP(SparsityMap)
+        MV_REGISTER_OP(WeightsTable)
         .setOutputs({"output"})
         .setArg<std::vector<int64_t>>("data")
         .setArg<mv::Shape>("shape")
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputIntDefFcn);
     }
