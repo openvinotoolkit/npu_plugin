@@ -14,7 +14,7 @@
 
 int main()
 {
-    mv::Logger::setVerboseLevel(mv::VerboseLevel::Debug);
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
