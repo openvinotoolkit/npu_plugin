@@ -169,7 +169,7 @@ def execute_network(gf):
     from shutil import copyfile
 
     # clean generated files
-    generated_files = ["vpu2.blob", "input.dat", "NCE2Task_network_out.bin", "output.dat"]
+    generated_files = ["vpu2.blob", "input.dat", "NCE2Task_network_out.bin", "output.dat", "expected_result_sim.dat"]
     for file in generated_files:
         try:
             os.remove(APP_ROOT + file)
@@ -187,6 +187,8 @@ def execute_network(gf):
     copyfile(gf, APP_ROOT + "vpu2.blob")
     print("Copy:", CWD+"output/input.dat", "to", APP_ROOT + "input.dat")
     copyfile(CWD+"output/input.dat", APP_ROOT + "input.dat")
+    print("Copy:", CWD + "output/expected_result_sim.dat", "to", APP_ROOT + "expected_result_sim.dat")
+    copyfile(CWD + "output/expected_result_sim.dat", APP_ROOT + "expected_result_sim.dat")
 
     moviSimPort=os.getenv('MOVISIM_PORT','30001')
     mvToolsV=os.getenv('MV_TOOLS_VERSION','Latest_195458')
