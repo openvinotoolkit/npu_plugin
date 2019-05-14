@@ -539,7 +539,8 @@ void tensorGraphColoringFnc(const mv::pass::PassEntry& pass, mv::ComputationMode
     //ddr_heap_g.drawGraph("ddr_heap_memory");
 
     mv::TensorInterferenceGraph nncmx_g(model, alignment, nullptr, nullptr, false, true);
-    memsize = memDefs.find("VPU_CMX_NN")->second.size + memDefs.find("VPU_CMX_UPA")->second.size;
+    auto nceDefs = target.nceDefs();
+    memsize = memDefs.find("VPU_CMX_NN")->second.size/nceDefs.find("Clusters")->second.totalNumber;
     alignment = 16; //memDefs.find("VPU_CMX_NN")->second.alignment;//TODO for now POC uses 16 for all memory
     agOrder = aggressiveSimplify(nncmx_g, memsize, mv::OrderingStrategy::IG_LARGEST_NEIGHBORS_FIRST);
     //printASOrder(agOrder, "NNCMX");

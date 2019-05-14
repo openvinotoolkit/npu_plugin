@@ -81,7 +81,7 @@ void addFinalDMATaskFcn(const mv::pass::PassEntry& , mv::ComputationModel& model
 // Pass role: Add DMA Task DDR2CMX where needed for each tensor input of Tasks.
 // NOTE: This is the only DMA Pass that adds control flows (DMA dependencies)
 
-void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
+void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::ControlModel cm(model);
@@ -112,12 +112,15 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     //
 
     //cluster size (memory of the tensor) = tensor dims multiplied * (data type /8)
+    auto memDefs = target.memoryDefs();
+    auto nceDefs = target.nceDefs();
+    auto numCluster = nceDefs.find("Clusters")->second.totalNumber;
+    std::shared_ptr<mv::Element> returnedParams = model.getGlobalConfigParams();
+    double cmxSafetyFactor = returnedParams->get<double>("CMX_memory_overflow_safety_factor");
 
-    auto numCluster = 4;
-    auto safetyFactor = 0.9;
-    auto cmxSize = 3760128; //4MB in bytes.
+    unsigned int cmxSize = memDefs.find("VPU_CMX_NN")->second.size; //4MB in bytes.
     cmxSize /= numCluster;
-    cmxSize *= safetyFactor;
+    cmxSize *= cmxSafetyFactor;
     unsigned long _dma_dependency = passDesc.get<int>("weights_prefetch");
     int dma_dependency;
 
