@@ -32,69 +32,87 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
 
-    /*Get the number of clusters that the VPU supports*/
-    auto nceDefs = target.nceDefs();
-    //auto nClusters = nceDefs.find("Clusters")->second.totalNumber;
-
-    /*Get all tensors*/
-
-
-    int nDPU = 4;                       /*Number of DPUs*/
-    int nClusters = 5;                  /*Number of clusters*/
-    int nDPUxCluster = nDPU/nClusters;  /*Number of DPUs per cluster*/
-    std::set<int> workloadsList;
-    std::pair <int,int> MPEMode (4, 4); /*MPE mode*/
-
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    if (globalParams->hasAttr("Number_of_DPUs")) 
+        int nDPU = globalParams->get<int>("Number_of_DPUs");
+    if (globalParams->hasAttr("Number_of_Clusters")) 
+        int nClusters = globalParams->get<int>("Number_of_Clusters");
+    
+    int nWorkloads;
+    std::pair <int,int> MPEMode;
+    std::string mpeMode;
     mv::OpModel om(model);
+// the global mpe mode and number of clusters is needed for unit tests that don't have layer names matching resnet50 layer names
+     /*Get nWorkloads and mpe_mode from compilation descriptor*/	
+    if (globalParams->hasAttr("nWorkloads")) 	
+        nWorkloads = globalParams->get<int>("nWorkloads");	
+    else	
+        std::runtime_error("Exiting, set the number of workloads and MPE mode in the compilation descriptor");	
+
+     if (globalParams->hasAttr("MPE_mode")) 	
+        mpeMode  = globalParams->get<std::string>("MPE_mode");	
+    else	
+        std::runtime_error("Exiting, set the MPE mode in the compilation descriptor");	
+
+     /*MPE mode*/	
+    if(mpeMode == "Matrix") { 	
+        MPEMode.first = 4;	
+        MPEMode.second = 4; 	
+    }	
+    else if (mpeMode == "Vector")	
+    {	
+        MPEMode.first = 1;	
+        MPEMode.second = 16; 	
+    }	
+
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask")
         {
+            if (opIt->hasAttr("WorkloadStrategy_MPE_mode"))
+            {
+                pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
+                MPEMode.first = std::stoi(std::string(1, opIt->get<std::string>("WorkloadStrategy_MPE_mode")[1]));
+                MPEMode.second = std::stoi(std::string(1, opIt->get<std::string>("WorkloadStrategy_MPE_mode")[3]));
+                nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
+            }
 
-            pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
- 
-            /*Get output tensor*/
-            auto outputTensor = opIt->getOutputTensor();
+            /*Create workload*/
+            mv::Workloads workloads(opIt->getName(), opIt->getOutputTensor()[0]->getShape(), MPEMode);
 
-            /*Workload's instance, name and tensorShape, MPE mode*/
-            mv::Workloads workloads(opIt->getName(),outputTensor[0]->getShape(), MPEMode);
+            std::vector<std::string> algorithms = workloads.getTensorSplitAlgorithms(passDesc);
 
-            /* Partition tensor into workloads  
-             * Calculate a pool of possible workloads select the best one based on the cost functions
-            */ 
-            
-            /*Metis algorithm for workloads*/
-            
-            /* Populate Metis adjacency structure*/ 
-            workloads.generateMetisGraph(); 
-
-            /*Forcing number of workloads to be nDPU/nCluster (round to nearest even number)*/
-            idx_t nWorkloads  = workloads.getNWorkloads(outputTensor[0]->getShape(), nDPUxCluster);
-        
             pass.log(mv::Logger::MessageType::Debug, "Number of workloads is:" + std::to_string(nWorkloads));
 
-            /*Partition tensor into workloads with METIS*/
-            auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
-            
-            if( res != 1 ) 
-                std::runtime_error("Error occured during tensor partitioning into workloads using METIS, ensure number of workloads is even!");
-            
-            /*Populate each workload*/
-            workloads.populateWorkloadsFromPartitions(nWorkloads, pass);
+            /*Partition tensor into workloads*/
+            for (std::string algorithm : algorithms)
+            {
+                if (algorithm == "Metis")
+                {
+                    /*Populate Metis adjacency structure and partition tensor*/
+                    workloads.generateMetisGraph();
+                    auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
+                    if (res == 1)
+                        workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
+                    else
+                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS, ensure number of workloads is even!");
+                }
+                else if (algorithm == "Rectangle")
+                {
+                    /*Partition tensor into workloads with Rectangle*/
+                    auto res = workloads.partitionTensorWithRectangleHeuristic(nWorkloads, pass);
+                    if (res == 1)
+                        workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
+                    else
+                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle!");
+                }
+                else if (algorithm == "Z-Tiling")
+                {
+                    //Partition tensor into workloads with Rectangle
+                }
+            }
 
-            /*Add workloads as Attribute*/
             opIt->set<mv::Workloads>("Workloads", workloads);
-
-
-            auto costFunction = workloads.getCostFunction(passDesc, pass);
-
-            std::vector<float> exeCycle = workloads.getExecutionCycles(outputTensor, nDPUxCluster, costFunction);
-            // TODO: process the execution cycles
-
-
-
-
-
         }
     }
     pass.log(mv::Logger::MessageType::Debug, "Exiting workload generation pass");

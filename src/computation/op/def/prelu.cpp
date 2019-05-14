@@ -17,7 +17,7 @@ namespace mv
                 return {false, 0};
             }
             
-            if (inputs[0]->getShape()[-1] != inputs[1]->getShape()[0]) 
+            if (inputs[0]->getShape()[IO_CHANNEL_DIMENSION] != inputs[1]->getShape()[0])
             {
                 errMsg = "Mismatch in channels dimensions between input (" + std::to_string(inputs[0]->getShape()[-1])
                     + ") and slope (" + std::to_string(inputs[0]->getShape()[0]) + ")";

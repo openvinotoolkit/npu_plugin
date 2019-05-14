@@ -7,7 +7,6 @@
 #include <math.h>
 
 static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -20,17 +19,12 @@ namespace mv
             "Generates sparsity maps for the Tasks that need them"
         );
 
-        MV_REGISTER_PASS(GenerateWeightsTables)
-        .setFunc(generateWeightsTablesFcn)
-        .setDescription(
-            "Generates weights tables for the Tasks that need them"
-        );
     }
 }
 
 mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& sparsityMapName, const mv::Shape& sparsityShape, const std::vector<int64_t>& sparsityMapData)
 {
-    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), sparsityMapName);
+    auto sparsityMap = om.constantInt(sparsityMapData, sparsityShape, mv::DType("UInt8"), mv::Order("NCHW"), {{},{},{},{}},sparsityMapName);
     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
     unsigned newSize = dpuTaskOp->addInputTensor(sparsityMap);
     om.defineFlow(sparsityMap, dpuTaskOp, newSize - 1);
@@ -48,7 +42,7 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
 //    tensorName.pop_back(); tensorName.pop_back(); //Necessary for .dot files
 
 //    std::string sparsityMapName(tensorName+"SparsityMap");
-//    auto sparsityMap = om.sparsityMap(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
+//    auto sparsityMap = om.constantInt(mv::Shape({tensorShape[0], tensorShape[1], tensorShape[-1]}), mv::DType("Int32"), mv::Order(mv::Order::getRowMajorID(3)), sparsityMapName);
 //    tensor->set<bool>("sparse", true);
 
 //    if(tensor->isPopulated())
@@ -93,163 +87,6 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
 //    return sparsityMap;
 //}
 
-void addWeightsTable(mv::ComputationModel& model, mv::OpModel om, mv::Data::OpListIterator dpuTaskOp, const std::string& kernelWeightsTableName)
-{
-    auto output = dpuTaskOp->getOutputTensor(0);
-    auto input = dpuTaskOp->getInputTensor(0);
-    auto outputChannels = output->getShape()[2];
-    std::vector<int> shift(outputChannels, 0);
-    std::vector<int16_t> mScaled(outputChannels, 0);
-
-    mv::DataModel dm(model);
-
-    if (output->hasAttr("quantizationParams") && input->hasAttr("quantizationParams") &&
-        output->isQuantized() && input->isQuantized())
-    {
-        // Quantization for Gemmlowp output
-        // S1 = weight scale
-        // S2 = input activation scale
-        // S3 = output activation scale
-        // m  = (S1 * S2)/S3, scale for MAC output
-        // zeroPointScaled = output zero point scaled to MAC output precision
-        // biasScaled = bias scaled to MAC output precision
-
-        auto inputQuantization = input->get<mv::QuantizationParams>("quantizationParams");
-        auto scale = inputQuantization.getScale();
-        std::vector<float> S2(scale.begin(), scale.end());
-
-        auto outputQuantization = output->get<mv::QuantizationParams>("quantizationParams");
-        scale = outputQuantization.getScale();
-        std::vector<float> S3(scale.begin(), scale.end());
-
-        auto zeroPointU =  outputQuantization.getZeroPoint();
-        std::vector<int32_t> zeroPoint(zeroPointU.begin(), zeroPointU.end());
-
-        std::string taskOp = dpuTaskOp->get<std::string>("taskOp");
-        bool isPooling = taskOp == "MaxPool" || taskOp == "AvgPool";
-        //Workaround for HW bug #227
-        if (isPooling)
-        {
-            auto inZP = inputQuantization.getZeroPoint();
-            std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
-            std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
-        }
-
-        auto m = S2;
-        if (dpuTaskOp->inputSlots() > 1)
-        {
-            auto weights = dpuTaskOp->getInputTensor(1);
-            auto weightsQuantization = weights->get<mv::QuantizationParams>("quantizationParams");
-            scale = weightsQuantization.getScale();
-            std::vector<float> S1(scale.begin(), scale.end());
-            //S1*S2
-            std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
-        }
-
-        // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
-
-        // m / S3
-        std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
-
-        //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
-        auto bits = 15;
-        auto mSize = m.size();
-        int exponent;
-        double mantissa;
-
-        for (size_t i = 0; i < mSize; i++)
-        {
-            mantissa = std::frexp(m[i], &exponent);
-            shift[i] = bits - exponent;
-            mScaled[i] = (mantissa * pow(2, bits));
-        }
-        std::vector<int32_t> zeroPointScaled(m.size());
-        std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
-
-        if (dpuTaskOp->hasAttr("bias"))
-        {
-            auto bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
-            auto data = bias->getData();
-            //auto biasQuantization = bias->get<mv::QuantizationParams>("quantizationParams");
-            //auto Z_bias = biasQuantization.getZeroPoint();
-            //auto S_bias = biasQuantization.getScale();
-            std::transform(data.begin(), data.end(), zeroPointScaled.begin(), data.begin(), std::plus<int64_t>());
-            bias->setDType(mv::DType("Int32"));
-            bias->populate(data);
-
-        }
-        else
-        {
-            mv::Order order(mv::Order::getColMajorID(1));
-            const std::string biasTensorName = dpuTaskOp->getName() + "_bias";
-            mv::Shape shape({outputChannels});
-            std::vector<int64_t> zeroPointScaled64(zeroPointScaled.begin(), zeroPointScaled.end());
-
-            auto biasTensor = dm.defineTensor(biasTensorName, shape, mv::DType("Int32"), order, zeroPointScaled64);
-            om.addAttr(dpuTaskOp, "bias", biasTensor->getName());
-        }
-    }
-    mv::Shape shape({outputChannels, 1, 1, 4});
-    std::vector<mv::DataElement> biasData;
-    bool hasBias = dpuTaskOp->hasAttr("bias");
-    mv::Data::TensorIterator bias;
-    if (hasBias)
-    {
-        bias = dm.getTensor(dpuTaskOp->get<std::string>("bias"));
-        biasData = bias->getData(); //Bias has the type Int32 in both cases above
-    }
-
-    std::vector<int64_t> weightsTableData(shape.totalSize(), 0);
-    // per channel layout:
-    // 3 -> bias
-    // 2 -> mult << 16 | round << 14 |  shift << 8 | prelu
-    // 1 -> SP_PTR
-    // 0 -> DATA_PTR
-    // TODO mult & prelu are currently not implemented
-    for (size_t i = 0; i < weightsTableData.size(); i+=4)
-    {
-        weightsTableData[i+2] = ((int32_t)mScaled[i/4] << 16) | ((int32_t)shift[i/4]) << 8;
-        if (hasBias)
-            weightsTableData[i+3] = biasData[i/4];
-    }
-
-    if (hasBias)
-    {
-        dm.undefineTensor(bias);
-        dpuTaskOp->erase("bias");
-    }
-
-    auto weightTable = om.constantInt(weightsTableData, {outputChannels, 1, 1, 4}, mv::DType("UInt32"), mv::Order("WHCN"), kernelWeightsTableName);
-    om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-    unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
-    om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
-
-    return;
-}
-
-
-static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
-{
-    mv::OpModel om(model);
-
-    for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
-    {
-        if(dpuTask->getOpType() == "DPUTask")
-        {
-            if((dpuTask->get<std::string>("taskOp") == "Conv") ||
-               (dpuTask->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
-               (dpuTask->get<std::string>("taskOp") == "MaxPool") ||
-               (dpuTask->get<std::string>("taskOp") == "DepthwiseConv"))
-            {
-                std::string opName = dpuTask->getName();
-
-                std::string kernelWeightsTableName(opName + "WeightsTable");
-                addWeightsTable(model, om, dpuTask, kernelWeightsTableName);
-            }
-        }
-    }
-}
-
 uint16_t getWindowSize(uint16_t kx, uint16_t sx)
 {
     //Find max mpe where if calc window <= 32
@@ -288,11 +125,15 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
-static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::json::Object&)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
+    bool enableRealSparsity = false;
+    if (passDesc.hasAttr("enableRealSparsity"))
+        if (passDesc.get<bool>("enableRealSparsity"))
+            enableRealSparsity = true;
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -313,8 +154,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 uint16_t kernelW, kernelH;
 
                 auto strides = dpuTask->get<std::array<unsigned short, 2>>("stride");
-                auto inputChannels = dpuTask->getInputTensor(0)->getShape()[2];
-                auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[2];
+                auto inputChannels = dpuTask->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto outputChannels = dpuTask->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
 
                 // Using the check in this way, instead of on the operation type
                 // makes this pass work on both aligned and unaligned convolutions.
@@ -327,8 +168,8 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                 else
                 {
                     auto weightsShape = dpuTask->getInputTensor(1)->getShape();
-                    kernelW = weightsShape[0];
-                    kernelH = weightsShape[1];
+                    kernelW = weightsShape[mv::KERNEL_WIDTH];
+                    kernelH = weightsShape[mv::KERNEL_HEIGHT];
                 }
 
                 auto windowsSize = getWindowSize(kernelW, strides[0]);
@@ -385,7 +226,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
 
         }
-        if (!fakeSparsity && false) /*Switching off 'real sparisty' - to be configured in compilation descriptor*/ 
+        if (!fakeSparsity && enableRealSparsity)
         {
             if (dpuTask->getOpType() == "DPUTask" &&
                 dpuTask->inputSlots() > 1 &&
@@ -399,7 +240,7 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
                     //SparsityMap will be saved as attribute
                     auto smInternalTensor = weights->getSparsityMap();
                     auto sparsityMap = om.constantInt(smInternalTensor->getIntData(), smInternalTensor->getShape(), smInternalTensor->getDType(),
-                        smInternalTensor->getOrder(), smInternalTensor->getName());
+                                                      smInternalTensor->getOrder(), {{},{},{},{}}, smInternalTensor->getName());
                     om.getSourceOp(sparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     unsigned newSize = dpuTask->addInputTensor(sparsityMap);
                     om.defineFlow(sparsityMap, dpuTask, newSize - 1);
@@ -409,12 +250,13 @@ static void generateSparsityMapsFcn(const mv::pass::PassEntry& pass, mv::Computa
             unsigned n = dpuTask->getInputTensor().size();
             for (unsigned i = 0; i < n; ++i)
                 if (dpuTask->getInputTensor(i)->getOrder().isZMajor() &&
-                    !dpuTask->getInputTensor(i)->isPopulated()) //only weights are popualted, and we dont want to cover them here
+                    !(i == 1 && dpuTask->getInputTensor(i)->isPopulated())) //only weights are popualted, and we dont want to cover them here
                         dpuTask->getInputTensor(i)->setSparse();
 
             n = dpuTask->getOutputTensor().size();
             for (unsigned i = 0; i < n; ++i)
-                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor())
+                if (dpuTask->getOutputTensor(i)->getOrder().isZMajor() &&
+                    !(dpuTask->getInputTensor().size() == 0 && dpuTask->getOutputTensor(i)->isPopulated()))//not a weight constant, for weights they will be spare only for HW Ops
                     dpuTask->getOutputTensor(i)->setSparse();
         }
     }

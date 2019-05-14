@@ -16,7 +16,7 @@ add_executable(graph_comparator
 add_library(gcomparator SHARED
     "src/graph_comparator.cpp"
     ${base} 
-    ${logger
+    ${logger}
 )
 
 target_link_libraries(graph_comparator pthread gtest metis)

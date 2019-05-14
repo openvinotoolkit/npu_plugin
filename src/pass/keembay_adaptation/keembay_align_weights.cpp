@@ -22,7 +22,7 @@ namespace mv
 // Another assumption is that if a tensor of weights is involved in more than one OP
 // Then either all these ops are DPUTasks or neither of them.
 
-void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
 
@@ -54,21 +54,40 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         if(hasAtLeastOneDPUTask)
         {
             auto kernel = kernelOp->getOutputTensor(0);
+            auto opIt = kernelOp.leftmostChild();
             auto kernelShape = kernel->getShape();
+            mv::QuantizationParams quantParams = {{},{},{},{}};
+            if(kernel->hasAttr("quantParams"))
+                quantParams = kernel->get<mv::QuantizationParams>("quantParams");
+            auto weightSetDimension = kernelShape[mv::KERNEL_WIDTH]*kernelShape[mv::KERNEL_HEIGHT]*kernelShape[mv::KERNEL_INPUT_CHANNELS];
+            auto weightSetDimensionPadded = mv::round_up(weightSetDimension, 16);
+            auto paddingDifference = weightSetDimensionPadded - weightSetDimension;
+            mv::Shape newShape({weightSetDimensionPadded, 1, 1, kernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
 
-            auto weightSetDimension = kernelShape[0]*kernelShape[1]*kernelShape[2];
-            mv::Shape newShape({kernelShape[3], 1, 1, mv::round_up(weightSetDimension, 16)});
+            //NOTE: This three lines have to be corrected
             auto oldData = kernel->getData();
-            oldData.resize(newShape.totalSize(), 0);
-            auto newData(std::move(oldData));
-            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), kernel->getOrder(), "Aligned"+kernelOp->getName());
+
+            std::vector<mv::DataElement> newData(newShape.totalSize(), 0);
+            unsigned i = 0, j = 0;
+            for(unsigned oc = 0; oc < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; ++oc)
+            {
+                for(unsigned ws = 0; ws < weightSetDimension; ++ws)
+                    newData[j++] = oldData[i++];
+
+                for(unsigned ws = 0; ws < paddingDifference; ++ws)
+                    ++j;
+            }
+
+            auto newKernel = om.constantDataElement(newData, newShape, kernel->getDType(), mv::Order("NHWC"), quantParams,"Aligned"+kernelOp->getName());
+
             om.getSourceOp(newKernel)->set<unsigned>("opId", opId);
             om.removeOp(kernelOp);
             for(auto toUpdateIt = toUpdate.begin(); toUpdateIt != toUpdate.end(); ++toUpdateIt)
             {
-                (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[0], kernelShape[1]});
-                (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[2]);
+                (*toUpdateIt)->set<std::array<unsigned short, 2>>("kSize", {kernelShape[mv::KERNEL_WIDTH], kernelShape[mv::KERNEL_HEIGHT]});
+                (*toUpdateIt)->set<unsigned>("inputChannels", kernelShape[mv::KERNEL_INPUT_CHANNELS]);
                 (*toUpdateIt)->setInputTensor(newKernel, 1, false);
+                (*toUpdateIt)->set<mv::QuantizationParams>("quantParams", quantParams);
                 om.defineFlow(newKernel, (*toUpdateIt), 1);
             }
         }

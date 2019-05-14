@@ -21,6 +21,24 @@ namespace mv
     }
 }
 
+void storeSplitStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
+{
+    if (opIt->hasAttr("splitStrategy"))
+        om.addAttr(dxxOp, "splitStrategy", opIt->get<std::string>("splitStrategy"));
+}
+
+void storeWorkloadMpeStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
+{
+    if (opIt->hasAttr("WorkloadStrategy_MPE_mode"))
+        om.addAttr(dxxOp, "WorkloadStrategy_MPE_mode", opIt->get<std::string>("WorkloadStrategy_MPE_mode"));
+}
+
+void storeWorkloadNumStrategy(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::OpListIterator& dxxOp)
+{
+    if (opIt->hasAttr("WorkloadStrategy_nWorkloads"))
+        om.addAttr(dxxOp, "WorkloadStrategy_nWorkloads", opIt->get<int>("WorkloadStrategy_nWorkloads"));
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
@@ -28,11 +46,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
     mv::ControlModel cm(model);
 
-    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskAdd(vec,s);};
-    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskSubtract(vec,s);};
-    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const std::string& s){ return om.dPUTaskMultiply(vec,s);};
+    auto addFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskAdd(vec,quantParams,s);};
+    auto subFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskSubtract(vec,quantParams,s);};
+    auto multFcn = [&om](std::vector< mv::Data::TensorIterator >& vec, const mv::QuantizationParams& quantParams, const std::string& s){ return om.dPUTaskMultiply(vec,quantParams,s);};
 
-    auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const std::string&)>>
+    auto dpuTaskMap = std::map<std::string, std::function<mv::Data::TensorIterator (std::vector< mv::Data::TensorIterator >&, const mv::QuantizationParams&, const std::string&)>>
                                                {{"Add", addFcn},
                                                {"Subtract", subFcn},
                                                {"Multiply", multFcn}};
@@ -69,22 +87,31 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             auto dpuConvOp = om.getSourceOp(dpuConv);
             dpuConvOp->set<unsigned>("opId", opId);
+            dpuConvOp->set<bool>("hasWeights", true);
 
             if (opIt->hasAttr("bias"))
             {
                 auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
-                auto name = biasTensor->getName();
-                om.addAttr(dpuConvOp, "bias", name);
+                auto name_b = biasTensor->getName();
+                om.addAttr(dpuConvOp, "bias", name_b);
             }
 
             if(opType == "Conv")
             {
-                if(kernel->getShape()[2] < 16)
+                if(kernel->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                 {
                     dpuConvOp->erase("taskOp");
                     dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
                 }
             }
+
+            auto ppeFixedFunction = mv::PPEFixedFunction();
+            auto ppeTask = mv::PPETask(ppeFixedFunction);
+            dpuConvOp->set<mv::PPETask>("PPETask", ppeTask);
+
+            storeSplitStrategy(om, opIt, dpuConvOp);
+            storeWorkloadMpeStrategy(om, opIt, dpuConvOp);
+            storeWorkloadNumStrategy(om, opIt, dpuConvOp);
 
             adaptOutputDataFlow(om, opIt, dpuConv);
         }
@@ -100,11 +127,19 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto auto_pad = opIt->get<std::string>("auto_pad");
             auto rounding_type = opIt->get<std::string>("rounding_type");
             auto name = opIt->getName();
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             auto dpuPool = om.dPUTaskMaxPool({input}, kernelSize, strides, padding,
-                               exclude_pad, auto_pad, rounding_type, "DPU_" + name);
+                               exclude_pad, auto_pad, rounding_type, quantParams, "DPU_" + name);
             auto dpuPoolOp = om.getSourceOp(dpuPool);
             dpuPoolOp->set<unsigned>("opId", opId);
+            dpuPoolOp->set<bool>("hasWeights", false);
+
+            auto ppeFixedFunction = mv::PPEFixedFunction();
+            auto ppeTask = mv::PPETask(ppeFixedFunction);
+            dpuPoolOp->set<mv::PPETask>("PPETask", ppeTask);
+
+            storeSplitStrategy(om, opIt, dpuPoolOp);
 
             adaptOutputDataFlow(om, opIt, dpuPool);
         }
@@ -116,19 +151,24 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             inputs.push_back(input1);
             inputs.push_back(input2);
             auto name = opIt->getName();
+            auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
             auto opId = opIt->get<unsigned>("opId");
 
             auto dpuElementWiseFunctor = (dpuTaskMap.at(opType));
-            auto dpuElementWise = dpuElementWiseFunctor(inputs, "DPU_"+name);
+            auto dpuElementWise = dpuElementWiseFunctor(inputs, quantParams, "DPU_"+name);
             auto dpuElementWiseOp = om.getSourceOp(dpuElementWise);
             dpuElementWiseOp->set<unsigned>("opId", opId);
+            dpuElementWiseOp->set<bool>("hasWeights", false);
 
             auto ppeLayerType = mv::PPELayerType(opType);
             auto ppeFixedFunction = mv::PPEFixedFunction();
             ppeFixedFunction.addLayer(ppeLayerType);
             auto ppeTask = mv::PPETask(ppeFixedFunction);
             dpuElementWiseOp->set<mv::PPETask>("PPETask", ppeTask);
+
+            storeSplitStrategy(om, opIt, dpuElementWiseOp);
+
             adaptOutputDataFlow(om, opIt, dpuElementWise);
         }
         else

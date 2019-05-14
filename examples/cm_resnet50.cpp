@@ -20,6 +20,7 @@
 
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/tensor/quantization_params.hpp"
 
 /**
  * @brief Helper function creates a chain of conv2D and fused batchnorm attached to the selected input tensor
@@ -31,30 +32,38 @@
  * @param padding Padding of conv2D
  * @return mv::Data::TensorIterator Iterator referencing the created batchnorm output 
  */
-mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
+mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model,
+                                            mv::Data::TensorIterator input,
+                                            mv::Shape kernelShape,
+                                            std::array<unsigned short, 2> stride,
+                                            std::array<unsigned short, 4> padding,
+                                            const mv::QuantizationParams& quantParams = {{}, {}, {}, {}},
+                                            const std::string& name = "")
 {
-    
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(kernelShape.totalSize());
 
-    auto weights = model.constant(weightsData, kernelShape, mv::DType("Float16"), mv::Order("HWCN"));
-    auto conv = model.conv(input, weights, stride, padding, 1);
+    std::string weightsName = "";
+    std::string biasParamName = "";
 
-    // For debugging purpose weights are initialized as sequences of numbers, to be replaced with actual weights
-    std::vector<double> bnScaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnScaleParam = model.constant(bnScaleData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto bnScale = model.scale(conv, bnScaleParam);
+    if(name != "")
+    {
+        weightsName = "weights_" + name;
+        biasParamName = "biasParam_" + name;
+    }
     
-    std::vector<double> bnOffsetData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto bnOffsetParam = model.constant(bnOffsetData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto bnOffset = model.bias(bnScale, bnOffsetParam);
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(kernelShape.totalSize());
+
+    auto weights = model.constantInt(weightsData, kernelShape, mv::DType("Int8"), mv::Order("HWCN"), quantParams, weightsName);
+    auto conv = model.conv(input, weights, stride, padding, 1, 1, quantParams, "conv_" + name);
     
-    std::vector<double> scaleData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto scaleParam = model.constant(scaleData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    auto scale = model.scale(bnOffset, scaleParam);
-    
-    std::vector<double> biasData = mv::utils::generateSequence<double>(conv->getShape()[-1]);
-    auto biasParam = model.constant(biasData, {conv->getShape()[-1]}, mv::DType("Float16"), mv::Order("W"));
-    return model.bias(scale, biasParam);
+    std::vector<int64_t> biasData = mv::utils::generateSequence<int64_t>(conv->getShape()[mv::IO_CHANNEL_DIMENSION]);
+    auto biasParam = model.constantInt(biasData,
+                                    {conv->getShape()[mv::IO_CHANNEL_DIMENSION]},
+                                    mv::DType("Int8"),
+                                    mv::Order("W"),
+                                    quantParams,
+                                    biasParamName);
+
+    return model.bias(conv, biasParam, quantParams, "bias_" + name);
 
 }
 
@@ -65,18 +74,42 @@ mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::D
  * @param intermediateDepth Number of output channels for the first convolution of the branch 2
  * @return mv::Data::TensorIterator Iterator referencing the created residual block output
  */
-mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned intermediateDepth)
+mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model,
+                                        mv::Data::TensorIterator input,
+                                        unsigned intermediateDepth,
+                                        const mv::QuantizationParams& quantParams = {{}, {}, {}, {}},
+                                        const std::string& name = "")
 {
 
     auto inputShape = input->getShape();
-    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, {1, 1}, {0, 0, 0, 0});
-    branch2a = model.relu(branch2a);
-    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
-    branch2b = model.relu(branch2b);
-    auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, inputShape[2]}, {1, 1}, {0, 0, 0, 0});
+    auto branch2a = convBatchNormBlock(model,
+                                        input,
+                                        {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], intermediateDepth},
+                                        {1, 1},
+                                        {0, 0, 0, 0},
+                                        quantParams,
+                                        "branc2a_" + name);
+    branch2a = model.relu(branch2a, quantParams, name + "_branch2a_relu");
 
-    auto res = model.add(input, branch2c);
-    return model.relu(res);
+    auto branch2b = convBatchNormBlock(model,
+                                        branch2a,
+                                        {3, 3, intermediateDepth, intermediateDepth},
+                                        {1, 1},
+                                        {1, 1, 1, 1},
+                                        quantParams,
+                                        "branch2b_" + name);
+    branch2b = model.relu(branch2b, quantParams, name + "_branch2b_relu");
+
+    auto branch2c = convBatchNormBlock(model,
+                                        branch2b,
+                                        {1, 1, intermediateDepth, inputShape[mv::IO_CHANNEL_DIMENSION]},
+                                        {1, 1},
+                                        {0, 0, 0, 0},
+                                        quantParams,
+                                        "branch2c_" + name);
+
+    auto res = model.add(input, branch2c, quantParams, name + "_add");
+    return model.relu(res, quantParams, name + "_relu");
 
 }
 
@@ -89,108 +122,110 @@ mv::Data::TensorIterator residualBlock(mv::CompositionalModel& model, mv::Data::
  * @param stride Stride applied for the convolution in branch 1 and the first convolution in branch 2
  * @return mv::Data::TensorIterator Iterator referencing the created residual block output
  */
-mv::Data::TensorIterator residualConvBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input, unsigned intermediateDepth,
-    unsigned outputDepth, std::array<unsigned short, 2> stride)
+mv::Data::TensorIterator
+residualConvBlock(mv::CompositionalModel& model,
+                mv::Data::TensorIterator input,
+                unsigned intermediateDepth,
+                unsigned outputDepth,
+                std::array<unsigned short, 2> stride,
+                const mv::QuantizationParams& quantParams = {{}, {}, {}, {}},
+                const std::string& name = "")
 {
 
     auto inputShape = input->getShape();
-    auto branch1 = convBatchNormBlock(model, input, {1, 1, inputShape[2], outputDepth}, stride, {0, 0, 0, 0});
-    auto branch2a = convBatchNormBlock(model, input, {1, 1, inputShape[2], intermediateDepth}, stride, {0, 0, 0, 0});
-    branch2a = model.relu(branch2a);
-    auto branch2b = convBatchNormBlock(model, branch2a, {3, 3, intermediateDepth, intermediateDepth}, {1, 1}, {1, 1, 1, 1});
-    branch2b = model.relu(branch2b);
-    auto branch2c = convBatchNormBlock(model, branch2b, {1, 1, intermediateDepth, outputDepth}, {1, 1}, {0, 0, 0, 0});
+    auto branch1 = convBatchNormBlock(model,
+                                        input,
+                                        {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], outputDepth},
+                                        stride,
+                                        {0, 0, 0, 0},
+                                        quantParams,
+                                        "branch1_" + name);
 
-    auto res = model.add(branch1, branch2c);
-    return model.relu(res);
+    auto branch2a = convBatchNormBlock(model,
+                                        input,
+                                        {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], intermediateDepth},
+                                        stride,
+                                        {0, 0, 0, 0},
+                                        quantParams,
+                                        "branch2a_" + name);
+
+    branch2a = model.relu(branch2a, quantParams, name + "_branch2a_relu");
+
+    auto branch2b = convBatchNormBlock(model,
+                                        branch2a,
+                                        {3, 3, intermediateDepth, intermediateDepth},
+                                        {1, 1},
+                                        {1, 1, 1, 1},
+                                        quantParams,
+                                        "branch2b_" + name);
+    branch2b = model.relu(branch2b, quantParams, name + "_branch2b_relu");
+
+    auto branch2c = convBatchNormBlock(model,
+                                        branch2b,
+                                        {1, 1, intermediateDepth, outputDepth},
+                                        {1, 1},
+                                        {0, 0, 0, 0},
+                                        quantParams,
+                                        "branch2c_" + name);
+
+    auto res = model.add(branch1, branch2c, quantParams, name + "_add");
+    return model.relu(res, quantParams, name + "_relu");
 
 }
 
 int main()
 {
-    
+
+    mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+
     // Define the primary compilation unit
     mv::CompilationUnit unit("ResNet50");
 
-    std::string descPath = mv::utils::projectRootPath() + "/config/compilation/resnet50_HW.json";
+    std::string descPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     std::ifstream compDescFile(descPath);
-    // if (compDescFile.good())
-    // {
-    //     std::cout << "DECLARING COMPILATION UNIT with descriptor json filename: " << descPath << std::endl;
-    //     unit.loadCompilationDescriptor(descPath);
-    // }
 
     // Obtain a compositional model from the compilation unit
     mv::CompositionalModel& cm = unit.model();
 
     // Compose the model for ResNet50
-    auto input = cm.input({224, 224, 3}, mv::DType("Float16"), mv::Order("HWC"));
-    auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3});
-    conv1 = cm.relu(conv1);
+
+    // Define/import quantization params from somewhere
+    mv::QuantizationParams emptyQuantParams({}, {}, {}, {});
+
+    auto input = cm.input({224, 224, 3, 1}, mv::DType("Int8"), mv::Order("NHWC"), emptyQuantParams, "input");
+    auto conv1 = convBatchNormBlock(cm, input, {7, 7, 3, 64}, {2, 2}, {3, 3, 3, 3}, emptyQuantParams, "conv1");
+    conv1 = cm.relu(conv1, emptyQuantParams, "relu1");
     auto pool1 = cm.maxPool(conv1, {3, 3}, {2, 2}, {1, 1, 1, 1});
-    auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1});
-    auto res2b = residualBlock(cm, res2a, 64);
-    auto res2c = residualBlock(cm, res2b, 64);
-    auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2});
-    auto res3b = residualBlock(cm, res3a, 128);
-    auto res3c = residualBlock(cm, res3b, 128);
-    auto res3d = residualBlock(cm, res3c, 128);
-    auto res4a = residualConvBlock(cm, res3d, 256, 1024, {2, 2});
-    auto res4b = residualBlock(cm, res4a, 256);
-    auto res4c = residualBlock(cm, res4b, 256);
-    auto res4d = residualBlock(cm, res4c, 256);
-    auto res4e = residualBlock(cm, res4d, 256);
-    auto res4f = residualBlock(cm, res4e, 256);
-    auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2});
-    auto res5b = residualBlock(cm, res5a, 512);
-    auto res5c = residualBlock(cm, res5b, 512);
+    auto res2a = residualConvBlock(cm, pool1, 64, 256, {1, 1}, emptyQuantParams, "res2a");
+    auto res2b = residualBlock(cm, res2a, 64, emptyQuantParams, "res2b");
+    auto res2c = residualBlock(cm, res2b, 64, emptyQuantParams, "res2c");
+    auto res3a = residualConvBlock(cm, res2c, 128, 512, {2, 2}, emptyQuantParams, "res3a");
+    auto res3b = residualBlock(cm, res3a, 128, emptyQuantParams, "res3b");
+    auto res3c = residualBlock(cm, res3b, 128, emptyQuantParams, "res3c");
+    auto res3d = residualBlock(cm, res3c, 128, emptyQuantParams, "res3d");
+    auto res4a = residualConvBlock(cm, res3d, 256, 1024, {2, 2}, emptyQuantParams, "res4a");
+    auto res4b = residualBlock(cm, res4a, 256, emptyQuantParams, "res4b");
+    auto res4c = residualBlock(cm, res4b, 256, emptyQuantParams, "res4c");
+    auto res4d = residualBlock(cm, res4c, 256, emptyQuantParams, "res4d");
+    auto res4e = residualBlock(cm, res4d, 256, emptyQuantParams, "res4e");
+    auto res4f = residualBlock(cm, res4e, 256, emptyQuantParams, "res4f");
+    auto res5a = residualConvBlock(cm, res4f, 512, 2048, {2, 2}, emptyQuantParams, "res5a");
+    auto res5b = residualBlock(cm, res5a, 512, emptyQuantParams, "res5b");
+    auto res5c = residualBlock(cm, res5b, 512, emptyQuantParams, "res5c");
     auto pool5 = cm.averagePool(res5c, {7, 7}, {1, 1}, {0, 0, 0, 0});
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(pool5->getShape().totalSize() * 1000u);
-    auto weights = cm.constant(weightsData, {pool5->getShape().totalSize(), 1000}, mv::DType("Float16"), mv::Order("HW"));
-    auto fc1000 = cm.fullyConnected(pool5, weights);
-    auto softmax = cm.softmax(fc1000);
-    cm.output(softmax);
+    cm.output(pool5);
 
     // Load target descriptor for the selected target to the compilation unit
-    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+    if (!unit.loadTargetDescriptor(mv::Target::ma2490))
         exit(1);
 
-    unit.loadCompilationDescriptor(mv::Target::ma2480);
-    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
-
-    std::string blobName = "resnet50.blob";
-    mv::Attribute blobNameAttr(blobName);
-    compDesc.setPassArg("GenerateBlob", "fileName", blobName);
-    compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
-    compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
-
-    // NOTE: GenerateDot is not applicable for release version. Use debug compilation
-    // descriptor if needed.
-    // compDesc.setPassArg("GenerateDot", "output", std::string("cm_resnet50.dot"));
-    // compDesc.setPassArg("GenerateDot", "scope", std::string("OpControlModel"));
-    // compDesc.setPassArg("GenerateDot", "content", std::string("full"));
-    // compDesc.setPassArg("GenerateDot", "html", true);
-
-    compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
-
-    // compDesc.setPassArg("GenerateCaffe", "outputPrototxt", std::string("cm_resnet50.prototxt"));
-    // compDesc.setPassArg("GenerateCaffe", "outputCaffeModel", std::string("cm_resnet50.caffemodel"));
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
 
     // Initialize compilation 
     unit.initialize();
-    //unit.passManager().disablePass(mv::PassGenre::Serialization);
-
     // Run all passes
     auto result = unit.run();
-
-    // Obtain generated binary size from the compilation output
-    //std::cout << "BLOB size: " << result["passes"].last()["blobSize"].get<long long>() << std::endl;
-    std::cout << result.stringifyPretty() << std::endl;
-
-    // Uncomment for an easy generation of SVG images for DOT output files (requires dot package)
-    //system("dot -Tsvg resnet50.dot -o resnet50.svg");
-    //system("dot -Tsvg resnet50_adapt.dot -o resnet50_adapt.svg");
-    //system("dot -Tsvg resnet50_final.dot -o resnet50_final.svg");
 
     return 0;
 

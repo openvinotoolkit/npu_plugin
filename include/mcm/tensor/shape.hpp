@@ -10,13 +10,25 @@
 namespace mv
 {
 
+    static const size_t IO_WIDTH_DIMENSION = 0;
+    static const size_t IO_HEIGHT_DIMENSION = 1;
+    static const size_t IO_CHANNEL_DIMENSION = 2;
+    static const size_t IO_BATCH_DIMENSION = 3;
+
+    static const size_t KERNEL_WIDTH = 0;
+    static const size_t KERNEL_HEIGHT = 1;
+    static const size_t KERNEL_INPUT_CHANNELS = 2;
+    static const size_t KERNEL_OUTPUT_CHANNELS = 3;
+
     class Shape : public Printable, public LogSender
     {
-
+    private:
+        static const std::unordered_map<std::string, std::size_t> axis_;
         std::vector<std::size_t> dims_;
 
     public:
 
+        static std::size_t getAxis(const std::string& axis);
         Shape(std::initializer_list<std::size_t> dims);
         Shape(std::vector<std::size_t> dims);
         Shape(std::size_t ndims);

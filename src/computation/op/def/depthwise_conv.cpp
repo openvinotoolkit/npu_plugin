@@ -13,19 +13,19 @@ namespace mv
         {
             auto opInput = inputs[0];
             auto weights = inputs[1];
-            if (opInput->getShape().ndims() != 3)
+            if (opInput->getShape().ndims() != 4)
             {
-                errMsg = "Shape ndims is not equal to 3";
+                errMsg = "Input shape ndims is not equal to 4";
                 return {false, 0};
             }
 
             if (weights->getShape().ndims() != 4)
             {
-                errMsg = "Shape ndims is not equal to 4";
+                errMsg = "Weight shape ndims is not equal to 4";
                 return {false, 1};
             }
 
-            if (opInput->getShape()[2] != weights->getShape()[2])
+            if (opInput->getShape()[IO_CHANNEL_DIMENSION] != weights->getShape()[2])
             {
                 errMsg = "Number of weights channels not match input_channels " + std::to_string(opInput->getShape()[2]);
                 return {false, 1};
@@ -33,15 +33,15 @@ namespace mv
 
             auto padding = args.at("padding").get<std::array<unsigned short, 4>>();
 
-            if (opInput->getShape()[0] + padding[0] + padding[1] < weights->getShape()[0])
+            if (opInput->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] < weights->getShape()[0])
             {
-                errMsg = "Width exceeds padded input width " + std::to_string(opInput->getShape()[0] + padding[0] + padding[1]);
+                errMsg = "Width exceeds padded input width " + std::to_string(opInput->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1]);
                 return {false, 1};
             }
 
-            if (opInput->getShape()[1] + padding[2] + padding[3] < weights->getShape()[1])
+            if (opInput->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] < weights->getShape()[1])
             {
-                errMsg = "Height exceeds padded input height " + std::to_string(opInput->getShape()[1] + padding[2] + padding[3]);
+                errMsg = "Height exceeds padded input height " + std::to_string(opInput->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3]);
                 return {false, 1};
             }
 
@@ -67,16 +67,16 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
 
             // Make sure that the result of subtract will not be negative
-            mv::Shape outputShape({(inputs[0]->getShape()[0] + padding[0] + padding[1] - weights->getShape()[0]) / stride[0] + 1, (
-                inputs[0]->getShape()[1] + padding[2] + padding[3] - weights->getShape()[1]) / stride[1] + 1, inputs[0]->getShape()[2] * weights->getShape()[3]});
+            mv::Shape outputShape({(inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - weights->getShape()[IO_WIDTH_DIMENSION]) / stride[0] + 1, (
+                inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - weights->getShape()[IO_HEIGHT_DIMENSION]) / stride[1] + 1, inputs[0]->getShape()[KERNEL_OUTPUT_CHANNELS],inputs[0]->getShape()[IO_BATCH_DIMENSION]});
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty() == true)
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
             else
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
-    
+
         MV_REGISTER_OP(DepthwiseConv)
         .setInputs({"data", "weights"})
         .setOutputs({"output"})

@@ -5,13 +5,13 @@
 TEST(ops, reshape)
 {
     mv::OpModel om("testModel");
-    auto input = om.input({10, 10, 5}, mv::DType("Float16"), mv::Order("CHW"));
-    auto reshape = om.reshape(input, {5, 5, 20});
+    auto input = om.input({10, 10, 5, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto reshape = om.reshape(input, {5, 5, 20, 1});
     auto reshapeOp = om.getSourceOp(reshape);
     om.output(reshape);
 
-    ASSERT_EQ(reshape->getShape(), mv::Shape({5, 5, 20}));
-    ASSERT_EQ(reshape->getOrder(), mv::Order("CHW"));
+    ASSERT_EQ(reshape->getShape(), mv::Shape({5, 5, 20, 1}));
+    ASSERT_EQ(reshape->getOrder(), mv::Order("NCHW"));
     ASSERT_EQ(reshape->attrsCount(), 6);
 
     ASSERT_EQ(reshapeOp->getOpType(), "Reshape");

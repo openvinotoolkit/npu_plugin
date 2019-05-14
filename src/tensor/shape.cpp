@@ -1,5 +1,20 @@
 #include "include/mcm/tensor/shape.hpp"
 
+
+const std::unordered_map<std::string, std::size_t> mv::Shape::axis_ =
+{
+    {"W", 0},
+    {"H", 1},
+    {"C", 2},
+    {"N", 3},
+    {"K", 3}
+};
+
+std::size_t mv::Shape::getAxis(const std::string& axis)
+{
+    return axis_.at(axis);
+}
+
 mv::Shape::Shape(std::initializer_list<std::size_t> dims) :
 dims_(dims)
 {

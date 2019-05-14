@@ -54,7 +54,10 @@ if (MSVC)
     add_executable(barrier_dependency_example barrier_dependency_example.cpp $<TARGET_OBJECTS:cm> $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel> $<TARGET_OBJECTS:model>)
 
 else()
-
+   
+    add_executable(dpu_conv_example dpu_conv_example.cpp)
+    target_link_libraries(dpu_conv_example cm)
+    
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
@@ -102,9 +105,6 @@ else()
 
     add_executable(hw_convolution hw_convolution.cpp)
     target_link_libraries(hw_convolution cm)
-
-    add_executable(dpu_conv_example dpu_conv_example.cpp)
-    target_link_libraries(dpu_conv_example cm)
 
     add_executable(zconv_example zconv_example.cpp)
     target_link_libraries(zconv_example cm)

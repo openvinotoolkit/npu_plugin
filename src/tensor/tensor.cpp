@@ -37,8 +37,30 @@ internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
     set<Shape>("shape", shape_);
     set<Order>("order", order);
     set<DType>("dType", dType);
-    set<mv::QuantizationParams>("quantizationParams", quantParams);
+    set<mv::QuantizationParams>("quantParams", quantParams);
     set<bool>("populated", false);
+
+    data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
+    for (std::size_t i = 0; i < blocks_.size(); ++i)
+        blocks_[i] = data_.begin() + i * blockSize_;
+}
+
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const mv::QuantizationParams &quantParams, bool flag):
+Element(name),
+blockSize_(shape[-1]),
+blocks_(shape.totalSize() / blockSize_),
+shape_(shape),
+internalOrder_(Order(Order::getRowMajorID(shape.ndims())))
+{
+
+    log(Logger::MessageType::Debug, "Initialized");
+    if(order.size() != shape.ndims())
+        throw OrderError(*this, "Order and shape size are mismatching " + std::to_string(order.size()) + " vs " + std::to_string(shape.ndims()));
+    set<Shape>("shape", shape_);
+    set<Order>("order", order);
+    set<DType>("dType", dType);
+    set<mv::QuantizationParams>("quantParams", quantParams);
+    set<bool>("populated", flag);
 
     data_ = std::vector<DataElement>(shape.totalSize(), DataElement(isDoubleType()));
     for (std::size_t i = 0; i < blocks_.size(); ++i)
@@ -51,14 +73,32 @@ Tensor(name, shape, dType, order)
     populate(data, order);
 }
 
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<double>& data, const mv::QuantizationParams &quantParams) :
+Tensor(name, shape, dType, order, quantParams, true)
+{
+    populate(data, order);
+}
+
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data) :
 Tensor(name, shape, dType, order)
 {
     populate(data, order);
 }
 
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<int64_t>& data, const mv::QuantizationParams &quantParams) :
+Tensor(name, shape, dType, order, quantParams, true)
+{
+    populate(data, order);
+}
+
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data) :
 Tensor(name, shape, dType, order)
+{
+    populate(data, order);
+}
+
+mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order, const std::vector<mv::DataElement>& data, const mv::QuantizationParams &quantParams):
+Tensor(name, shape, dType, order, quantParams, true)
 {
     populate(data, order);
 }
@@ -272,13 +312,14 @@ std::shared_ptr<mv::Tensor> mv::Tensor::getStorageElement() const
     return storageElement_;
 }
 
-std::vector<unsigned> mv::Tensor::getZeroPointsPerChannel()
+// NOTE: Read NOTE in header fileq
+std::vector<int64_t> mv::Tensor::getZeroPointsPerChannel()
 {
     //default all zeropoints to zero
-    std::vector<unsigned> zeroPoint(getShape()[3]);
+    std::vector<int64_t> zeroPoint(getShape()[mv::KERNEL_OUTPUT_CHANNELS]);
     if (isQuantized())
     {
-        auto quantParams = get<mv::QuantizationParams>("quantizationParams");
+        auto quantParams = get<mv::QuantizationParams>("quantParams");
         for (size_t t=0; t < zeroPoint.size(); t++)
             zeroPoint[t] = quantParams.getZeroPoint(t);
     }
@@ -294,17 +335,20 @@ void mv::Tensor::populateSparsityMapTensor_()
 {
     auto shape = getShape();
 
-    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
     std::vector<int64_t> sparsityMapData(sparsityMap_->getShape().totalSize());
     std::vector<size_t> sub(shape.ndims());
     uint8_t map = 0;
     std::size_t sparsityMapIdx = 0;
     size_t n = 0;
     int shift = 0;
+    int channelIndex = 3;
+    auto order = getOrder();
+
     for (size_t t = 0; t < shape.totalSize(); t++)
     {
         sub = getOrder().indToSub(shape, t);
-        if (sub[(sub.size()-1)] != n) //starting a new channel, reset map
+        if (sub[channelIndex] != n) //starting a new channel, reset map
         {
            if (shift != 0) //this is needed in the case when tensor dimensions are not multiple of 8
             {
@@ -313,14 +357,14 @@ void mv::Tensor::populateSparsityMapTensor_()
                 map = 0;
                 shift = 0;
             }
-            n = sub[(sub.size()-1)];
+            n = sub[channelIndex];
             if (sparsityMapIdx % 16 != 0)
             {
                 auto padding = 16 - (sparsityMapIdx%16);
                 sparsityMapIdx += padding;
             }
         }
-        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[(sub.size()-1)]])
+        if (static_cast<int64_t>(data_[internalOrder_.subToInd(shape, sub)]) != zeroPoint[sub[channelIndex]])
         {
             map += 1 << shift;
             noneZeroElements_++;
@@ -376,17 +420,8 @@ void mv::Tensor::setSparse()
     //Storage Element Tensor
     //se are filled by the DPU @ runtime
     //We just create an unpopulated tensor at this stage.
-    size_t N;
     auto shape = getShape();
-    if (order.size() == 3)
-    {
-        order = "N" + order.toString();
-        N = 1;
-    }
-    else
-    {
-        N = shape[-1];
-    }
+    size_t N = shape[-1];;
 
     storageElement_  = std::make_shared<Tensor>(getName() + "_se", mv::Shape({shape[0], shape[1], 1, N}), mv::DType("Int32"), order);
 
@@ -398,7 +433,7 @@ void mv::Tensor::setSparse()
     if (isPopulated())
     {
         //pad the shape
-        auto paddedDim = mv::round_up(mapShape[0] * mapShape[1] * mapShape[2], 16);
+        auto paddedDim = mv::round_up(static_cast<std::size_t>(std::ceil(shape[0] / 8.0)), 16);
         mapShape = {paddedDim, 1, 1, N};
     }
     sparsityMap_ = std::make_shared<Tensor>(getName() + "_sm", mapShape, mv::DType("UInt8"), Order("NCHW"));
@@ -586,22 +621,22 @@ std::vector<mv::DataElement> mv::Tensor::getDataPacked()
 
     auto shape = getShape();
     std::vector<std::size_t> sub(shape.ndims());
-    std::vector<unsigned> zeroPoint = getZeroPointsPerChannel();
+    std::vector<int64_t> zeroPoint = getZeroPointsPerChannel();
     std::vector<DataElement> orderedDataPacked;
     double datai;
-    size_t outputChannelSize = shape.totalSize() / shape[3];
+    size_t outputChannelSize = shape.totalSize() / shape[mv::KERNEL_OUTPUT_CHANNELS];
     for (std::size_t i = 0; i < data_.size(); ++i)
     {
         sub = getOrder().indToSub(getShape(), i);
         datai = data_[internalOrder_.subToInd(getShape(), sub)];
-        if (!isSparse() || datai != zeroPoint[sub[3]]) //zero point per output channel
+        if (!isSparse() || datai != zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]]) //zero point per output channel
             orderedDataPacked.push_back(DataElement(isDoubleType(), datai));
         //Add padding if needed
         if (isSparse() && ((i+1) % outputChannelSize) == 0) //we reached the end of the outputchannel
         {
             auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
             auto padsize = mv::round_up(size, 16) - size;
-            int64_t zeroPointVal = zeroPoint[sub[3]];
+            int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
             for (std::size_t j = 0; j < padsize; ++j)
                 orderedDataPacked.push_back(DataElement(isDoubleType(), zeroPointVal));
         }
@@ -898,7 +933,7 @@ mv::BinaryData mv::Tensor::toBinary()
 
 std::vector<unsigned> mv::Tensor::computeNumericStrides() const
 {
-    return getOrder().computeStrides(getShape(), getDType().getSizeInBits() / 8);
+    return getOrder().computeByteStrides(getShape(), getDType().getSizeInBits() / 8);
 }
 
 std::size_t mv::Tensor::computeTotalSize(unsigned int alignment) const

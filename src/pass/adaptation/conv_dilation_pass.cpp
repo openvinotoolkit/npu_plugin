@@ -77,6 +77,7 @@ void convDilationFcn(const mv::pass::PassEntry &, mv::ComputationModel &model, m
                     dilatedKernelShape,
                     dilatedKernel.getDType(),
                     dilatedKernel.getOrder(),
+                    {{},{},{},{}},
                     nonDialtedKernelOp->getName() + "_Dilated");
 
                 om.removeOp(nonDialtedKernelOp);

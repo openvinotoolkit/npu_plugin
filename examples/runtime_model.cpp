@@ -13,9 +13,10 @@ int main()
     mv::OpModel& test_cm = unit.model();
     mv::ControlModel cm(test_cm);
 
-    unit.loadCompilationDescriptor(mv::utils::projectRootPath()+"/config/compilation/ma2490.json");
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
 
-    auto input1 = test_cm.input({225, 225, 3}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input1 = test_cm.input({225, 225, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto input1dmaIN = test_cm.dMATask(input1, mv::DmaDirectionEnum::DDR2CMX);
     std::vector<double> weights1Data = mv::utils::generateSequence<double>(3*3*3);
     auto weights1 = test_cm.constant(weights1Data, {3, 3, 3, 1}, mv::DType("Float16"), mv::Order("NCWH"));

@@ -18,7 +18,7 @@ int main()
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({16, 16, 15}, mv::DType("Float16"), mv::Order("CHW"));
+    auto input = om.input({16, 16, 15, 1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{},{},{},{}}, "input#3");
 
     std::vector<double> weightsData = mv::utils::generateSequence<double>(1*1*15*15);
     auto weights = om.constant(weightsData, {1, 1, 15, 15}, mv::DType("Float16"), mv::Order("NCWH"));
@@ -32,7 +32,6 @@ int main()
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
-    mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     //compDesc.setPassArg("GenerateDot", "scope", std::string("ControlModel"));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
