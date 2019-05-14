@@ -8,7 +8,7 @@
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "CMX_memory_overflow_safety_factor" : 0.925,
-                "nWorkloads" : 4,
+                "nWorkloads" : 5,
                 "MPE_mode" : "Matrix",
                 "split_strategy" :
                 [
@@ -82,7 +82,7 @@
                     {
                         "name_filter" : "res3a_branch2c",
                         "cluster_filter" : 0,
-                        "nWorkloads" : 49,
+                        "nWorkloads" : 5,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
