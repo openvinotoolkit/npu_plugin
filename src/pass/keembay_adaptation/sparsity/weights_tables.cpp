@@ -7,6 +7,7 @@
 #include <math.h>
 
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
+static void populateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&);
 
 namespace mv
 {
@@ -18,6 +19,13 @@ namespace mv
         .setDescription(
             "Generates weights tables for the Tasks that need them"
         );
+
+        MV_REGISTER_PASS(PopulateWeightsTables)
+        .setFunc(populateWeightsTablesFcn)
+        .setDescription(
+            "Populate WeightsTables"
+        );
+
     }
 }
 
@@ -117,6 +125,10 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
         }
     }
 
+static void populateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
     std::vector<mv::DataElement> biasData;
     bool hasBias = dpuTaskOp->hasAttr("bias");
     mv::Data::TensorIterator bias;
@@ -140,12 +152,21 @@ static void populateWeightsTablesActivationAndBias(std::vector<int64_t>& weights
             weightsTableData[i+3] = biasData[i/4];
     }
 
-    if (hasBias)
+    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
     {
-        dm.undefineTensor(bias);
-        dpuTaskOp->erase("bias");
+        if(dpuTaskOp->getOpType() == "DPUTask")
+        {
+            if((dpuTaskOp->get<std::string>("taskOp") == "Conv") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "ChannelMajorConvolution") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "MaxPool") ||
+               (dpuTaskOp->get<std::string>("taskOp") == "DepthwiseConv"))
+            {
+                auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->inputSlots()-1);
+            }
+        }
     }
 }
+
 
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
@@ -175,10 +196,6 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
                 mv::Shape shape({4, 1, 1, outputChannels});
 
                 std::vector<int64_t> weightsTableData(shape.totalSize(), 0);
-
-                populateWeightsTablesDataPointers(weightsTableData, dpuTaskOp, om);
-                populateWeightsTablesSparsityPointers(weightsTableData, dpuTaskOp, om);
-                populateWeightsTablesActivationAndBias(weightsTableData, dpuTaskOp, om);
                 mv::QuantizationParams quantParams = {{},{},{},{}};
 
                 auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, kernelWeightsTableName);
