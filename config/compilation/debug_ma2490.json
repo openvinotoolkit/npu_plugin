@@ -198,7 +198,10 @@
             },
             "RemoveDeallocationTasks",
             "TransitiveReduction",
-            "InsertBarrierTasks",
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "ArrangeKeembayExecution",

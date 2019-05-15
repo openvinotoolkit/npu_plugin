@@ -781,12 +781,91 @@ TEST(insert_barrier_tasks, additional_interference)
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
-    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    // This test is intended only for static barrier assignment
+    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "barrier_index_assignment", std::string("Static"));
+
+    // Set the barrier reuse window size
+    unit.compilationDescriptor().setPassArg("InsertBarrierTasks", "barrier_reuse_window", 8);
+
+    // Effectively disable weights prefetch for this test by setting the prefetch number
+    // to a large number
+    unit.compilationDescriptor().setPassArg("AddDMATasks", "weights_prefetch", 200);
+
+    //unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
     unit.initialize();
     unit.run();
 
-    // auto barrierOps = om.getOps("BarrierTask");
+    auto barrierOps = om.getOps("BarrierTask");
 
-    // size_t expected_num_barriers = 2;
-    // ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+    size_t expected_num_barriers = 12;
+    ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+
+    // For the network, with weights prefetch disabled, the barrier indices must go all the way to 7
+    // before being reused, since we've set the reuse window to be 8. Indices would have otherwise
+    // alternated between 0 & 1, since this is a pretty straightforward network.
+    int numChecks = 0;
+    for (auto b : barrierOps)
+    {
+        if (b->getName() == "BarrierTask_0")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_1")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_2")
+        {
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_3")
+        {
+            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_4")
+        {
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_5")
+        {
+            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_6")
+        {
+            EXPECT_EQ(6, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_7")
+        {
+            EXPECT_EQ(7, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_8")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_9")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_10")
+        {
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_11")
+        {
+            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+    }
+    EXPECT_EQ(12, numChecks);   // coverage check
 }

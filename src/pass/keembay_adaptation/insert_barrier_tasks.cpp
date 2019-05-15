@@ -193,7 +193,11 @@ static void drawBigK(const BIGKoala& bigK)
     gml.writeFile("bigK.graphml");
 }
 
-static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om, std::vector<mv::Barrier>& barriers)
+static BarrierInterferenceGraph
+generateBarrierInterferenceGraph(mv::OpModel& om,
+                                    std::vector<mv::Barrier>& barriers,
+                                    const std::string& indexAssignment,
+                                    const int barrierReuseWindow)
 {
     BarrierInterferenceGraph big;
     mv::ControlModel cm(om);
@@ -267,6 +271,19 @@ static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om
     // Add more interference here to allow firmware to allow other barrier indices before
     // reusing any specific one again (hardware switching timing related, presumably).
     // use sliding window algorithm --> use 5 as the width of the window.
+    if (indexAssignment == "Static")
+    {
+        for (size_t i = 0; i < barriers.size(); i++)
+        {
+            for (size_t j = i + 1; j < i + barrierReuseWindow && j < barriers.size(); j++)
+            {
+                auto b1It = big.node_find(barriers[i]);
+                auto b2It = big.node_find(barriers[j]);
+                if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
+                    addEdge(barriers[i], barriers[j], big);
+            }
+        }
+    }
 
     return big;
 }
@@ -398,10 +415,14 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
     auto globalConfigurationParameters = om.getGlobalConfigParams();
     std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
 
-    if(passDesc.hasAttr("barrier_index_assignment"))
+    if (passDesc.hasAttr("barrier_index_assignment"))
         indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
     
-    BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers);
+    int barrierReuseWindow = 0;
+    if (passDesc.hasAttr("barrier_reuse_window"))
+        barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
+
+    BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
     drawBIG(big, "big.dot");
 
     BIGKoala bigK;
