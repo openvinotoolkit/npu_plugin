@@ -78,7 +78,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      }
 
                      auto m = S2;
-                     if (opIt->inputSlots() > 1)
+
+                     if (opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights"))
                      {
                          auto weights = opIt->getInputTensor(1);
                          auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
