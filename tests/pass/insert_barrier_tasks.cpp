@@ -58,11 +58,11 @@ TEST(insert_barrier_tasks, parallel_paths)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o parallel_paths_final_model.png");
+    system("dot -Tpng final_model.dot -o parallel_paths_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 4;
+    size_t expected_num_barriers = 5;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -132,11 +132,11 @@ TEST(insert_barrier_tasks, single_control_edge)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o single_control_edge_final_model.png");
+    system("dot -Tpng final_model.dot -o single_control_edge_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 6;
+    size_t expected_num_barriers = 7;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -207,11 +207,11 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o multiple_control_edges_final_model.png");
+    system("dot -Tpng final_model.dot -o multiple_control_edges_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 6;
+    size_t expected_num_barriers = 7;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -222,7 +222,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
         //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5")
         {
-            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
             numChecks=numChecks+2;
         }
@@ -281,11 +281,11 @@ TEST(insert_barrier_tasks, dealloc_edge)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o dealloc_edge_final_model.png");
+    system("dot -Tpng final_model.dot -o dealloc_edge_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 6;
+    size_t expected_num_barriers = 7;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -357,12 +357,12 @@ TEST(insert_barrier_tasks, static_index_assignment)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
+    system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
 
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 15;
+    size_t expected_num_barriers = 16;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -495,12 +495,12 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
+    system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
 
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 15;
+    size_t expected_num_barriers = 16;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -644,11 +644,11 @@ TEST(insert_barrier_tasks, weights_prefetch)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o weights_prefetch_final_model.png");
+    system("dot -Tpng final_model.dot -o weights_prefetch_final_model.png");
 
     auto barrierOps = om.getOps("BarrierTask");
 
-    size_t expected_num_barriers = 14;
+    size_t expected_num_barriers = 15;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 

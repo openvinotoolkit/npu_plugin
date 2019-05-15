@@ -7,6 +7,11 @@
                 "barrier_index_assignment" : "Static",
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
+                "UpaShaves": 1,
+                "NCE2Mask": 1,
+                "NNCMXPerSlice": 3604480,
+                "NNCMXSliceAmount": 1,
+                "DDRScratch": 4096,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
@@ -64,12 +69,7 @@
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 10,
-                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf",
-                "ResourcesUpaShaves": 1,
-                "ResourcesNCE2Mask": 1,
-                "ResourcesNNCMXPerSlice": 4096,
-                "ResourcesNNCMXSliceAmount": 1,
-                "ResourcesDDRScratch": 4096
+                "VersionHash": "c1b3a9075e52694726edc996124c04b9268cf4cf"
             }
         ]
     },
@@ -108,6 +108,14 @@
             {
                 "name": "GenerateDot",
                 "output": "keembay_WeightsTable_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "GenerateEltWiseConstants",
+            {
+                "name": "GenerateDot",
+                "output": "keembay_EltWiseConstants_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
@@ -190,10 +198,7 @@
             },
             "RemoveDeallocationTasks",
             "TransitiveReduction",
-            {
-                "name":"InsertBarrierTasks",
-                "barrier_index_assignment": "Static"
-            },
+            "InsertBarrierTasks",
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "ArrangeKeembayExecution",
@@ -220,8 +225,7 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "output/vpu2.blob",
-                "barrier_index_assignment": "Static"
+                "output": "output/vpu2.blob"
             }
         ]
     },
