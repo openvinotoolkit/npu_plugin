@@ -79,7 +79,7 @@ namespace mv
             tensorYDim = outputTensor[1];
 
             /*Number of vertices and edges in METIS lattic graph of tensor*/
-            m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);    
+            m_numberTensorVertices = ceil(tensorXDim / MPEMode.first)  * ceil(tensorYDim / MPEMode.second);
             m_numberTensorEdges = (2 * ceil(tensorXDim / MPEMode.first) * ceil(tensorYDim / MPEMode.second)) - ceil(tensorXDim / MPEMode.first) - ceil(tensorYDim / MPEMode.second);
         
             /*X-Y dimension of METIS lattic graph*/
@@ -138,8 +138,11 @@ namespace mv
 
                         min_x = (k/2) * MPEMode.second;
                         min_y = j * MPEMode.first;
+
+                        assert(nodeIndex < m_numberTensorVertices);
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
-                                                
+
+                        assert(nodeIndex < m_numberTensorVertices * nWeights);
                         vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
                     }
                     /*Second row where node number is odd i.e. 1,3,5... */
@@ -147,8 +150,11 @@ namespace mv
                         
                         min_x = min_x;
                         min_y = min_y + n_elem_y;
+
+                        assert(nodeIndex < m_numberTensorVertices);
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
-                        
+
+                        assert(nodeIndex < m_numberTensorVertices * nWeights);
                         vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
                     }        
                     nodeIndex++;
@@ -169,12 +175,14 @@ namespace mv
                         n_elem_x = MPEMode.second;
                     else 
                         n_elem_x = (int)tensorXDim%MPEMode.second;
-            
+
+                    assert(nodeIndex < m_numberTensorVertices * nWeights);
                     vwgt[nodeIndex] = n_elem_x * n_elem_y; /* Populate METIS weight*/
 
                     int min_x = k * MPEMode.second;
                     int min_y = j * MPEMode.first;
 
+                    assert(nodeIndex < m_numberTensorVertices);
                     node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
                  
                     nodeIndex++;
