@@ -132,9 +132,13 @@ void populateWeightsTablesActivationAndBias(mv::Tensor& weightsTableData, mv::Da
     // 1 -> SP_PTR
     // 0 -> DATA_PTR
     // TODO mult & prelu are currently not implemented
+
+    unsigned round_mode = 1;
+    std::vector<int32_t> round32(outputChannels, round_mode);
+
     for (size_t i = 0; i < weightsTableData.size(); i+=4)
     {
-        weightsTableData(i+2) = static_cast<long int>((mScaled[i/4] << 16) | (mShift[i/4]) << 8);
+        weightsTableData(i+2) = static_cast<long int>((mScaled[i/4] << 16) | (round32[i/4] << 14) | (mShift[i/4]) << 8);
 
         if (hasBias)
             weightsTableData(i+3) = biasData[i/4];
@@ -169,7 +173,6 @@ static void populateWeightsTablesFcn(const mv::pass::PassEntry& , mv::Computatio
                 populateWeightsTablesDataPointers(*weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(*weightsTable, dpuTaskOp, model);
                 populateWeightsTablesActivationAndBias(*weightsTable, dpuTaskOp, model);
-                std::cout << "Debug" << std::endl;
             }
         }
     }
