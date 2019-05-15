@@ -188,14 +188,7 @@
                 "costfunction": "balanced",
                 "_comment": "Supported cost functions are: balanced | criticalpath | minmax | greedy"
             },
-            "RemoveDeallocationTasks",
-            "TransitiveReduction",
-            {
-                "name":"InsertBarrierTasks",
-                "barrier_index_assignment": "Static"
-            },
-            "AddBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts",
+
             "ArrangeKeembayExecution",
             "TransitiveReduction",
             "AllocateInputOutputTensorsKeemBay",
@@ -208,7 +201,15 @@
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
-            }
+            },
+            "RemoveDeallocationTasks",
+            "TransitiveReduction",
+            {
+                "name":"InsertBarrierTasks",
+                "barrier_index_assignment": "Static"
+            },
+            "AddBarrierRefs",
+            "UpdateBarrierProducerConsumerCounts"
         ]
     },
     "validate": {
