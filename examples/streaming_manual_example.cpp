@@ -46,7 +46,7 @@ int main()
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
-    compDesc.remove("finalize", "RemoveDeallocationTasks"); //TODO remove
+    //compDesc.remove("finalize", "RemoveDeallocationTasks"); //TODO remove
 
     // run only the passes to build the task graph
     unit.loadTargetDescriptor(mv::Target::ma2490);
