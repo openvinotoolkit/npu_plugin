@@ -190,10 +190,7 @@
             },
             "RemoveDeallocationTasks",
             "TransitiveReduction",
-            {
-                "name":"InsertBarrierTasks",
-                "barrier_index_assignment": "Static"
-            },
+            "InsertBarrierTasks",
             "AddBarrierRefs",
             "UpdateBarrierProducerConsumerCounts",
             "ArrangeKeembayExecution",
@@ -220,8 +217,7 @@
         "Singular": [
             {
                 "name": "GenerateBlobKeembay",
-                "output": "blob.bin",
-                "barrier_index_assignment": "Static"
+                "output": "blob.bin"
             }
         ]
     },
