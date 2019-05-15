@@ -11,4 +11,4 @@ add_executable(
     graph_comparator_tests.cpp
 )
 
-target_link_libraries(graph_comparator_tests pthread gtest gcomparator)
+target_link_libraries(graph_comparator_tests pthread gtest gcomparator metis)

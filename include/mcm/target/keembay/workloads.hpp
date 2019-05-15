@@ -161,7 +161,6 @@ namespace mv
                 }
 }
             /* Now deal with the remaining rows after the first 2 rows*/
-            /* For these rows, due to the linear numbering of the nodes numbers, we can calculate the node coordinates and weights together*/
             for(int j=2; j < m_yDim; j++) { 
             
                 if ((j+1 < m_yDim) || (!fmod(tensorYDim,MPEMode.first)))
@@ -245,10 +244,6 @@ namespace mv
             }
             setVertices();
         }
-
-        bool operator < (const Workload& rhs) const {
-        return MinY < rhs.MinY;
-    }
     };
 
     struct DPUMode { unsigned H, W; }; // NB: do not mess with MPE_Mode
