@@ -58,13 +58,6 @@ std::size_t mv::Workloads::nWorkloads() const
     return workloads_.size();
 }
 
-/*
-const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
-{
-    return workloads_;
-}
-*/
-
 const std::vector<mv::Workload>& mv::Workloads::getWorkloads() const
 {
     return const_cast<std::vector<Workload>&>(workloads_);
@@ -813,6 +806,9 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
     return finalWorkloadList;
 }
 
+  /** 
+    * @brief Returns the cost function to use for execution cycles
+    */
 mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
 {
     /*parse CostFunction from Comp Descriptor*/
@@ -836,6 +832,9 @@ mv::CostFunctions mv::Workloads::getCostFunction(mv::Element& passDesc) const
     return costFunction;
 }
 
+/** 
+ * @brief Returns the supported Tensor Split Algorithms to be used
+ */
 std::vector<std::string> mv::Workloads::getTensorSplitAlgorithms(mv::Element& passDesc) const
 {
     /*parse TensorSplitAlgorithms from Compilation Descriptor*/

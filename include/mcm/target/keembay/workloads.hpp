@@ -274,17 +274,29 @@ namespace mv
         std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
         int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
-        // returns: METIS_OK(=1), or METIS_ERROR
+        /*returns: METIS_OK(=1), or METIS_ERROR*/
         int partitionTensorWithRectangleHeuristic(const DPUModeList& modes, idx_t nWorkloads,
                                                   const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);
-        void populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::pass::PassEntry& pass, std::pair <idx_t,idx_t>& mpeMode);
-        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass, mv::Workload& workload, std::vector<mv::Workload>& workloads, std::pair <idx_t,idx_t>& mpeMode);
-        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass, mv::Workload& workload, std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, std::pair <idx_t,idx_t>& mpeMode);
+
+        void populateWorkloadsFromPartitions(idx_t nWorkloads, 
+                                            const mv::pass::PassEntry& pass, 
+                                            std::pair <idx_t,idx_t>& mpeMode);
+
+        std::vector<mv::Workload> polygonWorkloadSplit(const mv::pass::PassEntry& pass, 
+                                                        mv::Workload& workload, 
+                                                        std::vector<mv::Workload>& workloads, 
+                                                        std::pair <idx_t,idx_t>& mpeMode);
+        
+        std::vector<mv::Workload> workloadSplitHelper(const mv::pass::PassEntry& pass, 
+                                                        mv::Workload& workload, 
+                                                        std::pair<std::pair<int16_t, int16_t>,bool>& interesting_point, 
+                                                        std::pair <idx_t,idx_t>& mpeMode);
         std::size_t nWorkloads() const;
         void addWorkload(mv::Workload workload);
         const std::vector<mv::Workload>& getWorkloads() const;
+
         void generateExecutionCycles(std::vector<mv::Data::TensorIterator>& outputTensor, int nDPUxCluster, CostFunctions costFunction);
         std::vector<float> getExecutionCycles() const;
         void setExecutionCycles(std::vector<float> val);
@@ -293,13 +305,7 @@ namespace mv
         bool validateWorkloads(std::vector<mv::Data::TensorIterator>& inputTensor);
         bool validateWorkloads(const mv::Shape& shape);
 
-        /** 
-         * @brief Returns the cost function to use for execution cycles
-         */
         mv::CostFunctions getCostFunction(mv::Element& passDesc) const;
-        /** 
-         * @brief Returns the supported Tensor Split Algorithms to be used
-         */
         std::vector<std::string> getTensorSplitAlgorithms(mv::Element& passDesc) const;
 
         double getAllWorkloadsVolume() const;
