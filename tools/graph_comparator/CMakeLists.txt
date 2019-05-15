@@ -19,7 +19,7 @@ add_library(gcomparator SHARED
     ${logger}
 )
 
-target_link_libraries(graph_comparator pthread gtest metis)
+target_link_libraries(graph_comparator pthread gtest)
 add_dependencies(graph_comparator generate-graphfile-headers)
 add_dependencies(gcomparator generate-graphfile-headers)
 
