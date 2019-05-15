@@ -19,6 +19,9 @@ TEST(insert_barrier_tasks, serial_path)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("finalize","TensorGraphColoring");
+    unit.compilationDescriptor().remove("serialize");
+
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.initialize();
     unit.run();
@@ -346,6 +349,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("finalize","TensorGraphColoring");
     unit.compilationDescriptor().remove("serialize");
     std::string optString = "Static";
     mv::Attribute option = optString;
@@ -488,6 +492,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("finalize","TensorGraphColoring");
     unit.compilationDescriptor().remove("serialize");
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 

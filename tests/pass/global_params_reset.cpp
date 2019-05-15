@@ -19,6 +19,9 @@ TEST(global_params_reset, barrierCounter)
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("finalize","TensorGraphColoring");
+    unit.compilationDescriptor().remove("serialize");
+
     // donot reset the barrier counter to 0 on purpose. If not reset in this run, the next compilation unit will see barrier IDs that start with nonzero ID.
     //unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.initialize();
@@ -50,6 +53,8 @@ TEST(global_params_reset, barrierCounter)
     unit2.loadCompilationDescriptor(compDescPath);
     unit2.loadTargetDescriptor(mv::Target::ma2490);
     unit2.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit2.compilationDescriptor().remove("finalize","TensorGraphColoring");
+    unit2.compilationDescriptor().remove("serialize");
     // now reset the barrier counter, to check on the 3rd compilation unit that the barrier count starts with 0.
     // *********below is a way to use the global params reset pass *************//
     unit2.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
@@ -79,6 +84,8 @@ TEST(global_params_reset, barrierCounter)
     unit3.loadCompilationDescriptor(compDescPath);
     unit3.loadTargetDescriptor(mv::Target::ma2490);
     unit3.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit3.compilationDescriptor().remove("finalize","TensorGraphColoring");
+    unit3.compilationDescriptor().remove("serialize");
     unit3.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit3.initialize();
     unit3.run();
