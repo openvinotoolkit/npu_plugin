@@ -730,3 +730,63 @@ TEST(insert_barrier_tasks, weights_prefetch)
     }
     EXPECT_EQ(17, numChecks);   // coverage check
 }
+
+TEST(insert_barrier_tasks, additional_interference)
+{
+    mv::CompilationUnit unit("testModel");
+    mv::OpModel& om = unit.model();
+
+    auto input = om.input({56, 56, 16, 1}, mv::DType("Int8"), mv::Order("NCHW"));
+    std::vector<int64_t> weightsData_1by1_16by64 = mv::utils::generateSequence<int64_t>(1*1*16*64);
+    std::vector<int64_t> weightsData_1by1_64by64 = mv::utils::generateSequence<int64_t>(1*1*64*64);
+    std::vector<int64_t> weightsData_3by3 = mv::utils::generateSequence<int64_t>(3*3*64*64);
+    std::vector<int64_t> weightsData_3by3_2 = mv::utils::generateSequence<int64_t>(3*3*64*64);
+
+    auto weights1 = om.constantInt(weightsData_1by1_16by64, {1, 1, 16, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
+
+    auto weights2 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv2 = om.conv(conv1, weights2, {1, 1}, {1, 1, 1, 1});
+
+    auto weights3 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
+
+    auto weights4 = om.constantInt(weightsData_3by3_2, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});
+
+    auto weights5 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
+
+    auto weights6 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv6 = om.conv(conv5, weights6, {1, 1}, {1, 1, 1, 1});
+
+    auto weights7 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv7 = om.conv(conv6, weights7, {1, 1}, {1, 1, 1, 1});
+
+    auto weights8 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv8 = om.conv(conv7, weights8, {1, 1}, {1, 1, 1, 1});
+
+    auto weights9 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv9 = om.conv(conv8, weights9, {1, 1}, {1, 1, 1, 1});
+
+    auto weights10 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv10 = om.conv(conv9, weights10, {1, 1}, {1, 1, 1, 1});
+
+    auto weights11 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv11 = om.conv(conv10, weights11, {1, 1}, {1, 1, 1, 1});
+
+    om.output(conv11); // one barrier for DMA out from CMX to DDR
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+
+    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.initialize();
+    unit.run();
+
+    // auto barrierOps = om.getOps("BarrierTask");
+
+    // size_t expected_num_barriers = 2;
+    // ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+}
