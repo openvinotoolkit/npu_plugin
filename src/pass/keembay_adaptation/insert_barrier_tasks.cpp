@@ -381,6 +381,9 @@ static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel
 {
     auto globalConfigurationParameters = om.getGlobalConfigParams();
     std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
+
+    if(passDesc.hasAttr("barrier_index_assignment"))
+        indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
     
     BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers);
     drawBIG(big, "big.dot");
@@ -431,6 +434,9 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     auto globalConfigurationParameters = model.getGlobalConfigParams();
 
     std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
+
+    if(passDesc.hasAttr("barrier_index_assignment"))
+        indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
 
     for (auto& barrier: barriers)
     {
