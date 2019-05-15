@@ -129,12 +129,8 @@ std::vector<unsigned> mv::Order::computeWordStrides(const Shape &shape) const
     unsigned n = shape.ndims();
     std::vector<unsigned> realStrides(n, 1);
 
-    realStrides[contVector_[0]] = shape[contVector_[0]];
-
-    for(unsigned i = 1; i < n - 1; ++i)
-        realStrides[contVector_[i]] = realStrides[contVector_[i-1]] * shape[contVector_[i]];
-
-    realStrides[contVector_[n-1]] = realStrides[contVector_[n-2]] * shape[contVector_[n-1]];
+    for(unsigned i = 1; i < n; ++i)
+        realStrides[contVector_[i]] = realStrides[contVector_[i-1]] * shape[contVector_[i-1]];
 
     return realStrides;
 }
