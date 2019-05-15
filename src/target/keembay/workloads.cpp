@@ -598,9 +598,6 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         }
     }
     
-    /*Sorting by y value and printing after polygon logic*/
-    std::sort(workloads_.begin(), workloads_.end());
-
     for(int workload = 0; workload < workloads_.size(); workload++) { 
 
         pass.log(mv::Logger::MessageType::Debug, "\nworkload: " + std::to_string(workload));
