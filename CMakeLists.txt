@@ -310,6 +310,7 @@ SET(pass
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/sparsity_maps.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/weights_tables.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/keembay_adaptation/sparsity/eltwise_ops.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"

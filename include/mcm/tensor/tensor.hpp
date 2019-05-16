@@ -144,6 +144,11 @@ namespace mv
             return shape_;
         }
 
+        inline unsigned size() const
+        {
+            return shape_.totalSize();
+        }
+
         inline std::vector<std::size_t> indToSub(unsigned index) const
         {
             return indToSub_(getShape(), index);

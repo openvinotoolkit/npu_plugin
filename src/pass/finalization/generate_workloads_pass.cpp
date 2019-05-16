@@ -99,6 +99,10 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
                     if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
+
+                        if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
+                            std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
+
                     else
                         pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS, ensure number of workloads is even!");
                 }
