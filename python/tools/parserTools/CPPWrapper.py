@@ -301,7 +301,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
                 else:
                     _ref = ca.maxpool2D_caffe(om, in_, rx, ry, sx, sy, px[0], py[0])
             elif parser == Parser.TensorFlowLite:
-                _ref = ca.maxpool2D(om, in_, rx, ry, sx, sy, px[0], py[0], mv_quant_params, output_tensor_name)
+                _ref = ca.maxpool2D(om, in_, rx, ry, sx, sy, px[0], px[1], py[0], py[1], mv_quant_params, output_tensor_name)
             else:
                 throw_error(ErrorTable.ParserNotSupported, parser.name)
 
@@ -313,7 +313,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
                 else:
                     _ref = ca.avgpool2D_caffe(om, in_, rx, ry, sx, sy, px[0], py[0])
             elif parser == Parser.TensorFlowLite:
-                _ref = ca.avgpool2D(om, in_, rx, ry, sx, sy, px[0], py[0], mv_quant_params, output_tensor_name)
+                _ref = ca.avgpool2D(om, in_, rx, ry, sx, sy, px[0], px[1], py[0], py[1], mv_quant_params, output_tensor_name)
             else:
                 throw_error(ErrorTable.ParserNotSupported, parser.name)
 
@@ -668,7 +668,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
             else:
                 _conv = ca.conv2D_caffe(om, in_, weights_param, sX, sY, pX[0], pY[0], dilationFactor, group)  # Caffe
         elif parser == Parser.TensorFlowLite:
-            _conv = ca.conv2D(om, in_, weights_param, sX, sY, pX[0], pY[0], dilationFactor, group, mv_quant_params, output_tensor_name)  # TFLite
+            _conv = ca.conv2D(om, in_, weights_param, sX, sY, pX[0], pX[1], pY[0], pY[1], dilationFactor, group, mv_quant_params, output_tensor_name)  # TFLite
         else:
             throw_error(ErrorTable.ParserNotSupported, parser.name)
 
@@ -684,7 +684,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
                 ', '.join(map(str, get_parse_quant(l.getWeights())[4])) + '}}, "' + str(weight_tensor_name) + '");\n')
 
             output_file.write(' ' * 4 + 'auto conv' + str(convolution_node_id) + ' = om.conv(' + str(tensor_mapping_dict[l.getInputTensors()[0].getName().stringifyName()]) + ', weights' + str(convolution_node_id) + \
-                ', {' + str(sY) + ', ' + str(sX) + '}, {' + str(pX[0]) + ', ' + str(pX[0]) + ', ' + str(pY[0]) + ', ' + str(pY[0]) + '}, ' + \
+                ', {' + str(sY) + ', ' + str(sX) + '}, {' + str(pX[0]) + ', ' + str(pX[1]) + ', ' + str(pY[0]) + ', ' + str(pY[1]) + '}, ' + \
                 str(dilationFactor) + ', ' + str(group) + ', {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
                 '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
                 ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}}, "' + str(output_tensor_name) + '");\n\n')
@@ -758,7 +758,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
         (pY, pX) = l.getPadding()
         dilationFactor = l.getDilation()
 
-        _conv = ca.depthwiseConv2D(om, in_, weights_param, sX, sY, dilationFactor, pX[0], pY[0], mv_quant_params, output_tensor_name)  # TFLite
+        _conv = ca.depthwiseConv2D(om, in_, weights_param, sX, sY, dilationFactor, pX[0], pX[1], pY[0], pY[1], mv_quant_params, output_tensor_name)  # TFLite
 
         if (output_file != None):
 
@@ -772,7 +772,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
                 ', '.join(map(str, get_parse_quant(l.getWeights())[4])) + '}}, "' + str(weight_tensor_name) + '");\n')
 
             output_file.write(' ' * 4 + 'auto depthConv' + str(depthwise_node_id) + ' = om.conv(' + str(tensor_mapping_dict[l.getInputTensors()[0].getName().stringifyName()]) + ', weights' + str(convolution_node_id) + \
-                ', {' + str(sY) + ', ' + str(sX) + '}, {' + str(pX[0]) + ', ' + str(pX[0]) + ', ' + str(pY[0]) + ', ' + str(pY[0]) + '}, ' + \
+                ', {' + str(sY) + ', ' + str(sX) + '}, {' + str(pX[0]) + ', ' + str(pX[1]) + ', ' + str(pY[0]) + ', ' + str(pY[1]) + '}, ' + \
                 str(dilationFactor) + ', {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
                 '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
                 ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}}, "' + str(output_tensor_name) + '");\n\n')
