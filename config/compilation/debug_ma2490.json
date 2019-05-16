@@ -64,73 +64,73 @@
                         "name_filter" : "res1",
                         "cluster_filter" : 0,
                         "nWorkloads" : 45,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res2a_branch2a",
                         "cluster_filter" : 0,
                         "nWorkloads" : 45,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res2a_branch2b",
                         "cluster_filter" : 0,
                         "nWorkloads" : 49,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res2a_branch2c",
                         "cluster_filter" : 0,
                         "nWorkloads" : 49,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res3a_branch2c",
                         "cluster_filter" : 0,
                         "nWorkloads" : 49,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res4a_branch2a",
                         "cluster_filter" : 0,
                         "nWorkloads" : 8,
-                        "mpe_mode" : "(1,16,16)"
+                        "mpe_mode" : "Vector"
                     },
                     {
                         "name_filter" : "res4a_branch2b",
                         "cluster_filter" : 0,
                         "nWorkloads" : 8,
-                        "mpe_mode" : "(1,16,16)"
+                        "mpe_mode" : "Vector"
                     },
                     {
                         "name_filter" : "res4a_branch2b_alt",
                         "cluster_filter" : 0,
                         "nWorkloads" : 8,
-                        "mpe_mode" : "(1,16,16)"
+                        "mpe_mode" : "Vector"
                     },
                     {
                         "name_filter" : "res5a_branch2a",
                         "cluster_filter" : 0,
                         "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res5c_branch2a",
                         "cluster_filter" : 0,
                         "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res5c_branch2b",
                         "cluster_filter" : 0,
                         "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     },
                     {
                         "name_filter" : "res5c_branch2c",
                         "cluster_filter" : 0,
                         "nWorkloads" : 4,
-                        "mpe_mode" : "(4,4,16)"
+                        "mpe_mode" : "Matrix"
                     }
                 ]
             },

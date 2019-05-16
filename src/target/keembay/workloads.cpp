@@ -547,10 +547,17 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
 
     }
 
-    //clearing the workloads as they may have shaped like polygons (not rectangles)
-    workloads_.clear();
-
-    //adding the rectangle workloads into workloads_ list
+    /*Temporary fix - need to ask Pavan about polygonWorkloadSplit for 1x16 mode - it is returning an empty list*/
+    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
+        if(listIt->empty()) {
+            break; 
+        }
+        else {
+            workloads_.clear(); /*clearing the workloads as they may have shaped like polygons (not rectangles)*/
+            break;
+        }
+    
+    /*adding the rectangle workloads into workloads_ list*/
     for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
     {
         for (auto it = listIt->begin(); it != listIt->end(); it++)
@@ -687,6 +694,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
             templistSize = workloadFromAreaCheck.size();
         }
     }
+
     return finalWorkloadList;
 }
 
@@ -1011,12 +1019,12 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    if (!equalShapes(this->getShapefromMinMax(), shape))
-    {
-        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
-                                     shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
-        return false;
-    }
+    // if (!equalShapes(this->getShapefromMinMax(), shape))
+    // {
+    //     this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
+    //                                  shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
+    //     return false;
+    // }
 
     // Check 2: No intersection between workloads.
     // if (!this->noOverlap())

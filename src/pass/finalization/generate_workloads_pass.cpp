@@ -118,8 +118,16 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
             if (opIt->hasAttr("WorkloadStrategy_MPE_mode"))
             {
                 pass.log(mv::Logger::MessageType::Debug, "Found DPU task " + opIt->getName() + " of type " + opIt->get<std::string>("taskOp"));
-                MPEMode.first = std::stoi(std::string(1, opIt->get<std::string>("WorkloadStrategy_MPE_mode")[1]));
-                MPEMode.second = std::stoi(std::string(1, opIt->get<std::string>("WorkloadStrategy_MPE_mode")[3]));
+                
+                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Matrix") {
+                    MPEMode.first = 4;	
+                    MPEMode.second = 4; 	
+                }
+                if(opIt->get<std::string>("WorkloadStrategy_MPE_mode") == "Vector") {
+                    MPEMode.first = 1;	
+                    MPEMode.second = 16; 	
+                }	
+                
                 nWorkloads = opIt->get<int>("WorkloadStrategy_nWorkloads");
             }
 
@@ -139,7 +147,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     workloads.generateMetisGraph();
                     auto metisGraph = workloads.getMetisGraph();
                     auto res = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
-                    
+
                     if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
