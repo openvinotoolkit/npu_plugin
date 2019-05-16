@@ -207,6 +207,7 @@
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             "TensorGraphColoring",
+            "PopulateWeightsTables",
             {
                 "name": "GenerateDot",
                 "output": "final_model.dot",
