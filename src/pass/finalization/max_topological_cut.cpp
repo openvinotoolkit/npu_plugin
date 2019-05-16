@@ -37,16 +37,22 @@ void maxTopologicalCutAndPartialSerialisationPass(const mv::pass::PassEntry& pas
     auto memDefs = target.memoryDefs();
     auto availableNNCMX = memDefs.find("VPU_CMX_NN")->second.size;
 
-    /*Get the number of clusters that the VPU supports*/
-    auto nceDefs = target.nceDefs();
-    auto numberOfVPUClusters = nceDefs.find("Clusters")->second.totalNumber;
-
     /*Get the CMX safety factor*/
     std::shared_ptr<mv::Element> returnedParams = model.getGlobalConfigParams();
     double cmxSafetyFactor = returnedParams->get<double>("CMX_memory_overflow_safety_factor");
 
-    /*Note available CMX memory is 3760128 /number of supported VPU clusters (always 4)*/
+    /*Get the number of clusters that the VPU supports*/
+    auto nceDefs = target.nceDefs();
+    auto numberOfVPUClusters = nceDefs.find("Clusters")->second.totalNumber;
+
     auto cmxMemory = (availableNNCMX / numberOfVPUClusters) * cmxSafetyFactor;
+    /*Note available CMX memory is 3760128 /number of supported VPU clusters (always 4)*/
+    bool memoryHack = returnedParams->hasAttr("MemoryHack") && returnedParams->get<bool>("MemoryHack");
+    if(memoryHack)
+    {
+        auto compilationClusters = returnedParams->get<int>("Number_of_Clusters");
+        cmxMemory = (availableNNCMX / compilationClusters) * cmxSafetyFactor;
+    }
 
     /*Repeat partial serialisation until max topological cut is less than CMX memory*/
     while (maxTopologicalCut.first > cmxMemory) {

@@ -12,6 +12,7 @@
                 "NNCMXPerSlice": 3604480,
                 "NNCMXSliceAmount": 1,
                 "DDRScratch": 4096,
+                "MemoryHack": true,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
                 [
