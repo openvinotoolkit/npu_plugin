@@ -89,7 +89,7 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<bool>("exclude_pad", true)
-        .setOptionalArg<std::string>("auto_pad",      default_auto_pad)      // default: ""
+        .setOptionalArg<std::string>("auto_pad", default_auto_pad)      // default: ""
         .setOptionalArg<std::string>("rounding_type", default_rounding_type) // default: "floor"
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
