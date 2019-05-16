@@ -384,7 +384,6 @@ class TensorFlowLiteParser:
         input_tensor_name = str(tensors[input_idxs[0]].Name().decode("utf-8"))
         parsedLayers = insertInputOutputOps(parsedLayers, input_tensor_name, output_tensor_name)
 
-        print("Fusing Add and Batch after Convolution")
         g = buildGraph(parsedLayers)
         parsedLayers = buildLayerLists(g)
 
