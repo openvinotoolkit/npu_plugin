@@ -448,36 +448,6 @@ void mv::Workloads::generateMetisGraph(void) {
     }
 } 
 
-int mv::Workloads::partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass) 
-{
-    METIS_SetDefaultOptions(metisGraph_->options);
-
-    pass.log(mv::Logger::MessageType::Debug, "The adjancy data for METIS is ");
-    for(int i =0; i < 2*metisGraph_->m_numberTensorEdges; i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->adjncy[i]));
-    
-    pass.log(mv::Logger::MessageType::Debug, "The xadj data for METIS is ");
-    for(int i =0; i < (metisGraph_->m_numberTensorVertices + 1); i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->xadj[i]));
-    
-    pass.log(mv::Logger::MessageType::Debug, "The vwgt data for METIS is ");
-    for(int i =0; i < (metisGraph_->m_numberTensorVertices); i++) 
-        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph_->vwgt[i]));
-    
-    /*METIS call*/
-    int res = METIS_PartGraphRecursive(&metisGraph_->m_numberTensorVertices,&metisGraph_->nWeights, metisGraph_->xadj.get(), metisGraph_->adjncy.get(),
-                    metisGraph_->vwgt.get(), NULL, NULL, &nWorkloads, NULL,
-				    NULL, metisGraph_->options, &metisGraph_->objval, metisGraph_->part.get());
-
-    pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph_->objval));
-
-    /*Print node partition*/
-    for(int part_i = 0; part_i < metisGraph_->m_numberTensorVertices; part_i++) 
-            pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph_->part[part_i]));  
-    
-    return res;
-}
-
 /*TODO update*/
 idx_t mv::Workloads::getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster) {
     

@@ -267,7 +267,6 @@ namespace mv
       
         void generateMetisGraph(void);
         std::shared_ptr<mv::MetisGraphStructure> getMetisGraph();
-        int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         /*returns: METIS_OK(=1), or METIS_ERROR*/
         int partitionTensorWithRectangleHeuristic(const DPUModeList& modes, idx_t nWorkloads,

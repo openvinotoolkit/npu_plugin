@@ -14,7 +14,7 @@ SET(PROJECT_VERSION_PATCH 0)
 
 if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
     if (NOT CMAKE_BUILD_TYPE)
-        set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+        set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
     endif()
 endif()
 
@@ -402,8 +402,6 @@ else()
     else()
         add_library(cm SHARED ${base} ${logger} ${pass} ${compiler})
         add_library(corebase SHARED ${base} ${logger})
-        target_link_libraries(cm metis)
-        target_link_libraries(corebase metis)
         add_library(model SHARED ${model})
         
 
@@ -425,7 +423,7 @@ endif(MSVC)
 
 IF(NOT CMAKE_CROSSCOMPILING)
     add_subdirectory(examples)
-    #add_subdirectory(tools)
+    add_subdirectory(tools)
     add_subdirectory(schema)
     add_subdirectory(contrib/flatbuffers)
 ENDIF()

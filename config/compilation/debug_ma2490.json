@@ -69,7 +69,7 @@
                     {
                         "name_filter" : "res2a_branch2a",
                         "cluster_filter" : 0,
-                        "nWorkloads" : 49,
+                        "nWorkloads" : 45,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
@@ -87,7 +87,7 @@
                     {
                         "name_filter" : "res3a_branch2c",
                         "cluster_filter" : 0,
-                        "nWorkloads" : 5,
+                        "nWorkloads" : 49,
                         "mpe_mode" : "(4,4,16)"
                     },
                     {
@@ -261,7 +261,7 @@
     },
     "finalize": {
         "Singular": [
-            "MaxTopologicalCutAndPartialSerialisation",
+            
             {
                 "name": "GenerateDot",
                 "output": "MaxTopologicalCutAndPartialSerialisation.dot",

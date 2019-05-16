@@ -27,6 +27,46 @@ namespace mv
     }
 }
 
+/* Note making the call to the METIS library a non-member function of the workloads class.
+ * 
+ * This facilitates linking METIS to the pass CMAKE group and not to the base CMAKE group.
+ * 
+ * The current plan is to port METIS to MCMcompiler in the future. For that reason other METIS related utility fucntions are members of the workloads class,
+ * such as (1) generateMetisGraphNodeNumbers() and (2) generateMetisGraph(), which generate the adjacency structure of the graph, a set of arrays, 
+ * which represents a tensor to be partitioned. These will be required when we port METIS to to MCMcompiler.   
+ * 
+*/ 
+int partitionTensorWithMETIS(const std::shared_ptr<mv::MetisGraphStructure>& metisGraph, idx_t nWorkloads, const mv::pass::PassEntry& pass) 
+{
+    METIS_SetDefaultOptions(metisGraph->options);
+
+    pass.log(mv::Logger::MessageType::Debug, "The adjancy data for METIS is ");
+    for(int i =0; i < 2*metisGraph->m_numberTensorEdges; i++) 
+        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->adjncy[i]));
+    
+    pass.log(mv::Logger::MessageType::Debug, "The xadj data for METIS is ");
+    for(int i =0; i < (metisGraph->m_numberTensorVertices + 1); i++) 
+        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->xadj[i]));
+    
+    pass.log(mv::Logger::MessageType::Debug, "The vwgt data for METIS is ");
+    for(int i =0; i < (metisGraph->m_numberTensorVertices); i++) 
+        pass.log(mv::Logger::MessageType::Debug, std::to_string(metisGraph->vwgt[i]));
+    
+    /*METIS call*/
+    int res = METIS_PartGraphRecursive(&metisGraph->m_numberTensorVertices,&metisGraph->nWeights, metisGraph->xadj.get(), metisGraph->adjncy.get(),
+                    metisGraph->vwgt.get(), NULL, NULL, &nWorkloads, NULL,
+				    NULL, metisGraph->options, &metisGraph->objval, metisGraph->part.get());
+
+    pass.log(mv::Logger::MessageType::Debug, "Value of the objective function that was minimized by METIS (should be same as PoC compiler) is: " + std::to_string(metisGraph->objval));
+
+    /*Print node partition*/
+    for(int part_i = 0; part_i < metisGraph->m_numberTensorVertices; part_i++) 
+            pass.log(mv::Logger::MessageType::Debug, "Node " + std::to_string(part_i) + " is in partition " + std::to_string(metisGraph->part[part_i]));  
+    
+    return res;
+}
+
+
 void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element& passDesc, mv::json::Object &)
 {
 
@@ -47,8 +87,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     std::pair <int,int> MPEMode;
     std::string mpeMode;
     mv::OpModel om(model);
-// the global mpe mode and number of clusters is needed for unit tests that don't have layer names matching resnet50 layer names
-     /*Get nWorkloads and mpe_mode from compilation descriptor*/	
+
+    /*The global mpe mode and number of workloads must be set for unit tests that don't have layer names matching resnet50 layer names*/
+    /*Get nWorkloads and mpe_mode from compilation descriptor*/	
     if (globalParams->hasAttr("nWorkloads")) 	
         nWorkloads = globalParams->get<int>("nWorkloads");	
     else	
@@ -96,24 +137,26 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 {
                     /*Populate Metis adjacency structure and partition tensor*/
                     workloads.generateMetisGraph();
-                    auto res = workloads.partitionTensorWithMETIS(nWorkloads, pass);
+                    auto metisGraph = workloads.getMetisGraph();
+                    auto res = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
+                    
                     if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
-
-                        if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
-                            std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
-
                     else
-                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS, ensure number of workloads is even!");
+                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
+
+                    if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
+                        std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
+
                 }
                 else if (algorithm == "Rectangle")
                 {
-                    /*Partition tensor into workloads with Rectangle*/
-                    auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads, pass);
-                    if (res == 1)
-                        workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
-                    else
-                        pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle!");
+                    // /*Partition tensor into workloads with Rectangle*/
+                    // auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads, pass);
+                    // if (res == 1)
+                    //     workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
+                    // else
+                    //     pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using Rectangle!");
                 }
                 else if (algorithm == "Z-Tiling")
                 {
