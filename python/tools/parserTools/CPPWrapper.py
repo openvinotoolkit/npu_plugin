@@ -42,6 +42,7 @@ softmax_node_id = 0
 eltwise_node_id = 0
 concat_node_id = 0
 depthwise_node_id = 0
+scale_node_id = 0
 
 def initialize_execution_file(comp_un, op_mod):
 
@@ -103,7 +104,7 @@ def ComposeForCpp(parsedLayers, arguments):
 
     g = buildGraph(parsedLayers)
 
-    if (arguments.produce == True):
+    if (arguments.produceMcmDescriptor == True):
         mcm_file = initialize_execution_file(comp_unit, om)
     else:
         mcm_file = None
@@ -112,11 +113,13 @@ def ComposeForCpp(parsedLayers, arguments):
     for index, child in enumerate(nx.lexicographical_topological_sort(g)):
         layer = g.node[child]['ref']
         n = layer.name.stringifyName()
+        print ("Layer {} is parsed".format(n))
         reference_list[n], om = buildOM(g, child, reference_list, om, True, Parser.TensorFlowLite, mcm_file, tensor_mapping_dict)
 
-    if (arguments.produce == True):
+    if (arguments.produceMcmDescriptor == True):
         finalize_execution_file(mcm_file)
 
+    exit()
     print("Compiling...")
     ca.compile(comp_unit)
     ca.deleteCompilationUnitObject(comp_unit)
@@ -243,7 +246,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
         'double': 'constant'
     }
 
-    global convolution_node_id, pooling_node_id, relu_node_id, dropout_node_id, eltwise_node_id, softmax_node_id, depthwise_node_id, concat_node_id
+    global convolution_node_id, pooling_node_id, relu_node_id, dropout_node_id, eltwise_node_id, softmax_node_id, depthwise_node_id, concat_node_id, scale_node_id
     platform = platform_dict[kmb]
 
     if isinstance(l, Bias):
@@ -323,7 +326,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
 
             output_file.write(' ' * 4 + 'auto pool' + str(pooling_node_id) + ' = om.' + str(pool_mcm[l.getType()]) + '(' + str(tensor_mapping_dict[l.getInputTensors()[0].getName().stringifyName()]) + \
                 ', {' + str(ry) + ', ' + str(rx) + '}, {' + str(sy) + ', ' + str(sx) + '}, {' + str(px[0]) + ', ' + str(px[1]) + ', ' + str(py[0]) + ', ' + str(py[1]) + '}, ' + \
-                'false, " ", "floor", {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
+                'true, "", "floor", {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
                 '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
                 ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}}, "' + str(output_tensor_name)  + '");\n\n')
 
@@ -421,27 +424,49 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
       
         pred = list(g.predecessors(gnode_name))
         in_ = reflist[pred[0]]
-
+        #NOT SURE IF THE MULTIPLIER IS 1DIM
         scale_data = l.getMultiplier()
         scale_vector = ca.getData(scale_data.astype(type_dict[l.getMultiplier().dtype]))
         scale_tensor_name = l.getMultiplier().getName().stringifyName()
-        scale_mv_quant_params = get_parse_quant(l.getMultiplier())
+        scale_mv_quant_params = get_parse_quant(l.getMultiplier())[0]
+        scale_type_value = type(type_dict[l.getMultiplier().dtype](0.0))
 
         mv_quant_params = get_parse_quant(l.getOutputTensors()[0])[0]
         output_tensor_name = l.getOutputTensors()[0].getName().stringifyName()
 
         if (platform == 'KMB'):
-            scale_param = ca.constant(om, scale_vector, ca.getShape(scale_data.shape[0]), ca.getOrder(mcm_4d_layout[parser]), scale_mv_quant_params, scale_tensor_name)
+            scale_param = ca.constant(om, scale_vector, ca.getShape(scale_data.shape[0]), ca.getOrder(mcm_1d_layout[parser]), scale_mv_quant_params, scale_tensor_name)
             scale = ca.scale(om, in_, scale_param, mv_quant_params, output_tensor_name)
         else:
             scale_param = ca.constant(om, scale_vector, ca.getShape(scale_data.shape[0]))
             scale = ca.scale(om, in_, scale_param)
 
+
+        if (output_file != None):
+
+            output_file.write(' ' * 4 + 'std::vector<' + dir_c_type(scale_type_value) + '> weightsData' + str(scale_node_id) + ' = mv::utils::generateSequence<' + \
+                dir_c_type(scale_type_value) + '> ({}*{}*{}*{});\n'.format(scale_data.shape[0]))
+
+            output_file.write(' ' * 4 + 'auto weights' + str(scale_node_id) + ' = om.'+ constant_type[dir_c_type(scale_type_value)] + '(weightsData' + str(scale_node_id) +',{' +\
+                str(scale_data.shape[0]) + '}, mv::DType("' + \
+                order_type_dict[scale_type_value] + '"), ' + 'mv::Order::getColMajorID(1), ' + '{{' + ', '.join(map(str, get_parse_quant(l.getMultiplier())[1])) + \
+                '},{' + ', '.join(map(str, get_parse_quant(l.getMultiplier())[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getMultiplier())[3])) + '},{' + \
+                ', '.join(map(str, get_parse_quant(l.getMultiplier())[4])) + '}}, "' + str(scale_tensor_name) + '");\n')
+
+            output_file.write(' ' * 4 + 'auto scale' + str(scale_node_id) + ' = om.scale(' + str(tensor_mapping_dict[l.getInputTensors()[0].getName().stringifyName()]) + ', weights' + str(scale_node_id) + \
+                ', {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
+                '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
+                ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}}, "' + '");\n\n')
+
+            tensor_mapping_dict[output_tensor_name] = 'scale' + str(scale_node_id)
+
         if l.hasBiasBeta():
+
             bias_data = l.getBiasBeta()
             bias_vector = ca.getData(bias_data.astype(type_dict[l.getBias().dtype]))
             bias_tensor_name = l.getBias().getName().stringifyName()
             bias_mv_quant_params = get_parse_quant(l.getBias())
+            bias_type_value = type(type_dict[l.getBias().dtype](0.0))
 
             if (platform == 'KMB'):
                 bias_param = ca.constant(om, bias_vector, ca.getShape(bias_data.shape[0]), ca.getOrder(mcm_1d_layout[parser]), bias_quant_params, bias_tensor_name)
@@ -449,6 +474,25 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
             else:
                 bias_param = ca.constant(om, bias_vector, ca.getShape(bias_data.shape[0]))
                 bias = ca.bias(om, scale, bias_param)
+
+            if (output_file != None):
+
+                output_file.write(' ' * 4 + 'std::vector<' + dir_c_type(bias_type_value) + '> biasWeightsData' + str(scale_node_id) + ' = mv::utils::generateSequence<' + \
+                    dir_c_type(bias_type_value) + '> ({});\n'.format(bias_data.shape[0]))
+
+                output_file.write(' ' * 4 + 'auto biasWeights' + str(scale_node_id) + ' = om.'+ constant_type[dir_c_type(bias_type_value)] + '(biasWeightsData' + str(scale_node_id) +',{' +\
+                    str(bias_data.shape[0]) + '}, mv::DType("' + \
+                    order_type_dict[bias_type_value] + '"), ' + 'mv::Order::getColMajorID(1), ' + '{{' + ', '.join(map(str, get_parse_quant(l.getBiasBeta())[1])) + \
+                    '},{' + ', '.join(map(str, get_parse_quant(l.getBiasBeta())[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getBiasBeta())[3])) + '},{' + \
+                    ', '.join(map(str, get_parse_quant(l.getBiasBeta())[4])) + '}}, "' + str(bias_tensor_name) + '");\n')
+
+                output_file.write(' ' * 4 + 'auto bias_s' + str(scale_node_id) + ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(scale_node_id) + \
+                    ', {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
+                    '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
+                    ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}});\n\n')
+
+                tensor_mapping_dict[output_tensor_name] = 'bias_i' + str(scale_node_id)
+                scale_node_id += scale_node_id
 
             _ref = bias
         else:
@@ -556,6 +600,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
             bias_tensor_name = l.getBias().getName().stringifyName()
             bias_mv_quant_params = get_parse_quant(l.getBias())
             bias_data = ca.getData(np.array(b.data.flatten()).astype(bias_type_value))
+            bias_type_value = type(type_dict[l.getBias().dtype](0.0))
 
             if (platform == 'KMB'):
                 bias = ca.constant(om, bias_data, ca.getShape(b.shape[2]), ca.getOrder(mcm_1d_layout[parser]), bias_mv_quant_params, bias_tensor_name+"weights")
@@ -575,12 +620,12 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
                     '},{' + ', '.join(map(str, get_parse_quant(l.getBias())[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getBias())[3])) + '},{' + \
                     ', '.join(map(str, get_parse_quant(l.getBias())[4])) + '}}, "' + str(bias_tensor_name) + '");\n')
 
-                output_file.write(' ' * 4 + 'auto bias' + str(fully_node_id) + ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(fully_node_id) + \
+                output_file.write(' ' * 4 + 'auto bias_i' + str(fully_node_id) + ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(fully_node_id) + \
                     ', {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
                     '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
                     ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}});\n\n')
 
-                tensor_mapping_dict[output_tensor_name] = 'bias' + str(fully_node_id)
+                tensor_mapping_dict[output_tensor_name] = 'bias_i' + str(fully_node_id)
 
         else:
             _ref = fc
@@ -673,12 +718,12 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
                     '},{' + ', '.join(map(str, get_parse_quant(l.getBias())[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getBias())[3])) + '},{' + \
                     ', '.join(map(str, get_parse_quant(l.getBias())[4])) + '}}, "' + str(bias_tensor_name) + '");\n')
 
-                output_file.write(' ' * 4 + 'auto bias' + str(convolution_node_id) + ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(convolution_node_id) + \
+                output_file.write(' ' * 4 + 'auto bias_c' + str(convolution_node_id) + ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(convolution_node_id) + \
                     ', {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
                     '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
                     ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}});\n\n')
 
-                tensor_mapping_dict[output_tensor_name] = 'bias' + str(convolution_node_id)
+                tensor_mapping_dict[output_tensor_name] = 'bias_c' + str(convolution_node_id)
         else:
             _ref = _conv
 
@@ -761,12 +806,12 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
                     '},{' + ', '.join(map(str, get_parse_quant(l.getBias())[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getBias())[3])) + '},{' + \
                     ', '.join(map(str, get_parse_quant(l.getBias())[4])) + '}}, "' + str(bias_tensor_name) + '");\n')
 
-                output_file.write(' ' * 4 + 'auto bias' + str(depthwise_node_id) + ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(convolution_node_id) + \
+                output_file.write(' ' * 4 + 'auto bias_cd' + str(depthwise_node_id) + ' = om.bias(' + str(tensor_mapping_dict[output_tensor_name]) + ', biasWeights' + str(convolution_node_id) + \
                     ', {{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[1])) + \
                     '},{' + ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[2]))  + '},{' +', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[3])) + '},{' + \
                     ', '.join(map(str, get_parse_quant(l.getOutputTensors()[0])[4])) + '}});\n\n')
 
-                tensor_mapping_dict[output_tensor_name] = 'bias' + str(depthwise_node_id)
+                tensor_mapping_dict[output_tensor_name] = 'bias_cd' + str(depthwise_node_id)
         else:
             _ref = _conv
 
