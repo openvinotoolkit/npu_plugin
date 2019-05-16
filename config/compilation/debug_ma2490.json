@@ -195,13 +195,6 @@
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             "TensorGraphColoring",
-            {
-                "name": "GenerateDot",
-                "output": "final_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "RemoveDeallocationTasks",
             "TransitiveReduction",
             {
@@ -209,7 +202,14 @@
                 "barrier_index_assignment": "Static"
             },
             "AddBarrierRefs",
-            "UpdateBarrierProducerConsumerCounts"
+            "UpdateBarrierProducerConsumerCounts",
+            {
+                "name": "GenerateDot",
+                "output": "final_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "validate": {
