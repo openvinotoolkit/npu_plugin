@@ -222,7 +222,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
         //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5")
         {
-            EXPECT_EQ(30, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(15, b->get<mv::Barrier>("Barrier").getNumProducers());
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
             numChecks=numChecks+2;
         }

@@ -261,7 +261,7 @@
     },
     "finalize": {
         "Singular": [
-            
+            "MaxTopologicalCutAndPartialSerialisation",
             {
                 "name": "GenerateDot",
                 "output": "MaxTopologicalCutAndPartialSerialisation.dot",
