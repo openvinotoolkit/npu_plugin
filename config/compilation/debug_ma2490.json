@@ -58,6 +58,7 @@
                     }
                 ]
             },
+            "ComputeMemory",
             "AssignUniqueOpId",
             {
                 "name": "GenerateDot",

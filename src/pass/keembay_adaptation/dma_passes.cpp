@@ -114,12 +114,8 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     //cluster size (memory of the tensor) = tensor dims multiplied * (data type /8)
 
     auto globalConfigParams = model.getGlobalConfigParams();
+    auto cmxSize = globalConfigParams->get<unsigned>("cmx");
 
-    auto numCluster = globalConfigParams->get<int>("Number_of_Clusters");
-    auto safetyFactor = globalConfigParams->get<double>("CMX_memory_overflow_safety_factor");;
-    auto cmxSize = globalConfigParams->get<int>("NNCMXPerSlice"); //4MB in bytes.
-    cmxSize /= numCluster;
-    cmxSize *= safetyFactor;
     int _dma_dependency = passDesc.get<int>("weights_prefetch");
     int dma_dependency;
 
