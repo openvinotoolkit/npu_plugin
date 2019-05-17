@@ -58,7 +58,8 @@
                 "output": "original_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             },
             {
                 "name": "CreateSourceStructure",
@@ -85,7 +86,8 @@
                 "output": "adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             }
         ]
     },
@@ -102,7 +104,8 @@
                 "output": "keembay_adapt_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             },
             "GenerateWeightsTables",
             {
@@ -110,7 +113,8 @@
                 "output": "keembay_WeightsTable_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             }
         ]
     },
@@ -126,7 +130,8 @@
                 "output": "dma_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             },
             "AddDeallocationTasks",
             {
@@ -134,14 +139,16 @@
                 "output": "deallocation_model_data.dot",
                 "scope": "OpModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             },
             {
                 "name": "GenerateDot",
                 "output": "deallocation_model_control.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             }
         ]
     },
@@ -153,7 +160,8 @@
                 "output": "DmaControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             },
             "InputOutputControlFlows",
             {
@@ -161,15 +169,20 @@
                 "output": "InputOutputControlFlows_model.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             },
-            "TransitiveReduction",
+            {
+                "name": "TransitiveReduction",
+                "filter": "PositiveMemory"
+            },
             {
                 "name": "GenerateDot",
                 "output": "TransitiveReduction.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             }
         ]
     },
@@ -181,7 +194,8 @@
                 "output": "MaxTopologicalCutAndPartialSerialisation.dot",
                 "scope": "ControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             },
             {
                 "name": "GenerateWorkloads",
@@ -190,13 +204,19 @@
             },
 
             "ArrangeKeembayExecution",
-            "TransitiveReduction",
+            {
+                "name": "TransitiveReduction",
+                "filter": "PositiveMemory"
+            },
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
             "AllocateUnpopulatedTensorsKeemBay",
             "TensorGraphColoring",
             "RemoveDeallocationTasks",
-            "TransitiveReduction",
+            {
+                "name": "TransitiveReduction",
+                "filter": "PositiveMemory"
+            },
             {
                 "name":"InsertBarrierTasks",
                 "barrier_index_assignment": "Static"
@@ -208,7 +228,8 @@
                 "output": "final_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             }
         ]
     },
