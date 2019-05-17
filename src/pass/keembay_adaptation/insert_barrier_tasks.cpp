@@ -81,13 +81,25 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     std::ofstream ostream;
 
     ostream.open(outputFile, std::ios::trunc | std::ios::out);
-    ostream << "digraph G {\n\tgraph [splines=spline]\n";
+    ostream << "strict graph G {\n\tgraph [splines=spline]\n";
 
     for (auto it = g.node_begin(); it != g.node_end(); ++it)
     {
         std::string vIdx = std::to_string((*it).getID());
+        std::unordered_set<std::string> consumers = (*it).getConsumers();
+        std::string consumerStr = "";
+        for (auto s: consumers)
+        {
+            consumerStr = consumerStr + "\n" + s;
+        }
+        std::string disp = vIdx + " " + consumerStr;
+
         std::string nodeDef = "\t\"" + vIdx + "\" [shape=box,";
-        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" + vIdx + "</B></FONT></TD></TR>";
+        nodeDef += " label=<<TABLE BORDER=\"0\" CELLPADDING=\"0\" \
+                    CELLSPACING=\"0\"><TR><TD ALIGN=\"CENTER\" \
+                    COLSPAN=\"2\"><FONT POINT-SIZE=\"14.0\"><B>" \
+                    + disp + \
+                    "</B></FONT></TD></TR>";
         nodeDef += "</TABLE>>";
         ostream << nodeDef << "];\n";
     }
@@ -96,7 +108,7 @@ static void drawBIG(BarrierInterferenceGraph& g, std::string outputFile)
     {
         std::string vIdxSrc = std::to_string((*(it->source())).getID());
         std::string vIdxSnk = std::to_string((*(it->sink())).getID());
-        std::string edgeDef = "\t\"" + vIdxSrc + "\" -> \"" +  vIdxSnk + "\"";
+        std::string edgeDef = "\t\"" + vIdxSrc + "\" -- \"" +  vIdxSnk + "\"";
         ostream << edgeDef << "\n";
     }
     ostream << "}\n";
@@ -181,7 +193,11 @@ static void drawBigK(const BIGKoala& bigK)
     gml.writeFile("bigK.graphml");
 }
 
-static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om, std::vector<mv::Barrier>& barriers)
+static BarrierInterferenceGraph
+generateBarrierInterferenceGraph(mv::OpModel& om,
+                                    std::vector<mv::Barrier>& barriers,
+                                    const std::string& indexAssignment,
+                                    const int barrierReuseWindow)
 {
     BarrierInterferenceGraph big;
     mv::ControlModel cm(om);
@@ -248,6 +264,23 @@ static BarrierInterferenceGraph generateBarrierInterferenceGraph(mv::OpModel& om
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Add more interference here to allow firmware to allow other barrier indices before
+    // reusing any specific one again (hardware switching timing related, presumably).
+    // use sliding window algorithm --> use 5 as the width of the window.
+    if (indexAssignment == "Static")
+    {
+        for (size_t i = 0; i < barriers.size(); i++)
+        {
+            for (size_t j = i + 1; j < i + barrierReuseWindow && j < barriers.size(); j++)
+            {
+                auto b1It = big.node_find(barriers[i]);
+                auto b2It = big.node_find(barriers[j]);
+                if (!mv::edgeExists(big, b1It, b2It) && !mv::edgeExists(big, b2It, b1It))
+                    addEdge(barriers[i], barriers[j], big);
             }
         }
     }
@@ -379,9 +412,17 @@ static void addControlFlowBarriers(mv::ControlModel& cm, std::vector<mv::Barrier
 
 static void setBarrierGroupAndIndex(const mv::pass::PassEntry& pass, mv::OpModel& om, std::vector<mv::Barrier>& barriers, mv::Element& passDesc)
 {
-    std::string indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
+    auto globalConfigurationParameters = om.getGlobalConfigParams();
+    std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
+
+    if (passDesc.hasAttr("barrier_index_assignment"))
+        indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
     
-    BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers);
+    int barrierReuseWindow = 0;
+    if (passDesc.hasAttr("barrier_reuse_window"))
+        barrierReuseWindow = passDesc.get<int>("barrier_reuse_window");
+
+    BarrierInterferenceGraph big = generateBarrierInterferenceGraph(om, barriers, indexAssignment, barrierReuseWindow);
     drawBIG(big, "big.dot");
 
     BIGKoala bigK;
@@ -427,7 +468,12 @@ static void insertBarriersIntoControlFlowGraph(mv::ComputationModel& model, cons
     mv::OpModel om(model);
     mv::ControlModel cm(model);
 
-    std::string indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
+    auto globalConfigurationParameters = model.getGlobalConfigParams();
+
+    std::string indexAssignment = globalConfigurationParameters->get<std::string>("barrier_index_assignment");
+
+    if(passDesc.hasAttr("barrier_index_assignment"))
+        indexAssignment = passDesc.get<std::string>("barrier_index_assignment");
 
     for (auto& barrier: barriers)
     {
@@ -464,7 +510,11 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
     addControlFlowBarriers(cm, barriers);
 
+    // --> list of barriers in sorted order.
     combineRedundantBarriers(barriers);
+    // --> still list of barriers in sorted order.
+
+    // Add more interference to barriers list using sliding window algorithm
 
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 

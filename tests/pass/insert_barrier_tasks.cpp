@@ -61,11 +61,11 @@ TEST(insert_barrier_tasks, parallel_paths)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o parallel_paths_final_model.png");
+    system("dot -Tpng final_model.dot -o parallel_paths_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 4;
+    size_t expected_num_barriers = 5;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -135,11 +135,11 @@ TEST(insert_barrier_tasks, single_control_edge)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o single_control_edge_final_model.png");
+    system("dot -Tpng final_model.dot -o single_control_edge_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 6;
+    size_t expected_num_barriers = 7;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -210,11 +210,11 @@ TEST(insert_barrier_tasks, multiple_control_edges)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o multiple_control_edges_final_model.png");
+    system("dot -Tpng final_model.dot -o multiple_control_edges_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 6;
+    size_t expected_num_barriers = 7;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -225,7 +225,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
         //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5")
         {
-            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
             numChecks=numChecks+2;
         }
@@ -284,11 +284,11 @@ TEST(insert_barrier_tasks, dealloc_edge)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o dealloc_edge_final_model.png");
+    system("dot -Tpng final_model.dot -o dealloc_edge_final_model.png");
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 6;
+    size_t expected_num_barriers = 7;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -361,12 +361,12 @@ TEST(insert_barrier_tasks, static_index_assignment)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
+    system("dot -Tpng final_model.dot -o static_barriers_final_model.png");
 
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 15;
+    size_t expected_num_barriers = 16;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -500,12 +500,12 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
+    system("dot -Tpng final_model.dot -o dynamic_barriers_final_model.png");
 
     auto barrierOps = om.getOps("BarrierTask");
 
     int numChecks = 0;
-    size_t expected_num_barriers = 15;
+    size_t expected_num_barriers = 16;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -649,11 +649,11 @@ TEST(insert_barrier_tasks, weights_prefetch)
     unit.initialize();
     unit.run();
 
-//    system("dot -Tpng final_model.dot -o weights_prefetch_final_model.png");
+    system("dot -Tpng final_model.dot -o weights_prefetch_final_model.png");
 
     auto barrierOps = om.getOps("BarrierTask");
 
-    size_t expected_num_barriers = 14;
+    size_t expected_num_barriers = 15;
     EXPECT_EQ(barrierOps.size(), expected_num_barriers);
     numChecks++;
 
@@ -734,4 +734,143 @@ TEST(insert_barrier_tasks, weights_prefetch)
         }
     }
     EXPECT_EQ(17, numChecks);   // coverage check
+}
+
+TEST(insert_barrier_tasks, additional_interference)
+{
+    mv::CompilationUnit unit("testModel");
+    mv::OpModel& om = unit.model();
+
+    auto input = om.input({56, 56, 16, 1}, mv::DType("Int8"), mv::Order("NCHW"));
+    std::vector<int64_t> weightsData_1by1_16by64 = mv::utils::generateSequence<int64_t>(1*1*16*64);
+    std::vector<int64_t> weightsData_1by1_64by64 = mv::utils::generateSequence<int64_t>(1*1*64*64);
+    std::vector<int64_t> weightsData_3by3 = mv::utils::generateSequence<int64_t>(3*3*64*64);
+    std::vector<int64_t> weightsData_3by3_2 = mv::utils::generateSequence<int64_t>(3*3*64*64);
+
+    auto weights1 = om.constantInt(weightsData_1by1_16by64, {1, 1, 16, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
+
+    auto weights2 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv2 = om.conv(conv1, weights2, {1, 1}, {1, 1, 1, 1});
+
+    auto weights3 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv3 = om.conv(conv2, weights3, {1, 1}, {1, 1, 1, 1});
+
+    auto weights4 = om.constantInt(weightsData_3by3_2, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv4 = om.conv(conv3, weights4, {1, 1}, {1, 1, 1, 1});
+
+    auto weights5 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv5 = om.conv(conv4, weights5, {1, 1}, {1, 1, 1, 1});
+
+    auto weights6 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv6 = om.conv(conv5, weights6, {1, 1}, {1, 1, 1, 1});
+
+    auto weights7 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv7 = om.conv(conv6, weights7, {1, 1}, {1, 1, 1, 1});
+
+    auto weights8 = om.constantInt(weightsData_3by3, {3, 3, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv8 = om.conv(conv7, weights8, {1, 1}, {1, 1, 1, 1});
+
+    auto weights9 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv9 = om.conv(conv8, weights9, {1, 1}, {1, 1, 1, 1});
+
+    auto weights10 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv10 = om.conv(conv9, weights10, {1, 1}, {1, 1, 1, 1});
+
+    auto weights11 = om.constantInt(weightsData_1by1_64by64, {1, 1, 64, 64}, mv::DType("Int8"), mv::Order("NCWH"));
+    auto conv11 = om.conv(conv10, weights11, {1, 1}, {1, 1, 1, 1});
+
+    om.output(conv11); // one barrier for DMA out from CMX to DDR
+
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/debug_ma2490.json";
+    unit.loadCompilationDescriptor(compDescPath);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+
+    // This test is intended only for static barrier assignment
+    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "barrier_index_assignment", std::string("Static"));
+
+    // Set the barrier reuse window size
+    unit.compilationDescriptor().setPassArg("InsertBarrierTasks", "barrier_reuse_window", 8);
+
+    // Effectively disable weights prefetch for this test by setting the prefetch number
+    // to a large number
+    unit.compilationDescriptor().setPassArg("AddDMATasks", "weights_prefetch", 200);
+
+    //unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.initialize();
+    unit.run();
+
+    auto barrierOps = om.getOps("BarrierTask");
+
+    size_t expected_num_barriers = 12;
+    ASSERT_EQ(barrierOps.size(), expected_num_barriers);
+
+    // For the network, with weights prefetch disabled, the barrier indices must go all the way to 7
+    // before being reused, since we've set the reuse window to be 8. Indices would have otherwise
+    // alternated between 0 & 1, since this is a pretty straightforward network.
+    int numChecks = 0;
+    for (auto b : barrierOps)
+    {
+        if (b->getName() == "BarrierTask_0")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_1")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_2")
+        {
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_3")
+        {
+            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_4")
+        {
+            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_5")
+        {
+            EXPECT_EQ(5, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_6")
+        {
+            EXPECT_EQ(6, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_7")
+        {
+            EXPECT_EQ(7, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_8")
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_9")
+        {
+            EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_10")
+        {
+            EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+        if (b->getName() == "BarrierTask_11")
+        {
+            EXPECT_EQ(3, b->get<mv::Barrier>("Barrier").getIndex());
+            numChecks++;
+        }
+    }
+    EXPECT_EQ(12, numChecks);   // coverage check
 }
