@@ -119,7 +119,7 @@ def ComposeForCpp(parsedLayers, arguments):
     if (arguments.produceMcmDescriptor == True):
         finalize_execution_file(mcm_file)
 
-    exit()
+
     print("Compiling...")
     ca.compile(comp_unit)
     ca.deleteCompilationUnitObject(comp_unit)
@@ -271,7 +271,6 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
 
     elif isinstance(l, Output):
 
-        input_tensor = tensor_mapping_dict[l.getInputTensors()[0].getName().stringifyName()]
         pred = list(g.predecessors(gnode_name))
         if (platform == 'KMB'):
             _ref = ca.output(om, reflist[pred[0]], '')
@@ -279,6 +278,7 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
             _ref = ca.output(om, reflist[pred[0]])
 
         if (output_file != None):
+            input_tensor = tensor_mapping_dict[l.getInputTensors()[0].getName().stringifyName()]
             output_file.write(' ' * 4 + 'om.output(' + str(input_tensor) + ');\n\n')
 
     elif isinstance(l, Pooling):
@@ -828,17 +828,11 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
 
     elif isinstance(l, Concat):
 
-        inp_tensors = []
-        for i in l.getInputTensors():
-            inp_tensors.append(i.getName().stringifyName())
-
         pred = list(g.predecessors(gnode_name))
-
         in0_ = reflist[pred[0]]
         output_tensor_name = l.getOutputTensors()[0].getName().stringifyName()
         mv_quant_params = get_parse_quant(l.getOutputTensors()[0])[0]
         vec = ca.pushVector(None, in0_)
-
         for pair in range(1, len(pred)):
             in1_ = reflist[pred[pair]]
             vec = ca.pushVector(vec, in1_)
@@ -846,6 +840,10 @@ def buildOM(g, gnode_name, reflist, om, kmb, parser, output_file = None, tensor_
         in0_ = ca.concat(om, vec)
 
         if (output_file != None):
+
+            inp_tensors = []
+            for i in l.getInputTensors():
+                inp_tensors.append(i.getName().stringifyName())
 
             mcm_inputs = []
             for i in inp_tensors:
