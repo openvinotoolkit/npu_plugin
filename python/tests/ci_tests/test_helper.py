@@ -8,6 +8,13 @@ MAX_UINT32 = 4294967295
 RESNET_CMX = 4*918
 CONG_CMX = 4096** 1024
 
+# Error Code Guide
+RESULT_SUCCESS  = 0
+FAIL_GENERAL    = 1
+FAIL_RESERVED   = 2
+FAIL_COMPILER   = 3  # Compiler fails to create graphfile or emulator files
+FAIL_RUNTIME    = 4  # Runtime fails to generate results file (NCE2Task_network_out.bin, output.dat)
+FAIL_VALIDATION = 5  # Correctness Error
 
 # Internal Defines
 MDK_ROOT = os.environ["MDK_HOME"]
@@ -15,8 +22,8 @@ NZOO_ROOT = os.environ["NZOO_ROOT"]
 POC_ROOT = MDK_ROOT+'/projects/Fathom/'
 
 # which runtime do you want to use? (PoC/Production)
-#APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"  # PoC Runtime
-APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/conv_3l_16wi/" # Prod Runtime
+#APP_ROOT = MDK_ROOT + "/testApps/keembay/tapeout_so/tc_keembay_ma2490/ts_nce_bm_blob/"
+APP_ROOT = MDK_ROOT + "/testApps/components/NeuralNet/008_demo_ncelib_LNN/conv_3l_16wi/"
 
 PWD = os.path.dirname(os.path.realpath(__file__)) + "/"
 CWD = os.getcwd() + "/"
@@ -26,7 +33,8 @@ header = lambda x : "========= " + x + " ========="
 
 def skip():
     if os.getenv('RUN_FAILED', '0') == '0':
-        sys.exit(123)
+        #sys.exit(123)
+        print("Test not skipped ...")
 
 def generate_model(csv_file, network=False):   
     print(header("Generate Model")) 
@@ -37,7 +45,7 @@ def generate_model(csv_file, network=False):
         def __init__(self, f, network):
             self.input_file=os.path.abspath(f)
             self.network=network
-            self.simplify=True
+            self.simplify=False
             self.output_name="graph"
 
     a = arg(csv_file, network)
@@ -157,14 +165,14 @@ def compile_graphFile(model, nClusters, nDPU, strategyFile, cmx=4*918, emulator=
     fw_result = out_folder+"../Fathom_expected.npy"
 
     if emulator:
-        checkExists(sim_result, 4)
-    checkExists(graphFile)
+        checkExists(sim_result, FAIL_COMPILER)
+    checkExists(graphFile, FAIL_COMPILER)
 
     return graphFile, sim_result, fw_result
 
 def execute_network(gf):
     print(header("Execute Network")) 
-    checkExists(gf, 4)
+    checkExists(gf, FAIL_COMPILER)
 
     from shutil import copyfile
 
@@ -214,18 +222,20 @@ def execute_network(gf):
     result_file = APP_ROOT + "NCE2Task_network_out.bin"
     result_file_alt = [APP_ROOT + "NCE2Task0_out.bin", APP_ROOT + "output.dat"]  # Prod runtime uses "output.dat"
 
-    result_file = checkExists(result_file, 3, aliases=result_file_alt)
+    result_file = checkExists(result_file, FAIL_RUNTIME, aliases=result_file_alt)
 
     return result_file
 
 def validate_files(ref, test):
 
-    checkExists(ref, 3)
-    checkExists(test, 4)
+    checkExists(ref, FAIL_COMPILER)
+    checkExists(test, FAIL_RUNTIME)
 
     result = True
 
-    print(header("Validate Result")) 
+    print(header("Validate Result"))
+    print("Expected: ", ref) 
+    print("Actual: ", test)
 
     command = "python3 "+POC_ROOT+"src2/Validate.py --reference "+ref+" --testdata "+ test + " --dtype u8"
 
@@ -245,8 +255,8 @@ def validate_files(ref, test):
     print("CRC RESULT: ", crc(test))
 
     if crc(ref) == crc(test):
-        sys.exit(0)
+        sys.exit(RESULT_SUCCESS)
     else:
-        sys.exit(5)
+        sys.exit(FAIL_VALIDATION)
 
     return result
