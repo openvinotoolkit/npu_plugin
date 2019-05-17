@@ -124,7 +124,8 @@
                 "output": "keembay_EltWiseConstants_model.dot",
                 "scope": "OpControlModel",
                 "content": "full",
-                "html": true
+                "html": true,
+                "convert": true
             }
         ]
     },
