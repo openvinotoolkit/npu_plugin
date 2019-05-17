@@ -143,16 +143,17 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     auto metisGraph = workloads.getMetisGraph();
                     auto res = partitionTensorWithMETIS(metisGraph, nWorkloads, pass);
 
+                    /*Store METIS optimization value as attrbute for unit testing*/
+                    opIt->set<int>("Metis_edge_cut", metisGraph->objval);
+
                     if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
                         pass.log(mv::Logger::MessageType::Warning, "Error partitioning tensor into workloads using METIS");
 
-                    if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
-                        std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
+                    if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape())) 
+                        throw std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
 
-                    /*Store METIS optimization value as attrbute for unit testing*/
-                    opIt->set<int>("Metis_edge_cut", metisGraph->objval);
                     opIt->set<bool>("Valid_workload", true);
                 }
                 else if (algorithm == "Rectangle")

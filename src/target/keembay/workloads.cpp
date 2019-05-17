@@ -541,30 +541,51 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
         workloads_[workload].vertices.push_back(std::make_pair(wl_min_x, wl_max_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_min_y));
         workloads_[workload].vertices.push_back(std::make_pair(wl_max_x, wl_max_y));
+        workloads_[workload].MinZ = 0;
+        workloads_[workload].MaxZ = tensorShape_[2]-1;
+        
+        /*These should be set in the polygon logic*/
+        if (mpeMode_.first == 4)
+            workloads_[workload].MPEMode = mv::MPE_Mode::Matrix;
+        else
+            workloads_[workload].MPEMode = mv::MPE_Mode::Vector;
 
         //add to the 'listOfworkloadLists' vector, the returned list of workloads from the polygonworkloadsplit function       
         listOfworkloadLists.push_back(mv::Workloads::polygonWorkloadSplit(pass, workloads_[workload], workloads_, mpeMode));
 
     }
 
-    /*Clear original workloads vector and re-populate with workloads from polygonWorkloadSplit()*/
-    workloads_.clear();
-
-    /*adding the rectangle workloads into workloads_ list*/
+    /*Temporary fix - Until Polygon logic for not a multiple of 4 is fixed*/
+    bool listOfworkloadListsEmpty = false;
+    
+    /*check if listOfworkloadLists has an empty workload*/
     for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
-    {
-        for (auto it = listIt->begin(); it != listIt->end(); it++)
+        if(listIt->empty()) {
+            listOfworkloadListsEmpty = true;
+        }
+    
+    /*if listOfworkloadLists does not have an empty workload then it is valid - clear the original workloads list*/ 
+    if(!listOfworkloadListsEmpty)
+        workloads_.clear();
+   
+    /*if listOfworkloadLists is valid then add in workloads from polygon*/
+    if(!listOfworkloadListsEmpty) {
+    /*adding the rectangle workloads into workloads_ list*/
+        for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
         {
-            /*These should be set in the polygon logic*/
-            if (mpeMode_.first == 4)
-                it->MPEMode = mv::MPE_Mode::Matrix;
-            else
-                it->MPEMode = mv::MPE_Mode::Vector;
+            for (auto it = listIt->begin(); it != listIt->end(); it++)
+            {
+                /*These should be set in the polygon logic*/
+                if (mpeMode_.first == 4)
+                    it->MPEMode = mv::MPE_Mode::Matrix;
+                else
+                    it->MPEMode = mv::MPE_Mode::Vector;
 
-            it->MinZ = 0;
-            it->MaxZ = tensorShape_[2]-1;
+                it->MinZ = 0;
+                it->MaxZ = tensorShape_[2]-1;
 
-            workloads_.push_back(*it);
+                workloads_.push_back(*it);
+            }
         }
     }
     
@@ -610,16 +631,17 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     // check if the area is equal to the number of points
 
    
-    if (4 * workload.pointsTotal() == workload.area() || workload.area()<16 )  //workload.area()%16 !=0 
+    if (4 * workload.pointsTotal() == workload.area() || workload.area() < 16 ) // pointsTotal = 
     {
-        if (mpeMode_.first == 4)
-            workload.MPEMode = mv::MPE_Mode::Matrix;
-        else
-            workload.MPEMode = mv::MPE_Mode::Vector;
-
-        workload.MinZ = 0;
-        workload.MaxZ = tensorShape_[2]-1;
-
+        //scale and clip code
+        /*
+        workload.MinX = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[0]));
+        workload.MaxX = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[0]) - static_cast<xyz_type>(mpeMode.first)));
+        workload.MinY = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[1]));
+        workload.MaxY = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[1]) - static_cast<xyz_type>(mpeMode.second)));
+        workload.setVertices();
+        */
+        
         //insert minz and max z here!!
         workloadFromAreaCheck.push_back(workload);
         return workloadFromAreaCheck;
