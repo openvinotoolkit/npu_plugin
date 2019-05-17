@@ -112,16 +112,15 @@ void addDMATasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
     //
 
     //cluster size (memory of the tensor) = tensor dims multiplied * (data type /8)
-    auto memDefs = target.memoryDefs();
-    auto nceDefs = target.nceDefs();
-    auto numCluster = nceDefs.find("Clusters")->second.totalNumber;
-    std::shared_ptr<mv::Element> returnedParams = model.getGlobalConfigParams();
-    double cmxSafetyFactor = returnedParams->get<double>("CMX_memory_overflow_safety_factor");
 
-    unsigned int cmxSize = memDefs.find("VPU_CMX_NN")->second.size; //4MB in bytes.
+    auto globalConfigParams = model.getGlobalConfigParams();
+
+    auto numCluster = globalConfigParams->get<int>("Number_of_Clusters");
+    auto safetyFactor = globalConfigParams->get<double>("CMX_memory_overflow_safety_factor");;
+    auto cmxSize = globalConfigParams->get<int>("NNCMXPerSlice"); //4MB in bytes.
     cmxSize /= numCluster;
-    cmxSize *= cmxSafetyFactor;
-    unsigned long _dma_dependency = passDesc.get<int>("weights_prefetch");
+    cmxSize *= safetyFactor;
+    int _dma_dependency = passDesc.get<int>("weights_prefetch");
     int dma_dependency;
 
     // Pass main assumption is that we are working on the original graph, just with the Ops converted to DPUTasks

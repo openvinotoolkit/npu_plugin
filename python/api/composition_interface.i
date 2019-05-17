@@ -229,7 +229,7 @@ import_array();
         short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padX, short unsigned padY, const mv::QuantizationParams &quantParams, const std::string& name){
         /// Add a Max Pooling Layer to the OpModel and return the relevant iterator
         return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, padX, padY, padY}, false,"","", quantParams, name);
+            {padX, padX, padY, padY}, false,"","floor", quantParams, name);
     }
 
 
@@ -266,7 +266,7 @@ import_array();
             adj_Y = 0;
 
         return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)}, false,"","",{{},{},{},{}},name);
+            {padX, (short unsigned int)(padX + adj_X), padY, (short unsigned int)(padY + adj_Y)}, false,"","floor",{{},{},{},{}},name);
 
     }
 

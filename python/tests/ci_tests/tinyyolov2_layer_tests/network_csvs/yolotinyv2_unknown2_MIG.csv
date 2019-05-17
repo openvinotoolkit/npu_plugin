@@ -1,0 +1,2 @@
+Network,Name,Op,Input Tensor,Output Tensor,Kernels,Stride,Dtype,ReLU,Sparsity
+Mobilenet V2,yt2,Convolution,106x106x32,104x104x64,3x3,1,UINT8,No,0
