@@ -610,7 +610,7 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     // check if the area is equal to the number of points
 
    
-    if (4 * workload.pointsTotal() == workload.area() || workload.area()<16 )  
+    if (4 * workload.pointsTotal() == workload.area() || workload.area()<16 )  //workload.area()%16 !=0 
     {
         if (mpeMode_.first == 4)
             workload.MPEMode = mv::MPE_Mode::Matrix;
