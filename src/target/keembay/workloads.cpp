@@ -547,16 +547,9 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
 
     }
 
-    /*Temporary fix - need to ask Pavan about polygonWorkloadSplit for 1x16 mode - it is returning an empty list*/
-    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
-        if(listIt->empty()) {
-            break; 
-        }
-        else {
-            workloads_.clear(); /*clearing the workloads as they may have shaped like polygons (not rectangles)*/
-            break;
-        }
-    
+    /*Clear original workloads vector and re-populate with workloads from polygonWorkloadSplit()*/
+    workloads_.clear();
+
     /*adding the rectangle workloads into workloads_ list*/
     for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
     {
@@ -615,16 +608,19 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     // then the point has to be included in the partition
     std::vector<std::pair<std::pair<int16_t, int16_t>, bool>> interesting_points;
     // check if the area is equal to the number of points
-    if (4 * workload.pointsTotal() == workload.area())
+
+   
+    if (4 * workload.pointsTotal() == workload.area() || workload.area()<16 )  
     {
-        //scale and clip code
-        /*
-        workload.MinX = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[0]));
-        workload.MaxX = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[0]) - static_cast<xyz_type>(mpeMode.first)));
-        workload.MinY = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[1]));
-        workload.MaxY = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[1]) - static_cast<xyz_type>(mpeMode.second)));
-        workload.setVertices();
-        */
+        if (mpeMode_.first == 4)
+            workload.MPEMode = mv::MPE_Mode::Matrix;
+        else
+            workload.MPEMode = mv::MPE_Mode::Vector;
+
+        workload.MinZ = 0;
+        workload.MaxZ = tensorShape_[2]-1;
+
+        //insert minz and max z here!!
         workloadFromAreaCheck.push_back(workload);
         return workloadFromAreaCheck;
     }

@@ -72,11 +72,6 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
     pass.log(mv::Logger::MessageType::Debug, "Starting workload generation pass");
 
-    //Get number of Clusters and DPU's
-    int nDPU = 20;                      //Default number of DPUs
-    int nClusters = 4;                  //Default number of Clusters
-    static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}};
-
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     if (globalParams->hasAttr("Number_of_DPUs")) 
         int nDPU = globalParams->get<int>("Number_of_DPUs");
@@ -156,6 +151,9 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     if(!workloads.validateWorkloads(opIt->getOutputTensor()[0]->getShape()))
                         std::runtime_error("Invalid workloads have been generated, the individual workloads do not sum the output tensor size");
 
+                    /*Store METIS optimization value as attrbute for unit testing*/
+                    opIt->set<int>("Metis_edge_cut", metisGraph->objval);
+                    opIt->set<bool>("Valid_workload", true);
                 }
                 else if (algorithm == "Rectangle")
                 {
