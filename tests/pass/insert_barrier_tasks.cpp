@@ -350,7 +350,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     std::string optString = "Static";
     mv::Attribute option = optString;
     auto& compDesc = unit.compilationDescriptor();
-    compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
+    compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
 
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.loadTargetDescriptor(mv::Target::ma2490);
@@ -450,17 +450,23 @@ TEST(insert_barrier_tasks, static_index_assignment)
 
 TEST(insert_barrier_tasks, dynamic_index_assignment)
 {
+    //mv::Logger::setVerboseLevel(mv::VerboseLevel::Info);
+
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
+    mv::ControlModel cm(unit.model());
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
+    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
+    // std::vector<double> weights3Data2 = mv::utils::generateSequence<double>(3*3*16*16);
+    // std::vector<double> weights3Data3 = mv::utils::generateSequence<double>(3*3*16*16);
+    
+    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
     auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
     auto pool2 = om.maxPool(conv1, {4, 4}, {2, 2}, {1, 1, 1, 1});
 
-    std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
     auto weights2 = om.constant(weights3Data, {3, 3, 16, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv2 = om.conv(pool1, weights2, {1, 1}, {1, 1, 1, 1});
 
@@ -485,10 +491,10 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     std::string optString = "Dynamic";
     mv::Attribute option = optString;
     auto& compDesc = unit.compilationDescriptor();
-    compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
+    compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
-    unit.compilationDescriptor().remove("serialize");
+    //unit.compilationDescriptor().remove("serialize");
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
@@ -626,14 +632,16 @@ TEST(insert_barrier_tasks, weights_prefetch)
     std::string optString = "Dynamic";
     mv::Attribute option = optString;
     auto& compDesc = unit.compilationDescriptor();
-    compDesc.setPassArg("InsertBarrierTasks", "barrier_index_assignment", option);
+    compDesc.setPassArg("GlobalConfigParams", "barrier_index_assignment", option);
 
     int dma_dependency = compDesc.getPassArg("dma","Singular","AddDMATasks","weights_prefetch");
     EXPECT_EQ(2, dma_dependency);     // default prefetch is 2
     int numChecks = 1;
-    compDesc.setPassArg("AddDMATasks", "weights_prefetch", 3);
+
+    int prefetchTestVal = 2;
+    compDesc.setPassArg("AddDMATasks", "weights_prefetch", prefetchTestVal);
     dma_dependency = compDesc.getPassArg("dma","Singular","AddDMATasks","weights_prefetch");
-    EXPECT_EQ(3, dma_dependency);
+    EXPECT_EQ(prefetchTestVal, dma_dependency);
     numChecks++;
 
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
