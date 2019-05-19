@@ -606,9 +606,9 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
 {
 
     /*------------------------------------------------------------------------------------------------------------
-        1. check if the area of the rectangle and number of elements match, if matches, then the polygon is a rectangle
-        2. If isn't equal, missing part of the rectangle could be at the vertex or/and along the edges.Note, current status is supporting only the 'points not in workload'
+        1.Missing part of the rectangle could be at the vertex or/and along the edges.Note, current status is supporting only the 'points not in workload'
         being at the vertices. Need to support the case where the missing points may be on the perimeter but not the edge
+        2. If there are no points in the 'points not in the workload', it means the workload is already a rectangle.
         3. get the list of 'interesting points' - these points are the ones that are 1) closest to the missing vertices or/and 2) the inner points
         on the (cut) edge. Below is a possible metis partition with AD edge of the rectangle ABCD that has A1A2 cut out and A3D cut out. The interesting points are at the corners
         which are A1, A2, A3, and C1. Current implementation is only supporting missing point at vertex, so D (and A3,C1) but not A1,A2.
@@ -628,36 +628,21 @@ std::vector<mv::Workload> mv::Workloads::polygonWorkloadSplit(const mv::pass::Pa
     //NB: Interesting points has a boolen value. This value indicates whether the point is at the end of a partition or at the beginning. If starting,
     // then the point has to be included in the partition
     std::vector<std::pair<std::pair<int16_t, int16_t>, bool>> interesting_points;
-    // check if the area is equal to the number of points
-
-   
-    if (4 * workload.pointsTotal() == workload.area() || workload.area() < 16 ) // pointsTotal = 
+    // find if any vertices are missing
+    for (auto it = begin(workload.vertices); it != end(workload.vertices); ++it)
     {
-        //scale and clip code
-        /*
-        workload.MinX = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[0]));
-        workload.MaxX = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[0]) - static_cast<xyz_type>(mpeMode.first)));
-        workload.MinY = std::min(workload.MinX, static_cast<xyz_type>(tensorShape_[1]));
-        workload.MaxY = std::min(workload.MaxX, static_cast<xyz_type>(static_cast<xyz_type>(tensorShape_[1]) - static_cast<xyz_type>(mpeMode.second)));
-        workload.setVertices();
-        */
-        
-        //insert minz and max z here!!
-        workloadFromAreaCheck.push_back(workload);
-        return workloadFromAreaCheck;
-    }
-    else if (4 * workload.pointsTotal() != workload.area())
-    {
-        // find interesting points
-        for (auto it = begin(workload.vertices); it != end(workload.vertices); ++it)
+        if (std::find(workload.points.begin(), workload.points.end(), std::make_pair(it->first, it->second)) == workload.points.end())
         {
-            if (std::find(workload.points.begin(), workload.points.end(), std::make_pair(it->first, it->second)) == workload.points.end())
             {
-                {
-                    points_not_in_wl.push_back(*it);
-                }
+                points_not_in_wl.push_back(*it);
             }
         }
+    }
+    if (points_not_in_wl.empty())
+    {
+        workloadFromAreaCheck.push_back(workload);
+        return workloadFromAreaCheck;
+        
     }
     // interesting points calculation
     int16_t diff1, diff2;
