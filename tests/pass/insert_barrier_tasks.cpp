@@ -74,7 +74,7 @@ TEST(insert_barrier_tasks, parallel_paths)
         if (b->getName() == "BarrierTask_0") 
         {
             EXPECT_EQ(2, b->get<mv::Barrier>("Barrier").getNumProducers());
-            EXPECT_EQ(8, b->get<mv::Barrier>("Barrier").getNumConsumers());
+            EXPECT_EQ(30, b->get<mv::Barrier>("Barrier").getNumConsumers());
             numChecks=numChecks+2;
         }
     }
@@ -147,7 +147,7 @@ TEST(insert_barrier_tasks, single_control_edge)
         //std::cout << " In single_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5")
         {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(15, b->get<mv::Barrier>("Barrier").getNumProducers());
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
             numChecks=numChecks+2;
         }
@@ -222,7 +222,7 @@ TEST(insert_barrier_tasks, multiple_control_edges)
         //std::cout << " In multiple_control_edges test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5")
         {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(15, b->get<mv::Barrier>("Barrier").getNumProducers());
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
             numChecks=numChecks+2;
         }
@@ -296,7 +296,7 @@ TEST(insert_barrier_tasks, dealloc_edge)
         //std::cout << " In static_index test: found " << b->getName() << " " << b->get<mv::Barrier>("Barrier").getNumConsumers() << std::endl;
         if (b->getName() == "BarrierTask_5")
         {
-            EXPECT_EQ(4, b->get<mv::Barrier>("Barrier").getNumProducers());
+            EXPECT_EQ(15, b->get<mv::Barrier>("Barrier").getNumProducers());
             EXPECT_EQ(1, b->get<mv::Barrier>("Barrier").getNumConsumers());
             numChecks=numChecks+2;
         }
