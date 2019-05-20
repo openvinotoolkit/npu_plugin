@@ -23,24 +23,30 @@ static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 {
     auto globalConfig = model.getGlobalConfigParams();
 
-    auto targetTotalCmx = target.memoryDefs().at("VPU_CMX_NN").size;
-    auto cmxUser = globalConfig->hasAttr("NNCMXPerSlice") ? globalConfig->get<int>("NNCMXPerSlice") : targetTotalCmx;
-    auto cmx = std::min(targetTotalCmx, cmxUser);
+    // ASSUMPTION: User always uses full memory
+    auto cmx = target.memoryDefs().at("VPU_CMX_NN").size;
 
-    auto targetTotalClusters = target.nceDefs().at("Clusters").totalNumber;
-    auto clustersUser = globalConfig->hasAttr("Number_of_Clusters") ? globalConfig->get<int>("Number_of_Clusters") : targetTotalClusters;
+    // ASSUMPTION: One cluster if not specified
+    auto targetTotalClusters = static_cast<int>(target.nceDefs().at("Clusters").totalNumber);
+    auto clustersUser = globalConfig->hasAttr("Number_of_Clusters") ? globalConfig->get<int>("Number_of_Clusters") : 1;
     auto clusters = std::min(targetTotalClusters, clustersUser);
 
+    // ASSUMPTION: By default there is no memory hack
     auto memoryHack = globalConfig->hasAttr("MemoryHack") && globalConfig->get<bool>("MemoryHack");
-    auto safetyFactor = globalConfig->hasAttr("CMX_memory_overflow_safety_factor") ? globalConfig->get<double>("CMX_memory_overflow_safety_factor") : 0.9;
 
+    // ASSUMPTION: Default memory safety factor is 0.925
+    auto safetyFactor = globalConfig->hasAttr("CMX_memory_overflow_safety_factor") ? globalConfig->get<double>("CMX_memory_overflow_safety_factor") : 0.925;
+
+    // ASSUMPTION: Except for when we use the memory hack, the amount of cmx available refers to the amount available to a single cluster
+    // This means that subtensor have to be used for the computation of memory requirements during maxcut.
+    // Also, for now memory hack makes sense just for 1 cluster.
     if (memoryHack)
         cmx *= safetyFactor;
     else
     {
         auto cmxPerCluster = cmx / targetTotalClusters;
         cmxPerCluster *= safetyFactor;
-        cmx = cmxPerCluster * clusters;
+        cmx = cmxPerCluster;
     }
 
     globalConfig->set<unsigned>("cmx", cmx);
