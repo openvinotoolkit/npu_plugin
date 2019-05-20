@@ -23,14 +23,16 @@ static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 {
     auto globalConfig = model.getGlobalConfigParams();
 
+    //ASSUMPTION: User always uses full memory
     auto targetTotalCmx = target.memoryDefs().at("VPU_CMX_NN").size;
-    auto cmxUser = globalConfig->hasAttr("NNCMXPerSlice") ? globalConfig->get<int>("NNCMXPerSlice") : targetTotalCmx;
-    auto cmx = std::min(targetTotalCmx, cmxUser);
+    auto cmx = targetTotalCmx;
 
+    //ASSUMPTION: One cluster if not specified
     auto targetTotalClusters = target.nceDefs().at("Clusters").totalNumber;
-    auto clustersUser = globalConfig->hasAttr("Number_of_Clusters") ? globalConfig->get<int>("Number_of_Clusters") : targetTotalClusters;
+    auto clustersUser = globalConfig->hasAttr("Number_of_Clusters") ? globalConfig->get<int>("Number_of_Clusters") : 1;
     auto clusters = std::min(targetTotalClusters, clustersUser);
 
+    //ASSUMPTION: By default there is no memory hack
     auto memoryHack = globalConfig->hasAttr("MemoryHack") && globalConfig->get<bool>("MemoryHack");
     auto safetyFactor = globalConfig->hasAttr("CMX_memory_overflow_safety_factor") ? globalConfig->get<double>("CMX_memory_overflow_safety_factor") : 0.9;
 
