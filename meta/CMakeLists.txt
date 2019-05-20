@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5.0)
 project(mcmComplier VERSION 0.0.1)
 
 add_executable(gen_composition_api gen_composition_api.cpp)
-target_link_libraries(gen_composition_api corebase)
+target_link_libraries(gen_composition_api corebase metis)
 
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/meta/include/mcm ${CMAKE_SOURCE_DIR}/meta/src/)
 

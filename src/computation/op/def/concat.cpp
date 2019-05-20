@@ -70,8 +70,11 @@ namespace mv
                 auto inputShape = inputs[i]->getShape();
                 inputShape0[numericAxisToConcat] += inputShape[numericAxisToConcat];
             }
-            
-            outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), inputs[0]->getDType(), inputs[0]->getOrder()));
+
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), inputs[0]->getDType(), inputs[0]->getOrder()));
+            else
+                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), inputs[0]->getDType(), inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
         // Default axis is channels (like for Intel Inference Engine)
@@ -82,6 +85,7 @@ namespace mv
         .setOutputs({"output"})
         .setVariableInputNum(true)
         .setOptionalArg<std::string>("axis", channels)
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(inputCheckFcn)
         .setOutputDef(outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
