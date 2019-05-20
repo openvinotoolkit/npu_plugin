@@ -134,11 +134,8 @@ TEST_P(workloads_rect_resnet50, forms)
               << "_" << testToString(shape) << "_" << order.toString();
     std::cout << "Test: " << test_name.str() << std::endl;
 
-    // TODO: make mpe_mode optional argument for workloads constructor
-    //   (as setting mpe_mode is relevant only for METIS partitioning)
-    std::pair<int, int> mpe_mode(4,4);
     std::string layer_name = "test";
-    mv::Workloads workloads(layer_name, shape, mpe_mode);
+    mv::Workloads workloads(layer_name, shape);
 
     mv::pass::PassEntry pass("dummy");
     ASSERT_EQ(METIS_OK, workloads.partitionTensorWithRectangleHeuristic(modes, n_wls,

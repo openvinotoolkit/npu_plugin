@@ -262,6 +262,7 @@ namespace mv
         std::vector<int> generateMetisGraphNodeNumbers(void);
 
     public:
+        Workloads(const std::string& name, const mv::Shape& tensorShape);
         Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <idx_t,idx_t>& mpeMode);
         ~Workloads();
       

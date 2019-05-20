@@ -4,13 +4,19 @@
 #include <algorithm> 
 #include <metis.h>
 #include <sstream>
-mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
-layerName_(name), tensorShape_(tensorShape), metisGraph_(new MetisGraphStructure(tensorShape, mpeMode)), mpeMode_(mpeMode)
-{
-    
-}
 
 mv::Workloads::~Workloads()
+{
+}
+
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape):
+    layerName_(name), tensorShape_(tensorShape)
+{
+}
+
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, std::pair <int,int>& mpeMode):
+    layerName_(name), tensorShape_(tensorShape), mpeMode_(mpeMode),
+    metisGraph_(new MetisGraphStructure(tensorShape, mpeMode))
 {
 }
 
