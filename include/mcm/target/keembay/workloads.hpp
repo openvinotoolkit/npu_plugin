@@ -270,7 +270,11 @@ namespace mv
         int partitionTensorWithMETIS(idx_t nWorkloads, const mv::pass::PassEntry& pass);
 
         /*returns: METIS_OK(=1), or METIS_ERROR*/
-        int partitionTensorWithRectangleHeuristic(const DPUModeList& modes, idx_t nWorkloads,
+        int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,
+                                                            idx_t        nWorkloads,
+                                                            bool         split_over_h,
+                                                            bool         split_over_w,
+                                                            bool         split_symmetric,
                                                   const mv::pass::PassEntry& pass);
 
         idx_t getNWorkloads(const mv::Shape& tensorShape, int nDPUxCluster);

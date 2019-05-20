@@ -1131,10 +1131,6 @@ namespace mv {
         return best_variant;
     }
 
-    static bool split_over_h = true;
-    static bool split_over_w = true;
-
-    static bool split_symmetric = false;
 
     using SplitFactors = std::pair<unsigned, unsigned>;
     using SplitFactorsList = std::vector<SplitFactors>;
@@ -1159,7 +1155,8 @@ namespace mv {
     // lower estimate is better
     // w, h -- tensor shape
     // x, y -- split factors
-    static double estimateSplitBalance(unsigned W, unsigned H, unsigned X, unsigned Y)
+    static double estimateSplitBalance(unsigned W, unsigned H, unsigned X, unsigned Y,
+                                       bool split_over_h, bool split_over_w)
     {
         // FIXME: POC maps W, H to X, Y (I guess it must map W, H to Y, X)
         if (!split_over_h && Y > 1)
@@ -1177,7 +1174,8 @@ namespace mv {
         double cost_estimate;
     };
 
-    static SplitVariant getBestSplitSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitVariant getBestSplitSymmetric(unsigned W, unsigned H, unsigned N,
+                                              bool split_over_h, bool split_over_w)
     {
         SplitVariant best_variant;
         best_variant.cost_estimate = INFINITY;
@@ -1188,14 +1186,14 @@ namespace mv {
             auto X = std::get<0>(f);
             auto Y = std::get<1>(f);
 
-            double cost0 = estimateSplitBalance(W, H, X, Y);
+            double cost0 = estimateSplitBalance(W, H, X, Y, split_over_h, split_over_w);
             if (best_variant.cost_estimate > cost0)
             {
                 best_variant.cost_estimate = cost0;
                 best_variant.factors = std::make_pair(X, Y);
             }
 
-            double cost1 = estimateSplitBalance(W, H, Y, X);
+            double cost1 = estimateSplitBalance(W, H, Y, X, split_over_h, split_over_w);
             if (best_variant.cost_estimate > cost1)
             {
                 best_variant.cost_estimate = cost1;
@@ -1220,9 +1218,10 @@ namespace mv {
         double      cost_estimate;
     };
 
-    static SplitSliceVariant splitSliceSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitSliceVariant splitSliceSymmetric(unsigned W, unsigned H, unsigned N,
+                                                 bool split_over_h, bool split_over_w)
     {
-        SplitVariant best_variant = getBestSplitSymmetric(W, H, N);
+        SplitVariant best_variant = getBestSplitSymmetric(W, H, N, split_over_h, split_over_w);
         double& cost_estimate = best_variant.cost_estimate;
         SplitFactors& factors = best_variant.factors;
         unsigned X = std::get<0>(factors);
@@ -1261,7 +1260,8 @@ namespace mv {
         char mode;
     };
 
-    static SplitVariantNonSymmetric getBestSplitNonSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitVariantNonSymmetric getBestSplitNonSymmetric(unsigned W, unsigned H, unsigned N,
+                                                             bool split_over_h, bool split_over_w)
     {
         SplitVariantNonSymmetric best_variant;
         best_variant.cost_estimate = INFINITY; // worst
@@ -1285,8 +1285,8 @@ namespace mv {
 
             if (H >= W)
             {
-                double cost0 = estimateSplitBalance(    a3, H,   1, K+1)
-                             + estimateSplitBalance(W - a3, H, P-1, K);
+                double cost0 = estimateSplitBalance(    a3, H,   1, K+1, split_over_h, split_over_w)
+                             + estimateSplitBalance(W - a3, H, P-1, K  , split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost0)
                 {
                     best_variant.cost_estimate = cost0;
@@ -1296,8 +1296,8 @@ namespace mv {
                     best_variant.mode = 'H';
                 }
 
-                double cost1 = estimateSplitBalance(W,     a1, K+1, 1)
-                             + estimateSplitBalance(W, H - a1, K  , P-1);
+                double cost1 = estimateSplitBalance(W,     a1, K+1, 1  , split_over_h, split_over_w)
+                             + estimateSplitBalance(W, H - a1, K  , P-1, split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost1)
                 {
                     best_variant.cost_estimate = cost1;
@@ -1309,8 +1309,8 @@ namespace mv {
             }
             else // if H < W
             {
-                double cost2 = estimateSplitBalance(    a1, H,   1, K+1)
-                             + estimateSplitBalance(W - a1, H, P-1, K);
+                double cost2 = estimateSplitBalance(    a1, H,   1, K+1, split_over_h, split_over_w)
+                             + estimateSplitBalance(W - a1, H, P-1, K  , split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost2)
                 {
                     best_variant.cost_estimate = cost2;
@@ -1320,8 +1320,8 @@ namespace mv {
                     best_variant.mode = 'H';
                 }
 
-                double cost3 = estimateSplitBalance(W,     a3, K+1, 1)
-                             + estimateSplitBalance(W, H - a3, K  , P-1);
+                double cost3 = estimateSplitBalance(W,     a3, K+1, 1  , split_over_h, split_over_w)
+                             + estimateSplitBalance(W, H - a3, K  , P-1, split_over_h, split_over_w);
                 if (best_variant.cost_estimate > cost3)
                 {
                     best_variant.cost_estimate = cost3;
@@ -1336,9 +1336,11 @@ namespace mv {
         return best_variant;
     }
 
-    static SplitSliceVariant splitSliceNonSymmetric(unsigned W, unsigned H, unsigned N)
+    static SplitSliceVariant splitSliceNonSymmetric(unsigned W, unsigned H, unsigned N,
+                                                    bool split_over_h, bool split_over_w)
     {
-        SplitVariantNonSymmetric best_split = getBestSplitNonSymmetric(W, H, N);
+        SplitVariantNonSymmetric best_split = getBestSplitNonSymmetric(W, H, N,
+                                                    split_over_h, split_over_w);
         double& cost_estimate = best_split.cost_estimate;
         SplitFactors& factors = best_split.factors;
         unsigned X = std::get<0>(factors);
@@ -1447,7 +1449,11 @@ namespace mv {
 
 
 int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& mode_list,
-                                        idx_t nWorkloads, const mv::pass::PassEntry &pass)
+                                                                   idx_t        nWorkloads,
+                                                                   bool         split_over_h,
+                                                                   bool         split_over_w,
+                                                                   bool         split_symmetric,
+                                                         const mv::pass::PassEntry &pass)
 {
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: layer=" + layerName_);
 
@@ -1476,10 +1482,12 @@ int mv::Workloads::partitionTensorWithRectangleHeuristic(const mv::DPUModeList& 
     pass.log(mv::Logger::MessageType::Debug, "RectangleHeuristic: reduced_height=" + std::to_string(reduced_shape.H)
                                                              + ", reduced_width="  + std::to_string(reduced_shape.W));
 
-    SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
+    SplitSliceVariant slicing_variant = splitSliceSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
+                                                            split_over_h, split_over_w);
     if (!split_symmetric)
     {
-        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads);
+        SplitSliceVariant slicing_variant_2 = splitSliceNonSymmetric(reduced_shape.W, reduced_shape.H, nWorkloads,
+                                                                     split_over_h, split_over_w);
         if (slicing_variant.cost_estimate > slicing_variant_2.cost_estimate)
             slicing_variant = slicing_variant_2;
     }

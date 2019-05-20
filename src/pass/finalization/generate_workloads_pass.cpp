@@ -105,7 +105,11 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 else if (algorithm == "Rectangle")
                 {
                     /*Partition tensor into workloads with Rectangle*/
-                    auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads, pass);
+                    bool split_over_h = true;
+                    bool split_over_w = true;
+                    bool split_symmetric = false;
+                    auto res = workloads.partitionTensorWithRectangleHeuristic(dpu_mode_poc, nWorkloads,
+                                                      split_over_h, split_over_w, split_symmetric, pass);
                     if (res == 1)
                         workloads.populateWorkloadsFromPartitions(nWorkloads, pass, MPEMode);
                     else
