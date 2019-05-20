@@ -39,6 +39,7 @@ static void computeMemoryFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
 
     // ASSUMPTION: Except for when we use the memory hack, the amount of cmx available refers to the amount available to a single cluster
     // This means that subtensor have to be used for the computation of memory requirements during maxcut.
+    // Also, for now memory hack makes sense just for 1 cluster.
     if (memoryHack)
         cmx *= safetyFactor;
     else

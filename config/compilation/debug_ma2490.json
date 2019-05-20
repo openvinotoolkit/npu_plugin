@@ -8,8 +8,6 @@
                 "Number_of_DPUs" : 5,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
-                "NCE2Mask": 1,
-                "NNCMXSliceAmount": 1,
                 "DDRScratch": 4096,
                 "CMX_memory_overflow_safety_factor" : 0.925,
                 "split_strategy" :
