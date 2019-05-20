@@ -148,9 +148,16 @@ namespace mv
                     /*Second row where node number is odd i.e. 1,3,5... */
                     if ((nodeIndex%2 != 0) && (nodeIndex <= ((m_xDim*2)-1))) {
                         
-                        min_x = min_x;
-                        min_y = min_y + n_elem_y;
-
+                        /*For 7x7 tensor mode 4x4*/
+                        if(m_yDim <= 2) {
+                            min_x = min_x;
+                            min_y = min_y + n_elem_y + 1;
+                        }
+                        else {
+                            min_x = min_x;
+                            min_y = min_y + n_elem_y;
+                        }
+                        
                         assert(nodeIndex < m_numberTensorVertices);
                         node_coords[nodeIndex] = mv::Rectangle(min_x, min_y, n_elem_x, n_elem_y);
 

@@ -555,39 +555,24 @@ void mv::Workloads::populateWorkloadsFromPartitions(idx_t nWorkloads, const mv::
 
     }
 
-    /*Temporary fix - Until Polygon logic for not a multiple of 4 is fixed*/
-    bool listOfworkloadListsEmpty = false;
-    
-    /*check if listOfworkloadLists has an empty workload*/
-    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
-        if(listIt->empty()) {
-            listOfworkloadListsEmpty = true;
-        }
-    
-    /*if listOfworkloadLists does not have an empty workload then it is valid - clear the original workloads list*/ 
-    if(!listOfworkloadListsEmpty)
-        workloads_.clear();
-   
-    /*if listOfworkloadLists is valid then add in workloads from polygon*/
-    if(!listOfworkloadListsEmpty) {
+    workloads_.clear();
+  
     /*adding the rectangle workloads into workloads_ list*/
-        for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++)
-        {
-            for (auto it = listIt->begin(); it != listIt->end(); it++)
-            {
-                /*These should be set in the polygon logic*/
-                if (mpeMode_.first == 4)
-                    it->MPEMode = mv::MPE_Mode::Matrix;
-                else
-                    it->MPEMode = mv::MPE_Mode::Vector;
+    for (auto listIt = listOfworkloadLists.begin(); listIt != listOfworkloadLists.end(); listIt++) {
+        for (auto it = listIt->begin(); it != listIt->end(); it++) {
+            /*These should be set in the polygon logic*/
+            if (mpeMode_.first == 4)
+                it->MPEMode = mv::MPE_Mode::Matrix;
+            else
+                it->MPEMode = mv::MPE_Mode::Vector;
 
-                it->MinZ = 0;
-                it->MaxZ = tensorShape_[2]-1;
+            it->MinZ = 0;
+            it->MaxZ = tensorShape_[2]-1;
 
-                workloads_.push_back(*it);
-            }
+            workloads_.push_back(*it);
         }
     }
+
     
     for(int workload = 0; workload < workloads_.size(); workload++) { 
 
