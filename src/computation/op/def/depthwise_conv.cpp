@@ -68,7 +68,7 @@ namespace mv
 
             // Make sure that the result of subtract will not be negative
             mv::Shape outputShape({(inputs[0]->getShape()[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - weights->getShape()[IO_WIDTH_DIMENSION]) / stride[0] + 1, (
-                inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - weights->getShape()[IO_HEIGHT_DIMENSION]) / stride[1] + 1, inputs[0]->getShape()[KERNEL_OUTPUT_CHANNELS],inputs[0]->getShape()[IO_BATCH_DIMENSION]});
+                inputs[0]->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - weights->getShape()[IO_HEIGHT_DIMENSION]) / stride[1] + 1, inputs[0]->getShape()[KERNEL_INPUT_CHANNELS],inputs[0]->getShape()[IO_BATCH_DIMENSION]});
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0", outputShape, inputs[0]->getDType(), inputs[0]->getOrder()));
