@@ -1,9 +1,14 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-// the barrierCounter example shows the barrier Counter reset need and how to. BarrierCounter is a static variable that need to be reset between compilation unit
-// runs, if the symbols (main program) is not reloaded. 3 compilation units are run below. 1st one doesn't reset the counter, so in the 2nd unit, the barrier counters
-// don't start with 0. the 2nd unit resets the counter, so the 3rd unit sees the counters starting at 0
+
+// The barrierCounter example shows the barrier Counter reset need and how to.
+// BarrierCounter is a static variable that need to be reset between compilation
+// unit runs, if the symbols (main program) is not reloaded. 3 compilation units
+// are run below. 1st one doesn't reset the counter, so in the 2nd unit, the
+// barrier counters don't start with 0. the 2nd unit resets the counter, so the
+// 3rd unit sees the counters starting at 0.
+
 TEST(global_params_reset, barrierCounter)
 {
     mv::CompilationUnit unit("testModel");
@@ -19,7 +24,8 @@ TEST(global_params_reset, barrierCounter)
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
-    // donot reset the barrier counter to 0 on purpose. If not reset in this run, the next compilation unit will see barrier IDs that start with nonzero ID.
+    // donot reset the barrier counter to 0 on purpose. If not reset in this run,
+    // the next compilation unit will see barrier IDs that start with nonzero ID.
     //unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
     unit.initialize();
     unit.run();
@@ -29,14 +35,17 @@ TEST(global_params_reset, barrierCounter)
     std::sort(barrierOps.begin(), barrierOps.end(), [](mv::Data::OpListIterator a, mv::Data::OpListIterator b)
        {return (a->get<mv::Barrier>("Barrier").getID() < b->get<mv::Barrier>("Barrier").getID());});
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
-    int barrierID = 0;
+
     for (auto b : barrierOps)
     {
-            EXPECT_EQ(barrierID, b->get<mv::Barrier>("Barrier").getID());
-            barrierID++;
+        if (b->getName().find("BarrierTask_0") != std::string::npos)
+        {
+            EXPECT_EQ(0, b->get<mv::Barrier>("Barrier").getID());
+        }
     }
-    //-------------------------------------------------------------------------------------------------------------------------------//
-    //2nd compilation unit is created to show that the barrier IDs start with nonzero index as the barrier Counter is not reset in the previous run
+    //----------------------------------------------------------------------------------------------//
+    // 2nd compilation unit is created to show that the barrier IDs start with
+    // nonzero index as the barrier Counter is not reset in the previous run
     mv::CompilationUnit unit2("testModel2");
     mv::OpModel& om2 = unit2.model();
     barrierOps = om2.getOps("BarrierTask");
@@ -61,10 +70,11 @@ TEST(global_params_reset, barrierCounter)
     // expected 2 barriers
     expected_num_barriers = 2;
     ASSERT_EQ(barrierOps.size(), expected_num_barriers);
-    int barrierStartID = 0; // barriers start with ID=2 (2,3 are 2 barrier IDs in this unit). So below comparison is to show IDs not equal to 0
-    for (auto b : barrierOps)
-        EXPECT_NE(barrierStartID, b->get<mv::Barrier>("Barrier").getID());
-    //-------------------------------------------------------------------------------------------------------------------------------//
+    // barriers start with ID=2 (2,3 are 2 barrier IDs in this unit). So below
+    // comparison is to show IDs not equal to 0
+    int barrierStartID = 0;
+    EXPECT_NE(barrierStartID, barrierOps[0]->get<mv::Barrier>("Barrier").getID());
+    //------------------------------------------------------------------------//
 
     mv::CompilationUnit unit3("testModel3");
     mv::OpModel& om3 = unit3.model();
@@ -91,8 +101,10 @@ TEST(global_params_reset, barrierCounter)
     // as barrier counter reset done in unit2, the barrier IDs in unit3 are 0,1
     for (auto b : barrierOps)
     {
-        EXPECT_EQ(barrierStartID, b->get<mv::Barrier>("Barrier").getID());
-        barrierStartID++;
+        if (b->getName().find("BarrierTask_0") != std::string::npos)
+        {
+            EXPECT_EQ(barrierStartID, b->get<mv::Barrier>("Barrier").getID());
+        }
     }
     
 }
