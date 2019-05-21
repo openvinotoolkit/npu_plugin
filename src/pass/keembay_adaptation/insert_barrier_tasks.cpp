@@ -302,20 +302,42 @@ static bool opHasBarrier(const std::string& opName , std::vector<mv::Barrier>& b
     return false;
 }
 
-static void combineRedundantBarriers(std::vector<mv::Barrier>& barriers)
+static void combineRedundantBarriers(const mv::pass::PassEntry& pass, std::vector<mv::Barrier>& barriers)
 {
-    // combine redundant barriers (same producers) into 1 barrier
     for (auto b = barriers.begin(); b != barriers.end(); b++ )
     {
         for (auto c = std::next(b); c!= barriers.end(); c++ )
         {
+            // combine barriers with same producers into 1 barrier
             if ((b->getProducers() == c->getProducers()) && (c->hasConsumers()) && (b->hasConsumers()))
             {
+                pass.log(mv::Logger::MessageType::Info,
+                        "combining redundant barriers: " + std::to_string(b->getID())
+                        + " and " + std::to_string(c->getID()));
                 // move c consumers to b
                 for (auto consumer : c->getConsumers())
                 {
                     b->addConsumer(consumer);
                     c->removeConsumer(consumer);
+                }
+            }
+            // combine barriers with only one consumer that happen to be the same into 1 barrier
+            else if ((b->getNumConsumers() == 1)
+                    && (c->getNumConsumers() == 1)
+                    && (b->getConsumers() == c->getConsumers()))
+            {
+                pass.log(mv::Logger::MessageType::Info,
+                        " combining redundant barriers: " + std::to_string(b->getID())
+                        + " and " + std::to_string(c->getID())
+                        + " : they have have a single consumer and share that consumer");
+
+                // move c's producers to b
+                for (auto producer: c->getProducers())
+                {
+                    b->addProducer(producer);
+
+                    // Clear c so that it can be removed from the graph
+                    c->clear();
                 }
             }
         }
@@ -517,7 +539,7 @@ void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
 
     addBarriers(model, barriers);
 
-    combineRedundantBarriers(barriers);
+    combineRedundantBarriers(pass, barriers);
 
     setBarrierGroupAndIndex(pass, om, barriers, passDesc);
 
