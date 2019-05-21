@@ -205,7 +205,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
-        toBuild->data->data_index = t->getAddress();
+        if (t->hasAttr("address"))
+            toBuild->data->data_index = t->getAddress();
+        else
+            toBuild->data->data_index = tensorBufferIt->getOffset();
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
 

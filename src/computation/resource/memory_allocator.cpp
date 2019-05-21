@@ -55,6 +55,8 @@ mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(
 void mv::MemoryAllocator::MemoryBuffer::setOffset(std::size_t offset_)
 {
     offset = offset_;
+    for (auto itSlave = slaveBuffers.begin(); itSlave != slaveBuffers.end(); ++itSlave)
+        (**itSlave)->offset = offset;
 }
 
 std::size_t mv::MemoryAllocator::MemoryBuffer::getOffset() const
@@ -391,6 +393,13 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
 
     return slaveBuffer;
 
+}
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getTopMasterBuffer(mv::MemoryAllocator::BufferIterator t)
+{
+    auto mt = (*t)->masterBuffer;
+    if (*mt != *bufferEnd((*t)->stage))
+        return getTopMasterBuffer(mt);
+    return t;
 }
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer, 
