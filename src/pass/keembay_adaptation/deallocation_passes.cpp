@@ -88,17 +88,38 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                 sinkOperations.push_back(df.sink());
             }
 
+            bool found = false;
             auto chosenOp = sortedOps.rbegin();
             for(; chosenOp != sortedOps.rend(); ++chosenOp)
+            {
                 if(std::find(sinkOperations.begin(), sinkOperations.end(), *chosenOp) != sinkOperations.end())
+                {
+                    found = true;
                     break;
+                }
+            }
+
+            if(!found)
+                throw "MarcoYouScrewedUpException";
 
             if(!cm.checkControlFlow(*chosenOp, deallocateInputOp))
                 cm.defineFlow(*chosenOp, deallocateInputOp);
-            for(auto son = chosenOp->leftmostChild(); son != om.opEnd(); ++son)
+
+            // This loop has to happen in both data and control model
+            // DATA
+            auto chosenOpData = *chosenOp;
+            for(auto son = chosenOpData.leftmostChild(); son != om.opEnd(); ++son)
                 if(!cm.checkControlFlow(deallocateInputOp, son))
                     if(son->getOpType() != "Deallocate")
                         cm.defineFlow(deallocateInputOp, son);
+
+            // CONTROL
+            auto chosenOpControl = cm.switchContext(*chosenOp);
+            auto deallocateInputOpControl = cm.switchContext(deallocateInputOp);
+            for(auto son = chosenOpControl.leftmostChild(); son != cm.opEnd(); ++son)
+                if(!cm.checkControlFlow(deallocateInputOpControl, son))
+                    if(son->getOpType() != "Deallocate")
+                        cm.defineFlow(deallocateInputOpControl, son);
 
         }
     }
