@@ -168,8 +168,9 @@ TEST_P(workloads_rect_resnet50, forms)
 }
 
 
-static const mv::DPUModeList dpu_mode_1x1 = {{1, 1}};
-static const mv::DPUModeList dpu_mode_poc = {{4, 4}, {16, 1}}; // {height, width}
+static const mv::DPUModeList dpu_mode_1x1  = {{1, 1}};
+static const mv::DPUModeList dpu_mode_1x16 = {{1, 16}};
+static const mv::DPUModeList dpu_mode_poc  = {{4, 4}, {1, 16}}; // {height, width}
 
 //
 // Tests with DPU Mode = 1x1
@@ -207,16 +208,16 @@ static Etalon etalon08 = {{112, 28, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 5, 
                           {{0, 40, 0, 16}, {40, 80, 0, 16}, {80, 112, 0, 16}, {0, 56, 16, 28}, {56, 112, 16, 28}}};
 
 //
-// Tests with DPU Mode = 16x1 (according to POC results)
+// Tests with DPU Mode = 1x16 (according to POC results)
 //
 
-static Etalon etalon09 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 2, true, true,
+static Etalon etalon09 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_1x16, 2, true, true,
                           {{0, 56, 0, 7}, {0, 56, 7, 14}}};
 
-static Etalon etalon10 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 4, true, true,
+static Etalon etalon10 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_1x16, 4, true, true,
                           {{0, 16, 0, 14}, {16, 32, 0, 14}, {32, 48, 0, 14}, {48, 56, 0, 14}}};
 
-static Etalon etalon11 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_poc, 5, true, true,
+static Etalon etalon11 = {{56, 14, 64, 1}, mv::Order("NCHW"), dpu_mode_1x16, 5, true, true,
                           {{0, 32, 0, 5}, {0, 32, 5, 10}, {0, 32, 10, 14}, {32, 56, 0, 7}, {32, 56, 7, 14}}};
 
 // FIXME: POC seems to mess tensor layout - shape must be {1, 1, 1000, 1}

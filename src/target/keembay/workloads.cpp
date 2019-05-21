@@ -1091,6 +1091,7 @@ namespace mv {
     {
         double         efficiency;
         WorkloadShape  original;
+        WorkloadShape  padded;
         WorkloadShape  reduced;
         mv::DPUMode    mode;
     };
@@ -1130,7 +1131,7 @@ namespace mv {
                 WorkloadShape reduced;
                 reduced.H = padded.H / mode.H;
                 reduced.W = padded.W / mode.W;
-                best_variant = {efficiency, original, reduced, mode};
+                best_variant = {efficiency, original, padded, reduced, mode};
             }
         }
 
@@ -1171,7 +1172,7 @@ namespace mv {
             return INFINITY;
         if (H < Y || W < X)
             return INFINITY;
-        return (W/X)*H + (H/Y)*W;
+        return (W%X)*H + (H%Y)*W;
     }
 
     struct SplitVariant
@@ -1379,7 +1380,7 @@ namespace mv {
                 slice_list.push_back(slice);
             }
             x_start = xss;
-            Y -= 1;
+            X -= 1;
         }
         else // if mode == 'W'
         {
@@ -1393,7 +1394,7 @@ namespace mv {
                 slice_list.push_back(slice);
             }
             y_start = yss;
-            X -= 1;
+            Y -= 1;
         }
 
         unsigned x_size = std::ceil(static_cast<double>(W - x_start) / X);
@@ -1422,8 +1423,8 @@ namespace mv {
         WorkloadList workload_list;
 
         // FIXME: probably map W, H to Y, X (POC maps to X, Y)
-        unsigned x_coef = std::ceil(static_cast<double>(padding.original.W) / padding.reduced.W);
-        unsigned y_coef = std::ceil(static_cast<double>(padding.original.H) / padding.reduced.H);
+        unsigned x_coef = std::ceil(static_cast<double>(padding.padded.W) / padding.reduced.W);
+        unsigned y_coef = std::ceil(static_cast<double>(padding.padded.H) / padding.reduced.H);
 
         for (auto slice : slice_list)
         {
