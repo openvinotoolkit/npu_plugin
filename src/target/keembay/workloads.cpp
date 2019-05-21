@@ -1007,19 +1007,19 @@ bool mv::Workloads::validateWorkloads(const mv::Shape& shape)
     }
 
     // Check for same vertices for each of the X, Y and X dimensions. This is done by comparing the shape of the inputTensor and min max of (all) workloads
-    // if (!equalShapes(this->getShapefromMinMax(), shape))
-    // {
-    //     this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
-    //                                  shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
-    //     return false;
-    // }
+    if (!equalShapes(this->getShapefromMinMax(), shape))
+    {
+        this->log(mv::Logger::MessageType::Warning, "METIS partition failed because vertices/bounds different between Original Tensor " + 
+                                     shape.toString() + " and Partitioned Tensor " + this->getShapefromMinMax().toString());
+        return false;
+    }
 
     // Check 2: No intersection between workloads.
-    // if (!this->noOverlap())
-    // {
-    //     this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
-    //     return false;
-    // }
+    if (!this->noOverlap())
+    {
+        this->log(mv::Logger::MessageType::Debug, "METIS partition failed because of overlap of paritions");
+        return false;
+    }
 
     return true;
 }
