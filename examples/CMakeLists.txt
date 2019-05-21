@@ -57,9 +57,6 @@ if (MSVC)
 
 else()
    
-    add_executable(dpu_conv_example dpu_conv_example.cpp)
-    target_link_libraries(dpu_conv_example cm)
-
     add_executable(average_to_depthwise average_to_depthwise.cpp)
     target_link_libraries(average_to_depthwise cm)
 
