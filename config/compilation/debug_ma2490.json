@@ -209,10 +209,10 @@
     "dma": {
         "Singular" : [
             {
-                "name":"AddDMATasks",
+                "name":"AddWeightsDMATasks",
                 "weights_prefetch": 2
             },
-            "AddFinalDMATask",
+            "AddInitialAndFinalDMATask",
             {
                 "name": "GenerateDot",
                 "output": "dma_model.dot",
