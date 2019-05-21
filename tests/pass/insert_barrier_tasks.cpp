@@ -7,7 +7,7 @@ TEST(insert_barrier_tasks, serial_path)
     mv::CompilationUnit unit("testModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1}); // one barrier
@@ -341,7 +341,7 @@ TEST(insert_barrier_tasks, static_index_assignment)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(om);
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights0 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv0 = om.conv(input, weights0, {1, 1}, {1, 1, 1, 1});  // barrier
@@ -423,7 +423,7 @@ TEST(insert_barrier_tasks, dynamic_index_assignment)
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     std::vector<double> weights3Data = mv::utils::generateSequence<double>(3*3*16*16);
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
     auto pool1 = om.maxPool(conv1, {2, 2}, {2, 2}, {0, 0, 0, 0});
@@ -488,7 +488,7 @@ TEST(insert_barrier_tasks, weights_prefetch)
     mv::OpModel& om = unit.model();
     mv::ControlModel cm(unit.model());
 
-    auto input = om.input({224, 224, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
+    auto input = om.input({28, 28, 3, 1}, mv::DType("Float16"), mv::Order("NCHW"));
     std::vector<double> weightsData = mv::utils::generateSequence<double>(3*3*3*16);
     auto weights1 = om.constant(weightsData, {3, 3, 3, 16}, mv::DType("Float16"), mv::Order("NCWH"));
     auto conv1 = om.conv(input, weights1, {1, 1}, {1, 1, 1, 1});
@@ -618,7 +618,7 @@ static void RunTest(mv::CompilationUnit& unit, std::vector<int>& barrierOpIndice
     // to a large number
     unit.compilationDescriptor().setPassArg("AddDMATasks", "weights_prefetch", 200);
 
-    //unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
+    unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
 
     // Clean up barrier indices after run (since we'll be creating and running multiple networks)
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
