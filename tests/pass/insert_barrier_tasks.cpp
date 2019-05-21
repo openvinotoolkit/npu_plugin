@@ -733,7 +733,7 @@ TEST(insert_barrier_tasks, weights_prefetch)
             numChecks++;
         }
     }
-    EXPECT_EQ(17, numChecks);   // coverage check
+    EXPECT_EQ(15, numChecks);   // coverage check
 }
 
 TEST(insert_barrier_tasks, additional_interference)
