@@ -25,6 +25,7 @@ namespace mv
 static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::json::Object&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     for(auto eltWiseDpuTaskOp = om.opBegin(); eltWiseDpuTaskOp != om.opEnd(); ++eltWiseDpuTaskOp)
     {
@@ -34,21 +35,33 @@ static void generateEltWiseConstantsFcn(const mv::pass::PassEntry& , mv::Computa
                (eltWiseDpuTaskOp->get<std::string>("taskOp") == "Subtract") ||
                (eltWiseDpuTaskOp->get<std::string>("taskOp") == "Multiply"))
             {
-                std::string opName = eltWiseDpuTaskOp->getName();
+                bool hasBias = eltWiseDpuTaskOp->hasAttr("bias");
+                if (hasBias)
+                {
+                    std::string opName = eltWiseDpuTaskOp->getName();
 
-                std::string name(opName + "QuantizationCostant");
-                auto output = eltWiseDpuTaskOp->getOutputTensor(0);
-                auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+                    std::string name(opName + "QuantizationCostant");
+                    auto output = eltWiseDpuTaskOp->getOutputTensor(0);
+                    auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
 
-                mv::Shape shape({1, 1, 1, outputChannels});
-                std::vector<int64_t> constantData(shape.totalSize(), 0);
+                    mv::Shape shape({1, 1, 1, outputChannels});
+                    std::vector<int64_t> constantData(shape.totalSize(), 0);
 
-                //TODO: Fill constantData
-                mv::QuantizationParams quantParams = {{},{},{},{}};
-                auto constant = om.constantInt(constantData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, name);
-                om.getSourceOp(constant)->set<unsigned>("opId", eltWiseDpuTaskOp->get<unsigned>("opId"));
-                unsigned newSize = eltWiseDpuTaskOp->addInputTensor(constant);
-                om.defineFlow(constant, eltWiseDpuTaskOp, newSize - 1);
+                    auto bias = dm.getTensor(eltWiseDpuTaskOp->get<std::string>("bias"));
+                    auto biasData = bias->getData(); //Bias has the type Int32 in both cases above
+
+                    for (size_t i = 0; i < constantData.size(); ++i)
+                        constantData[i] = biasData[i/4];
+
+                    dm.undefineTensor(bias);
+                    eltWiseDpuTaskOp->erase("bias");
+
+                    mv::QuantizationParams quantParams = {{},{},{},{}};
+                    auto constant = om.constantInt(constantData, shape, mv::DType("Int32"), mv::Order("NWCH"), quantParams, name);
+                    om.getSourceOp(constant)->set<unsigned>("opId", eltWiseDpuTaskOp->get<unsigned>("opId"));
+                    unsigned newSize = eltWiseDpuTaskOp->addInputTensor(constant);
+                    om.defineFlow(constant, eltWiseDpuTaskOp, newSize - 1);
+                }
             }
         }
     }
