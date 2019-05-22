@@ -76,6 +76,9 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     unit.compilationDescriptor().remove("finalize","GenerateWorkloads");
     unit.compilationDescriptor().remove("serialize","GenerateBlobKeembay");
     unit.compilationDescriptor().setPassArg("GlobalConfigParams", "MemoryHack", false);
+    unit.compilationDescriptor().remove("finalize", "TensorGraphColoring");
+    unit.compilationDescriptor().remove("finalize", "PopulateWeightsTables");
+
 
     unit.initialize();
     unit.run();
