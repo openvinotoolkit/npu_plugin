@@ -295,7 +295,7 @@
             "ArrangeKeembayExecution",
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "FakeFilter"
             },
             "AllocateInputOutputTensorsKeemBay",
             "AllocatePopulatedTensorsKeemBay",
@@ -305,7 +305,7 @@
             "RemoveDeallocationTasks",
             {
                 "name": "TransitiveReduction",
-                "filter": "PositiveMemory"
+                "filter": "FakeFilter"
             },
             {
                 "name" : "InsertBarrierTasks",
