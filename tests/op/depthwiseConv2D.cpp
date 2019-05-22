@@ -15,7 +15,7 @@ TEST(ops, depthconv2D)
     auto output = om.output(conv);
 
 
-    ASSERT_EQ(conv->getShape(), mv::Shape({8, 8, 1, 1}));
+    ASSERT_EQ(conv->getShape(), mv::Shape({8, 8, 2, 1}));
     ASSERT_EQ(convOp->getOpType(), "DepthwiseConv");
     ASSERT_EQ(convOp->attrsCount(), 6);
     auto s0 = convOp->get<std::array<unsigned short, 2>>("stride")[0];

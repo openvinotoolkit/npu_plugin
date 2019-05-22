@@ -19,7 +19,6 @@ TEST(insert_barrier_tasks, serial_path)
     unit.loadTargetDescriptor(mv::Target::ma2490);
     
     unit.compilationDescriptor().remove("finalize","MaxTopologicalCutAndPartialSerialisation");
-    unit.compilationDescriptor().remove("finalize","TensorGraphColoring");
     unit.compilationDescriptor().remove("serialize");
 
     unit.compilationDescriptor().addToGroup("root","GlobalParamsReset","Singular", false);
